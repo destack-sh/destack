@@ -289,167 +289,22 @@ impl DestackOptionalApplicability {
     }
 }
 
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackArtifactPathState {
-    /// The path did not exist.
-    Missing = 0,
-    /// The path was a regular file.
-    File = 1,
-    /// The path was a directory.
-    Directory = 2,
-    /// The path was a symbolic link.
-    Symlink = 3,
-    /// The path existed with another host-specific kind.
-    Other = 4,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackArtifactPathStateArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackArtifactPathState,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalArtifactPathState {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackArtifactPathState,
-}
-
-impl DestackArtifactPathState {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::ArtifactPathState) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::ArtifactPathState::Missing => Self::Missing,
-            rust::language::ArtifactPathState::File => Self::File,
-            rust::language::ArtifactPathState::Directory => Self::Directory,
-            rust::language::ArtifactPathState::Symlink => Self::Symlink,
-            rust::language::ArtifactPathState::Other => Self::Other,
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(self) -> Result<rust::language::ArtifactPathState, String> {
-        Ok(match self {
-            Self::Missing => rust::language::ArtifactPathState::Missing,
-            Self::File => rust::language::ArtifactPathState::File,
-            Self::Directory => rust::language::ArtifactPathState::Directory,
-            Self::Symlink => rust::language::ArtifactPathState::Symlink,
-            Self::Other => rust::language::ArtifactPathState::Other,
-        })
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {}
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self::Missing
-    }
-}
-
-impl DestackArtifactPathStateArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(
-        values: Vec<rust::language::ArtifactPathState>,
-    ) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackArtifactPathState::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ArtifactPathState>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalArtifactPathState {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(
-        value: Option<rust::language::ArtifactPathState>,
-    ) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackArtifactPathState::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackArtifactPathState::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ArtifactPathState>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackArtifactPathState::empty();
-    }
-}
-
 /// C ABI bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackArtifactDirectoryEntry {
-    /// The entry path.
-    pub(crate) path: *mut c_char,
-    /// The exact entry path state.
-    pub(crate) state: DestackArtifactPathState,
+pub struct DestackArtifactVersion {
+    /// Semantic artifact slot.
+    pub(crate) key: *mut DestackArtifactKey,
+    /// Exact semantic fingerprint.
+    pub(crate) fingerprint: *mut c_char,
 }
 
 /// C ABI bridge value array.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackArtifactDirectoryEntryArray {
+pub struct DestackArtifactVersionArray {
     /// Owned value pointer.
-    pub(crate) ptr: *mut DestackArtifactDirectoryEntry,
+    pub(crate) ptr: *mut DestackArtifactVersion,
     /// Value count.
     pub(crate) len: usize,
 }
@@ -457,63 +312,69 @@ pub struct DestackArtifactDirectoryEntryArray {
 /// C ABI optional bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackOptionalArtifactDirectoryEntry {
+pub struct DestackOptionalArtifactVersion {
     /// Whether the value is present.
     pub(crate) is_some: bool,
     /// Value when present.
-    pub(crate) value: DestackArtifactDirectoryEntry,
+    pub(crate) value: DestackArtifactVersion,
 }
 
-impl DestackArtifactDirectoryEntry {
+impl DestackArtifactVersion {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(
-        value: rust::language::ArtifactDirectoryEntry,
-    ) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: rust::language::ArtifactVersion) -> Result<Self, String> {
         Ok(Self {
-            path: c_string(value.path)?,
-            state: DestackArtifactPathState::from_bridge(value.state)?,
+            key: Box::into_raw(Box::new(DestackArtifactKey { value: value.key })),
+            fingerprint: c_string(value.fingerprint)?,
         })
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ArtifactDirectoryEntry, String> {
-        Ok(rust::language::ArtifactDirectoryEntry {
-            path: read_string(self.path)?,
-            state: self.state.to_bridge()?,
+    pub(crate) fn to_bridge(&self) -> Result<rust::language::ArtifactVersion, String> {
+        Ok(rust::language::ArtifactVersion {
+            key: {
+                let value = unsafe { self.key.as_ref() }.ok_or("artifact key is null")?;
+                value.value.clone()
+            },
+            fingerprint: read_string(self.fingerprint)?,
         })
     }
 
     /// Destroy this C ABI value.
     pub(crate) fn destroy(&mut self) {
-        destroy_string(self.path);
-        self.path = ptr::null_mut();
-        self.state.destroy();
+        if !self.key.is_null() {
+            unsafe {
+                destack_artifact_key_destroy(self.key);
+            }
+            self.key = ptr::null_mut();
+        }
+        destroy_string(self.fingerprint);
+        self.fingerprint = ptr::null_mut();
     }
 
     /// Return one empty C ABI value.
     pub(crate) fn empty() -> Self {
         Self {
-            path: ptr::null_mut(),
-            state: DestackArtifactPathState::empty(),
+            key: ptr::null_mut(),
+            fingerprint: ptr::null_mut(),
         }
     }
 }
 
-impl DestackArtifactDirectoryEntryArray {
+impl DestackArtifactVersionArray {
     /// Convert bridge values into one C ABI array.
     pub(crate) fn from_bridge(
-        values: Vec<rust::language::ArtifactDirectoryEntry>,
+        values: Vec<rust::language::ArtifactVersion>,
     ) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
-            converted.push(DestackArtifactDirectoryEntry::from_bridge(value)?);
+            converted.push(DestackArtifactVersion::from_bridge(value)?);
         }
         let (ptr, len) = owned_array(converted);
         Ok(Self { ptr, len })
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ArtifactDirectoryEntry>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ArtifactVersion>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
@@ -541,27 +402,25 @@ impl DestackArtifactDirectoryEntryArray {
     }
 }
 
-impl DestackOptionalArtifactDirectoryEntry {
+impl DestackOptionalArtifactVersion {
     /// Convert one optional bridge value into one C ABI optional value.
     pub(crate) fn from_bridge(
-        value: Option<rust::language::ArtifactDirectoryEntry>,
+        value: Option<rust::language::ArtifactVersion>,
     ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
-                value: DestackArtifactDirectoryEntry::empty(),
+                value: DestackArtifactVersion::empty(),
             });
         };
         Ok(Self {
             is_some: true,
-            value: DestackArtifactDirectoryEntry::from_bridge(value)?,
+            value: DestackArtifactVersion::from_bridge(value)?,
         })
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(
-        &self,
-    ) -> Result<Option<rust::language::ArtifactDirectoryEntry>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ArtifactVersion>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -575,7 +434,7 @@ impl DestackOptionalArtifactDirectoryEntry {
             self.value.destroy();
         }
         self.is_some = false;
-        self.value = DestackArtifactDirectoryEntry::empty();
+        self.value = DestackArtifactVersion::empty();
     }
 }
 
@@ -844,380 +703,6 @@ impl DestackOptionalFileId {
 /// C ABI bridge enum kind.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackArtifactSourceDependencyKind {
-    /// The exact state observed for one source path.
-    PathState = 0,
-    /// The exact direct entries observed for one directory.
-    DirectoryEntries = 1,
-    /// The exact source content read for one file.
-    FileContent = 2,
-}
-
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackArtifactSourceDependency {
-    /// Active enum variant.
-    pub(crate) kind: DestackArtifactSourceDependencyKind,
-    pub(crate) path: *mut c_char,
-    pub(crate) state: DestackArtifactPathState,
-    pub(crate) directory: *mut c_char,
-    pub(crate) entries: DestackArtifactDirectoryEntryArray,
-    pub(crate) file: DestackFileId,
-    pub(crate) content: DestackContentId,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackArtifactSourceDependencyArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackArtifactSourceDependency,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalArtifactSourceDependency {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackArtifactSourceDependency,
-}
-
-impl DestackArtifactSourceDependency {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(
-        value: rust::language::ArtifactSourceDependency,
-    ) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::ArtifactSourceDependency::PathState { path, state } => Self {
-                kind: DestackArtifactSourceDependencyKind::PathState,
-                path: c_string(path)?,
-                state: DestackArtifactPathState::from_bridge(state)?,
-                directory: ptr::null_mut(),
-                entries: DestackArtifactDirectoryEntryArray {
-                    ptr: ptr::null_mut(),
-                    len: 0,
-                },
-                file: DestackFileId::empty(),
-                content: DestackContentId::empty(),
-            },
-            rust::language::ArtifactSourceDependency::DirectoryEntries { directory, entries } => {
-                Self {
-                    kind: DestackArtifactSourceDependencyKind::DirectoryEntries,
-                    path: ptr::null_mut(),
-                    state: DestackArtifactPathState::empty(),
-                    directory: c_string(directory)?,
-                    entries: DestackArtifactDirectoryEntryArray::from_bridge(entries)?,
-                    file: DestackFileId::empty(),
-                    content: DestackContentId::empty(),
-                }
-            }
-            rust::language::ArtifactSourceDependency::FileContent { file, content } => Self {
-                kind: DestackArtifactSourceDependencyKind::FileContent,
-                path: ptr::null_mut(),
-                state: DestackArtifactPathState::empty(),
-                directory: ptr::null_mut(),
-                entries: DestackArtifactDirectoryEntryArray {
-                    ptr: ptr::null_mut(),
-                    len: 0,
-                },
-                file: DestackFileId::from_bridge(file)?,
-                content: DestackContentId::from_bridge(content)?,
-            },
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ArtifactSourceDependency, String> {
-        match self.kind {
-            DestackArtifactSourceDependencyKind::PathState => {
-                let path = read_string(self.path)?;
-                let state = self.state.to_bridge()?;
-                Ok(rust::language::ArtifactSourceDependency::PathState { path, state })
-            }
-            DestackArtifactSourceDependencyKind::DirectoryEntries => {
-                let directory = read_string(self.directory)?;
-                let entries = self.entries.to_bridge()?;
-                Ok(rust::language::ArtifactSourceDependency::DirectoryEntries {
-                    directory,
-                    entries,
-                })
-            }
-            DestackArtifactSourceDependencyKind::FileContent => {
-                let file = self.file.to_bridge()?;
-                let content = self.content.to_bridge()?;
-                Ok(rust::language::ArtifactSourceDependency::FileContent { file, content })
-            }
-        }
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {
-        destroy_string(self.path);
-        self.path = ptr::null_mut();
-        self.state.destroy();
-        destroy_string(self.directory);
-        self.directory = ptr::null_mut();
-        self.entries.destroy();
-        self.file.destroy();
-        self.content.destroy();
-    }
-
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self {
-            kind: DestackArtifactSourceDependencyKind::PathState,
-            path: ptr::null_mut(),
-            state: DestackArtifactPathState::empty(),
-            directory: ptr::null_mut(),
-            entries: DestackArtifactDirectoryEntryArray {
-                ptr: ptr::null_mut(),
-                len: 0,
-            },
-            file: DestackFileId::empty(),
-            content: DestackContentId::empty(),
-        }
-    }
-}
-
-impl DestackArtifactSourceDependencyArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(
-        values: Vec<rust::language::ArtifactSourceDependency>,
-    ) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackArtifactSourceDependency::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(
-        &self,
-    ) -> Result<Vec<rust::language::ArtifactSourceDependency>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalArtifactSourceDependency {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(
-        value: Option<rust::language::ArtifactSourceDependency>,
-    ) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackArtifactSourceDependency::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackArtifactSourceDependency::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(
-        &self,
-    ) -> Result<Option<rust::language::ArtifactSourceDependency>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackArtifactSourceDependency::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackArtifactVersion {
-    /// Semantic artifact slot.
-    pub(crate) key: *mut DestackArtifactKey,
-    /// Exact semantic fingerprint.
-    pub(crate) fingerprint: *mut c_char,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackArtifactVersionArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackArtifactVersion,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalArtifactVersion {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackArtifactVersion,
-}
-
-impl DestackArtifactVersion {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::ArtifactVersion) -> Result<Self, String> {
-        Ok(Self {
-            key: Box::into_raw(Box::new(DestackArtifactKey { value: value.key })),
-            fingerprint: c_string(value.fingerprint)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ArtifactVersion, String> {
-        Ok(rust::language::ArtifactVersion {
-            key: {
-                let value = unsafe { self.key.as_ref() }.ok_or("artifact key is null")?;
-                value.value.clone()
-            },
-            fingerprint: read_string(self.fingerprint)?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        if !self.key.is_null() {
-            unsafe {
-                destack_artifact_key_destroy(self.key);
-            }
-            self.key = ptr::null_mut();
-        }
-        destroy_string(self.fingerprint);
-        self.fingerprint = ptr::null_mut();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            key: ptr::null_mut(),
-            fingerprint: ptr::null_mut(),
-        }
-    }
-}
-
-impl DestackArtifactVersionArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(
-        values: Vec<rust::language::ArtifactVersion>,
-    ) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackArtifactVersion::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ArtifactVersion>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalArtifactVersion {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(
-        value: Option<rust::language::ArtifactVersion>,
-    ) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackArtifactVersion::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackArtifactVersion::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ArtifactVersion>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackArtifactVersion::empty();
-    }
-}
-
-/// C ABI bridge enum kind.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DestackArtifactDependencyKind {
     /// Another exact artifact version.
     Artifact = 0,
@@ -1232,7 +717,8 @@ pub struct DestackArtifactDependency {
     /// Active enum variant.
     pub(crate) kind: DestackArtifactDependencyKind,
     pub(crate) version: DestackArtifactVersion,
-    pub(crate) dependency: DestackArtifactSourceDependency,
+    pub(crate) file: DestackFileId,
+    pub(crate) content: DestackContentId,
 }
 
 /// C ABI bridge enum array.
@@ -1262,12 +748,14 @@ impl DestackArtifactDependency {
             rust::language::ArtifactDependency::Artifact { version } => Self {
                 kind: DestackArtifactDependencyKind::Artifact,
                 version: DestackArtifactVersion::from_bridge(version)?,
-                dependency: DestackArtifactSourceDependency::empty(),
+                file: DestackFileId::empty(),
+                content: DestackContentId::empty(),
             },
-            rust::language::ArtifactDependency::Source { dependency } => Self {
+            rust::language::ArtifactDependency::Source { file, content } => Self {
                 kind: DestackArtifactDependencyKind::Source,
                 version: DestackArtifactVersion::empty(),
-                dependency: DestackArtifactSourceDependency::from_bridge(dependency)?,
+                file: DestackFileId::from_bridge(file)?,
+                content: DestackContentId::from_bridge(content)?,
             },
         })
     }
@@ -1280,8 +768,9 @@ impl DestackArtifactDependency {
                 Ok(rust::language::ArtifactDependency::Artifact { version })
             }
             DestackArtifactDependencyKind::Source => {
-                let dependency = self.dependency.to_bridge()?;
-                Ok(rust::language::ArtifactDependency::Source { dependency })
+                let file = self.file.to_bridge()?;
+                let content = self.content.to_bridge()?;
+                Ok(rust::language::ArtifactDependency::Source { file, content })
             }
         }
     }
@@ -1289,7 +778,8 @@ impl DestackArtifactDependency {
     /// Destroy this C ABI enum.
     pub(crate) fn destroy(&mut self) {
         self.version.destroy();
-        self.dependency.destroy();
+        self.file.destroy();
+        self.content.destroy();
     }
 
     /// Return one empty C ABI enum.
@@ -1297,7 +787,8 @@ impl DestackArtifactDependency {
         Self {
             kind: DestackArtifactDependencyKind::Artifact,
             version: DestackArtifactVersion::empty(),
-            dependency: DestackArtifactSourceDependency::empty(),
+            file: DestackFileId::empty(),
+            content: DestackContentId::empty(),
         }
     }
 }
@@ -7570,13 +7061,13 @@ pub struct DestackBuildOutput {
     /// Active enum variant.
     pub(crate) kind: DestackBuildOutputKind,
     pub(crate) version: DestackArtifactVersion,
-    pub(crate) script_script: DestackScript,
-    pub(crate) object_object: DestackObject,
-    pub(crate) asset_asset: DestackAsset,
-    pub(crate) build_build: DestackBuild,
-    pub(crate) bundle_bundle: DestackBundle,
-    pub(crate) program_program: DestackProgram,
-    pub(crate) product_product: DestackProduct,
+    pub(crate) script: DestackScript,
+    pub(crate) object: DestackObject,
+    pub(crate) asset: DestackAsset,
+    pub(crate) build: DestackBuild,
+    pub(crate) bundle: DestackBundle,
+    pub(crate) program: DestackProgram,
+    pub(crate) product: DestackProduct,
 }
 
 /// C ABI bridge enum array.
@@ -7606,79 +7097,79 @@ impl DestackBuildOutput {
             rust::language::BuildOutput::Script { version, script } => Self {
                 kind: DestackBuildOutputKind::Script,
                 version: DestackArtifactVersion::from_bridge(version)?,
-                script_script: DestackScript::from_bridge(script)?,
-                object_object: DestackObject::empty(),
-                asset_asset: DestackAsset::empty(),
-                build_build: DestackBuild::empty(),
-                bundle_bundle: DestackBundle::empty(),
-                program_program: DestackProgram::empty(),
-                product_product: DestackProduct::empty(),
+                script: DestackScript::from_bridge(script)?,
+                object: DestackObject::empty(),
+                asset: DestackAsset::empty(),
+                build: DestackBuild::empty(),
+                bundle: DestackBundle::empty(),
+                program: DestackProgram::empty(),
+                product: DestackProduct::empty(),
             },
             rust::language::BuildOutput::Object { version, object } => Self {
                 kind: DestackBuildOutputKind::Object,
                 version: DestackArtifactVersion::from_bridge(version)?,
-                script_script: DestackScript::empty(),
-                object_object: DestackObject::from_bridge(object)?,
-                asset_asset: DestackAsset::empty(),
-                build_build: DestackBuild::empty(),
-                bundle_bundle: DestackBundle::empty(),
-                program_program: DestackProgram::empty(),
-                product_product: DestackProduct::empty(),
+                script: DestackScript::empty(),
+                object: DestackObject::from_bridge(object)?,
+                asset: DestackAsset::empty(),
+                build: DestackBuild::empty(),
+                bundle: DestackBundle::empty(),
+                program: DestackProgram::empty(),
+                product: DestackProduct::empty(),
             },
             rust::language::BuildOutput::Asset { version, asset } => Self {
                 kind: DestackBuildOutputKind::Asset,
                 version: DestackArtifactVersion::from_bridge(version)?,
-                script_script: DestackScript::empty(),
-                object_object: DestackObject::empty(),
-                asset_asset: DestackAsset::from_bridge(asset)?,
-                build_build: DestackBuild::empty(),
-                bundle_bundle: DestackBundle::empty(),
-                program_program: DestackProgram::empty(),
-                product_product: DestackProduct::empty(),
+                script: DestackScript::empty(),
+                object: DestackObject::empty(),
+                asset: DestackAsset::from_bridge(asset)?,
+                build: DestackBuild::empty(),
+                bundle: DestackBundle::empty(),
+                program: DestackProgram::empty(),
+                product: DestackProduct::empty(),
             },
             rust::language::BuildOutput::Build { version, build } => Self {
                 kind: DestackBuildOutputKind::Build,
                 version: DestackArtifactVersion::from_bridge(version)?,
-                script_script: DestackScript::empty(),
-                object_object: DestackObject::empty(),
-                asset_asset: DestackAsset::empty(),
-                build_build: DestackBuild::from_bridge(build)?,
-                bundle_bundle: DestackBundle::empty(),
-                program_program: DestackProgram::empty(),
-                product_product: DestackProduct::empty(),
+                script: DestackScript::empty(),
+                object: DestackObject::empty(),
+                asset: DestackAsset::empty(),
+                build: DestackBuild::from_bridge(build)?,
+                bundle: DestackBundle::empty(),
+                program: DestackProgram::empty(),
+                product: DestackProduct::empty(),
             },
             rust::language::BuildOutput::Bundle { version, bundle } => Self {
                 kind: DestackBuildOutputKind::Bundle,
                 version: DestackArtifactVersion::from_bridge(version)?,
-                script_script: DestackScript::empty(),
-                object_object: DestackObject::empty(),
-                asset_asset: DestackAsset::empty(),
-                build_build: DestackBuild::empty(),
-                bundle_bundle: DestackBundle::from_bridge(bundle)?,
-                program_program: DestackProgram::empty(),
-                product_product: DestackProduct::empty(),
+                script: DestackScript::empty(),
+                object: DestackObject::empty(),
+                asset: DestackAsset::empty(),
+                build: DestackBuild::empty(),
+                bundle: DestackBundle::from_bridge(bundle)?,
+                program: DestackProgram::empty(),
+                product: DestackProduct::empty(),
             },
             rust::language::BuildOutput::Program { version, program } => Self {
                 kind: DestackBuildOutputKind::Program,
                 version: DestackArtifactVersion::from_bridge(version)?,
-                script_script: DestackScript::empty(),
-                object_object: DestackObject::empty(),
-                asset_asset: DestackAsset::empty(),
-                build_build: DestackBuild::empty(),
-                bundle_bundle: DestackBundle::empty(),
-                program_program: DestackProgram::from_bridge(program)?,
-                product_product: DestackProduct::empty(),
+                script: DestackScript::empty(),
+                object: DestackObject::empty(),
+                asset: DestackAsset::empty(),
+                build: DestackBuild::empty(),
+                bundle: DestackBundle::empty(),
+                program: DestackProgram::from_bridge(program)?,
+                product: DestackProduct::empty(),
             },
             rust::language::BuildOutput::Product { version, product } => Self {
                 kind: DestackBuildOutputKind::Product,
                 version: DestackArtifactVersion::from_bridge(version)?,
-                script_script: DestackScript::empty(),
-                object_object: DestackObject::empty(),
-                asset_asset: DestackAsset::empty(),
-                build_build: DestackBuild::empty(),
-                bundle_bundle: DestackBundle::empty(),
-                program_program: DestackProgram::empty(),
-                product_product: DestackProduct::from_bridge(product)?,
+                script: DestackScript::empty(),
+                object: DestackObject::empty(),
+                asset: DestackAsset::empty(),
+                build: DestackBuild::empty(),
+                bundle: DestackBundle::empty(),
+                program: DestackProgram::empty(),
+                product: DestackProduct::from_bridge(product)?,
             },
         })
     }
@@ -7688,59 +7179,38 @@ impl DestackBuildOutput {
         match self.kind {
             DestackBuildOutputKind::Script => {
                 let version = self.version.to_bridge()?;
-                let script_script = self.script_script.to_bridge()?;
-                Ok(rust::language::BuildOutput::Script {
-                    version,
-                    script: script_script,
-                })
+                let script = self.script.to_bridge()?;
+                Ok(rust::language::BuildOutput::Script { version, script })
             }
             DestackBuildOutputKind::Object => {
                 let version = self.version.to_bridge()?;
-                let object_object = self.object_object.to_bridge()?;
-                Ok(rust::language::BuildOutput::Object {
-                    version,
-                    object: object_object,
-                })
+                let object = self.object.to_bridge()?;
+                Ok(rust::language::BuildOutput::Object { version, object })
             }
             DestackBuildOutputKind::Asset => {
                 let version = self.version.to_bridge()?;
-                let asset_asset = self.asset_asset.to_bridge()?;
-                Ok(rust::language::BuildOutput::Asset {
-                    version,
-                    asset: asset_asset,
-                })
+                let asset = self.asset.to_bridge()?;
+                Ok(rust::language::BuildOutput::Asset { version, asset })
             }
             DestackBuildOutputKind::Build => {
                 let version = self.version.to_bridge()?;
-                let build_build = self.build_build.to_bridge()?;
-                Ok(rust::language::BuildOutput::Build {
-                    version,
-                    build: build_build,
-                })
+                let build = self.build.to_bridge()?;
+                Ok(rust::language::BuildOutput::Build { version, build })
             }
             DestackBuildOutputKind::Bundle => {
                 let version = self.version.to_bridge()?;
-                let bundle_bundle = self.bundle_bundle.to_bridge()?;
-                Ok(rust::language::BuildOutput::Bundle {
-                    version,
-                    bundle: bundle_bundle,
-                })
+                let bundle = self.bundle.to_bridge()?;
+                Ok(rust::language::BuildOutput::Bundle { version, bundle })
             }
             DestackBuildOutputKind::Program => {
                 let version = self.version.to_bridge()?;
-                let program_program = self.program_program.to_bridge()?;
-                Ok(rust::language::BuildOutput::Program {
-                    version,
-                    program: program_program,
-                })
+                let program = self.program.to_bridge()?;
+                Ok(rust::language::BuildOutput::Program { version, program })
             }
             DestackBuildOutputKind::Product => {
                 let version = self.version.to_bridge()?;
-                let product_product = self.product_product.to_bridge()?;
-                Ok(rust::language::BuildOutput::Product {
-                    version,
-                    product: product_product,
-                })
+                let product = self.product.to_bridge()?;
+                Ok(rust::language::BuildOutput::Product { version, product })
             }
         }
     }
@@ -7748,13 +7218,13 @@ impl DestackBuildOutput {
     /// Destroy this C ABI enum.
     pub(crate) fn destroy(&mut self) {
         self.version.destroy();
-        self.script_script.destroy();
-        self.object_object.destroy();
-        self.asset_asset.destroy();
-        self.build_build.destroy();
-        self.bundle_bundle.destroy();
-        self.program_program.destroy();
-        self.product_product.destroy();
+        self.script.destroy();
+        self.object.destroy();
+        self.asset.destroy();
+        self.build.destroy();
+        self.bundle.destroy();
+        self.program.destroy();
+        self.product.destroy();
     }
 
     /// Return one empty C ABI enum.
@@ -7762,13 +7232,13 @@ impl DestackBuildOutput {
         Self {
             kind: DestackBuildOutputKind::Script,
             version: DestackArtifactVersion::empty(),
-            script_script: DestackScript::empty(),
-            object_object: DestackObject::empty(),
-            asset_asset: DestackAsset::empty(),
-            build_build: DestackBuild::empty(),
-            bundle_bundle: DestackBundle::empty(),
-            program_program: DestackProgram::empty(),
-            product_product: DestackProduct::empty(),
+            script: DestackScript::empty(),
+            object: DestackObject::empty(),
+            asset: DestackAsset::empty(),
+            build: DestackBuild::empty(),
+            bundle: DestackBundle::empty(),
+            program: DestackProgram::empty(),
+            product: DestackProduct::empty(),
         }
     }
 }
@@ -8408,11 +7878,10 @@ pub enum DestackBuildRequestKind {
 pub struct DestackBuildRequest {
     /// Active enum variant.
     pub(crate) kind: DestackBuildRequestKind,
-    pub(crate) module_module: DestackModule,
+    pub(crate) module: DestackModule,
     pub(crate) target: DestackTargetId,
     pub(crate) output: DestackModuleBuildKind,
-    pub(crate) target_target: DestackTargetId,
-    pub(crate) product_product: DestackProductId,
+    pub(crate) product: DestackProductId,
 }
 
 /// C ABI bridge enum array.
@@ -8445,35 +7914,31 @@ impl DestackBuildRequest {
                 output,
             } => Self {
                 kind: DestackBuildRequestKind::Module,
-                module_module: DestackModule::from_bridge(module)?,
+                module: DestackModule::from_bridge(module)?,
                 target: DestackTargetId::from_bridge(target)?,
                 output: DestackModuleBuildKind::from_bridge(output)?,
-                target_target: DestackTargetId::empty(),
-                product_product: DestackProductId::empty(),
+                product: DestackProductId::empty(),
             },
             rust::language::BuildRequest::Build { target } => Self {
                 kind: DestackBuildRequestKind::Build,
-                module_module: DestackModule::empty(),
+                module: DestackModule::empty(),
                 target: DestackTargetId::from_bridge(target)?,
                 output: DestackModuleBuildKind::empty(),
-                target_target: DestackTargetId::empty(),
-                product_product: DestackProductId::empty(),
+                product: DestackProductId::empty(),
             },
             rust::language::BuildRequest::Target { target } => Self {
                 kind: DestackBuildRequestKind::Target,
-                module_module: DestackModule::empty(),
-                target: DestackTargetId::empty(),
+                module: DestackModule::empty(),
+                target: DestackTargetId::from_bridge(target)?,
                 output: DestackModuleBuildKind::empty(),
-                target_target: DestackTargetId::from_bridge(target)?,
-                product_product: DestackProductId::empty(),
+                product: DestackProductId::empty(),
             },
             rust::language::BuildRequest::Product { product } => Self {
                 kind: DestackBuildRequestKind::Product,
-                module_module: DestackModule::empty(),
+                module: DestackModule::empty(),
                 target: DestackTargetId::empty(),
                 output: DestackModuleBuildKind::empty(),
-                target_target: DestackTargetId::empty(),
-                product_product: DestackProductId::from_bridge(product)?,
+                product: DestackProductId::from_bridge(product)?,
             },
         })
     }
@@ -8482,11 +7947,11 @@ impl DestackBuildRequest {
     pub(crate) fn to_bridge(&self) -> Result<rust::language::BuildRequest, String> {
         match self.kind {
             DestackBuildRequestKind::Module => {
-                let module_module = self.module_module.to_bridge()?;
+                let module = self.module.to_bridge()?;
                 let target = self.target.to_bridge()?;
                 let output = self.output.to_bridge()?;
                 Ok(rust::language::BuildRequest::Module {
-                    module: module_module,
+                    module,
                     target,
                     output,
                 })
@@ -8496,38 +7961,32 @@ impl DestackBuildRequest {
                 Ok(rust::language::BuildRequest::Build { target })
             }
             DestackBuildRequestKind::Target => {
-                let target_target = self.target_target.to_bridge()?;
-                Ok(rust::language::BuildRequest::Target {
-                    target: target_target,
-                })
+                let target = self.target.to_bridge()?;
+                Ok(rust::language::BuildRequest::Target { target })
             }
             DestackBuildRequestKind::Product => {
-                let product_product = self.product_product.to_bridge()?;
-                Ok(rust::language::BuildRequest::Product {
-                    product: product_product,
-                })
+                let product = self.product.to_bridge()?;
+                Ok(rust::language::BuildRequest::Product { product })
             }
         }
     }
 
     /// Destroy this C ABI enum.
     pub(crate) fn destroy(&mut self) {
-        self.module_module.destroy();
+        self.module.destroy();
         self.target.destroy();
         self.output.destroy();
-        self.target_target.destroy();
-        self.product_product.destroy();
+        self.product.destroy();
     }
 
     /// Return one empty C ABI enum.
     pub(crate) fn empty() -> Self {
         Self {
             kind: DestackBuildRequestKind::Module,
-            module_module: DestackModule::empty(),
+            module: DestackModule::empty(),
             target: DestackTargetId::empty(),
             output: DestackModuleBuildKind::empty(),
-            target_target: DestackTargetId::empty(),
-            product_product: DestackProductId::empty(),
+            product: DestackProductId::empty(),
         }
     }
 }
@@ -9883,9 +9342,9 @@ pub enum DestackDocumentKind {
 pub struct DestackDocument {
     /// Active enum variant.
     pub(crate) kind: DestackDocumentKind,
-    pub(crate) module_module: DestackModule,
+    pub(crate) module: DestackModule,
     pub(crate) path: *mut c_char,
-    pub(crate) text_text: *mut c_char,
+    pub(crate) text: *mut c_char,
 }
 
 /// C ABI bridge enum array.
@@ -9914,15 +9373,15 @@ impl DestackDocument {
         Ok(match value {
             rust::language::Document::Module { module } => Self {
                 kind: DestackDocumentKind::Module,
-                module_module: DestackModule::from_bridge(module)?,
+                module: DestackModule::from_bridge(module)?,
                 path: ptr::null_mut(),
-                text_text: ptr::null_mut(),
+                text: ptr::null_mut(),
             },
             rust::language::Document::Text { path, text } => Self {
                 kind: DestackDocumentKind::Text,
-                module_module: DestackModule::empty(),
+                module: DestackModule::empty(),
                 path: c_string(path)?,
-                text_text: c_string(text)?,
+                text: c_string(text)?,
             },
         })
     }
@@ -9931,38 +9390,33 @@ impl DestackDocument {
     pub(crate) fn to_bridge(&self) -> Result<rust::language::Document, String> {
         match self.kind {
             DestackDocumentKind::Module => {
-                let module_module = self.module_module.to_bridge()?;
-                Ok(rust::language::Document::Module {
-                    module: module_module,
-                })
+                let module = self.module.to_bridge()?;
+                Ok(rust::language::Document::Module { module })
             }
             DestackDocumentKind::Text => {
                 let path = read_string(self.path)?;
-                let text_text = read_string(self.text_text)?;
-                Ok(rust::language::Document::Text {
-                    path,
-                    text: text_text,
-                })
+                let text = read_string(self.text)?;
+                Ok(rust::language::Document::Text { path, text })
             }
         }
     }
 
     /// Destroy this C ABI enum.
     pub(crate) fn destroy(&mut self) {
-        self.module_module.destroy();
+        self.module.destroy();
         destroy_string(self.path);
         self.path = ptr::null_mut();
-        destroy_string(self.text_text);
-        self.text_text = ptr::null_mut();
+        destroy_string(self.text);
+        self.text = ptr::null_mut();
     }
 
     /// Return one empty C ABI enum.
     pub(crate) fn empty() -> Self {
         Self {
             kind: DestackDocumentKind::Module,
-            module_module: DestackModule::empty(),
+            module: DestackModule::empty(),
             path: ptr::null_mut(),
-            text_text: ptr::null_mut(),
+            text: ptr::null_mut(),
         }
     }
 }
@@ -10455,9 +9909,9 @@ pub enum DestackScopeKind {
 pub struct DestackScope {
     /// Active enum variant.
     pub(crate) kind: DestackScopeKind,
-    pub(crate) module_module: DestackModule,
+    pub(crate) module: DestackModule,
     pub(crate) profile: DestackProfileId,
-    pub(crate) package_package: DestackPackageId,
+    pub(crate) package: DestackPackageId,
 }
 
 /// C ABI bridge enum array.
@@ -10486,21 +9940,21 @@ impl DestackScope {
         Ok(match value {
             rust::language::Scope::Module { module, profile } => Self {
                 kind: DestackScopeKind::Module,
-                module_module: DestackModule::from_bridge(module)?,
+                module: DestackModule::from_bridge(module)?,
                 profile: DestackProfileId::from_bridge(profile)?,
-                package_package: DestackPackageId::empty(),
+                package: DestackPackageId::empty(),
             },
             rust::language::Scope::Package { package } => Self {
                 kind: DestackScopeKind::Package,
-                module_module: DestackModule::empty(),
+                module: DestackModule::empty(),
                 profile: DestackProfileId::empty(),
-                package_package: DestackPackageId::from_bridge(package)?,
+                package: DestackPackageId::from_bridge(package)?,
             },
             rust::language::Scope::Workspace => Self {
                 kind: DestackScopeKind::Workspace,
-                module_module: DestackModule::empty(),
+                module: DestackModule::empty(),
                 profile: DestackProfileId::empty(),
-                package_package: DestackPackageId::empty(),
+                package: DestackPackageId::empty(),
             },
         })
     }
@@ -10509,18 +9963,13 @@ impl DestackScope {
     pub(crate) fn to_bridge(&self) -> Result<rust::language::Scope, String> {
         match self.kind {
             DestackScopeKind::Module => {
-                let module_module = self.module_module.to_bridge()?;
+                let module = self.module.to_bridge()?;
                 let profile = self.profile.to_bridge()?;
-                Ok(rust::language::Scope::Module {
-                    module: module_module,
-                    profile,
-                })
+                Ok(rust::language::Scope::Module { module, profile })
             }
             DestackScopeKind::Package => {
-                let package_package = self.package_package.to_bridge()?;
-                Ok(rust::language::Scope::Package {
-                    package: package_package,
-                })
+                let package = self.package.to_bridge()?;
+                Ok(rust::language::Scope::Package { package })
             }
             DestackScopeKind::Workspace => Ok(rust::language::Scope::Workspace),
         }
@@ -10528,18 +9977,18 @@ impl DestackScope {
 
     /// Destroy this C ABI enum.
     pub(crate) fn destroy(&mut self) {
-        self.module_module.destroy();
+        self.module.destroy();
         self.profile.destroy();
-        self.package_package.destroy();
+        self.package.destroy();
     }
 
     /// Return one empty C ABI enum.
     pub(crate) fn empty() -> Self {
         Self {
             kind: DestackScopeKind::Module,
-            module_module: DestackModule::empty(),
+            module: DestackModule::empty(),
             profile: DestackProfileId::empty(),
-            package_package: DestackPackageId::empty(),
+            package: DestackPackageId::empty(),
         }
     }
 }
@@ -11361,21 +10810,6 @@ pub unsafe extern "C" fn destack_artifact_key_package_index(
 
 /// Create one artifact key handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_artifact_key_module_index(
-    profile: DestackProfileId,
-    out: *mut *mut DestackArtifactKey,
-    error: *mut *mut DestackError,
-) -> DestackStatus {
-    return_status(error, || {
-        let profile = profile.to_bridge()?;
-        let value = rust::language::ArtifactKey::ModuleIndex { profile };
-        let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
-        write_out(out, key, "artifact key output is null")
-    })
-}
-
-/// Create one artifact key handle.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_artifact_key_component_graph(
     profile: DestackProfileId,
     out: *mut *mut DestackArtifactKey,
@@ -11879,7 +11313,7 @@ pub unsafe extern "C" fn destack_applicability_array_destroy(mut array: DestackA
 
 /// Destroy one C ABI bridge value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_artifact_path_state_destroy(value: *mut DestackArtifactPathState) {
+pub unsafe extern "C" fn destack_artifact_version_destroy(value: *mut DestackArtifactVersion) {
     if let Some(value) = unsafe { value.as_mut() } {
         value.destroy();
     }
@@ -11887,26 +11321,8 @@ pub unsafe extern "C" fn destack_artifact_path_state_destroy(value: *mut Destack
 
 /// Destroy one C ABI bridge value array.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_artifact_path_state_array_destroy(
-    mut array: DestackArtifactPathStateArray,
-) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_artifact_directory_entry_destroy(
-    value: *mut DestackArtifactDirectoryEntry,
-) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_artifact_directory_entry_array_destroy(
-    mut array: DestackArtifactDirectoryEntryArray,
+pub unsafe extern "C" fn destack_artifact_version_array_destroy(
+    mut array: DestackArtifactVersionArray,
 ) {
     array.destroy();
 }
@@ -11936,40 +11352,6 @@ pub unsafe extern "C" fn destack_file_id_destroy(value: *mut DestackFileId) {
 /// Destroy one C ABI bridge value array.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_file_id_array_destroy(mut array: DestackFileIdArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_artifact_source_dependency_destroy(
-    value: *mut DestackArtifactSourceDependency,
-) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_artifact_source_dependency_array_destroy(
-    mut array: DestackArtifactSourceDependencyArray,
-) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_artifact_version_destroy(value: *mut DestackArtifactVersion) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_artifact_version_array_destroy(
-    mut array: DestackArtifactVersionArray,
-) {
     array.destroy();
 }
 

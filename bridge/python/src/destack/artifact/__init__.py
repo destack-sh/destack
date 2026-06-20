@@ -1,9 +1,6 @@
 # generated bridge target, do not edit
 
 from .dependency import (
-    ArtifactPathState,
-    ArtifactDirectoryEntry,
-    ArtifactSourceDependency,
     ArtifactDependency,
 )
 from .key import (
@@ -51,9 +48,6 @@ from .version import (
 )
 
 __all__ = [
-    "ArtifactPathState",
-    "ArtifactDirectoryEntry",
-    "ArtifactSourceDependency",
     "ArtifactDependency",
     "ArtifactKey",
     "BuildProfile",

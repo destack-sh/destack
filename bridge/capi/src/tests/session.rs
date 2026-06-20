@@ -114,9 +114,9 @@ pub(super) fn format_text_request(path: &str, text: &str) -> DestackFormatReques
     DestackFormatRequest {
         document: DestackDocument {
             kind: DestackDocumentKind::Text,
-            module_module: DestackModule::empty(),
+            module: DestackModule::empty(),
             path,
-            text_text: text,
+            text,
         },
     }
 }

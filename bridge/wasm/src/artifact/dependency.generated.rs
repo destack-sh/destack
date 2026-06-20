@@ -6,205 +6,6 @@ use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::{ArtifactVersion, ContentId, FileId};
 
-/// One exact directory entry observed by one artifact computation.
-#[derive(Debug, Clone)]
-#[wasm_bindgen]
-pub struct ArtifactDirectoryEntry {
-    path: String,
-    state: String,
-}
-
-#[wasm_bindgen]
-impl ArtifactDirectoryEntry {
-    /// Create one value.
-    #[wasm_bindgen(constructor)]
-    pub fn new(path: String, state: String) -> Self {
-        Self { path, state }
-    }
-
-    /// The entry path.
-    #[wasm_bindgen(getter, js_name = "path")]
-    pub fn path(&self) -> String {
-        self.path.clone()
-    }
-
-    /// The exact entry path state.
-    #[wasm_bindgen(getter, js_name = "state")]
-    pub fn state(&self) -> String {
-        self.state.clone()
-    }
-}
-
-impl ArtifactDirectoryEntry {
-    /// Convert one bridge value into one WASM value.
-    pub(crate) fn from_bridge(value: bridge::ArtifactDirectoryEntry) -> Self {
-        Self {
-            path: value.path,
-            state: artifact_path_state_label(value.state),
-        }
-    }
-}
-
-/// One primitive source observation read while building an artifact.
-#[derive(Debug, Clone)]
-#[wasm_bindgen]
-pub struct ArtifactSourceDependency {
-    content: ArtifactSourceDependencyContent,
-}
-
-/// Concrete payload enum content.
-#[derive(Debug, Clone)]
-enum ArtifactSourceDependencyContent {
-    /// The exact state observed for one source path.
-    PathState {
-        /// The source path.
-        path: String,
-        /// The exact path state.
-        state: String,
-    },
-    /// The exact direct entries observed for one directory.
-    DirectoryEntries {
-        /// The source directory path.
-        directory: String,
-        /// The direct entries in deterministic order.
-        entries: Vec<ArtifactDirectoryEntry>,
-    },
-    /// The exact source content read for one file.
-    FileContent {
-        /// The source file id.
-        file: FileId,
-        /// The exact source content id.
-        content: ContentId,
-    },
-}
-
-#[wasm_bindgen]
-impl ArtifactSourceDependency {
-    /// Create one payload variant.
-    #[wasm_bindgen(js_name = "pathState")]
-    pub fn path_state(path: String, state: String) -> Self {
-        Self {
-            content: ArtifactSourceDependencyContent::PathState { path, state },
-        }
-    }
-
-    /// Create one payload variant.
-    #[wasm_bindgen(js_name = "directoryEntries")]
-    pub fn directory_entries(directory: String, entries: Vec<ArtifactDirectoryEntry>) -> Self {
-        Self {
-            content: ArtifactSourceDependencyContent::DirectoryEntries { directory, entries },
-        }
-    }
-
-    /// Create one payload variant.
-    #[wasm_bindgen(js_name = "fileContent")]
-    pub fn file_content(file: FileId, content: ContentId) -> Self {
-        Self {
-            content: ArtifactSourceDependencyContent::FileContent { file, content },
-        }
-    }
-
-    /// Payload variant label.
-    #[wasm_bindgen(getter, js_name = "kind")]
-    pub fn kind(&self) -> String {
-        let label = match &self.content {
-            ArtifactSourceDependencyContent::PathState { .. } => "pathState",
-            ArtifactSourceDependencyContent::DirectoryEntries { .. } => "directoryEntries",
-            ArtifactSourceDependencyContent::FileContent { .. } => "fileContent",
-        };
-        label.to_string()
-    }
-
-    /// The source path.
-    #[wasm_bindgen(js_name = "getPath")]
-    pub fn get_path(&self) -> Option<String> {
-        match &self.content {
-            ArtifactSourceDependencyContent::PathState { path: value, .. } => Some(value.clone()),
-            _ => None,
-        }
-    }
-
-    /// The exact path state.
-    #[wasm_bindgen(js_name = "getState")]
-    pub fn get_state(&self) -> Option<String> {
-        match &self.content {
-            ArtifactSourceDependencyContent::PathState { state: value, .. } => Some(value.clone()),
-            _ => None,
-        }
-    }
-
-    /// The source directory path.
-    #[wasm_bindgen(js_name = "getDirectory")]
-    pub fn get_directory(&self) -> Option<String> {
-        match &self.content {
-            ArtifactSourceDependencyContent::DirectoryEntries {
-                directory: value, ..
-            } => Some(value.clone()),
-            _ => None,
-        }
-    }
-
-    /// The direct entries in deterministic order.
-    #[wasm_bindgen(js_name = "getEntries")]
-    pub fn get_entries(&self) -> Option<Vec<ArtifactDirectoryEntry>> {
-        match &self.content {
-            ArtifactSourceDependencyContent::DirectoryEntries { entries: value, .. } => {
-                Some(value.clone())
-            }
-            _ => None,
-        }
-    }
-
-    /// The source file id.
-    #[wasm_bindgen(js_name = "getFile")]
-    pub fn get_file(&self) -> Option<FileId> {
-        match &self.content {
-            ArtifactSourceDependencyContent::FileContent { file: value, .. } => Some(value.clone()),
-            _ => None,
-        }
-    }
-
-    /// The exact source content id.
-    #[wasm_bindgen(js_name = "getContent")]
-    pub fn get_content(&self) -> Option<ContentId> {
-        match &self.content {
-            ArtifactSourceDependencyContent::FileContent { content: value, .. } => {
-                Some(value.clone())
-            }
-            _ => None,
-        }
-    }
-}
-
-impl ArtifactSourceDependency {
-    /// Convert one bridge payload enum into one WASM payload enum.
-    pub(crate) fn from_bridge(value: bridge::ArtifactSourceDependency) -> Self {
-        match value {
-            bridge::ArtifactSourceDependency::PathState { path, state } => Self {
-                content: ArtifactSourceDependencyContent::PathState {
-                    path,
-                    state: artifact_path_state_label(state),
-                },
-            },
-            bridge::ArtifactSourceDependency::DirectoryEntries { directory, entries } => Self {
-                content: ArtifactSourceDependencyContent::DirectoryEntries {
-                    directory,
-                    entries: entries
-                        .into_iter()
-                        .map(ArtifactDirectoryEntry::from_bridge)
-                        .collect(),
-                },
-            },
-            bridge::ArtifactSourceDependency::FileContent { file, content } => Self {
-                content: ArtifactSourceDependencyContent::FileContent {
-                    file: FileId::from_bridge(file),
-                    content: ContentId::from_bridge(content),
-                },
-            },
-        }
-    }
-}
-
 /// One exact dependency read while building an artifact.
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
@@ -222,8 +23,10 @@ enum ArtifactDependencyContent {
     },
     /// One exact primitive source observation.
     Source {
-        /// The primitive source observation.
-        dependency: ArtifactSourceDependency,
+        /// The source file id.
+        file: FileId,
+        /// The exact source content id.
+        content: ContentId,
     },
 }
 
@@ -239,9 +42,9 @@ impl ArtifactDependency {
 
     /// Create one payload variant.
     #[wasm_bindgen(js_name = "source")]
-    pub fn source(dependency: ArtifactSourceDependency) -> Self {
+    pub fn source(file: FileId, content: ContentId) -> Self {
         Self {
-            content: ArtifactDependencyContent::Source { dependency },
+            content: ArtifactDependencyContent::Source { file, content },
         }
     }
 
@@ -264,13 +67,20 @@ impl ArtifactDependency {
         }
     }
 
-    /// The primitive source observation.
-    #[wasm_bindgen(js_name = "getDependency")]
-    pub fn get_dependency(&self) -> Option<ArtifactSourceDependency> {
+    /// The source file id.
+    #[wasm_bindgen(js_name = "getFile")]
+    pub fn get_file(&self) -> Option<FileId> {
         match &self.content {
-            ArtifactDependencyContent::Source {
-                dependency: value, ..
-            } => Some(value.clone()),
+            ArtifactDependencyContent::Source { file: value, .. } => Some(value.clone()),
+            _ => None,
+        }
+    }
+
+    /// The exact source content id.
+    #[wasm_bindgen(js_name = "getContent")]
+    pub fn get_content(&self) -> Option<ContentId> {
+        match &self.content {
+            ArtifactDependencyContent::Source { content: value, .. } => Some(value.clone()),
             _ => None,
         }
     }
@@ -285,23 +95,12 @@ impl ArtifactDependency {
                     version: ArtifactVersion::from_bridge(version),
                 },
             },
-            bridge::ArtifactDependency::Source { dependency } => Self {
+            bridge::ArtifactDependency::Source { file, content } => Self {
                 content: ArtifactDependencyContent::Source {
-                    dependency: ArtifactSourceDependency::from_bridge(dependency),
+                    file: FileId::from_bridge(file),
+                    content: ContentId::from_bridge(content),
                 },
             },
         }
     }
-}
-
-/// Return one target enum label.
-fn artifact_path_state_label(value: bridge::ArtifactPathState) -> String {
-    let label = match value {
-        bridge::ArtifactPathState::Missing => "missing",
-        bridge::ArtifactPathState::File => "file",
-        bridge::ArtifactPathState::Directory => "directory",
-        bridge::ArtifactPathState::Symlink => "symlink",
-        bridge::ArtifactPathState::Other => "other",
-    };
-    label.to_string()
 }

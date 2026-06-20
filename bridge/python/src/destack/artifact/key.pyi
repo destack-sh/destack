@@ -51,10 +51,6 @@ class ArtifactKey:
     @staticmethod
     def package_index(profile: ProfileId) -> ArtifactKey: ...
 
-    """Module import edge index for one profile."""
-    @staticmethod
-    def module_index(profile: ProfileId) -> ArtifactKey: ...
-
     """Component partition for one profile."""
     @staticmethod
     def component_graph(profile: ProfileId) -> ArtifactKey: ...

@@ -164,7 +164,7 @@ impl PayloadNames {
 
     /// Return the transport field label for one struct payload field.
     pub(crate) fn field_label(&self, variant: &Variant, field: &Field) -> String {
-        if self.ambiguous.contains(&field.name) || field.label() == variant.label() {
+        if self.ambiguous.contains(&field.name) {
             let variant = lower_camel(&variant.name);
             let field = upper_camel(&field.name);
 
@@ -563,9 +563,6 @@ impl Item {
                 | "Diagnostic"
                 | "ArtifactKey"
                 | "ArtifactVersion"
-                | "ArtifactPathState"
-                | "ArtifactDirectoryEntry"
-                | "ArtifactSourceDependency"
                 | "ArtifactDependency"
                 | "ArtifactSidecarLabel"
                 | "ArtifactSidecar"

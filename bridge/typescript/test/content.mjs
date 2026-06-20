@@ -20,12 +20,8 @@ for (const [name, open] of workspaces) {
 
         // read the exact file content dependency through the public content API
         const fileContents = record.dependencies
-            .filter(
-                (dependency) =>
-                    dependency.kind === "source" &&
-                    dependency.dependency.kind === "fileContent",
-            )
-            .map((dependency) => workspace.text(dependency.dependency.content));
+            .filter((dependency) => dependency.kind === "source")
+            .map((dependency) => workspace.text(dependency.content));
 
         assert.deepEqual(fileContents, ["export const value = 1;"]);
     });

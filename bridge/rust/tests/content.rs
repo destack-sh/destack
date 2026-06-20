@@ -20,10 +20,7 @@ fn test_content_reads_source_dependency() -> destack::Result<()> {
     // read the source content dependencies through the public content API
     let mut file_contents = Vec::new();
     for dependency in record.dependencies {
-        if let destack::ArtifactDependency::Source {
-            dependency: destack::ArtifactSourceDependency::FileContent { content, .. },
-        } = dependency
-        {
+        if let destack::ArtifactDependency::Source { content, .. } = dependency {
             let content = content.into_source().expect("source content id");
 
             file_contents.push(workspace.text(content)?);

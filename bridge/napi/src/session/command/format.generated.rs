@@ -13,11 +13,11 @@ pub struct Document {
     /// Payload variant label.
     pub kind: String,
     /// Loaded source module.
-    pub module_module: Option<Module>,
+    pub module: Option<Module>,
     /// Display path used for parser language detection.
     pub path: Option<String>,
     /// Source text.
-    pub text_text: Option<String>,
+    pub text: Option<String>,
 }
 
 impl Document {
@@ -28,25 +28,25 @@ impl Document {
                 if self.path.is_some() {
                     return Err(unexpected_payload("path"));
                 }
-                if self.text_text.is_some() {
-                    return Err(unexpected_payload("text_text"));
+                if self.text.is_some() {
+                    return Err(unexpected_payload("text"));
                 }
-                let Some(value) = self.module_module else {
-                    return Err(missing_payload("moduleModule"));
+                let Some(value) = self.module else {
+                    return Err(missing_payload("module"));
                 };
                 let module = value.into_bridge()?;
                 Ok(bridge::Document::Module { module })
             }
             "text" => {
-                if self.module_module.is_some() {
-                    return Err(unexpected_payload("module_module"));
+                if self.module.is_some() {
+                    return Err(unexpected_payload("module"));
                 }
                 let Some(value) = self.path else {
                     return Err(missing_payload("path"));
                 };
                 let path = value;
-                let Some(value) = self.text_text else {
-                    return Err(missing_payload("textText"));
+                let Some(value) = self.text else {
+                    return Err(missing_payload("text"));
                 };
                 let text = value;
                 Ok(bridge::Document::Text { path, text })

@@ -20,9 +20,9 @@ def test_content_reads_source_dependency() -> None:
 
     # read the exact file content dependency through the public content API
     file_contents = [
-        dependency.dependency.content
+        dependency.content
         for dependency in record.dependencies
-        if dependency.kind == "source" and dependency.dependency.kind == "fileContent"
+        if dependency.kind == "source"
     ]
 
     assert len(file_contents) == 1

@@ -353,15 +353,13 @@ pub struct BuildRequest {
     /// Payload variant label.
     pub kind: String,
     /// Source module.
-    pub module_module: Option<Module>,
+    pub module: Option<Module>,
     /// Build target.
     pub target: Option<TargetId>,
     /// Requested module artifact family.
     pub output: Option<String>,
-    /// Build target.
-    pub target_target: Option<TargetId>,
     /// Product id.
-    pub product_product: Option<ProductId>,
+    pub product: Option<ProductId>,
 }
 
 impl BuildRequest {
@@ -369,14 +367,11 @@ impl BuildRequest {
     pub(crate) fn into_bridge(self) -> napi::Result<bridge::BuildRequest> {
         match self.kind.as_str() {
             "module" => {
-                if self.target_target.is_some() {
-                    return Err(unexpected_payload("target_target"));
+                if self.product.is_some() {
+                    return Err(unexpected_payload("product"));
                 }
-                if self.product_product.is_some() {
-                    return Err(unexpected_payload("product_product"));
-                }
-                let Some(value) = self.module_module else {
-                    return Err(missing_payload("moduleModule"));
+                let Some(value) = self.module else {
+                    return Err(missing_payload("module"));
                 };
                 let module = value.into_bridge()?;
                 let Some(value) = self.target else {
@@ -394,17 +389,14 @@ impl BuildRequest {
                 })
             }
             "build" => {
-                if self.module_module.is_some() {
-                    return Err(unexpected_payload("module_module"));
+                if self.module.is_some() {
+                    return Err(unexpected_payload("module"));
                 }
                 if self.output.is_some() {
                     return Err(unexpected_payload("output"));
                 }
-                if self.target_target.is_some() {
-                    return Err(unexpected_payload("target_target"));
-                }
-                if self.product_product.is_some() {
-                    return Err(unexpected_payload("product_product"));
+                if self.product.is_some() {
+                    return Err(unexpected_payload("product"));
                 }
                 let Some(value) = self.target else {
                     return Err(missing_payload("target"));
@@ -413,27 +405,24 @@ impl BuildRequest {
                 Ok(bridge::BuildRequest::Build { target })
             }
             "target" => {
-                if self.module_module.is_some() {
-                    return Err(unexpected_payload("module_module"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
+                if self.module.is_some() {
+                    return Err(unexpected_payload("module"));
                 }
                 if self.output.is_some() {
                     return Err(unexpected_payload("output"));
                 }
-                if self.product_product.is_some() {
-                    return Err(unexpected_payload("product_product"));
+                if self.product.is_some() {
+                    return Err(unexpected_payload("product"));
                 }
-                let Some(value) = self.target_target else {
-                    return Err(missing_payload("targetTarget"));
+                let Some(value) = self.target else {
+                    return Err(missing_payload("target"));
                 };
                 let target = value.into_bridge()?;
                 Ok(bridge::BuildRequest::Target { target })
             }
             "product" => {
-                if self.module_module.is_some() {
-                    return Err(unexpected_payload("module_module"));
+                if self.module.is_some() {
+                    return Err(unexpected_payload("module"));
                 }
                 if self.target.is_some() {
                     return Err(unexpected_payload("target"));
@@ -441,11 +430,8 @@ impl BuildRequest {
                 if self.output.is_some() {
                     return Err(unexpected_payload("output"));
                 }
-                if self.target_target.is_some() {
-                    return Err(unexpected_payload("target_target"));
-                }
-                let Some(value) = self.product_product else {
-                    return Err(missing_payload("productProduct"));
+                let Some(value) = self.product else {
+                    return Err(missing_payload("product"));
                 };
                 let product = value.into_bridge()?;
                 Ok(bridge::BuildRequest::Product { product })
@@ -478,19 +464,19 @@ pub struct BuildOutput {
     /// Exact artifact version.
     pub version: Option<ArtifactVersion>,
     /// Script payload.
-    pub script_script: Option<Script>,
+    pub script: Option<Script>,
     /// Object payload.
-    pub object_object: Option<BridgeObject>,
+    pub object: Option<BridgeObject>,
     /// Asset payload.
-    pub asset_asset: Option<Asset>,
+    pub asset: Option<Asset>,
     /// Build payload.
-    pub build_build: Option<Build>,
+    pub build: Option<Build>,
     /// Bundle payload.
-    pub bundle_bundle: Option<Bundle>,
+    pub bundle: Option<Bundle>,
     /// Program payload.
-    pub program_program: Option<Program>,
+    pub program: Option<Program>,
     /// Product payload.
-    pub product_product: Option<Product>,
+    pub product: Option<Product>,
 }
 
 impl BuildOutput {
@@ -500,79 +486,79 @@ impl BuildOutput {
             bridge::BuildOutput::Script { version, script } => Self {
                 kind: "script".to_string(),
                 version: Some(ArtifactVersion::from_bridge(version)),
-                script_script: Some(Script::from_bridge(script)),
-                object_object: None,
-                asset_asset: None,
-                build_build: None,
-                bundle_bundle: None,
-                program_program: None,
-                product_product: None,
+                script: Some(Script::from_bridge(script)),
+                object: None,
+                asset: None,
+                build: None,
+                bundle: None,
+                program: None,
+                product: None,
             },
             bridge::BuildOutput::Object { version, object } => Self {
                 kind: "object".to_string(),
                 version: Some(ArtifactVersion::from_bridge(version)),
-                object_object: Some(BridgeObject::from_bridge(object)),
-                script_script: None,
-                asset_asset: None,
-                build_build: None,
-                bundle_bundle: None,
-                program_program: None,
-                product_product: None,
+                object: Some(BridgeObject::from_bridge(object)),
+                script: None,
+                asset: None,
+                build: None,
+                bundle: None,
+                program: None,
+                product: None,
             },
             bridge::BuildOutput::Asset { version, asset } => Self {
                 kind: "asset".to_string(),
                 version: Some(ArtifactVersion::from_bridge(version)),
-                asset_asset: Some(Asset::from_bridge(asset)),
-                script_script: None,
-                object_object: None,
-                build_build: None,
-                bundle_bundle: None,
-                program_program: None,
-                product_product: None,
+                asset: Some(Asset::from_bridge(asset)),
+                script: None,
+                object: None,
+                build: None,
+                bundle: None,
+                program: None,
+                product: None,
             },
             bridge::BuildOutput::Build { version, build } => Self {
                 kind: "build".to_string(),
                 version: Some(ArtifactVersion::from_bridge(version)),
-                build_build: Some(Build::from_bridge(build)),
-                script_script: None,
-                object_object: None,
-                asset_asset: None,
-                bundle_bundle: None,
-                program_program: None,
-                product_product: None,
+                build: Some(Build::from_bridge(build)),
+                script: None,
+                object: None,
+                asset: None,
+                bundle: None,
+                program: None,
+                product: None,
             },
             bridge::BuildOutput::Bundle { version, bundle } => Self {
                 kind: "bundle".to_string(),
                 version: Some(ArtifactVersion::from_bridge(version)),
-                bundle_bundle: Some(Bundle::from_bridge(bundle)),
-                script_script: None,
-                object_object: None,
-                asset_asset: None,
-                build_build: None,
-                program_program: None,
-                product_product: None,
+                bundle: Some(Bundle::from_bridge(bundle)),
+                script: None,
+                object: None,
+                asset: None,
+                build: None,
+                program: None,
+                product: None,
             },
             bridge::BuildOutput::Program { version, program } => Self {
                 kind: "program".to_string(),
                 version: Some(ArtifactVersion::from_bridge(version)),
-                program_program: Some(Program::from_bridge(program)),
-                script_script: None,
-                object_object: None,
-                asset_asset: None,
-                build_build: None,
-                bundle_bundle: None,
-                product_product: None,
+                program: Some(Program::from_bridge(program)),
+                script: None,
+                object: None,
+                asset: None,
+                build: None,
+                bundle: None,
+                product: None,
             },
             bridge::BuildOutput::Product { version, product } => Self {
                 kind: "product".to_string(),
                 version: Some(ArtifactVersion::from_bridge(version)),
-                product_product: Some(Product::from_bridge(product)),
-                script_script: None,
-                object_object: None,
-                asset_asset: None,
-                build_build: None,
-                bundle_bundle: None,
-                program_program: None,
+                product: Some(Product::from_bridge(product)),
+                script: None,
+                object: None,
+                asset: None,
+                build: None,
+                bundle: None,
+                program: None,
             },
         }
     }

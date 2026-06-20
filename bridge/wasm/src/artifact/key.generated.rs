@@ -41,11 +41,6 @@ enum ArtifactKeyContent {
         /// Semantic profile.
         profile: ProfileId,
     },
-    /// Module import edge index for one profile.
-    ModuleIndex {
-        /// Semantic profile.
-        profile: ProfileId,
-    },
     /// Component partition for one profile.
     ComponentGraph {
         /// Semantic profile.
@@ -268,14 +263,6 @@ impl ArtifactKey {
     pub fn package_index(profile: ProfileId) -> Self {
         Self {
             content: ArtifactKeyContent::PackageIndex { profile },
-        }
-    }
-
-    /// Create one payload variant.
-    #[wasm_bindgen(js_name = "moduleIndex")]
-    pub fn module_index(profile: ProfileId) -> Self {
-        Self {
-            content: ArtifactKeyContent::ModuleIndex { profile },
         }
     }
 
@@ -520,7 +507,6 @@ impl ArtifactKey {
             ArtifactKeyContent::Data { .. } => "data",
             ArtifactKeyContent::GlobalEnvironment { .. } => "globalEnvironment",
             ArtifactKeyContent::PackageIndex { .. } => "packageIndex",
-            ArtifactKeyContent::ModuleIndex { .. } => "moduleIndex",
             ArtifactKeyContent::ComponentGraph { .. } => "componentGraph",
             ArtifactKeyContent::ProgramAnalysis { .. } => "programAnalysis",
             ArtifactKeyContent::DirBound { .. } => "dirBound",
@@ -603,7 +589,6 @@ impl ArtifactKey {
         match &self.content {
             ArtifactKeyContent::GlobalEnvironment { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::PackageIndex { profile: value, .. } => Some(value.clone()),
-            ArtifactKeyContent::ModuleIndex { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::ComponentGraph { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::ProgramAnalysis { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::DirBound { profile: value, .. } => Some(value.clone()),
@@ -659,8 +644,8 @@ impl ArtifactKey {
     }
 
     /// Product.
-    #[wasm_bindgen(js_name = "getProductProduct")]
-    pub fn get_product_product(&self) -> Option<ProductId> {
+    #[wasm_bindgen(js_name = "getProduct")]
+    pub fn get_product(&self) -> Option<ProductId> {
         match &self.content {
             ArtifactKeyContent::Product { product: value, .. } => Some(value.clone()),
             _ => None,
@@ -687,9 +672,6 @@ impl ArtifactKey {
                 }
             }
             ArtifactKeyContent::PackageIndex { profile } => bridge::ArtifactKey::PackageIndex {
-                profile: profile.into_bridge(),
-            },
-            ArtifactKeyContent::ModuleIndex { profile } => bridge::ArtifactKey::ModuleIndex {
                 profile: profile.into_bridge(),
             },
             ArtifactKeyContent::ComponentGraph { profile } => bridge::ArtifactKey::ComponentGraph {
@@ -865,11 +847,6 @@ impl ArtifactKey {
             },
             bridge::ArtifactKey::PackageIndex { profile } => Self {
                 content: ArtifactKeyContent::PackageIndex {
-                    profile: ProfileId::from_bridge(profile),
-                },
-            },
-            bridge::ArtifactKey::ModuleIndex { profile } => Self {
-                content: ArtifactKeyContent::ModuleIndex {
                     profile: ProfileId::from_bridge(profile),
                 },
             },

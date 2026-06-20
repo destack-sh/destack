@@ -8,15 +8,14 @@ mod workspace;
 pub use bridge::*;
 pub use destack_artifact::{ArtifactKey, ArtifactVersion};
 pub use destack_bridge_language::{
-    Applicability, ArtifactDependency, ArtifactDirectoryEntry, ArtifactPathState, ArtifactSidecar,
-    ArtifactSidecarLabel, ArtifactSourceDependency, ArtifactString, Asset, BatchEdit, BuildOutput,
-    Bundle, BundleFile, BundleMode, BundleSection, Change, CheckOutput, Commit, Content,
-    Diagnostic, DiagnosticHelp, DiagnosticLabel, DiagnosticNote, DiagnosticSeverity,
-    DiagnosticSuggestion, DiagnosticTag, DirChecked, DirParsed, DirResolved, Edit, EmitFormat,
-    FilePatch, FileType, FormatOutput, LintOutput, ModuleBuildKind, Object, ParseOutput, Program,
-    ProgramHeader, Replacement, Script, ScriptLanguage, SessionFile, Source, SourceMap,
-    SourceMapSource, TextEdit, TextRange, TraceArtifact, TraceCounter, TraceReport, TraceSpan,
-    TraceStage, TraceTime,
+    Applicability, ArtifactDependency, ArtifactSidecar, ArtifactSidecarLabel, ArtifactString,
+    Asset, BatchEdit, BuildOutput, Bundle, BundleFile, BundleMode, BundleSection, Change,
+    CheckOutput, Commit, Content, Diagnostic, DiagnosticHelp, DiagnosticLabel, DiagnosticNote,
+    DiagnosticSeverity, DiagnosticSuggestion, DiagnosticTag, DirChecked, DirParsed, DirResolved,
+    Edit, EmitFormat, FilePatch, FileType, FormatOutput, LintOutput, ModuleBuildKind, Object,
+    ParseOutput, Program, ProgramHeader, Replacement, Script, ScriptLanguage, SessionFile, Source,
+    SourceMap, SourceMapSource, TextEdit, TextRange, TraceArtifact, TraceCounter, TraceReport,
+    TraceSpan, TraceStage, TraceTime,
 };
 pub use destack_repository::Revision;
 pub use destack_source::{

@@ -449,13 +449,13 @@ typedef enum DestackBuildOutputKind {
 typedef struct DestackBuildOutput {
     DestackBuildOutputKind kind;
     DestackArtifactVersion version;
-    DestackScript script_script;
-    DestackObject object_object;
-    DestackAsset asset_asset;
-    DestackBuild build_build;
-    DestackBundle bundle_bundle;
-    DestackProgram program_program;
-    DestackProduct product_product;
+    DestackScript script;
+    DestackObject object;
+    DestackAsset asset;
+    DestackBuild build;
+    DestackBundle bundle;
+    DestackProgram program;
+    DestackProduct product;
 } DestackBuildOutput;
 
 typedef struct DestackBuildOutputArray {
@@ -493,11 +493,10 @@ typedef enum DestackBuildRequestKind {
 
 typedef struct DestackBuildRequest {
     DestackBuildRequestKind kind;
-    DestackModule module_module;
+    DestackModule module;
     DestackTargetId target;
     DestackModuleBuildKind output;
-    DestackTargetId target_target;
-    DestackProductId product_product;
+    DestackProductId product;
 } DestackBuildRequest;
 
 typedef struct DestackBuildRequestArray {

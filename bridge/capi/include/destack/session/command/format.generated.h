@@ -17,9 +17,9 @@ typedef enum DestackDocumentKind {
 
 typedef struct DestackDocument {
     DestackDocumentKind kind;
-    DestackModule module_module;
+    DestackModule module;
     char *path;
-    char *text_text;
+    char *text;
 } DestackDocument;
 
 typedef struct DestackDocumentArray {

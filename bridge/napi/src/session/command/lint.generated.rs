@@ -13,11 +13,11 @@ pub struct Scope {
     /// Payload variant label.
     pub kind: String,
     /// Loaded source module.
-    pub module_module: Option<Module>,
+    pub module: Option<Module>,
     /// Semantic profile.
     pub profile: Option<ProfileId>,
     /// Source package.
-    pub package_package: Option<PackageId>,
+    pub package: Option<PackageId>,
 }
 
 impl Scope {
@@ -25,11 +25,11 @@ impl Scope {
     pub(crate) fn into_bridge(self) -> napi::Result<bridge::Scope> {
         match self.kind.as_str() {
             "module" => {
-                if self.package_package.is_some() {
-                    return Err(unexpected_payload("package_package"));
+                if self.package.is_some() {
+                    return Err(unexpected_payload("package"));
                 }
-                let Some(value) = self.module_module else {
-                    return Err(missing_payload("moduleModule"));
+                let Some(value) = self.module else {
+                    return Err(missing_payload("module"));
                 };
                 let module = value.into_bridge()?;
                 let Some(value) = self.profile else {
@@ -39,27 +39,27 @@ impl Scope {
                 Ok(bridge::Scope::Module { module, profile })
             }
             "package" => {
-                if self.module_module.is_some() {
-                    return Err(unexpected_payload("module_module"));
+                if self.module.is_some() {
+                    return Err(unexpected_payload("module"));
                 }
                 if self.profile.is_some() {
                     return Err(unexpected_payload("profile"));
                 }
-                let Some(value) = self.package_package else {
-                    return Err(missing_payload("packagePackage"));
+                let Some(value) = self.package else {
+                    return Err(missing_payload("package"));
                 };
                 let package = value.into_bridge()?;
                 Ok(bridge::Scope::Package { package })
             }
             "workspace" => {
-                if self.module_module.is_some() {
-                    return Err(unexpected_payload("module_module"));
+                if self.module.is_some() {
+                    return Err(unexpected_payload("module"));
                 }
                 if self.profile.is_some() {
                     return Err(unexpected_payload("profile"));
                 }
-                if self.package_package.is_some() {
-                    return Err(unexpected_payload("package_package"));
+                if self.package.is_some() {
+                    return Err(unexpected_payload("package"));
                 }
                 Ok(bridge::Scope::Workspace)
             }

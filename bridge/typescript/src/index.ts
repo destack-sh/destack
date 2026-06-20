@@ -30,12 +30,7 @@ export type {
     SourceMap,
     SourceMapSource,
 } from "./artifact/output.generated.js";
-export type {
-    ArtifactDependency,
-    ArtifactDirectoryEntry,
-    ArtifactPathState,
-    ArtifactSourceDependency,
-} from "./artifact/dependency.generated.js";
+export type { ArtifactDependency } from "./artifact/dependency.generated.js";
 export type {
     ArtifactRecord,
     ArtifactString,

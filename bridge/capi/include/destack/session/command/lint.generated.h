@@ -35,9 +35,9 @@ typedef enum DestackScopeKind {
 
 typedef struct DestackScope {
     DestackScopeKind kind;
-    DestackModule module_module;
+    DestackModule module;
     DestackProfileId profile;
-    DestackPackageId package_package;
+    DestackPackageId package;
 } DestackScope;
 
 typedef struct DestackScopeArray {

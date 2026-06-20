@@ -6,86 +6,6 @@ use napi_derive::napi;
 
 use crate::{ArtifactVersion, ContentId, FileId};
 
-/// One exact directory entry observed by one artifact computation.
-#[derive(Debug)]
-#[napi(object, js_name = "ArtifactDirectoryEntry")]
-pub struct ArtifactDirectoryEntry {
-    /// The entry path.
-    pub path: String,
-    /// The exact entry path state.
-    pub state: String,
-}
-
-impl ArtifactDirectoryEntry {
-    /// Convert one bridge value into one NAPI value.
-    pub(crate) fn from_bridge(value: bridge::ArtifactDirectoryEntry) -> Self {
-        Self {
-            path: value.path,
-            state: artifact_path_state_label(value.state),
-        }
-    }
-}
-
-/// One primitive source observation read while building an artifact.
-#[derive(Debug)]
-#[napi(object, js_name = "ArtifactSourceDependency")]
-pub struct ArtifactSourceDependency {
-    /// Payload variant label.
-    pub kind: String,
-    /// The source path.
-    pub path: Option<String>,
-    /// The exact path state.
-    pub state: Option<String>,
-    /// The source directory path.
-    pub directory: Option<String>,
-    /// The direct entries in deterministic order.
-    pub entries: Option<Vec<ArtifactDirectoryEntry>>,
-    /// The source file id.
-    pub file: Option<FileId>,
-    /// The exact source content id.
-    pub content: Option<ContentId>,
-}
-
-impl ArtifactSourceDependency {
-    /// Convert one bridge payload enum into one NAPI payload enum.
-    pub(crate) fn from_bridge(value: bridge::ArtifactSourceDependency) -> Self {
-        match value {
-            bridge::ArtifactSourceDependency::PathState { path, state } => Self {
-                kind: "pathState".to_string(),
-                path: Some(path),
-                state: Some(artifact_path_state_label(state)),
-                directory: None,
-                entries: None,
-                file: None,
-                content: None,
-            },
-            bridge::ArtifactSourceDependency::DirectoryEntries { directory, entries } => Self {
-                kind: "directoryEntries".to_string(),
-                directory: Some(directory),
-                entries: Some(
-                    entries
-                        .into_iter()
-                        .map(ArtifactDirectoryEntry::from_bridge)
-                        .collect(),
-                ),
-                path: None,
-                state: None,
-                file: None,
-                content: None,
-            },
-            bridge::ArtifactSourceDependency::FileContent { file, content } => Self {
-                kind: "fileContent".to_string(),
-                file: Some(FileId::from_bridge(file)),
-                content: Some(ContentId::from_bridge(content)),
-                path: None,
-                state: None,
-                directory: None,
-                entries: None,
-            },
-        }
-    }
-}
-
 /// One exact dependency read while building an artifact.
 #[derive(Debug)]
 #[napi(object, js_name = "ArtifactDependency")]
@@ -94,8 +14,10 @@ pub struct ArtifactDependency {
     pub kind: String,
     /// The exact artifact version depended on.
     pub version: Option<ArtifactVersion>,
-    /// The primitive source observation.
-    pub dependency: Option<ArtifactSourceDependency>,
+    /// The source file id.
+    pub file: Option<FileId>,
+    /// The exact source content id.
+    pub content: Option<ContentId>,
 }
 
 impl ArtifactDependency {
@@ -105,25 +27,15 @@ impl ArtifactDependency {
             bridge::ArtifactDependency::Artifact { version } => Self {
                 kind: "artifact".to_string(),
                 version: Some(ArtifactVersion::from_bridge(version)),
-                dependency: None,
+                file: None,
+                content: None,
             },
-            bridge::ArtifactDependency::Source { dependency } => Self {
+            bridge::ArtifactDependency::Source { file, content } => Self {
                 kind: "source".to_string(),
-                dependency: Some(ArtifactSourceDependency::from_bridge(dependency)),
+                file: Some(FileId::from_bridge(file)),
+                content: Some(ContentId::from_bridge(content)),
                 version: None,
             },
         }
     }
-}
-
-/// Return one target enum label.
-fn artifact_path_state_label(value: bridge::ArtifactPathState) -> String {
-    let label = match value {
-        bridge::ArtifactPathState::Missing => "missing",
-        bridge::ArtifactPathState::File => "file",
-        bridge::ArtifactPathState::Directory => "directory",
-        bridge::ArtifactPathState::Symlink => "symlink",
-        bridge::ArtifactPathState::Other => "other",
-    };
-    label.to_string()
 }

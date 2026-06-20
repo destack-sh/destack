@@ -2,9 +2,6 @@
 
 from ._native import VERSION, Repository, Session, Workspace, version
 from .artifact.dependency import (
-    ArtifactPathState,
-    ArtifactDirectoryEntry,
-    ArtifactSourceDependency,
     ArtifactDependency,
 )
 from .artifact.key import (
@@ -150,9 +147,6 @@ __all__ = [
     "Repository",
     "Session",
     "Workspace",
-    "ArtifactPathState",
-    "ArtifactDirectoryEntry",
-    "ArtifactSourceDependency",
     "ArtifactDependency",
     "ArtifactKey",
     "BuildProfile",
