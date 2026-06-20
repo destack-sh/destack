@@ -1,5 +1,7 @@
+mod session;
 mod source;
 mod stress;
-mod tests;
+mod trace;
 
-use tests::*;
+use session::*;
+use trace::*;
