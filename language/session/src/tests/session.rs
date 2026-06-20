@@ -30,13 +30,30 @@ pub(crate) struct TestSession {
 impl TestSession {
     /// Open one test session from files below the default root.
     pub(crate) fn open(files: &[(&str, &str)]) -> Result<Self, SessionError> {
-        Self::open_at(DEFAULT_ROOT, files)
+        Self::open_with_root(DEFAULT_ROOT, files, 1)
+    }
+
+    /// Open one test session from files below the default root with explicit worker count.
+    pub(crate) fn open_with_workers(
+        files: &[(&str, &str)],
+        worker_count: usize,
+    ) -> Result<Self, SessionError> {
+        Self::open_with_root(DEFAULT_ROOT, files, worker_count)
     }
 
     /// Open one test session from a specific input path.
-    pub(crate) fn open_at(
+    pub(crate) fn open_from(
         input: impl AsRef<Path>,
         files: &[(&str, &str)],
+    ) -> Result<Self, SessionError> {
+        Self::open_with_root(input, files, 1)
+    }
+
+    /// Open one test session from a specific input path and worker count.
+    fn open_with_root(
+        input: impl AsRef<Path>,
+        files: &[(&str, &str)],
+        worker_count: usize,
     ) -> Result<Self, SessionError> {
         let root = PathBuf::from(DEFAULT_ROOT);
         let fs = Arc::new(MemoryFileSystem::new());
@@ -48,12 +65,17 @@ impl TestSession {
                 .expect("test file should write");
         }
 
+        let execution = if worker_count == 1 {
+            Execution::Inline
+        } else {
+            Execution::Threaded
+        };
         let host = Host::new(
             Environment::default(),
             fs.clone(),
             Arc::new(MemoryBlobStore::new()),
         )
-        .with_execution(Execution::Inline);
+        .with_execution(execution);
         let repository = open_repository(
             PathBuf::from(input.as_ref()),
             host,
@@ -74,7 +96,7 @@ impl TestSession {
             compiler,
             linter,
             query,
-            1,
+            worker_count,
             None,
         )?;
 

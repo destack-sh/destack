@@ -125,7 +125,7 @@ fn test_open_memory_applies_ordered_edits() {
 
 #[test]
 fn test_open_discovers_workspace_root_from_nested_path() {
-    let test = TestSession::open_at(
+    let test = TestSession::open_from(
         "/workspace/packages/app/src/index.ds",
         &[
             (
@@ -398,7 +398,7 @@ export const shared = 2;
 }
 
 #[test]
-fn test_load_module_from_fs_adds_requested_module() {
+fn test_load_module_imports_requested_source() {
     let test = TestSession::open(&[(
         "destack.json",
         r#"{
