@@ -149,21 +149,17 @@ impl CheckState<'_> {
 
                 self.fixed_array_layout(origin, segment, element, count, in_flight)
             }
-            dir::Type::Slice(slice) => {
-                let element = slice.element;
-
-                Ok(Answer::Ready(Some(dir::Layout {
-                    shape: dir::LayoutShape::Slice(dir::SliceLayout { element }),
-                    size: Some(pointer_bytes * 2),
-                    alignment: Some(pointer_bytes),
-                    niche: Some(dir::Niche {
-                        offset: 0,
-                        width: pointer_bytes,
-                        start: 1,
-                        end: dir::Niche::scalar_max(pointer_bytes),
-                    }),
-                })))
-            }
+            dir::Type::Slice(_) => Ok(Answer::Ready(Some(dir::Layout {
+                shape: dir::LayoutShape::Slice,
+                size: pointer_bytes * 2,
+                alignment: pointer_bytes,
+                niche: Some(dir::Niche {
+                    offset: 0,
+                    width: pointer_bytes,
+                    start: 1,
+                    end: dir::Niche::scalar_max(pointer_bytes),
+                }),
+            }))),
             dir::Type::Tuple(tuple) => {
                 let fields = tuple
                     .elements
@@ -252,13 +248,13 @@ impl CheckState<'_> {
         let stride = align_to(slot.size, slot.alignment);
 
         Ok(Answer::Ready(Some(dir::Layout {
-            shape: dir::LayoutShape::Array(dir::ArrayLayout {
+            shape: dir::LayoutShape::Array(dir::ElementLayout {
                 element,
-                stride: Some(stride),
-                count: Some(length),
+                stride,
+                count: length,
             }),
-            size: Some(stride.saturating_mul(length)),
-            alignment: Some(slot.alignment),
+            size: stride.saturating_mul(length),
+            alignment: slot.alignment,
             // the first element's niche carries through
             niche: (length > 0).then_some(slot.niche).flatten(),
         })))
@@ -305,9 +301,9 @@ impl CheckState<'_> {
                 key,
                 ty,
                 layout: slot.id,
-                offset: Some(field_offset),
-                size: Some(slot.size),
-                alignment: Some(slot.alignment),
+                offset: field_offset,
+                size: slot.size,
+                alignment: slot.alignment,
             });
         }
 
@@ -325,8 +321,8 @@ impl CheckState<'_> {
 
         Ok(Answer::Ready(Some(dir::Layout {
             shape,
-            size: Some(align_to(offset, alignment)),
-            alignment: Some(alignment),
+            size: align_to(offset, alignment),
+            alignment,
             niche,
         })))
     }
@@ -373,14 +369,14 @@ impl CheckState<'_> {
                     shape: dir::LayoutShape::Variant(dir::VariantLayout {
                         tag: dir::VariantTagLayout {
                             ty: None,
-                            size: Some(0),
-                            alignment: Some(1),
+                            size: 0,
+                            alignment: 1,
                         },
                         payload_offset: Some(0),
                         variants: cases,
                     }),
-                    size: Some(payload.size),
-                    alignment: Some(payload.alignment),
+                    size: payload.size,
+                    alignment: payload.alignment,
                     // the niche is spent encoding the unit variants
                     niche: None,
                 })));
@@ -403,14 +399,14 @@ impl CheckState<'_> {
             shape: dir::LayoutShape::Variant(dir::VariantLayout {
                 tag: dir::VariantTagLayout {
                     ty: None,
-                    size: Some(tag_size),
-                    alignment: Some(tag_size),
+                    size: tag_size,
+                    alignment: tag_size,
                 },
                 payload_offset: Some(payload_offset),
                 variants: cases,
             }),
-            size: Some(size),
-            alignment: Some(alignment),
+            size,
+            alignment,
             // free tag values above the case count form the result niche
             niche: Some(dir::Niche {
                 offset: 0,
@@ -431,6 +427,13 @@ impl CheckState<'_> {
         instance: &dir::GenericInstance,
         in_flight: &mut IndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<Option<dir::Layout>>> {
+        if let Some(item) = self.environment.language.item(instance.symbol)
+            && let Some(layout) =
+                self.language_item_layout(origin, segment, item, instance, in_flight)?
+        {
+            return Ok(layout);
+        }
+
         match self.definition(instance.symbol) {
             // newtypes are transparent over their substituted backing
             Some(dir::Definition::Newtype(definition)) => {
@@ -448,8 +451,8 @@ impl CheckState<'_> {
                         backing_type: backing,
                         backing_layout: slot.id,
                     }),
-                    size: Some(slot.size),
-                    alignment: Some(slot.alignment),
+                    size: slot.size,
+                    alignment: slot.alignment,
                     niche: slot.niche,
                 })))
             }
@@ -527,6 +530,467 @@ impl CheckState<'_> {
         self.aggregate_layout(origin, segment, &fields, shape, in_flight)
     }
 
+    /// Compute compiler-defined layout for one intrinsic language item.
+    fn language_item_layout(
+        &mut self,
+        origin: Origin,
+        segment: ModuleId,
+        item: dir::LanguageItem,
+        instance: &dir::GenericInstance,
+        in_flight: &mut IndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<Option<Answer<Option<dir::Layout>>>> {
+        let pointer_bytes = self.target_pointer_bytes()?;
+
+        let answer = match item {
+            dir::LanguageItem::Vector => {
+                self.vector_layout(origin, segment, instance, in_flight)?
+            }
+            dir::LanguageItem::Tensor => {
+                let tensor = match self.tensor_type(origin, instance)? {
+                    Answer::Ready(Some(tensor)) => tensor,
+                    Answer::Ready(None) => return Ok(Some(Answer::Ready(None))),
+                    Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
+                };
+
+                Answer::Ready(Some(tensor.layout(pointer_bytes)))
+            }
+            dir::LanguageItem::TensorView => {
+                let tensor = match self.tensor_view_type(origin, instance)? {
+                    Answer::Ready(Some(tensor)) => tensor,
+                    Answer::Ready(None) => return Ok(Some(Answer::Ready(None))),
+                    Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
+                };
+
+                Answer::Ready(Some(tensor.layout(pointer_bytes)))
+            }
+            dir::LanguageItem::ComputeDevice
+            | dir::LanguageItem::ComputeMesh
+            | dir::LanguageItem::ComputeBuffer
+            | dir::LanguageItem::ComputeStream
+            | dir::LanguageItem::ComputeEvent
+            | dir::LanguageItem::ComputeProgram
+            | dir::LanguageItem::ComputeKernel
+            | dir::LanguageItem::ComputeKernelArgument => Answer::Ready(Some(dir::Layout {
+                shape: dir::LayoutShape::Scalar,
+                size: pointer_bytes,
+                alignment: pointer_bytes,
+                niche: Some(dir::Niche::non_null_pointer(pointer_bytes)),
+            })),
+            _ => return Ok(None),
+        };
+
+        Ok(Some(answer))
+    }
+
+    /// Compute the inline layout of `Vector<T, N>`.
+    fn vector_layout(
+        &mut self,
+        origin: Origin,
+        segment: ModuleId,
+        instance: &dir::GenericInstance,
+        in_flight: &mut IndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<Answer<Option<dir::Layout>>> {
+        let [element, count] = instance.arguments.as_slice() else {
+            return Ok(Answer::Ready(None));
+        };
+
+        let slot = match self.slot_layout(origin, segment, *element, in_flight)? {
+            Answer::Ready(Some(slot)) => slot,
+            Answer::Ready(None) => return Ok(Answer::Ready(None)),
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+        let count = match self.evaluate_root(origin, *count)? {
+            Answer::Ready(count) => count,
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+        let lanes = match self.ty(count)? {
+            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => u32::try_from(*value).ok(),
+            _ => None,
+        };
+        let Some(lanes) = lanes else {
+            return Ok(Answer::Ready(None));
+        };
+
+        let stride = align_to(slot.size, slot.alignment);
+
+        Ok(Answer::Ready(Some(dir::Layout {
+            shape: dir::LayoutShape::Vector(dir::ElementLayout {
+                element: *element,
+                stride,
+                count: lanes,
+            }),
+            size: stride.saturating_mul(lanes),
+            alignment: slot.alignment,
+            niche: (lanes > 0).then_some(slot.niche).flatten(),
+        })))
+    }
+
+    /// Return normalized layout input for one `Tensor<T, Rank, F, P>` instance.
+    fn tensor_type(
+        &mut self,
+        origin: Origin,
+        instance: &dir::GenericInstance,
+    ) -> CompilerResult<Answer<Option<TensorType>>> {
+        let [element, rank, format, placement] = instance.arguments.as_slice() else {
+            return Ok(Answer::Ready(None));
+        };
+        let rank = match self.static_u32(origin, *rank)? {
+            Answer::Ready(Some(rank)) => rank,
+            Answer::Ready(None) => return Ok(Answer::Ready(None)),
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+        let format = match self.tensor_format(origin, *format)? {
+            Answer::Ready(Some(format)) => format,
+            Answer::Ready(None) => return Ok(Answer::Ready(None)),
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+        let placement = match self.tensor_placement(origin, *placement)? {
+            Answer::Ready(Some(placement)) => placement,
+            Answer::Ready(None) => return Ok(Answer::Ready(None)),
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+
+        Ok(Answer::Ready(Some(TensorType {
+            element: *element,
+            rank,
+            format,
+            placement,
+        })))
+    }
+
+    /// Return normalized layout input for one `TensorView<T, Rank, F, P, A>` instance.
+    fn tensor_view_type(
+        &mut self,
+        origin: Origin,
+        instance: &dir::GenericInstance,
+    ) -> CompilerResult<Answer<Option<TensorViewType>>> {
+        let [element, rank, format, placement, ..] = instance.arguments.as_slice() else {
+            return Ok(Answer::Ready(None));
+        };
+        let rank = match self.static_u32(origin, *rank)? {
+            Answer::Ready(Some(rank)) => rank,
+            Answer::Ready(None) => return Ok(Answer::Ready(None)),
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+        let format = match self.tensor_view_format(origin, *format)? {
+            Answer::Ready(Some(format)) => format,
+            Answer::Ready(None) => return Ok(Answer::Ready(None)),
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+        let placement = match self.tensor_placement(origin, *placement)? {
+            Answer::Ready(Some(placement)) => placement,
+            Answer::Ready(None) => return Ok(Answer::Ready(None)),
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+
+        Ok(Answer::Ready(Some(TensorViewType {
+            element: *element,
+            rank,
+            format,
+            placement,
+        })))
+    }
+
+    /// Return the normalized owning tensor format.
+    fn tensor_format(
+        &mut self,
+        origin: Origin,
+        format: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::TensorFormat>>> {
+        let format = match self.tensor_view_format(origin, format)? {
+            Answer::Ready(Some(format)) => format,
+            Answer::Ready(None) => return Ok(Answer::Ready(None)),
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+
+        // owning tensors currently require contiguous storage
+        let format = match format {
+            dir::TensorViewFormat::Dense { order } => Some(dir::TensorFormat::Dense { order }),
+            dir::TensorViewFormat::Strided => None,
+        };
+
+        Ok(Answer::Ready(format))
+    }
+
+    /// Return the normalized tensor view format.
+    fn tensor_view_format(
+        &mut self,
+        origin: Origin,
+        format: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::TensorViewFormat>>> {
+        let instance = match self.language_item_instance(origin, format)? {
+            Answer::Ready(Some(instance)) => instance,
+            Answer::Ready(None) => return Ok(Answer::Ready(None)),
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+        let Some(item) = self.environment.language.item(instance.symbol) else {
+            return Ok(Answer::Ready(None));
+        };
+        let format = match item {
+            dir::LanguageItem::TensorDense => {
+                let order = match self.tensor_dimension_order(origin, &instance)? {
+                    Answer::Ready(Some(order)) => order,
+                    Answer::Ready(None) => return Ok(Answer::Ready(None)),
+                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                };
+
+                dir::TensorViewFormat::Dense { order }
+            }
+            dir::LanguageItem::TensorStrided => dir::TensorViewFormat::Strided,
+            _ => return Ok(Answer::Ready(None)),
+        };
+
+        Ok(Answer::Ready(Some(format)))
+    }
+
+    /// Return the normalized tensor placement.
+    fn tensor_placement(
+        &mut self,
+        origin: Origin,
+        placement: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::TensorSharding>>> {
+        let instance = match self.language_item_instance(origin, placement)? {
+            Answer::Ready(Some(instance)) => instance,
+            Answer::Ready(None) => return Ok(Answer::Ready(None)),
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+        let Some(item) = self.environment.language.item(instance.symbol) else {
+            return Ok(Answer::Ready(None));
+        };
+        let placement = match item {
+            dir::LanguageItem::TensorUnsharded => dir::TensorSharding::Unsharded,
+            dir::LanguageItem::TensorShardingAxes => {
+                let axes = match self.tensor_placement_axes(origin, &instance)? {
+                    Answer::Ready(Some(axes)) => axes,
+                    Answer::Ready(None) => return Ok(Answer::Ready(None)),
+                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                };
+
+                dir::TensorSharding::Sharding { axes }
+            }
+            _ => return Ok(Answer::Ready(None)),
+        };
+
+        Ok(Answer::Ready(Some(placement)))
+    }
+
+    /// Return normalized sharding axes from one `Sharding<...Axes>` instance.
+    fn tensor_placement_axes(
+        &mut self,
+        origin: Origin,
+        instance: &dir::GenericInstance,
+    ) -> CompilerResult<Answer<Option<Vec<dir::TensorShardingAxis>>>> {
+        let mut axes = Vec::with_capacity(instance.arguments.len());
+
+        for axis in instance.arguments.iter().copied() {
+            let axis = match self.tensor_placement_axis(origin, axis)? {
+                Answer::Ready(Some(axis)) => axis,
+                Answer::Ready(None) => return Ok(Answer::Ready(None)),
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            };
+
+            axes.push(axis);
+        }
+
+        Ok(Answer::Ready(Some(axes)))
+    }
+
+    /// Return one normalized sharding axis descriptor.
+    fn tensor_placement_axis(
+        &mut self,
+        origin: Origin,
+        axis: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::TensorShardingAxis>>> {
+        let instance = match self.language_item_instance(origin, axis)? {
+            Answer::Ready(Some(instance)) => instance,
+            Answer::Ready(None) => return Ok(Answer::Ready(None)),
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+        let Some(item) = self.environment.language.item(instance.symbol) else {
+            return Ok(Answer::Ready(None));
+        };
+        let axis = match item {
+            dir::LanguageItem::TensorShard => {
+                let Some(axis) = instance.arguments.first().copied() else {
+                    return Ok(Answer::Ready(None));
+                };
+                let axis = match self.static_i32(origin, axis)? {
+                    Answer::Ready(Some(axis)) => axis,
+                    Answer::Ready(None) => return Ok(Answer::Ready(None)),
+                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                };
+
+                dir::TensorShardingAxis::Shard { axis }
+            }
+            dir::LanguageItem::TensorReplicate => dir::TensorShardingAxis::Replicate,
+            dir::LanguageItem::TensorPartial => {
+                let reduction = match self.tensor_reduction(origin, &instance)? {
+                    Answer::Ready(Some(reduction)) => reduction,
+                    Answer::Ready(None) => return Ok(Answer::Ready(None)),
+                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                };
+
+                dir::TensorShardingAxis::Partial { reduction }
+            }
+            _ => return Ok(Answer::Ready(None)),
+        };
+
+        Ok(Answer::Ready(Some(axis)))
+    }
+
+    /// Return the normalized reduction carried by one `Partial<R>` instance.
+    fn tensor_reduction(
+        &mut self,
+        origin: Origin,
+        instance: &dir::GenericInstance,
+    ) -> CompilerResult<Answer<Option<dir::TensorReduction>>> {
+        let Some(reduction) = instance.arguments.first().copied() else {
+            return Ok(Answer::Ready(None));
+        };
+        let reduction = match self.evaluate_root(origin, reduction)? {
+            Answer::Ready(reduction) => reduction,
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+        let reduction = self.represented_type(origin, reduction)?;
+        let reduction = match self.ty(reduction)? {
+            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
+                dir::TensorReduction::from_discriminant(*value)
+            }
+            dir::Type::Static(value) => self.tensor_reduction_from_static(*value),
+            _ => None,
+        };
+
+        Ok(Answer::Ready(reduction))
+    }
+
+    /// Return one normalized u32 static value.
+    fn static_u32(
+        &mut self,
+        origin: Origin,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<u32>>> {
+        self.static_integer(origin, value, u32::try_from)
+    }
+
+    /// Return the normalized dimension order for one `Dense<Order>` instance.
+    fn tensor_dimension_order(
+        &mut self,
+        origin: Origin,
+        instance: &dir::GenericInstance,
+    ) -> CompilerResult<Answer<Option<dir::TensorDimensionOrder>>> {
+        let Some(order) = instance.arguments.first().copied() else {
+            return Ok(Answer::Ready(None));
+        };
+        let order = match self.evaluate_root(origin, order)? {
+            Answer::Ready(order) => order,
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+        let order = self.represented_type(origin, order)?;
+        let order = match self.ty(order)? {
+            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
+                dir::TensorDimensionOrder::from_discriminant(*value)
+            }
+            dir::Type::Static(value) => self.tensor_dimension_order_from_static(*value),
+            _ => None,
+        };
+
+        Ok(Answer::Ready(order))
+    }
+
+    /// Return the normalized dimension order carried by one static value.
+    fn tensor_dimension_order_from_static(
+        &self,
+        value: dir::GlobalStaticId,
+    ) -> Option<dir::TensorDimensionOrder> {
+        let dir::StaticTerm::ScalarLiteral {
+            value: dir::ScalarLiteral::Integer(value),
+        } = self.r#static(value)
+        else {
+            return None;
+        };
+
+        dir::TensorDimensionOrder::from_discriminant(*value)
+    }
+
+    /// Return the normalized reduction carried by one static value.
+    fn tensor_reduction_from_static(
+        &self,
+        value: dir::GlobalStaticId,
+    ) -> Option<dir::TensorReduction> {
+        let dir::StaticTerm::ScalarLiteral {
+            value: dir::ScalarLiteral::Integer(value),
+        } = self.r#static(value)
+        else {
+            return None;
+        };
+
+        dir::TensorReduction::from_discriminant(*value)
+    }
+
+    /// Return one static i32 value.
+    fn static_i32(
+        &mut self,
+        origin: Origin,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<i32>>> {
+        self.static_integer(origin, value, i32::try_from)
+    }
+
+    /// Return one normalized static integer.
+    fn static_integer<T>(
+        &mut self,
+        origin: Origin,
+        value: dir::GlobalTypeId,
+        convert: impl FnOnce(i64) -> Result<T, std::num::TryFromIntError> + Copy,
+    ) -> CompilerResult<Answer<Option<T>>> {
+        let value = match self.evaluate_root(origin, value)? {
+            Answer::Ready(value) => value,
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+        let value = self.represented_type(origin, value)?;
+        let value = match self.ty(value)? {
+            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => convert(*value).ok(),
+            dir::Type::Static(value) => self.static_integer_value(*value, convert),
+            _ => None,
+        };
+
+        Ok(Answer::Ready(value))
+    }
+
+    /// Return one normalized static integer value.
+    fn static_integer_value<T>(
+        &self,
+        value: dir::GlobalStaticId,
+        convert: impl FnOnce(i64) -> Result<T, std::num::TryFromIntError>,
+    ) -> Option<T> {
+        let dir::StaticTerm::ScalarLiteral {
+            value: dir::ScalarLiteral::Integer(value),
+        } = self.r#static(value)
+        else {
+            return None;
+        };
+
+        convert(*value).ok()
+    }
+
+    /// Return one normalized language item instance.
+    fn language_item_instance(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::GenericInstance>>> {
+        let ty = match self.evaluate_root(origin, ty)? {
+            Answer::Ready(ty) => ty,
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+        let ty = self.represented_type(origin, ty)?;
+        let dir::Type::Reference(instance) = self.ty(ty)? else {
+            return Ok(Answer::Ready(None));
+        };
+
+        Ok(Answer::Ready(Some(instance.clone())))
+    }
+
     /// Compute one nested layout and summarize it for composition.
     ///
     /// Managed representations occupy pointer slots: the unqualified
@@ -584,9 +1048,8 @@ impl CheckState<'_> {
             .get(&ty.module_id)
             .unwrap_or_else(|| unreachable!("computed layout must own a layout segment"));
         let layout = working.get_layout(id);
-        let (Some(size), Some(alignment)) = (layout.size, layout.alignment) else {
-            return Ok(Answer::Ready(None));
-        };
+        let size = layout.size;
+        let alignment = layout.alignment;
 
         Ok(Answer::Ready(Some(SlotLayout {
             id,
@@ -657,6 +1120,66 @@ impl CheckState<'_> {
         };
 
         Ok(bytes)
+    }
+}
+
+/// Normalized tensor layout input.
+struct TensorType {
+    /// The tensor element type.
+    element: dir::GlobalTypeId,
+    /// The tensor rank.
+    rank: u32,
+    /// The tensor storage format.
+    format: dir::TensorFormat,
+    /// The tensor placement.
+    placement: dir::TensorSharding,
+}
+
+impl TensorType {
+    /// Return the concrete tensor handle layout.
+    fn layout(self, pointer_bytes: u32) -> dir::Layout {
+        dir::Layout {
+            shape: dir::LayoutShape::Tensor(dir::TensorLayout {
+                element: self.element,
+                format: self.format,
+                sharding: self.placement,
+                rank: self.rank,
+            }),
+            size: pointer_bytes,
+            alignment: pointer_bytes,
+            niche: Some(dir::Niche::non_null_pointer(pointer_bytes)),
+        }
+    }
+}
+
+/// Normalized tensor view layout input.
+struct TensorViewType {
+    /// The viewed element type.
+    element: dir::GlobalTypeId,
+    /// The tensor view rank.
+    rank: u32,
+    /// The tensor view format.
+    format: dir::TensorViewFormat,
+    /// The tensor view placement.
+    placement: dir::TensorSharding,
+}
+
+impl TensorViewType {
+    /// Return the concrete tensor view descriptor layout.
+    fn layout(self, pointer_bytes: u32) -> dir::Layout {
+        let field_count = self.format.descriptor_slots(self.rank);
+
+        dir::Layout {
+            shape: dir::LayoutShape::TensorView(dir::TensorViewLayout {
+                element: self.element,
+                format: self.format,
+                sharding: self.placement,
+                rank: self.rank,
+            }),
+            size: pointer_bytes.saturating_mul(field_count),
+            alignment: pointer_bytes,
+            niche: Some(dir::Niche::non_null_pointer(pointer_bytes)),
+        }
     }
 }
 
