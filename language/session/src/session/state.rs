@@ -116,7 +116,7 @@ impl SessionState {
     ) -> Result<Option<ArtifactOutcome>, SessionError> {
         let repository = self.repository();
 
-        // no revision binding means the artifact has not been provided
+        // no exact binding means the task has not completed in this revision
         let Some(version) = repository.artifact_binding(task.revision, &task.key)? else {
             return Ok(None);
         };
