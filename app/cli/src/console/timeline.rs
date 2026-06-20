@@ -12,7 +12,7 @@ const SLOWEST_COUNT: usize = 8;
 ///
 /// Example:
 /// ```text
-/// parse 450ms · sema 6.1s · lower 320ms · emit 95ms (wall 2.1s, 8 workers)
+/// parse 450ms · check 6.1s · lower 320ms · emit 95ms (wall 2.1s, 8 workers)
 /// ```
 pub fn render_stage_summary(report: &TraceSnapshot) -> String {
     // a run without provider work was served from cache
@@ -54,16 +54,14 @@ pub fn render_stage_summary(report: &TraceSnapshot) -> String {
 struct TimelineKind {
     /// The artifact kind name.
     name: String,
-    /// The lane glyph index of the kind's stage.
-    stage: usize,
     /// The summed busy time across the run.
     micros: u64,
 }
 
 /// Render the per-worker timeline of one detailed build trace.
 /// Each worker draws one lane; every cell shows the artifact kind that
-/// owned most of its slice of wall time. The glyph encodes the stage,
-/// the color encodes the artifact kind.
+/// owned most of its slice of wall time. Color encodes artifact kind
+/// when available; plain output only marks busy and idle cells.
 pub fn render_timeline(report: &TraceSnapshot) -> String {
     if report.artifacts.is_empty() || report.total_micros == 0 {
         return String::new();
@@ -80,7 +78,6 @@ pub fn render_timeline(report: &TraceSnapshot) -> String {
             Some(kind) => kind.micros += artifact.micros,
             None => kinds.push(TimelineKind {
                 name: artifact.name.clone(),
-                stage: stage_index(&artifact.stage),
                 micros: artifact.micros,
             }),
         }
@@ -133,8 +130,7 @@ pub fn render_timeline(report: &TraceSnapshot) -> String {
             }
             run_kind = cell;
             run.push(match cell {
-                Some(_) if colored => '█',
-                Some(kind) => STAGE_CELLS[kinds[kind].stage],
+                Some(_) => '█',
                 None => '·',
             });
         }
@@ -149,7 +145,7 @@ pub fn render_timeline(report: &TraceSnapshot) -> String {
         width = LANE_WIDTH,
     )));
 
-    // legend: colored kinds when possible, stage glyphs otherwise
+    // render the legend for the active terminal
     if colored {
         let mut legend = kinds.iter().collect::<Vec<_>>();
         legend.sort_by_key(|kind| std::cmp::Reverse(kind.micros));
@@ -161,16 +157,14 @@ pub fn render_timeline(report: &TraceSnapshot) -> String {
             output.push_str(&format!("          {}\n", line.join("  ")));
         }
     } else {
-        output.push_str(&dim(
-            "          ░ parse  ▒ bind  ▚ macro  ▓ check  ▆ lower  █ emit  ▄ link  ▁ other  · idle\n",
-        ));
+        output.push_str(&dim("          █ busy  · idle\n"));
     }
 
     // show named terminal attempts after the worker lanes
     let mut slowest = report
         .artifacts
         .iter()
-        .filter(|artifact| artifact.outcome != "blocked")
+        .filter(|artifact| artifact.outcome != "parked")
         .collect::<Vec<_>>();
     slowest.sort_by_key(|artifact| std::cmp::Reverse(artifact.micros));
     if !slowest.is_empty() {
@@ -209,11 +203,6 @@ fn paint_run(run: &str, kind: Option<usize>, kinds: &[TimelineKind], colored: bo
     }
 }
 
-/// The lane glyph drawn for each stage, ordered like stage_index.
-/// Lint, query, and setup share one glyph; color and the legend carry
-/// the kind.
-const STAGE_CELLS: [char; 8] = ['░', '▒', '▚', '▓', '▆', '█', '▄', '▁'];
-
 /// Return the 256-color code of one stage display name, matching the
 /// lead artifact kind drawn in the timeline.
 fn stage_color(stage: &str) -> &'static str {
@@ -225,6 +214,8 @@ fn stage_color(stage: &str) -> &'static str {
         "parse" => "38;5;75",
         "bind" => "38;5;80",
         "macro" => "38;5;115",
+        "resolve" => "38;5;79",
+        "graph" => "38;5;147",
         "check" => "38;5;170",
         "lower" => "38;5;208",
         "link" => "38;5;84",
@@ -232,20 +223,6 @@ fn stage_color(stage: &str) -> &'static str {
         "query" => "38;5;147",
         "init" => "38;5;245",
         _ => "38;5;250",
-    }
-}
-
-/// Return the lane glyph index of one stage display name.
-fn stage_index(stage: &str) -> usize {
-    match stage {
-        "parse" => 0,
-        "bind" => 1,
-        "macro" => 2,
-        "check" => 3,
-        "lower" => 4,
-        "emit" => 5,
-        "link" => 6,
-        _ => 7,
     }
 }
 
@@ -259,6 +236,7 @@ fn kind_color(name: &str) -> &'static str {
         "dir.expand" => "38;5;115",
         "dir.export" => "38;5;72",
         "dir.resolve" => "38;5;79",
+        "module.index" | "component.graph" => "38;5;147",
         "dir.check.component" => "38;5;170",
         "dir.check" => "38;5;176",
         "dir.materialize" => "38;5;178",
@@ -269,7 +247,7 @@ fn kind_color(name: &str) -> &'static str {
         "module.emit" => "38;5;114",
         "package.link" => "38;5;84",
         "module.lint" | "package.lint" | "workspace.lint" => "38;5;228",
-        "module.index" | "workspace.index" => "38;5;147",
+        "workspace.index" => "38;5;147",
         "environment" | "dependency.index" => "38;5;245",
         _ => "38;5;250",
     }
