@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, ArtifactVersion, DirBound, DirExpanded, DirExported, DirParsed, GlobalEnvironment,
-    ModuleQueryIndex, WorkspaceQueryIndex,
+    ArtifactKey, ArtifactOutcome, ArtifactVersion, DirBound, DirExpanded, DirExported, DirParsed,
+    GlobalEnvironment, ModuleQueryIndex, WorkspaceQueryIndex,
 };
 use destack_core::StringPool;
 use destack_dir as dir;
@@ -510,15 +510,10 @@ fn read_module_query_context(
     profile: ProfileId,
 ) -> Option<ModuleQueryContext<'_>> {
     let checked_key = ArtifactKey::dir_checked(module_id, profile);
-    let checked_version = repository
-        .artifact_version(revision, &checked_key)
-        .ok()
-        .flatten()?;
+    let checked_version = artifact_binding(repository, revision, checked_key)?;
     let global_environment_key = ArtifactKey::global_environment(profile);
-    let global_environment_version = repository
-        .artifact_version(revision, &global_environment_key)
-        .ok()
-        .flatten()?;
+    let global_environment_version =
+        artifact_binding(repository, revision, global_environment_key)?;
 
     read_module_query_context_from_checked(
         repository,
@@ -544,30 +539,15 @@ fn read_module_query_context_from_checked(
 
     // resolve exact source artifacts
     let parsed_key = ArtifactKey::dir_parsed(module.id);
-    let parsed_version = repository
-        .artifact_version(revision, &parsed_key)
-        .ok()
-        .flatten()?;
+    let parsed_version = artifact_binding(repository, revision, parsed_key)?;
     let bound_key = ArtifactKey::dir_bound(module.id, profile);
-    let bound_version = repository
-        .artifact_version(revision, &bound_key)
-        .ok()
-        .flatten()?;
+    let bound_version = artifact_binding(repository, revision, bound_key)?;
     let imported_key = ArtifactKey::dir_imported(module.id, profile);
-    let imported_version = repository
-        .artifact_version(revision, &imported_key)
-        .ok()
-        .flatten()?;
+    let imported_version = artifact_binding(repository, revision, imported_key)?;
     let expanded_key = ArtifactKey::dir_expanded(module.id, profile);
-    let expanded_version = repository
-        .artifact_version(revision, &expanded_key)
-        .ok()
-        .flatten()?;
+    let expanded_version = artifact_binding(repository, revision, expanded_key)?;
     let exported_key = ArtifactKey::dir_exported(module.id, profile);
-    let exported_version = repository
-        .artifact_version(revision, &exported_key)
-        .ok()
-        .flatten()?;
+    let exported_version = artifact_binding(repository, revision, exported_key)?;
     // resolve source and profile dir artifacts
     let dir_parsed = artifacts.dir_parsed(&parsed_version)?;
     let dir_bound = artifacts.dir_bound(&bound_version)?;
@@ -577,10 +557,7 @@ fn read_module_query_context_from_checked(
     let checked = artifacts.dir_checked(&checked_version)?;
     let checked_component_key =
         ArtifactKey::dir_checked_component(checked.entry, checked.component, profile);
-    let checked_component_version = repository
-        .artifact_version(revision, &checked_component_key)
-        .ok()
-        .flatten()?;
+    let checked_component_version = artifact_binding(repository, revision, checked_component_key)?;
     let checked_component = artifacts.dir_checked_component(&checked_component_version)?;
     let dir_checked = checked_component.module(module.id)?.checked.clone();
     let global_environment = artifacts.global_environment(&global_environment_version)?;
@@ -621,6 +598,18 @@ fn read_module_query_context_from_checked(
         module_id: module.id,
         file_id: module.file_id,
     })
+}
+
+/// Return one exact ready artifact binding.
+fn artifact_binding(
+    repository: &Repository,
+    revision: Revision,
+    key: ArtifactKey,
+) -> Option<ArtifactVersion> {
+    let version = repository.artifact_binding(revision, &key).ok().flatten()?;
+    let outcome = repository.artifact_table().outcome(&version);
+
+    matches!(outcome, Some(ArtifactOutcome::Ok)).then_some(version)
 }
 
 /// Return all module query indexes referenced by one workspace index.
