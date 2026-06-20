@@ -130,7 +130,7 @@ pub enum ArtifactKey {
         package: PackageId,
         target: TargetId,
     },
-    /// Executable program for one package target.
+    /// Program for one package target.
     Program {
         package: PackageId,
         target: TargetId,

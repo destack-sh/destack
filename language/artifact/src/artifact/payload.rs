@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_program::{Executable, Program};
+use destack_program::Program;
 use destack_source::ContentId;
 
 use crate::{
@@ -68,8 +68,8 @@ pub enum ArtifactPayload {
     Build(Arc<Build>),
     /// Linked file graph for one package target.
     Bundle(Arc<Bundle>),
-    /// Executable program for one package target.
-    Program(Arc<Program<Executable>>),
+    /// Program for one package target.
+    Program(Arc<Program>),
     /// Linked product assembled from configured target artifacts.
     Product(Arc<Product>),
     /// Realized lint diagnostics for one module profile.
@@ -135,8 +135,8 @@ pub enum ArtifactPayloadRef<'a> {
     Build(&'a Build),
     /// Linked file graph for one package target.
     Bundle(&'a Bundle),
-    /// Executable program for one package target.
-    Program(&'a Program<Executable>),
+    /// Program for one package target.
+    Program(&'a Program),
     /// Linked product assembled from configured target artifacts.
     Product(&'a Product),
     /// Realized lint diagnostics for one module profile.
@@ -539,9 +539,9 @@ impl From<Bundle> for ArtifactPayload {
     }
 }
 
-impl From<Program<Executable>> for ArtifactPayload {
+impl From<Program> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
-    fn from(payload: Program<Executable>) -> Self {
+    fn from(payload: Program) -> Self {
         Self::Program(Arc::new(payload))
     }
 }
