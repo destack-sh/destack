@@ -26,7 +26,7 @@ impl Entry {
         args: &[NativeValue],
         out: &mut NativeValue,
     ) -> NativeExitCode {
-        // native entries are produced by the native loader with this ABI
+        // native entries are produced by the native linker with this ABI
         unsafe { (self.entry)(context, args.as_ptr(), args.len(), out) }
     }
 }
@@ -54,7 +54,7 @@ impl ResumeEntry {
         received: NativeValue,
         out: &mut NativeValue,
     ) -> NativeExitCode {
-        // native resume entries are produced by the native loader with this ABI
+        // native resume entries are produced by the native linker with this ABI
         unsafe { (self.entry)(context, continuation, received, out) }
     }
 }

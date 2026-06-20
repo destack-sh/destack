@@ -1,13 +1,9 @@
 mod abi;
-mod code;
-mod image;
-mod loader;
+mod diagnostic;
+mod link;
 mod machine;
-mod program;
 
 pub use abi::*;
-pub use code::*;
-pub use image::*;
-pub use loader::*;
+pub use diagnostic::*;
+pub use link::*;
 pub use machine::*;
-pub use program::*;

@@ -8,7 +8,7 @@ use crate::{
     NativeTrapError, NativeValueError,
 };
 
-/// Native machine execution error.
+/// Native execution error.
 #[derive(Debug)]
 pub enum Error {
     /// The requested entry is not present in the native program.

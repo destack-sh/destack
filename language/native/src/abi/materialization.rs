@@ -2,30 +2,35 @@ use std::error::Error;
 use std::fmt;
 
 use destack_mir as mir;
-use destack_program::{MaterializedContinuation, MaterializedFrame};
+use destack_program::{ContinuationImage, FrameImage, StackImage};
 
 use crate::NativeFrameImage;
 
 impl NativeFrameImage {
-    /// Convert this frame to the durable materialized frame form.
+    /// Convert this frame to the durable frame image form.
     ///
     /// # Safety
     ///
     /// The byte pointer must point at `byte_len` immutable bytes for the duration of this call.
-    pub unsafe fn to_program(self) -> Result<MaterializedFrame, NativeMaterializationError> {
+    pub unsafe fn to_frame_image(
+        self,
+        stack: &mut StackImage,
+    ) -> Result<FrameImage, NativeMaterializationError> {
         let bytes = if self.byte_len == 0 {
-            Vec::new()
+            &[][..]
         } else if self.bytes.is_null() {
             return Err(NativeMaterializationError::NullFrameBytes);
         } else {
             // SAFETY: guaranteed by the caller and checked for a null pointer above
-            unsafe { std::slice::from_raw_parts(self.bytes, self.byte_len) }.to_vec()
+            unsafe { std::slice::from_raw_parts(self.bytes, self.byte_len) }
         };
+        let stack_offset = stack.push_frame(bytes);
 
-        Ok(MaterializedFrame {
+        Ok(FrameImage {
             frame_state: mir::FrameStateId(self.frame_state),
             return_state: self.caller_return_state(),
-            bytes,
+            stack_offset,
+            byte_len: self.byte_len,
         })
     }
 }
@@ -54,12 +59,14 @@ impl NativeMaterialization {
         self.frame_count == 0
     }
 
-    /// Convert this materialization to the durable program form.
+    /// Convert this materialization to the durable continuation image form.
     ///
     /// # Safety
     ///
     /// The frame pointer must point at `frame_count` immutable frames for the duration of this call.
-    pub unsafe fn to_program(self) -> Result<MaterializedContinuation, NativeMaterializationError> {
+    pub unsafe fn to_continuation_image(
+        self,
+    ) -> Result<ContinuationImage, NativeMaterializationError> {
         if self.frame_count == 0 {
             return Err(NativeMaterializationError::Empty);
         }
@@ -70,16 +77,18 @@ impl NativeMaterialization {
 
         // SAFETY: guaranteed by the caller and checked for a null pointer above
         let frames = unsafe { std::slice::from_raw_parts(self.frames, self.frame_count) };
-        let mut materialized = Vec::with_capacity(frames.len());
+        let mut stack = StackImage::empty();
+        let mut images = Vec::with_capacity(frames.len());
 
-        // copy each native frame into durable owned bytes
+        // copy each native frame into one durable stack image
         for frame in frames {
             // SAFETY: guaranteed by the caller for each frame byte range
-            materialized.push(unsafe { frame.to_program()? });
+            images.push(unsafe { frame.to_frame_image(&mut stack)? });
         }
 
-        Ok(MaterializedContinuation {
-            frames: materialized,
+        Ok(ContinuationImage {
+            stack,
+            frames: images,
         })
     }
 }
