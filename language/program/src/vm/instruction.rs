@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::Op;
 
 /// One decoded program instruction.
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Instruction {
     /// The instruction operation.
     pub op: Op,

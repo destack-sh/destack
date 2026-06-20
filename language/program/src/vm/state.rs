@@ -5,7 +5,7 @@ use crate::FunctionId;
 use destack_mir as mir;
 
 /// VM resume states keyed by execution frame state.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ResumeTable {
     /// Resume states by dense frame state id.
     states: Vec<ResumeState>,
@@ -48,7 +48,7 @@ impl ResumeTable {
 }
 
 /// VM state for one resumable frame.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ResumeState {
     /// The lowered VM program point.
     pub point: ProgramPoint,

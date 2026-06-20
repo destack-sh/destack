@@ -8,7 +8,7 @@ use crate::FunctionId;
 use super::{ArgumentRange, Instruction, MovePair, MoveRange};
 
 /// Lowered function with executable code and frame metadata.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Function {
     /// Runtime function id.
     pub function: FunctionId,
@@ -39,7 +39,7 @@ impl Function {
 }
 
 /// Lowered function registry owned by one program.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FunctionTable {
     /// Lowered functions by dense index.
     functions: Vec<Function>,
@@ -92,7 +92,7 @@ pub enum CallTarget {
 }
 
 /// Lowered basic block position inside one function.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Block {
     /// Original MIR block id.
     pub mir_block: mir::LocalNodeId<mir::Block>,
@@ -105,7 +105,7 @@ pub struct Block {
 }
 
 /// Instruction bytes emitted for one block during lowering.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BlockCode {
     /// Original MIR block id.
     pub mir_block: mir::LocalNodeId<mir::Block>,
@@ -116,7 +116,7 @@ pub struct BlockCode {
 }
 
 /// One lowered switch case.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SwitchCase {
     /// Match value.
     pub value: i128,
