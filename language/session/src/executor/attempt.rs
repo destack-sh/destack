@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, ArtifactSidecar, ArtifactVersion, DiagnosticAnchor, DiagnosticContext,
-    DiagnosticDisplay, DiagnosticError, DiagnosticLike,
+    ArtifactKey, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
+    DiagnosticError, DiagnosticLike,
 };
-use destack_repository::{ArtifactAttemptRecorder, ProviderContext, Repository, Revision};
+use destack_repository::{
+    ArtifactAttemptRecorder, ArtifactBase, ProviderContext, Repository, Revision,
+};
 use destack_source::{
     ContentId, DiagnosticCollection, DiagnosticLabel, FileId, ModuleId, PackageId, Span,
 };
@@ -20,7 +22,7 @@ pub(crate) struct ProviderAttempt {
     /// The artifact key being built.
     key: ArtifactKey,
     /// The predecessor artifact selected for this attempt.
-    base: Option<ArtifactVersion>,
+    base: Option<ArtifactBase>,
     /// The diagnostics produced by this attempt.
     diagnostics: Mutex<DiagnosticCollection>,
     /// The sidecars produced by this attempt.
@@ -51,7 +53,7 @@ impl ProviderAttempt {
     }
 
     /// Attach the predecessor artifact selected for this attempt.
-    pub(crate) fn with_base(mut self, base: Option<ArtifactVersion>) -> Self {
+    pub(crate) fn with_base(mut self, base: Option<ArtifactBase>) -> Self {
         self.base = base;
         self
     }
@@ -67,7 +69,7 @@ impl ProviderAttempt {
     }
 
     /// Return the predecessor artifact selected for this attempt.
-    pub(crate) fn base(&self) -> Option<ArtifactVersion> {
+    pub(crate) fn base(&self) -> Option<ArtifactBase> {
         self.base
     }
 
@@ -258,7 +260,7 @@ impl ProviderContext for ProviderAttempt {
     }
 
     /// Return the predecessor artifact selected for this attempt.
-    fn base_artifact(&self) -> Option<ArtifactVersion> {
+    fn artifact_base(&self) -> Option<ArtifactBase> {
         self.base()
     }
 

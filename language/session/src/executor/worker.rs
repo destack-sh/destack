@@ -32,8 +32,9 @@ impl SessionState {
         &self,
         revision: Revision,
         key: destack_artifact::ArtifactKey,
+        base: Option<destack_repository::ArtifactBase>,
     ) -> ProviderResult<ArtifactDependencySet> {
-        let attempt = ProviderAttempt::new(self.repository(), revision, key);
+        let attempt = ProviderAttempt::new(self.repository(), revision, key).with_base(base);
 
         match key.provider() {
             ArtifactProvider::Loader => self
@@ -95,16 +96,28 @@ impl Worker {
         });
 
         let repository = self.session.repository();
+        let base = recorder.span("base", || repository.artifact_base(task.revision, task.key));
+        let base = match base {
+            Ok(base) => base,
+            Err(error) => {
+                recorder.finish(ArtifactAttemptOutcome::Failed);
+
+                return Err(SessionError::Internal {
+                    detail: format!("failed to select artifact base {:?}: {error}", task.key),
+                });
+            }
+        };
 
         // resolve a saved pending set or collect a fresh one
         let mut collected = if let Some(pending_set) = pending_set {
             Ok(pending_set)
         } else {
             recorder.span("collect", || {
-                self.session.collect_dependencies(task.revision, task.key)
+                self.session
+                    .collect_dependencies(task.revision, task.key, base)
             })
         };
-        let (dependencies, failed) = loop {
+        let (base_version, dependencies, failed) = loop {
             let dependency_set = match collected {
                 Ok(dependency_set) => dependency_set,
                 Err(error) => {
@@ -135,7 +148,8 @@ impl Worker {
             match resolution {
                 DependencySetResolution::Incomplete => {
                     collected = recorder.span("collect", || {
-                        self.session.collect_dependencies(task.revision, task.key)
+                        self.session
+                            .collect_dependencies(task.revision, task.key, base)
                     });
                 }
                 DependencySetResolution::Pending {
@@ -160,9 +174,10 @@ impl Worker {
                     return result;
                 }
                 DependencySetResolution::Resolved {
+                    base,
                     dependencies,
                     failed,
-                } => break (dependencies, failed),
+                } => break (base, dependencies, failed),
             }
         };
         // the version is fixed by the resolved dependency set before any provider runs
@@ -170,22 +185,10 @@ impl Worker {
             ArtifactVersion::new(
                 task.key,
                 repository.build_fingerprint(),
+                base_version,
                 dependencies.iter().cloned(),
             )
         });
-        let base = recorder.span("base", || {
-            repository.artifact_base_version(task.revision, task.key)
-        });
-        let base = match base {
-            Ok(base) => base,
-            Err(error) => {
-                recorder.finish(ArtifactAttemptOutcome::Failed);
-
-                return Err(SessionError::Internal {
-                    detail: format!("failed to select artifact base {:?}: {error}", task.key),
-                });
-            }
-        };
 
         // fails this artifact immediately on a poisoned dependency
         if let Some(failed_dependency) = failed {
@@ -194,7 +197,7 @@ impl Worker {
                     run.id(),
                     task,
                     version,
-                    base,
+                    base_version,
                     dependencies,
                     DiagnosticCollection::new(),
                     Vec::new(),
@@ -252,7 +255,14 @@ impl Worker {
         match recorder.span("provider", || self.call_provider(&attempt)) {
             Ok(payload) => {
                 let result = recorder.span("publish", || {
-                    self.publish_artifact(&attempt, task, version, base, dependencies, payload)
+                    self.publish_artifact(
+                        &attempt,
+                        task,
+                        version,
+                        base_version,
+                        dependencies,
+                        payload,
+                    )
                 });
                 if let Err(error) = result {
                     recorder.finish(ArtifactAttemptOutcome::Failed);
@@ -278,7 +288,7 @@ impl Worker {
                         run.id(),
                         task,
                         version,
-                        base,
+                        base_version,
                         dependencies,
                         *error,
                     )
@@ -304,7 +314,7 @@ impl Worker {
         // a rejected wait records the artifact as failed so waiters cannot stall
         if let Err(error) = result {
             let version =
-                ArtifactVersion::new(task.key, repository.build_fingerprint(), Vec::new());
+                ArtifactVersion::new(task.key, repository.build_fingerprint(), None, Vec::new());
 
             self.fail(
                 run,
