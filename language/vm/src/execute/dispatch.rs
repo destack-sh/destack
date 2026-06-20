@@ -1328,7 +1328,8 @@ fn dispatch_block_inner(
                         let frame = activation.active_frame();
                         let function_id = frame.function();
                         let block = frame.block;
-                        let Some(next_function) = program.functions().function_by_id(function_id)
+                        let Some(next_function) =
+                            program.vm_functions().function_by_id(function_id)
                         else {
                             return Transfer::Error(Error::undefined_function(function_id));
                         };

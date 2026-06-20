@@ -288,7 +288,7 @@ pub(crate) fn execute_static_address(
 ) -> Result<(), Error> {
     let dest = instruction.a;
 
-    let global: mir::LocalNodeId<mir::Global> = mir::LocalNodeId::new(instruction.b);
+    let global = instruction.b.into();
     let address = match activation.static_address(global) {
         Some(address) => address,
         None => return Err(Error::undefined_global(global)),

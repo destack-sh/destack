@@ -1,6 +1,6 @@
 use destack_mir as mir;
 use destack_program as program;
-use program::StaticSpace;
+use program::{FunctionId, StaticSpace};
 
 use super::frame::{dematerialize_value, frame_value_type};
 use super::{dispatch_block, dispatch_block_counted};
@@ -10,7 +10,7 @@ use crate::machine::{Activation, Continuation, Frame, Machine, Outcome};
 use crate::options::LimitOptions;
 use destack_heap::{AllocationCache, GcWorker, Heap, SharedHeap};
 use destack_program::Program;
-use destack_program::vm::{CallTarget, Executable};
+use destack_program::vm::CallTarget;
 
 impl Machine {
     /// Execute a function by id.
@@ -19,7 +19,7 @@ impl Machine {
     /// Functions are lowered when the machine is created.
     pub(crate) fn execute_function_cells(
         &mut self,
-        program: &Program<Executable>,
+        program: &Program,
         limits: LimitOptions,
         statics: &mut StaticSpace,
         shared_static: &mut StaticSpace,
@@ -27,7 +27,7 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_gc: &GcWorker,
-        function_id: mir::LocalNodeId<mir::Function>,
+        function_id: FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<program::Value> {
         let outcome = self.execute_function_cells_yielding(
@@ -54,7 +54,7 @@ impl Machine {
     /// Returns a yielded value when the coroutine suspends.
     pub(crate) fn execute_function_cells_yielding(
         &mut self,
-        program: &Program<Executable>,
+        program: &Program,
         limits: LimitOptions,
         statics: &mut StaticSpace,
         shared_static: &mut StaticSpace,
@@ -62,16 +62,23 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_gc: &GcWorker,
-        function_id: mir::LocalNodeId<mir::Function>,
+        function_id: FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<Outcome> {
         self.reset_stack(limits)?;
 
         // resolve the function target before entering the main loop
-        match program.functions().call_target(function_id) {
+        match program.vm_functions().call_target(function_id) {
             Some(CallTarget::Import) => {
-                let function = program.tree().get(function_id);
-                let name = program.strings().get(function.name).to_string();
+                let name = program
+                    .functions()
+                    .get(function_id)
+                    .map(|function| function.name.clone())
+                    .ok_or_else(|| {
+                        self.runtime_error(Error::invalid_program(format!(
+                            "missing function metadata for {function_id:?}"
+                        )))
+                    })?;
 
                 return Err(self.runtime_error(Error::import_forbidden(name)));
             }
@@ -102,7 +109,7 @@ impl Machine {
     /// The resume value is appended after explicit resume arguments.
     pub(crate) fn execute_resume(
         &mut self,
-        program: &Program<Executable>,
+        program: &Program,
         limits: LimitOptions,
         statics: &mut StaticSpace,
         shared_static: &mut StaticSpace,
@@ -135,10 +142,44 @@ impl Machine {
         )
     }
 
+    /// Continue from one restored continuation image.
+    pub(crate) fn execute_continuation_image(
+        &mut self,
+        program: &Program,
+        limits: LimitOptions,
+        statics: &mut StaticSpace,
+        shared_static: &mut StaticSpace,
+        heap: &mut Heap,
+        shared: &SharedHeap,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
+        continuation: Continuation,
+    ) -> RuntimeResult<Outcome> {
+        if !self.frames.is_empty() {
+            return Err(self.runtime_error(Error::invalid_continuation()));
+        }
+
+        self.stack = continuation.stack;
+        self.frames = continuation.frames;
+
+        self.continue_continuation(
+            program,
+            limits,
+            statics,
+            shared_static,
+            heap,
+            shared,
+            shared_cache,
+            shared_gc,
+            continuation.resume_frame_index,
+            continuation.frame_state,
+        )
+    }
+
     /// Resume execution from one suspended yield point.
     fn resume_continuation(
         &mut self,
-        program: &Program<Executable>,
+        program: &Program,
         limits: LimitOptions,
         statics: &mut StaticSpace,
         shared_static: &mut StaticSpace,
@@ -147,7 +188,7 @@ impl Machine {
         shared_cache: &mut AllocationCache,
         shared_gc: &GcWorker,
         resume_frame_index: usize,
-        frame_state: program::FrameStateId,
+        frame_state: mir::FrameStateId,
         received_value: program::Value,
     ) -> RuntimeResult<Outcome> {
         let frame_entry = program.frame_entry(frame_state);
@@ -195,6 +236,40 @@ impl Machine {
         activation.run_loop(program, limits)
     }
 
+    /// Continue execution from one materialized frame state.
+    fn continue_continuation(
+        &mut self,
+        program: &Program,
+        limits: LimitOptions,
+        statics: &mut StaticSpace,
+        shared_static: &mut StaticSpace,
+        heap: &mut Heap,
+        shared: &SharedHeap,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
+        frame_index: usize,
+        frame_state: mir::FrameStateId,
+    ) -> RuntimeResult<Outcome> {
+        self.enter_frame_state(program, frame_index, frame_state, None)
+            .map_err(|error| RuntimeError {
+                error: Error::invalid_continuation(),
+                stack: error.stack,
+                anchor: error.anchor,
+            })?;
+
+        let mut activation = Activation::new(
+            self,
+            statics,
+            shared_static,
+            heap,
+            shared,
+            shared_gc,
+            shared_cache,
+        );
+
+        activation.run_loop(program, limits)
+    }
+
     /// Assemble a completed execution outcome.
     pub(crate) fn complete_execution(&mut self, value: program::Value) -> Outcome {
         Outcome::Completed { value }
@@ -203,7 +278,7 @@ impl Machine {
     /// Run one lowered function from its entry block.
     fn run_function_body(
         &mut self,
-        program: &Program<Executable>,
+        program: &Program,
         limits: LimitOptions,
         statics: &mut StaticSpace,
         shared_static: &mut StaticSpace,
@@ -211,12 +286,12 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_gc: &GcWorker,
-        function_id: mir::LocalNodeId<mir::Function>,
+        function_id: FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<Outcome> {
         // resolve the lowered entry metadata
         let function = program
-            .functions()
+            .vm_functions()
             .function_by_id(function_id)
             .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?;
         let entry_block = function.entry;
@@ -292,11 +367,7 @@ impl Machine {
 
 impl Activation<'_> {
     /// Run the machine loop from the current stack.
-    fn run_loop(
-        &mut self,
-        program: &Program<Executable>,
-        limits: LimitOptions,
-    ) -> RuntimeResult<Outcome> {
+    fn run_loop(&mut self, program: &Program, limits: LimitOptions) -> RuntimeResult<Outcome> {
         let mut lowered_instructions_executed = 0;
 
         // require at least one live frame before stepping
@@ -325,7 +396,7 @@ impl Activation<'_> {
             };
 
             let current_func = program
-                .functions()
+                .vm_functions()
                 .function_by_id(function_id)
                 .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?;
 
@@ -361,7 +432,7 @@ impl Activation<'_> {
                 let function_id = frame.function();
 
                 program
-                    .functions()
+                    .vm_functions()
                     .function_by_id(function_id)
                     .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?
             };

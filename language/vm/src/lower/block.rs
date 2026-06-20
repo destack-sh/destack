@@ -2,11 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use destack_heap as heap;
 use destack_mir as mir;
-use destack_program as program;
 
 use crate::{Error, Result};
-use destack_program::vm::{CallTarget, Layout};
+use destack_program::vm::CallTarget;
+use destack_program::{FunctionId, ProgramIndex, TypeTable};
 
+use super::layout::ValueLayout;
 use super::value::ValueShapeMap;
 
 /// One lowered block traversal order.
@@ -115,7 +116,7 @@ impl BlockOrder {
     }
 }
 
-/// One shared function-scoped lowering context.
+/// One shared function-scoped lowerer context.
 pub(super) struct FunctionContext<'a> {
     /// The MIR tree.
     pub(super) tree: &'a mir::Tree,
@@ -124,21 +125,25 @@ pub(super) struct FunctionContext<'a> {
     /// The lowered entry block index.
     pub(super) entry_block: u32,
     /// The lowered yield frame state by MIR block id.
-    pub(super) yield_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, program::FrameStateId>,
+    pub(super) yield_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, mir::FrameStateId>,
     /// The lowered call terminator frame state by MIR block id.
-    pub(super) call_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, program::FrameStateId>,
-    /// The call target by MIR function id.
-    pub(super) call_targets: &'a HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
+    pub(super) call_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, mir::FrameStateId>,
+    /// The call target by program function id.
+    pub(super) call_targets: &'a HashMap<FunctionId, CallTarget>,
+    /// Dense program id index.
+    pub(super) index: &'a ProgramIndex,
+    /// The lowered runtime type table.
+    pub(super) types: &'a TypeTable,
+    /// Pointer byte width used by pointer-sized runtime values.
+    pub(super) pointer_bytes: u8,
     /// The byte layout for this lowered function frame.
-    pub(super) frame_layout: &'a program::FrameLayout,
+    pub(super) frame_layout: &'a mir::FrameLayout,
     /// The lowered value shape by SSA value id.
     pub(super) value_shape_map: ValueShapeMap,
     /// The lowered value type by SSA value id.
     pub(super) value_type: Vec<mir::LocalNodeId<mir::Type>>,
     /// The lowered VM layout by MIR type id.
-    pub(super) layouts: &'a HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    /// The MIR layout id by MIR type id.
-    pub(super) layout_id_by_type: &'a HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
+    pub(super) layouts: &'a HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     /// The worker-local heap allocation geometry.
     pub(super) heap_options: &'a heap::HeapOptions,
     /// The runtime-shared heap allocation geometry.
@@ -154,6 +159,24 @@ pub(super) struct FunctionContext<'a> {
 }
 
 impl<'a> FunctionContext<'a> {
+    /// Return whether one frame slot is lowered as one VM cell.
+    pub(super) fn slot_is_cell(&self, slot: &mir::FrameSlot) -> bool {
+        self.layouts.get(&slot.ty).is_some_and(ValueLayout::is_cell)
+    }
+
+    /// Return the program function id for one MIR function.
+    pub(super) fn program_function(&self, function: mir::LocalNodeId<mir::Function>) -> FunctionId {
+        self.index.function_id(function)
+    }
+
+    /// Return the runtime shape for one MIR type.
+    pub(super) fn value_shape_for_type(
+        &self,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> Option<destack_program::vm::ValueShape> {
+        self.types.value_shape_for_mir(ty, self.pointer_bytes)
+    }
+
     /// Return values stored in one MIR value slice.
     #[inline]
     pub(super) fn values(&self, slice: mir::ValueSlice) -> &'a [mir::Value] {

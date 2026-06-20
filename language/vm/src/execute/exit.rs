@@ -4,13 +4,12 @@ use super::frame::{frame_value_from_cell, materialize_value, store_frame_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Outcome};
 use destack_program::Program;
-use destack_program::vm::Executable;
 
 impl Activation<'_> {
     /// Complete one return call.
     pub(crate) fn complete_return(
         &mut self,
-        program: &Program<Executable>,
+        program: &Program,
         value: Cell,
     ) -> RuntimeResult<Option<Outcome>> {
         // capture the returned value before the callee frame goes away
@@ -19,7 +18,15 @@ impl Activation<'_> {
             .frames
             .last()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-        let return_type = program.tree().get(callee.function()).return_type;
+        let return_type = program
+            .functions()
+            .get(callee.function())
+            .ok_or_else(|| RuntimeError::new(Error::undefined_function(callee.function())))?
+            .return_type;
+        let return_type = program
+            .types()
+            .mir_type_id(return_type)
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let returned =
             frame_value_from_cell(program, self.machine.frames.as_slice(), return_type, value)
                 .map_err(RuntimeError::new)?;
@@ -69,8 +76,7 @@ impl Activation<'_> {
             .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-        let block = caller.block_id(program).map_err(RuntimeError::new)?;
-        let point = program.point(caller.function(), block, caller.pc as u32);
+        let point = program.point(caller.function(), caller.block, caller.pc as u32);
         if let Some(destination) = program.return_destination_at(point).map_err(Error::from)? {
             store_frame_value(program, caller, destination, returned).map_err(RuntimeError::new)?;
         }

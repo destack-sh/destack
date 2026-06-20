@@ -1,12 +1,11 @@
 use crate::Cell;
-use destack_program as program;
 
 use super::frame::{FrameValue, store_frame_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Frame, Machine};
 use destack_mir as mir;
 use destack_program::Program;
-use destack_program::vm::{Executable, FrameBinding};
+use destack_program::vm::FrameBinding;
 
 /// Saved frame value used while binding parameters.
 enum SavedFrameValue {
@@ -18,7 +17,8 @@ enum SavedFrameValue {
 
 /// Bind frame parameters within one frame.
 fn bind_frame_parameters(
-    layout: &program::FrameLayout,
+    program: &Program,
+    layout: &mir::FrameLayout,
     frame: &mut Frame,
     bindings: &[FrameBinding],
 ) -> RuntimeResult<()> {
@@ -33,13 +33,15 @@ fn bind_frame_parameters(
                 .slot(binding.destination)
                 .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
+            let source_is_cell = program.frame_slot_is_cell(source_slot);
+            let destination_is_cell = program.frame_slot_is_cell(destination_slot);
             if source_slot.byte_len != destination_slot.byte_len
-                || source_slot.is_cell != destination_slot.is_cell
+                || source_is_cell != destination_is_cell
             {
                 return Err(RuntimeError::new(Error::invalid_instruction()));
             }
 
-            if destination_slot.is_cell {
+            if destination_is_cell {
                 return Ok(SavedFrameValue::Cell(frame.read_cell(source_slot)));
             }
 
@@ -72,9 +74,9 @@ impl Machine {
     /// Enter one frame state in an existing frame.
     pub(crate) fn enter_frame_state(
         &mut self,
-        program: &Program<Executable>,
+        program: &Program,
         frame_index: usize,
-        frame_state_id: program::FrameStateId,
+        frame_state_id: mir::FrameStateId,
         received_value: Option<FrameValue>,
     ) -> RuntimeResult<()> {
         // resolve target position
@@ -82,7 +84,7 @@ impl Machine {
             .point_for_frame_state(frame_state_id)
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let frame_entry = program.frame_entry(frame_state_id).cloned();
-        let target_block_id = point.block;
+        let target_block = point.block;
         let pc = point.pc as usize;
         let expected_function = point.function;
 
@@ -97,15 +99,6 @@ impl Machine {
             return Err(RuntimeError::new(Error::invalid_instruction()));
         }
 
-        let function = program
-            .functions()
-            .function_by_id(frame.function())
-            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-        let target_index = function
-            .blocks
-            .iter()
-            .position(|candidate| candidate.mir_block == target_block_id)
-            .ok_or_else(|| RuntimeError::new(Error::undefined_block(target_block_id)))?;
         // bind frame parameters and the optional received value
         let frame = self
             .frames
@@ -115,7 +108,7 @@ impl Machine {
             .frame_layout_by_id(frame.frame_layout())
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         if let Some(frame_entry) = &frame_entry {
-            bind_frame_parameters(frame_layout, frame, &frame_entry.bindings)?;
+            bind_frame_parameters(program, frame_layout, frame, &frame_entry.bindings)?;
         }
 
         if let Some(received_value_slot) =
@@ -132,7 +125,7 @@ impl Machine {
         }
 
         // advance the frame to the resumed position
-        frame.block = target_index as u32;
+        frame.block = target_block;
         frame.pc = pc;
 
         Ok(())
@@ -141,8 +134,8 @@ impl Machine {
     /// Enter one frame state in the current caller frame from one frame value.
     pub(crate) fn enter_caller_state(
         &mut self,
-        program: &Program<Executable>,
-        frame_state_id: program::FrameStateId,
+        program: &Program,
+        frame_state_id: mir::FrameStateId,
         value: FrameValue,
     ) -> RuntimeResult<()> {
         let frame_index = self

@@ -1,6 +1,5 @@
 use crate::Cell;
 use destack_mir as mir;
-use destack_program as program;
 
 use super::frame::{
     FrameValue, load_arguments, load_moved_arguments, move_arguments_between_frames, move_values,
@@ -9,8 +8,8 @@ use super::frame::{
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Frame, Outcome};
 use crate::options::LimitOptions;
-use destack_program::Program;
-use destack_program::vm::{ArgumentRange, CallTarget, Executable, Function, MoveRange};
+use destack_program::vm::{ArgumentRange, CallTarget, Function, MoveRange};
+use destack_program::{FunctionId, Program};
 
 /// Local lowered function target.
 struct LocalFunction<'a> {
@@ -21,8 +20,8 @@ struct LocalFunction<'a> {
 impl Activation<'_> {
     /// Require one local function from one call target.
     fn require_local_function<'a>(
-        program: &'a Program<Executable>,
-        function_id: mir::LocalNodeId<mir::Function>,
+        program: &'a Program,
+        function_id: FunctionId,
         target: CallTarget,
     ) -> RuntimeResult<LocalFunction<'a>> {
         // reject imports before touching program storage
@@ -35,7 +34,7 @@ impl Activation<'_> {
 
         // load the lowered function body
         let function = program
-            .functions()
+            .vm_functions()
             .function_by_index(function_index)
             .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?;
 
@@ -43,21 +42,21 @@ impl Activation<'_> {
     }
 
     /// Return the runtime boundary error for one imported call.
-    fn imported_call_error(
-        &self,
-        program: &Program<Executable>,
-        function_id: mir::LocalNodeId<mir::Function>,
-    ) -> RuntimeError {
-        let function = program.tree().get(function_id);
-        let name = program.strings().get(function.name).to_string();
+    fn imported_call_error(&self, program: &Program, function_id: FunctionId) -> RuntimeError {
+        let Some(function) = program.functions().get(function_id) else {
+            return self.machine.runtime_error(Error::invalid_program(format!(
+                "missing function metadata for {function_id:?}"
+            )));
+        };
 
-        self.machine.runtime_error(Error::import_forbidden(name))
+        self.machine
+            .runtime_error(Error::import_forbidden(function.name.clone()))
     }
 
     /// Push one local call frame on the stack.
     fn push_call_frame(
         &mut self,
-        program: &Program<Executable>,
+        program: &Program,
         limits: LimitOptions,
         current_func: &Function,
         callee: LocalFunction<'_>,
@@ -65,7 +64,7 @@ impl Activation<'_> {
         env: Option<Cell>,
         moves: Option<MoveRange>,
         resume_pc: usize,
-        return_state: Option<program::FrameStateId>,
+        return_state: Option<mir::FrameStateId>,
     ) -> RuntimeResult<()> {
         // reject stack overflow before allocating anything
         if self.machine.frames.len() >= limits.max_stack_depth {
@@ -135,7 +134,7 @@ impl Activation<'_> {
     /// Reuse the current frame for one lowered tail call.
     fn reuse_tail_call_frame(
         &mut self,
-        program: &Program<Executable>,
+        program: &Program,
         callee: LocalFunction<'_>,
         arguments: &[FrameValue],
         env: Option<Cell>,
@@ -191,26 +190,23 @@ impl Activation<'_> {
     /// Complete one call from the current frame.
     pub(crate) fn complete_call(
         &mut self,
-        program: &Program<Executable>,
+        program: &Program,
         limits: LimitOptions,
         current_func: &Function,
-        function: u32,
+        function: FunctionId,
         target: CallTarget,
         arguments: ArgumentRange,
         env: Option<Cell>,
         moves: Option<MoveRange>,
         resume_pc: usize,
     ) -> RuntimeResult<()> {
-        // classify the call target
-        let function_id = mir::LocalNodeId::<mir::Function>::new(function);
-
         // complete binding calls immediately in the caller frame
         if matches!(target, CallTarget::Import) {
-            return Err(self.imported_call_error(program, function_id));
+            return Err(self.imported_call_error(program, function));
         }
 
         // otherwise enter the local callee on a new frame
-        let callee = Self::require_local_function(program, function_id, target)?;
+        let callee = Self::require_local_function(program, function, target)?;
         self.push_call_frame(
             program,
             limits,
@@ -227,25 +223,22 @@ impl Activation<'_> {
     /// Complete one call terminator from the current frame.
     pub(crate) fn complete_call_branch(
         &mut self,
-        program: &Program<Executable>,
+        program: &Program,
         limits: LimitOptions,
         current_func: &Function,
-        function: u32,
+        function: FunctionId,
         target: CallTarget,
         arguments: ArgumentRange,
         env: Option<Cell>,
-        target_state: program::FrameStateId,
+        target_state: mir::FrameStateId,
     ) -> RuntimeResult<()> {
-        // classify the call target
-        let function_id = mir::LocalNodeId::<mir::Function>::new(function);
-
         // imported calls resume the continuation immediately
         if matches!(target, CallTarget::Import) {
-            return Err(self.imported_call_error(program, function_id));
+            return Err(self.imported_call_error(program, function));
         }
 
         // otherwise push the local callee and record the pending continuation
-        let callee = Self::require_local_function(program, function_id, target)?;
+        let callee = Self::require_local_function(program, function, target)?;
         let caller = self
             .machine
             .frames
@@ -254,7 +247,7 @@ impl Activation<'_> {
 
         // resume after the terminator once the callee returns
         let function = program
-            .functions()
+            .vm_functions()
             .function_by_id(caller.function())
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let resume_pc = function
@@ -276,9 +269,9 @@ impl Activation<'_> {
     /// Complete one tail call in the current frame.
     pub(crate) fn complete_tail_call(
         &mut self,
-        program: &Program<Executable>,
+        program: &Program,
         current_func: &Function,
-        function: u32,
+        function: FunctionId,
         target: CallTarget,
         arguments: ArgumentRange,
         env: Option<Cell>,
@@ -291,7 +284,7 @@ impl Activation<'_> {
             .last()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let argument_values = if let Some(moves) = moves {
-            load_moved_arguments(program, caller, current_func.move_pool.as_slice(), moves)?
+            load_moved_arguments(caller, current_func.move_pool.as_slice(), moves)?
         } else {
             load_arguments(
                 program,
@@ -302,16 +295,13 @@ impl Activation<'_> {
             )?
         };
 
-        // classify the call target after arguments are collected
-        let function_id = mir::LocalNodeId::<mir::Function>::new(function);
-
         // complete binding tail calls before returning to the caller
         if matches!(target, CallTarget::Import) {
-            return Err(self.imported_call_error(program, function_id));
+            return Err(self.imported_call_error(program, function));
         }
 
         // otherwise reuse the current frame for the local callee
-        let callee = Self::require_local_function(program, function_id, target)?;
+        let callee = Self::require_local_function(program, function, target)?;
         self.reuse_tail_call_frame(program, callee, &argument_values, env)?;
 
         Ok(None)

@@ -1,10 +1,9 @@
 use destack_mir as mir;
 
 use crate::{Error, ReferenceMeta};
+use destack_program::TypeTable;
 
-use destack_program::vm::{
-    AddressSpace, ValueShape, address_space_from_reference, repr_type, value_shape_from_type,
-};
+use destack_program::vm::{AddressSpace, ValueShape, address_space_from_reference};
 
 /// One dense map from SSA value id to lowered shape.
 pub(super) struct ValueShapeMap {
@@ -39,7 +38,7 @@ impl ValueShapeMap {
 }
 
 /// Resolve a MIR value type from the function type table.
-pub(super) fn value_type_for_value(
+pub(super) fn value_type_from_table(
     value: mir::Value,
     value_types: &[mir::LocalNodeId<mir::Type>],
 ) -> Option<mir::LocalNodeId<mir::Type>> {
@@ -48,6 +47,10 @@ pub(super) fn value_type_for_value(
 
 /// One value shape builder for one function.
 pub(super) struct ValueShapeMapBuilder<'a> {
+    /// The lowered runtime type table.
+    types: &'a TypeTable,
+    /// Pointer byte width used by pointer-sized runtime values.
+    pointer_bytes: u8,
     /// The MIR node tree.
     tree: &'a mir::Tree,
     /// The MIR function being lowered.
@@ -63,6 +66,8 @@ pub(super) struct ValueShapeMapBuilder<'a> {
 impl<'a> ValueShapeMapBuilder<'a> {
     /// Create one value shape builder.
     pub(super) fn new(
+        types: &'a TypeTable,
+        pointer_bytes: u8,
         tree: &'a mir::Tree,
         func: &'a mir::Function,
         mir_block: &'a [mir::LocalNodeId<mir::Block>],
@@ -70,6 +75,8 @@ impl<'a> ValueShapeMapBuilder<'a> {
         value_count: usize,
     ) -> Self {
         Self {
+            types,
+            pointer_bytes,
             tree,
             func,
             mir_block,
@@ -83,7 +90,7 @@ impl<'a> ValueShapeMapBuilder<'a> {
         // seed explicit value types
         for (index, ty) in self.value_type.iter().enumerate() {
             let value = mir::Value(index as u32);
-            if let Some(shape) = value_shape_from_type(self.tree, *ty) {
+            if let Some(shape) = self.types.value_shape_for_mir(*ty, self.pointer_bytes) {
                 self.value_shape_map.set(value, shape);
             }
         }
@@ -93,7 +100,7 @@ impl<'a> ValueShapeMapBuilder<'a> {
             let value = param.value;
             let ty = param.ty;
 
-            if let Some(shape) = value_shape_from_type(self.tree, ty) {
+            if let Some(shape) = self.types.value_shape_for_mir(ty, self.pointer_bytes) {
                 self.value_shape_map.set(value, shape);
             }
         }
@@ -104,7 +111,7 @@ impl<'a> ValueShapeMapBuilder<'a> {
             for param in &block.parameters {
                 let value = param.value;
                 let ty = param.ty;
-                let Some(shape) = value_shape_from_type(self.tree, ty) else {
+                let Some(shape) = self.types.value_shape_for_mir(ty, self.pointer_bytes) else {
                     continue;
                 };
                 let block_shape = shape_for_block_parameter(shape);
@@ -126,6 +133,8 @@ impl<'a> ValueShapeMapBuilder<'a> {
             // propagate block parameter shapes from control flow edges
             if propagate_block_parameter_shapes(
                 self.tree,
+                self.types,
+                self.pointer_bytes,
                 self.mir_block,
                 &mut self.value_shape_map,
             ) {
@@ -143,6 +152,8 @@ impl<'a> ValueShapeMapBuilder<'a> {
                     };
                     let Some(shape) = infer_instruction_shape(
                         self.tree,
+                        self.types,
+                        self.pointer_bytes,
                         inst,
                         &self.value_shape_map,
                         self.value_type,
@@ -180,17 +191,19 @@ pub(super) fn address_space_for_value(
 
 /// Get reference metadata for a type when available.
 pub(super) fn reference_meta_for_type(
-    tree: &mir::Tree,
+    types: &TypeTable,
     ty: mir::LocalNodeId<mir::Type>,
+    pointer_bytes: u8,
 ) -> ReferenceMeta {
-    match value_shape_from_type(tree, ty) {
+    match types.value_shape_for_mir(ty, pointer_bytes) {
         Some(ValueShape::Pointer { reference, .. }) => reference,
         _ => ReferenceMeta::NONE,
     }
 }
 
 /// Resolve one heap pointee type from a pointer value when available.
-pub(super) fn heap_pointee_type_for_storage_id(
+pub(super) fn heap_pointee_type_from_shape(
+    types: &TypeTable,
     value_shape_map: &ValueShapeMap,
     value: mir::Value,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
@@ -199,13 +212,14 @@ pub(super) fn heap_pointee_type_for_storage_id(
             pointee,
             address_space: AddressSpace::Local | AddressSpace::Shared,
             ..
-        }) => Some(pointee),
+        }) => types.mir_type_id(pointee),
         _ => None,
     }
 }
 
 /// Resolve one raw pointee type from a pointer value when available.
-pub(super) fn raw_pointee_type_for_storage_id(
+pub(super) fn raw_pointee_type_from_shape(
+    types: &TypeTable,
     value_shape_map: &ValueShapeMap,
     value: mir::Value,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
@@ -215,7 +229,7 @@ pub(super) fn raw_pointee_type_for_storage_id(
             address_space:
                 AddressSpace::Raw | AddressSpace::Stack | AddressSpace::Frame | AddressSpace::Static,
             ..
-        }) => Some(pointee),
+        }) => types.mir_type_id(pointee),
         _ => None,
     }
 }
@@ -226,7 +240,7 @@ pub(super) fn heap_pointee_type_for_value(
     value_types: &[mir::LocalNodeId<mir::Type>],
     value: mir::Value,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
-    let ty = repr_type(tree, value_type_for_value(value, value_types)?);
+    let ty = tree.repr_type(value_type_from_table(value, value_types)?);
 
     match tree.get(ty) {
         mir::Type::Reference {
@@ -254,7 +268,7 @@ pub(super) fn raw_pointee_type_for_value(
     value_types: &[mir::LocalNodeId<mir::Type>],
     value: mir::Value,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
-    let ty = repr_type(tree, value_type_for_value(value, value_types)?);
+    let ty = tree.repr_type(value_type_from_table(value, value_types)?);
 
     match tree.get(ty) {
         mir::Type::Reference {
@@ -294,6 +308,8 @@ fn merge_block_parameter_shape(existing: ValueShape, incoming: ValueShape) -> Op
 /// Propagate value shapes into block parameters from control flow edges.
 fn propagate_block_parameter_shapes(
     tree: &mir::Tree,
+    types: &TypeTable,
+    pointer_bytes: u8,
     mir_blocks: &[mir::LocalNodeId<mir::Block>],
     value_shape_map: &mut ValueShapeMap,
 ) -> bool {
@@ -328,7 +344,13 @@ fn propagate_block_parameter_shapes(
             | mir::Terminator::NewUninitTry {
                 success, failure, ..
             } => {
-                is_changed |= propagate_allocation_target_edge(tree, value_shape_map, success);
+                is_changed |= propagate_allocation_target_edge(
+                    types,
+                    pointer_bytes,
+                    tree,
+                    value_shape_map,
+                    success,
+                );
                 is_changed |= propagate_target_edge(tree, value_shape_map, failure);
             }
             mir::Terminator::NewSliceZeroedTry {
@@ -337,7 +359,13 @@ fn propagate_block_parameter_shapes(
             | mir::Terminator::NewSliceUninitTry {
                 success, failure, ..
             } => {
-                is_changed |= propagate_allocation_target_edge(tree, value_shape_map, success);
+                is_changed |= propagate_allocation_target_edge(
+                    types,
+                    pointer_bytes,
+                    tree,
+                    value_shape_map,
+                    success,
+                );
                 is_changed |= propagate_target_edge(tree, value_shape_map, failure);
             }
             mir::Terminator::Switch { default, cases, .. } => {
@@ -377,6 +405,8 @@ fn propagate_block_parameter_shapes(
 
 /// Update one target block from one control flow edge.
 fn propagate_allocation_target_edge(
+    types: &TypeTable,
+    pointer_bytes: u8,
     tree: &mir::Tree,
     value_shape_map: &mut ValueShapeMap,
     target: &mir::BlockTarget,
@@ -388,7 +418,7 @@ fn propagate_allocation_target_edge(
     };
     let result_value = result_parameter.value;
     let result_type = result_parameter.ty;
-    let result_shape = value_shape_from_type(tree, result_type);
+    let result_shape = types.value_shape_for_mir(result_type, pointer_bytes);
     if value_shape_map.get(result_value) != result_shape {
         value_shape_map.replace(result_value, result_shape);
         is_changed = true;
@@ -449,6 +479,8 @@ fn propagate_target_edge(
 /// Infer the value shape for a MIR instruction.
 fn infer_instruction_shape(
     tree: &mir::Tree,
+    types: &TypeTable,
+    pointer_bytes: u8,
     inst: &mir::Instruction,
     value_shape_map: &ValueShapeMap,
     value_types: &[mir::LocalNodeId<mir::Type>],
@@ -457,8 +489,8 @@ fn infer_instruction_shape(
         mir::Instruction::Error => None,
         mir::Instruction::Const { destination, value } => {
             if matches!(value, mir::Constant::Null) {
-                let ty = value_type_for_value(*destination, value_types)?;
-                return value_shape_from_type(tree, ty);
+                let ty = value_type_from_table(*destination, value_types)?;
+                return types.value_shape_for_mir(ty, pointer_bytes);
             }
 
             shape_from_constant(value)
@@ -496,7 +528,9 @@ fn infer_instruction_shape(
             }
         }
         mir::Instruction::Unary { argument, .. } => value_shape_map.get(*argument),
-        mir::Instruction::Cast { to_type, .. } => value_shape_from_type(tree, *to_type),
+        mir::Instruction::Cast { to_type, .. } => {
+            types.value_shape_for_mir(*to_type, pointer_bytes)
+        }
         mir::Instruction::Select { then_value, .. } => value_shape_map.get(*then_value),
         mir::Instruction::Call {
             destination,
@@ -505,7 +539,7 @@ fn infer_instruction_shape(
         } => {
             destination.as_ref()?;
             let function = tree.get(*function);
-            value_shape_from_type(tree, function.return_type)
+            types.value_shape_for_mir(function.return_type, pointer_bytes)
         }
         mir::Instruction::CallVirtual {
             destination, call, ..
@@ -522,14 +556,14 @@ fn infer_instruction_shape(
                 return None;
             };
 
-            value_shape_from_type(tree, *result)
+            types.value_shape_for_mir(*result, pointer_bytes)
         }
         mir::Instruction::LocalGet { local, .. } => {
             let local = tree.get(*local);
-            value_shape_from_type(tree, local.ty)
+            types.value_shape_for_mir(local.ty, pointer_bytes)
         }
         mir::Instruction::LocalAddr { result_type, .. } => {
-            let mut shape = value_shape_from_type(tree, *result_type)?;
+            let mut shape = types.value_shape_for_mir(*result_type, pointer_bytes)?;
             let ValueShape::Pointer { address_space, .. } = &mut shape else {
                 return None;
             };
@@ -537,7 +571,7 @@ fn infer_instruction_shape(
             Some(shape)
         }
         mir::Instruction::GlobalAddr { result_type, .. } => {
-            let mut shape = value_shape_from_type(tree, *result_type)?;
+            let mut shape = types.value_shape_for_mir(*result_type, pointer_bytes)?;
             let ValueShape::Pointer { address_space, .. } = &mut shape else {
                 return None;
             };
@@ -547,29 +581,31 @@ fn infer_instruction_shape(
         mir::Instruction::FunctionAddr { function, .. } => {
             let function = tree.get(*function);
             Some(ValueShape::FunctionPointer {
-                result: function.return_type,
+                result: types.type_id(function.return_type),
             })
         }
         mir::Instruction::FunctionBind { destination, .. } => {
-            let ty = value_type_for_value(*destination, value_types)?;
-            value_shape_from_type(tree, ty)
+            let ty = value_type_from_table(*destination, value_types)?;
+            types.value_shape_for_mir(ty, pointer_bytes)
         }
         mir::Instruction::FunctionPointer { destination, .. }
         | mir::Instruction::FunctionEnvironment { destination, .. }
         | mir::Instruction::FunctionEnvironmentCurrent { destination } => {
             value_shape_map.get(*destination)
         }
-        mir::Instruction::Load { result_type, .. } => value_shape_from_type(tree, *result_type),
+        mir::Instruction::Load { result_type, .. } => {
+            types.value_shape_for_mir(*result_type, pointer_bytes)
+        }
         mir::Instruction::Struct { ty, .. }
         | mir::Instruction::Tuple { ty, .. }
-        | mir::Instruction::Array { ty, .. } => value_shape_from_type(tree, *ty),
+        | mir::Instruction::Array { ty, .. } => types.value_shape_for_mir(*ty, pointer_bytes),
         mir::Instruction::FieldGet {
             aggregate: base,
             index,
             ..
         } => {
             let base_shape = value_shape_map.get(*base)?;
-            shape_from_field(tree, base_shape, *index)
+            shape_from_field(types, pointer_bytes, tree, base_shape, *index)
         }
         mir::Instruction::FieldSet {
             aggregate: base, ..
@@ -580,28 +616,28 @@ fn infer_instruction_shape(
             ..
         } => {
             let source_shape = value_shape_map.get(*base)?;
-            pointer_result_shape_from_source(tree, *result_type, source_shape)
+            pointer_result_shape_from_source(types, pointer_bytes, *result_type, source_shape)
         }
         mir::Instruction::ElementAddr {
             array, result_type, ..
         } => {
             let source_shape = value_shape_map.get(*array)?;
-            pointer_result_shape_from_source(tree, *result_type, source_shape)
+            pointer_result_shape_from_source(types, pointer_bytes, *result_type, source_shape)
         }
         mir::Instruction::SliceView { result_type, .. } => {
-            value_shape_from_type(tree, *result_type)
+            types.value_shape_for_mir(*result_type, pointer_bytes)
         }
         mir::Instruction::SliceLength { destination, .. }
         | mir::Instruction::DynamicPayload { destination, .. }
         | mir::Instruction::DynamicType { destination, .. }
         | mir::Instruction::VariantTag { destination, .. }
         | mir::Instruction::VariantPayload { destination, .. } => {
-            let ty = value_type_for_value(*destination, value_types)?;
-            value_shape_from_type(tree, ty)
+            let ty = value_type_from_table(*destination, value_types)?;
+            types.value_shape_for_mir(ty, pointer_bytes)
         }
         mir::Instruction::TensorExtract { destination, .. } => {
-            let ty = value_type_for_value(*destination, value_types)?;
-            value_shape_from_type(tree, ty)
+            let ty = value_type_from_table(*destination, value_types)?;
+            types.value_shape_for_mir(ty, pointer_bytes)
         }
         mir::Instruction::VectorSplat { .. }
         | mir::Instruction::VectorExtract { .. }
@@ -635,7 +671,7 @@ fn infer_instruction_shape(
         | mir::Instruction::TensorConvert { .. } => None,
         mir::Instruction::FrameAllocZeroed { result_type, .. }
         | mir::Instruction::FrameAllocUninit { result_type, .. } => {
-            let mut shape = value_shape_from_type(tree, *result_type)?;
+            let mut shape = types.value_shape_for_mir(*result_type, pointer_bytes)?;
             let ValueShape::Pointer { address_space, .. } = &mut shape else {
                 return None;
             };
@@ -648,18 +684,25 @@ fn infer_instruction_shape(
         | mir::Instruction::NewSliceZeroed { result_type, .. }
         | mir::Instruction::NewSliceUninit { result_type, .. }
         | mir::Instruction::AtomicLoad { result_type, .. } => {
-            value_shape_from_type(tree, *result_type)
+            types.value_shape_for_mir(*result_type, pointer_bytes)
         }
         mir::Instruction::AtomicCompareExchange { destination, .. }
         | mir::Instruction::AtomicRmw { destination, .. } => {
-            let ty = value_type_for_value(*destination, value_types)?;
-            value_shape_from_type(tree, ty)
+            let ty = value_type_from_table(*destination, value_types)?;
+            types.value_shape_for_mir(ty, pointer_bytes)
         }
         mir::Instruction::Intrinsic {
             intrinsic,
             arguments,
             ..
-        } => infer_intrinsic_shape(tree, *intrinsic, *arguments, value_shape_map),
+        } => infer_intrinsic_shape(
+            types,
+            pointer_bytes,
+            tree,
+            *intrinsic,
+            *arguments,
+            value_shape_map,
+        ),
         mir::Instruction::LocalSet { .. }
         | mir::Instruction::Store { .. }
         | mir::Instruction::AtomicStore { .. }
@@ -676,6 +719,8 @@ fn infer_instruction_shape(
 
 /// Infer the value shape for one intrinsic call.
 fn infer_intrinsic_shape(
+    types: &TypeTable,
+    pointer_bytes: u8,
     tree: &mir::Tree,
     intrinsic: mir::Intrinsic,
     arguments: mir::ValueSlice,
@@ -691,11 +736,11 @@ fn infer_intrinsic_shape(
             signed: true,
         }),
         mir::IntrinsicResultType::Isize => Some(ValueShape::Int {
-            width: usize::BITS as u16,
+            width: u16::from(pointer_bytes) * 8,
             signed: true,
         }),
         mir::IntrinsicResultType::Usize => Some(ValueShape::Int {
-            width: usize::BITS as u16,
+            width: u16::from(pointer_bytes) * 8,
             signed: false,
         }),
         mir::IntrinsicResultType::SameAsArgument(index) => {
@@ -705,7 +750,7 @@ fn infer_intrinsic_shape(
         mir::IntrinsicResultType::Pointee(index) => {
             let argument = argument.get(index as usize)?;
             let pointer_shape = value_shape_map.get(*argument)?;
-            shape_from_pointer(tree, pointer_shape)
+            shape_from_pointer(types, pointer_bytes, pointer_shape)
         }
         mir::IntrinsicResultType::OverflowingArithmetic
         | mir::IntrinsicResultType::PointeeAndBool(_)
@@ -735,56 +780,74 @@ fn shape_from_constant(constant: &mir::Constant) -> Option<ValueShape> {
 }
 
 /// Resolve one pointee shape from one addressable value.
-fn shape_from_pointer(tree: &mir::Tree, shape: ValueShape) -> Option<ValueShape> {
+fn shape_from_pointer(
+    types: &TypeTable,
+    pointer_bytes: u8,
+    shape: ValueShape,
+) -> Option<ValueShape> {
     match shape {
-        ValueShape::Pointer { pointee, .. } => value_shape_from_type(tree, pointee),
+        ValueShape::Pointer { pointee, .. } => types.value_shape(pointee, pointer_bytes),
         _ => None,
     }
 }
 
 /// Resolve the field shape for one payload value.
-fn shape_from_field(tree: &mir::Tree, shape: ValueShape, index: u32) -> Option<ValueShape> {
+fn shape_from_field(
+    types: &TypeTable,
+    pointer_bytes: u8,
+    tree: &mir::Tree,
+    shape: ValueShape,
+    index: u32,
+) -> Option<ValueShape> {
     match shape {
-        ValueShape::Array { element, .. } => value_shape_from_type(tree, element),
-        ValueShape::Aggregate { ty } => shape_from_frame_field(tree, ty, index),
+        ValueShape::Array { element, .. } => types.value_shape(element, pointer_bytes),
+        ValueShape::Aggregate { ty } => {
+            shape_from_frame_field(types, pointer_bytes, tree, ty, index)
+        }
         _ => None,
     }
 }
 
 /// Resolve the field shape for one frame-backed value.
 fn shape_from_frame_field(
+    types: &TypeTable,
+    pointer_bytes: u8,
     tree: &mir::Tree,
-    ty: mir::LocalNodeId<mir::Type>,
+    ty: destack_program::TypeId,
     index: u32,
 ) -> Option<ValueShape> {
+    let ty = types.mir_type_id(ty)?;
+
     match tree.get(ty) {
         mir::Type::Struct { fields, copy: _ } => {
             let field = fields.get(index as usize)?;
             let field = tree.get(*field);
-            value_shape_from_type(tree, field.ty)
+
+            types.value_shape_for_mir(field.ty, pointer_bytes)
         }
         mir::Type::Tuple { elements, copy: _ } => {
             let field = elements.get(index as usize)?;
-            value_shape_from_type(tree, *field)
+            types.value_shape_for_mir(*field, pointer_bytes)
         }
-        mir::Type::FixedArray { element, .. } => value_shape_from_type(tree, *element),
+        mir::Type::FixedArray { element, .. } => types.value_shape_for_mir(*element, pointer_bytes),
         _ => None,
     }
 }
 
 /// Rebuild one address-producing result shape from the MIR address space.
 fn pointer_result_shape_from_source(
-    tree: &mir::Tree,
+    types: &TypeTable,
+    pointer_bytes: u8,
     result_type: mir::LocalNodeId<mir::Type>,
     source_shape: ValueShape,
 ) -> Option<ValueShape> {
     let ValueShape::Pointer { address_space, .. } = source_shape else {
-        return value_shape_from_type(tree, result_type);
+        return types.value_shape_for_mir(result_type, pointer_bytes);
     };
 
     let ValueShape::Pointer {
         pointee, reference, ..
-    } = value_shape_from_type(tree, result_type)?
+    } = types.value_shape_for_mir(result_type, pointer_bytes)?
     else {
         return None;
     };

@@ -39,7 +39,7 @@ impl<'a> BlockLowerer<'a> {
                     .value(destination.0)
                     .ok_or(Error::invalid_instruction())?;
 
-                if slot.is_cell {
+                if self.slot_is_cell(slot) {
                     IntrinsicDest::Cell(cell_offset(self, destination)?)
                 } else {
                     IntrinsicDest::Frame(destination)

@@ -291,7 +291,7 @@ b0(v0: fn(int32) => int32, v1: int32):
         .run_frame_function_by_name(
             "caller",
             &[
-                Cell::function_pointer(FunctionPointer::from_bits(double_id.id as usize)),
+                Cell::function_pointer(FunctionPointer::from(double_id)),
                 Cell::int32(21),
             ],
         )
@@ -325,7 +325,7 @@ entry(v0: fn(int32) => int32, v1: int32):
     let result = machine.run_frame_function_by_name(
         "caller",
         &[
-            Cell::function_pointer(FunctionPointer::from_bits(wrong_id.id as usize)),
+            Cell::function_pointer(FunctionPointer::from(wrong_id)),
             Cell::int32(21),
         ],
     );
@@ -426,7 +426,7 @@ entry(v0: int32, v1: fn(int32, int32) => int32):
             "entry",
             &[
                 Cell::int32(200),
-                Cell::function_pointer(FunctionPointer::from_bits(countdown_id.id as usize)),
+                Cell::function_pointer(FunctionPointer::from(countdown_id)),
             ],
         )
         .expect("execution failed");

@@ -3,9 +3,9 @@ use destack_mir as mir;
 use super::Activation;
 use crate::diagnostic::Error;
 use destack_program::vm::{
-    Check, CheckId, Edge, EdgeId, Instruction, Layout, Projection, ProjectionId, SideRecord,
-    SideTable, SliceProjection, SliceProjectionId, SwitchCase, SwitchCasesId, SwitchTable,
-    SwitchTableId, TensorConvolutionId, TensorDotId, TensorGatherId, TensorLayout, TensorLayoutId,
+    Check, CheckId, Edge, EdgeId, Instruction, Projection, ProjectionId, SideRecord, SideTable,
+    SliceProjection, SliceProjectionId, SwitchCase, SwitchCasesId, SwitchTable, SwitchTableId,
+    TensorConvolutionId, TensorDotId, TensorGatherId, TensorLayout, TensorLayoutId,
     TensorScatterId, TensorWindowId, U32RangeId,
 };
 
@@ -28,12 +28,15 @@ impl Activation<'_> {
         unsafe { &*(record as *const T) }
     }
 
-    /// Return the compiled layout for one MIR type.
+    /// Return the canonical layout for one MIR type.
     #[inline]
-    pub(crate) fn require_layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Result<&Layout, Error> {
+    pub(crate) fn require_layout(
+        &self,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> Result<&mir::Layout, Error> {
         self.machine
             .program
-            .layout(ty)
+            .layout(self.machine.program.types().type_id(ty))
             .ok_or_else(|| Error::type_mismatch("compiled layout", format!("{ty:?}")))
     }
 

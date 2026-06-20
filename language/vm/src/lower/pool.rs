@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use destack_mir as mir;
-use destack_program as program;
 
 use crate::{Error, Result};
+use destack_program::FunctionId;
 use destack_program::vm::{
     AllocationSite, AllocationSiteId, ArgumentRange, CallTarget, Check, CheckId, ConstValue,
     ConstValueId, Edge, EdgeId, Instruction, MovePair, MoveRange, MoveSlot, MoveSource, Op,
@@ -13,10 +13,14 @@ use destack_program::vm::{
     TensorScatterId, TensorWindowId, U32RangeId,
 };
 
+use super::layout::ValueLayout;
+
 /// One lowering pool for shared variable-length lowering data.
 pub(super) struct Pool<'layout, 'table> {
     /// The frame layout being lowered.
-    frame_layout: &'layout program::FrameLayout,
+    frame_layout: &'layout mir::FrameLayout,
+    /// The lowered VM layout by MIR type id.
+    layouts: &'layout HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     /// The canonical program trace table.
     trace_table: &'layout mir::TraceTable,
     /// The pooled argument values.
@@ -31,11 +35,13 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     /// Create one empty lowering pool.
     pub(super) fn new(
         side_table: &'table mut SideTableBuilder,
-        frame_layout: &'layout program::FrameLayout,
+        frame_layout: &'layout mir::FrameLayout,
+        layouts: &'layout HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
         trace_table: &'layout mir::TraceTable,
     ) -> Self {
         Self {
             frame_layout,
+            layouts,
             trace_table,
             argument: Vec::new(),
             move_pair: Vec::new(),
@@ -112,7 +118,13 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     ) -> Result<MoveRange> {
         let frame_layout = self.frame_layout;
 
-        move_range(frame_layout, &mut self.move_pair, parameters, arguments)
+        move_range(
+            frame_layout,
+            self.layouts,
+            &mut self.move_pair,
+            parameters,
+            arguments,
+        )
     }
 
     /// Return one parameter move range from the pool.
@@ -123,7 +135,13 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     ) -> Result<MoveRange> {
         let frame_layout = self.frame_layout;
 
-        parameter_move_range(frame_layout, &mut self.move_pair, parameters, arguments)
+        parameter_move_range(
+            frame_layout,
+            self.layouts,
+            &mut self.move_pair,
+            parameters,
+            arguments,
+        )
     }
 
     /// Return one block edge move range from the pool.
@@ -134,7 +152,13 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     ) -> Result<MoveRange> {
         let frame_layout = self.frame_layout;
 
-        move_range(frame_layout, &mut self.move_pair, parameters, arguments)
+        move_range(
+            frame_layout,
+            self.layouts,
+            &mut self.move_pair,
+            parameters,
+            arguments,
+        )
     }
 
     /// Return one pooled control edge id.
@@ -151,8 +175,10 @@ impl<'layout, 'table> Pool<'layout, 'table> {
         cases: &[mir::SwitchCase],
     ) -> Result<SwitchCasesId> {
         let frame_layout = self.frame_layout;
+        let layouts = self.layouts;
         let cases = switch_case_range(
             frame_layout,
+            layouts,
             &mut self.move_pair,
             tree,
             block_index_map,
@@ -174,8 +200,10 @@ impl<'layout, 'table> Pool<'layout, 'table> {
         default_moves: MoveRange,
     ) -> Result<Option<SwitchTableId>> {
         let frame_layout = self.frame_layout;
+        let layouts = self.layouts;
         let table = switch_table_range(
             frame_layout,
+            layouts,
             &mut self.move_pair,
             tree,
             block_index_map,
@@ -269,7 +297,8 @@ fn argument_range(pool: &mut Vec<mir::Value>, arguments: &[mir::Value]) -> Argum
 
 /// Return one move range from the pool.
 fn move_range(
-    frame_layout: &program::FrameLayout,
+    frame_layout: &mir::FrameLayout,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     pool: &mut Vec<MovePair>,
     parameters: &[mir::Value],
     arguments: &[mir::Value],
@@ -290,8 +319,8 @@ fn move_range(
 
     // append move pairs
     for (index, param) in parameters.iter().enumerate() {
-        let source = move_source(frame_layout, arguments, index)?;
-        let dest = move_slot(frame_layout, *param)?;
+        let source = move_source(frame_layout, layouts, arguments, index)?;
+        let dest = move_slot(frame_layout, layouts, *param)?;
 
         pool.push(MovePair { dest, source });
     }
@@ -305,7 +334,8 @@ fn move_range(
 
 /// Return one parameter move range from the pool.
 fn parameter_move_range(
-    frame_layout: &program::FrameLayout,
+    frame_layout: &mir::FrameLayout,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     pool: &mut Vec<MovePair>,
     parameters: &[mir::FunctionParameter],
     arguments: &[mir::Value],
@@ -327,8 +357,8 @@ fn parameter_move_range(
     // append move pairs
     for (index, param) in parameters.iter().enumerate() {
         let parameter = param.value;
-        let source = move_source(frame_layout, arguments, index)?;
-        let dest = move_slot(frame_layout, parameter)?;
+        let source = move_source(frame_layout, layouts, arguments, index)?;
+        let dest = move_slot(frame_layout, layouts, parameter)?;
 
         pool.push(MovePair { dest, source });
     }
@@ -342,15 +372,16 @@ fn parameter_move_range(
 
 /// Resolve one call target for the given function id.
 pub(super) fn lookup_call_target(
-    call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
-    function: mir::LocalNodeId<mir::Function>,
+    call_targets: &HashMap<FunctionId, CallTarget>,
+    function: FunctionId,
 ) -> Option<CallTarget> {
     call_targets.get(&function).copied()
 }
 
 /// Return one switch-case range from the pool.
 fn switch_case_range(
-    frame_layout: &program::FrameLayout,
+    frame_layout: &mir::FrameLayout,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     move_pool: &mut Vec<MovePair>,
     tree: &mir::Tree,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
@@ -365,7 +396,13 @@ fn switch_case_range(
         let target_index = block_index_map[&target];
         let target_parameters = block_parameters[target_index].as_slice();
         let arguments = case.target.arguments(tree);
-        let moves = move_range(frame_layout, move_pool, target_parameters, arguments)?;
+        let moves = move_range(
+            frame_layout,
+            layouts,
+            move_pool,
+            target_parameters,
+            arguments,
+        )?;
         lowered_cases.push(SwitchCase {
             value: case.value,
             target: target_index as u32,
@@ -378,7 +415,8 @@ fn switch_case_range(
 
 /// Return one switch-table range when density is high enough.
 fn switch_table_range(
-    frame_layout: &program::FrameLayout,
+    frame_layout: &mir::FrameLayout,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     move_pool: &mut Vec<MovePair>,
     tree: &mir::Tree,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
@@ -436,7 +474,13 @@ fn switch_table_range(
         let target_index = block_index_map[&target];
         let target_parameters = block_parameters[target_index].as_slice();
         let arguments = case.target.arguments(tree);
-        let moves = move_range(frame_layout, move_pool, target_parameters, arguments)?;
+        let moves = move_range(
+            frame_layout,
+            layouts,
+            move_pool,
+            target_parameters,
+            arguments,
+        )?;
         let offset = (case_value - min_value) as usize;
         let entry = &mut table[offset];
         entry.value = case_value;
@@ -450,7 +494,8 @@ fn switch_table_range(
 
 /// Return the lowered move source for one argument index.
 fn move_source(
-    frame_layout: &program::FrameLayout,
+    frame_layout: &mir::FrameLayout,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     arguments: &[mir::Value],
     index: usize,
 ) -> Result<MoveSource> {
@@ -458,19 +503,24 @@ fn move_source(
         return Ok(MoveSource::Void);
     };
 
-    Ok(MoveSource::Slot(move_slot(frame_layout, *value)?))
+    Ok(MoveSource::Slot(move_slot(frame_layout, layouts, *value)?))
 }
 
 /// Return the lowered frame slot for one SSA value.
-fn move_slot(frame_layout: &program::FrameLayout, value: mir::Value) -> Result<MoveSlot> {
+fn move_slot(
+    frame_layout: &mir::FrameLayout,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
+    value: mir::Value,
+) -> Result<MoveSlot> {
     let slot = frame_layout
         .value(value.0)
         .ok_or(Error::invalid_instruction())?;
+    let is_cell = layouts.get(&slot.ty).is_some_and(ValueLayout::is_cell);
 
     Ok(MoveSlot {
-        layout: slot.layout,
+        ty: slot.ty,
         offset: slot.offset,
         byte_len: slot.byte_len,
-        is_cell: slot.is_cell,
+        is_cell,
     })
 }

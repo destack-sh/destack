@@ -3,8 +3,6 @@ use crate::diagnostic::Error;
 use crate::machine::Activation;
 
 use super::Transfer;
-use destack_mir as mir;
-use destack_program as program;
 use destack_program::vm::{
     BoundsCheck, Check, CheckId, Edge, EdgeId, Instruction, MoveRange, NarrowCheck, Op,
     OverflowCheck, ShiftRangeCheck, SwitchCasesId, SwitchTableId, VariantCheck,
@@ -464,8 +462,8 @@ pub(crate) fn execute_yield_cell(
     instruction: &Instruction,
 ) -> Transfer {
     let yield_value = activation.load_cell_at(instruction.a);
-    let source_type = mir::LocalNodeId::new(instruction.b);
-    let frame_state = program::FrameStateId(instruction.c);
+    let source_type = instruction.b.into();
+    let frame_state = instruction.c.into();
 
     Transfer::Yield {
         value: yield_value,
@@ -480,8 +478,8 @@ pub(crate) fn execute_yield_address(
     instruction: &Instruction,
 ) -> Transfer {
     let yield_value = frame_address(activation, instruction.a);
-    let source_type = mir::LocalNodeId::new(instruction.b);
-    let frame_state = program::FrameStateId(instruction.c);
+    let source_type = instruction.b.into();
+    let frame_state = instruction.c.into();
 
     Transfer::Yield {
         value: yield_value,

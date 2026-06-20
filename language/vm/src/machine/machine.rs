@@ -16,11 +16,8 @@ use crate::lower::lower_program_with_heap_options;
 use crate::options::{LimitOptions, MachineOptions};
 use crate::{Cell, Result as VmResult};
 use destack_program::Program;
-use destack_program::vm::Executable;
-#[cfg(test)]
-use destack_program::vm::Layout;
 
-use super::{Continuation, ContinuationImage, Frame, FrameSnapshot, Stack, StackImage};
+use super::{Continuation, ContinuationImage, Frame, FrameImage, Stack, StackImage};
 
 /// Coroutine-capable machine outcome.
 pub type Outcome = program::Outcome<Continuation, program::Value>;
@@ -28,7 +25,7 @@ pub type Outcome = program::Outcome<Continuation, program::Value>;
 /// Durable VM execution state.
 pub struct Machine {
     /// Immutable program shared by this machine.
-    pub(crate) program: Arc<Program<Executable>>,
+    pub(crate) program: Arc<Program>,
     /// Configuration options for this machine.
     pub(crate) options: MachineOptions,
 
@@ -41,16 +38,14 @@ pub struct Machine {
 }
 
 /// Immutable machine image.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MachineImage {
-    /// The immutable program shared by this machine.
-    pub program: Arc<Program<Executable>>,
     /// The machine configuration options.
     pub options: MachineOptions,
     /// The captured stack bytes.
     pub stack: StackImage,
     /// The captured frame stack.
-    pub frames: Vec<FrameSnapshot>,
+    pub frames: Vec<FrameImage>,
 }
 
 impl fmt::Debug for Machine {
@@ -63,6 +58,26 @@ impl fmt::Debug for Machine {
 }
 
 impl Machine {
+    /// Create a new machine for one durable program.
+    pub fn new(program: Arc<Program>, options: MachineOptions) -> RuntimeResult<Self> {
+        Self::require_program_compatibility(program.as_ref(), &options)?;
+        let stack = Stack::new(options.limits.stack_bytes)?;
+
+        Ok(Self {
+            program,
+            options,
+            frames: Vec::new(),
+            stack,
+            last_allocation_failure: None,
+        })
+    }
+
+    /// Return the immutable program handle.
+    #[inline]
+    pub fn program_handle(&self) -> Arc<Program> {
+        self.program.clone()
+    }
+
     /// Return the canonical program trace table.
     #[inline]
     pub fn trace_table(&self) -> Arc<mir::TraceTable> {
@@ -82,9 +97,8 @@ impl Machine {
     }
 
     /// Restore one machine from one shared immutable image.
-    pub fn from_image(image: Arc<MachineImage>) -> RuntimeResult<Self> {
-        let program = image.program.clone();
-        Self::require_host_pointer_width(program.as_ref())?;
+    pub fn from_image(program: Arc<Program>, image: Arc<MachineImage>) -> RuntimeResult<Self> {
+        Self::require_program_compatibility(program.as_ref(), &image.options)?;
         let (stack, frames) =
             Self::restore_stack_and_frames(&program, &image.stack, &image.frames, &image.options)?;
 
@@ -109,17 +123,7 @@ impl Machine {
             options.heap.clone(),
             options.shared_heap.clone(),
         )?);
-        Self::require_host_pointer_width(program.as_ref())?;
-
-        let stack = Stack::new(options.limits.stack_bytes)?;
-
-        Ok(Self {
-            program,
-            options,
-            frames: Vec::new(),
-            stack,
-            last_allocation_failure: None,
-        })
+        Self::new(program, options)
     }
 
     /// Initialize heap-shaped program metadata and static bytes.
@@ -131,23 +135,22 @@ impl Machine {
         shared_static: &mut StaticSpace,
     ) -> RuntimeResult<()> {
         // reject mismatched program and heap allocation shapes
-        if heap.options() != &self.options.heap || shared.options() != &self.options.shared_heap {
+        if heap.options() != self.program.heap_options()
+            || shared.options() != self.program.shared_heap_options()
+        {
             return Err(self.runtime_error(Error::invalid_program(
-                "machine heap options do not match runtime heap options",
+                "program heap options do not match runtime heap options",
             )));
         }
 
         // initialize static data
-        self.initialize_statics(local_static, shared_static);
+        self.program.initialize_statics(local_static, shared_static);
 
         Ok(())
     }
 
     /// Resolve a function id by name.
-    pub fn function_id_by_name(
-        &self,
-        name: &str,
-    ) -> Result<mir::LocalNodeId<mir::Function>, RuntimeError> {
+    pub fn function_id_by_name(&self, name: &str) -> Result<program::FunctionId, RuntimeError> {
         let func_id = self
             .program
             .function_id_by_name(name)
@@ -160,14 +163,11 @@ impl Machine {
     pub fn entry_by_name(&self, name: &str) -> Result<program::EntryPoint, RuntimeError> {
         let function = self.function_id_by_name(name)?;
 
-        Ok(program::EntryPoint::new(function.id))
+        Ok(program::EntryPoint::from(function))
     }
 
-    /// Resolve one execution entry into a MIR function id.
-    pub fn function_for_entry(
-        &self,
-        entry: program::EntryPoint,
-    ) -> mir::LocalNodeId<mir::Function> {
+    /// Resolve one execution entry into a function id.
+    pub fn function_for_entry(&self, entry: program::EntryPoint) -> program::FunctionId {
         self.program.function_for_entry(entry)
     }
 
@@ -180,7 +180,7 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_gc: &GcWorker,
-        func_id: mir::LocalNodeId<mir::Function>,
+        func_id: program::FunctionId,
         arguments: &[program::Value],
     ) -> RuntimeResult<program::Value> {
         let arguments = arguments.iter().map(Cell::from).collect::<Vec<_>>();
@@ -206,7 +206,7 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_gc: &GcWorker,
-        func_id: mir::LocalNodeId<mir::Function>,
+        func_id: program::FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<program::Value> {
         let program = Arc::clone(&self.program);
@@ -235,7 +235,7 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_gc: &GcWorker,
-        func_id: mir::LocalNodeId<mir::Function>,
+        func_id: program::FunctionId,
         arguments: &[program::Value],
     ) -> RuntimeResult<Outcome> {
         let arguments = arguments.iter().map(Cell::from).collect::<Vec<_>>();
@@ -261,7 +261,7 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_gc: &GcWorker,
-        func_id: mir::LocalNodeId<mir::Function>,
+        func_id: program::FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<Outcome> {
         let program = Arc::clone(&self.program);
@@ -326,6 +326,34 @@ impl Machine {
         Continuation::from_image(image, &self.program, &self.options)
     }
 
+    /// Continue execution from one continuation image.
+    pub fn continue_continuation_image(
+        &mut self,
+        local_static: &mut StaticSpace,
+        shared_static: &mut StaticSpace,
+        heap: &mut Heap,
+        shared: &SharedHeap,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
+        image: &ContinuationImage,
+    ) -> RuntimeResult<Outcome> {
+        let program = Arc::clone(&self.program);
+        let limits = self.options.limits;
+        let continuation = self.restore_continuation_image(image)?;
+
+        self.execute_continuation_image(
+            program.as_ref(),
+            limits,
+            local_static,
+            shared_static,
+            heap,
+            shared,
+            shared_cache,
+            shared_gc,
+            continuation,
+        )
+    }
+
     /// Visit mutable heap root slots from live state and optional continuations.
     pub fn visit_root_slots(
         &mut self,
@@ -380,7 +408,6 @@ impl Machine {
             .collect::<RuntimeResult<Vec<_>>>()?;
 
         Ok(MachineImage {
-            program: self.program.clone(),
             options: self.options.clone(),
             stack,
             frames,
@@ -402,10 +429,6 @@ impl Machine {
 
     /// Restore this machine from one immutable VM image.
     pub fn restore_image(&mut self, image: &MachineImage) -> RuntimeResult<()> {
-        let program = image.program.clone();
-        Self::require_host_pointer_width(program.as_ref())?;
-
-        self.program = program;
         self.options = image.options.clone();
 
         // rebuild stack and frames over the restored program
@@ -439,7 +462,7 @@ impl Machine {
     /// Allocate one frame byte record in the stack arena.
     pub(crate) fn allocate_frame(
         &mut self,
-        layout: &program::FrameLayout,
+        layout: &mir::FrameLayout,
     ) -> RuntimeResult<(usize, usize)> {
         let base = self
             .stack
@@ -473,9 +496,9 @@ impl Machine {
 
     /// Restore stack and frames from one immutable image.
     pub(crate) fn restore_stack_and_frames(
-        program: &Program<Executable>,
+        program: &Program,
         stack_image: &StackImage,
-        frame_images: &[FrameSnapshot],
+        frame_images: &[FrameImage],
         options: &MachineOptions,
     ) -> RuntimeResult<(Stack, Vec<Frame>)> {
         let stack = Stack::from_image(stack_image, options.limits.stack_bytes)?;
@@ -497,7 +520,7 @@ impl Machine {
     #[cold]
     pub(crate) fn runtime_error_with_program(
         &self,
-        program: &Program<Executable>,
+        program: &Program,
         error: Error,
     ) -> RuntimeError {
         match self.call_stack(program) {
@@ -508,35 +531,30 @@ impl Machine {
         }
     }
 
-    /// Initialize static data from the lowered program.
-    pub(crate) fn initialize_statics(
-        &mut self,
-        local_static: &mut StaticSpace,
-        shared_static: &mut StaticSpace,
-    ) {
-        // initialize shared static once per runtime
-        if shared_static.is_empty() {
-            shared_static.clone_from(self.program.shared_statics());
-        }
-
-        // initialize local static once per worker
-        local_static.clone_from(self.program.local_statics());
-    }
-
     /// Return the current call stack for error reporting.
-    fn call_stack(&self, program: &Program<Executable>) -> VmResult<Vec<StackTraceFrame>> {
+    fn call_stack(&self, program: &Program) -> VmResult<Vec<StackTraceFrame>> {
         self.frames
             .iter()
             .map(|frame| {
                 let function = frame.function();
-                let block = frame.block_id(program)?;
-                let function_node = program.tree().get(function);
-                let function_name = program.strings().get(function_node.name).to_string();
+                let function_ref = program
+                    .vm_functions()
+                    .function_by_id(function)
+                    .ok_or_else(|| Error::undefined_function(function))?;
+                let block = function_ref
+                    .blocks
+                    .get(frame.block as usize)
+                    .map(|block| block.mir_block)
+                    .ok_or_else(Error::invalid_instruction)?;
+                let function_name = program
+                    .functions()
+                    .get(function)
+                    .map(|function| function.name.clone());
 
                 Ok(StackTraceFrame {
                     function,
                     block,
-                    function_name: Some(function_name),
+                    function_name,
                 })
             })
             .collect()
@@ -545,7 +563,7 @@ impl Machine {
     /// Visit mutable heap root slots from active frames and suspended continuations.
     pub(crate) fn visit_root_slots_with_program(
         &mut self,
-        program: &Program<Executable>,
+        program: &Program,
         local_static: &mut StaticSpace,
         continuations: &mut [Continuation],
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
@@ -572,9 +590,12 @@ impl Machine {
         Ok(())
     }
 
-    /// Require a host pointer width compatible with the program layout.
-    fn require_host_pointer_width(program: &Program<Executable>) -> RuntimeResult<()> {
-        let pointer_bytes = program.tree().metadata.data_layout.pointer_bytes;
+    /// Require machine options compatible with the program header.
+    fn require_program_compatibility(
+        program: &Program,
+        options: &MachineOptions,
+    ) -> RuntimeResult<()> {
+        let pointer_bytes = program.pointer_bytes();
         let host_pointer_bytes = HeapReference::BYTE_LEN as u8;
 
         // host execution only supports native-width pointers
@@ -582,6 +603,18 @@ impl Machine {
             return Err(RuntimeError::new(Error::incompatible_pointer_width(
                 pointer_bytes,
                 host_pointer_bytes,
+            )));
+        }
+
+        if program.heap_options() != &options.heap {
+            return Err(RuntimeError::new(Error::invalid_program(
+                "program local heap options do not match machine options",
+            )));
+        }
+
+        if program.shared_heap_options() != &options.shared_heap {
+            return Err(RuntimeError::new(Error::invalid_program(
+                "program shared heap options do not match machine options",
             )));
         }
 
@@ -595,23 +628,19 @@ impl Machine {
 
     /// Return the canonical layout id for one MIR type.
     pub fn layout_id_for_type(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<mir::LayoutId> {
-        self.program.layout_id_for_type(ty)
+        self.program
+            .layout_id_for_type(self.program.types().type_id(ty))
     }
 
-    /// Return the compiled VM layout for one MIR type.
+    /// Return the canonical layout for one MIR type.
     #[cfg(test)]
-    pub(crate) fn layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<&Layout> {
-        self.program.layout(ty)
+    pub(crate) fn layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<&mir::Layout> {
+        self.program.layout(self.program.types().type_id(ty))
     }
 
     /// Return the heap allocation shape for one layout id.
     pub fn allocation_shape(&self, layout_id: mir::LayoutId) -> VmResult<AllocationShape<'_>> {
         Ok(self.program.allocation_shape(layout_id)?)
-    }
-
-    /// Borrow the program MIR tree.
-    pub fn tree(&self) -> &mir::Tree {
-        self.program.tree()
     }
 }
 

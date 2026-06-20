@@ -3,11 +3,12 @@ use destack_mir as mir;
 
 use crate::{Error, Result};
 use destack_program::vm::{
-    AddressSpace, AllocationBranch, AllocationSite, Edge, Instruction, Layout, Op,
-    SliceAllocationBranch, SmallAllocationSite, address_space_from_reference, repr_type,
+    AddressSpace, AllocationBranch, AllocationSite, Edge, Instruction, Op, SliceAllocationBranch,
+    SmallAllocationSite, address_space_from_reference,
 };
 
 use super::frame::{cell_offset, value_offset};
+use super::layout::ValueLayout;
 use super::lower::BlockLowerer;
 use super::memory::frame_value_slot;
 use super::pool::Pool;
@@ -117,7 +118,7 @@ impl<'a> BlockLowerer<'a> {
         let destination_slot = frame_value_slot(self, destination)?;
         let value_slot = frame_value_slot(self, value)?;
 
-        if destination_slot.is_cell && value_slot.is_cell {
+        if self.slot_is_cell(destination_slot) && self.slot_is_cell(value_slot) {
             return Ok(Instruction::new(
                 Op::MoveCell,
                 destination_slot.offset,
@@ -369,7 +370,7 @@ fn slice_backing_address_space(
 fn allocation_site(
     pool: &mut Pool<'_, '_>,
     address_space: AddressSpace,
-    layout: &Layout,
+    layout: &ValueLayout,
     heap_options: &HeapOptions,
     shared_heap_options: &SharedHeapOptions,
 ) -> Result<(AllocationSite, AllocationClass)> {
@@ -507,7 +508,7 @@ fn is_small_allocation_op(op: Op) -> bool {
 
 /// Select one free operation for one unique heap reference type.
 fn unique_free_op(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<Op> {
-    let ty = repr_type(tree, ty);
+    let ty = tree.repr_type(ty);
     let mir::Type::Reference {
         kind: mir::ReferenceKind::Unique,
         space,

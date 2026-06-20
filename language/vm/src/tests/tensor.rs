@@ -702,7 +702,7 @@ entry:
     tensor.store v1, [v3, v2], v6
     tensor.store v1, [v3, v3], v7
     tensor.store v1, [v3, v4], v8
-    v9: tensorView<int32, raw, mutable, space(frame), (2, 2), layout(strided)> = tensor.view v1, offsets(v2, v2), sizes(v4, v4), strides(v3, v4)
+    v9: tensorView<int32, raw, mutable, space(frame), (2, 2), format(strided)> = tensor.view v1, offsets(v2, v2), sizes(v4, v4), strides(v3, v4)
     v10: int32 = tensor.load v9, [v3, v3]
     return v10
 }

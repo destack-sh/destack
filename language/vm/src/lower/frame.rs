@@ -1,5 +1,4 @@
 use destack_mir as mir;
-use destack_program as program;
 
 use crate::{Error, Result};
 use destack_program::vm::{Instruction, Op, Projection, cell_layout_from_type};
@@ -263,7 +262,7 @@ pub(super) fn cell_offset(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Resu
     let region = frame_slot(lowerer, value)?;
 
     // cell instructions require single-cell frame slots
-    if !region.is_cell {
+    if !lowerer.slot_is_cell(region) {
         return Err(Error::type_mismatch(
             "cell value",
             format!("frame-backed value: {value:?}"),
@@ -279,10 +278,7 @@ pub(super) fn value_offset(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Res
 }
 
 /// Return one lowered frame slot.
-fn frame_slot<'a>(
-    lowerer: &'a BlockLowerer<'_>,
-    value: mir::Value,
-) -> Result<&'a program::FrameSlot> {
+fn frame_slot<'a>(lowerer: &'a BlockLowerer<'_>, value: mir::Value) -> Result<&'a mir::FrameSlot> {
     lowerer
         .frame_layout
         .value(value.0)

@@ -1,4 +1,5 @@
 use destack_heap::{AllocationCache, GcWorker, Heap, SharedHeap};
+use destack_mir as mir;
 use destack_program as program;
 
 use crate::diagnostic::Error;
@@ -26,7 +27,7 @@ pub(crate) struct Activation<'run> {
     /// Native address of the active frame bytes.
     pub(crate) frame_base: usize,
     /// Active frame layout.
-    pub(crate) frame_layout: program::FrameLayoutId,
+    pub(crate) frame_layout: mir::FrameLayoutId,
 }
 
 impl<'run> Activation<'run> {
@@ -50,7 +51,7 @@ impl<'run> Activation<'run> {
             shared_cache,
             frame_index: 0,
             frame_base: 0,
-            frame_layout: program::FrameLayoutId(0),
+            frame_layout: 0.into(),
         }
     }
 

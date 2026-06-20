@@ -1,14 +1,12 @@
-use destack_program as program;
-use serde::{Deserialize, Serialize};
+use destack_mir as mir;
 
 use super::{
-    Frame, FrameSnapshot, Stack, StackImage, visit_frame_slot_root_slots, visit_materialized_slots,
+    Frame, FrameImage, Stack, StackImage, visit_frame_slot_root_slots, visit_materialized_slots,
 };
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::options::MachineOptions;
 use destack_heap::{HeapResult, RootSlot};
-use destack_program::Program;
-use destack_program::vm::Executable;
+use destack_program::{ContinuationImage, Program};
 
 /// Suspended machine state captured at a yield terminator.
 #[derive(Debug)]
@@ -20,16 +18,7 @@ pub struct Continuation {
     /// The frame index to resume execution in.
     pub(crate) resume_frame_index: usize,
     /// The frame state for this continuation.
-    pub(crate) frame_state: program::FrameStateId,
-}
-
-/// Immutable continuation image.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ContinuationImage {
-    /// The captured stack bytes.
-    pub stack: StackImage,
-    /// The captured frames from outermost to innermost.
-    pub frames: Vec<FrameSnapshot>,
+    pub(crate) frame_state: mir::FrameStateId,
 }
 
 impl Continuation {
@@ -55,7 +44,7 @@ impl Continuation {
     }
 
     /// Capture one immutable continuation image.
-    pub fn image(&self, program: &Program<Executable>) -> RuntimeResult<ContinuationImage> {
+    pub fn image(&self, program: &Program) -> RuntimeResult<ContinuationImage> {
         let stack = self.stack.image()?;
         let frames = self
             .frames
@@ -66,7 +55,7 @@ impl Continuation {
                     .frame_state_and_materialization(program, frame, frame_index)
                     .map_err(RuntimeError::new)?;
 
-                Ok(FrameSnapshot::capture(frame, frame_state))
+                Ok(capture_frame_image(frame, frame_state))
             })
             .collect::<RuntimeResult<Vec<_>>>()?;
 
@@ -76,7 +65,7 @@ impl Continuation {
     /// Visit mutable heap root slots referenced by this continuation.
     pub(crate) fn visit_root_slots(
         &mut self,
-        program: &Program<Executable>,
+        program: &Program,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
         for frame_index in 0..self.frames.len() {
@@ -98,11 +87,11 @@ impl Continuation {
     /// Visit mutable heap root slots from one captured continuation image.
     pub(crate) fn visit_image_root_slots(
         image: &mut ContinuationImage,
-        program: &Program<Executable>,
+        program: &Program,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
         for frame in &mut image.frames {
-            frame.visit_root_slots(&mut image.stack, program, visit)?;
+            visit_frame_image_root_slots(frame, &mut image.stack, program, visit)?;
         }
 
         Ok(())
@@ -111,7 +100,7 @@ impl Continuation {
     /// Rebuild one continuation from an immutable image.
     pub(crate) fn from_image(
         image: &ContinuationImage,
-        program: &Program<Executable>,
+        program: &Program,
         options: &MachineOptions,
     ) -> RuntimeResult<Self> {
         if image.frames.is_empty() {
@@ -138,7 +127,8 @@ impl Continuation {
             }
 
             let frame_base = stack.address(frame_image.stack_offset, frame_image.byte_len)?;
-            let frame = frame_image.restore(program, frame_image.stack_offset, frame_base)?;
+            let frame =
+                Frame::from_image(frame_image, program, frame_image.stack_offset, frame_base)?;
             frames.push(frame);
         }
 
@@ -160,10 +150,10 @@ impl Continuation {
     /// Return the frame materialization for one live continuation frame.
     fn frame_materialization<'a>(
         &self,
-        program: &'a Program<Executable>,
+        program: &'a Program,
         frame: &Frame,
         frame_index: usize,
-    ) -> Result<&'a program::FrameMaterialization, Error> {
+    ) -> Result<&'a mir::FrameMaterialization, Error> {
         let (_frame_state, materialization) =
             self.frame_state_and_materialization(program, frame, frame_index)?;
 
@@ -173,10 +163,10 @@ impl Continuation {
     /// Return the frame state and frame materialization for one live continuation frame.
     fn frame_state_and_materialization<'a>(
         &self,
-        program: &'a Program<Executable>,
+        program: &'a Program,
         frame: &Frame,
         frame_index: usize,
-    ) -> Result<(program::FrameStateId, &'a program::FrameMaterialization), Error> {
+    ) -> Result<(mir::FrameStateId, &'a mir::FrameMaterialization), Error> {
         let frame_state = self.frame_state(program, frame, frame_index)?;
 
         let frame_materialization =
@@ -198,15 +188,15 @@ impl Continuation {
     /// Return the frame state captured for one live continuation frame.
     fn frame_state(
         &self,
-        program: &Program<Executable>,
+        program: &Program,
         frame: &Frame,
         frame_index: usize,
-    ) -> Result<program::FrameStateId, Error> {
+    ) -> Result<mir::FrameStateId, Error> {
         if frame_index == self.resume_frame_index {
             return Ok(self.frame_state);
         }
 
-        let block = frame.block_id(program)?;
+        let block = frame.block;
         let point = program.point(frame.function(), block, frame.pc as u32);
 
         program.frame_state_at(point).ok_or_else(|| {
@@ -220,105 +210,64 @@ impl Continuation {
     }
 }
 
-impl FrameSnapshot {
-    /// Capture one frame snapshot from one live frame.
-    fn capture(frame: &Frame, frame_state: program::FrameStateId) -> Self {
-        Self {
-            frame_state,
-            return_state: frame.return_state,
-            stack_offset: frame.stack_offset,
-            byte_len: frame.byte_len,
-        }
+/// Capture one frame image from one live frame.
+fn capture_frame_image(frame: &Frame, frame_state: mir::FrameStateId) -> FrameImage {
+    FrameImage {
+        frame_state,
+        return_state: frame.return_state,
+        stack_offset: frame.stack_offset,
+        byte_len: frame.byte_len,
+    }
+}
+
+/// Visit mutable heap root slots from one captured frame.
+fn visit_frame_image_root_slots(
+    frame: &mut FrameImage,
+    stack: &mut StackImage,
+    program: &Program,
+    visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+) -> Result<(), Error> {
+    let (layout, materialization) = frame_image_materialization(frame, program)?;
+
+    visit_materialized_slots(layout, materialization, |slot| {
+        visit_frame_image_slot_root_slots(frame, stack, program, slot, visit)
+    })
+}
+
+/// Return the layout and materialization for one captured frame.
+fn frame_image_materialization<'a>(
+    frame: &FrameImage,
+    program: &'a Program,
+) -> Result<(&'a mir::FrameLayout, &'a mir::FrameMaterialization), Error> {
+    let materialization = program
+        .frame_materialization(frame.frame_state)
+        .ok_or(Error::invalid_continuation())?;
+    let layout = program
+        .frame_layout_by_id(materialization.frame_layout)
+        .ok_or(Error::invalid_continuation())?;
+    if frame.byte_len < layout.byte_len as usize {
+        return Err(Error::invalid_continuation());
     }
 
-    /// Visit mutable heap root slots from this captured frame.
-    fn visit_root_slots(
-        &mut self,
-        stack: &mut StackImage,
-        program: &Program<Executable>,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<(), Error> {
-        let (layout, materialization) = self.materialization(program)?;
+    Ok((layout, materialization))
+}
 
-        visit_materialized_slots(layout, materialization, |slot| {
-            self.visit_slot_root_slots(stack, program, slot, visit)
-        })
-    }
+/// Visit mutable heap root slots from one captured frame slot.
+fn visit_frame_image_slot_root_slots(
+    frame: &mut FrameImage,
+    stack: &mut StackImage,
+    program: &Program,
+    slot: &mir::FrameSlot,
+    visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+) -> Result<(), Error> {
+    let start = slot.offset as usize;
+    let end = start + slot.byte_len as usize;
+    let frame_bytes = stack
+        .frame_bytes_mut(frame.stack_offset, frame.byte_len)
+        .ok_or(Error::invalid_continuation())?;
+    let bytes = frame_bytes
+        .get_mut(start..end)
+        .ok_or(Error::invalid_continuation())?;
 
-    /// Restore one live frame from this captured frame.
-    fn restore(
-        &self,
-        program: &Program<Executable>,
-        stack_offset: usize,
-        frame_base: usize,
-    ) -> RuntimeResult<Frame> {
-        let point = program
-            .point_for_frame_state(self.frame_state)
-            .ok_or_else(|| RuntimeError::new(Error::invalid_continuation()))?;
-
-        let function_id = point.function;
-        let block_id = point.block;
-        let function = program
-            .functions()
-            .function_by_id(function_id)
-            .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?;
-        let layout = program
-            .frame_layout_by_id(function.frame_layout)
-            .ok_or_else(|| RuntimeError::new(Error::invalid_continuation()))?;
-
-        let block_index = function
-            .blocks
-            .iter()
-            .position(|block| block.mir_block == block_id)
-            .ok_or_else(|| RuntimeError::new(Error::invalid_continuation()))?;
-        let mut frame = Frame::new(
-            function,
-            block_index as u32,
-            layout,
-            stack_offset,
-            frame_base,
-        );
-        frame.pc = point.pc as usize;
-        frame.return_state = self.return_state;
-
-        Ok(frame)
-    }
-
-    /// Return the layout and frame materialization for this captured frame.
-    fn materialization<'a>(
-        &self,
-        program: &'a Program<Executable>,
-    ) -> Result<(&'a program::FrameLayout, &'a program::FrameMaterialization), Error> {
-        let materialization = program
-            .frame_materialization(self.frame_state)
-            .ok_or(Error::invalid_continuation())?;
-        let layout = program
-            .frame_layout_by_id(materialization.frame_layout)
-            .ok_or(Error::invalid_continuation())?;
-        if self.byte_len < layout.byte_len as usize {
-            return Err(Error::invalid_continuation());
-        }
-
-        Ok((layout, materialization))
-    }
-
-    /// Visit mutable heap root slots from one frame slot.
-    fn visit_slot_root_slots(
-        &mut self,
-        stack: &mut StackImage,
-        program: &Program<Executable>,
-        slot: &program::FrameSlot,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<(), Error> {
-        let start = slot.offset as usize;
-        let end = start + slot.byte_len as usize;
-        let frame_bytes = stack
-            .frame_bytes_mut(self.stack_offset, self.byte_len)
-            .ok_or(Error::invalid_continuation())?;
-        let bytes = frame_bytes
-            .get_mut(start..end)
-            .ok_or(Error::invalid_continuation())?;
-
-        visit_frame_slot_root_slots(program, slot, bytes, visit)
-    }
+    visit_frame_slot_root_slots(program, slot, bytes, visit)
 }
