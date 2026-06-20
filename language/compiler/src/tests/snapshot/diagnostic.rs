@@ -32,6 +32,7 @@ pub(crate) fn render_source_diagnostics(
     repository: &Repository,
     revision: Revision,
     diagnostics: &DiagnosticCollection,
+    use_color: bool,
 ) -> String {
     let lines = Arc::new(parking_lot::Mutex::new(Vec::new()));
     let writer_lines = Arc::clone(&lines);
@@ -39,7 +40,7 @@ pub(crate) fn render_source_diagnostics(
         writer_lines.lock().push(line.to_string());
     });
     let options = PrintOptions::new()
-        .with_color(false)
+        .with_color(use_color)
         .with_line_writer(writer);
     let file_for_id = |file_id: FileId| repository.file(revision, file_id).ok().flatten();
 

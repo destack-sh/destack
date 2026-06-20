@@ -3,38 +3,30 @@ use destack_source::TargetId;
 
 use crate::tests::TestSession;
 
-const DEFAULT_TARGET: &str = "default";
-
 /// Check every builtin library module.
 #[test]
-fn test_typecheck_builtin_library_modules() -> Result<(), String> {
+fn test_check_library() {
     let session = TestSession::builder().build();
     let repository = session.repository();
     let package = repository.builtin_package();
-    let target = TargetId::new(package.package_id(), DEFAULT_TARGET);
+    let target = TargetId::new(package.package_id(), "default");
     let profile = repository
         .profile_for_target(session.revision(), target)
-        .map_err(|error| format!("builtin library target profile should resolve:\n{error}"))?
+        .unwrap_or_else(|error| panic!("builtin library target profile should resolve:\n{error}"))
         .id();
 
-    // check each module through the normal artifact path
-    let modules = package.module_ids().collect::<Vec<_>>();
-    for module in modules {
-        let key = ArtifactKey::dir_checked(module, profile);
-        if let Err(error) = session.require_artifact_result(key) {
-            let diagnostics = session.render_diagnostics(Some(key));
-            if diagnostics.is_empty() {
-                return Err(error.to_string());
-            }
+    // check every builtin module through the normal artifact path
+    let keys = package
+        .module_ids()
+        .map(|module| ArtifactKey::dir_checked(module, profile));
+    let result = session.require_all(keys);
 
-            return Err(diagnostics);
-        }
-
-        let diagnostics = session.render_diagnostics(Some(key));
-        if !diagnostics.is_empty() {
-            return Err(diagnostics);
-        }
+    let diagnostics = session.render_terminal_diagnostics(None);
+    if !diagnostics.is_empty() {
+        panic!("\n{diagnostics}");
     }
 
-    Ok(())
+    if let Err(error) = result {
+        panic!("{error}");
+    }
 }
