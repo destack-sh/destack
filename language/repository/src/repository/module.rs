@@ -6,7 +6,7 @@ use destack_core::TreapRoot;
 use destack_source::{FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri};
 use im::OrdMap;
 use indexmap::IndexMap;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{ConditionGate, ConditionRefError, Module, ModuleFile, ModuleIndex, PackageIndex};
@@ -318,6 +318,43 @@ impl Repository {
         module_ids.dedup();
 
         Ok(module_ids)
+    }
+
+    /// Return changed modules between two revisions when the module set is stable.
+    pub fn changed_module_ids_between(
+        &self,
+        revision: Revision,
+        ancestor: Revision,
+    ) -> Result<Option<Vec<ModuleId>>, RepositoryError> {
+        let current = self.module_index(revision)?;
+        let previous = self.module_index(ancestor)?;
+        let current_ids = current.module_ids().collect::<Vec<_>>();
+        let previous_ids = previous.module_ids().collect::<Vec<_>>();
+
+        // report unknown when discovery changed the module set
+        if current_ids != previous_ids {
+            return Ok(None);
+        }
+
+        let delta = self.source_delta_between(revision, ancestor)?;
+        let mut modules = FxHashSet::default();
+
+        // changed files can be mapped to their owning modules
+        for file in delta.files() {
+            let module = current
+                .module_id_for_file(*file)
+                .or_else(|| previous.module_id_for_file(*file));
+            let Some(module) = module else {
+                return Ok(None);
+            };
+
+            modules.insert(module);
+        }
+
+        let mut modules = modules.into_iter().collect::<Vec<_>>();
+        modules.sort_unstable();
+
+        Ok(Some(modules))
     }
 
     /// Return the module ids visible for one package in one revision.

@@ -11,8 +11,8 @@ use destack_source::{Content, ContentEntry, ContentId, FileSystem};
 
 use crate::artifact::Artifacts;
 use crate::repository::{
-    BuiltinPackage, ContentPool, Files, Ref, RepositoryError, Revision, RevisionEntry,
-    RevisionState,
+    BuiltinPackage, ContentPool, Files, Ref, RepositoryError, Revision, RevisionBase,
+    RevisionEntry, RevisionState,
 };
 use crate::{DestackLayout, Host, Root, RootKind, Settings};
 
@@ -86,7 +86,7 @@ impl Repository {
         let initial_revision = Arc::new(RevisionState::new(
             TreapRoot::new(),
             Arc::new(repository.host.environment().clone()),
-            [],
+            Vec::<RevisionBase>::new(),
         ));
         let initial_revision_id = initial_revision.revision();
         repository.revisions.insert(

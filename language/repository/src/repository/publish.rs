@@ -6,8 +6,8 @@ use destack_core::TreapRoot;
 use destack_source::{Content, FileId, FileType};
 
 use crate::repository::{
-    Edit, FileEntry, Ref, Repository, RepositoryError, Revision, RevisionEntry, RevisionState,
-    normalize_logical_path,
+    Edit, FileEntry, Ref, Repository, RepositoryError, Revision, RevisionBase, RevisionEntry,
+    RevisionState, SourceDelta, normalize_logical_path,
 };
 
 impl Repository {
@@ -39,7 +39,7 @@ impl Repository {
         to: Revision,
     ) -> Result<bool, RepositoryError> {
         let did_advance = match self.refs.entry(reference.clone()) {
-            // reject stale base revisions
+            // reject refs that moved since the caller read them
             Entry::Occupied(entry) if *entry.get() != from => false,
 
             // publish the requested revision
@@ -70,19 +70,21 @@ impl Repository {
         I: IntoIterator<Item = Edit>,
     {
         let base_revision = self.revision(base_revision_id)?;
-        let edits = edits.into_iter().collect::<Vec<_>>();
-        let files = self.apply_edits(base_revision.files(), edits)?;
+        let (files, delta) = self.apply_edits(base_revision.files(), edits)?;
         let revision = Arc::new(RevisionState::new(
             files,
             Arc::clone(&base_revision.environment),
-            [base_revision_id],
+            [RevisionBase::new(base_revision_id, delta.clone())],
         ));
         let revision_id = revision.revision();
 
         match self.revisions.entry(revision_id) {
-            // merge branch-local bases for identical source states
+            // record another base for identical source states
             Entry::Occupied(entry) => {
-                entry.get().state().add_bases([base_revision_id]);
+                entry
+                    .get()
+                    .state()
+                    .add_bases([RevisionBase::new(base_revision_id, delta)]);
             }
 
             // publish a new source state
@@ -93,12 +95,13 @@ impl Repository {
 
         Ok(revision_id)
     }
+
     /// Load one workspace file payload from the attached file system.
     pub fn load_workspace_file_content(&self, path: &Path) -> Result<Content, RepositoryError> {
         let file_type = FileType::from_path_or_unknown(path);
         let file_system = self.file_system();
 
-        // binary
+        // read binary payload
         if file_type.is_binary() {
             let content = file_system
                 .read(path)
@@ -110,7 +113,7 @@ impl Repository {
 
             Ok(Content::Binary { content })
         }
-        // text
+        // read text payload
         else {
             let content =
                 file_system
@@ -126,10 +129,16 @@ impl Repository {
     }
 
     /// Apply edits to one file bindings.
-    fn apply_edits<I>(&self, mut files: TreapRoot, edits: I) -> Result<TreapRoot, RepositoryError>
+    fn apply_edits<I>(
+        &self,
+        mut files: TreapRoot,
+        edits: I,
+    ) -> Result<(TreapRoot, SourceDelta), RepositoryError>
     where
         I: IntoIterator<Item = Edit>,
     {
+        let mut changed_files = Vec::new();
+
         for edit in edits {
             match edit {
                 // write the requested file payload
@@ -142,6 +151,8 @@ impl Repository {
                     if self.files.entries.contains(files, &file_id) {
                         return Err(RepositoryError::FileAlreadyExists { path: logical_path });
                     }
+
+                    changed_files.push(file_id);
 
                     let logical_path = self.intern_logical_path(logical_path);
                     let content = self.intern_content(content)?;
@@ -159,6 +170,8 @@ impl Repository {
                 } => {
                     let logical_path = normalize_logical_path(&logical_path);
                     let file_id = FileId::from_logical_str(&logical_path);
+                    changed_files.push(file_id);
+
                     let logical_path = self.intern_logical_path(logical_path);
                     let content = self.intern_content(content)?;
                     files = self.files.entries.insert(
@@ -176,11 +189,14 @@ impl Repository {
                         return Err(RepositoryError::MissingFile { path: logical_path });
                     }
 
+                    changed_files.push(file_id);
+
                     files = self.files.entries.remove(files, &file_id);
                 }
 
                 // move one existing file binding
                 Edit::MoveFile { from, to } => {
+                    // ignore no-op moves
                     if from == to {
                         continue;
                     }
@@ -199,6 +215,9 @@ impl Repository {
                         return Err(RepositoryError::FileAlreadyExists { path: to });
                     }
 
+                    changed_files.push(from_file_id);
+                    changed_files.push(to_file_id);
+
                     files = self.files.entries.remove(files, &from_file_id);
                     let to = self.intern_logical_path(to);
                     let to_file = FileEntry::loaded(to, from_file.content_id);
@@ -208,6 +227,6 @@ impl Repository {
             }
         }
 
-        Ok(files)
+        Ok((files, SourceDelta::new(changed_files)))
     }
 }
