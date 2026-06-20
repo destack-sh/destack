@@ -1,5 +1,5 @@
 use crate::{Compiler, CompilerResult, EmitError};
-use destack_artifact::{ArtifactDependencySet, ArtifactPayload, Asset};
+use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, Asset};
 use destack_repository::ProviderContext;
 use std::sync::Arc;
 
@@ -23,10 +23,22 @@ impl Compiler {
                     module,
                     message: format!("target '{target}' not found"),
                 })?;
-        let input = self.script_input(module, profile, &target, &target_config)?;
-
         let mut dependencies = ArtifactDependencySet::default();
-        dependencies.require(input);
+
+        // declare the DIR tables used by JS emit
+        if target_config.uses_js_emit_pipeline() {
+            dependencies.require(ArtifactKey::dir_parsed(module));
+            dependencies.require(ArtifactKey::dir_bound(module, profile));
+            dependencies.require(ArtifactKey::dir_imported(module, profile));
+            dependencies.require(ArtifactKey::dir_expanded(module, profile));
+            dependencies.require(ArtifactKey::dir_checked(module, profile));
+        }
+        // reject unsupported script pipelines
+        else {
+            let input = self.script_input(module, profile, &target, &target_config)?;
+            dependencies.require(input);
+        }
+
         self.observe_package_config(context, target.package_id(), &mut dependencies)?;
 
         Ok(dependencies)
@@ -48,10 +60,19 @@ impl Compiler {
                     module,
                     message: format!("target '{target}' not found"),
                 })?;
-        let input = self.object_input(module, profile, &target, &target_config)?;
-
         let mut dependencies = ArtifactDependencySet::default();
-        dependencies.require(input);
+
+        // declare the MIR tables used by native emit
+        if target_config.uses_native_emit_pipeline() {
+            dependencies.require(ArtifactKey::mir_optimized(module, profile, target));
+            dependencies.require(ArtifactKey::mir_lowered(module, profile, target));
+        }
+        // reject unsupported object pipelines
+        else {
+            let input = self.object_input(module, profile, &target, &target_config)?;
+            dependencies.require(input);
+        }
+
         self.observe_package_config(context, target.package_id(), &mut dependencies)?;
 
         Ok(dependencies)

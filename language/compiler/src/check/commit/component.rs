@@ -1,8 +1,8 @@
-use destack_artifact::DirCheckedComponentEntry;
+use destack_artifact::{ArtifactProjectionFingerprint, DirCheckedComponentEntry};
 use destack_source::DiagnosticCollection;
 
-use crate::CompilerResult;
 use crate::check::CheckState;
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Commit solved check state into output DIR tables and diagnostics.
@@ -22,7 +22,18 @@ impl CheckState<'_> {
         for commit in commits {
             let module = commit.module();
             let checked = self.commit_module(commit)?.finish();
-            entries.push(DirCheckedComponentEntry { module, checked });
+            let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&checked)
+                .map_err(|error| CompilerError::Internal {
+                    message: format!(
+                        "failed to fingerprint checked DIR payload for module {module:?}: {error}"
+                    ),
+                })?;
+
+            entries.push(DirCheckedComponentEntry {
+                module,
+                fingerprint,
+                checked,
+            });
         }
 
         Ok((entries, diagnostics))

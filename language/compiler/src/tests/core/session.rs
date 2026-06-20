@@ -463,8 +463,12 @@ impl TestSession {
         for entry in entries.values() {
             let dependencies = parsed_dependencies(repository, revision, entry.module.as_ref());
             let key = ArtifactKey::dir_parsed(entry.module.id);
-            let version =
-                ArtifactVersion::new(key, repository.build_fingerprint(), dependencies.clone());
+            let version = ArtifactVersion::new(
+                key,
+                repository.build_fingerprint(),
+                None,
+                dependencies.clone(),
+            );
 
             repository
                 .complete_artifact(
