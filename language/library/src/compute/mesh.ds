@@ -1,0 +1,40 @@
+import { Slice } from "destack:collections";
+import { todo } from "destack:error";
+
+import { Device } from "./device.ds";
+
+/// Named axis inside a compute mesh.
+export struct MeshAxis {
+    /// Human-readable axis name.
+    name: string;
+
+    /// Device count along this axis.
+    size: usize;
+}
+
+/// Multi-device placement topology.
+@languageItem("compute.Mesh")
+export newtype Mesh = intrinsic;
+
+extension of Mesh {
+    /// Create a mesh from devices and named axes.
+    static new(devices: &readonly Slice<Device>, axes: &readonly Slice<MeshAxis>): Mesh {
+        todo("Mesh.new")
+    }
+
+    /// Return the mesh axes.
+    @intrinsic("compute.mesh.axes")
+    get axes(): &readonly Slice<MeshAxis>;
+
+    /// Return the devices in row-major mesh order.
+    @intrinsic("compute.mesh.devices")
+    get devices(): &readonly Slice<Device>;
+
+    /// Return the number of mesh axes.
+    @intrinsic("compute.mesh.rank")
+    get rank(): usize;
+
+    /// Return the total number of devices.
+    @intrinsic("compute.mesh.size")
+    get size(): usize;
+}
