@@ -306,12 +306,24 @@ impl Linter {
         let revision = context.revision();
         let mut dependencies = ArtifactDependencySet::default();
 
-        // checked source products back lint rules for code modules
-        if self
-            .repository_module(revision, module_id)
-            .is_some_and(|module| module.is_code())
+        // skip modules that cannot run module lint rules
+        let Some(module) = self.repository_module(revision, module_id) else {
+            return Ok(dependencies);
+        };
+        let options = self
+            .module_linter_options(revision, module_id)
+            .map_err(provider_error)?;
+        if !module.is_code() || !options.enabled {
+            return Ok(dependencies);
+        }
+
+        // module rules can follow checked symbols through the active profile
+        dependencies.require(ArtifactKey::global_environment(profile_id));
+        for module_id in self
+            .profile_code_module_ids(revision, profile_id)
+            .map_err(provider_error)?
         {
-            dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
+            Self::require_module_lint_artifacts(module_id, profile_id, &mut dependencies);
         }
 
         Ok(dependencies)
@@ -323,13 +335,27 @@ impl Linter {
         context: &dyn ProviderContext,
         package_id: PackageId,
     ) -> ProviderResult<ArtifactDependencySet> {
-        let dependency_keys = self
-            .package_lint_dependency_keys(context.revision(), package_id)
-            .map_err(|error| ProviderError::internal(error.to_string()))?;
-
+        let revision = context.revision();
+        let options = self
+            .package_linter_options(revision, package_id)
+            .map_err(provider_error)?;
         let mut dependencies = ArtifactDependencySet::default();
-        for key in dependency_keys {
-            dependencies.require(key);
+
+        // package rules inspect package modules directly
+        if options.enabled {
+            for profile_id in self
+                .profile_ids_for_targets(revision)
+                .map_err(provider_error)?
+            {
+                dependencies.require(ArtifactKey::global_environment(profile_id));
+
+                for module_id in self
+                    .package_code_module_ids(revision, package_id, profile_id)
+                    .map_err(provider_error)?
+                {
+                    Self::require_module_lint_artifacts(module_id, profile_id, &mut dependencies);
+                }
+            }
         }
 
         Ok(dependencies)
@@ -340,13 +366,27 @@ impl Linter {
         &self,
         context: &dyn ProviderContext,
     ) -> ProviderResult<ArtifactDependencySet> {
-        let dependency_keys = self
-            .workspace_lint_dependency_keys(context.revision())
-            .map_err(|error| ProviderError::internal(error.to_string()))?;
-
+        let revision = context.revision();
+        let options = self
+            .workspace_linter_options(revision)
+            .map_err(provider_error)?;
         let mut dependencies = ArtifactDependencySet::default();
-        for key in dependency_keys {
-            dependencies.require(key);
+
+        // workspace rules inspect workspace modules directly
+        if options.enabled {
+            for profile_id in self
+                .profile_ids_for_targets(revision)
+                .map_err(provider_error)?
+            {
+                dependencies.require(ArtifactKey::global_environment(profile_id));
+
+                for module_id in self
+                    .profile_code_module_ids(revision, profile_id)
+                    .map_err(provider_error)?
+                {
+                    Self::require_module_lint_artifacts(module_id, profile_id, &mut dependencies);
+                }
+            }
         }
 
         Ok(dependencies)
@@ -419,12 +459,13 @@ impl Linter {
         Ok(ArtifactPayload::WorkspaceLinted(Arc::new(WorkspaceLinted)))
     }
 
-    /// Return the dependency keys for one package lint artifact.
-    fn package_lint_dependency_keys(
+    /// Return code modules in one package profile.
+    fn package_code_module_ids(
         &self,
         revision: Revision,
         package_id: PackageId,
-    ) -> Result<Vec<ArtifactKey>, LinterError> {
+        profile_id: ProfileId,
+    ) -> Result<Vec<ModuleId>, LinterError> {
         let mut module_ids = self
             .repository
             .package_module_ids(revision, package_id)
@@ -433,8 +474,7 @@ impl Linter {
             })?;
         module_ids.sort_unstable();
 
-        let mut artifact_keys = Vec::new();
-
+        let mut code_module_ids = Vec::new();
         for module_id in module_ids {
             let Some(module) = self.repository_module(revision, module_id) else {
                 continue;
@@ -443,21 +483,54 @@ impl Linter {
                 continue;
             }
 
-            for profile_id in self.profile_ids_for_targets(revision)? {
-                if self
-                    .repository
-                    .module_profile_by_id(revision, module_id, profile_id)
-                    .map_err(|error| LinterError::Repository {
-                        message: error.to_string(),
-                    })?
-                    .is_some()
-                {
-                    artifact_keys.push(ArtifactKey::module_linted(module_id, profile_id));
-                }
+            let profile = self
+                .repository
+                .module_profile_by_id(revision, module_id, profile_id)
+                .map_err(|error| LinterError::Repository {
+                    message: error.to_string(),
+                })?;
+            if profile.is_some() {
+                code_module_ids.push(module_id);
             }
         }
 
-        Ok(artifact_keys)
+        Ok(code_module_ids)
+    }
+
+    /// Return code modules in one profile.
+    fn profile_code_module_ids(
+        &self,
+        revision: Revision,
+        profile_id: ProfileId,
+    ) -> Result<Vec<ModuleId>, LinterError> {
+        let mut module_ids =
+            self.repository
+                .module_ids(revision)
+                .map_err(|error| LinterError::Repository {
+                    message: error.to_string(),
+                })?;
+        module_ids.sort_unstable();
+        let mut code_module_ids = Vec::new();
+        for module_id in module_ids {
+            let Some(module) = self.repository_module(revision, module_id) else {
+                continue;
+            };
+            if !module.is_code() {
+                continue;
+            }
+
+            let profile = self
+                .repository
+                .module_profile_by_id(revision, module_id, profile_id)
+                .map_err(|error| LinterError::Repository {
+                    message: error.to_string(),
+                })?;
+            if profile.is_some() {
+                code_module_ids.push(module_id);
+            }
+        }
+
+        Ok(code_module_ids)
     }
 
     /// Return exact profile ids addressable in one revision.
@@ -469,22 +542,22 @@ impl Linter {
             })
     }
 
-    /// Return the dependency keys for one workspace lint artifact.
-    fn workspace_lint_dependency_keys(
-        &self,
-        revision: Revision,
-    ) -> Result<Vec<ArtifactKey>, LinterError> {
-        let mut package_ids =
-            self.repository
-                .package_ids(revision)
-                .map_err(|error| LinterError::Repository {
-                    message: error.to_string(),
-                })?;
-        package_ids.sort_unstable();
-
-        Ok(package_ids
-            .into_iter()
-            .map(ArtifactKey::package_linted)
-            .collect())
+    /// Require DIR artifacts read by lint rule contexts.
+    fn require_module_lint_artifacts(
+        module_id: ModuleId,
+        profile_id: ProfileId,
+        dependencies: &mut ArtifactDependencySet,
+    ) {
+        dependencies.require(ArtifactKey::dir_parsed(module_id));
+        dependencies.require(ArtifactKey::dir_bound(module_id, profile_id));
+        dependencies.require(ArtifactKey::dir_imported(module_id, profile_id));
+        dependencies.require(ArtifactKey::dir_expanded(module_id, profile_id));
+        dependencies.require(ArtifactKey::dir_exported(module_id, profile_id));
+        dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
     }
+}
+
+/// Convert one linter setup error to a provider error.
+fn provider_error(error: LinterError) -> Box<ProviderError> {
+    Box::new(ProviderError::internal(error.to_string()))
 }
