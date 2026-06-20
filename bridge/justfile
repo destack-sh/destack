@@ -89,6 +89,8 @@ clean:
     cargo clean
     rm -rf napi/node_modules wasm/node_modules typescript/node_modules
     rm -rf typescript/dist
+    rm -rf python/.venv python/dist
+    rm -f python/src/destack/_native*.so
     rm -rf vscode/out vscode/*.vsix
     rm -rf zed/grammars zed/extension.wasm
 
@@ -102,12 +104,18 @@ test:
     bun run --cwd wasm test
     bun run --cwd typescript test
     cargo build --release --manifest-path capi/Cargo.toml
-    python3 -m venv .test-python-venv
-    .test-python-venv/bin/python -m pip install --quiet --disable-pip-version-check maturin pytest
-    cd python && ../.test-python-venv/bin/python -m maturin develop --quiet
-    .test-python-venv/bin/python -m pytest python/tests
-    rm -rf .test-python-venv
+    just test-python
     just test-vscode
+
+# synchronize python bridge development tools
+sync-python:
+    cd python && uv sync --no-install-project --group publish
+
+# run python bridge tests
+test-python:
+    just sync-python
+    cd python && uv run --no-sync maturin develop --quiet
+    cd python && uv run --no-sync pytest tests
 
 # default check
 check *args:
@@ -161,10 +169,10 @@ publish-cargo dry="--dry-run":
 
 # publish pypi package dry by default
 publish-pypi dry="--dry-run":
-    python3 -m venv .publish-python-venv
-    .publish-python-venv/bin/python -m pip install --quiet --disable-pip-version-check build twine
-    cd python && ../.publish-python-venv/bin/python -m build
-    cd python && ../.publish-python-venv/bin/python -m twine check dist/*
+    just sync-python
+    rm -rf python/dist
+    cd python && uv run --no-sync python -m build
+    cd python && uv run --no-sync twine check dist/*
     @if [ "{{dry}}" = "--dry-run" ]; then \
         echo "Dry run: built and validated python package"; \
     else \
@@ -172,10 +180,7 @@ publish-pypi dry="--dry-run":
             echo "missing PYPI_TOKEN env var for live pypi publish"; \
             exit 1; \
         fi; \
-        cd python && TWINE_USERNAME="__token__" TWINE_PASSWORD="${PYPI_TOKEN}" ../.publish-python-venv/bin/python -m twine upload --non-interactive dist/*; \
-    fi
-    @if [ -d ".publish-python-venv" ]; then \
-        rm -r .publish-python-venv; \
+        cd python && TWINE_USERNAME="__token__" TWINE_PASSWORD="${PYPI_TOKEN}" uv run --no-sync twine upload --non-interactive dist/*; \
     fi
     @if [ -d "python/dist" ]; then \
         rm -r python/dist; \

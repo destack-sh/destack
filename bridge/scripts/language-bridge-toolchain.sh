@@ -25,12 +25,14 @@ validate_toolchains() {
 	require_command node "install node and re-run: just bridge/doctor-toolchain"
 	require_command npm "install npm and re-run: just bridge/doctor-toolchain"
 	require_command python3 "install python and re-run: just bridge/doctor-toolchain"
+	require_command uv "install uv and re-run: just bridge/doctor-toolchain"
 
 	cargo --version
 	bun --version
 	node --version
 	npm --version
 	python3 --version
+	uv --version
 }
 
 doctor_toolchains() {
@@ -75,6 +77,7 @@ doctor_toolchains() {
 	check_command node "node"
 	check_command npm "npm"
 	check_command python3 "python3"
+	check_command uv "uv"
 
 	if [[ "${has_error}" == "1" ]]; then
 		printf 'bridge toolchain doctor: failed\n'

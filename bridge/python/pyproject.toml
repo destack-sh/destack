@@ -37,3 +37,15 @@ python-source = "src"
 
 [tool.pytest.ini_options]
 python_files = ["*.py"]
+
+[dependency-groups]
+dev = [
+    "maturin>=1.14.1",
+    "pytest>=9.1.1",
+    "python-lsp-server>=1.14.0",
+    "ruff>=0.15.18",
+]
+publish = [
+    "build>=1.5.0",
+    "twine>=6.2.0",
+]
