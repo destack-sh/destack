@@ -6,6 +6,22 @@ use destack_source::DiagnosticCollection;
 
 use crate::{ArtifactAttemptRecorder, Moment, Revision};
 
+/// Predecessor artifact binding selected for one provider attempt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ArtifactBase {
+    /// The predecessor revision that owns the artifact binding.
+    pub revision: Revision,
+    /// The predecessor artifact version.
+    pub version: ArtifactVersion,
+}
+
+impl ArtifactBase {
+    /// Build one artifact base.
+    pub const fn new(revision: Revision, version: ArtifactVersion) -> Self {
+        Self { revision, version }
+    }
+}
+
 /// Provider output sink for one artifact provider attempt.
 pub trait ProviderContext: DiagnosticContext {
     /// Return the pinned repository revision for this attempt.
@@ -15,7 +31,7 @@ pub trait ProviderContext: DiagnosticContext {
     fn artifact_key(&self) -> ArtifactKey;
 
     /// Return the predecessor artifact selected for this attempt.
-    fn base_artifact(&self) -> Option<ArtifactVersion> {
+    fn artifact_base(&self) -> Option<ArtifactBase> {
         None
     }
 

@@ -585,9 +585,18 @@ impl TestProgram {
                     };
                 }
                 DependencySetResolution::Resolved {
+                    base,
                     dependencies,
                     failed,
-                } => return self.commit_compiler_artifact(revision, key, dependencies, failed),
+                } => {
+                    return self.commit_compiler_artifact(
+                        revision,
+                        key,
+                        base,
+                        dependencies,
+                        failed,
+                    );
+                }
             }
         }
     }
@@ -638,18 +647,16 @@ impl TestProgram {
         &self,
         revision: Revision,
         key: ArtifactKey,
+        base: Option<ArtifactVersion>,
         dependencies: Vec<ArtifactDependency>,
         failed: Option<ArtifactKey>,
     ) -> ProviderResult<ArtifactVersion> {
         let version = ArtifactVersion::new(
             key,
             self.repository.build_fingerprint(),
+            base,
             dependencies.iter().cloned(),
         );
-        let base = self
-            .repository
-            .artifact_base_version(revision, key)
-            .map_err(|error| ProviderError::internal(error.to_string()))?;
 
         // record poisoned dependencies without running the provider
         if let Some(failed) = failed {
