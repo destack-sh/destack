@@ -24,6 +24,13 @@ pub enum RepositoryError {
     MissingRef { reference: Ref },
     /// The requested revision does not exist.
     MissingRevision { revision: Revision },
+    /// The requested revision does not descend from the requested ancestor.
+    UnrelatedRevision {
+        /// The descendant revision.
+        revision: Revision,
+        /// The requested ancestor revision.
+        ancestor: Revision,
+    },
     /// The requested content payload does not exist.
     MissingContent { content: ContentId },
     /// The repository content store failed.
@@ -112,6 +119,12 @@ impl fmt::Display for RepositoryError {
             }
             Self::MissingRevision { revision } => {
                 write!(formatter, "missing repository revision '{revision}'")
+            }
+            Self::UnrelatedRevision { revision, ancestor } => {
+                write!(
+                    formatter,
+                    "repository revision '{revision}' does not descend from '{ancestor}'"
+                )
             }
             Self::MissingContent { content } => {
                 write!(formatter, "missing repository content '{content}'")
