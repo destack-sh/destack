@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, ArtifactOutcome, ArtifactTable, ArtifactVersion, Asset, Build, Bundle,
-    ComponentGraph, Data, DirBound, DirCheckedComponent, DirCheckedModule, DirElaborated,
-    DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
-    GlobalEnvironment, MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleIndex,
-    ModuleLinted, ModuleQueryIndex, Object, PackageIndex, PackageLinted, Product, ProgramAnalysis,
-    Script, WorkspaceLinted, WorkspaceQueryIndex,
+    ArtifactDependency, ArtifactKey, ArtifactOutcome, ArtifactProjection, ArtifactProjectionKey,
+    ArtifactTable, ArtifactVersion, Asset, Build, Bundle, ComponentGraph, Data, DirBound,
+    DirCheckedComponent, DirCheckedModule, DirElaborated, DirExpanded, DirExported, DirImported,
+    DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed, MirLowered,
+    MirOptimized, MirVerified, ModuleLinted, ModuleQueryIndex, Object, PackageIndex, PackageLinted,
+    Product, ProgramAnalysis, Script, WorkspaceLinted, WorkspaceQueryIndex,
 };
 use destack_program::Program;
 use destack_source::{ComponentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
@@ -21,7 +21,7 @@ pub struct ArtifactReader<'a> {
     /// The pinned revision the reader resolves against.
     revision: Revision,
     /// The artifact table that owns typed payloads.
-    store: Arc<ArtifactTable>,
+    table: Arc<ArtifactTable>,
 }
 
 impl std::fmt::Debug for ArtifactReader<'_> {
@@ -35,12 +35,12 @@ impl std::fmt::Debug for ArtifactReader<'_> {
 impl<'a> ArtifactReader<'a> {
     /// Create a read-only reader for one repository revision.
     pub fn new(repository: &'a Repository, revision: Revision) -> Self {
-        let store = repository.artifact_table().clone();
+        let table = repository.artifact_table().clone();
 
         Self {
             repository,
             revision,
-            store,
+            table,
         }
     }
 
@@ -55,8 +55,34 @@ impl<'a> ArtifactReader<'a> {
 
         // a not yet built dependency reads as blocked
         version
-            .filter(|version| matches!(self.store.outcome(version), Some(ArtifactOutcome::Ok)))
+            .filter(|version| matches!(self.table.outcome(version), Some(ArtifactOutcome::Ok)))
             .ok_or_else(|| ProviderError::blocked(artifact_key))
+    }
+
+    /// Return the artifact version that supplied one projection dependency.
+    fn projection_dependency_version(
+        &self,
+        version: &ArtifactVersion,
+        projection: ArtifactProjection,
+    ) -> Result<ArtifactVersion, ProviderError> {
+        let dependencies = self
+            .table
+            .dependencies(version)
+            .ok_or(ProviderError::Corrupt { version: *version })?;
+
+        // find the dependency that satisfied the projection requirement
+        for dependency in dependencies.iter() {
+            let ArtifactDependency::Projection(dependency) = dependency else {
+                continue;
+            };
+            if dependency.projection == projection {
+                return Ok(dependency.version);
+            }
+        }
+
+        Err(ProviderError::internal(format!(
+            "artifact {version:?} has no projection dependency {projection:?}"
+        )))
     }
 
     /// Read one collected typed artifact payload.
@@ -66,7 +92,7 @@ impl<'a> ArtifactReader<'a> {
         get: impl FnOnce(&ArtifactTable, &ArtifactVersion) -> Option<Arc<T>>,
     ) -> Result<Arc<T>, ProviderError> {
         let version = self.version(artifact_key)?;
-        let payload = get(&self.store, &version).ok_or(ProviderError::Corrupt { version })?;
+        let payload = get(&self.table, &version).ok_or(ProviderError::Corrupt { version })?;
 
         Ok(payload)
     }
@@ -97,14 +123,6 @@ impl<'a> ArtifactReader<'a> {
         self.read(
             ArtifactKey::package_index(profile),
             ArtifactTable::package_index,
-        )
-    }
-
-    /// Read one module index artifact.
-    pub fn module_index(&self, profile: ProfileId) -> Result<Arc<ModuleIndex>, ProviderError> {
-        self.read(
-            ArtifactKey::module_index(profile),
-            ArtifactTable::module_index,
         )
     }
 
@@ -179,18 +197,33 @@ impl<'a> ArtifactReader<'a> {
         )
     }
 
-    /// Read one checked DIR asset.
+    /// Read one checked DIR artifact.
     pub fn dir_checked(
         &self,
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<Arc<DirCheckedModule>, ProviderError> {
+        // read the facade that names the owning component
         let version = self.version(ArtifactKey::dir_checked(module, profile))?;
         let checked = self
-            .store
+            .table
             .dir_checked(&version)
             .ok_or(ProviderError::Corrupt { version })?;
-        let component = self.dir_checked_component(checked.entry, checked.component, profile)?;
+
+        // resolve the exact component version behind this module projection
+        let component_key =
+            ArtifactKey::dir_checked_component(checked.entry, checked.component, profile);
+        let projection =
+            ArtifactProjection::new(component_key, ArtifactProjectionKey::DirChecked(module));
+        let component_version = self.projection_dependency_version(&version, projection)?;
+
+        // read the checked module entry from the owning component
+        let component =
+            self.table
+                .dir_checked_component(&component_version)
+                .ok_or(ProviderError::Corrupt {
+                    version: component_version,
+                })?;
         let entry = component.module(module).ok_or_else(|| {
             ProviderError::internal(format!(
                 "checked component {} does not contain module {module:?}",

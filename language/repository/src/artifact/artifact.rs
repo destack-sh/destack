@@ -3,15 +3,15 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_artifact::{
-    ArtifactDependency, ArtifactDirectoryEntry, ArtifactFailure, ArtifactFlush, ArtifactKey,
-    ArtifactPathState, ArtifactPayload, ArtifactRecord, ArtifactSidecar, ArtifactStore,
-    ArtifactTable, ArtifactVersion, SourceDependency,
+    ArtifactDependency, ArtifactFailure, ArtifactFlush, ArtifactKey, ArtifactPayload,
+    ArtifactProjectionDependency, ArtifactSidecar, ArtifactStore, ArtifactTable, ArtifactVersion,
 };
-use destack_source::{DiagnosticCollection, FileId, StringId};
+use destack_source::{DiagnosticCollection, FileId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use crate::ArtifactBase;
 use crate::artifact::ArtifactReader;
-use crate::repository::{Repository, RepositoryError, Revision, normalize_logical_path};
+use crate::repository::{Repository, RepositoryError, Revision};
 
 /// Repository-owned artifact state tables and persistent store.
 #[derive(Debug)]
@@ -38,15 +38,6 @@ impl Artifacts {
     pub(crate) fn set_store(&mut self, store: Arc<dyn ArtifactStore>) {
         self.store = store;
     }
-}
-
-/// Freshness of one predecessor artifact version for one revision.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ArtifactFreshness {
-    /// The candidate dependency graph matches the requested revision.
-    Fresh,
-    /// The candidate dependency graph does not match the requested revision.
-    Stale,
 }
 
 impl Repository {
@@ -101,9 +92,8 @@ impl Repository {
             return Ok(versions);
         }
 
-        // check predecessor candidates
-        let candidates = self.artifact_candidates(revision, &missing)?;
-        let fresh = self.fresh_artifact_candidates(revision, missing.len(), candidates)?;
+        // reuse nearest fresh predecessor bindings
+        let fresh = self.fresh_artifact_versions(revision, &missing)?;
 
         // fill missing entries from fresh predecessors
         for (index, artifact_key) in artifact_keys.iter().enumerate() {
@@ -118,17 +108,17 @@ impl Repository {
     }
 
     /// Return the nearest same-key predecessor artifact visible through revision bases.
-    pub fn artifact_base_version(
+    pub fn artifact_base(
         &self,
         revision: Revision,
         artifact_key: ArtifactKey,
-    ) -> Result<Option<ArtifactVersion>, RepositoryError> {
+    ) -> Result<Option<ArtifactBase>, RepositoryError> {
         let _revision = self.revision(revision)?;
 
         // nearest bases are tried first, preserving base order
         for ancestor in self.revision_ancestors(revision)? {
             if let Some(version) = self.exact_artifact_binding(ancestor, &artifact_key) {
-                return Ok(Some(version));
+                return Ok(Some(ArtifactBase::new(ancestor, version)));
             }
         }
 
@@ -148,9 +138,7 @@ impl Repository {
             return Err(RepositoryError::MissingArtifact { version });
         }
 
-        self.artifacts
-            .versions
-            .insert((revision, version.key), version);
+        self.bind_artifact_version(revision, version);
 
         Ok(())
     }
@@ -170,13 +158,27 @@ impl Repository {
         else {
             return Ok(false);
         };
+        let payload = record
+            .decode_payload()
+            .map_err(|error| RepositoryError::ArtifactStore {
+                message: error.to_string(),
+            })?;
 
-        self.load_artifact_record(revision, record)?;
+        self.publish_ready_artifact(
+            revision,
+            record.version,
+            record.base,
+            payload,
+            record.dependencies,
+            record.sources,
+            record.diagnostics,
+            record.sidecars,
+        )?;
 
         Ok(true)
     }
 
-    /// Publish one ready artifact and bind its exact version to one revision.
+    /// Complete one ready artifact by publishing and storing it.
     pub fn complete_artifact(
         &self,
         revision: Revision,
@@ -212,64 +214,18 @@ impl Repository {
         diagnostics: DiagnosticCollection,
         sidecars: Vec<ArtifactSidecar>,
     ) -> Result<(), RepositoryError> {
+        let sources = self.artifact_sources(base, &dependencies)?;
+
         self.publish_ready_artifact(
             revision,
             version,
             base,
             payload,
             dependencies,
+            sources,
             diagnostics,
             sidecars,
         )
-    }
-
-    /// Publish one loaded artifact record and bind its exact version to one revision.
-    fn load_artifact_record(
-        &self,
-        revision: Revision,
-        record: ArtifactRecord,
-    ) -> Result<(), RepositoryError> {
-        let payload = record
-            .decode_payload()
-            .map_err(|error| RepositoryError::ArtifactStore {
-                message: error.to_string(),
-            })?;
-
-        let _revision = self.revision(revision)?;
-        self.load_artifact_contents(&payload)?;
-
-        self.publish_ready_artifact(
-            revision,
-            record.version,
-            record.base,
-            payload,
-            record.dependencies,
-            record.diagnostics,
-            record.sidecars,
-        )
-    }
-
-    /// Publish one ready payload without writing the persistent store.
-    fn publish_ready_artifact(
-        &self,
-        revision: Revision,
-        version: ArtifactVersion,
-        base: Option<ArtifactVersion>,
-        payload: ArtifactPayload,
-        dependencies: Vec<ArtifactDependency>,
-        diagnostics: DiagnosticCollection,
-        sidecars: Vec<ArtifactSidecar>,
-    ) -> Result<(), RepositoryError> {
-        let _revision = self.revision(revision)?;
-        self.load_artifact_contents(&payload)?;
-
-        self.artifact_table()
-            .publish(version, base, payload, dependencies, diagnostics, sidecars);
-        self.artifacts
-            .versions
-            .insert((revision, version.key), version);
-
-        Ok(())
     }
 
     /// Store one ready artifact in the persistent artifact store.
@@ -295,15 +251,6 @@ impl Repository {
         Ok(flush)
     }
 
-    /// Load all content ids referenced by one artifact payload.
-    fn load_artifact_contents(&self, payload: &ArtifactPayload) -> Result<(), RepositoryError> {
-        for content in payload.content_ids() {
-            let _ = self.content(content)?;
-        }
-
-        Ok(())
-    }
-
     /// Fail one artifact and bind its exact version to one revision.
     pub fn fail_artifact(
         &self,
@@ -316,13 +263,19 @@ impl Repository {
         failure: ArtifactFailure,
     ) -> Result<(), RepositoryError> {
         let _revision = self.revision(revision)?;
+        let sources = self.artifact_sources(base, &dependencies)?;
 
         // store failure before exposing the revision binding
-        self.artifact_table()
-            .fail(version, base, dependencies, diagnostics, sidecars, failure);
-        self.artifacts
-            .versions
-            .insert((revision, version.key), version);
+        self.artifact_table().fail(
+            version,
+            base,
+            dependencies,
+            sources,
+            diagnostics,
+            sidecars,
+            failure,
+        );
+        self.bind_artifact_version(revision, version);
 
         Ok(())
     }
@@ -341,13 +294,8 @@ impl Repository {
             let Some(version) = self.artifact_version(revision, &artifact_key)? else {
                 return Ok(diagnostics);
             };
-            let artifact_diagnostics = self
-                .artifact_table()
-                .diagnostics(&version)
-                .map(|diagnostics| diagnostics.as_ref().clone())
-                .ok_or(RepositoryError::MissingArtifact { version })?;
-
-            diagnostics.merge_from(&artifact_diagnostics);
+            let artifact_diagnostics = self.artifact_diagnostics(version)?;
+            diagnostics.merge_from(artifact_diagnostics.as_ref());
 
             return Ok(diagnostics);
         }
@@ -372,12 +320,8 @@ impl Repository {
                 continue;
             }
 
-            let artifact_diagnostics = self
-                .artifact_table()
-                .diagnostics(&version)
-                .map(|diagnostics| diagnostics.as_ref().clone())
-                .ok_or(RepositoryError::MissingArtifact { version })?;
-            diagnostics.merge_from(&artifact_diagnostics);
+            let artifact_diagnostics = self.artifact_diagnostics(version)?;
+            diagnostics.merge_from(artifact_diagnostics.as_ref());
         }
 
         Ok(diagnostics)
@@ -416,7 +360,7 @@ impl Repository {
     }
 
     /// Return an exact revision binding when its version is still terminal.
-    fn exact_artifact_binding(
+    pub(crate) fn exact_artifact_binding(
         &self,
         revision: Revision,
         artifact_key: &ArtifactKey,
@@ -430,353 +374,232 @@ impl Repository {
         self.artifact_table().outcome(&version).map(|_| version)
     }
 
-    /// Return nearest ancestor candidates for the requested missing keys.
-    fn artifact_candidates(
+    /// Bind one exact terminal artifact version to one revision.
+    pub(crate) fn bind_artifact_version(&self, revision: Revision, version: ArtifactVersion) {
+        self.artifacts
+            .versions
+            .insert((revision, version.key), version);
+    }
+
+    /// Return nearest fresh predecessor artifacts for requested missing keys.
+    fn fresh_artifact_versions(
         &self,
         revision: Revision,
         artifact_keys: &FxHashSet<ArtifactKey>,
-    ) -> Result<Vec<(ArtifactKey, ArtifactVersion)>, RepositoryError> {
-        let mut candidates = Vec::new();
+    ) -> Result<FxHashMap<ArtifactKey, ArtifactVersion>, RepositoryError> {
+        let mut fresh = FxHashMap::default();
 
         let mut artifact_keys = artifact_keys.iter().copied().collect::<Vec<_>>();
         artifact_keys.sort_unstable();
 
-        // walk bases nearest first
+        // walk ancestor candidates nearest first
         for ancestor in self.revision_ancestors(revision)? {
+            let mut candidates = Vec::new();
+
             for artifact_key in &artifact_keys {
-                if let Some(version) = self.exact_artifact_binding(ancestor, artifact_key) {
-                    candidates.push((*artifact_key, version));
+                if fresh.contains_key(artifact_key) {
+                    continue;
+                }
+
+                let Some(version) = self.exact_artifact_binding(ancestor, artifact_key) else {
+                    continue;
+                };
+
+                candidates.push((*artifact_key, version));
+            }
+
+            if candidates.is_empty() {
+                continue;
+            }
+
+            let source_delta = self.source_delta_between(revision, ancestor)?;
+
+            // reuse only candidates unaffected by changed source files
+            for (artifact_key, version) in candidates {
+                if self.artifact_is_fresh(revision, version, source_delta.files())? {
+                    fresh.insert(artifact_key, version);
                 }
             }
-        }
 
-        Ok(candidates)
-    }
-
-    /// Return ancestors of one revision in nearest-first deterministic order.
-    fn revision_ancestors(&self, revision: Revision) -> Result<Vec<Revision>, RepositoryError> {
-        let revision = self.revision(revision)?;
-        let mut ancestors = Vec::new();
-        let mut pending = revision.bases();
-        let mut seen = FxHashSet::default();
-        let mut index = 0;
-
-        // walk base graph breadth first
-        while index < pending.len() {
-            let ancestor = pending[index];
-            index += 1;
-
-            // skip already visited bases
-            if !seen.insert(ancestor) {
-                continue;
-            }
-
-            // skip pruned bases
-            let Some(ancestor_state) = self.revisions.get(&ancestor) else {
-                continue;
-            };
-
-            let ancestor_state = ancestor_state.state();
-            ancestors.push(ancestor);
-            pending.extend(ancestor_state.bases());
-        }
-
-        Ok(ancestors)
-    }
-
-    /// Return predecessor artifacts whose exact dependency graph matches one revision.
-    fn fresh_artifact_candidates(
-        &self,
-        revision: Revision,
-        missing_key_count: usize,
-        candidates: Vec<(ArtifactKey, ArtifactVersion)>,
-    ) -> Result<FxHashMap<ArtifactKey, ArtifactVersion>, RepositoryError> {
-        let mut states = FxHashMap::default();
-        let mut fresh = FxHashMap::default();
-
-        // check predecessors until every key has a fresh version
-        for (artifact_key, version) in candidates {
-            if fresh.contains_key(&artifact_key) {
-                continue;
-            }
-
-            self.record_artifact_freshness(revision, version, &mut states)?;
-
-            if states.get(&version) == Some(&ArtifactFreshness::Fresh) {
-                fresh.insert(artifact_key, version);
-            }
-
-            if fresh.len() == missing_key_count {
+            if fresh.len() == artifact_keys.len() {
                 break;
             }
         }
 
-        // expose every fresh version to this revision
-        for (version, state) in states {
-            if state == ArtifactFreshness::Fresh {
-                self.artifacts
-                    .versions
-                    .insert((revision, version.key), version);
-            }
+        // expose fresh requested versions to this revision
+        for version in fresh.values().copied() {
+            self.bind_artifact_version(revision, version);
         }
 
         Ok(fresh)
     }
 
-    /// Record freshness for one artifact and the artifact dependencies it reaches.
-    fn record_artifact_freshness(
+    /// Return whether one artifact version is fresh in one revision.
+    fn artifact_is_fresh(
         &self,
         revision: Revision,
         version: ArtifactVersion,
-        states: &mut FxHashMap<ArtifactVersion, ArtifactFreshness>,
-    ) -> Result<(), RepositoryError> {
-        let mut pending = vec![(version, false)];
+        changed_files: &[FileId],
+    ) -> Result<bool, RepositoryError> {
+        let sources = self
+            .artifact_table()
+            .sources(&version)
+            .ok_or(RepositoryError::MissingArtifact { version })?;
 
-        // walk artifact dependencies without recursion
-        while let Some((version, is_expanded)) = pending.pop() {
-            if states.contains_key(&version) {
-                continue;
-            }
+        // reject artifacts whose source closure changed
+        if source_sets_intersect(sources.as_ref(), changed_files) {
+            return Ok(false);
+        }
 
-            // use exact bindings as terminal freshness facts
-            if let Some(binding) = self.exact_artifact_binding(revision, &version.key) {
-                let state = if binding == version {
-                    ArtifactFreshness::Fresh
-                } else {
-                    ArtifactFreshness::Stale
-                };
-                states.insert(version, state);
+        let dependencies = self
+            .artifact_table()
+            .dependencies(&version)
+            .ok_or(RepositoryError::MissingArtifact { version })?;
 
-                continue;
-            }
-
-            // missing records cannot prove freshness
-            let Some(dependencies) = self.artifact_table().dependencies(&version) else {
-                states.insert(version, ArtifactFreshness::Stale);
-
+        // reject artifacts whose projected dependencies changed
+        for dependency in dependencies.iter() {
+            let ArtifactDependency::Projection(dependency) = dependency else {
                 continue;
             };
-
-            // decide once dependency freshness is known
-            if is_expanded {
-                let state = self.artifact_dependency_freshness(revision, &dependencies, states)?;
-                states.insert(version, state);
+            if !self.projection_dependency_is_fresh(revision, dependency)? {
+                return Ok(false);
             }
-            // otherwise queue dependencies first
-            else {
-                let state = self.prepare_artifact_freshness(
-                    revision,
-                    version,
-                    &dependencies,
-                    states,
-                    &mut pending,
-                )?;
-                if let Some(state) = state {
-                    states.insert(version, state);
+        }
+
+        Ok(true)
+    }
+
+    /// Return whether one projection dependency still matches in the revision.
+    fn projection_dependency_is_fresh(
+        &self,
+        revision: Revision,
+        dependency: &ArtifactProjectionDependency,
+    ) -> Result<bool, RepositoryError> {
+        let Some(version) = self.artifact_version(revision, &dependency.projection.artifact)?
+        else {
+            return Ok(false);
+        };
+        let fingerprint = self
+            .artifact_table()
+            .projection_fingerprint(&version, &dependency.projection);
+
+        Ok(fingerprint == Some(dependency.fingerprint))
+    }
+
+    /// Return the transitive source files for one artifact record.
+    fn artifact_sources(
+        &self,
+        base: Option<ArtifactVersion>,
+        dependencies: &[ArtifactDependency],
+    ) -> Result<Vec<FileId>, RepositoryError> {
+        let mut sources = Vec::new();
+
+        // inherit source reachability from the incremental base
+        if let Some(base) = base {
+            let base_sources = self
+                .artifact_table()
+                .sources(&base)
+                .ok_or(RepositoryError::MissingArtifact { version: base })?;
+            sources.extend(base_sources.iter().copied());
+        }
+
+        // collect exact source reachability
+        for dependency in dependencies {
+            match dependency {
+                ArtifactDependency::Artifact(version) => {
+                    let dependency_sources = self
+                        .artifact_table()
+                        .sources(version)
+                        .ok_or(RepositoryError::MissingArtifact { version: *version })?;
+                    sources.extend(dependency_sources.iter().copied());
+                }
+                ArtifactDependency::Projection(dependency) => {
+                    // projections depend on their fingerprint, not the full source closure
+                    if !self.artifact_table().has(&dependency.version) {
+                        return Err(RepositoryError::MissingArtifact {
+                            version: dependency.version,
+                        });
+                    }
+                }
+                ArtifactDependency::Source(dependency) => {
+                    sources.push(dependency.file);
                 }
             }
+        }
+
+        sources.sort_unstable();
+        sources.dedup();
+
+        Ok(sources)
+    }
+
+    /// Publish one ready payload without writing the persistent store.
+    fn publish_ready_artifact(
+        &self,
+        revision: Revision,
+        version: ArtifactVersion,
+        base: Option<ArtifactVersion>,
+        payload: ArtifactPayload,
+        dependencies: Vec<ArtifactDependency>,
+        sources: Vec<FileId>,
+        diagnostics: DiagnosticCollection,
+        sidecars: Vec<ArtifactSidecar>,
+    ) -> Result<(), RepositoryError> {
+        let _revision = self.revision(revision)?;
+        self.load_artifact_contents(&payload)?;
+
+        self.artifact_table().publish(
+            version,
+            base,
+            payload,
+            dependencies,
+            sources,
+            diagnostics,
+            sidecars,
+        );
+        self.bind_artifact_version(revision, version);
+
+        Ok(())
+    }
+
+    /// Load all content ids referenced by one artifact payload.
+    fn load_artifact_contents(&self, payload: &ArtifactPayload) -> Result<(), RepositoryError> {
+        for content in payload.content_ids() {
+            let _ = self.content(content)?;
         }
 
         Ok(())
     }
 
-    /// Return freshness for an artifact whose dependencies were already visited.
-    fn artifact_dependency_freshness(
+    /// Return diagnostics for one exact artifact version.
+    fn artifact_diagnostics(
         &self,
-        revision: Revision,
-        dependencies: &[ArtifactDependency],
-        states: &FxHashMap<ArtifactVersion, ArtifactFreshness>,
-    ) -> Result<ArtifactFreshness, RepositoryError> {
-        for dependency in dependencies {
-            match dependency {
-                ArtifactDependency::Artifact(dependency) => {
-                    if states.get(dependency) != Some(&ArtifactFreshness::Fresh) {
-                        return Ok(ArtifactFreshness::Stale);
-                    }
-                }
-                ArtifactDependency::Source(dependency) => {
-                    if !self.source_dependency_matches(revision, dependency)? {
-                        return Ok(ArtifactFreshness::Stale);
-                    }
-                }
-            }
-        }
-
-        Ok(ArtifactFreshness::Fresh)
-    }
-
-    /// Queue artifact dependencies before deciding one artifact's freshness.
-    fn prepare_artifact_freshness(
-        &self,
-        revision: Revision,
         version: ArtifactVersion,
-        dependencies: &[ArtifactDependency],
-        states: &FxHashMap<ArtifactVersion, ArtifactFreshness>,
-        pending: &mut Vec<(ArtifactVersion, bool)>,
-    ) -> Result<Option<ArtifactFreshness>, RepositoryError> {
-        let mut missing = Vec::new();
-
-        // scan recorded dependencies for stale or unknown inputs
-        for dependency in dependencies {
-            match dependency {
-                ArtifactDependency::Artifact(dependency) => match states.get(dependency) {
-                    Some(ArtifactFreshness::Fresh) => {}
-                    Some(ArtifactFreshness::Stale) => {
-                        return Ok(Some(ArtifactFreshness::Stale));
-                    }
-                    None => missing.push(*dependency),
-                },
-                ArtifactDependency::Source(dependency) => {
-                    if !self.source_dependency_matches(revision, dependency)? {
-                        return Ok(Some(ArtifactFreshness::Stale));
-                    }
-                }
-            }
-        }
-
-        // decide immediately when all dependencies are fresh
-        if missing.is_empty() {
-            Ok(Some(ArtifactFreshness::Fresh))
-        }
-        // otherwise revisit after missing dependencies
-        else {
-            pending.push((version, true));
-            pending.extend(missing.into_iter().map(|version| (version, false)));
-
-            Ok(None)
-        }
+    ) -> Result<Arc<DiagnosticCollection>, RepositoryError> {
+        self.artifact_table()
+            .diagnostics(&version)
+            .ok_or(RepositoryError::MissingArtifact { version })
     }
+}
 
-    /// Return whether one exact source observation still matches one revision.
-    fn source_dependency_matches(
-        &self,
-        revision: Revision,
-        dependency: &SourceDependency,
-    ) -> Result<bool, RepositoryError> {
-        match dependency {
-            SourceDependency::FileContent { file, content } => {
-                Ok(self.file_content_id(revision, *file)? == Some(*content))
-            }
-            SourceDependency::PathState { path, state } => {
-                Ok(self.artifact_path_state(revision, *path)? == *state)
-            }
-            SourceDependency::DirectoryEntries { directory, entries } => {
-                Ok(self.artifact_directory_entries(revision, *directory)? == *entries)
-            }
-        }
-    }
+/// Return whether two sorted source file sets intersect.
+fn source_sets_intersect(left: &[FileId], right: &[FileId]) -> bool {
+    let mut left_index = 0;
+    let mut right_index = 0;
 
-    /// Return the current state of one observed artifact path.
-    fn artifact_path_state(
-        &self,
-        revision: Revision,
-        path: StringId,
-    ) -> Result<ArtifactPathState, RepositoryError> {
-        let path = normalize_logical_path(self.string_pool().get(path));
-        let file = FileId::from_logical_str(&path);
+    // walk both sorted sets once
+    while left_index < left.len() && right_index < right.len() {
+        let left_file = left[left_index];
+        let right_file = right[right_index];
 
-        if self.file_content_id(revision, file)?.is_some() {
-            Ok(ArtifactPathState::File)
-        } else if self.artifact_directory_exists(revision, &path)? {
-            Ok(ArtifactPathState::Directory)
+        if left_file == right_file {
+            return true;
+        } else if left_file < right_file {
+            left_index += 1;
         } else {
-            Ok(ArtifactPathState::Missing)
+            right_index += 1;
         }
     }
 
-    /// Return the current direct entries of one observed artifact directory.
-    fn artifact_directory_entries(
-        &self,
-        revision: Revision,
-        directory: StringId,
-    ) -> Result<Vec<ArtifactDirectoryEntry>, RepositoryError> {
-        let directory = normalize_logical_path(self.string_pool().get(directory));
-
-        self.artifact_directory_entries_for_path(revision, &directory)
-    }
-
-    /// Add one direct child entry for one source path when it belongs to a directory.
-    fn push_artifact_directory_entry(
-        &self,
-        directory: &str,
-        path: &str,
-        entries: &mut Vec<ArtifactDirectoryEntry>,
-    ) {
-        let path = normalize_logical_path(path);
-
-        // compute the path relative to the requested directory
-        let relative = if directory.is_empty() {
-            path.as_str()
-        } else {
-            let prefix = format!("{directory}/");
-            if let Some(relative) = path.strip_prefix(&prefix) {
-                relative
-            } else {
-                return;
-            }
-        };
-
-        // take the first path segment as the direct child
-        let Some(first) = relative.split('/').next() else {
-            return;
-        };
-
-        // rebuild the direct child path in repository coordinates
-        let entry_path = if directory.is_empty() {
-            first.to_string()
-        } else {
-            format!("{directory}/{first}")
-        };
-
-        // classify descendants as directory entries
-        let state = if entry_path == path {
-            ArtifactPathState::File
-        } else {
-            ArtifactPathState::Directory
-        };
-
-        let path = self.intern_logical_path(entry_path);
-
-        entries.push(ArtifactDirectoryEntry::new(path, state));
-    }
-
-    /// Return whether one logical source directory exists in one revision.
-    fn artifact_directory_exists(
-        &self,
-        revision: Revision,
-        directory: &str,
-    ) -> Result<bool, RepositoryError> {
-        let entries = self.artifact_directory_entries_for_path(revision, directory)?;
-
-        Ok(!entries.is_empty())
-    }
-
-    /// Return current direct entries for one logical directory path.
-    fn artifact_directory_entries_for_path(
-        &self,
-        revision: Revision,
-        directory: &str,
-    ) -> Result<Vec<ArtifactDirectoryEntry>, RepositoryError> {
-        let revision = self.revision(revision)?;
-        let directory = normalize_logical_path(directory);
-        let mut entries = Vec::new();
-
-        // collect editable direct children
-        self.files
-            .entries
-            .visit(revision.files(), &mut |_file_id, entry| {
-                let path = self.logical_path_text(entry.logical_path);
-                self.push_artifact_directory_entry(&directory, path, &mut entries);
-            });
-
-        // collect builtin direct children
-        for builtin in self.builtin.files() {
-            self.push_artifact_directory_entry(&directory, builtin.uri, &mut entries);
-        }
-
-        entries.sort_unstable();
-        entries.dedup();
-
-        Ok(entries)
-    }
+    false
 }

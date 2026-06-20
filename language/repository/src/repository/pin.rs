@@ -386,7 +386,7 @@ mod tests {
             )],
         );
         let key = ArtifactKey::bundle(package, target);
-        let version = ArtifactVersion::new(key, repository.build_fingerprint(), []);
+        let version = ArtifactVersion::new(key, repository.build_fingerprint(), None, []);
 
         repository
             .complete_artifact(
@@ -452,7 +452,7 @@ mod tests {
             global_targets_by_key: IndexMap::new(),
         };
         let key = ArtifactKey::global_environment(profile);
-        let version = ArtifactVersion::new(key, repository.build_fingerprint(), []);
+        let version = ArtifactVersion::new(key, repository.build_fingerprint(), None, []);
 
         repository
             .complete_artifact(
@@ -599,6 +599,7 @@ mod tests {
         let version = ArtifactVersion::new(
             ArtifactKey::bundle(package, target),
             repository.build_fingerprint(),
+            None,
             [],
         );
 

@@ -1,5 +1,6 @@
 use destack_artifact::{
-    ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactOutcome, ArtifactVersion,
+    ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactOutcome, ArtifactRequirement,
+    ArtifactVersion,
 };
 
 use crate::provider::{ProviderError, ProviderResult};
@@ -19,6 +20,8 @@ pub enum DependencySetResolution {
     },
     /// The dependency set resolved into exact dependencies.
     Resolved {
+        /// The predecessor artifact this artifact is derived from.
+        base: Option<ArtifactVersion>,
         /// The exact dependencies feeding this artifact's version.
         dependencies: Vec<ArtifactDependency>,
         /// The first terminally failed dependency, when one poisons the build.
@@ -33,44 +36,39 @@ impl Repository {
         revision: Revision,
         set: ArtifactDependencySet,
     ) -> ProviderResult<DependencySetResolution> {
-        let versions = if set.is_partial {
-            self.artifact_bindings(revision, &set.artifacts)?
-        } else {
-            self.artifact_versions(revision, &set.artifacts)
-                .map_err(|error| ProviderError::internal(error.to_string()))?
-        };
+        let artifact_keys = set
+            .requirements
+            .iter()
+            .map(ArtifactRequirement::artifact_key)
+            .collect::<Vec<_>>();
+        let versions = self
+            .artifact_versions(revision, &artifact_keys)
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
 
-        // classify and bind each declared artifact dependency
-        let mut dependencies = Vec::with_capacity(set.artifacts.len() + set.sources.len());
+        // classify each declared artifact requirement
+        let capacity = set.requirements.len() + set.sources.len();
+        let mut dependencies = Vec::with_capacity(capacity);
         let mut pending = Vec::new();
         let mut failed = None;
-        for (dependency, version) in set.artifacts.iter().zip(versions) {
-            let Some(version) = version else {
-                pending.push(*dependency);
-
-                continue;
-            };
-
-            match self.artifact_table().outcome(&version) {
-                None => pending.push(*dependency),
-                Some(ArtifactOutcome::Failed(_)) => {
-                    failed.get_or_insert(*dependency);
-                    dependencies.push(ArtifactDependency::artifact(version));
-                }
-                Some(ArtifactOutcome::Ok) => {
-                    dependencies.push(ArtifactDependency::artifact(version));
-                }
-            }
+        for (requirement, version) in set.requirements.iter().zip(versions) {
+            self.resolve_requirement(
+                *requirement,
+                version,
+                &mut dependencies,
+                &mut pending,
+                &mut failed,
+            )?;
         }
 
         // fold in primitive source observations
         for source in &set.sources {
-            dependencies.push(ArtifactDependency::Source(source.clone()));
+            dependencies.push(ArtifactDependency::Source(*source));
         }
 
         // resolve immediately when a dependency already failed
         if let Some(failed) = failed {
             return Ok(DependencySetResolution::Resolved {
+                base: set.base,
                 dependencies,
                 failed: Some(failed),
             });
@@ -91,27 +89,70 @@ impl Repository {
         }
 
         Ok(DependencySetResolution::Resolved {
+            base: set.base,
             dependencies,
             failed: None,
         })
     }
 
-    /// Return exact stored bindings for dependency keys in this revision.
-    fn artifact_bindings(
+    /// Resolve one collected artifact requirement into an exact dependency.
+    fn resolve_requirement(
         &self,
-        revision: Revision,
-        keys: &[ArtifactKey],
-    ) -> ProviderResult<Vec<Option<ArtifactVersion>>> {
-        let mut versions = Vec::with_capacity(keys.len());
+        requirement: ArtifactRequirement,
+        version: Option<ArtifactVersion>,
+        dependencies: &mut Vec<ArtifactDependency>,
+        pending: &mut Vec<ArtifactKey>,
+        failed: &mut Option<ArtifactKey>,
+    ) -> ProviderResult<()> {
+        let artifact_key = requirement.artifact_key();
+        let Some(version) = version else {
+            pending.push(artifact_key);
 
-        // exact bindings are enough while a collector is still partial
-        for key in keys {
-            let version = self
-                .artifact_binding(revision, key)
-                .map_err(|error| ProviderError::internal(error.to_string()))?;
-            versions.push(version);
+            return Ok(());
+        };
+
+        match self.artifact_table().outcome(&version) {
+            None => pending.push(artifact_key),
+            Some(ArtifactOutcome::Failed(_)) => {
+                failed.get_or_insert(artifact_key);
+                dependencies.push(ArtifactDependency::artifact(version));
+            }
+            Some(ArtifactOutcome::Ok) => {
+                self.resolve_completed_requirement(requirement, version, dependencies)?;
+            }
         }
 
-        Ok(versions)
+        Ok(())
+    }
+
+    /// Resolve one completed artifact requirement into an exact dependency.
+    fn resolve_completed_requirement(
+        &self,
+        requirement: ArtifactRequirement,
+        version: ArtifactVersion,
+        dependencies: &mut Vec<ArtifactDependency>,
+    ) -> ProviderResult<()> {
+        match requirement {
+            ArtifactRequirement::Key(_) => {
+                dependencies.push(ArtifactDependency::artifact(version));
+            }
+            ArtifactRequirement::Projection(projection) => {
+                let fingerprint = self
+                    .artifact_table()
+                    .projection_fingerprint(&version, &projection)
+                    .ok_or_else(|| {
+                        ProviderError::internal(format!(
+                            "artifact projection does not match payload: {projection:?}"
+                        ))
+                    })?;
+                dependencies.push(ArtifactDependency::projection(
+                    version,
+                    projection,
+                    fingerprint,
+                ));
+            }
+        }
+
+        Ok(())
     }
 }
