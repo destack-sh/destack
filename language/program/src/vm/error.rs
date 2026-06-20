@@ -1,5 +1,6 @@
-use destack_mir as mir;
 use serde::{Deserialize, Serialize};
+
+use crate::FunctionId;
 
 /// VM program record result.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -26,7 +27,7 @@ pub enum Error {
     /// Undefined lowered function.
     UndefinedFunction {
         /// The missing function id.
-        function: mir::LocalNodeId<mir::Function>,
+        function: FunctionId,
     },
 }
 
@@ -81,7 +82,7 @@ impl Error {
     }
 
     /// Return one undefined function error.
-    pub fn undefined_function(function: mir::LocalNodeId<mir::Function>) -> Self {
+    pub fn undefined_function(function: FunctionId) -> Self {
         Self::UndefinedFunction { function }
     }
 }

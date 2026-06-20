@@ -125,7 +125,7 @@ pub enum BinaryFloatKernel {
 impl BinaryFloatKernel {
     /// Return the kernel for one MIR binary operator.
     #[inline(always)]
-    pub const fn from_mir(operator: mir::BinaryOperator) -> Option<Self> {
+    pub const fn select(operator: mir::BinaryOperator) -> Option<Self> {
         use mir::BinaryOperator;
 
         match operator {
@@ -189,7 +189,7 @@ pub enum UnaryFloatKernel {
 impl UnaryFloatKernel {
     /// Return the kernel for one MIR unary operator.
     #[inline(always)]
-    pub const fn from_mir(operator: mir::UnaryOperator) -> Option<Self> {
+    pub const fn select(operator: mir::UnaryOperator) -> Option<Self> {
         match operator {
             mir::UnaryOperator::FloatNegate => Some(Self::Negate),
             _ => None,

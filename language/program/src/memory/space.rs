@@ -4,6 +4,26 @@ use serde::{Deserialize, Serialize};
 
 use crate::{StaticAddress, StaticAllocator, StaticId, StaticRegion};
 
+/// Native projection of immutable constant memory.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NativeConstantSpace {
+    /// The first byte in the constant space.
+    pub bytes: *const u8,
+    /// The constant space byte count.
+    pub byte_len: usize,
+}
+
+/// Native projection of mutable static memory.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NativeStaticSpace {
+    /// The first byte in the static space.
+    pub bytes: *mut u8,
+    /// The static space byte count.
+    pub byte_len: usize,
+}
+
 /// Static memory.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StaticSpace {
@@ -142,5 +162,21 @@ impl StaticSpace {
     /// Return the static byte count.
     pub fn byte_len(&self) -> usize {
         self.bytes.len()
+    }
+
+    /// Return a native projection of this constant space.
+    pub fn as_native_constants(&self) -> NativeConstantSpace {
+        NativeConstantSpace {
+            bytes: self.bytes.as_ptr(),
+            byte_len: self.bytes.len(),
+        }
+    }
+
+    /// Return a native projection of this static space.
+    pub fn as_native_statics(&mut self) -> NativeStaticSpace {
+        NativeStaticSpace {
+            bytes: self.bytes.as_mut_ptr(),
+            byte_len: self.bytes.len(),
+        }
     }
 }

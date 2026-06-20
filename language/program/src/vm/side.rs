@@ -1,12 +1,10 @@
-use crate::FrameStateId;
-use destack_mir::{self as mir, LayoutId};
+use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ArgumentRange, AtomicOrder, AtomicShape, CallTarget, CellLayout, FunctionObjectLayout,
-    MoveRange, Projection, ProjectionId, ScalarLayout, TensorAddress, TensorConvolutionId,
-    TensorDotId, TensorGatherId, TensorLayoutId, TensorScatterId, TensorWindowId, U32RangeId,
-    ValueShape,
+    ArgumentRange, AtomicOrder, AtomicShape, CallTarget, CellLayout, MoveRange, Projection,
+    ProjectionId, ScalarLayout, TensorAddress, TensorConvolutionId, TensorDotId, TensorGatherId,
+    TensorLayoutId, TensorScatterId, TensorWindowId, U32RangeId, ValueShape,
 };
 
 const INTRINSIC_ARGUMENT_CAPACITY: usize = 16;
@@ -218,32 +216,11 @@ pub struct VectorConvert {
     pub element_count: u32,
 }
 
-/// Function environment representation.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub enum FunctionEnvironment {
-    /// Environment stored in one VM cell.
-    Cell {
-        /// The environment cell layout.
-        layout: CellLayout,
-    },
-    /// Environment stored as an aggregate value.
-    Aggregate {
-        /// The environment heap layout.
-        layout: LayoutId,
-        /// The environment byte length.
-        byte_len: usize,
-    },
-}
-
 /// Function bind operation.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct FunctionBind {
-    /// The function heap layout.
-    pub function_layout: LayoutId,
-    /// The function object field layout.
-    pub object_layout: FunctionObjectLayout,
-    /// The environment representation.
-    pub environment: FunctionEnvironment,
+    /// The environment cell layout.
+    pub environment: CellLayout,
 }
 
 /// Direct function call.
@@ -269,7 +246,7 @@ pub struct CallBranch {
     /// The pooled argument range.
     pub arguments: ArgumentRange,
     /// The continuation frame state.
-    pub target_state: FrameStateId,
+    pub target_state: mir::FrameStateId,
 }
 
 /// Class method call.
@@ -297,7 +274,7 @@ pub struct CallVirtualBranch {
     /// The pooled argument range.
     pub arguments: ArgumentRange,
     /// The continuation frame state.
-    pub target_state: FrameStateId,
+    pub target_state: mir::FrameStateId,
 }
 
 /// Dynamic method call.
@@ -325,7 +302,7 @@ pub struct CallDynamicBranch {
     /// The pooled argument range.
     pub arguments: ArgumentRange,
     /// The continuation frame state.
-    pub target_state: FrameStateId,
+    pub target_state: mir::FrameStateId,
 }
 
 /// Indirect function call.
@@ -349,7 +326,7 @@ pub struct IndirectCallBranch {
     /// The pooled argument range.
     pub arguments: ArgumentRange,
     /// The continuation frame state.
-    pub target_state: FrameStateId,
+    pub target_state: mir::FrameStateId,
 }
 
 /// Load a tensor element from a view.
