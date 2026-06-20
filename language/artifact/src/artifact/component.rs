@@ -1,5 +1,6 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 use destack_source::{ComponentId, ModuleId, ProfileId};
 
@@ -11,7 +12,7 @@ pub struct ComponentGraph {
     /// The profile this partition belongs to.
     pub profile: ProfileId,
     /// Imported modules per module, deduplicated in import order.
-    pub imports: IndexMap<ModuleId, Vec<ModuleId>>,
+    pub imports: IndexMap<ModuleId, Arc<[ModuleId]>>,
     /// Owning component per module.
     pub component_of: IndexMap<ModuleId, ComponentId>,
     /// Member modules per component, sorted, with the entry first.
@@ -23,7 +24,7 @@ pub struct ComponentGraph {
 impl ComponentGraph {
     /// Return the modules imported by one module.
     pub fn imports(&self, module: ModuleId) -> &[ModuleId] {
-        self.imports.get(&module).map_or(&[], Vec::as_slice)
+        self.imports.get(&module).map_or(&[], Arc::as_ref)
     }
 
     /// Return the component containing one module.

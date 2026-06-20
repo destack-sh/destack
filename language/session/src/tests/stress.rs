@@ -5,6 +5,42 @@ use super::{
     time_micros,
 };
 
+/// Module graph shapes used by scaling stress tests.
+const SCALING_GRAPHS: [ModuleGraph; 8] = [
+    ModuleGraph {
+        modules: 10,
+        component_size: 1,
+    },
+    ModuleGraph {
+        modules: 10,
+        component_size: 10,
+    },
+    ModuleGraph {
+        modules: 100,
+        component_size: 1,
+    },
+    ModuleGraph {
+        modules: 100,
+        component_size: 10,
+    },
+    ModuleGraph {
+        modules: 100,
+        component_size: 100,
+    },
+    ModuleGraph {
+        modules: 1000,
+        component_size: 1,
+    },
+    ModuleGraph {
+        modules: 1000,
+        component_size: 10,
+    },
+    ModuleGraph {
+        modules: 1000,
+        component_size: 100,
+    },
+];
+
 /// One generated module graph.
 #[derive(Debug, Clone, Copy)]
 struct ModuleGraph {
@@ -29,6 +65,13 @@ impl ModuleGraph {
         } else {
             self.modules / 2
         }
+    }
+
+    /// Return the imported module used to change one import row.
+    fn import_edit_target(self) -> usize {
+        let edited_module = self.edited_module();
+
+        if edited_module == 0 { 1 } else { 0 }
     }
 }
 
@@ -119,9 +162,26 @@ fn generated_module_graph(graph: ModuleGraph) -> Vec<(String, String)> {
 
 /// Build one generated source module.
 fn generated_module_source(graph: ModuleGraph, module: usize, value: usize) -> String {
+    generated_module_source_with_extra_import(graph, module, value, None)
+}
+
+/// Build one generated source module with one optional extra import.
+fn generated_module_source_with_extra_import(
+    graph: ModuleGraph,
+    module: usize,
+    value: usize,
+    imported: Option<usize>,
+) -> String {
     let mut source = String::new();
     let group_start = module / graph.component_size * graph.component_size;
     let group_end = (group_start + graph.component_size).min(graph.modules);
+
+    // import one extra module to force a changed import row
+    if let Some(imported) = imported {
+        source.push_str(&format!(
+            "import {{ value{imported} }} from \"./module-{imported}\";\n"
+        ));
+    }
 
     // import the next module to form one SCC per group
     if graph.component_size > 1 {
@@ -135,7 +195,7 @@ fn generated_module_source(graph: ModuleGraph, module: usize, value: usize) -> S
         ));
     }
 
-    // export one changed value without changing imports
+    // export one changed value
     source.push_str(&format!("export const value{module} = {value};\n"));
 
     source
@@ -164,50 +224,31 @@ fn check_scaling_table(title: &str) -> TextTable {
     ])
 }
 
+/// Build the component graph edit report table.
+fn component_graph_edit_table(title: &str) -> TextTable {
+    TextTable::new().title(title).color().row(vec![
+        Cell::bold("modules"),
+        Cell::bold("component"),
+        Cell::bold("body ms"),
+        Cell::bold("body graph ms"),
+        Cell::bold("body scc ms"),
+        Cell::bold("body condensation ms"),
+        Cell::bold("import ms"),
+        Cell::bold("import graph ms"),
+        Cell::bold("import scc ms"),
+        Cell::bold("import condensation ms"),
+    ])
+}
+
 #[test]
 fn test_measure_check_after_single_module_edit() {
-    let graphs = [
-        ModuleGraph {
-            modules: 10,
-            component_size: 1,
-        },
-        ModuleGraph {
-            modules: 10,
-            component_size: 10,
-        },
-        ModuleGraph {
-            modules: 100,
-            component_size: 1,
-        },
-        ModuleGraph {
-            modules: 100,
-            component_size: 10,
-        },
-        ModuleGraph {
-            modules: 100,
-            component_size: 100,
-        },
-        ModuleGraph {
-            modules: 1000,
-            component_size: 1,
-        },
-        ModuleGraph {
-            modules: 1000,
-            component_size: 10,
-        },
-        ModuleGraph {
-            modules: 1000,
-            component_size: 100,
-        },
-    ];
-
     let mut table = check_scaling_table("check scaling");
     let mut detailed_traces = Vec::new();
     let worker_count = std::thread::available_parallelism()
         .map(usize::from)
         .unwrap_or(1);
 
-    for graph in graphs {
+    for graph in SCALING_GRAPHS {
         println!(
             "measuring {} modules with component size {}",
             graph.modules, graph.component_size
@@ -272,6 +313,83 @@ fn test_measure_check_after_single_module_edit() {
             .slow_attempts(8)
             .print();
     }
+}
+
+/// Measure one component graph edit.
+fn measure_component_graph_edit(graph: ModuleGraph, edited_source: String) -> CheckMeasurement {
+    let files = generated_module_graph(graph);
+    let files = files
+        .iter()
+        .map(|(path, content)| (path.as_str(), content.as_str()))
+        .collect::<Vec<_>>();
+    let test = TestSession::open(&files).unwrap();
+
+    let (_cold, _cold_trace) = test.check("src/module-0.ds", "js");
+
+    test.edit_text(&graph.edit_path(), &edited_source);
+
+    let (_edited, edited_trace) = test.check("src/module-0.ds", "js");
+
+    CheckMeasurement::from_trace(&edited_trace)
+}
+
+/// Measure one body edit that leaves the import row unchanged.
+fn measure_component_graph_body_edit(graph: ModuleGraph) -> CheckMeasurement {
+    let edited_source = generated_module_source(graph, graph.edited_module(), 2);
+
+    measure_component_graph_edit(graph, edited_source)
+}
+
+/// Measure one import edit that changes the import row.
+fn measure_component_graph_import_edit(graph: ModuleGraph) -> CheckMeasurement {
+    let module = graph.edited_module();
+    let edited_source = generated_module_source_with_extra_import(
+        graph,
+        module,
+        2,
+        Some(graph.import_edit_target()),
+    );
+
+    measure_component_graph_edit(graph, edited_source)
+}
+
+#[test]
+fn test_measure_component_graph_after_body_and_import_edits() {
+    let mut table = component_graph_edit_table("component graph edits");
+
+    for graph in SCALING_GRAPHS {
+        println!(
+            "measuring component graph edits for {} modules with component size {}",
+            graph.modules, graph.component_size
+        );
+
+        let body = measure_component_graph_body_edit(graph);
+        let import = measure_component_graph_import_edit(graph);
+
+        assert_eq!(body.changed_modules, Some(1));
+        assert_eq!(body.counts.failed, 0);
+        assert_eq!(body.scc_micros, 0);
+        assert_eq!(body.condensation_micros, 0);
+        assert_eq!(import.changed_modules, Some(1));
+        assert_eq!(import.counts.failed, 0);
+        assert!(import.scc_micros > 0);
+        assert!(import.condensation_micros > 0);
+
+        table = table.row(vec![
+            Cell::new(graph.modules.to_string()),
+            Cell::new(graph.component_size.to_string()),
+            Cell::colored(format!("{:.3}", millis(body.total_micros)), "38;5;250"),
+            Cell::colored(format!("{:.3}", millis(body.graph_micros)), "38;5;147"),
+            Cell::new(format!("{:.3}", millis(body.scc_micros))),
+            Cell::new(format!("{:.3}", millis(body.condensation_micros))),
+            Cell::colored(format!("{:.3}", millis(import.total_micros)), "38;5;250"),
+            Cell::colored(format!("{:.3}", millis(import.graph_micros)), "38;5;147"),
+            Cell::new(format!("{:.3}", millis(import.scc_micros))),
+            Cell::new(format!("{:.3}", millis(import.condensation_micros))),
+        ]);
+    }
+
+    table.print();
 }
 
 #[test]
