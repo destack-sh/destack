@@ -238,32 +238,26 @@ impl Bundle {
 #[derive(Debug)]
 #[napi(object, js_name = "ProgramHeader")]
 pub struct ProgramHeader {
-    /// Human-facing program name.
-    pub name: Option<String>,
-    /// Build fingerprint that produced this program.
-    pub fingerprint: Option<String>,
-    /// Target triple or equivalent target identity.
-    pub target: Option<String>,
+    /// Pointer byte width required by this program.
+    pub pointer_bytes: u32,
 }
 
 impl ProgramHeader {
     /// Convert one bridge value into one NAPI value.
     pub(crate) fn from_bridge(value: bridge::ProgramHeader) -> Self {
         Self {
-            name: value.name,
-            fingerprint: value.fingerprint,
-            target: value.target,
+            pointer_bytes: value.pointer_bytes,
         }
     }
 }
 
-/// Durable executable program crossing bridge boundaries.
+/// Durable program crossing bridge boundaries.
 #[derive(Debug)]
 #[napi(object, js_name = "Program")]
 pub struct Program {
     /// The program identity and compatibility header.
     pub header: ProgramHeader,
-    /// The executable format.
+    /// The preferred execution format.
     pub format: String,
     /// Content blobs referenced by the executable payload.
     pub contents: Vec<ContentId>,

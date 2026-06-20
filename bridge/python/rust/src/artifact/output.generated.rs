@@ -615,7 +615,7 @@ impl Bundle {
     }
 }
 
-/// Program executable format crossing bridge boundaries.
+/// Preferred program execution format crossing bridge boundaries.
 #[pyclass(name = "ProgramFormat", module = "destack._native", from_py_object)]
 #[derive(Debug, Clone)]
 pub struct ProgramFormat {
@@ -650,22 +650,10 @@ pub struct ProgramHeader {
 
 #[pymethods]
 impl ProgramHeader {
-    /// Human-facing program name.
+    /// Pointer byte width required by this program.
     #[getter]
-    pub fn name(&self) -> Option<String> {
-        self.value.name.clone()
-    }
-
-    /// Build fingerprint that produced this program.
-    #[getter]
-    pub fn fingerprint(&self) -> Option<String> {
-        self.value.fingerprint.clone()
-    }
-
-    /// Target triple or equivalent target identity.
-    #[getter]
-    pub fn target(&self) -> Option<String> {
-        self.value.target.clone()
+    pub fn pointer_bytes(&self) -> u32 {
+        self.value.pointer_bytes
     }
 }
 
@@ -677,7 +665,7 @@ impl ProgramHeader {
     }
 }
 
-/// Durable executable program crossing bridge boundaries.
+/// Durable program crossing bridge boundaries.
 #[pyclass(name = "Program", module = "destack._native", from_py_object)]
 #[derive(Debug, Clone)]
 pub struct Program {
@@ -692,7 +680,7 @@ impl Program {
         ProgramHeader::from_bridge(self.value.header.clone())
     }
 
-    /// The executable format.
+    /// The preferred execution format.
     #[getter]
     pub fn format(&self) -> ProgramFormat {
         ProgramFormat::from_bridge(self.value.format)

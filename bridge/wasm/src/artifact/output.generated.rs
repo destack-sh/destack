@@ -535,39 +535,21 @@ impl Bundle {
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
 pub struct ProgramHeader {
-    name: Option<String>,
-    fingerprint: Option<String>,
-    target: Option<String>,
+    pointer_bytes: u32,
 }
 
 #[wasm_bindgen]
 impl ProgramHeader {
     /// Create one value.
     #[wasm_bindgen(constructor)]
-    pub fn new(name: Option<String>, fingerprint: Option<String>, target: Option<String>) -> Self {
-        Self {
-            name,
-            fingerprint,
-            target,
-        }
+    pub fn new(pointer_bytes: u32) -> Self {
+        Self { pointer_bytes }
     }
 
-    /// Human-facing program name.
-    #[wasm_bindgen(getter, js_name = "name")]
-    pub fn name(&self) -> Option<String> {
-        self.name.clone()
-    }
-
-    /// Build fingerprint that produced this program.
-    #[wasm_bindgen(getter, js_name = "fingerprint")]
-    pub fn fingerprint(&self) -> Option<String> {
-        self.fingerprint.clone()
-    }
-
-    /// Target triple or equivalent target identity.
-    #[wasm_bindgen(getter, js_name = "target")]
-    pub fn target(&self) -> Option<String> {
-        self.target.clone()
+    /// Pointer byte width required by this program.
+    #[wasm_bindgen(getter, js_name = "pointerBytes")]
+    pub fn pointer_bytes(&self) -> u32 {
+        self.pointer_bytes
     }
 }
 
@@ -575,14 +557,12 @@ impl ProgramHeader {
     /// Convert one bridge value into one WASM value.
     pub(crate) fn from_bridge(value: bridge::ProgramHeader) -> Self {
         Self {
-            name: value.name,
-            fingerprint: value.fingerprint,
-            target: value.target,
+            pointer_bytes: value.pointer_bytes,
         }
     }
 }
 
-/// Durable executable program crossing bridge boundaries.
+/// Durable program crossing bridge boundaries.
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
 pub struct Program {
@@ -609,7 +589,7 @@ impl Program {
         self.header.clone()
     }
 
-    /// The executable format.
+    /// The preferred execution format.
     #[wasm_bindgen(getter, js_name = "format")]
     pub fn format(&self) -> String {
         self.format.clone()

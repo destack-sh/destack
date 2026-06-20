@@ -276,13 +276,13 @@ pub struct Bundle {
     pub files: Vec<BundleFile>,
 }
 
-/// Program executable format crossing bridge boundaries.
+/// Preferred program execution format crossing bridge boundaries.
 #[bridge]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ProgramFormat {
-    /// VM executable program.
+    /// VM execution.
     Vm,
-    /// Native executable program.
+    /// Native execution.
     Native,
 }
 
@@ -290,21 +290,17 @@ pub enum ProgramFormat {
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProgramHeader {
-    /// Human-facing program name.
-    pub name: Option<String>,
-    /// Build fingerprint that produced this program.
-    pub fingerprint: Option<String>,
-    /// Target triple or equivalent target identity.
-    pub target: Option<String>,
+    /// Pointer byte width required by this program.
+    pub pointer_bytes: u32,
 }
 
-/// Durable executable program crossing bridge boundaries.
+/// Durable program crossing bridge boundaries.
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Program {
     /// The program identity and compatibility header.
     pub header: ProgramHeader,
-    /// The executable format.
+    /// The preferred execution format.
     pub format: ProgramFormat,
     /// Content blobs referenced by the executable payload.
     pub contents: Vec<ContentId>,
@@ -750,33 +746,27 @@ impl From<&artifact::Bundle> for Bundle {
     }
 }
 
-impl From<program::ProgramFormat> for ProgramFormat {
-    /// Convert one program format into one bridge program format.
-    fn from(format: program::ProgramFormat) -> Self {
-        match format {
-            program::ProgramFormat::Vm => Self::Vm,
-            program::ProgramFormat::Native => Self::Native,
-        }
-    }
-}
-
 impl From<&program::ProgramHeader> for ProgramHeader {
     /// Convert one program header into one bridge program header.
     fn from(header: &program::ProgramHeader) -> Self {
         Self {
-            name: header.name.clone(),
-            fingerprint: header.fingerprint.clone(),
-            target: header.target.clone(),
+            pointer_bytes: u32::from(header.pointer_bytes),
         }
     }
 }
 
-impl From<&program::Program<program::Executable>> for Program {
+impl From<&program::Program> for Program {
     /// Convert one program into one bridge program.
-    fn from(program: &program::Program<program::Executable>) -> Self {
+    fn from(program: &program::Program) -> Self {
+        let format = if program.native.is_some() {
+            ProgramFormat::Native
+        } else {
+            ProgramFormat::Vm
+        };
+
         Self {
             header: (&program.header).into(),
-            format: program.format().into(),
+            format,
             contents: program.content_ids().into_iter().map(Into::into).collect(),
         }
     }
