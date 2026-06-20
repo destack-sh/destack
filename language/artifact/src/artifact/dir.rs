@@ -4,6 +4,8 @@ use destack_dir as dir;
 use destack_source::{ComponentId, FileId, ModuleId};
 use serde::{Deserialize, Serialize};
 
+use crate::ArtifactProjectionFingerprint;
+
 /// Parsed DIR for one source module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirParsed {
@@ -240,6 +242,8 @@ impl DirCheckedComponent {
 pub struct DirCheckedComponentEntry {
     /// The checked module id.
     pub module: ModuleId,
+    /// The stable fingerprint of this module's checked output.
+    pub fingerprint: ArtifactProjectionFingerprint,
     /// The checked side tables for this module.
     pub checked: DirCheckedModule,
 }

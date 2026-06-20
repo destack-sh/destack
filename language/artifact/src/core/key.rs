@@ -30,8 +30,6 @@ pub enum ArtifactKey {
     GlobalEnvironment { profile: ProfileId },
     /// Active dependency index for one profile.
     PackageIndex { profile: ProfileId },
-    /// Module import edges for one profile.
-    ModuleIndex { profile: ProfileId },
     /// Strongly connected component partition for one profile.
     ComponentGraph { profile: ProfileId },
     /// Whole-program analysis for one profile and target.
@@ -167,7 +165,7 @@ pub enum ArtifactStage {
     Macro,
     /// Import, export, and global resolution.
     Resolve,
-    /// Module and component graph indexes.
+    /// Component graph indexes.
     Graph,
     /// Type checking.
     Check,
@@ -226,7 +224,6 @@ impl ArtifactKey {
             Self::DirParsed { .. } | Self::Data { .. } => ArtifactProvider::Loader,
             Self::GlobalEnvironment { .. }
             | Self::PackageIndex { .. }
-            | Self::ModuleIndex { .. }
             | Self::ComponentGraph { .. }
             | Self::ProgramAnalysis { .. }
             | Self::DirBound { .. }
@@ -278,11 +275,6 @@ impl ArtifactKey {
     /// Build one dependency index artifact key.
     pub fn package_index(profile: ProfileId) -> Self {
         Self::PackageIndex { profile }
-    }
-
-    /// Build one module index artifact key.
-    pub fn module_index(profile: ProfileId) -> Self {
-        Self::ModuleIndex { profile }
     }
 
     /// Build one component graph artifact key.
@@ -462,7 +454,7 @@ impl ArtifactKey {
             Self::DirImported { .. } | Self::DirExported { .. } | Self::DirResolved { .. } => {
                 ArtifactStage::Resolve
             }
-            Self::ModuleIndex { .. } | Self::ComponentGraph { .. } => ArtifactStage::Graph,
+            Self::ComponentGraph { .. } => ArtifactStage::Graph,
             Self::DirExpanded { .. } | Self::DirMaterialized { .. } => ArtifactStage::Macro,
             Self::DirCheckedComponent { .. } | Self::DirChecked { .. } => ArtifactStage::Check,
             Self::DirElaborated { .. }
@@ -498,7 +490,6 @@ impl ArtifactKey {
             Self::DirExpanded { .. } => "dir.expand",
             Self::DirExported { .. } => "dir.export",
             Self::DirResolved { .. } => "dir.resolve",
-            Self::ModuleIndex { .. } => "module.index",
             Self::ComponentGraph { .. } => "component.graph",
             Self::ProgramAnalysis { .. } => "program.analyze",
             Self::DirCheckedComponent { .. } => "dir.check.component",
@@ -536,7 +527,6 @@ impl ArtifactKey {
             Self::DirExpanded { .. } => "dir_expanded",
             Self::DirExported { .. } => "dir_exported",
             Self::DirResolved { .. } => "dir_resolved",
-            Self::ModuleIndex { .. } => "module_index",
             Self::ComponentGraph { .. } => "component_graph",
             Self::ProgramAnalysis { .. } => "program_analysis",
             Self::DirCheckedComponent { .. } => "dir_checked_component",
@@ -587,7 +577,6 @@ impl ArtifactKey {
             | Self::ModuleLinted { module, .. } => Some(*module),
             Self::GlobalEnvironment { .. }
             | Self::PackageIndex { .. }
-            | Self::ModuleIndex { .. }
             | Self::ComponentGraph { .. }
             | Self::ProgramAnalysis { .. }
             | Self::WorkspaceQueryIndex { .. }
@@ -628,7 +617,6 @@ impl ArtifactKey {
         match self {
             Self::GlobalEnvironment { profile }
             | Self::PackageIndex { profile }
-            | Self::ModuleIndex { profile }
             | Self::ComponentGraph { profile }
             | Self::ProgramAnalysis { profile, .. }
             | Self::DirBound { profile, .. }
