@@ -23,7 +23,7 @@ impl CheckState<'_> {
     /// every unannotated site into synthesized annotation nodes, and
     /// prints the amended tree through the canonical formatter.
     pub(in crate::check) fn render_annotated_sources(
-        &self,
+        &mut self,
     ) -> CompilerResult<Vec<AnnotatedSource>> {
         let mut sources = Vec::with_capacity(self.modules.len());
         for module_id in self.modules.keys().copied().collect::<Vec<_>>() {
@@ -37,9 +37,10 @@ impl CheckState<'_> {
 
     /// Render one member module's source with solved annotations.
     fn render_annotated_source(
-        &self,
+        &mut self,
         module_id: ModuleId,
     ) -> CompilerResult<Option<AnnotatedSource>> {
+        let coercions = self.derive_coercions(module_id)?;
         let state = self.module(module_id);
         let file_id = state.module.file_id;
         let Some(roots) = state.parsed.roots_for_file(file_id) else {
@@ -53,7 +54,7 @@ impl CheckState<'_> {
         self.fill_parameters(state, &mut reifier)?;
         self.fill_returns(state, &mut reifier)?;
         self.fill_members(state, &mut reifier)?;
-        self.fill_coercions(state, &mut reifier)?;
+        self.fill_coercions(state, &coercions, &mut reifier)?;
 
         // print the amended tree through the canonical formatter
         let file = self.compiler.file(self.context, file_id)?;
@@ -287,11 +288,11 @@ impl CheckState<'_> {
         };
 
         // look through the function value to the function contract
-        let mut contract = self.shallow_resolve(ty)?;
+        let mut contract = self.resolve_shallow(ty)?;
         loop {
             match self.ty(contract)? {
                 dir::Type::Function(function) => {
-                    contract = self.shallow_resolve(function.signature)?;
+                    contract = self.resolve_shallow(function.signature)?;
                 }
                 dir::Type::FunctionSignature(_) => break,
                 _ => return Ok(None),
@@ -332,17 +333,10 @@ impl CheckState<'_> {
     fn fill_coercions(
         &self,
         state: &CheckModuleState,
+        coercions: &[(dir::GlobalNodeIdAny, dir::Coercion)],
         reifier: &mut Reifier<'_, '_>,
     ) -> CompilerResult<()> {
-        let module_id = state.module.id;
-        let coercions = self
-            .coercions
-            .iter()
-            .filter(|(node, _)| node.module_id == module_id)
-            .map(|(node, coercion)| (*node, *coercion))
-            .collect::<Vec<_>>();
-
-        for (node, coercion) in coercions {
+        for (node, coercion) in coercions.iter().copied() {
             // only authored expression nodes spell casts
             if node.local_id.ty != dir::NodeType::Expression || !state.is_authored(node.local_id) {
                 continue;

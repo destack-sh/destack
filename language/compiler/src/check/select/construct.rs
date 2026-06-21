@@ -99,7 +99,15 @@ impl CheckState<'_> {
                 return self.reject_construct(node, origin, &arguments);
             }
 
-            return self.record_construct(node, &instance, None, Vec::new(), target);
+            return self.record_construct(
+                node,
+                module,
+                argument_nodes,
+                &instance,
+                None,
+                Vec::new(),
+                target,
+            );
         }
 
         // try constructors in declaration order
@@ -117,6 +125,8 @@ impl CheckState<'_> {
                 Answer::Ready(Some((parameters, return_type))) => {
                     return self.record_construct(
                         node,
+                        module,
+                        argument_nodes,
                         &instance,
                         constructor,
                         parameters,
@@ -256,6 +266,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         origin: Origin,
         symbol: dir::GlobalSymbolId,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<()>> {
         let module = origin.module();
@@ -274,7 +285,7 @@ impl CheckState<'_> {
             self.match_newtype_construct(origin, module, source, template, backing, arguments);
 
         match matched? {
-            Answer::Ready(Some(applied)) => {
+            Answer::Ready(Some((applied, parameters))) => {
                 self.keep_probe(probe)?;
 
                 // the construction produces the applied newtype
@@ -290,8 +301,8 @@ impl CheckState<'_> {
                     symbol,
                     arguments: applied,
                 });
-                let resolution =
-                    dir::ConstructResolution::new(target, arguments.to_vec(), produced);
+                let resolution = dir::ConstructResolution::new(target, parameters, produced);
+                self.push_argument_constraints(module, argument_nodes, &resolution.parameters)?;
                 self.record_decision(node, Decision::Construct(resolution))?;
                 if let Some(variable) = self.node_variable(node)? {
                     self.push_lower_bound(variable, produced)?;
@@ -328,7 +339,7 @@ impl CheckState<'_> {
         template: Option<GenericTemplateId>,
         backing: dir::GlobalTypeId,
         arguments: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<Option<Vec<dir::GlobalTypeId>>>> {
+    ) -> CompilerResult<Answer<Option<(Vec<dir::GlobalTypeId>, Vec<dir::GlobalTypeId>)>>> {
         // hypothesize the declared parameters
         let substitution = match template {
             Some(template) => self.instantiate_template(origin, template)?,
@@ -355,7 +366,7 @@ impl CheckState<'_> {
             ),
             _ => None,
         };
-        match elements {
+        let parameters = match elements {
             Some(elements) => {
                 // every tuple element takes one positional argument
                 if arguments.len() != elements.len() {
@@ -368,6 +379,8 @@ impl CheckState<'_> {
                         Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
                     }
                 }
+
+                elements.to_vec()
             }
             None => {
                 // every other backing takes exactly one argument
@@ -379,8 +392,10 @@ impl CheckState<'_> {
                     Answer::Ready(false) => return Ok(Answer::Ready(None)),
                     Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
                 }
+
+                vec![backing]
             }
-        }
+        };
 
         // solve and harvest the hypothesized parameters
         let floor = self.queue.solve_count();
@@ -398,13 +413,21 @@ impl CheckState<'_> {
             applied.push(self.harvest_type(module, source, argument)?);
         }
 
-        Ok(Answer::Ready(Some(applied)))
+        let raw_parameters = parameters;
+        let mut parameters = Vec::with_capacity(raw_parameters.len());
+        for parameter in raw_parameters {
+            parameters.push(self.harvest_type(module, source, parameter)?);
+        }
+
+        Ok(Answer::Ready(Some((applied, parameters))))
     }
 
     /// Record one selected construction and bound the node variable.
     fn record_construct(
         &mut self,
         node: dir::GlobalNodeIdAny,
+        module: destack_source::ModuleId,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         instance: &dir::GenericInstance,
         constructor: Option<dir::GlobalSymbolId>,
         parameters: Vec<dir::GlobalTypeId>,
@@ -416,6 +439,7 @@ impl CheckState<'_> {
             arguments: instance.arguments.clone(),
         });
         let resolution = dir::ConstructResolution::new(target, parameters, return_type);
+        self.push_argument_constraints(module, argument_nodes, &resolution.parameters)?;
         self.record_decision(node, Decision::Construct(resolution))?;
 
         // flow the constructed type into the node variable

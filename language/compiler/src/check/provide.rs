@@ -135,8 +135,8 @@ impl Compiler {
             }
         }
 
-        // commit checked DIR tables and diagnostics
-        let (modules, diagnostics) = check.commit()?;
+        // finish checked DIR tables and diagnostics
+        let (modules, diagnostics) = check.finish()?;
         context.emit_diagnostics(diagnostics);
         if let Some(events) = events {
             context.emit_sidecar(check_sidecar("events", events.render()));

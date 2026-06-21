@@ -41,12 +41,26 @@ impl WalkState<'_, '_> {
         symbol: dir::GlobalSymbolId,
         declarator: &dir::Declarator,
     ) -> CompilerResult<()> {
-        // walk declared sources before reading their types
+        // walk declared types before reading their values
         if let Some(ty) = declarator.ty {
             self.walk_type_expression(ty)?;
         }
+
+        // settle the widening policy before walking an inferred value
+        let widening = if declarator.ty.is_none() {
+            match declarator.value {
+                Some(value) if self.should_widen_declarator_initializer(symbol, value) => {
+                    Widening::Widen
+                }
+                _ => Widening::Preserve,
+            }
+        } else {
+            Widening::Preserve
+        };
+
+        // walk initializers under their binding policy
         if let Some(value) = declarator.value {
-            self.walk_expression(value, self.tree.get(value))?;
+            self.walk_expression_with_widening(value, self.tree.get(value), widening)?;
         }
 
         // bind annotated declarators to their written types directly
@@ -62,14 +76,6 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
-        // settle the widening policy from the initializer shape
-        let widening = match declarator.value {
-            Some(value) if self.should_widen_declarator_initializer(symbol, value) => {
-                Widening::Widen
-            }
-            _ => Widening::Preserve,
-        };
-
         // bind closed initializers directly (widened)
         if let Some(value) = declarator.value {
             let initializer = self.node_type(value)?;
@@ -81,9 +87,11 @@ impl WalkState<'_, '_> {
                 };
                 self.declare_symbol_type(symbol, bound)?;
 
-                // the binding consumes the value at its widened shape
-                let node = value.into_global_any(self.module);
-                self.check.record_coercion(node, initializer, bound)?;
+                // record contextual widening when the binding changed shape
+                if bound != initializer {
+                    let node = value.into_global_any(self.module);
+                    self.relate_type(Origin::Node(node), Relation::Assignable, initializer, bound);
+                }
 
                 return Ok(());
             }

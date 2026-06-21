@@ -2,12 +2,8 @@ use destack_artifact::DiagnosticAnchor;
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use super::widen::ScalarKind;
 use crate::CompilerResult;
-use crate::check::{
-    Answer, CheckError, CheckState, Condition, Constraint, ConstraintCause, Dependency, Mutation,
-    Origin, Relation,
-};
+use crate::check::{Answer, CheckError, CheckState, ConstraintCause, Dependency, Origin, Relation};
 
 impl CheckState<'_> {
     /// Return the call signature carried by one callable value representation.
@@ -15,7 +11,7 @@ impl CheckState<'_> {
         &self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let ty = self.shallow_resolve(ty)?;
+        let ty = self.resolve_shallow(ty)?;
         let signature = match self.ty(ty)? {
             dir::Type::Function(function) => Some(function.signature),
             dir::Type::FunctionPointer(function) => Some(function.signature),
@@ -36,11 +32,7 @@ impl CheckState<'_> {
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
         match self.constrain(origin, relation, left, right)? {
-            Answer::Ready(true) => {
-                self.record_implicit_coercion(origin, relation, cause, left, right)?;
-
-                Ok(Answer::Ready(()))
-            }
+            Answer::Ready(true) => Ok(Answer::Ready(())),
             Answer::Ready(false) => {
                 self.report_relation_failure(origin, relation, cause, left, right)?;
 
@@ -48,101 +40,6 @@ impl CheckState<'_> {
             }
             Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
         }
-    }
-
-    /// Record one implicit representation change at a value node.
-    /// Accepted value flows whose representation differs from their
-    /// target materialize as implicit casts beside the checked tables.
-    /// Flows into still-open variables defer through one check-only
-    /// constraint that parks until the solution names the target.
-    fn record_implicit_coercion(
-        &mut self,
-        origin: Origin,
-        relation: Relation,
-        cause: ConstraintCause,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        // only value flows coerce
-        if !matches!(relation, Relation::Assignable | Relation::Writable) {
-            return Ok(());
-        }
-        let Origin::Node(node) = origin else {
-            return Ok(());
-        };
-        if !self.modules.contains_key(&node.module_id) {
-            return Ok(());
-        }
-
-        let source = self.shallow_resolve(left)?;
-        let target = self.shallow_resolve(right)?;
-        if self.root_variable(source)?.is_some() {
-            return Ok(());
-        }
-
-        // closed scalars flowing into open variables settle their
-        // representation when the variable solves; the check-only
-        // relation re-enters here with the solution
-        if self.root_variable(target)?.is_some() {
-            if relation == Relation::Assignable && ScalarKind::of(self.ty(source)?).is_some() {
-                self.push_constraint(Constraint {
-                    relation: Relation::Writable,
-                    left: source,
-                    right: target,
-                    origin,
-                    condition: Condition::Always,
-                    cause,
-                });
-            }
-
-            return Ok(());
-        }
-
-        self.record_coercion(node, source, target)
-    }
-
-    /// Record one implicit coercion when two closed types differ in
-    /// representation.
-    pub(in crate::check) fn record_coercion(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        if !self.coerces_representation(source, target)? {
-            return Ok(());
-        }
-
-        let coercion = dir::Coercion::new(source, target, dir::CastOrigin::Implicit);
-        let previous = self.coercions.insert(node, coercion);
-        self.journal
-            .record(Mutation::CoercionSet { node, previous });
-
-        Ok(())
-    }
-
-    /// Return whether one accepted flow changes value representation.
-    pub(in crate::check) fn coerces_representation(
-        &self,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        // erasing into a dynamic container boxes the value
-        if matches!(self.ty(target)?, dir::Type::Dynamic(_))
-            && !matches!(self.ty(source)?, dir::Type::Dynamic(_))
-        {
-            return Ok(true);
-        }
-
-        // scalar values materialize at their target kind
-        let (Some(source), Some(target)) = (
-            ScalarKind::of(self.ty(source)?),
-            ScalarKind::of(self.ty(target)?),
-        ) else {
-            return Ok(false);
-        };
-
-        Ok(source != target)
     }
 
     /// Match one relation between two types, bounding open variables.
@@ -156,8 +53,8 @@ impl CheckState<'_> {
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         // substitute solved variables before comparing
-        let left = self.shallow_resolve(left)?;
-        let right = self.shallow_resolve(right)?;
+        let left = self.resolve_shallow(left)?;
+        let right = self.resolve_shallow(right)?;
         let left_variable = self.root_variable(left)?;
         let right_variable = self.root_variable(right)?;
 
@@ -266,7 +163,7 @@ impl CheckState<'_> {
             _ => None,
         };
         if let Some((source_element, target_element, count)) = fixed_fill {
-            let count = self.shallow_resolve(count)?;
+            let count = self.resolve_shallow(count)?;
             let fillable = match self.fresh_array_literal_length(left)? {
                 // open counts solve to the literal length
                 Some(length) => match self.root_variable(count)? {
@@ -507,7 +404,7 @@ impl CheckState<'_> {
     /// substituted (see `set_solution`), so the loop settles in one step; it
     /// stays a loop only to stay correct if that ever changes. Nested variables
     /// are left intact: this resolves the top, not the whole tree.
-    pub(in crate::check) fn shallow_resolve(
+    pub(in crate::check) fn resolve_shallow(
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -650,7 +547,7 @@ impl CheckState<'_> {
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<DiagnosticAnchor>> {
-        let id = self.shallow_resolve(id)?;
+        let id = self.resolve_shallow(id)?;
 
         // only component modules carry anchorable source
         let Some(module) = self.modules.get(&id.module_id) else {
@@ -674,10 +571,10 @@ impl CheckState<'_> {
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Option<String>> {
         // peel the literal's managed wrapper
-        let left = self.shallow_resolve(left)?;
+        let left = self.resolve_shallow(left)?;
         let left = match self.ty(left)? {
             dir::Type::Form(form) if form.form == dir::Form::Managed => {
-                self.shallow_resolve(form.value)?
+                self.resolve_shallow(form.value)?
             }
             _ => left,
         };
@@ -750,7 +647,7 @@ impl CheckState<'_> {
             }
             // form wrappers accept what their payloads accept
             dir::Type::Form(form) => {
-                let value = self.shallow_resolve(form.value)?;
+                let value = self.resolve_shallow(form.value)?;
 
                 self.accepted_property_keys(origin, value)
             }

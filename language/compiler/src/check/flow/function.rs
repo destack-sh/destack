@@ -46,7 +46,7 @@ impl WalkState<'_, '_> {
         // attach capture directive from source metadata
         capture.directive = self.check.capture_directive_for_symbol(capture.symbol)?;
 
-        // commit capture result
+        // store capture result
         self.check.module_mut(self.module).captures.push(capture);
 
         Ok(())

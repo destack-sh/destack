@@ -109,13 +109,19 @@ impl CheckState<'_> {
         {
             let symbol = *symbol;
             if matches!(self.symbol_kind(symbol), dir::SymbolKind::Newtype) {
-                return self.select_newtype_construct(node, origin, symbol, &arguments);
+                return self.select_newtype_construct(
+                    node,
+                    origin,
+                    symbol,
+                    argument_nodes,
+                    &arguments,
+                );
             }
         }
 
         // union receivers must hold for every variant
         if callees.universal {
-            return self.select_union_call(node, origin, &candidates, &arguments);
+            return self.select_union_call(node, origin, argument_nodes, &candidates, &arguments);
         }
 
         // try candidates in declaration order
@@ -123,9 +129,11 @@ impl CheckState<'_> {
             let attempt = self.attempt_call(
                 origin,
                 node,
+                module,
                 candidate.symbol,
                 candidate.receiver,
                 candidate.ty,
+                argument_nodes,
                 &arguments,
             )?;
 
@@ -402,9 +410,11 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         node: dir::GlobalNodeIdAny,
+        module: destack_source::ModuleId,
         symbol: Option<dir::GlobalSymbolId>,
         receiver: Option<dir::GlobalTypeId>,
         function_type: dir::GlobalTypeId,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<bool>> {
         let attempt = self.attempt_callable(origin, symbol, function_type, arguments)?;
@@ -423,6 +433,7 @@ impl CheckState<'_> {
                     },
                 };
                 let resolution = dir::CallResolution::new(target, parameters, return_type);
+                self.push_argument_constraints(module, argument_nodes, &resolution.parameters)?;
                 self.record_decision(node, Decision::Call(resolution))?;
 
                 // flow the return type into the call node variable
@@ -524,6 +535,7 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeIdAny,
         origin: Origin,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         candidates: &[CalleeCandidate],
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<()>> {
@@ -565,7 +577,7 @@ impl CheckState<'_> {
                 arguments: Vec::new(),
             });
             // join by content: variant returns allocate distinct ids
-            let return_type = self.shallow_resolve(return_type)?;
+            let return_type = self.resolve_shallow(return_type)?;
             let mut duplicate = false;
             for seen in returns.iter().copied() {
                 if self.ty(seen)? == self.ty(return_type)? {
@@ -598,6 +610,7 @@ impl CheckState<'_> {
             parameters.unwrap_or_default(),
             return_type,
         );
+        self.push_argument_constraints(origin.module(), argument_nodes, &resolution.parameters)?;
         self.record_decision(node, Decision::Call(resolution))?;
 
         // flow the joined return into the call node variable
@@ -693,6 +706,54 @@ impl CheckState<'_> {
             .collect::<CompilerResult<SmallVec<[_; 4]>>>()?;
 
         Ok(Answer::Ready(Some((parameters, return_type))))
+    }
+
+    /// Push final argument constraints for one selected signature.
+    pub(in crate::check) fn push_argument_constraints(
+        &mut self,
+        module: destack_source::ModuleId,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        parameters: &[dir::GlobalTypeId],
+    ) -> CompilerResult<()> {
+        for (index, argument) in argument_nodes.iter().copied().enumerate() {
+            let Some(parameter) = parameters.get(index).or_else(|| parameters.last()) else {
+                continue;
+            };
+            let Some(value) = self.argument_value_node(module, argument) else {
+                continue;
+            };
+            let Some(source) = self.node_type(value) else {
+                return Err(CompilerError::Internal {
+                    message: format!("argument value {value:?} has no input type"),
+                });
+            };
+
+            self.push_constraint(Constraint {
+                relation: Relation::Assignable,
+                left: source,
+                right: *parameter,
+                origin: Origin::Node(value),
+                condition: Condition::Always,
+                cause: ConstraintCause::Argument,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Return the value expression carried by one argument node.
+    fn argument_value_node(
+        &self,
+        module: destack_source::ModuleId,
+        argument: dir::LocalNodeId<dir::Argument>,
+    ) -> Option<dir::GlobalNodeIdAny> {
+        match self.module(module).view().get(argument) {
+            dir::Argument::Spread { value, .. }
+            | dir::Argument::Positional { value }
+            | dir::Argument::Named { value, .. }
+            | dir::Argument::Labeled { value, .. } => Some(value.into_global_any(module)),
+            dir::Argument::Error => None,
+        }
     }
 
     /// Drop pending dependencies that died with an unwound probe.

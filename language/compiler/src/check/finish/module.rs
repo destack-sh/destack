@@ -1,15 +1,17 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 
-use crate::CompilerResult;
-use crate::check::{Answer, CheckError, CheckState, Decision, Origin};
+use crate::check::{
+    Answer, CheckError, CheckState, Condition, Constraint, ConstraintId, Decision, Origin, Relation,
+};
+use crate::{CompilerError, CompilerResult};
 
 use super::CheckModuleOutput;
 
-/// One module's resolved commit rows.
-pub(in crate::check) struct ModuleCommit {
-    /// The committed module.
+/// One module's final checked rows.
+pub(in crate::check) struct ModuleRows {
+    /// The module that owns these rows.
     module: ModuleId,
     /// Variable entries patched with their solution types.
     patches: Vec<(dir::LocalTypeId, dir::Type)>,
@@ -17,7 +19,6 @@ pub(in crate::check) struct ModuleCommit {
     node_types: Vec<(dir::GlobalNodeIdAny, dir::GlobalTypeId)>,
     /// Resolved symbol types.
     symbol_types: Vec<(dir::GlobalSymbolId, dir::GlobalTypeId)>,
-    // TODO #Suspicious Cleanup: wht are "definition_values" and "symbol_literals" in commit about..?
     /// Resolved alias definition values.
     definition_values: Vec<(dir::GlobalSymbolId, dir::GlobalTypeId)>,
     /// Resolved literal symbol values.
@@ -26,39 +27,38 @@ pub(in crate::check) struct ModuleCommit {
     coercions: Vec<(dir::GlobalNodeIdAny, dir::Coercion)>,
 }
 
-impl ModuleCommit {
-    /// Return the committed module.
+impl ModuleRows {
+    /// Return the module that owns these rows.
     pub(in crate::check) fn module(&self) -> ModuleId {
         self.module
     }
 }
 
 impl CheckState<'_> {
-    /// Read one module's commit rows against live working state.
-    pub(in crate::check) fn module_commit(
-        &mut self,
-        module: ModuleId,
-    ) -> CompilerResult<ModuleCommit> {
-        Ok(ModuleCommit {
+    /// Read one module's final rows against live working state.
+    pub(in crate::check) fn module_rows(&mut self, module: ModuleId) -> CompilerResult<ModuleRows> {
+        let (contextual, coercions) = self.derive_node_rows(module)?;
+
+        Ok(ModuleRows {
             module,
-            patches: self.commit_variable_patches(module)?,
-            node_types: self.commit_node_types(module)?,
-            symbol_types: self.commit_symbol_types(module)?,
-            definition_values: self.commit_definition_values(module)?,
-            symbol_literals: self.commit_symbol_literals(module)?,
-            coercions: self.commit_coercions(module)?,
+            patches: self.finish_variable_patches(module)?,
+            node_types: self.finish_node_types(module, &contextual)?,
+            symbol_types: self.finish_symbol_types(module)?,
+            definition_values: self.finish_definition_values(module)?,
+            symbol_literals: self.finish_symbol_literals(module)?,
+            coercions,
         })
     }
 
-    /// Commit one module's solved state into output DIR tables.
-    pub(in crate::check) fn commit_module(
+    /// Finish one module's solved state into output DIR tables.
+    pub(in crate::check) fn finish_module(
         &mut self,
-        commit: ModuleCommit,
+        rows: ModuleRows,
     ) -> CompilerResult<CheckModuleOutput> {
-        let module = commit.module;
+        let module = rows.module;
         let mut output = CheckModuleOutput::new(module, self.module(module));
 
-        // move the open overlays out into the committed output
+        // move the open overlays out into the final output
         let state = self.module_mut(module);
         output.types = state.take_types();
         output.definitions = state.take_definitions();
@@ -68,12 +68,12 @@ impl CheckState<'_> {
         }
 
         // patch open variable entries with their solution types
-        for (local, patched) in commit.patches {
+        for (local, patched) in rows.patches {
             output.types.update_type(local, patched);
         }
 
-        // alias definition values commit evaluated like their symbol types
-        for (symbol, value) in commit.definition_values {
+        // alias definition values finish evaluated like their symbol types
+        for (symbol, value) in rows.definition_values {
             if let Some(dir::Definition::TypeAlias(definition)) =
                 output.definitions.definition_mut(symbol)
             {
@@ -82,20 +82,20 @@ impl CheckState<'_> {
         }
 
         // record inferred node and symbol types
-        for (node, ty) in commit.node_types {
+        for (node, ty) in rows.node_types {
             output.types.set_node_type(node, ty);
         }
-        for (symbol, ty) in commit.symbol_types {
+        for (symbol, ty) in rows.symbol_types {
             output.types.set_symbol_type(symbol, ty);
         }
 
         // record implicit coercions beside their value nodes
-        for (node, coercion) in commit.coercions {
+        for (node, coercion) in rows.coercions {
             output.coercions.bind_coercion(node, coercion);
         }
 
-        // symbol values materialize as committed statics
-        for (symbol, literal) in commit.symbol_literals {
+        // symbol values materialize as final statics
+        for (symbol, literal) in rows.symbol_literals {
             let id = output
                 .statics
                 .push_static(dir::StaticTerm::ScalarLiteral { value: literal });
@@ -115,7 +115,7 @@ impl CheckState<'_> {
     /// Resolve every solved variable entry in one live working segment.
     /// Unsolved variables patch to the error type, their diagnostics
     /// come from the unsolved sweep.
-    fn commit_variable_patches(
+    fn finish_variable_patches(
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<Vec<(dir::LocalTypeId, dir::Type)>> {
@@ -138,7 +138,7 @@ impl CheckState<'_> {
             let solution = self.variables.solution(representative)?;
             let patched = match solution {
                 Some(solution) => {
-                    let solved = self.shallow_resolve(solution)?;
+                    let solved = self.resolve_shallow(solution)?;
 
                     self.ty(solved)?.clone()
                 }
@@ -174,28 +174,33 @@ impl CheckState<'_> {
     }
 
     /// Resolve one module's recorded node types.
-    fn commit_node_types(
+    fn finish_node_types(
         &mut self,
         module: ModuleId,
+        contextual: &IndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
     ) -> CompilerResult<Vec<(dir::GlobalNodeIdAny, dir::GlobalTypeId)>> {
         let node_types = self.module(module).types.node_types().collect::<Vec<_>>();
         let mut resolved = Vec::with_capacity(node_types.len());
         for (node, ty) in node_types {
-            resolved.push((node, self.shallow_resolve(ty)?));
+            let ty = contextual
+                .get(&node)
+                .copied()
+                .unwrap_or(self.resolve_shallow(ty)?);
+            resolved.push((node, ty));
         }
 
         Ok(resolved)
     }
 
-    /// Resolve one committed type to its evaluated canonical form.
-    /// Commit stores answers: alias applications and preserved type
+    /// Resolve one finished type to its evaluated canonical form.
+    /// Finish stores answers: alias applications and preserved type
     /// operations reduce before the tables seal.
-    fn commit_type(
+    fn finish_type(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = self.shallow_resolve(ty)?;
+        let ty = self.resolve_shallow(ty)?;
         match self.evaluate_root(origin, ty)? {
             Answer::Ready(evaluated) => Ok(evaluated),
             // unevaluable forms keep their resolved spelling
@@ -203,46 +208,152 @@ impl CheckState<'_> {
         }
     }
 
-    /// Resolve one module's recorded implicit coercions.
-    fn commit_coercions(
+    /// Derive one module's implicit coercions from solved constraints.
+    pub(in crate::check) fn derive_coercions(
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<Vec<(dir::GlobalNodeIdAny, dir::Coercion)>> {
-        let coercions = self
-            .coercions
+        let (_, coercions) = self.derive_node_rows(module)?;
+
+        Ok(coercions)
+    }
+
+    /// Derive final node rows from solved assignment constraints.
+    fn derive_node_rows(
+        &mut self,
+        module: ModuleId,
+    ) -> CompilerResult<(
+        IndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
+        Vec<(dir::GlobalNodeIdAny, dir::Coercion)>,
+    )> {
+        let constraints = self
+            .constraints
             .iter()
-            .filter(|(node, _)| node.module_id == module)
-            .map(|(node, coercion)| (*node, *coercion))
+            .map(|(id, constraint)| (id, constraint.clone()))
             .collect::<Vec<_>>();
-        let mut resolved = Vec::with_capacity(coercions.len());
-        for (node, coercion) in coercions {
-            resolved.push((
-                node,
-                dir::Coercion::new(
-                    self.shallow_resolve(coercion.source)?,
-                    self.shallow_resolve(coercion.target)?,
-                    coercion.origin,
-                ),
-            ));
+        let mut contextual = IndexMap::new();
+        let mut coercions = IndexMap::new();
+
+        for (id, constraint) in constraints {
+            let Some((node, source, target)) =
+                self.node_constraint_types(module, id, &constraint)?
+            else {
+                continue;
+            };
+
+            match self.decide_relation(constraint.origin, constraint.relation, source, target)? {
+                Answer::Ready(true) => {}
+                Answer::Ready(false) => continue,
+                Answer::Pending(blockers) => {
+                    return Err(CompilerError::Internal {
+                        message: format!("finished node relation is still pending: {blockers:?}"),
+                    });
+                }
+            }
+
+            if self.widens_to(constraint.origin, source, target)? {
+                contextual.insert(node, target);
+                continue;
+            }
+
+            match self.decide_equal(constraint.origin, source, target)? {
+                Answer::Ready(true) => {}
+                Answer::Ready(false) => {
+                    let coercion = dir::Coercion::new(source, target, dir::CastOrigin::Implicit);
+                    coercions.insert(node, coercion);
+                }
+                Answer::Pending(blockers) => {
+                    return Err(CompilerError::Internal {
+                        message: format!("finished node relation is still pending: {blockers:?}"),
+                    });
+                }
+            }
         }
 
-        Ok(resolved)
+        Ok((contextual, coercions.into_iter().collect()))
+    }
+
+    /// Return whether one finished constraint condition is active.
+    fn is_active_condition(&mut self, condition: &Condition) -> CompilerResult<bool> {
+        match condition {
+            Condition::Always => Ok(true),
+            Condition::When(predicates) => match self.decide_condition(predicates)? {
+                Answer::Ready(is_active) => Ok(is_active),
+                Answer::Pending(blockers) => Err(CompilerError::Internal {
+                    message: format!(
+                        "finished constraint condition is still pending: {blockers:?}"
+                    ),
+                }),
+            },
+        }
+    }
+
+    /// Return node, source, and target types for one completed node constraint.
+    fn node_constraint_types(
+        &mut self,
+        module: ModuleId,
+        id: ConstraintId,
+        constraint: &Constraint,
+    ) -> CompilerResult<Option<(dir::GlobalNodeIdAny, dir::GlobalTypeId, dir::GlobalTypeId)>> {
+        if !self.constraints.is_complete(id) || !self.is_active_condition(&constraint.condition)? {
+            return Ok(None);
+        }
+
+        let Origin::Node(node) = constraint.origin else {
+            return Ok(None);
+        };
+        if node.module_id != module {
+            return Ok(None);
+        }
+        if !matches!(
+            constraint.relation,
+            Relation::Assignable | Relation::Writable
+        ) {
+            return Ok(None);
+        }
+
+        let Some(node_type) = self.node_type(node) else {
+            return Ok(None);
+        };
+        let node_type = self.resolve_shallow(node_type)?;
+        let source = self.resolve_shallow(constraint.left)?;
+
+        let source = match self.evaluate_root(constraint.origin, source)? {
+            Answer::Ready(source) => source,
+            Answer::Pending(_) => return Ok(None),
+        };
+
+        match self.decide_equal(Origin::Node(node), node_type, source)? {
+            Answer::Ready(true) => {}
+            Answer::Ready(false) | Answer::Pending(_) => return Ok(None),
+        }
+
+        let target = match self.evaluate_root(constraint.origin, constraint.right)? {
+            Answer::Ready(target) => target,
+            Answer::Pending(blockers) => {
+                return Err(CompilerError::Internal {
+                    message: format!("finished node target is still pending: {blockers:?}"),
+                });
+            }
+        };
+
+        Ok(Some((node, source, target)))
     }
 
     /// Resolve one module's recorded symbol types.
-    fn commit_symbol_types(
+    fn finish_symbol_types(
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::GlobalTypeId)>> {
         let symbol_types = self.module(module).types.symbol_types().collect::<Vec<_>>();
         let mut resolved = Vec::with_capacity(symbol_types.len());
         for (symbol, ty) in symbol_types {
-            // alias values commit their evaluated answer; every other
+            // alias values finish their evaluated answer, every other
             // symbol keeps its written spelling for lazy use sites
             let ty = if self.symbol_kind(symbol) == dir::SymbolKind::TypeAlias {
-                self.commit_type(Origin::Symbol(symbol), ty)?
+                self.finish_type(Origin::Symbol(symbol), ty)?
             } else {
-                self.shallow_resolve(ty)?
+                self.resolve_shallow(ty)?
             };
             resolved.push((symbol, ty));
         }
@@ -252,8 +363,8 @@ impl CheckState<'_> {
 
     /// Resolve one module's alias definition values.
     ///
-    /// Alias values commit their evaluated answer like alias symbol types.
-    fn commit_definition_values(
+    /// Alias values finish their evaluated answer like alias symbol types.
+    fn finish_definition_values(
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::GlobalTypeId)>> {
@@ -268,14 +379,14 @@ impl CheckState<'_> {
             .collect::<Vec<_>>();
         let mut resolved = Vec::with_capacity(aliases.len());
         for (symbol, value) in aliases {
-            resolved.push((symbol, self.commit_type(Origin::Symbol(symbol), value)?));
+            resolved.push((symbol, self.finish_type(Origin::Symbol(symbol), value)?));
         }
 
         Ok(resolved)
     }
 
     /// Resolve one module's literal symbol values.
-    fn commit_symbol_literals(
+    fn finish_symbol_literals(
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::ScalarLiteral)>> {
@@ -287,7 +398,7 @@ impl CheckState<'_> {
             .collect::<Vec<_>>();
         let mut literals = Vec::new();
         for (symbol, value) in symbol_values {
-            let value = self.shallow_resolve(value)?;
+            let value = self.resolve_shallow(value)?;
             if let dir::Type::Literal(literal) = self.ty(value)? {
                 literals.push((symbol, *literal));
             }

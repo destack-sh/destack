@@ -55,8 +55,6 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) obligations: ObligationTable,
     /// Memoized relation verdicts with the in-progress cycle guard.
     pub(in crate::check) relations: RelationCache,
-    /// Implicit coercions recorded at accepted value flows.
-    pub(in crate::check) coercions: IndexMap<dir::GlobalNodeIdAny, dir::Coercion>,
     /// Scheduled solver work.
     pub(in crate::check) queue: Queue,
     /// Active static guard assumptions for the running task.
@@ -106,7 +104,6 @@ impl<'a> CheckState<'a> {
             decisions: DecisionTable::new(),
             relations: RelationCache::new(),
             evaluations: IndexMap::new(),
-            coercions: IndexMap::new(),
             assumptions: Vec::new(),
             queue: Queue::new(),
             journal: Journal::new(),

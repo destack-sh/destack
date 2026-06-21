@@ -16,7 +16,7 @@ impl CheckState<'_> {
         // resolve bounds through solved variables
         let mut resolved = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for bound in bounds {
-            let bound = self.shallow_resolve(*bound).map_err(|error| {
+            let bound = self.resolve_shallow(*bound).map_err(|error| {
                 CompilerError::Internal {
                     message: format!(
                         "best_common bound resolution failed for {variable:?} bounds={bounds:?}: {error:?}"
@@ -302,7 +302,7 @@ impl CheckState<'_> {
         if depth > 16 {
             return Ok(None);
         }
-        let id = self.shallow_resolve(id)?;
+        let id = self.resolve_shallow(id)?;
 
         match self.ty(id)? {
             // literal leaves widen to their base types
@@ -354,7 +354,7 @@ impl CheckState<'_> {
                 let mut tuple = tuple.clone();
                 let mut changed = false;
                 for element in &mut tuple.elements {
-                    let ty = self.shallow_resolve(element.ty)?;
+                    let ty = self.resolve_shallow(element.ty)?;
                     if let Some(widened) = self.widen_tree(module, source, ty, depth + 1)? {
                         element.ty = widened;
                         changed = true;
@@ -378,7 +378,7 @@ impl CheckState<'_> {
                 let mut widened = Vec::with_capacity(elements.len());
                 let mut changed = false;
                 for element in elements {
-                    let element = self.shallow_resolve(element)?;
+                    let element = self.resolve_shallow(element)?;
                     match self.widen_tree(module, source, element, depth + 1)? {
                         Some(wide) => {
                             widened.push(wide);
@@ -426,7 +426,7 @@ impl CheckState<'_> {
                 }
                 let mut shape = shape.clone();
                 for field in &mut shape.fields {
-                    let ty = self.shallow_resolve(field.ty)?;
+                    let ty = self.resolve_shallow(field.ty)?;
                     match self.widen_tree(module, source, ty, depth + 1)? {
                         Some(widened) => field.ty = widened,
                         None => field.ty = ty,
@@ -442,43 +442,132 @@ impl CheckState<'_> {
             _ => Ok(None),
         }
     }
-}
 
-/// One scalar representation family.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum ScalarKind {
-    /// Machine integers of any width.
-    Integer,
-    /// Machine floats of any width.
-    Float,
-    /// Arbitrary-precision integers.
-    Bigint,
-}
+    /// Return whether a source type widens directly to one target type.
+    pub(in crate::check) fn widens_to(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let widens = match (self.ty(source)?.clone(), self.ty(target)?.clone()) {
+            (dir::Type::Union(source), _) => self.union_widens_to(origin, &source, target)?,
+            (_, dir::Type::Union(target)) => self.widens_to_union(origin, source, &target)?,
+            _ => self.widens_to_single(source, target)?,
+        };
 
-impl ScalarKind {
-    /// Return the scalar representation family of one type.
-    pub(super) fn of(ty: &dir::Type) -> Option<ScalarKind> {
-        match ty {
-            dir::Type::Literal(literal) => Self::of_literal(literal),
-            dir::Type::Primitive(dir::PrimitiveType::Integer(_)) => Some(ScalarKind::Integer),
-            dir::Type::Primitive(dir::PrimitiveType::Float(_)) => Some(ScalarKind::Float),
-            dir::Type::Primitive(dir::PrimitiveType::Bigint) => Some(ScalarKind::Bigint),
-            dir::Type::Range(range) => range
-                .start
-                .as_ref()
-                .or(range.end.as_ref())
-                .and_then(Self::of_literal),
-            _ => None,
+        Ok(widens)
+    }
+
+    /// Return whether a source type widens directly to one non-union type.
+    fn widens_to_single(
+        &self,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let widens = match self.ty(source)? {
+            dir::Type::Literal(literal) => literal.widens_to(self.ty(target)?),
+            dir::Type::Range(range) => range.widens_to(self.ty(target)?),
+            _ => false,
+        };
+
+        Ok(widens)
+    }
+
+    /// Return whether a source type widens into one finite scalar union.
+    fn widens_to_union(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: &dir::UnionType,
+    ) -> CompilerResult<bool> {
+        let Some(domain) = self.union_scalar_domain(origin, target)? else {
+            return Ok(false);
+        };
+        if self.scalar_domain_type(origin, source)? != Some(domain) {
+            return Ok(false);
+        }
+
+        // one finite member must contain the source without a representation change
+        for element in &target.elements {
+            let element = self.evaluate_widening_type(origin, *element)?;
+            if self.widens_to_single(source, element)? {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
+    /// Return whether one finite scalar union widens into one non-union target.
+    fn union_widens_to(
+        &mut self,
+        origin: Origin,
+        source: &dir::UnionType,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        if self.union_scalar_domain(origin, source)?.is_none() {
+            return Ok(false);
+        }
+
+        // every finite member must widen to the same target representation
+        for element in &source.elements {
+            let element = self.evaluate_widening_type(origin, *element)?;
+            if !self.widens_to_single(element, target)? {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
+    /// Return the scalar storage family shared by all union elements.
+    fn union_scalar_domain(
+        &mut self,
+        origin: Origin,
+        union: &dir::UnionType,
+    ) -> CompilerResult<Option<dir::ScalarDomain>> {
+        let mut domain = None;
+        for element in &union.elements {
+            let element = self.evaluate_widening_type(origin, *element)?;
+            let Some(element_domain) = self.scalar_domain_type(origin, element)? else {
+                return Ok(None);
+            };
+
+            match domain {
+                Some(domain) if domain != element_domain => return Ok(None),
+                Some(_) => {}
+                None => domain = Some(element_domain),
+            }
+        }
+
+        Ok(domain)
+    }
+
+    /// Return one widening operand after root evaluation.
+    fn evaluate_widening_type(
+        &mut self,
+        origin: Origin,
+        element: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let element = self.resolve_shallow(element)?;
+        match self.evaluate_root(origin, element)? {
+            Answer::Ready(element) => Ok(element),
+            Answer::Pending(blockers) => Err(CompilerError::Internal {
+                message: format!("finished widening operand is still pending: {blockers:?}"),
+            }),
         }
     }
 
-    /// Return the scalar representation family of one literal.
-    fn of_literal(literal: &dir::ScalarLiteral) -> Option<ScalarKind> {
-        match literal {
-            dir::ScalarLiteral::Integer(_) => Some(ScalarKind::Integer),
-            dir::ScalarLiteral::Float(_) => Some(ScalarKind::Float),
-            dir::ScalarLiteral::Bigint(_) => Some(ScalarKind::Bigint),
-            _ => None,
-        }
+    /// Return the scalar storage family for one finite scalar type.
+    fn scalar_domain_type(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::ScalarDomain>> {
+        let ty = self.evaluate_widening_type(origin, ty)?;
+        let domain = self.ty(ty)?.scalar_domain();
+
+        Ok(domain)
     }
 }

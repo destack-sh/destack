@@ -22,7 +22,7 @@ let values = [1, 2];
 /// @type.node source=1 type=float64
 /// @type.node source=2 type=float64
 
-/// @check.stats.solve variables=2 types=10 constraints=5 obligations=0 solutions=2 bounds=3 decisions=0
+/// @check.stats.solve variables=2 types=9 constraints=3 obligations=0 solutions=2 bounds=3 decisions=0
 "#,
     );
 }
