@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use super::hash::stable_source_id;
@@ -7,7 +8,9 @@ const TARGET_DOMAIN: &[u8] = b"destack.source.target.v1";
 
 /// Stable key for one target within a package.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 #[serde(transparent)]
 pub struct TargetKey(pub u128);
 
@@ -33,7 +36,9 @@ impl TargetKey {
 ///
 /// A target represents a build output with specific settings for code generation,
 /// optimization, and output paths. Each target is associated with a profile.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 pub struct TargetId {
     /// The owning package id.
     pub package_id: PackageId,

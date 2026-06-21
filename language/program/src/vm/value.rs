@@ -1,6 +1,7 @@
 use crate::{StaticAddress, TypeId};
 use destack_heap::{HeapReference, SharedHeapReference};
 use destack_mir as mir;
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::TypeTable;
@@ -8,7 +9,7 @@ use crate::vm::error::Error;
 use crate::vm::{Cell, FramePointer, FunctionPointer, ReferenceMeta, StackPointer};
 
 /// Scalar value shape for typed vector and tensor operations.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum ScalarLayout {
     /// Signed or unsigned integers with a bit width.
     Int {
@@ -27,7 +28,7 @@ pub enum ScalarLayout {
 }
 
 /// Runtime address space for addressable values.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum AddressSpace {
     /// Local heap storage.
     Local,
@@ -44,7 +45,7 @@ pub enum AddressSpace {
 }
 
 /// Runtime value shape used for op selection.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum ValueShape {
     /// Void value.
     Void,
@@ -79,7 +80,7 @@ impl ValueShape {
 }
 
 /// Native cell layout for one load or store.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum CellLayout {
     /// Void value.
     Void,

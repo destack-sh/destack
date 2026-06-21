@@ -1,9 +1,10 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::NodeType;
 
 /// Dense metadata for one global DIR node id.
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Schema)]
 pub(crate) struct NodeIndexEntry {
     /// The packed local id and node type.
     packed: u32,

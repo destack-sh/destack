@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -11,7 +12,7 @@ const PACKAGE_KIND_URI: &[u8] = b"uri";
 
 /// Unique identifier for one source package.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema)]
 #[serde(transparent)]
 pub struct PackageId(pub u128);
 

@@ -1,4 +1,5 @@
 use destack_mir as mir;
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::vm::error::{Error, Result};
@@ -22,7 +23,7 @@ const FLOAT_KERNEL_SHIFT: u32 = 8;
 const FLOAT_FORMAT_MASK: u32 = (1 << FLOAT_KERNEL_SHIFT) - 1;
 
 /// Encoded binary float operation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct BinaryFloat {
     /// The packed instruction field.
     field: u32,
@@ -60,7 +61,7 @@ impl BinaryFloat {
 }
 
 /// Encoded unary float operation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct UnaryFloat {
     /// The packed instruction field.
     field: u32,
@@ -98,7 +99,7 @@ impl UnaryFloat {
 }
 
 /// Generic binary float kernel.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum BinaryFloatKernel {
     /// Floating-point addition.
     Add,
@@ -180,7 +181,7 @@ impl BinaryFloatKernel {
 }
 
 /// Generic unary float kernel.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum UnaryFloatKernel {
     /// Floating-point negation.
     Negate,

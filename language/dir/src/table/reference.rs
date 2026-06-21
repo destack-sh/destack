@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -6,7 +7,7 @@ use smallvec::SmallVec;
 use crate::{GlobalNodeIdAny, GlobalSymbolId};
 
 /// Name resolutions for one module, keyed by the reference node.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct ReferenceTable {
     /// The module id of the reference table.
     pub module_id: ModuleId,
@@ -40,7 +41,7 @@ impl ReferenceTable {
 }
 
 /// How one source reference resolves by name, before types and conditions apply.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum Reference {
     /// Resolved to declarations by name: lexical scope or a full namespace path.
     /// A set carries overloads, narrowed by availability and dispatch in check.

@@ -1,9 +1,10 @@
 use destack_dir::GlobalSymbolId;
+use destack_serde::Schema;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 /// Reference target membership index.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct ReferenceIndex {
     /// The reference entries ordered by target symbol.
     by_target: Vec<ReferenceEntry>,
@@ -53,7 +54,7 @@ impl ReferenceIndex {
 }
 
 /// One module's membership in one reference target set.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Schema)]
 pub struct ReferenceEntry {
     /// The referenced symbol.
     pub target_symbol: GlobalSymbolId,

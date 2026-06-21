@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -5,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{GlobalEntry, IndirectGlobalEntry, LocalGlobalEntry, LocalSymbolId, StaticKey};
 
 /// Global names contributed by one module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct GlobalTable {
     /// The module id of the global table.
     pub module_id: ModuleId,

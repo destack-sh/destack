@@ -1,7 +1,8 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 /// Native imports required by one native code payload.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct ImportTable {
     /// Native imports in linker order.
     import: Vec<Import>,
@@ -25,7 +26,7 @@ impl ImportTable {
 }
 
 /// One native import required by generated native code.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum Import {
     /// Fixed Destack runtime binding.
     Runtime(RuntimeBinding),
@@ -34,7 +35,7 @@ pub enum Import {
 }
 
 /// External linker-visible symbol import.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct SymbolImport {
     /// The imported native symbol.
     pub symbol: String,
@@ -48,7 +49,7 @@ impl SymbolImport {
 }
 
 /// Fixed Destack runtime ABI binding imported by generated native code.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum RuntimeBinding {
     /// Typed heap allocation.
     New,

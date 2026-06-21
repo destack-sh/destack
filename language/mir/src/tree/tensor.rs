@@ -1,7 +1,8 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 /// Reduction operators for tensor reductions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum TensorReduceOperator {
     /// Add all elements.
     Add,
@@ -60,7 +61,7 @@ impl std::str::FromStr for TensorReduceOperator {
 }
 
 /// Index reduction operators for tensor reductions that return indices.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum TensorIndexReduceOperator {
     /// Return the index of the minimum element.
     Min,
@@ -99,7 +100,7 @@ impl std::str::FromStr for TensorIndexReduceOperator {
 }
 
 /// Tie-breaking behavior for tensor index reductions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum TensorIndexTieBreak {
     /// Return the first matching index.
     First,
@@ -138,7 +139,7 @@ impl std::str::FromStr for TensorIndexTieBreak {
 }
 
 /// Update modes for tensor scatter operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum TensorScatterMode {
     /// Replace the destination element.
     Replace,
@@ -201,7 +202,7 @@ impl std::str::FromStr for TensorScatterMode {
 }
 
 /// Conversion modes for tensor element conversions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum TensorConvertMode {
     /// Require exact conversion with no rounding or saturation.
     Exact,
@@ -256,7 +257,7 @@ impl std::str::FromStr for TensorConvertMode {
 }
 
 /// Dimension numbers for tensor dot operations.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct TensorDotDimensionNumbers {
     /// Batch dimensions on the left operand.
     pub lhs_batch: Vec<u32>,
@@ -269,7 +270,7 @@ pub struct TensorDotDimensionNumbers {
 }
 
 /// Dimension numbers for tensor convolution operations.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct TensorConvolutionDimensionNumbers {
     /// Batch dimension for the input tensor.
     pub input_batch: u32,
@@ -292,7 +293,7 @@ pub struct TensorConvolutionDimensionNumbers {
 }
 
 /// Window parameters for tensor convolution.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct TensorConvolutionWindow {
     /// Stride for each spatial dimension.
     pub strides: Vec<u64>,
@@ -309,7 +310,7 @@ pub struct TensorConvolutionWindow {
 }
 
 /// Dimension numbers for tensor gather operations.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct TensorGatherDimensionNumbers {
     /// Offset dimensions in the output.
     pub offset_dims: Vec<u32>,
@@ -322,7 +323,7 @@ pub struct TensorGatherDimensionNumbers {
 }
 
 /// Dimension numbers for tensor scatter operations.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct TensorScatterDimensionNumbers {
     /// Dimensions of the update window in the updates tensor.
     pub update_window_dims: Vec<u32>,

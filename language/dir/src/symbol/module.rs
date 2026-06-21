@@ -1,10 +1,13 @@
+use destack_serde::Schema;
 use destack_source::{Loader, ModuleId};
 use serde::{Deserialize, Serialize};
 
 use crate::{GlobalNodeIdAny, StringId};
 
 /// The relation declared by a resolved module import edge.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord, Schema,
+)]
 pub enum ModuleRelation {
     /// Binding import.
     Import,
@@ -13,7 +16,7 @@ pub enum ModuleRelation {
 }
 
 /// One resolved module import edge.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct ModuleEdge {
     /// The DIR node that declared the dependency.
     pub source: GlobalNodeIdAny,

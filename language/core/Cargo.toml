@@ -13,6 +13,7 @@ doctest = false
 
 [dependencies]
 blake3 = { workspace = true }
+destack_serde = { workspace = true }
 parking_lot = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

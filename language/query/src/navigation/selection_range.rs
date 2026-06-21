@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -7,7 +8,7 @@ use crate::core::{ModuleQueryContext, QueryModule};
 /// A selection range with parent.
 ///
 /// Represents a range that can be expanded to its parent syntactic element.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct SelectionRange {
     /// The range of this selection.
     pub range: Span,
@@ -42,7 +43,7 @@ impl SelectionRange {
 }
 
 /// Request selection ranges for positions in a document.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct SelectionRangesRequest {
     /// The queried module.
     pub module: QueryModule,
@@ -51,7 +52,7 @@ pub struct SelectionRangesRequest {
 }
 
 /// Response payload for selection ranges queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct SelectionRangesResponse {
     /// Selection ranges.
     pub ranges: Vec<SelectionRange>,

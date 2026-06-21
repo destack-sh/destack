@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use destack_source::ModuleId;
@@ -5,7 +6,7 @@ use destack_source::ModuleId;
 use crate::{FunctionSignature, GlobalTypeId, ScalarLiteral, StaticKey};
 
 /// Concrete static value produced by checked static evaluation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum StaticTerm {
     /// Scalar literal.
     ScalarLiteral { value: ScalarLiteral },
@@ -43,7 +44,7 @@ impl From<ScalarLiteral> for StaticTerm {
 }
 
 /// Static object property in a checked static context.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum StaticProperty {
     /// Static field.
     Field {
@@ -70,7 +71,9 @@ pub enum StaticProperty {
 
 /// Unique identifier for a local static value.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 pub struct LocalStaticId(pub u32);
 
 impl LocalStaticId {
@@ -89,7 +92,9 @@ impl LocalStaticId {
 }
 
 /// Global static id across modules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+)]
 pub struct GlobalStaticId {
     /// The module id of the global static value.
     pub module_id: ModuleId,

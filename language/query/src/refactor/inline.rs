@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::collections::{HashMap, HashSet};
 
 use destack_core::StringPool;
@@ -10,14 +11,14 @@ use crate::dir::{SymbolReferenceSearch, member_key_name};
 use crate::source::{is_simple_identifier, line_start_for_offset};
 
 /// Request payload for inline refactor queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct InlineRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
 /// Response payload for inline refactor queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct InlineResponse {
     /// Inline edit, if available.
     pub edit: Option<BatchEdit>,

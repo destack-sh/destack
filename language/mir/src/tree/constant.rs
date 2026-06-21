@@ -1,9 +1,10 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::FloatType;
 
 /// A compile-time constant value in MIR.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum Constant {
     /// Null reference constant.
     Null,

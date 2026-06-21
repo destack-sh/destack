@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicU8, AtomicU64, AtomicUsize, Ordering};
 
@@ -504,7 +505,7 @@ impl SmallSpan {
 }
 
 /// One frozen shared heap small-span image.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub(crate) struct SmallSpanImage {
     /// The first byte offset inside shared heap storage.
     pub first_offset: usize,

@@ -1,11 +1,12 @@
 use destack_dir as dir;
+use destack_serde::Schema;
 use destack_source::{FileId, ModuleId, Span};
 use serde::{Deserialize, Serialize};
 
 use super::Name;
 
 /// Searchable symbol declaration index.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct SymbolIndex {
     /// The symbol entries in stable display order.
     entries: Vec<SymbolEntry>,
@@ -44,7 +45,7 @@ impl SymbolIndex {
 }
 
 /// Searchable workspace symbol entry.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct SymbolEntry {
     /// The display name.
     pub name: Name,
@@ -76,7 +77,7 @@ impl SymbolEntry {
 }
 
 /// Searchable workspace symbol kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Schema)]
 pub enum SymbolKind {
     /// Namespace symbol.
     Namespace,

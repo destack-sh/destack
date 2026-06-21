@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -7,7 +8,7 @@ use crate::{
 };
 
 /// Variance annotation for generic parameters.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum VarianceModifier {
     /// Contravariant parameter.
     In,
@@ -29,7 +30,7 @@ impl VarianceModifier {
 }
 
 /// The special role of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum FunctionRole {
     /// Getter function.
     Getter,
@@ -44,7 +45,7 @@ pub enum FunctionRole {
 }
 
 /// A nominal member slot.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum MemberSlot {
     /// Property keyed by a static key.
     Key(StaticKey),
@@ -84,7 +85,7 @@ impl MemberSlot {
 }
 
 /// The abstraction mode of a class method.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Schema)]
 pub enum MethodAbstraction {
     /// A non-overridable concrete method.
     #[default]
@@ -104,7 +105,7 @@ impl MethodAbstraction {
 }
 
 /// A property of an object-like literal.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum Property {
     /// Named field.
     Field {
@@ -166,7 +167,7 @@ impl Property {
 }
 
 /// A member of a declaration body.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum Member {
     /// Associated type alias.
     AssociatedType {

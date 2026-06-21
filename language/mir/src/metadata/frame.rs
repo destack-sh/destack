@@ -1,17 +1,18 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{LocalNodeId, Type};
 
 /// Logical frame state id at a resumable MIR point.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct FrameStateId(pub u32);
 
 /// One physical frame layout.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct FrameLayoutId(pub u32);
 
 /// One physical frame slot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct FrameSlotId(pub u32);
 
 impl From<u32> for FrameStateId {
@@ -57,7 +58,7 @@ impl From<FrameSlotId> for u32 {
 }
 
 /// Physical execution frame layout and materialization metadata.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct FrameTable {
     /// Frame materializations by frame state id.
     pub materializations: Vec<FrameMaterialization>,
@@ -78,7 +79,7 @@ impl FrameTable {
 }
 
 /// Physical storage slot inside one frame.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct FrameSlot {
     /// The byte offset from the frame base.
     pub offset: u32,
@@ -91,7 +92,7 @@ pub struct FrameSlot {
 }
 
 /// Physical byte layout for one frame.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct FrameLayout {
     /// Slots in frame order.
     pub slots: Vec<FrameSlot>,
@@ -199,7 +200,7 @@ impl FrameLayout {
 }
 
 /// Plan for reconstructing one execution frame.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct FrameMaterialization {
     /// The reconstructed frame layout.
     pub frame_layout: FrameLayoutId,

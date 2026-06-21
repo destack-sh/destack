@@ -489,7 +489,7 @@ impl ArtifactSegmentWriteError {
 impl ArtifactSegment {
     /// Encode this artifact segment.
     pub(super) fn encode(&self) -> Result<Vec<u8>, ArtifactStoreError> {
-        let bytes = postcard::to_allocvec(self)
+        let bytes = destack_serde::to_vec(self)
             .map_err(|error| ArtifactStoreError::Codec(Box::new(error)))?;
         let actual = bytes.len() as u64;
         if actual > MAX_BLOB_BYTES {
@@ -504,7 +504,7 @@ impl ArtifactSegment {
 
     /// Decode one artifact segment.
     pub(super) fn decode(bytes: &[u8]) -> Result<Self, ArtifactStoreError> {
-        postcard::from_bytes(bytes).map_err(|error| ArtifactStoreError::Codec(Box::new(error)))
+        destack_serde::from_slice(bytes).map_err(|error| ArtifactStoreError::Codec(Box::new(error)))
     }
 
     /// Insert all records from this segment into an index.

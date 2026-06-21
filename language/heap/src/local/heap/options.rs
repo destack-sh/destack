@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use destack_mir::TraceId;
@@ -16,7 +17,7 @@ use crate::{
 };
 
 /// The configuration for one heap instance.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct HeapOptions {
     /// The collector configuration.
     pub gc: GcOptions,

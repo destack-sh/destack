@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -5,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{GlobalSymbolId, LanguageItem, LocalSymbolId, StaticKey};
 
 /// Resolved import targets for one module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct ImportTable {
     /// The module id of the import table.
     pub module_id: ModuleId,
@@ -95,7 +96,7 @@ impl ImportTable {
 }
 
 /// Target selected by one import binding.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum ImportTarget {
     /// A symbol exported by a target module.
     Symbol(GlobalSymbolId),

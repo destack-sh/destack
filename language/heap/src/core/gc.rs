@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{HeapConfigurationError, HeapError, HeapResult};
@@ -16,7 +17,7 @@ const GC_WORK_ESTIMATE_OLD_WEIGHT: u64 = 7;
 const GC_WORK_ESTIMATE_WEIGHT_TOTAL: u64 = 8;
 
 /// Collector configuration for one heap.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct GcOptions {
     /// The proportional heap growth target after one cycle.
     pub growth_percent: u32,
@@ -76,7 +77,7 @@ impl GcOptions {
 }
 
 /// Derived pacing targets for one heap collector.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Schema)]
 pub struct GcPacer {
     /// The live heap bytes used to derive the current targets.
     pub live_bytes: u64,
@@ -93,7 +94,7 @@ pub struct GcPacer {
 }
 
 /// GC pressure requested by one pacer snapshot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum GcPressure {
     /// No collection work is currently requested.
     Idle,
@@ -276,7 +277,7 @@ fn smooth_work_estimate(previous_bytes: u64, observed_bytes: u64) -> u64 {
 }
 
 /// Scope of one garbage collection cycle.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum GcKind {
     /// One full heap collection.
     Full,
@@ -285,7 +286,7 @@ pub enum GcKind {
 }
 
 /// Summary statistics for a garbage collection cycle.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct GcStats {
     /// Number of blocks freed by the collection.
     pub freed_allocations: usize,
@@ -300,7 +301,7 @@ pub struct GcStats {
 }
 
 /// Result of one bounded collector increment.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum GcProgress {
     /// No collector work was available.
     #[default]
@@ -327,7 +328,7 @@ impl GcProgress {
 }
 
 /// GC summary tracked across collection cycles.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default, Schema)]
 pub struct GcState {
     /// Number of completed GC cycles.
     pub completed_cycles: u64,

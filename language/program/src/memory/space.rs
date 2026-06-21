@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -25,7 +26,7 @@ pub struct NativeStaticSpace {
 }
 
 /// Static memory.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct StaticSpace {
     /// The static bytes.
     bytes: Box<[u8]>,

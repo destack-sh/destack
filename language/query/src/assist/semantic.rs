@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_serde::Schema;
 use destack_source::{NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +9,7 @@ use crate::core::{ModuleQueryContext, QueryModule, QueryRange};
 ///
 /// Maps to LSP's SemanticTokenTypes. More granular than lexical highlighting
 /// because we have resolution information from DIR.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum SemanticTokenType {
     Namespace,
     Type,
@@ -38,7 +39,7 @@ pub enum SemanticTokenType {
 /// Semantic token modifiers (can be combined as a bitset).
 ///
 /// Maps to LSP's SemanticTokenModifiers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Schema)]
 #[serde(transparent)]
 pub struct SemanticTokenModifiers(u32);
 
@@ -70,7 +71,7 @@ impl SemanticTokenModifiers {
 }
 
 /// A single semantic token.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct SemanticToken {
     /// The span of the token.
     pub span: Span,
@@ -96,21 +97,21 @@ impl SemanticToken {
 }
 
 /// Request semantic tokens for a document.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct SemanticTokensRequest {
     /// The queried module.
     pub module: QueryModule,
 }
 
 /// Request semantic tokens for a document range.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct SemanticTokensRangeRequest {
     /// The queried range.
     pub range: QueryRange,
 }
 
 /// Response payload for semantic tokens queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct SemanticTokensResponse {
     /// Semantic tokens.
     pub tokens: Vec<SemanticToken>,

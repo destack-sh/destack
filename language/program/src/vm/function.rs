@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::collections::HashMap;
 
 use destack_mir as mir;
@@ -8,7 +9,7 @@ use crate::FunctionId;
 use super::{ArgumentRange, Instruction, MovePair, MoveRange};
 
 /// Lowered function with executable code and frame metadata.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Schema)]
 pub struct Function {
     /// Runtime function id.
     pub function: FunctionId,
@@ -39,7 +40,7 @@ impl Function {
 }
 
 /// Lowered function registry owned by one program.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Schema)]
 pub struct FunctionTable {
     /// Lowered functions by dense index.
     functions: Vec<Function>,
@@ -83,7 +84,7 @@ impl FunctionTable {
 }
 
 /// Program call target for one function id.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum CallTarget {
     /// The function id names one imported function.
     Import,
@@ -92,7 +93,7 @@ pub enum CallTarget {
 }
 
 /// Lowered basic block position inside one function.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Schema)]
 pub struct Block {
     /// Original MIR block id.
     pub mir_block: mir::LocalNodeId<mir::Block>,
@@ -105,7 +106,7 @@ pub struct Block {
 }
 
 /// Instruction bytes emitted for one block during lowering.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Schema)]
 pub struct BlockCode {
     /// Original MIR block id.
     pub mir_block: mir::LocalNodeId<mir::Block>,
@@ -116,7 +117,7 @@ pub struct BlockCode {
 }
 
 /// One lowered switch case.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Schema)]
 pub struct SwitchCase {
     /// Match value.
     pub value: i128,

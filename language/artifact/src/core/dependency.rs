@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::hash::Hash;
 
 use destack_core::StableHasher;
@@ -7,7 +8,9 @@ use serde::{Deserialize, Serialize};
 use crate::{ArtifactKey, ArtifactVersion};
 
 /// One exact source file content observed while building an artifact.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 pub struct SourceDependency {
     /// The source file id.
     pub file: FileId,
@@ -17,7 +20,9 @@ pub struct SourceDependency {
 
 /// Stable fingerprint of one observed artifact projection.
 #[repr(transparent)]
-#[derive(Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 pub struct ArtifactProjectionFingerprint(u128);
 
 impl std::fmt::Debug for ArtifactProjectionFingerprint {
@@ -38,8 +43,8 @@ impl ArtifactProjectionFingerprint {
     }
 
     /// Build one artifact projection fingerprint from a serialized artifact payload value.
-    pub fn from_serialized_payload<T: Serialize>(value: &T) -> Result<Self, postcard::Error> {
-        let bytes = postcard::to_allocvec(value)?;
+    pub fn from_serialized_payload<T: Serialize>(value: &T) -> Result<Self, destack_serde::Error> {
+        let bytes = destack_serde::to_vec(value)?;
         let mut hasher = StableHasher::new();
 
         hasher.update_len_prefixed(b"destack.artifact.projection.payload.v1");
@@ -50,7 +55,9 @@ impl ArtifactProjectionFingerprint {
 }
 
 /// One observable projection of a component graph artifact.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 pub enum ComponentGraphProjection {
     /// The component containing one module.
     ComponentOf(ModuleId),
@@ -63,7 +70,9 @@ pub enum ComponentGraphProjection {
 }
 
 /// One observable projection of an artifact payload.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 pub enum ArtifactProjectionKey {
     /// A component graph projection.
     ComponentGraph(ComponentGraphProjection),
@@ -78,7 +87,9 @@ impl From<ComponentGraphProjection> for ArtifactProjectionKey {
 }
 
 /// One artifact projection selected by owner artifact and projection key.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 pub struct ArtifactProjection {
     /// The artifact that owns the projected payload.
     pub artifact: ArtifactKey,
@@ -97,7 +108,9 @@ impl ArtifactProjection {
 }
 
 /// One exact projected artifact value observed while building an artifact.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 pub struct ArtifactProjectionDependency {
     /// The exact artifact version that supplied the projected value.
     pub version: ArtifactVersion,
@@ -207,7 +220,7 @@ impl ArtifactDependencySet {
 }
 
 /// One exact dependency read while building an artifact.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema)]
 pub enum ArtifactDependency {
     /// Another exact artifact version.
     Artifact(ArtifactVersion),

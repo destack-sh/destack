@@ -1,9 +1,10 @@
 use destack_dir::GlobalSymbolId;
+use destack_serde::Schema;
 use destack_source::{FileId, ModuleId, Span};
 use serde::{Deserialize, Serialize};
 
 /// Call graph index.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct CallIndex {
     /// The call entries ordered by callee symbol.
     by_callee: Vec<CallEntry>,
@@ -78,7 +79,7 @@ impl CallIndex {
 }
 
 /// Call graph edge entry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct CallEntry {
     /// The module containing the call.
     pub module_id: ModuleId,

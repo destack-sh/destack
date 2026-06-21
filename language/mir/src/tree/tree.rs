@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 
@@ -23,7 +24,7 @@ fn empty_source_span() -> Span {
 }
 
 /// Dense metadata for one MIR node id.
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Schema)]
 pub(crate) struct NodeIndexEntry {
     /// The packed local id and node type.
     packed: u32,
@@ -87,7 +88,7 @@ impl NodeIndexEntry {
 }
 
 /// MIR tree for a single unit.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Schema)]
 pub struct Tree {
     /// The first global node id stored in this tree.
     pub(crate) first_global_id: u32,

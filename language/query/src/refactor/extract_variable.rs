@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use destack_source::{BatchEdit, Edit, FileEdit, Span};
 use serde::{Deserialize, Serialize};
 
@@ -6,7 +7,7 @@ use crate::core::{ModuleQueryContext, QueryRange};
 use crate::source::is_simple_identifier;
 
 /// Request payload for extract variable queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ExtractVariableRequest {
     /// The selected source range.
     pub range: QueryRange,
@@ -15,7 +16,7 @@ pub struct ExtractVariableRequest {
 }
 
 /// Response payload for extract variable queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ExtractVariableResponse {
     /// Extract variable edit, if available.
     pub edit: Option<BatchEdit>,

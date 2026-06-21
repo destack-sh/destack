@@ -1,16 +1,17 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{Name, ScalarLiteral};
 
 /// The kind of one import attribute clause.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum ImportAttributeClauseKind {
     /// The standard `with` attribute clause keyword.
     With,
 }
 
 /// One import attribute clause.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ImportAttributeClause {
     /// The clause introducer.
     pub kind: ImportAttributeClauseKind,
@@ -19,7 +20,7 @@ pub struct ImportAttributeClause {
 }
 
 /// One import attribute entry.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ImportAttribute {
     /// The attribute key.
     pub key: Name,
@@ -28,7 +29,7 @@ pub struct ImportAttribute {
 }
 
 /// One static import attribute value.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum ImportAttributeValue {
     /// A scalar literal value.
     ScalarLiteral(ScalarLiteral),

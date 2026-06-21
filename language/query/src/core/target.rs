@@ -1,9 +1,10 @@
 use destack_dir as dir;
+use destack_serde::Schema;
 use destack_source::{FileId, ModuleId, ProfileId, Span};
 use serde::{Deserialize, Serialize};
 
 /// One module in one query profile.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct QueryModule {
     /// The queried module.
     pub module_id: ModuleId,
@@ -12,7 +13,7 @@ pub struct QueryModule {
 }
 
 /// One byte position in a module source file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct QueryPosition {
     /// The queried module profile.
     pub module: QueryModule,
@@ -23,7 +24,7 @@ pub struct QueryPosition {
 }
 
 /// One source range in a module.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct QueryRange {
     /// The queried module profile.
     pub module: QueryModule,
@@ -32,7 +33,7 @@ pub struct QueryRange {
 }
 
 /// One source-backed query target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct QueryTarget {
     /// The target module profile.
     pub module: QueryModule,
@@ -81,7 +82,7 @@ impl QueryTarget {
 }
 
 /// Query text in display formats understood by clients.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct QueryText {
     /// Plain text.
     pub plain: Option<String>,

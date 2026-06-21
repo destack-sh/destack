@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
@@ -6,7 +7,7 @@ use crate::dir::SymbolReferenceSearch;
 use crate::source::sort_and_dedup_spans;
 
 /// Kind of document highlight.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Schema)]
 pub enum HighlightKind {
     /// A textual occurrence.
     #[default]
@@ -18,7 +19,7 @@ pub enum HighlightKind {
 }
 
 /// A highlighted range in a document.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct DocumentHighlight {
     /// The highlighted range.
     pub range: Span,
@@ -53,14 +54,14 @@ impl DocumentHighlight {
 }
 
 /// Request highlights at a cursor position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct DocumentHighlightRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
 /// Response payload for document highlight queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct DocumentHighlightResponse {
     /// Document highlights.
     pub highlights: Vec<DocumentHighlight>,

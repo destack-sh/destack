@@ -1,10 +1,11 @@
+use destack_serde::Schema;
 use destack_source::ProfileId;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{QueryModule, QueryTarget, WorkspaceQueryContext};
 
 /// Scope for annotation queries.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum AnnotationScope {
     /// One module.
     Module(QueryModule),
@@ -16,7 +17,7 @@ pub enum AnnotationScope {
 }
 
 /// Role of one annotation expression.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum AnnotationRole {
     /// Metadata annotation.
     Annotation,
@@ -27,7 +28,7 @@ pub enum AnnotationRole {
 }
 
 /// Request payload for annotation queries.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct AnnotationsRequest {
     /// The query scope.
     pub scope: AnnotationScope,
@@ -36,7 +37,7 @@ pub struct AnnotationsRequest {
 }
 
 /// One annotation query item.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct AnnotationItem {
     /// The annotation name when syntactically known.
     pub name: Option<String>,
@@ -49,7 +50,7 @@ pub struct AnnotationItem {
 }
 
 /// Response payload for annotation queries.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct AnnotationsResponse {
     /// Matching annotations.
     pub annotations: Vec<AnnotationItem>,

@@ -1,10 +1,11 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use crate::{Constant, GlobalId, Lifetime, LocalId, Value};
 
 /// Root storage for one MIR place.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum PlaceOrigin {
     /// A function-local stack slot.
     Local(LocalId),
@@ -28,7 +29,7 @@ impl PlaceOrigin {
 }
 
 /// One projection in a MIR path.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum Projection {
     /// A fixed concrete field projection.
     Field {
@@ -97,7 +98,7 @@ fn replace_value(value: &mut Value, from: Value, to: Value) {
 }
 
 /// A rootless path through a MIR value or type shape.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Schema)]
 pub struct Path {
     /// Projections from the root value.
     pub projections: Vec<Projection>,
@@ -147,7 +148,7 @@ impl Path {
 }
 
 /// One borrowed reference-like component in a type shape.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct BorrowedPath {
     /// Path to the borrowed component.
     pub path: Path,
@@ -156,7 +157,7 @@ pub struct BorrowedPath {
 }
 
 /// A MIR memory place.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct Place {
     /// Root storage for the place.
     pub origin: PlaceOrigin,

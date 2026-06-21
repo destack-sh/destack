@@ -1,8 +1,9 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 /// One stored phase of the shared heap collector.
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Schema)]
 pub enum GcPhase {
     /// No shared collection is currently active.
     #[default]

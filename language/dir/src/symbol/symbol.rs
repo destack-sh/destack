@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -5,7 +6,7 @@ use smallvec::SmallVec;
 use crate::{ExportKind, GlobalNodeIdAny, LocalScope, Mutability, NodeType, StaticKey, StringId};
 
 /// A bindable item or local in a scope.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct Symbol {
     /// The scope lookup role of the symbol.
     pub role: SymbolRole,
@@ -77,7 +78,9 @@ impl SymbolLookup {
 }
 
 /// The space of a symbol.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 pub enum SymbolSpace {
     /// The type space.
     Type,
@@ -102,7 +105,9 @@ impl SymbolSpace {
 }
 
 /// The scope lookup role of a symbol.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 pub enum SymbolRole {
     /// Namespace symbol with an owned scope.
     Namespace,
@@ -114,7 +119,18 @@ pub enum SymbolRole {
 
 /// Where a symbol originated in the source.
 #[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    Schema,
 )]
 pub enum SymbolOrigin {
     /// Declaration in module scope.
@@ -134,7 +150,18 @@ impl SymbolOrigin {
 
 /// The declaration kind of a symbol.
 #[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    Schema,
 )]
 pub enum SymbolKind {
     /// Plain variable-like value symbol without a more specific kind.
@@ -287,7 +314,9 @@ impl SymbolKind {
 }
 
 /// Unique identifier for Symbols.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 pub struct LocalSymbolId {
     /// The numeric id.
     pub id: u32,
@@ -309,7 +338,9 @@ impl LocalSymbolId {
 }
 
 /// Global symbol id across modules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+)]
 pub struct GlobalSymbolId {
     /// The module id of the global symbol.
     pub module_id: ModuleId,

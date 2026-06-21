@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +9,7 @@ use crate::dir::SymbolReferenceSearch;
 use destack_dir::GlobalSymbolId;
 
 /// Role of one reference occurrence.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum ReferenceRole {
     /// Declaration occurrence.
     Declaration,
@@ -25,7 +26,7 @@ pub enum ReferenceRole {
 }
 
 /// One symbol reference occurrence.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct Reference {
     /// The referenced source target.
     pub target: QueryTarget,
@@ -34,7 +35,7 @@ pub struct Reference {
 }
 
 /// Request find references at a cursor position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct FindReferencesRequest {
     /// The queried position.
     pub position: QueryPosition,
@@ -43,7 +44,7 @@ pub struct FindReferencesRequest {
 }
 
 /// Response payload for find references queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct FindReferencesResponse {
     /// Reference occurrences.
     pub references: Vec<Reference>,

@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Node, NodeType, Pattern, TypeExpression};
@@ -13,7 +14,7 @@ use crate::{Expression, LocalNodeId, Node, NodeType, Pattern, TypeExpression};
 /// x: int32 = 1  // binding with type and value
 /// (a, b) = tuple  // destructuring pattern
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct Declarator {
     /// The pattern to bind (can be a simple identifier or destructuring pattern).
     pub pattern: LocalNodeId<Pattern>,

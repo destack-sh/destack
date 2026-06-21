@@ -1,7 +1,6 @@
 use std::fmt;
 
 use destack_core::StringId;
-use postcard::Error as PostcardError;
 use serde::ser;
 
 use crate::{ArtifactVersion, BlobStoreError};
@@ -19,7 +18,7 @@ pub enum ArtifactStoreError {
         found: Box<ArtifactVersion>,
     },
     /// The record failed to encode or decode.
-    Codec(Box<PostcardError>),
+    Codec(Box<destack_serde::Error>),
     /// The record references an interned string missing from the pool.
     MissingString {
         /// The missing string id.

@@ -1,11 +1,12 @@
 use destack_dir as dir;
+use destack_serde::Schema;
 use destack_source::{FileId, ModuleId, Span};
 use serde::{Deserialize, Serialize};
 
 use super::Name;
 
 /// Searchable source member index.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct MemberIndex {
     /// The member entries in stable source order.
     entries: Vec<MemberEntry>,
@@ -134,7 +135,7 @@ impl MemberIndex {
 }
 
 /// Searchable source member entry.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct MemberEntry {
     /// The member name.
     pub name: Name,
@@ -165,7 +166,7 @@ pub struct MemberEntry {
 }
 
 /// Searchable source member kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Schema)]
 pub enum MemberKind {
     /// Field member.
     Field,
@@ -308,7 +309,7 @@ impl MemberEntry {
 }
 
 /// Searchable source member source family.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum MemberSource {
     /// Nominal declaration member.
     Declaration,

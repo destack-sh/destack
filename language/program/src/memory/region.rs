@@ -1,9 +1,10 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::TypeId;
 
 /// One static region.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct StaticId(pub u32);
 
 impl StaticId {
@@ -28,7 +29,7 @@ impl From<StaticId> for u32 {
 }
 
 /// One typed region inside static memory.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct StaticRegion {
     /// The region id.
     pub id: StaticId,

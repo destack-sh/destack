@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -12,7 +13,7 @@ use crate::{
 /// this.name      // owner: the enclosing class, ty: its instance type
 /// super.render() // owner: the enclosing class, ty: its superclass type
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct ReceiverResolution {
     /// The receiver syntax kind.
     pub kind: ReceiverKind,
@@ -29,7 +30,7 @@ pub struct ReceiverResolution {
 /// this
 /// super
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum ReceiverKind {
     /// The active `this` receiver.
     ///
@@ -55,7 +56,7 @@ pub enum ReceiverKind {
 /// print(value)   // `print` selects its one declared symbol
 /// parse(input)   // an overloaded `parse` selects every overload
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct NameResolution {
     /// The selected symbols in declaration order.
     symbols: Vec<GlobalSymbolId>,
@@ -98,7 +99,7 @@ impl NameResolution {
 /// continue
 /// return value
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum LabelResolution {
     /// An explicit label target.
     ///
@@ -136,7 +137,7 @@ pub enum LabelResolution {
 /// user.name      // receiver: User, target: the selected member
 /// tuple[0]       // receiver: tuple, target: the selected element
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct MemberResolution {
     /// The receiver type after inference.
     pub receiver: GlobalTypeId,
@@ -152,7 +153,7 @@ impl MemberResolution {
 }
 
 /// Member target selected at a usage site.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum MemberTarget {
     /// Structural field selected from a shape type.
     ///
@@ -216,7 +217,7 @@ pub enum MemberTarget {
 /// // one candidate per matching declaration, its type already
 /// // applied to the Array<int32> receiver
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct MemberCandidate {
     /// The receiver type that selects this candidate.
     pub receiver: GlobalTypeId,
@@ -234,7 +235,7 @@ pub struct MemberCandidate {
 /// ```ds
 /// print("hi")    // parameters: (string), return: void
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct CallResolution {
     /// The selected callable target.
     pub target: CallTarget,
@@ -268,7 +269,7 @@ impl CallResolution {
 /// ```ds
 /// values[index] += 1    // read: index(usize), write: indexSet(usize, T)
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ReadWriteResolution {
     /// The read accessor call.
     pub read: CallResolution,
@@ -284,7 +285,7 @@ impl ReadWriteResolution {
 }
 
 /// Callable target selected at a call site.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum CallTarget {
     /// Compiler builtin selected at a usage site.
     ///
@@ -323,7 +324,7 @@ pub enum CallTarget {
 }
 
 /// Compiler builtin callable selected at a usage site.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
 pub enum BuiltinCall {
     /// Builtin unary operator behavior.
     ///
@@ -355,7 +356,7 @@ pub enum BuiltinCall {
 /// ```ds
 /// values.push(1) // `push#1` applied to the Array<int32> receiver
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct CallCandidate {
     /// The receiver type that selects this candidate.
     pub receiver: Option<GlobalTypeId>,
@@ -372,7 +373,7 @@ pub struct CallCandidate {
 /// new User(name)
 /// UserId(raw)
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ConstructResolution {
     /// The selected construct target.
     pub target: ConstructTarget,
@@ -398,7 +399,7 @@ impl ConstructResolution {
 }
 
 /// Construct target selected at a usage site.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum ConstructTarget {
     /// Class construction selected at compile time.
     ///
@@ -434,7 +435,7 @@ impl ConstructTarget {
 /// new User(name)
 /// new User()
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct ClassConstructCandidate {
     /// The selected class symbol.
     pub symbol: GlobalSymbolId,
@@ -450,7 +451,7 @@ pub struct ClassConstructCandidate {
 /// ```ds
 /// UserId(raw)
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct NewtypeConstructCandidate {
     /// The selected newtype symbol.
     pub symbol: GlobalSymbolId,
@@ -459,7 +460,7 @@ pub struct NewtypeConstructCandidate {
 }
 
 /// Pattern meaning selected during checking.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum PatternResolution {
     /// Pattern that accepts the input without binding, like `_`.
     Wildcard,
@@ -492,7 +493,7 @@ pub enum PatternResolution {
 }
 
 /// Symbol binding introduced by one pattern.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct PatternBindingResolution {
     /// The bound symbol, when the binding has a user-visible name.
     pub symbol: Option<GlobalSymbolId>,
@@ -501,14 +502,14 @@ pub struct PatternBindingResolution {
 }
 
 /// Static literal selected by one pattern.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct PatternLiteralResolution {
     /// The committed literal value.
     pub value: ScalarLiteral,
 }
 
 /// Scalar range selected by one pattern.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct PatternRangeResolution {
     /// The scalar domain constrained by the range.
     pub domain: GlobalTypeId,
@@ -521,14 +522,14 @@ pub struct PatternRangeResolution {
 }
 
 /// Tuple fields selected by one pattern.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct PatternTupleResolution {
     /// The tuple field mapping in source order.
     pub fields: Vec<PatternFieldResolution>,
 }
 
 /// Ordered collection selected by one pattern.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum PatternSequenceResolution {
     /// Dynamically sized array pattern, like `[head, ...tail]` over `T[]`.
     Array {
@@ -554,14 +555,14 @@ pub enum PatternSequenceResolution {
 }
 
 /// Structural fields selected by one pattern.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct PatternShapeResolution {
     /// The structural field mapping in source order.
     pub fields: Vec<PatternFieldResolution>,
 }
 
 /// Symbol-backed nominal pattern selected during checking.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct PatternNominalResolution {
     /// The selected nominal symbol.
     pub symbol: GlobalSymbolId,
@@ -572,7 +573,7 @@ pub struct PatternNominalResolution {
 }
 
 /// Symbol-backed newtype pattern selected during checking.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct PatternNewtypeResolution {
     /// The selected newtype symbol.
     pub symbol: GlobalSymbolId,
@@ -583,7 +584,7 @@ pub struct PatternNewtypeResolution {
 }
 
 /// Symbol-backed variant pattern selected during checking.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct PatternVariantResolution {
     /// The selected variant family symbol.
     pub owner: GlobalSymbolId,
@@ -598,14 +599,14 @@ pub struct PatternVariantResolution {
 }
 
 /// Alternative patterns selected during checking.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct PatternUnionResolution {
     /// The alternative pattern nodes.
     pub alternatives: Vec<GlobalNodeIdAny>,
 }
 
 /// Borrow operation selected by one pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct PatternBorrowResolution {
     /// The requested borrow access, if source explicit.
     pub access: Option<Access>,
@@ -614,7 +615,7 @@ pub struct PatternBorrowResolution {
 }
 
 /// Move operation selected by one pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct PatternMoveResolution {
     /// The requested move access, if source explicit.
     pub access: Option<Access>,
@@ -623,14 +624,14 @@ pub struct PatternMoveResolution {
 }
 
 /// Dereference operation selected by one pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct PatternDereferenceResolution {
     /// The pattern matched through the dereference.
     pub pattern: GlobalNodeIdAny,
 }
 
 /// One destructured pattern field.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct PatternFieldResolution {
     /// The source node that introduces the field.
     pub source: GlobalNodeIdAny,
@@ -641,7 +642,7 @@ pub struct PatternFieldResolution {
 }
 
 /// Field target selected by one destructuring pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum PatternFieldTarget {
     /// Named or symbolic field target.
     Key(StaticKey),
@@ -650,7 +651,7 @@ pub enum PatternFieldTarget {
 }
 
 /// Rest field selected by one ordered pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct PatternRestResolution {
     /// The source node that introduces the rest field.
     pub source: GlobalNodeIdAny,
@@ -659,7 +660,7 @@ pub struct PatternRestResolution {
 }
 
 /// Assignment target meaning selected during checking.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum AssignPatternResolution {
     /// Direct writable place target, like `value` or `object.field`.
     Place(AssignPatternPlaceResolution),
@@ -672,14 +673,14 @@ pub enum AssignPatternResolution {
 }
 
 /// Direct assignment place selected during checking.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct AssignPatternPlaceResolution {
     /// The expression node that designates the writable place.
     pub target: GlobalNodeIdAny,
 }
 
 /// Defaulted assignment target selected during checking.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct AssignPatternDefaultResolution {
     /// The nested assignment target.
     pub pattern: GlobalNodeIdAny,
@@ -688,7 +689,7 @@ pub struct AssignPatternDefaultResolution {
 }
 
 /// Ordered assignment destructuring selected during checking.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct AssignPatternSequenceResolution {
     /// The fixed fields in source order.
     pub fields: Vec<AssignPatternFieldResolution>,
@@ -697,7 +698,7 @@ pub struct AssignPatternSequenceResolution {
 }
 
 /// Object assignment destructuring selected during checking.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct AssignPatternObjectResolution {
     /// The named fields in source order.
     pub fields: Vec<AssignPatternFieldResolution>,
@@ -706,7 +707,7 @@ pub struct AssignPatternObjectResolution {
 }
 
 /// One destructured assignment field.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct AssignPatternFieldResolution {
     /// The source node that introduces the field.
     pub source: GlobalNodeIdAny,
@@ -717,7 +718,7 @@ pub struct AssignPatternFieldResolution {
 }
 
 /// Rest field selected by one assignment destructuring pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct AssignPatternRestResolution {
     /// The source node that introduces the rest field.
     pub source: GlobalNodeIdAny,

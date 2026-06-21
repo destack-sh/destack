@@ -1,8 +1,11 @@
 use destack_core::Color;
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 /// The level of a diagnostic.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+)]
 pub enum DiagnosticSeverity {
     /// Note (informative message).
     Note = 1,
@@ -33,7 +36,7 @@ impl DiagnosticSeverity {
 }
 
 /// Extra semantic tag for a diagnostic.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum DiagnosticTag {
     /// The diagnostic marks unused or unnecessary source.
     Unnecessary,

@@ -1,7 +1,8 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 /// The operator used to perform a cast.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum CastOperator {
     /// Preserve the representation without conversion.
     Identity,
@@ -64,7 +65,7 @@ pub enum CastOperator {
 }
 
 /// How one cast expression entered the DIR.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum CastOrigin {
     /// Casts written explicitly in source.
     Explicit,

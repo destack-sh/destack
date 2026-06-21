@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::sync::Arc;
 
 use destack_source::ModuleId;
@@ -95,7 +96,7 @@ impl<'a> ModuleTable<'a> {
 }
 
 /// Module import edges added by one DIR phase.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct ModuleSegment {
     /// The module id of the segment.
     pub module_id: ModuleId,

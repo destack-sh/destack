@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -5,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{DispatchSlot, Function, LocalNodeId, Type};
 
 /// Drop metadata for one MIR module.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Schema)]
 pub struct DropMetadata {
     /// Full drop glue keyed by type id.
     pub glue_by_type: HashMap<LocalNodeId<Type>, DropGlue>,
@@ -51,7 +52,7 @@ impl DropMetadata {
 }
 
 /// Full drop glue selected for one MIR type.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum DropGlue {
     /// No drop glue is required.
     None,
@@ -83,7 +84,7 @@ impl DropGlue {
 }
 
 /// User-authored drop hook for one MIR type.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct DropHook {
     /// The hook function.
     pub function: LocalNodeId<Function>,

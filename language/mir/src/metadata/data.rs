@@ -1,7 +1,8 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 /// Target data layout for one MIR module.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct DataLayout {
     /// Pointer size in bytes.
     pub pointer_bytes: u8,

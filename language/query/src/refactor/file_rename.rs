@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -10,7 +11,7 @@ use crate::core::WorkspaceQueryContext;
 use crate::source::string_literal_span_in_enclosing;
 
 /// A file rename entry for refactor queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct FileRenameEntry {
     /// The old path before the rename.
     pub old_path: PathBuf,
@@ -19,7 +20,7 @@ pub struct FileRenameEntry {
 }
 
 /// Request payload for file rename edits.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct RenameFilesRequest {
     /// Profiles that should participate in specifier rewrites.
     pub profile_ids: Vec<ProfileId>,
@@ -28,7 +29,7 @@ pub struct RenameFilesRequest {
 }
 
 /// Response payload for file rename queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct RenameFilesResponse {
     /// File rename edit, if available.
     pub edit: Option<BatchEdit>,

@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 
@@ -61,7 +62,7 @@ impl Hash for Token {
 }
 
 /// Serializable token record.
-#[derive(Deserialize)]
+#[derive(Deserialize, Schema)]
 struct TokenRecord {
     /// The start byte of the token in its source file.
     start: u32,
@@ -73,6 +74,12 @@ struct TokenRecord {
     literal: Option<TokenLiteral>,
     /// Whether the token is preceded by a line terminator.
     is_on_new_line: bool,
+}
+
+impl Schema for Token {
+    fn schema(registry: &mut destack_serde::SchemaRegistry) -> destack_serde::SchemaRef {
+        TokenRecord::schema(registry)
+    }
 }
 
 impl std::fmt::Debug for Token {
@@ -303,7 +310,7 @@ pub struct TokenTypeCodeError;
 
 /// Enum representing common lexeme types.
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum TokenType {
     /// --------------------------------------------------
     /// Structural
@@ -694,7 +701,9 @@ impl Display for TokenType {
 }
 
 /// Literal Token for literal, scalar values.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+)]
 pub enum TokenLiteral {
     /// Boolean (true or false)
     Boolean { value: bool },
@@ -813,7 +822,9 @@ impl TokenLiteral {
 }
 
 /// Numeric literal base (according to its prefix).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+)]
 pub enum NumberBase {
     /// Number starting with `0b`.
     Binary = 2,

@@ -22,6 +22,7 @@ destack_program = { workspace = true }
 destack_js = { workspace = true }
 destack_mir = { workspace = true }
 destack_qir = { workspace = true }
+destack_serde = { workspace = true }
 destack_source = { workspace = true }
 
 # general
@@ -29,7 +30,6 @@ blake3 = { workspace = true }
 dashmap = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 parking_lot = { workspace = true }
-postcard = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
 schemars = { workspace = true, optional = true }

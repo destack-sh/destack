@@ -1,9 +1,10 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, StaticKey, StringId, View};
 
 /// A name is a regular, string, or numeric identifier.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
 pub enum Name {
     /// A regular identifier.
     Identifier(StringId),
@@ -34,7 +35,7 @@ impl Name {
 }
 
 /// A key in value or type property position.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
 pub enum Key {
     /// A named key.
     Name(Name),

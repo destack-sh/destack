@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::sync::Arc;
 
 use destack_source::ModuleId;
@@ -215,7 +216,7 @@ impl<'a> ResolutionTable<'a> {
 }
 
 /// Resolutions added by one DIR phase.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct ResolutionSegment {
     /// The module id of the resolution segment.
     pub module_id: ModuleId,

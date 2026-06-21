@@ -1,9 +1,10 @@
+use destack_serde::Schema;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
 /// The format of a source file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum FileType {
     // destack
     /// `.ds`

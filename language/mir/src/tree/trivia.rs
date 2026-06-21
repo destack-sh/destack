@@ -1,8 +1,9 @@
+use destack_serde::Schema;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 /// One parsed source comment.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct CommentSpan {
     /// The exact source span of the comment text.
     pub span: Span,
@@ -21,7 +22,7 @@ impl CommentSpan {
 }
 
 /// One parsed typed value span.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct TypedValueSpan {
     /// The enclosing span of the typed value occurrence.
     pub span: Span,
@@ -43,7 +44,7 @@ impl TypedValueSpan {
 }
 
 /// One parsed field declaration span.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct FieldSpan {
     /// The enclosing span of the field declaration.
     pub span: Span,
@@ -73,7 +74,7 @@ impl FieldSpan {
 }
 
 /// Parsed function header delimiter spans.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct FunctionHeaderSpans {
     /// The opening parenthesis span.
     pub open_paren: Span,
@@ -103,7 +104,7 @@ impl FunctionHeaderSpans {
 }
 
 /// Parsed type declaration delimiter spans.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct TypeDeclarationSpans {
     /// The optional equals span.
     pub equals: Option<Span>,

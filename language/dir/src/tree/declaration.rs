@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -7,7 +8,7 @@ use crate::{
 };
 
 /// A global declaration block.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct GlobalDeclaration {
     /// The expressions inside the global body.
     pub expressions: Vec<LocalNodeId<Expression>>,
@@ -16,14 +17,14 @@ pub struct GlobalDeclaration {
 }
 
 /// A module declaration block.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ModuleDeclaration {
     /// The expressions inside the module body.
     pub expressions: Vec<LocalNodeId<Expression>>,
 }
 
 /// A type declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct TypeDeclaration {
     /// The declared name.
     pub name: Name,
@@ -44,7 +45,7 @@ pub struct TypeDeclaration {
 }
 
 /// A struct declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct StructDeclaration {
     /// The declared name.
     pub name: Name,
@@ -63,7 +64,7 @@ pub struct StructDeclaration {
 }
 
 /// A class declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ClassDeclaration {
     /// The declared name.
     pub name: Option<Name>,
@@ -88,7 +89,7 @@ pub struct ClassDeclaration {
 }
 
 /// The kind of an enum declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Schema)]
 pub enum EnumKind {
     /// A regular enum.
     #[default]
@@ -98,7 +99,7 @@ pub enum EnumKind {
 }
 
 /// An enum declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct EnumDeclaration {
     /// The declared name.
     pub name: Option<Name>,
@@ -121,7 +122,7 @@ pub struct EnumDeclaration {
 }
 
 /// An interface declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct InterfaceDeclaration {
     /// The declared name.
     pub name: Option<Name>,
@@ -142,7 +143,7 @@ pub struct InterfaceDeclaration {
 }
 
 /// An extension declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ExtensionDeclaration {
     /// The declared name.
     pub name: Option<Name>,
@@ -163,7 +164,7 @@ pub struct ExtensionDeclaration {
 }
 
 /// A function declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct FunctionDeclaration {
     /// The declared name.
     pub name: Option<Name>,
@@ -178,7 +179,7 @@ pub struct FunctionDeclaration {
 }
 
 /// Declaration introduces a type or such into a scope.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum Declaration {
     /// Global declaration block.
     Global(GlobalDeclaration),
@@ -359,7 +360,7 @@ impl Declaration {
 }
 
 /// An enum field.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct EnumField {
     /// The name of the enum field.
     pub name: Name,

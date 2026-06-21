@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
@@ -86,7 +87,7 @@ impl Error for EditApplyError {}
 ///
 /// This is the atomic unit of source modification.
 /// An empty `new_text` represents deletion; an empty span represents insertion.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct Edit {
     /// The span to replace.
     pub span: Span,
@@ -142,7 +143,7 @@ impl Edit {
 ///
 /// Groups multiple edits together for efficient application.
 /// Edits should be non-overlapping and are typically sorted by position.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct FileEdit {
     /// The file to edit.
     pub file: FileId,
@@ -206,7 +207,7 @@ impl FileEdit {
 /// Edits across multiple files.
 ///
 /// Used for refactoring operations that touch multiple files (like rename).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Schema)]
 pub struct BatchEdit {
     /// Per-file edits.
     pub files: Vec<FileEdit>,

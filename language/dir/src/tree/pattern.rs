@@ -1,4 +1,5 @@
 use destack_core::StringId;
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType, RangeEnd, TypeExpression};
@@ -21,7 +22,7 @@ use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType, RangeEnd,
 /// geom.Mesh<2, float32> { vertices: [2, ...] }
 /// { a: 2 }
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum Pattern {
     /// Wildcard scalar pattern (`_`).
     Wildcard,
@@ -101,7 +102,7 @@ impl Node for Pattern {
 /// ... // spread
 /// ...rest // spread with name
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum PatternField {
     /// Named field, maybe shorthand and maybe with a nested pattern.
     Named {
@@ -129,7 +130,7 @@ impl Node for PatternField {
 }
 
 /// An AssignPattern is one assignment left hand side.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum AssignPattern {
     /// Expression target like `x`, `obj.x`, or `obj[key]`.
     Expression { value: LocalNodeId<Expression> },
@@ -153,7 +154,7 @@ impl Node for AssignPattern {
 }
 
 /// An AssignPatternField is one field in a destructuring assignment target.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum AssignPatternField {
     /// Named field like `{ x }` or `{ x: y }`.
     Named {

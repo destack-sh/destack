@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
@@ -7,7 +8,7 @@ use crate::{
 };
 
 /// One control-flow edge target.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct BlockTarget {
     /// The block to transfer control to.
     pub block: BlockId,
@@ -61,14 +62,14 @@ impl<'a> EdgeArguments<'a> {
 }
 
 /// Unrecoverable runtime trap kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum TrapKind {
     /// Abort execution immediately.
     Abort,
 }
 
 /// Semantic constraint for a runtime check.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum CheckConstraint {
     /// Bounds check on an index into a collection.
     Bounds {
@@ -175,7 +176,7 @@ impl CheckConstraint {
 }
 
 /// One case arm for a switch terminator.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct SwitchCase {
     /// The matched case value.
     pub value: i128,
@@ -184,7 +185,7 @@ pub struct SwitchCase {
 }
 
 /// Compact reference to a switch case list stored in the MIR tree.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Schema)]
 pub struct SwitchCaseSlice {
     /// Start index in the switch case buffer.
     pub start: u32,
@@ -213,7 +214,7 @@ impl SwitchCaseSlice {
 }
 
 /// Block terminator node.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum Terminator {
     /// Recovered invalid terminator syntax.
     Error,

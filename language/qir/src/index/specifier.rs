@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -5,7 +6,7 @@ use destack_source::{FileId, ModuleId};
 use serde::{Deserialize, Serialize};
 
 /// Import specifier rewrite index.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct SpecifierIndex {
     /// The resolved specifier entries ordered by target path.
     by_target_path: Vec<(PathBuf, SpecifierEntry)>,
@@ -94,7 +95,7 @@ impl SpecifierIndex {
 }
 
 /// Import specifier rewrite entry.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct SpecifierEntry {
     /// The module containing the specifier.
     pub module_id: ModuleId,

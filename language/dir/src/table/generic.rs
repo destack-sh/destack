@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::sync::Arc;
 
 use destack_source::ModuleId;
@@ -132,7 +133,7 @@ impl<'a> GenericTable<'a> {
 }
 
 /// Generic templates and parameters added by one DIR phase.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct GenericSegment {
     /// The module id of the generic segment.
     pub module_id: ModuleId,

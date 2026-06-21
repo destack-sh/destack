@@ -1,9 +1,10 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{LocalNodeId, Type};
 
 /// Compact reference to a value list stored in the MIR tree.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Schema)]
 pub struct ValueSlice {
     /// Start index in the value buffer.
     pub start: u32,
@@ -33,7 +34,9 @@ impl ValueSlice {
 
 /// SSA value (virtual register).
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 pub struct Value(pub u32);
 
 impl Value {
@@ -49,7 +52,7 @@ impl Value {
 }
 
 /// One SSA value with its type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct TypedValue {
     /// The SSA value.
     pub value: Value,

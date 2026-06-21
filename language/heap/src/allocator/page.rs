@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
@@ -5,7 +6,9 @@ use serde::{Deserialize, Serialize};
 use crate::{HeapError, HeapRepresentationError, HeapResult};
 
 /// One stable allocator page identifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+)]
 #[repr(transparent)]
 pub struct PageId(u32);
 
@@ -36,7 +39,7 @@ impl PageId {
 }
 
 /// One contiguous allocator page span.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct PageSpan {
     /// The first page in the span.
     pub first_page: PageId,

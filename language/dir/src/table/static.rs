@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::sync::Arc;
 
 use destack_source::ModuleId;
@@ -144,7 +145,7 @@ impl<'a> StaticTable<'a> {
 }
 
 /// Static values added by one DIR phase.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct StaticSegment {
     /// The module id of the static segment.
     pub module_id: ModuleId,

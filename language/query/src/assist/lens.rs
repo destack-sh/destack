@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_serde::Schema;
 use destack_source::{NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +9,7 @@ use crate::core::{
 use crate::dir::SymbolReferenceSearch;
 
 /// A code lens (inline annotation with optional command).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct CodeLens {
     /// The range this lens applies to.
     pub range: Span,
@@ -17,7 +18,7 @@ pub struct CodeLens {
 }
 
 /// The action for a code lens.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum CodeLensAction {
     /// Show reference count.
     References {
@@ -51,28 +52,28 @@ pub enum CodeLensAction {
 }
 
 /// Request code lenses for a document.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct CodeLensesRequest {
     /// The queried module.
     pub module: QueryModule,
 }
 
 /// Request to resolve a code lens.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ResolveCodeLensRequest {
     /// The code lens to resolve.
     pub lens: CodeLens,
 }
 
 /// Response payload for code lenses queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct CodeLensesResponse {
     /// Code lenses.
     pub lenses: Vec<CodeLens>,
 }
 
 /// Response payload for code lens resolve queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ResolveCodeLensResponse {
     /// The resolved code lens.
     pub lens: CodeLens,

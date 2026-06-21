@@ -1,9 +1,10 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{HeapError, HeapRepresentationError, HeapResult};
 
 /// One stable small-block slot inside one span.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct Slot {
     /// The containing span index.
     span_index: u32,
