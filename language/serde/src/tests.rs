@@ -28,6 +28,21 @@ enum ExampleVariant {
     Struct { value: String },
 }
 
+/// Internally tagged enum used by codec compatibility tests.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind")]
+enum TaggedChoice {
+    /// Empty choice.
+    Empty,
+    /// Named choice.
+    Pair {
+        /// Left value.
+        left: u32,
+        /// Right value.
+        right: String,
+    },
+}
+
 #[test]
 fn test_roundtrip_struct() {
     let mut map = BTreeMap::new();
@@ -46,6 +61,19 @@ fn test_roundtrip_struct() {
     let decoded = from_slice::<Example>(&bytes).expect("decode");
 
     assert_eq!(decoded, value);
+}
+
+#[test]
+fn test_decode_rejects_internally_tagged_enum() {
+    let value = TaggedChoice::Pair {
+        left: 4,
+        right: "value".to_string(),
+    };
+
+    let bytes = to_vec(&value).expect("encode");
+    let error = from_slice::<TaggedChoice>(&bytes).expect_err("decode should fail");
+
+    assert_eq!(error, Error::SelfDescribingUnsupported);
 }
 
 #[test]
