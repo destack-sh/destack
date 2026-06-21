@@ -151,10 +151,11 @@ class Document extends Base {
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
-/// @definition.method symbol=Base.print source="virtual print(): void {}" slot=print type=(this: Base) => void
+/// @definition.method symbol=Base.print source="virtual print(): void {}" slot=print abstraction=virtual type=(this: Base) => void
 
     virtual print(): void {}
     /// @type.symbol symbol=Base.print source="virtual print(): void {}" type=(this: Base) => void
+
 }
 
 class Document extends Base {
@@ -165,6 +166,7 @@ class Document extends Base {
 
     print(): void {}
     /// @type.symbol symbol=Document.print source="print(): void {}" type=(this: Document) => void
+
 }
 "#,
         r#"

@@ -15,6 +15,8 @@ pub(in crate::check) struct WalkState<'check, 'state> {
     pub(in crate::check) tree: dir::View<'check>,
     /// The module being walked.
     pub(in crate::check) module: ModuleId,
+    /// The active literal widening policy.
+    widening: Widening,
     /// Flow state for the current module walk.
     flow: FlowState,
 }
@@ -30,6 +32,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             check,
             tree,
             module,
+            widening: Widening::Preserve,
             flow: FlowState::default(),
         }
     }
@@ -42,6 +45,21 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// Return mutable flow state for the active module.
     pub(in crate::check) fn flow_mut(&mut self) -> &mut FlowState {
         &mut self.flow
+    }
+
+    /// Walk one expression under one widening policy.
+    pub(in crate::check) fn walk_expression_with_widening(
+        &mut self,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+        widening: Widening,
+    ) -> CompilerResult<()> {
+        let previous = self.widening;
+        self.widening = widening;
+        let result = self.walk_expression(id, expression);
+        self.widening = previous;
+
+        result
     }
 
     /// Return one node's working type, opening a variable when missing.
@@ -81,7 +99,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let origin = Origin::Node(source.into_global(self.module));
         let variable = self
             .check
-            .allocate_variable(self.module, origin, Widening::Preserve);
+            .allocate_variable(self.module, origin, self.widening);
 
         self.check.push_variable_type(variable, source)
     }

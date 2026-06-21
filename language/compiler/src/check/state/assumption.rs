@@ -27,7 +27,7 @@ impl CheckState<'_> {
 
         for predicate in predicates {
             // normalize negated guards onto their targets
-            let mut predicate = self.shallow_resolve(*predicate)?;
+            let mut predicate = self.resolve_shallow(*predicate)?;
             let mut holds = true;
             while let dir::Type::Operation(dir::TypeOperation::StaticUnary(unary)) =
                 self.ty(predicate)?
@@ -35,7 +35,7 @@ impl CheckState<'_> {
                 if unary.operator != dir::StaticUnaryOperator::Not {
                     break;
                 }
-                predicate = self.shallow_resolve(unary.target)?;
+                predicate = self.resolve_shallow(unary.target)?;
                 holds = !holds;
             }
 
@@ -60,7 +60,7 @@ impl CheckState<'_> {
             dir::Type::Operation(dir::TypeOperation::StaticUnary(unary))
                 if unary.operator == dir::StaticUnaryOperator::Not =>
             {
-                (self.shallow_resolve(unary.target)?, true)
+                (self.resolve_shallow(unary.target)?, true)
             }
             dir::Type::Operation(_) | dir::Type::Reference(_) | dir::Type::Member(_) => (id, false),
             _ => return Ok(None),
@@ -82,8 +82,8 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let left = self.shallow_resolve(left)?;
-        let right = self.shallow_resolve(right)?;
+        let left = self.resolve_shallow(left)?;
+        let right = self.resolve_shallow(right)?;
         if left == right {
             return Ok(true);
         }

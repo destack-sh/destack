@@ -23,6 +23,19 @@ pub(in crate::check) enum MemberLookup {
     Found(Vec<MemberCandidate>),
 }
 
+/// One active member lookup query.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct MemberQuery {
+    /// The module whose visibility rules apply.
+    module: ModuleId,
+    /// The reduced receiver type.
+    receiver: dir::GlobalTypeId,
+    /// The selected member namespace.
+    space: dir::MemberSpace,
+    /// The selected member key.
+    key: dir::StaticKey,
+}
+
 impl MemberLookup {
     /// Return a lookup from collected candidates.
     fn from_candidates(candidates: Vec<MemberCandidate>) -> Self {
@@ -41,7 +54,7 @@ pub(in crate::check) struct MemberCandidate {
     pub(in crate::check) symbol: Option<dir::GlobalSymbolId>,
     /// The substituted member type.
     pub(in crate::check) ty: dir::GlobalTypeId,
-    /// The committed member value when the member carries one.
+    /// The member static value when it carries one.
     pub(in crate::check) value: Option<dir::GlobalStaticId>,
     /// The substituted static value of the member, when it has one.
     pub(in crate::check) value_type: Option<dir::GlobalTypeId>,
@@ -99,18 +112,60 @@ impl CheckState<'_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<MemberLookup> {
+        let mut active_queries = IndexSet::new();
+
+        self.lookup_member_query(origin, module, receiver, space, key, &mut active_queries)
+    }
+
+    /// Look up one member while tracking active recursive queries.
+    fn lookup_member_query(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        receiver: dir::GlobalTypeId,
+        space: dir::MemberSpace,
+        key: dir::StaticKey,
+        active: &mut IndexSet<MemberQuery>,
+    ) -> CompilerResult<MemberLookup> {
         // close the receiver root first
         let receiver = match self.evaluate_root(origin, receiver)? {
             Answer::Ready(receiver) => receiver,
             Answer::Pending(blockers) => return Ok(MemberLookup::Pending(blockers)),
         };
 
+        // stop recursive proof paths through constraints and unions
+        let query = MemberQuery {
+            module,
+            receiver,
+            space,
+            key,
+        };
+        if !active.insert(query) {
+            return Ok(MemberLookup::Missing);
+        }
+
+        let lookup = self.lookup_member_receiver(origin, module, receiver, space, key, active);
+        active.swap_remove(&query);
+
+        lookup
+    }
+
+    /// Look up one member on an already reduced receiver type.
+    fn lookup_member_receiver(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        receiver: dir::GlobalTypeId,
+        space: dir::MemberSpace,
+        key: dir::StaticKey,
+        active: &mut IndexSet<MemberQuery>,
+    ) -> CompilerResult<MemberLookup> {
         match self.ty(receiver)? {
             // memory forms look through their payloads
             dir::Type::Form(form) => {
                 let value = form.value;
 
-                self.lookup_member(origin, module, value, space, key)
+                self.lookup_member_query(origin, module, value, space, key, active)
             }
 
             // declaration references search their definition members
@@ -119,7 +174,8 @@ impl CheckState<'_> {
                 if instance.arguments.is_empty()
                     && let Some(parameter) = self.generics.parameter_by_symbol(instance.symbol)
                 {
-                    return self.lookup_constraint_member(origin, module, parameter, space, key);
+                    return self
+                        .lookup_constraint_member(origin, module, parameter, space, key, active);
                 }
 
                 let instance = instance.clone();
@@ -131,7 +187,7 @@ impl CheckState<'_> {
             dir::Type::Parameter(parameter) => {
                 let parameter = *parameter;
 
-                self.lookup_constraint_member(origin, module, parameter, space, key)
+                self.lookup_constraint_member(origin, module, parameter, space, key, active)
             }
 
             // structural shapes expose their fields
@@ -170,7 +226,7 @@ impl CheckState<'_> {
             dir::Type::Union(union) => {
                 let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
 
-                self.lookup_union_member(origin, module, &elements, space, key)
+                self.lookup_union_member(origin, module, &elements, space, key, active)
             }
 
             // intersections expose every part's members
@@ -181,8 +237,8 @@ impl CheckState<'_> {
                     .copied()
                     .collect::<SmallVec<[_; 4]>>();
                 for element in elements {
-                    let element = self.shallow_resolve(element)?;
-                    match self.lookup_member(origin, module, element, space, key)? {
+                    let element = self.resolve_shallow(element)?;
+                    match self.lookup_member_query(origin, module, element, space, key, active)? {
                         MemberLookup::Missing => continue,
                         lookup => return Ok(lookup),
                     }
@@ -240,6 +296,7 @@ impl CheckState<'_> {
         parameter: dir::GlobalGenericParameterId,
         space: dir::MemberSpace,
         key: dir::StaticKey,
+        active: &mut IndexSet<MemberQuery>,
     ) -> CompilerResult<MemberLookup> {
         let Some(binding) = self.generic_parameter(parameter) else {
             return Ok(MemberLookup::Missing);
@@ -248,7 +305,7 @@ impl CheckState<'_> {
             return Ok(MemberLookup::Missing);
         };
 
-        self.lookup_member(origin, module, constraint, space, key)
+        self.lookup_member_query(origin, module, constraint, space, key, active)
     }
 
     /// Look up one member on a builtin scalar through its language item owner.
@@ -281,13 +338,14 @@ impl CheckState<'_> {
         elements: &[dir::GlobalTypeId],
         space: dir::MemberSpace,
         key: dir::StaticKey,
+        active: &mut IndexSet<MemberQuery>,
     ) -> CompilerResult<MemberLookup> {
         let mut candidates = Vec::new();
         let mut fields = SmallVec::<[dir::GlobalTypeId; 4]>::new();
 
         // every element must expose the member
         for element in elements {
-            match self.lookup_member(origin, module, *element, space, key)? {
+            match self.lookup_member_query(origin, module, *element, space, key, active)? {
                 MemberLookup::Field(ty) => fields.push(ty),
                 MemberLookup::Found(found) => candidates.extend(found),
                 MemberLookup::Missing => return Ok(MemberLookup::Missing),

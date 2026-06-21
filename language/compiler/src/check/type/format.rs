@@ -21,7 +21,7 @@ impl CheckState<'_> {
         if depth == 0 {
             return Ok("…".to_string());
         }
-        let id = self.shallow_resolve(id)?;
+        let id = self.resolve_shallow(id)?;
         let next = depth - 1;
 
         let rendered = match self.ty(id)? {
@@ -176,7 +176,7 @@ impl CheckState<'_> {
         function: &dir::FunctionPointerType,
         depth: usize,
     ) -> CompilerResult<String> {
-        let signature = self.shallow_resolve(function.signature)?;
+        let signature = self.resolve_shallow(function.signature)?;
         let dir::Type::FunctionSignature(signature) = self.ty(signature)? else {
             let signature = self.format_depth(function.signature, depth)?;
 
@@ -235,7 +235,7 @@ impl CheckState<'_> {
             dir::Form::Raw => format!("*{value}"),
             dir::Form::Readonly => format!("readonly {value}"),
             dir::Form::Borrowed { access, .. } => {
-                let access = match self.ty(self.shallow_resolve(*access)?)? {
+                let access = match self.ty(self.resolve_shallow(*access)?)? {
                     dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)) => {
                         "&readonly "
                     }
@@ -248,7 +248,7 @@ impl CheckState<'_> {
                 format!("{access}{value}")
             }
             dir::Form::Placed { place } => {
-                let place = match self.ty(self.shallow_resolve(*place)?)? {
+                let place = match self.ty(self.resolve_shallow(*place)?)? {
                     dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space))) => {
                         match space {
                             dir::Space::Local => "local ",

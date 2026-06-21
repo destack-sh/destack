@@ -254,7 +254,7 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<ComparableKind>> {
-        let root = self.shallow_resolve(ty)?;
+        let root = self.resolve_shallow(ty)?;
         let kind = match self.ty(root)? {
             dir::Type::Literal(literal) => comparable_literal_kind(literal),
             dir::Type::Primitive(primitive) => comparable_primitive_kind(primitive),

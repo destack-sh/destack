@@ -191,7 +191,7 @@ impl CheckState<'_> {
             if form.form != dir::Form::Managed {
                 break;
             }
-            current = self.shallow_resolve(form.value)?;
+            current = self.resolve_shallow(form.value)?;
         }
 
         match self.ty(current)?.clone() {

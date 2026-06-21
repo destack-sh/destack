@@ -12,7 +12,7 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let id = self.shallow_resolve(id)?;
+        let id = self.resolve_shallow(id)?;
 
         // rewrite assumed @if predicates to their assumed literal values
         if !self.assumptions.is_empty() {
@@ -92,7 +92,7 @@ impl CheckState<'_> {
 
                 match self.alias_value(origin, &instance)? {
                     Some(value) => {
-                        let value = self.shallow_resolve(value)?;
+                        let value = self.resolve_shallow(value)?;
 
                         self.evaluate_chain(origin, value, expanding)
                     }
@@ -107,7 +107,7 @@ impl CheckState<'_> {
 
                 match projection {
                     Answer::Ready(Some(projected)) => {
-                        let projected = self.shallow_resolve(projected)?;
+                        let projected = self.resolve_shallow(projected)?;
 
                         self.evaluate_chain(origin, projected, expanding)
                     }
@@ -123,7 +123,7 @@ impl CheckState<'_> {
 
                 match reduction {
                     Answer::Ready(Some(reduced)) => {
-                        let reduced = self.shallow_resolve(reduced)?;
+                        let reduced = self.resolve_shallow(reduced)?;
 
                         self.evaluate_chain(origin, reduced, expanding)
                     }
