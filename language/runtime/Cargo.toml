@@ -43,13 +43,13 @@ destack_heap = { workspace = true }
 destack_mir = { workspace = true }
 destack_native = { workspace = true }
 destack_query = { workspace = true }
+destack_serde = { workspace = true }
 destack_source = { workspace = true }
 destack_unicode = { workspace = true }
 destack_vm = { workspace = true }
 destack_repository = { workspace = true }
 
 libc = { workspace = true }
-postcard = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 rustc-hash = { workspace = true }

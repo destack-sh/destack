@@ -170,8 +170,8 @@ impl Compiler {
                         message: format!("module {module:?} is absent from component ownership"),
                     })?;
             let dependents = dependencies.entry(component).or_default();
-            for edge in edges.iter().copied() {
-                let Some(target) = component_of.get(&edge).copied() else {
+            for edge in edges.iter() {
+                let Some(target) = component_of.get(edge).copied() else {
                     continue;
                 };
                 if target != component && !dependents.contains(&target) {

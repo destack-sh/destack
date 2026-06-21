@@ -1,9 +1,10 @@
 use super::{LimitOptions, TEST_MAX_INSTRUCTIONS, TEST_MAX_STACK_DEPTH, TEST_STACK_BYTES};
 use destack_heap::{HeapOptions, SharedHeapOptions};
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 /// Configuration options for a VM machine.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct MachineOptions {
     /// Resource limits and execution budgets.
     pub limits: LimitOptions,

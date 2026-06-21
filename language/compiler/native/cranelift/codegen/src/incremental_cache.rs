@@ -193,12 +193,12 @@ pub fn compute_cache_key(isa: &dyn TargetIsa, func: &Function) -> CacheKeyHash {
 /// of the function call. The value is left untouched.
 pub fn serialize_compiled(
     result: CompiledCodeStencil,
-) -> (CompiledCodeStencil, Result<Vec<u8>, postcard::Error>) {
+) -> (CompiledCodeStencil, Result<Vec<u8>, destack_serde::Error>) {
     let cached = CachedFunc {
         version_marker: VersionMarker,
         stencil: result,
     };
-    let result = postcard::to_allocvec(&cached);
+    let result = destack_serde::to_vec(&cached);
     (cached.stencil, result)
 }
 
@@ -208,7 +208,7 @@ pub enum RecompileError {
     /// The version embedded in the cache entry isn't the same as cranelift's current version.
     VersionMismatch,
     /// An error occurred while deserializing the cache entry.
-    Deserialize(postcard::Error),
+    Deserialize(destack_serde::Error),
 }
 
 impl fmt::Display for RecompileError {
@@ -216,7 +216,7 @@ impl fmt::Display for RecompileError {
         match self {
             RecompileError::VersionMismatch => write!(f, "cranelift version mismatch",),
             RecompileError::Deserialize(err) => {
-                write!(f, "postcard failed during deserialization: {err}")
+                write!(f, "destack serde failed during deserialization: {err}")
             }
         }
     }
@@ -228,7 +228,7 @@ impl fmt::Display for RecompileError {
 /// Precondition: the bytes must have retrieved from a cache store entry which hash value
 /// is strictly the same as the `Function`'s computed hash retrieved from `compute_cache_key`.
 pub fn try_finish_recompile(func: &Function, bytes: &[u8]) -> Result<CompiledCode, RecompileError> {
-    match postcard::from_bytes::<CachedFunc>(bytes) {
+    match destack_serde::from_slice::<CachedFunc>(bytes) {
         Ok(result) => {
             if result.version_marker != func.stencil.version_marker {
                 Err(RecompileError::VersionMismatch)

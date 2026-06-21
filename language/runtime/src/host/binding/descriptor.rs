@@ -4,7 +4,7 @@ use crate::world::policy::ActionSet;
 use destack_core::fnv1a_128;
 
 /// Default codec used for binding payloads.
-pub const DEFAULT_BINDING_CODEC: CodecId = CodecId::from_name("postcard-v1");
+pub const DEFAULT_BINDING_CODEC: CodecId = CodecId::from_name("destack-serde-v1");
 
 /// Metadata describing a runtime binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
