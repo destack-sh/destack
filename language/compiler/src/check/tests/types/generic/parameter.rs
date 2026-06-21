@@ -219,3 +219,43 @@ const level = value.level;
 "#,
     );
 }
+
+#[test]
+fn test_recursive_constraint_member_lookup_reports_missing_member() {
+    let session = TestSession::single(
+        r#"
+function read<T: T | { name: string }>(value: T): string {
+    return value.name;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function read<T: T | { name: string }>(value: T): string {
+    return value.name;
+}
+
+=== checked ===
+function read<T: T | { name: string }>(value: T): string {
+/// @generic.template symbol=read parameters=[T: T | { name: string }]
+/// @type.symbol symbol=read type=<T: T | { name: string }>(T) => string
+/// @type.symbol symbol=read.T source="T: T | { name: string }" type=T
+/// @resolution.name source=T target=read.T
+/// @type.symbol symbol=value source="value: T" type=T
+/// @resolution.name source=T target=read.T
+
+    return value.name;
+    /// @resolution.name source=value target=value
+
+}
+"#,
+        r#"
+/// @diagnostic.error code=EC300 message="member 'name' does not exist on type 'T'"
+/// @diagnostic.label line=3 column=12 source="return value.name;"
+"#,
+    );
+}
