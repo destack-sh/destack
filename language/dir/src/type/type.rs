@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalStaticId, GlobalSymbolId,
-    MappedTypeModifier, ScalarLiteral, StaticKey, StringId, TypeLiteral, UnaryOperator,
+    MappedTypeModifier, RangeEnd, ScalarDomain, ScalarLiteral, StaticKey, StringId, TypeLiteral,
+    UnaryOperator,
 };
 
 use super::{FloatType, PrimitiveType};
@@ -416,23 +417,145 @@ pub struct RangeType {
 }
 
 impl RangeType {
-    /// Return whether every interval inhabitant fits one primitive type.
-    pub fn fits_primitive(&self, primitive: PrimitiveType) -> bool {
+    /// Create an interval from pattern bounds.
+    pub fn new(
+        start: Option<ScalarLiteral>,
+        end: Option<ScalarLiteral>,
+        end_kind: RangeEnd,
+    ) -> Self {
+        Self {
+            start,
+            end,
+            is_inclusive: matches!(end_kind, RangeEnd::Inclusive),
+        }
+    }
+
+    /// Return this interval's scalar domain.
+    pub fn scalar_domain(&self) -> Option<ScalarDomain> {
+        let start = self.start.as_ref().and_then(ScalarLiteral::interval_domain);
+        let end = self.end.as_ref().and_then(ScalarLiteral::interval_domain);
+
+        match (start, end) {
+            (Some(start), Some(end)) if start == end => Some(start),
+            (Some(start), None) => Some(start),
+            (None, Some(end)) => Some(end),
+            _ => None,
+        }
+    }
+
+    /// Return whether this interval can widen to one target type.
+    pub fn widens_to(&self, target: &Type) -> bool {
+        match target {
+            Type::Primitive(primitive) => self.widens_to_primitive(*primitive),
+            Type::Range(target) => target.contains_range(self),
+            _ => false,
+        }
+    }
+
+    /// Return whether this interval contains one scalar literal.
+    pub fn contains_literal(&self, literal: ScalarLiteral) -> bool {
+        match literal {
+            ScalarLiteral::Integer(value) => self.contains_integer(value),
+            ScalarLiteral::Bigint(value) => self.contains_bigint(value),
+            ScalarLiteral::Character(value) => self.contains_character(value),
+            _ => false,
+        }
+    }
+
+    /// Return whether this interval contains one integer literal.
+    pub fn contains_integer(&self, value: i64) -> bool {
+        let start_holds = match self.start {
+            Some(ScalarLiteral::Integer(start)) => value >= start,
+            Some(_) => false,
+            None => true,
+        };
+
+        let end_holds = match self.end {
+            Some(ScalarLiteral::Integer(end)) => {
+                if self.is_inclusive {
+                    value <= end
+                } else {
+                    value < end
+                }
+            }
+            Some(_) => false,
+            None => true,
+        };
+
+        start_holds && end_holds
+    }
+
+    /// Return whether this interval contains one bigint literal.
+    pub fn contains_bigint(&self, value: i64) -> bool {
+        let start_holds = match self.start {
+            Some(ScalarLiteral::Bigint(start)) => value >= start,
+            Some(_) => false,
+            None => true,
+        };
+
+        let end_holds = match self.end {
+            Some(ScalarLiteral::Bigint(end)) => {
+                if self.is_inclusive {
+                    value <= end
+                } else {
+                    value < end
+                }
+            }
+            Some(_) => false,
+            None => true,
+        };
+
+        start_holds && end_holds
+    }
+
+    /// Return whether this interval contains one character literal.
+    pub fn contains_character(&self, value: char) -> bool {
+        let start_holds = match self.start {
+            Some(ScalarLiteral::Character(start)) => value >= start,
+            Some(_) => false,
+            None => true,
+        };
+
+        let end_holds = match self.end {
+            Some(ScalarLiteral::Character(end)) => {
+                if self.is_inclusive {
+                    value <= end
+                } else {
+                    value < end
+                }
+            }
+            Some(_) => false,
+            None => true,
+        };
+
+        start_holds && end_holds
+    }
+
+    /// Return whether this interval can widen to one primitive type.
+    pub fn widens_to_primitive(&self, primitive: PrimitiveType) -> bool {
         match primitive {
-            // integer intervals fit when both bounds fit
+            // integer intervals widen when both bounds fit
             PrimitiveType::Integer(integer) => {
-                let start_fits = match &self.start {
+                let start_widens = match &self.start {
                     Some(ScalarLiteral::Integer(start)) => integer.fits_literal(*start),
                     Some(_) | None => false,
                 };
-                let end_fits = match &self.end {
+                let end_widens = match &self.end {
                     Some(ScalarLiteral::Integer(end)) => integer.fits_literal(*end),
                     Some(_) | None => false,
                 };
 
-                start_fits && end_fits
+                start_widens && end_widens
             }
-            // character intervals fit the character primitive
+            // bigint intervals widen to the bigint primitive
+            PrimitiveType::Bigint => matches!(
+                (&self.start, &self.end),
+                (
+                    Some(ScalarLiteral::Bigint(_)) | None,
+                    Some(ScalarLiteral::Bigint(_)) | None,
+                )
+            ),
+            // character intervals widen to the character primitive
             PrimitiveType::Character => matches!(
                 (&self.start, &self.end),
                 (
@@ -445,12 +568,15 @@ impl RangeType {
     }
 
     /// Return whether this interval contains another interval.
-    pub fn contains(&self, inner: &RangeType) -> bool {
+    pub fn contains_range(&self, inner: &RangeType) -> bool {
         // the outer start must not exceed the inner start
         let start_holds = match (&self.start, &inner.start) {
             (None, _) => true,
             (Some(_), None) => false,
             (Some(ScalarLiteral::Integer(outer)), Some(ScalarLiteral::Integer(inner))) => {
+                outer <= inner
+            }
+            (Some(ScalarLiteral::Bigint(outer)), Some(ScalarLiteral::Bigint(inner))) => {
                 outer <= inner
             }
             (Some(ScalarLiteral::Character(outer)), Some(ScalarLiteral::Character(inner))) => {
@@ -467,6 +593,10 @@ impl RangeType {
             (None, _) => true,
             (Some(_), None) => false,
             (Some(ScalarLiteral::Integer(outer_end)), Some(ScalarLiteral::Integer(inner_end))) => {
+                inner_end < outer_end
+                    || (inner_end == outer_end && (self.is_inclusive || !inner.is_inclusive))
+            }
+            (Some(ScalarLiteral::Bigint(outer_end)), Some(ScalarLiteral::Bigint(inner_end))) => {
                 inner_end < outer_end
                     || (inner_end == outer_end && (self.is_inclusive || !inner.is_inclusive))
             }
@@ -1086,6 +1216,26 @@ impl From<&ScalarLiteral> for Type {
 }
 
 impl Type {
+    /// Return this type's direct scalar domain.
+    pub fn scalar_domain(&self) -> Option<ScalarDomain> {
+        let domain = match self {
+            Self::Null => ScalarDomain::Null,
+            Self::Undefined => ScalarDomain::Undefined,
+            Self::Primitive(PrimitiveType::Boolean) => ScalarDomain::Boolean,
+            Self::Primitive(PrimitiveType::Character) => ScalarDomain::Character,
+            Self::Primitive(PrimitiveType::String) => ScalarDomain::String,
+            Self::Primitive(PrimitiveType::Bigint) => ScalarDomain::Bigint,
+            Self::Primitive(PrimitiveType::Integer(_) | PrimitiveType::Float(_)) => {
+                ScalarDomain::Numeric
+            }
+            Self::Literal(literal) => return literal.scalar_domain(),
+            Self::Range(range) => return range.scalar_domain(),
+            _ => return None,
+        };
+
+        Some(domain)
+    }
+
     /// Visit each direct child type id of this type.
     pub fn for_each_child(&self, mut visit: impl FnMut(GlobalTypeId)) {
         match self {

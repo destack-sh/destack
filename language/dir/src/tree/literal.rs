@@ -5,9 +5,28 @@ use serde::{Deserialize, Serialize};
 use destack_core::StringPool;
 
 use crate::{
-    Argument, FloatType, IntegerType, LanguageItem, Layout, LocalNodeId, PrimitiveType, RangeEnd,
-    RangeType, StringId, Type,
+    Argument, FloatType, IntegerType, LanguageItem, Layout, LocalNodeId, PrimitiveType, RangeType,
+    StringId, Type,
 };
+
+/// One scalar type family.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ScalarDomain {
+    /// Numeric scalar values.
+    Numeric,
+    /// Bigint scalar values.
+    Bigint,
+    /// Character scalar values.
+    Character,
+    /// String scalar values.
+    String,
+    /// Boolean scalar values.
+    Boolean,
+    /// Null singleton values.
+    Null,
+    /// Undefined singleton values.
+    Undefined,
+}
 
 /// A ScalarLiteral is literal scalar value.
 ///
@@ -52,6 +71,34 @@ pub enum ScalarLiteral {
 }
 
 impl ScalarLiteral {
+    /// Return this literal's scalar domain.
+    pub fn scalar_domain(&self) -> Option<ScalarDomain> {
+        let domain = match self {
+            Self::Integer(_) | Self::Float(_) => ScalarDomain::Numeric,
+            Self::Bigint(_) => ScalarDomain::Bigint,
+            Self::Character(_) => ScalarDomain::Character,
+            Self::String(_) => ScalarDomain::String,
+            Self::Boolean(_) => ScalarDomain::Boolean,
+            Self::Null => ScalarDomain::Null,
+            Self::Undefined => ScalarDomain::Undefined,
+            Self::RegexString { .. } => return None,
+        };
+
+        Some(domain)
+    }
+
+    /// Return this literal's scalar domain when it can bound an interval.
+    pub fn interval_domain(&self) -> Option<ScalarDomain> {
+        let domain = match self {
+            Self::Integer(_) => ScalarDomain::Numeric,
+            Self::Bigint(_) => ScalarDomain::Bigint,
+            Self::Character(_) => ScalarDomain::Character,
+            _ => return None,
+        };
+
+        Some(domain)
+    }
+
     /// Widen one scalar literal to its base type.
     pub fn widen(&self) -> Type {
         match self {
@@ -65,6 +112,16 @@ impl ScalarLiteral {
             Self::Null => Type::Null,
             Self::Undefined => Type::Undefined,
             Self::RegexString { .. } => Type::Object,
+        }
+    }
+
+    /// Return whether this literal can widen to one target type.
+    pub fn widens_to(&self, target: &Type) -> bool {
+        match target {
+            Type::Literal(target) => self == target,
+            Type::Primitive(primitive) => self.widens_to_primitive(*primitive),
+            Type::Range(range) => self.widens_to_range(range),
+            _ => false,
         }
     }
 
@@ -90,8 +147,8 @@ impl ScalarLiteral {
         }
     }
 
-    /// Return whether this literal value inhabits one primitive type.
-    pub fn fits_primitive(&self, primitive: PrimitiveType) -> bool {
+    /// Return whether this literal can widen to one primitive type.
+    pub fn widens_to_primitive(&self, primitive: PrimitiveType) -> bool {
         match (self, primitive) {
             (Self::String(_), PrimitiveType::String) => true,
             (Self::Character(_), PrimitiveType::Character) => true,
@@ -107,36 +164,9 @@ impl ScalarLiteral {
         }
     }
 
-    /// Return whether this literal value inhabits one interval type.
-    pub fn fits_range(&self, range: &RangeType) -> bool {
-        let below_start = match (&range.start, self) {
-            (Some(Self::Integer(start)), Self::Integer(value)) => value < start,
-            (Some(Self::Character(start)), Self::Character(value)) => value < start,
-            (Some(_), _) => return false,
-            (None, _) => false,
-        };
-        if below_start {
-            return false;
-        }
-
-        match (&range.end, self) {
-            (Some(Self::Integer(end)), Self::Integer(value)) => {
-                if range.is_inclusive {
-                    value <= end
-                } else {
-                    value < end
-                }
-            }
-            (Some(Self::Character(end)), Self::Character(value)) => {
-                if range.is_inclusive {
-                    value <= end
-                } else {
-                    value < end
-                }
-            }
-            (Some(_), _) => false,
-            (None, _) => true,
-        }
+    /// Return whether this literal can widen to one interval type.
+    pub fn widens_to_range(&self, range: &RangeType) -> bool {
+        range.contains_literal(*self)
     }
 
     /// Return this literal singleton's layout.
@@ -163,54 +193,6 @@ impl ScalarLiteral {
             Self::Integer(_) | Self::Float(_) => Some(LanguageItem::Number),
             _ => None,
         }
-    }
-
-    /// Return the interval ordering key.
-    pub fn scalar_order(&self) -> Option<f64> {
-        match self {
-            ScalarLiteral::Integer(value) => Some(*value as f64),
-            ScalarLiteral::Float(value) => Some(*value),
-            ScalarLiteral::Character(value) => Some(u32::from(*value) as f64),
-            _ => None,
-        }
-    }
-
-    /// Return whether one scalar sits inside one literal interval.
-    pub fn scalar_in_range(
-        self,
-        start: Option<&ScalarLiteral>,
-        end: Option<&ScalarLiteral>,
-        end_kind: RangeEnd,
-    ) -> Option<bool> {
-        let value = self.scalar_order()?;
-        let start = match start {
-            Some(start) => Some(start.scalar_order()?),
-            None => None,
-        };
-        let end = match end {
-            Some(end) => Some(end.scalar_order()?),
-            None => None,
-        };
-
-        // check lower bound
-        if let Some(start) = start
-            && value < start
-        {
-            return Some(false);
-        }
-
-        // check upper bound
-        if let Some(end) = end {
-            let is_above = match end_kind {
-                RangeEnd::Open => value >= end,
-                RangeEnd::Inclusive => value > end,
-            };
-            if is_above {
-                return Some(false);
-            }
-        }
-
-        Some(true)
     }
 }
 
