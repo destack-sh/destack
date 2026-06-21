@@ -760,6 +760,6 @@ impl Worker {
 }
 
 /// Serialize one captured worker heap snapshot for exact equality checks.
-fn worker_heap_snapshot_bytes(snapshot: &heap::HeapSnapshot) -> Result<Vec<u8>, postcard::Error> {
-    postcard::to_allocvec(snapshot)
+fn worker_heap_snapshot_bytes(snapshot: &heap::HeapSnapshot) -> destack_serde::Result<Vec<u8>> {
+    destack_serde::to_vec(snapshot)
 }

@@ -9,7 +9,6 @@ use crate::world::trace::{
     TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES, TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK, TraceCheckpointIndex,
     TraceCursor, TraceHeader, TraceRecord, TraceTrailer,
 };
-use postcard::experimental::serialized_size;
 
 use super::chunk::{TRACE_EVENT_LENGTH_BYTES, TraceChunk, TracePrefix};
 use super::file::{TraceFile, build_trailer};
@@ -280,7 +279,7 @@ impl TraceLog {
     /// Record one trace record in the log.
     pub(crate) fn record_event(&self, event: TraceRecord) -> RuntimeResult<TraceSequence> {
         // compute the encoded size before touching trace state
-        let encoded_len = serialized_size(&event)
+        let encoded_len = destack_serde::encoded_len(&event)
             .map_err(|_| RuntimeError::trace_encode_failed("event".to_string()).boxed())?
             as u64;
         if encoded_len > u32::MAX as u64 {
@@ -316,7 +315,7 @@ impl TraceLog {
         let end = start + record_len as usize;
         chunk.bytes.resize(end, 0);
         chunk.bytes[start..payload_start].copy_from_slice(&(encoded_len as u32).to_le_bytes());
-        let encoded_len = postcard::to_slice(&event, &mut chunk.bytes[payload_start..end])
+        let encoded_len = destack_serde::to_slice(&event, &mut chunk.bytes[payload_start..end])
             .map_err(|_| RuntimeError::trace_encode_failed("event".to_string()).boxed())?
             .len();
         let encoded_end = payload_start + encoded_len;

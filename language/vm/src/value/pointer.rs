@@ -1,9 +1,10 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use destack_program::FunctionId;
 
 /// Address or handle for executable function code.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 #[repr(transparent)]
 pub struct FunctionPointer(usize);
 
@@ -36,7 +37,7 @@ impl From<FunctionId> for FunctionPointer {
 }
 
 /// Address inside one frame-owned stack allocation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 #[repr(transparent)]
 pub struct StackPointer(usize);
 
@@ -67,7 +68,7 @@ impl StackPointer {
 }
 
 /// Address inside one frame value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 #[repr(transparent)]
 pub struct FramePointer(usize);
 

@@ -35,7 +35,6 @@ filetime = { workspace = true }
 indexmap = { workspace = true }
 mime_guess = { workspace = true }
 parking_lot = { workspace = true }
-postcard = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

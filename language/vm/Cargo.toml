@@ -21,10 +21,10 @@ destack_program = { workspace = true }
 destack_heap = { workspace = true }
 destack_memory = { workspace = true }
 destack_mir = { workspace = true }
+destack_serde = { workspace = true }
 destack_source = { workspace = true }
 
 # util
-postcard = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 smallvec = { workspace = true }
 

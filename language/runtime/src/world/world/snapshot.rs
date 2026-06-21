@@ -6,7 +6,6 @@ use crate::world::lineage::{
     CheckpointId, ImageId, Lineage, LineageSnapshot, Revision, RevisionId,
 };
 use destack_repository::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
-use postcard::to_allocvec;
 
 use super::{RestoreContext, World, WorldImage};
 
@@ -58,14 +57,14 @@ impl WorldSnapshot {
 
     /// Encode one snapshot into bytes.
     pub fn encode(&self) -> RuntimeResult<Vec<u8>> {
-        to_allocvec(self).map_err(|_| {
+        destack_serde::to_vec(self).map_err(|_| {
             RuntimeError::inconsistent_image("failed to encode world snapshot".to_string()).boxed()
         })
     }
 
     /// Decode one snapshot from bytes.
     pub fn decode(bytes: &[u8]) -> RuntimeResult<Self> {
-        postcard::from_bytes(bytes).map_err(|_| {
+        destack_serde::from_slice(bytes).map_err(|_| {
             RuntimeError::inconsistent_image("failed to decode world snapshot".to_string()).boxed()
         })
     }

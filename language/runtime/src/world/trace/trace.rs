@@ -10,7 +10,6 @@ use crate::world::trace::{
 use crate::world::{BranchId, Mutation};
 use destack_repository::ExecutionMode;
 use parking_lot::Mutex;
-use postcard::experimental::serialized_size;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -555,11 +554,11 @@ impl Trace {
         }
 
         // encode the payload with the configured codec
-        let payload_size = serialized_size(payload)
+        let payload_size = destack_serde::encoded_len(payload)
             .map_err(|_| RuntimeError::trace_encode_failed(spec.name.to_string()).boxed())?;
         let mut scratch = self.scratch.lock();
         scratch.resize(payload_size, 0);
-        let payload_bytes = postcard::to_slice(payload, &mut scratch)
+        let payload_bytes = destack_serde::to_slice(payload, &mut scratch)
             .map_err(|_| RuntimeError::trace_encode_failed(spec.name.to_string()).boxed())?;
 
         // record the encoded payload
@@ -575,7 +574,7 @@ impl Trace {
         let call = self.next_binding_call(spec)?;
 
         // decode the payload bytes
-        let payload = postcard::from_bytes(&call.payload)
+        let payload = destack_serde::from_slice(&call.payload)
             .map_err(|_| RuntimeError::trace_decode_failed(spec.name.to_string()).boxed())?;
         Ok(payload)
     }

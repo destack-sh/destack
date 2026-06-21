@@ -33,7 +33,7 @@ log = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
 pulley-interpreter = { workspace = true, optional = true }
-postcard = { workspace = true, optional = true }
+destack_serde = { workspace = true, optional = true }
 gimli = { workspace = true, features = ["write"], optional = true }
 smallvec = { workspace = true }
 regalloc2 = { workspace = true, features = ["checker"] }
@@ -122,7 +122,7 @@ enable-serde = [
 ]
 
 # Enable the incremental compilation cache for hot-reload use cases.
-incremental-cache = ["enable-serde", "postcard", "sha2"]
+incremental-cache = ["enable-serde", "destack_serde", "sha2"]
 
 # Enable support for the Souper harvester.
 souper-harvest = ["souper-ir", "souper-ir/stringify"]

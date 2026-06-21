@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use destack_core::{CaptureMode, fnv1a_128};
-use postcard::to_allocvec;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -277,7 +276,7 @@ impl World {
 
     /// Return the encoded size and hash for one image.
     pub(crate) fn image_size_and_hash(image: &WorldImage) -> RuntimeResult<(u64, u128)> {
-        let bytes = to_allocvec(image).map_err(|_| {
+        let bytes = destack_serde::to_vec(image).map_err(|_| {
             RuntimeError::inconsistent_image("failed to encode world image".to_string()).boxed()
         })?;
         let size_bytes = bytes.len() as u64;

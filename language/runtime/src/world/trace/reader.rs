@@ -124,7 +124,7 @@ impl TraceCursor {
                     return Err(RuntimeError::trace_mismatch("chunk_length".to_string()).boxed());
                 }
                 let encoded = &chunk.bytes[length_end..end];
-                let event = postcard::from_bytes(encoded)
+                let event = destack_serde::from_slice(encoded)
                     .map_err(|_| RuntimeError::trace_decode_failed("event".to_string()).boxed())?;
                 if cursor.read_index + 1 == chunk.header.event_count as usize
                     && chunk.sequence_end() != sequence
