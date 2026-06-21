@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use super::CardSet;
@@ -48,7 +49,7 @@ impl SmallSpan {
 }
 
 /// One frozen heap span image.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub(crate) struct SmallSpanImage {
     /// The first byte offset inside heap storage.
     pub first_offset: usize,

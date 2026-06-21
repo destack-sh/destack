@@ -1,9 +1,10 @@
 use destack_dir::{LocalSymbolId, SymbolKind, SymbolSpace};
+use destack_serde::Schema;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 /// Importable export index.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct ImportIndex {
     /// The import entries in stable display order.
     entries: Vec<ImportEntry>,
@@ -44,7 +45,7 @@ impl ImportIndex {
 }
 
 /// Importable exported symbol entry.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct ImportEntry {
     /// The exported symbol name.
     pub name: String,

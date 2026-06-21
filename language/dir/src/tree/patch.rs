@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
@@ -5,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{LocalNodeIdAny, Tree};
 
 /// A durable overlay over one base DIR tree.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct Patch {
     /// The patch name.
     pub name: String,

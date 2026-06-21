@@ -1,4 +1,7 @@
-use destack_core::stable_hash_key_value_128;
+use destack_serde::Schema;
+use std::hash::Hash;
+
+use destack_core::StableHasher;
 use serde::{Deserialize, Serialize};
 
 use crate::{ConditionSet, EmitFormat, EnvironmentKey, TargetAbi, TargetArch, TargetVendor};
@@ -6,7 +9,7 @@ use crate::{ConditionSet, EmitFormat, EnvironmentKey, TargetAbi, TargetArch, Tar
 const PROFILE_ID_DOMAIN: &[u8] = b"profile";
 
 /// Canonical profile key for semantic identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct ProfileKey {
     /// Emit format for the profile.
     pub emit: EmitFormat,
@@ -51,10 +54,11 @@ pub struct ProfileKey {
 impl ProfileKey {
     /// Hash this profile key into one stable cache identity.
     pub fn stable_hash(&self) -> u128 {
-        let bytes = postcard::to_allocvec(self).unwrap_or_else(|error| {
-            panic!("failed to serialize profile key for stable hashing: {error}")
-        });
+        let mut hasher = StableHasher::new();
 
-        stable_hash_key_value_128(PROFILE_ID_DOMAIN, &bytes)
+        hasher.update_len_prefixed(PROFILE_ID_DOMAIN);
+        self.hash(&mut hasher);
+
+        hasher.finish_u128()
     }
 }

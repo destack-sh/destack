@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::borrow::Cow;
 use std::fmt::Debug;
 
@@ -8,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::TokenType;
 
 /// Indicates a line or block comment.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum CommentKind {
     /// Line comment.
     Line,
@@ -19,7 +20,7 @@ pub enum CommentKind {
 }
 
 /// Structured content classification for one comment.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default, Schema)]
 pub enum CommentContent {
     /// No structured content classification.
     #[default]
@@ -33,7 +34,7 @@ pub enum CommentContent {
 }
 
 /// A comment's position relative to a token boundary.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default, Schema)]
 pub enum CommentPosition {
     /// The comment belongs to the following token boundary.
     #[default]
@@ -44,7 +45,7 @@ pub enum CommentPosition {
 
 /// Newline shape flags captured around one raw comment.
 #[repr(transparent)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default, Schema)]
 pub struct CommentNewlines {
     /// Bit flags that describe newline boundaries.
     pub bits: u8,
@@ -85,7 +86,7 @@ impl CommentNewlines {
 }
 
 /// A raw source comment attached through the source side table.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct Comment {
     /// The span of the raw comment, including delimiters.
     pub span: Span,
@@ -223,7 +224,7 @@ impl Comment {
 }
 
 /// Normalized documentation attached to one DIR node.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct Documentation {
     /// The normalized documentation text.
     pub text: StringId,

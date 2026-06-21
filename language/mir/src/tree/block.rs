@@ -1,10 +1,11 @@
 use destack_core::StringId;
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{BlockParameter, Instruction, LocalNodeId, Node, NodeType, Terminator};
 
 /// A basic block is a sequence of instructions with.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct Block {
     /// Optional explicit block label.
     pub name: Option<StringId>,

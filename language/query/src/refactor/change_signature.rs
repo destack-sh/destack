@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::collections::{HashMap, HashSet};
 
 use destack_dir as dir;
@@ -10,7 +11,7 @@ use crate::core::{ModuleQueryContext, QueryPosition, WorkspaceQueryContext};
 const MISSING_ARGUMENT_PLACEHOLDER: &str = "undefined";
 
 /// Request payload for change signature queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ChangeSignatureRequest {
     /// The queried position.
     pub position: QueryPosition,
@@ -21,7 +22,7 @@ pub struct ChangeSignatureRequest {
 }
 
 /// Response payload for change signature queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ChangeSignatureResponse {
     /// Change signature edit, if available.
     pub edit: Option<BatchEdit>,

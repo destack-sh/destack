@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::sync::Arc;
 
 use destack_source::ModuleId;
@@ -150,7 +151,7 @@ impl<'a> DefinitionTable<'a> {
 }
 
 /// Declaration definitions added by one DIR phase.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct DefinitionSegment {
     /// The module id of the definition segment.
     pub module_id: ModuleId,
@@ -246,7 +247,7 @@ impl DefinitionSegment {
 }
 
 /// Checked declaration data for one symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum Definition {
     /// Transparent type alias declaration.
     ///
@@ -324,7 +325,7 @@ impl Definition {
 }
 
 /// Checked declaration data for one transparent type alias.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct TypeAliasDefinition {
     /// The generic template declared by the alias.
     pub template: Option<LocalGenericTemplateId>,
@@ -333,7 +334,7 @@ pub struct TypeAliasDefinition {
 }
 
 /// Checked declaration data for one nominal struct.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct StructDefinition {
     /// The generic template declared by the struct.
     pub template: Option<LocalGenericTemplateId>,
@@ -344,7 +345,7 @@ pub struct StructDefinition {
 }
 
 /// Checked declaration data for one nominal class.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct ClassDefinition {
     /// The generic template declared by the class.
     pub template: Option<LocalGenericTemplateId>,
@@ -361,7 +362,7 @@ pub struct ClassDefinition {
 }
 
 /// Checked declaration data for one nominal interface.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct InterfaceDefinition {
     /// The generic template declared by the interface.
     pub template: Option<LocalGenericTemplateId>,
@@ -374,7 +375,7 @@ pub struct InterfaceDefinition {
 }
 
 /// Checked declaration data for one nominal enum.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct EnumDefinition {
     /// The generic template declared by the enum.
     pub template: Option<LocalGenericTemplateId>,
@@ -385,7 +386,7 @@ pub struct EnumDefinition {
 }
 
 /// Checked declaration data for one nominal type alias.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct NewtypeDefinition {
     /// The generic template declared by the newtype.
     pub template: Option<LocalGenericTemplateId>,
@@ -394,7 +395,7 @@ pub struct NewtypeDefinition {
 }
 
 /// One nominal heritage.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct NominalHeritage {
     /// The source heritage node.
     pub source: GlobalNodeIdAny,
@@ -405,7 +406,7 @@ pub struct NominalHeritage {
 }
 
 /// One checked field member.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct FieldDefinition {
     /// The member space declaring the field.
     pub space: MemberSpace,
@@ -426,7 +427,7 @@ pub struct FieldDefinition {
 }
 
 /// One method member.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct MethodDefinition {
     /// The member space declaring the method.
     pub space: MemberSpace,
@@ -449,7 +450,7 @@ pub struct MethodDefinition {
 }
 
 /// One checked associated type.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct AssociatedTypeDefinition {
     /// The associated type symbol.
     pub symbol: GlobalSymbolId,
@@ -466,7 +467,7 @@ pub struct AssociatedTypeDefinition {
 }
 
 /// One checked associated constant.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct AssociatedConstDefinition {
     /// The associated const symbol.
     pub symbol: GlobalSymbolId,
@@ -483,7 +484,7 @@ pub struct AssociatedConstDefinition {
 }
 
 /// One checked enum variant.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct VariantDefinition {
     /// The variant symbol.
     pub symbol: GlobalSymbolId,
@@ -498,7 +499,7 @@ pub struct VariantDefinition {
 }
 
 /// One checked symbol-free signature member.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct SignatureDefinition {
     /// The source member node.
     pub source: GlobalNodeIdAny,
@@ -509,7 +510,7 @@ pub struct SignatureDefinition {
 }
 
 /// Member namespace selected by member lookup.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum MemberSpace {
     /// Instance members selected from a runtime receiver.
     Instance,
@@ -518,7 +519,7 @@ pub enum MemberSpace {
 }
 
 /// One checked declaration member.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum DefinitionMember {
     /// Field member with a checked type.
     Field(FieldDefinition),

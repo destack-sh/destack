@@ -148,7 +148,7 @@ fn serialize_payload_with_limit<T: Serialize>(
     payload: &T,
     limit: u64,
 ) -> Result<Vec<u8>, ArtifactStoreError> {
-    let bytes = postcard::to_allocvec(payload)
+    let bytes = destack_serde::to_vec(payload)
         .map_err(|error| ArtifactStoreError::Codec(Box::new(error)))?;
     let actual = bytes.len() as u64;
     if actual > limit {
@@ -168,5 +168,5 @@ fn deserialize_payload_with_limit<T: DeserializeOwned>(
         return Err(ArtifactStoreError::Size { limit, actual });
     }
 
-    postcard::from_bytes(bytes).map_err(|error| ArtifactStoreError::Codec(Box::new(error)))
+    destack_serde::from_slice(bytes).map_err(|error| ArtifactStoreError::Codec(Box::new(error)))
 }

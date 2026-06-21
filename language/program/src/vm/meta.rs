@@ -1,4 +1,5 @@
 use destack_mir as mir;
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 /// The packed bit mask for the reference kind.
@@ -23,7 +24,7 @@ const REF_SPACE_SHIFT: u8 = 7;
 const REF_SPACE_MASK: u16 = 0x7 << REF_SPACE_SHIFT;
 
 /// Space class for reference metadata.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum ReferenceSpace {
     /// Worker-local heap.
     Local,
@@ -81,7 +82,7 @@ impl ReferenceSpace {
 }
 
 /// Metadata for reference values.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct ReferenceMeta {
     bits: u16,
 }

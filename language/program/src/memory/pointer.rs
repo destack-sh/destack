@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::StaticId;
@@ -6,7 +7,7 @@ const STATIC_ADDRESS_OFFSET_BITS: u32 = 32;
 const STATIC_ADDRESS_OFFSET_MASK: u64 = u32::MAX as u64;
 
 /// Stable address inside one static region.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 #[repr(transparent)]
 pub struct StaticAddress(u64);
 

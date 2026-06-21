@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::sync::Arc;
 
 use destack_source::ModuleId;
@@ -98,7 +99,7 @@ impl<'a> AnnotationTable<'a> {
 }
 
 /// Annotation invocations added by one DIR phase.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct AnnotationSegment {
     /// The module id of the annotation segment.
     pub module_id: ModuleId,
@@ -191,7 +192,9 @@ impl AnnotationSegment {
 
 /// Unique identifier for an annotation invocation.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 pub struct LocalAnnotationId(pub u32);
 
 impl LocalAnnotationId {
@@ -202,7 +205,7 @@ impl LocalAnnotationId {
 }
 
 /// Checked annotation invocation attached to one owner node.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct AnnotationInvocation {
     /// The decorator node.
     pub source: GlobalNodeIdAny,
@@ -217,7 +220,7 @@ pub struct AnnotationInvocation {
 }
 
 /// Checked annotation argument.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct AnnotationArgument {
     /// The argument node.
     pub source: GlobalNodeIdAny,
@@ -226,7 +229,7 @@ pub struct AnnotationArgument {
 }
 
 /// Resolved annotation target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum AnnotationTarget {
     /// Compiler language item annotation.
     LanguageItem(LanguageItem),

@@ -1,4 +1,5 @@
 use destack_core::StringId;
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 /// Persistent, mangled identity of a function, global, or type.
@@ -6,7 +7,9 @@ use serde::{Deserialize, Serialize};
 /// Unique and stable across builds, minted from the resolved path during
 /// lowering. MIR carries it but does not compute it; cross-module references
 /// link by symbol equality, and analyses and profile data key on it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 pub struct Symbol(pub StringId);
 
 impl Symbol {

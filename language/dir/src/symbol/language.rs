@@ -1,9 +1,10 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::SymbolKind;
 
 /// The declaration kind expected for one language item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum LanguageItemKind {
     /// A variable-like value declaration.
     Variable,
@@ -74,7 +75,7 @@ macro_rules! define_language_items {
         )*
     ) => {
         /// Language library items that the toolchain references.
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
         #[allow(clippy::upper_case_acronyms)]
         pub enum LanguageItem {
             $($($(

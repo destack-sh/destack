@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use destack_source::ContentId;
@@ -5,7 +6,7 @@ use destack_source::ContentId;
 use super::{Abi, CodeMap, Entry, EntryTable, Image, ImportTable, Resume};
 
 /// Durable native code produced for one program.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct Code {
     /// The native ABI required by this code.
     pub abi: Abi,

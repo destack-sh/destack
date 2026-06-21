@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::collections::HashSet;
 use std::fmt;
 use std::path::PathBuf;
@@ -17,7 +18,7 @@ pub struct ContentStore<'a> {
 }
 
 /// One serialized content blob.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 struct ContentBlob {
     /// The exact content identity.
     id: ContentId,
@@ -38,7 +39,7 @@ pub enum ContentStoreError {
         actual: ContentId,
     },
     /// The content failed to encode or decode.
-    Codec(Box<postcard::Error>),
+    Codec(Box<destack_serde::Error>),
     /// The content blob exceeded the configured size limit.
     Size {
         /// The configured size limit.
@@ -203,7 +204,7 @@ impl<'a> ContentStore<'a> {
 fn serialize_blob(blob: &ContentBlob) -> Result<Vec<u8>, ContentStoreError> {
     // encode blob
     let bytes =
-        postcard::to_allocvec(blob).map_err(|error| ContentStoreError::Codec(Box::new(error)))?;
+        destack_serde::to_vec(blob).map_err(|error| ContentStoreError::Codec(Box::new(error)))?;
     let byte_len = bytes.len() as u64;
     if byte_len > MAX_BLOB_BYTES {
         return Err(ContentStoreError::Size {
@@ -217,7 +218,7 @@ fn serialize_blob(blob: &ContentBlob) -> Result<Vec<u8>, ContentStoreError> {
 
 /// Deserialize one content blob.
 fn deserialize_blob(bytes: &[u8]) -> Result<ContentBlob, ContentStoreError> {
-    postcard::from_bytes(bytes).map_err(|error| ContentStoreError::Codec(Box::new(error)))
+    destack_serde::from_slice(bytes).map_err(|error| ContentStoreError::Codec(Box::new(error)))
 }
 
 /// Validate one decoded content blob.

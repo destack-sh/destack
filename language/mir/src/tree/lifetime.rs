@@ -1,12 +1,13 @@
 use destack_core::StringId;
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 /// One lifetime slot in a MIR lifetime environment.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct LifetimeSlot(pub u32);
 
 /// One declared lifetime parameter.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct LifetimeParameter {
     /// The source or generated parameter name.
     pub name: Option<StringId>,
@@ -20,7 +21,7 @@ impl LifetimeParameter {
 }
 
 /// One term in a MIR lifetime.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum LifetimeTerm {
     /// Global or static storage.
     Static,
@@ -29,7 +30,7 @@ pub enum LifetimeTerm {
 }
 
 /// The boundary lifetime for an escaping borrowed value.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Schema)]
 pub struct Lifetime {
     /// Terms the borrowed value may depend on.
     pub terms: Vec<LifetimeTerm>,

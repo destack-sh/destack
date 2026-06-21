@@ -1,9 +1,12 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::FileType;
 
 /// How source content is interpreted as a module.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema, PartialOrd, Ord,
+)]
 pub enum Loader {
     /// Destack code.
     Destack,

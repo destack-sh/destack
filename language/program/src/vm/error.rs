@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::FunctionId;
@@ -6,7 +7,7 @@ use crate::FunctionId;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// VM program record error.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum Error {
     /// Type mismatch while building or decoding a VM program.
     TypeMismatch { expected: String, actual: String },

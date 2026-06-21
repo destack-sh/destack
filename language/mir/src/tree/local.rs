@@ -1,9 +1,10 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{Mutability, Node, NodeType, TypeId};
 
 /// Local variable (stack slot) in a function.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct Local {
     /// The type of the value stored in this slot.
     pub ty: TypeId,

@@ -1,7 +1,8 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 /// One sparse node table entry.
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Schema)]
 struct SparseNodeEntry<T> {
     /// The node id that owns the value.
     node_id: u32,
@@ -10,7 +11,7 @@ struct SparseNodeEntry<T> {
 }
 
 /// Sorted sparse table keyed by node id.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub(crate) struct SparseNodeMap<T> {
     /// The sparse entries sorted by node id.
     entries: Vec<SparseNodeEntry<T>>,

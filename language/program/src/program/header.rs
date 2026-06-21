@@ -1,9 +1,10 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use destack_heap::{HeapOptions, SharedHeapOptions};
 
 /// Serialized program compatibility header.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct ProgramHeader {
     /// Pointer byte width used by layouts and pointer-sized integer types.
     pub pointer_bytes: u8,

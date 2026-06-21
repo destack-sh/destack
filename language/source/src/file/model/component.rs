@@ -1,4 +1,5 @@
 use destack_core::StableHasher;
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{ModuleId, ProfileId};
@@ -7,7 +8,7 @@ const COMPONENT_DOMAIN: &[u8] = b"destack.source.component.v1";
 
 /// Stable identifier for one source component.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema)]
 #[serde(transparent)]
 pub struct ComponentId(pub u128);
 

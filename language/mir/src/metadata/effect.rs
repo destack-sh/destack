@@ -1,9 +1,10 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::SpaceSet;
 
 /// Memory effect summary for a call or operation.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct MemoryEffect {
     /// Whether the operation may read memory.
     pub reads: bool,
@@ -67,7 +68,7 @@ impl Default for MemoryEffect {
 }
 
 /// Determinism for a call or function.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum Determinism {
     /// The operation is deterministic for the same inputs and runtime state.
     Deterministic,
@@ -83,7 +84,7 @@ impl Determinism {
 }
 
 /// Suspend behavior for a call or function.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum SuspendBehavior {
     /// The operation cannot suspend execution.
     CannotSuspend,
@@ -99,7 +100,7 @@ impl SuspendBehavior {
 }
 
 /// Return behavior for a call or function.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum ReturnBehavior {
     /// The operation may or may not return to the caller.
     MayReturn,
@@ -122,7 +123,7 @@ impl ReturnBehavior {
 }
 
 /// Panic behavior for a call or function.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum PanicBehavior {
     /// The operation cannot panic.
     CannotPanic,
@@ -138,7 +139,7 @@ impl PanicBehavior {
 }
 
 /// Behavioral effects for calls and functions.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct FunctionBehavior {
     /// Determinism for this operation.
     pub determinism: Determinism,

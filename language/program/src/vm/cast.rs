@@ -1,5 +1,6 @@
 use super::CellLayout;
 use crate::vm::error::{Error, Result};
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 const INTEGER_SIGN_BIT: u32 = 1 << 8;
@@ -21,7 +22,7 @@ const FLOAT_CAST_DEST_SHIFT: u32 = 8;
 const FLOAT_TO_INT_WIDTH_SHIFT: u32 = 8;
 
 /// Encoded integer target for one cell cast instruction field.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct IntegerCast {
     /// The packed instruction field.
     field: u32,
@@ -61,7 +62,7 @@ impl IntegerCast {
 }
 
 /// Encoded source and destination formats for one float cast.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct FloatCast {
     /// The packed instruction field.
     field: u32,
@@ -100,7 +101,7 @@ impl FloatCast {
 }
 
 /// Encoded destination format for one integer to float cast.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct IntToFloatCast {
     /// The packed instruction field.
     field: u32,
@@ -133,7 +134,7 @@ impl IntToFloatCast {
 }
 
 /// Encoded source float format and destination integer shape.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct FloatToIntCast {
     /// The packed instruction field.
     field: u32,
@@ -172,7 +173,7 @@ impl FloatToIntCast {
 }
 
 /// Encoded pointer target for one cell cast instruction field.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct PointerCast {
     /// The packed instruction field.
     field: u32,
@@ -245,7 +246,7 @@ fn float_layout_from_field(field: u32) -> Result<CellLayout> {
 }
 
 /// Encoded source and destination shape for one wide integer cast.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct WideIntegerCast {
     /// The packed sign flags instruction field.
     flags: u32,

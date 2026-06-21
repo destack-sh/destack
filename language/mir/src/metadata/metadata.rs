@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{LocalNodeId, Type};
@@ -8,7 +9,7 @@ use super::{
 };
 
 /// Structured MIR metadata domains.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Schema)]
 pub struct Metadata {
     /// Target data layout.
     pub data_layout: DataLayout,

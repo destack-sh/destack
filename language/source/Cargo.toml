@@ -18,6 +18,7 @@ schema = ["schemars"]
 [dependencies]
 # language
 destack_core = { workspace = true }
+destack_serde = { workspace = true }
 
 # general
 cfg-if = { workspace = true }

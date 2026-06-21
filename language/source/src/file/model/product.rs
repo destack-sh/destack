@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use super::hash::stable_source_id;
@@ -7,7 +8,9 @@ const PRODUCT_DOMAIN: &[u8] = b"destack.source.product.v1";
 
 /// Stable key for one product within a package.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 #[serde(transparent)]
 pub struct ProductKey(pub u128);
 
@@ -30,7 +33,9 @@ impl ProductKey {
 }
 
 /// Unique identifier for one product within a package.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
 pub struct ProductId {
     /// The owning package id.
     pub package_id: PackageId,

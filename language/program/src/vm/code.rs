@@ -1,9 +1,10 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use super::{FunctionTable, ResumeTable, SideTable};
 
 /// Durable VM code body.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Schema)]
 pub struct Code {
     /// Lowered function bodies for the VM backend.
     pub functions: FunctionTable,

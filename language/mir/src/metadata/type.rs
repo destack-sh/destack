@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -7,7 +8,7 @@ use destack_core::StringId;
 use crate::{FloatType, Global, LocalNodeId, Type};
 
 /// Canonical type metadata for one MIR module.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Schema)]
 pub struct TypeMetadata {
     /// Cached primitive type ids keyed by primitive shape.
     #[serde(skip, default)]
@@ -164,7 +165,7 @@ impl TypeMetadata {
 }
 
 /// Lineage metadata for nominal types.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct TypeLineage {
     /// Optional parent type for class inheritance.
     pub parent: Option<LocalNodeId<Type>>,

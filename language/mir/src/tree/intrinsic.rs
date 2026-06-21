@@ -1,10 +1,11 @@
+use destack_serde::Schema;
 use std::fmt;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
 /// Compiler intrinsic operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum Intrinsic {
     // reflection (comptime-only, resolved to constants)
     /// Get the type of a value (comptime only).
@@ -447,7 +448,7 @@ impl FromStr for Intrinsic {
 }
 
 /// Describes the type signature pattern of an intrinsic.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum IntrinsicSignature {
     /// Unary operation: (T) => T
     /// Examples: sqrt, abs, sin, cos, floor, ceil, leadingZeroCount, trailingZeroCount, populationCount
@@ -689,7 +690,7 @@ impl Intrinsic {
 ///
 /// Most intrinsics return the same type as their first argument.
 /// Some return fixed types (bool, usize) or derived types (pointee, tuple).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum IntrinsicResultType {
     /// No result (void intrinsic).
     Void,

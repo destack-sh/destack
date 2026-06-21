@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 /// Unique identifier for profiles.
@@ -6,7 +7,7 @@ use serde::{Deserialize, Serialize};
 /// which symbols exist and how types resolve. Multiple targets can share the same
 /// profile, allowing them to share canonical DIR.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema)]
 #[serde(transparent)]
 pub struct ProfileId(pub u128);
 

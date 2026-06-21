@@ -1,9 +1,12 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{HeapError, HeapRepresentationError, HeapResult};
 
 /// Reference to one heap block.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+)]
 pub struct HeapReference(pub(crate) usize);
 
 impl HeapReference {

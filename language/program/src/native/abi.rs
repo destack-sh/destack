@@ -1,10 +1,11 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 /// Current Destack native ABI version.
 pub const NATIVE_ABI_VERSION: u32 = 1;
 
 /// Native ABI required by one native code payload.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct Abi {
     /// Destack native ABI version.
     pub version: u32,

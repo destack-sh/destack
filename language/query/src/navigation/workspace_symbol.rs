@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use destack_source::ProfileId;
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +9,7 @@ use crate::core::{
 use crate::dir::SymbolKind;
 
 /// A symbol in the workspace (flat list for workspace symbol search).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct WorkspaceSymbol {
     /// The symbol's name.
     pub name: String,
@@ -21,7 +22,7 @@ pub struct WorkspaceSymbol {
 }
 
 /// Request workspace symbols for a query string.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct WorkspaceSymbolsRequest {
     /// The profiles to search.
     pub profile_ids: Vec<ProfileId>,
@@ -32,7 +33,7 @@ pub struct WorkspaceSymbolsRequest {
 }
 
 /// Response payload for workspace symbols queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct WorkspaceSymbolsResponse {
     /// Workspace symbols.
     pub symbols: Vec<WorkspaceSymbol>,

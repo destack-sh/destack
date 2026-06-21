@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -6,7 +7,7 @@ use super::{
 };
 
 /// Durable query index payload for one artifact scope.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct QueryIndex {
     /// Searchable symbol declarations.
     pub symbols: SymbolIndex,

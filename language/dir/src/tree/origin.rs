@@ -1,10 +1,11 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use destack_core::StringId;
 
 /// How one derived tree node came to be.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct Origin {
     /// The transform that created the node, a dotted name like `optimize.inline`.
     pub derivation: StringId,

@@ -1,5 +1,6 @@
 use destack_core::StringPool;
 use destack_dir as dir;
+use destack_serde::Schema;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +8,7 @@ use crate::core::{ModuleQueryContext, QueryRange};
 use crate::format::format_global_inlay_type;
 
 /// Kind of inlay hint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum InlayHintKind {
     /// Type annotation hint (e.g., `: string`).
     Type,
@@ -16,7 +17,7 @@ pub enum InlayHintKind {
 }
 
 /// An inlay hint (virtual text shown inline).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct InlayHint {
     /// Position where the hint should be displayed.
     pub position: u32,
@@ -57,14 +58,14 @@ impl InlayHint {
 }
 
 /// Request inlay hints for a range in a document.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct InlayHintsRequest {
     /// The queried range.
     pub range: QueryRange,
 }
 
 /// Response payload for inlay hints queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct InlayHintsResponse {
     /// Inlay hints.
     pub hints: Vec<InlayHint>,

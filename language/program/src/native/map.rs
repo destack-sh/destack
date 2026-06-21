@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use destack_mir as mir;
@@ -5,7 +6,7 @@ use destack_mir as mir;
 use crate::{FunctionId, TypeId};
 
 /// Native code map for entries, safepoints, roots, and deoptimization.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct CodeMap {
     /// Native function code ranges.
     function: Vec<FunctionCode>,
@@ -56,7 +57,7 @@ impl CodeMap {
 }
 
 /// One native function code range.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct FunctionCode {
     /// The function covered by this range.
     pub function: FunctionId,
@@ -72,7 +73,7 @@ impl FunctionCode {
 }
 
 /// One native resume entry code range.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct ResumeCode {
     /// The frame state resumed by this range.
     pub frame_state: mir::FrameStateId,
@@ -88,7 +89,7 @@ impl ResumeCode {
 }
 
 /// One native image byte range.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct CodeRange {
     /// The byte offset from the native image base.
     pub offset: u32,
@@ -104,7 +105,7 @@ impl CodeRange {
 }
 
 /// One native safepoint.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct Safepoint {
     /// The safepoint id passed through the native ABI.
     pub id: u32,
@@ -142,7 +143,7 @@ impl Safepoint {
 }
 
 /// One native root location at one safepoint.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct NativeRoot {
     /// Signed byte offset from the native frame base.
     pub offset: i32,

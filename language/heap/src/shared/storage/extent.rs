@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use super::LargeBlockId;
@@ -5,7 +6,7 @@ use crate::SharedHeapReference;
 use crate::allocator::Slot;
 
 /// One shared heap allocation place.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub(crate) enum HeapPlace {
     /// One small-space block stored in one span slot.
     SmallSlot(Slot),
@@ -14,7 +15,7 @@ pub(crate) enum HeapPlace {
 }
 
 /// One page map entry in shared heap storage.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub(crate) enum HeapPageMapEntry {
     /// One small-span page and its logical page index.
     SmallSpan {

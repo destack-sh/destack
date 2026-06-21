@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::fmt;
 use std::str::FromStr;
 
@@ -14,7 +15,7 @@ use serde::{Deserialize, Serialize};
 /// The `add.overflow` family returns an overflow flag.
 /// The `*.unchecked` family has undefined behavior on overflow or division by zero.
 /// The `add.sat` and `sub.sat` intrinsics clamp to the numeric bounds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum BinaryOperator {
     // integer arithmetic
     /// Integer addition.
@@ -254,7 +255,7 @@ impl FromStr for BinaryOperator {
 }
 
 /// Unary operator.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum UnaryOperator {
     /// Integer negation.
     Negate,

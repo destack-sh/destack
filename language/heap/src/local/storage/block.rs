@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use destack_mir::TraceMap;
@@ -41,7 +42,7 @@ impl LargeBlock {
 }
 
 /// One heap large-block identifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub(crate) struct LargeBlockId(u64);
 
 impl LargeBlockId {
@@ -68,7 +69,7 @@ impl LargeBlockId {
 }
 
 /// One frozen heap large-block image.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub(crate) struct LargeBlockImage {
     /// Whether this block slot is live.
     pub is_live: bool,

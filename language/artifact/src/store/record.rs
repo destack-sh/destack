@@ -1,4 +1,5 @@
 use destack_core::{StringId, StringPool};
+use destack_serde::Schema;
 use destack_source::{DiagnosticCollection, FileId};
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +11,7 @@ use crate::{
 };
 
 /// Self-contained transport record for one exact artifact.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct ArtifactRecord {
     /// The exact artifact version.
     pub version: ArtifactVersion,

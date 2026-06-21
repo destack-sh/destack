@@ -1,9 +1,10 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{ArtifactKey, ArtifactVersion};
 
 /// One provider failure that prevented an artifact payload from being published.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema)]
 pub enum ArtifactFailure {
     /// The provider produced user diagnostics without a payload.
     Diagnostics,

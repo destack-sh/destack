@@ -1,9 +1,10 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use destack_mir as mir;
 
 /// Durable frame image captured at one managed safepoint.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct FrameImage {
     /// The captured frame state.
     pub frame_state: mir::FrameStateId,

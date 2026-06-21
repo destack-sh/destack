@@ -1,5 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 
+use destack_serde::Schema;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -27,7 +28,7 @@ const SORT_DEFAULT: u32 = 100;
 const SORT_KEYWORD: u32 = 700;
 
 /// Kind of completion item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum CompletionKind {
     Text,
     Method,
@@ -57,7 +58,7 @@ pub enum CompletionKind {
 }
 
 /// The semantic origin bucket for one completion candidate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema, Default)]
 enum CompletionOrigin {
     /// An uncategorized completion candidate.
     #[default]
@@ -75,7 +76,7 @@ enum CompletionOrigin {
 }
 
 /// The callable and constructable shape of one completion value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema, Default)]
 struct CompletionValueShape {
     /// Whether the completion can be called like one function.
     is_callable: bool,
@@ -110,7 +111,7 @@ impl From<dir::SymbolKind> for CompletionKind {
 }
 
 /// A completion item.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct Completion {
     /// The label shown in the completion list.
     pub label: String,
@@ -307,7 +308,7 @@ impl Completion {
 }
 
 /// Trigger character that caused the completion.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum CompletionTrigger {
     /// Invoked manually or automatically.
     Invoked,
@@ -318,7 +319,7 @@ pub enum CompletionTrigger {
 }
 
 /// Request completion items at a cursor position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct CompletionRequest {
     /// The queried position.
     pub position: QueryPosition,
@@ -329,7 +330,7 @@ pub struct CompletionRequest {
 }
 
 /// Response payload for completion queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct CompletionResponse {
     /// Completion items.
     pub items: Vec<Completion>,

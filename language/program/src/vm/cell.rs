@@ -1,6 +1,7 @@
 use crate::{StaticAddress, Value};
 use destack_heap::{HeapReference, SharedHeapReference};
 use destack_mir as mir;
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::vm::{FramePointer, FunctionPointer, StackPointer};
@@ -33,7 +34,9 @@ const fn truncate_signed_bits(value: i64, width: u8) -> i64 {
 /// One untyped VM cell.
 ///
 /// The type is supplied by MIR metadata, frame maps, and lowered instructions.
-#[derive(Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize, Schema,
+)]
 #[repr(transparent)]
 pub struct Cell(u64);
 

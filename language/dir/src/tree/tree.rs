@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 
@@ -18,7 +19,7 @@ use crate::{
 };
 
 /// Mutable DIR tree across a set of related source units.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Schema)]
 pub struct Tree {
     /// The module id of the tree.
     pub module_id: ModuleId,

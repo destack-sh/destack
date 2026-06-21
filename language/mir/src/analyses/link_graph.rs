@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::collections::HashMap;
 
 use destack_core::{BitSet, DenseGraph};
@@ -10,7 +11,7 @@ use crate::{
 };
 
 /// How one symbol references another.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum LinkEdgeKind {
     /// The source calls the target.
     Call,
@@ -19,7 +20,7 @@ pub enum LinkEdgeKind {
 }
 
 /// One outgoing reference from a symbol to another symbol.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct LinkEdge {
     /// The referenced symbol.
     pub target: Symbol,
@@ -28,7 +29,7 @@ pub struct LinkEdge {
 }
 
 /// One defined symbol in the link graph.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum LinkNode {
     /// A defined function.
     Function {
@@ -60,7 +61,7 @@ impl LinkNode {
 }
 
 /// Symbol-scoped reference graph for a module's linkable surface.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Schema)]
 pub struct LinkGraph {
     /// Defined symbols, by identity.
     nodes: HashMap<Symbol, LinkNode>,
@@ -101,7 +102,7 @@ impl LinkGraph {
 }
 
 /// Strongly connected components of the whole-program call graph, by dense symbol id.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Schema)]
 pub struct CallComponentGraph {
     /// The component id of each symbol, by dense id.
     component: Vec<u32>,

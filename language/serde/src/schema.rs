@@ -1,9 +1,12 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::hash::BuildHasher;
+use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
+use smallvec::{Array, SmallVec};
 
 /// Type that can describe its Destack serialization schema.
 pub trait Schema {
@@ -262,12 +265,43 @@ impl<T: Schema> Schema for Vec<T> {
     }
 }
 
+impl<T: Schema> Schema for BTreeSet<T> {
+    fn schema(registry: &mut SchemaRegistry) -> SchemaRef {
+        SchemaRef::Sequence(Box::new(T::schema(registry)))
+    }
+}
+
+impl<K: Schema, V: Schema, S: BuildHasher> Schema for HashMap<K, V, S> {
+    fn schema(registry: &mut SchemaRegistry) -> SchemaRef {
+        SchemaRef::Map {
+            key: Box::new(K::schema(registry)),
+            value: Box::new(V::schema(registry)),
+        }
+    }
+}
+
+impl<A> Schema for SmallVec<A>
+where
+    A: Array,
+    A::Item: Schema,
+{
+    fn schema(registry: &mut SchemaRegistry) -> SchemaRef {
+        SchemaRef::Sequence(Box::new(A::Item::schema(registry)))
+    }
+}
+
 impl<T: Schema, const N: usize> Schema for [T; N] {
     fn schema(registry: &mut SchemaRegistry) -> SchemaRef {
         SchemaRef::Array {
             item: Box::new(T::schema(registry)),
             len: N,
         }
+    }
+}
+
+impl<T: Schema> Schema for [T] {
+    fn schema(registry: &mut SchemaRegistry) -> SchemaRef {
+        SchemaRef::Sequence(Box::new(T::schema(registry)))
     }
 }
 
@@ -301,15 +335,21 @@ impl<A: Schema, B: Schema> Schema for (A, B) {
     }
 }
 
-impl<T: Schema> Schema for Arc<T> {
+impl<T: Schema + ?Sized> Schema for Arc<T> {
     fn schema(registry: &mut SchemaRegistry) -> SchemaRef {
         T::schema(registry)
     }
 }
 
-impl<T: Schema> Schema for Box<T> {
+impl<T: Schema + ?Sized> Schema for Box<T> {
     fn schema(registry: &mut SchemaRegistry) -> SchemaRef {
         T::schema(registry)
+    }
+}
+
+impl Schema for NonZeroU32 {
+    fn schema(_registry: &mut SchemaRegistry) -> SchemaRef {
+        SchemaRef::Unsigned { bits: 32 }
     }
 }
 

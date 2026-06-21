@@ -1,9 +1,10 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{Block, Expression, LocalNodeId, Node, NodeType, Pattern};
 
 /// The style of a match expression.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
 pub enum MatchForm {
     /// Regular match expression (like `match <expr> { ... }`).
     Match,
@@ -15,7 +16,7 @@ pub enum MatchForm {
 ///
 /// For match expressions, this is a pattern with an optional guard.
 /// For switch expressions, this can also be `Default` (the `default:` case).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum MatchSelector {
     /// A pattern with an optional guard (e.g., `x if x > 0`).
     Pattern {
@@ -71,7 +72,7 @@ impl MatchSelector {
 /// }
 /// default: { ... }
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum MatchCase {
     /// A match case with an expression body.
     Expression {

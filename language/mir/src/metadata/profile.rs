@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -5,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{Edge, Symbol};
 
 /// Loaded profile-guided optimization data for a program.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Schema)]
 pub struct Profile {
     /// Per-function profile, by persistent symbol.
     pub functions: HashMap<Symbol, FunctionProfile>,
@@ -36,7 +37,7 @@ impl Profile {
 }
 
 /// Profile data for one function, addressed by its persistent symbol.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct FunctionProfile {
     /// Control-flow hash guarding against stale application.
     pub hash: FunctionHash,
@@ -51,7 +52,7 @@ pub struct FunctionProfile {
 }
 
 /// Profile data for one global, addressed by its persistent symbol.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct GlobalProfile {
     /// Writes observed after initialization; zero means effectively constant.
     pub writes: Count,
@@ -60,7 +61,7 @@ pub struct GlobalProfile {
 }
 
 /// Observed runtime values recorded at one value-profiling site.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub enum ValueProfile {
     /// Indirect and virtual call target distribution.
     Calls(Histogram<Symbol>),
@@ -75,7 +76,7 @@ pub enum ValueProfile {
 }
 
 /// Observed frequency distribution over a domain at one site.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct Histogram<T> {
     /// Observed entries and how often each occurred.
     pub buckets: Vec<(T, Count)>,
@@ -84,7 +85,7 @@ pub struct Histogram<T> {
 }
 
 /// Observed allocation behavior at one allocation site.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct Allocation {
     /// Observed payload sizes; its total is the number of allocations seen.
     pub size: Histogram<i64>,
@@ -93,7 +94,7 @@ pub struct Allocation {
 }
 
 /// Observed suspension behavior at one suspension point.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct Suspension {
     /// Executions of the suspension point.
     pub reached: Count,
@@ -105,7 +106,18 @@ pub struct Suspension {
 
 /// Execution count from profile data.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Schema,
 )]
 pub struct Count(
     /// The raw count value.
@@ -127,14 +139,14 @@ impl Count {
 }
 
 /// Identifier for one emitted profile counter, positional within a function.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct CounterId(
     /// The zero-based profile counter index.
     pub u32,
 );
 
 /// Structural hash of a function's profiled control flow, for stale detection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct FunctionHash(
     /// The structural hash value.
     pub u64,

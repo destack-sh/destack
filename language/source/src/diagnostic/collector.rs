@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::collections::BTreeMap;
 
 use parking_lot::Mutex;
@@ -6,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{Diagnostic, DiagnosticSeverity};
 
 /// A collection of diagnostics.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct DiagnosticCollection {
     /// The diagnostics.
     diagnostics: Vec<Diagnostic>,

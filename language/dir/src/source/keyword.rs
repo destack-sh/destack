@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
@@ -6,7 +7,7 @@ const KEYWORD_MAX: u8 = Keyword::With as u8;
 
 /// A Keyword in the language.
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum Keyword {
     // ------------------------------------------------------------
     // Modifiers

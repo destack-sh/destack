@@ -1,8 +1,9 @@
 use destack_mir as mir;
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 /// One lowered frame move slot.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct MoveSlot {
     /// The slot value type.
     pub ty: mir::LocalNodeId<mir::Type>,
@@ -15,7 +16,7 @@ pub struct MoveSlot {
 }
 
 /// Argument range within one function argument pool.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct ArgumentRange {
     /// Start offset into the argument pool.
     pub start: u32,
@@ -48,7 +49,7 @@ impl ArgumentRange {
 }
 
 /// Move pair for parameter binding.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct MovePair {
     /// Destination frame slot.
     pub dest: MoveSlot,
@@ -57,7 +58,7 @@ pub struct MovePair {
 }
 
 /// Source for one lowered frame move.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum MoveSource {
     /// Move from a frame slot.
     Slot(MoveSlot),
@@ -66,7 +67,7 @@ pub enum MoveSource {
 }
 
 /// Move range within one function move pool.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub struct MoveRange {
     /// Start offset into the move pool.
     pub start: u32,
