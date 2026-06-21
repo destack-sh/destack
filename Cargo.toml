@@ -48,6 +48,7 @@ members = [
 	"language/lsp/types",
 	"language/daemon",
 	"language/serde",
+	"language/serde/macros",
 	"language/source",
 	"language/test",
 	"language/unicode",
@@ -100,6 +101,7 @@ destack_query = { path = "language/query" }
 destack_runtime = { path = "language/runtime" }
 destack_session = { path = "language/session", default-features = false }
 destack_serde = { path = "language/serde" }
+destack_serde_macros = { path = "language/serde/macros" }
 destack_source = { path = "language/source" }
 destack_test = { path = "language/test" }
 destack_unicode = { path = "language/unicode" }
