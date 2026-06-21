@@ -2,7 +2,10 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Error, encoded_len, from_slice, to_slice, to_vec};
+use crate::{
+    Error, SchemaName, SchemaPayload, SchemaRef, SchemaRegistry, SchemaShape, encoded_len,
+    from_slice, to_slice, to_vec,
+};
 
 /// Example value used by roundtrip tests.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -26,6 +29,50 @@ enum ExampleVariant {
     Tuple(bool, u8),
     /// Struct variant.
     Struct { value: String },
+}
+
+/// Child schema item used by schema registry tests.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, crate::Schema)]
+struct SchemaChild {
+    /// Child value.
+    value: String,
+}
+
+/// Parent schema item used by schema registry tests.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, crate::Schema)]
+struct SchemaParent {
+    /// Child field.
+    child: SchemaChild,
+    /// String sequence field.
+    labels: Vec<String>,
+    /// Map field.
+    index: BTreeMap<String, u32>,
+}
+
+/// Schema item with an omitted internal field.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, crate::Schema)]
+struct SchemaSkippedField {
+    /// Serialized field.
+    visible: String,
+    /// Internal field.
+    #[serde(skip)]
+    hidden: String,
+}
+
+/// Enum schema item used by schema registry tests.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, crate::Schema)]
+enum SchemaChoice {
+    /// Empty choice.
+    Empty,
+    /// Child choice.
+    Child(SchemaChild),
+    /// Named choice.
+    Pair {
+        /// Left value.
+        left: u32,
+        /// Right value.
+        right: Option<String>,
+    },
 }
 
 /// Internally tagged enum used by codec compatibility tests.
@@ -74,6 +121,107 @@ fn test_decode_rejects_internally_tagged_enum() {
     let error = from_slice::<TaggedChoice>(&bytes).expect_err("decode should fail");
 
     assert_eq!(error, Error::SelfDescribingUnsupported);
+}
+
+#[test]
+fn test_build_schema_from_derive() {
+    let mut registry = SchemaRegistry::default();
+    registry.include::<SchemaParent>();
+    registry.include::<SchemaChoice>();
+
+    let parent = SchemaName::new(module_path!(), "SchemaParent");
+    let parent = registry.items.get(&parent).expect("parent schema item");
+
+    let SchemaShape::Struct(fields) = &parent.shape else {
+        panic!("parent should be a struct");
+    };
+
+    // inspect a nested named field
+    let child = &fields[0];
+    let SchemaRef::Named(child_name) = &child.ty else {
+        panic!("child field should be named");
+    };
+    assert_eq!(child.name, "child");
+    assert_eq!(child_name.name, "SchemaChild");
+
+    // inspect a collection field
+    let labels = &fields[1];
+    assert_eq!(labels.name, "labels");
+    assert_eq!(labels.ty, SchemaRef::Sequence(Box::new(SchemaRef::String)));
+
+    // inspect a map field
+    let index = &fields[2];
+    assert_eq!(index.name, "index");
+    assert_eq!(
+        index.ty,
+        SchemaRef::Map {
+            key: Box::new(SchemaRef::String),
+            value: Box::new(SchemaRef::Unsigned { bits: 32 }),
+        }
+    );
+}
+
+#[test]
+fn test_build_schema_omits_skipped_fields() {
+    let mut registry = SchemaRegistry::default();
+    registry.include::<SchemaSkippedField>();
+
+    let item = SchemaName::new(module_path!(), "SchemaSkippedField");
+    let item = registry
+        .items
+        .get(&item)
+        .expect("skipped field schema item");
+
+    let SchemaShape::Struct(fields) = &item.shape else {
+        panic!("skipped field item should be a struct");
+    };
+
+    assert_eq!(fields.len(), 1);
+    assert_eq!(fields[0].name, "visible");
+}
+
+#[test]
+fn test_include_moves_explicit_schema_to_module_end() {
+    let mut registry = SchemaRegistry::default();
+    registry.include::<SchemaParent>();
+    registry.include::<SchemaChild>();
+
+    let module = SchemaName::new(module_path!(), "SchemaParent").module;
+    let names = registry.modules.get(&module).expect("schema module");
+    let names = names
+        .iter()
+        .map(|name| name.name.as_str())
+        .collect::<Vec<_>>();
+
+    assert_eq!(names, vec!["SchemaParent", "SchemaChild"]);
+}
+
+#[test]
+fn test_build_enum_schema_from_derive() {
+    let mut registry = SchemaRegistry::default();
+    registry.include::<SchemaChoice>();
+
+    let choice = SchemaName::new(module_path!(), "SchemaChoice");
+    let choice = registry.items.get(&choice).expect("choice schema item");
+
+    let SchemaShape::Enum(variants) = &choice.shape else {
+        panic!("choice should be an enum");
+    };
+
+    // inspect each supported payload shape
+    assert_eq!(variants[0].name, "Empty");
+    assert_eq!(variants[0].payload, SchemaPayload::Unit);
+
+    let SchemaPayload::Tuple(SchemaRef::Named(child)) = &variants[1].payload else {
+        panic!("child choice should be a tuple payload");
+    };
+    assert_eq!(child.name, "SchemaChild");
+
+    let SchemaPayload::Struct(fields) = &variants[2].payload else {
+        panic!("pair choice should be a struct payload");
+    };
+    assert_eq!(fields[0].name, "left");
+    assert_eq!(fields[1].name, "right");
 }
 
 #[test]

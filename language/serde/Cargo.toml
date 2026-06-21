@@ -12,6 +12,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+destack_serde_macros = { workspace = true }
 indexmap = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
