@@ -60,13 +60,6 @@ pub(in crate::check) enum Mutation {
         /// The drained waiter tasks.
         waiters: SmallVec<[Task; 2]>,
     },
-    /// An implicit coercion was recorded for one value node.
-    CoercionSet {
-        /// The coerced value node.
-        node: dir::GlobalNodeIdAny,
-        /// The replaced coercion entry.
-        previous: Option<dir::Coercion>,
-    },
     /// A waiter task was pushed onto one undecided node.
     DecisionWaiterPushed { node: dir::GlobalNodeIdAny },
     /// A task was queued.
@@ -330,15 +323,6 @@ impl CheckState<'_> {
             } => self.relations.remove(relation, left, right),
             // forget speculative decisions, restoring parked waiters
             Mutation::DecisionSet { node, waiters } => self.decisions.undecide(node, waiters),
-            // forget speculative coercions, restoring replaced entries
-            Mutation::CoercionSet { node, previous } => match previous {
-                Some(previous) => {
-                    self.coercions.insert(node, previous);
-                }
-                None => {
-                    self.coercions.shift_remove(&node);
-                }
-            },
             Mutation::DecisionWaiterPushed { node } => self.decisions.pop_waiter(node),
             // restore queue order
             Mutation::TaskQueued { task } => self.queue.remove_last(task),

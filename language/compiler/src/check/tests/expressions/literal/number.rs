@@ -43,9 +43,9 @@ let value: float64 = 42;
 === checked ===
 let value = 42;
 /// @type.symbol symbol=value source=value type=float64
-/// @type.node source=42 type=42
+/// @type.node source=42 type=float64
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -118,9 +118,9 @@ let value: float64 = 3.14;
 === checked ===
 let value = 3.14;
 /// @type.symbol symbol=value source=value type=float64
-/// @type.node source=3.14 type=3.14
+/// @type.node source=3.14 type=float64
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

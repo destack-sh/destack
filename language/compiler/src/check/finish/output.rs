@@ -43,19 +43,21 @@ impl CheckModuleOutput {
             captures: dir::CaptureSegment::new(module),
         }
     }
+}
 
+impl From<CheckModuleOutput> for DirCheckedModule {
     /// Convert output segments into the artifact payload.
-    pub(in crate::check) fn finish(self) -> DirCheckedModule {
+    fn from(output: CheckModuleOutput) -> Self {
         DirCheckedModule {
-            annotations: Arc::new(self.annotations),
-            types: Arc::new(self.types),
-            statics: Arc::new(self.statics),
-            resolutions: Arc::new(self.resolutions),
-            generics: Arc::new(self.generics),
-            definitions: Arc::new(self.definitions),
-            coercions: Arc::new(self.coercions),
-            layouts: Arc::new(self.layouts),
-            captures: Arc::new(self.captures),
+            annotations: Arc::new(output.annotations),
+            types: Arc::new(output.types),
+            statics: Arc::new(output.statics),
+            resolutions: Arc::new(output.resolutions),
+            generics: Arc::new(output.generics),
+            definitions: Arc::new(output.definitions),
+            coercions: Arc::new(output.coercions),
+            layouts: Arc::new(output.layouts),
+            captures: Arc::new(output.captures),
         }
     }
 }

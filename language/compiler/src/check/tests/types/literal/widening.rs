@@ -32,7 +32,7 @@ const first = values[0];
 /// @resolution.call source=values[0] parameters=(usize) return=float64 kind=symbol target=collections.array.index#8 receiver=Array<float64>
 /// @type.node source=0 type=usize
 
-/// @check.stats.solve variables=8 types=39 constraints=7 obligations=0 solutions=8 bounds=10 decisions=2
+/// @check.stats.solve variables=8 types=38 constraints=5 obligations=0 solutions=8 bounds=10 decisions=2
 "#,
     );
 }
@@ -58,8 +58,8 @@ const first: 1 | 2 = values[0];
 const values: (1 | 2)[] = [1, 2];
 /// @type.symbol symbol=values source=values type=Array<1 | 2>
 /// @type.node source=[1, 2] type=Array<1 | 2>
-/// @type.node source=1 type=1
-/// @type.node source=2 type=2
+/// @type.node source=1 type=1 | 2
+/// @type.node source=2 type=1 | 2
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=1 | 2
@@ -69,7 +69,32 @@ const first = values[0];
 /// @resolution.call source=values[0] parameters=(usize) return=1 | 2 kind=symbol target=collections.array.index#8 receiver=Array<1 | 2>
 /// @type.node source=0 type=usize
 
-/// @check.stats.solve variables=7 types=38 constraints=7 obligations=0 solutions=7 bounds=11 decisions=2
+/// @check.stats.solve variables=7 types=38 constraints=6 obligations=0 solutions=7 bounds=11 decisions=2
+"#,
+    );
+}
+
+#[test]
+fn test_contextual_literal_requires_coercion_for_mixed_union() {
+    let session = TestSession::single(
+        r#"
+const value: number | boolean = 1;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_check_stats(),
+        r#"
+=== annotated ===
+const value: number | boolean = 1 as float64 | boolean;
+
+=== checked ===
+const value: number | boolean = 1;
+/// @type.symbol symbol=value source=value type=float64 | boolean
+/// @type.node source=1 type=1
+
+/// @check.stats.solve variables=0 types=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -93,7 +118,7 @@ const value: 1 | 2 = true ? 1 : 2;
 const value = true ? 1 : 2;
 /// @type.symbol symbol=value source=value type=1 | 2
 /// @type.node source="true ? 1 : 2" type=1 | 2
-/// @type.node source=true type=true
+/// @type.node source=true type=boolean
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -120,12 +145,12 @@ let value: float64 = true ? 1 : 2;
 === checked ===
 let value = true ? 1 : 2;
 /// @type.symbol symbol=value source=value type=float64
-/// @type.node source="true ? 1 : 2" type=1 | 2
-/// @type.node source=true type=true
+/// @type.node source="true ? 1 : 2" type=float64
+/// @type.node source=true type=boolean
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=8 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=8 constraints=2 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

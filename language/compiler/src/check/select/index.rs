@@ -154,6 +154,7 @@ impl CheckState<'_> {
                         module,
                         SubscriptMethod::Index,
                         receiver,
+                        index_node,
                         index,
                     ),
                     PlaceAccess::Write => self.select_index_protocol(
@@ -162,11 +163,11 @@ impl CheckState<'_> {
                         module,
                         SubscriptMethod::IndexSet,
                         receiver,
+                        index_node,
                         index,
                     ),
-                    PlaceAccess::ReadWrite => {
-                        self.select_index_read_write(node, origin, module, receiver, index)
-                    }
+                    PlaceAccess::ReadWrite => self
+                        .select_index_read_write(node, origin, module, receiver, index_node, index),
                 }
             }
 
@@ -193,6 +194,7 @@ impl CheckState<'_> {
         module: destack_source::ModuleId,
         method: SubscriptMethod,
         receiver: dir::GlobalTypeId,
+        index_node: dir::GlobalNodeIdAny,
         index: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
         let signature =
@@ -230,6 +232,9 @@ impl CheckState<'_> {
         };
 
         let resolution = self.index_call_resolution(node, receiver, signature)?;
+
+        // record the selected key parameter on the index expression
+        self.push_index_argument_constraint(index_node, index, &resolution);
         self.record_decision(node, Decision::Call(resolution))?;
 
         // flow the projected element or place into the node variable
@@ -240,7 +245,7 @@ impl CheckState<'_> {
         Ok(Answer::Ready(()))
     }
 
-    /// Select one read-write subscript, committing the paired calls.
+    /// Select one read-write subscript and record the paired calls.
     ///
     /// Compound assignment reads through `index` and writes the
     /// operator result back through `indexSet`; both must accept, and
@@ -251,6 +256,7 @@ impl CheckState<'_> {
         origin: Origin,
         module: destack_source::ModuleId,
         receiver: dir::GlobalTypeId,
+        index_node: dir::GlobalNodeIdAny,
         index: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
         let read = match self.index_method_signature(
@@ -319,9 +325,10 @@ impl CheckState<'_> {
             cause: ConstraintCause::General,
         });
 
-        // commit the pair, carrying the read element on the node
+        // record the pair, carrying the read element on the node
         let read = self.index_call_resolution(node, receiver, read)?;
         let write = self.index_call_resolution(node, receiver, write)?;
+        self.push_index_argument_constraint(index_node, index, &read);
         let resolution = dir::ReadWriteResolution::new(read, write);
         self.record_decision(node, Decision::ReadWrite(resolution))?;
         if let Some(variable) = self.node_variable(node)? {
@@ -415,6 +422,27 @@ impl CheckState<'_> {
             signature.parameters.into_iter().collect(),
             return_type,
         ))
+    }
+
+    /// Record the selected subscript key parameter on the index expression.
+    fn push_index_argument_constraint(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        source: dir::GlobalTypeId,
+        resolution: &dir::CallResolution,
+    ) {
+        let Some(parameter) = resolution.parameters.first() else {
+            return;
+        };
+
+        self.push_constraint(Constraint {
+            relation: Relation::Assignable,
+            left: source,
+            right: *parameter,
+            origin: Origin::Node(node),
+            condition: Condition::Always,
+            cause: ConstraintCause::Argument,
+        });
     }
 
     /// Record one structural field projection and bound the node.

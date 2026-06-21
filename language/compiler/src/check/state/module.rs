@@ -35,19 +35,19 @@ pub(in crate::check) struct CheckModuleState {
     /// Out-of-component modules visible from this module.
     pub(in crate::check) external_modules: IndexSet<ModuleId>,
 
-    // open check output committed into this module
+    // open check output owned by this module
     /// Open inference types layered over the expanded base.
     pub(in crate::check) types: dir::TypeSegment,
     /// Checked declaration definitions.
     pub(in crate::check) definitions: dir::DefinitionSegment,
     /// Induced generic templates and parameters.
     pub(in crate::check) generics: dir::GenericSegment,
-    /// Inferred static symbol values, materialized to statics at commit.
+    /// Inferred static symbol values, materialized to statics at finish.
     pub(in crate::check) values: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Captures discovered while walking this module.
     pub(in crate::check) captures: Vec<Capture>,
 
-    // walk-recorded selection context, consumed during select, not committed
+    // walk-recorded selection context, consumed during select
     /// Active static `@if` guard predicates keyed by guarded node.
     pub(in crate::check) node_conditions:
         IndexMap<dir::GlobalNodeIdAny, SmallVec<[dir::GlobalTypeId; 2]>>,
@@ -59,7 +59,7 @@ pub(in crate::check) struct CheckModuleState {
     /// Place accesses keyed by written place node.
     pub(in crate::check) accesses: IndexMap<dir::GlobalNodeIdAny, PlaceAccess>,
 
-    // diagnostics drained at commit
+    // diagnostics drained at finish
     /// Diagnostics reported while walking this module.
     pub(in crate::check) diagnostics: Vec<DiagnosticBuilder<CheckError>>,
     /// Warnings reported while walking this module.
@@ -107,7 +107,7 @@ impl CheckModuleState {
         }
     }
 
-    /// Move this module's open type overlay out for commit, leaving it empty.
+    /// Move this module's open type overlay out for finish, leaving it empty.
     pub(in crate::check) fn take_types(&mut self) -> dir::TypeSegment {
         std::mem::replace(
             &mut self.types,
@@ -115,7 +115,7 @@ impl CheckModuleState {
         )
     }
 
-    /// Move this module's checked definitions out for commit, leaving them empty.
+    /// Move this module's checked definitions out for finish, leaving them empty.
     pub(in crate::check) fn take_definitions(&mut self) -> dir::DefinitionSegment {
         std::mem::replace(
             &mut self.definitions,
@@ -123,7 +123,7 @@ impl CheckModuleState {
         )
     }
 
-    /// Move this module's induced generics out for commit, leaving them empty.
+    /// Move this module's induced generics out for finish, leaving them empty.
     pub(in crate::check) fn take_generics(&mut self) -> dir::GenericSegment {
         std::mem::replace(&mut self.generics, dir::GenericSegment::new(self.module.id))
     }
