@@ -98,7 +98,7 @@ function read(state: State): int32 {
     /// @type.node source=state type=read.T0
     /// @type.node source=state.kind type="pending" | "fulfilled"
     /// @resolution.name source=state target=state
-    /// @resolution.member source=state.kind receiver=read.T0 kind=union targets=[Pending.kind, Fulfilled.kind]
+    /// @resolution.member source=state.kind receiver=read.T0 kind=universal targets=[Pending.kind, Fulfilled.kind]
     /// @resolution.call source="state.kind == \"pending\"" parameters=("pending" | "fulfilled", "pending") return=boolean kind=builtin builtin=binary.equal
     /// @type.node source="\"pending\"" type="pending"
 

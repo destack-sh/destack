@@ -139,7 +139,7 @@ impl DirQueryContext<'_> {
                 targets.push(candidate.symbol);
                 targets.push(ctx.canonical_symbol(candidate.symbol));
             }
-            dir::CallTarget::Union(candidates) => {
+            dir::CallTarget::Universal(candidates) => {
                 for candidate in candidates {
                     targets.push(candidate.symbol);
                     targets.push(ctx.canonical_symbol(candidate.symbol));

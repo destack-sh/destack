@@ -74,7 +74,7 @@ impl CheckState<'_> {
                         }
                         Answer::Pending(_) => false,
                     };
-                    self.record_overloaded_member_decision(
+                    self.record_candidate_member_decision(
                         node,
                         receiver,
                         first.ty,
@@ -124,10 +124,10 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Record one multi-candidate member decision and bound the node.
+    /// Record one candidate set member decision and bound the node.
     ///
     /// Call selection picks among the candidates' applied types.
-    fn record_overloaded_member_decision(
+    fn record_candidate_member_decision(
         &mut self,
         node: dir::GlobalNodeIdAny,
         receiver: dir::GlobalTypeId,
@@ -147,9 +147,9 @@ impl CheckState<'_> {
             })
             .collect::<Vec<_>>();
         let target = if is_union {
-            dir::MemberTarget::Union(candidates)
+            dir::MemberTarget::Universal(candidates)
         } else {
-            dir::MemberTarget::Overloaded(candidates)
+            dir::MemberTarget::Existential(candidates)
         };
         let resolution = dir::MemberResolution::new(receiver, target);
         self.record_decision(node, Decision::Member(resolution))?;

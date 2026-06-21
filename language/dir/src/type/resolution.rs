@@ -129,12 +129,12 @@ pub enum LabelResolution {
     Function,
 }
 
-/// Receiver member or protocol slot selected at a usage site.
+/// Receiver member selected at a usage site.
 ///
 /// Examples:
 /// ```ds
 /// user.name      // receiver: User, target: the selected member
-/// bytes[2]       // receiver: uint8[], target: the builtin subscript (if bytes is a slice)
+/// tuple[0]       // receiver: tuple, target: the selected element
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MemberResolution {
@@ -154,14 +154,6 @@ impl MemberResolution {
 /// Member target selected at a usage site.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MemberTarget {
-    /// Compiler builtin selected at a member usage site.
-    ///
-    /// Examples:
-    /// ```ds
-    /// bytes[2]       // element reads have no declaration symbol
-    /// bytes[1..3]
-    /// ```
-    Builtin(BuiltinMember),
     /// Structural field selected from a shape type.
     ///
     /// Examples:
@@ -170,6 +162,22 @@ pub enum MemberTarget {
     /// point.x        // a field key on a shape, not a declaration
     /// ```
     Field(StaticKey),
+    /// Structural element selected from a tuple type.
+    ///
+    /// Examples:
+    /// ```ds
+    /// declare const tuple: [string, int32];
+    /// tuple[0]
+    /// ```
+    Element(usize),
+    /// Structural index signature selected from a shape type.
+    ///
+    /// Examples:
+    /// ```ds
+    /// declare const bag: { [key: string]: int32 };
+    /// bag["name"]
+    /// ```
+    Index(GlobalTypeId),
     /// Exactly one symbol-backed member selected at compile time.
     ///
     /// Examples:
@@ -177,7 +185,7 @@ pub enum MemberTarget {
     /// user.rename(name)   // `rename` has exactly one declaration
     /// ```
     Symbol(MemberCandidate),
-    /// Overloaded symbol-backed members deferred to call selection.
+    /// Existential symbol-backed candidates deferred to call selection.
     /// A call is valid when one candidate accepts it.
     ///
     /// Examples:
@@ -186,8 +194,8 @@ pub enum MemberTarget {
     /// // `push(value: T)` and `push(...values: T[])` stay candidates
     /// // until the call site selects one
     /// ```
-    Overloaded(Vec<MemberCandidate>),
-    /// Symbol-backed members selected from a union receiver.
+    Existential(Vec<MemberCandidate>),
+    /// Universal symbol-backed candidates deferred to call selection.
     /// A call is valid only when every candidate accepts it.
     ///
     /// Examples:
@@ -197,26 +205,7 @@ pub enum MemberTarget {
     /// // Rectangle.draw and Circle.draw both stay selected: the
     /// // runtime value can be either variant
     /// ```
-    Union(Vec<MemberCandidate>),
-}
-
-/// Compiler builtin member selected at a usage site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum BuiltinMember {
-    /// Indexed element access.
-    ///
-    /// Examples:
-    /// ```ds
-    /// bytes[2]
-    /// ```
-    Index,
-    /// Range slice access.
-    ///
-    /// Examples:
-    /// ```ds
-    /// bytes[1..3]
-    /// ```
-    Slice,
+    Universal(Vec<MemberCandidate>),
 }
 
 /// One member candidate after receiver lookup.
@@ -323,14 +312,14 @@ pub enum CallTarget {
     /// values.push(1) // the matching `push` overload won selection
     /// ```
     Symbol(CallCandidate),
-    /// Symbol-backed callables selected from a union receiver.
+    /// Universal symbol-backed callables selected at compile time.
     ///
     /// Examples:
     /// ```ds
     /// declare const shape: Rectangle | Circle;
     /// shape.draw()   // every variant's `draw` must accept the call
     /// ```
-    Union(Vec<CallCandidate>),
+    Universal(Vec<CallCandidate>),
 }
 
 /// Compiler builtin callable selected at a usage site.

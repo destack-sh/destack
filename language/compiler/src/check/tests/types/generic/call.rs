@@ -147,7 +147,7 @@ function first<T>(values: T[]): T {
     /// @type.node source=values type=Array<T>
     /// @type.node source=values[0] type=T
     /// @resolution.name source=values target=values
-    /// @resolution.member source=values[0] receiver=Array<T> kind=builtin builtin=subscript.index
+    /// @resolution.call source=values[0] parameters=(usize) return=T kind=symbol target=collections.array.index#8 receiver=Array<T>
     /// @type.node source=0 type=0
 
 }

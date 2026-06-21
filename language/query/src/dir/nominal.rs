@@ -170,8 +170,8 @@ impl DirQueryContext<'_> {
 
                     Some(candidate.symbol)
                 }
-                dir::MemberTarget::Overloaded(candidates)
-                | dir::MemberTarget::Union(candidates) => {
+                dir::MemberTarget::Existential(candidates)
+                | dir::MemberTarget::Universal(candidates) => {
                     if candidates.len() == 1 {
                         let symbol_id = candidates[0].symbol;
                         if !self.symbol_is_visible(symbol_id) {
@@ -183,7 +183,9 @@ impl DirQueryContext<'_> {
 
                     None
                 }
-                dir::MemberTarget::Builtin(_) | dir::MemberTarget::Field(_) => None,
+                dir::MemberTarget::Field(_)
+                | dir::MemberTarget::Element(_)
+                | dir::MemberTarget::Index(_) => None,
             };
         }
 

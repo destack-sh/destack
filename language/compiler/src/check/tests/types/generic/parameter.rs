@@ -71,7 +71,7 @@ const values = id([1, 2]);
 const first = values[0];
 /// @type.symbol symbol=first type=1
 /// @resolution.name source=values target=values
-/// @resolution.member source=values[0] receiver=readonly [1, 2] kind=builtin builtin=subscript.index
+/// @resolution.member source=values[0] receiver=readonly [1, 2] kind=element index=0
 /// @generic.instance id="id<readonly [1, 2]>" symbol=id arguments=[readonly [1, 2]]
 "#,
     );
@@ -113,7 +113,7 @@ const values = id([1, 2]);
 const first = values[0];
 /// @type.symbol symbol=first type=float64
 /// @resolution.name source=values target=values
-/// @resolution.member source=values[0] receiver=float64[] kind=builtin builtin=subscript.index
+/// @resolution.call source=values[0] parameters=(usize) return=float64 kind=symbol target=collections.array.index#8 receiver=Array<float64>
 /// @generic.instance id="id<float64[]>" symbol=id arguments=[float64[]]
 "#,
     );

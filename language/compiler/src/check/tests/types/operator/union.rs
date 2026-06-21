@@ -232,8 +232,8 @@ let shape: Rectangle | Circle = Rectangle {};
 
 shape.draw();
 /// @resolution.name source=shape target=shape
-/// @resolution.member source=shape.draw receiver=Rectangle | Circle kind=union targets=[Rectangle.draw, Circle.draw]
-/// @resolution.call source=shape.draw() parameters=() return=void kind=union targets=[Rectangle.draw, Circle.draw]
+/// @resolution.member source=shape.draw receiver=Rectangle | Circle kind=universal targets=[Rectangle.draw, Circle.draw]
+/// @resolution.call source=shape.draw() parameters=() return=void kind=universal targets=[Rectangle.draw, Circle.draw]
 
 "#);
 }
@@ -312,8 +312,8 @@ function draw(shape: Shape): void {
 
     shape.draw();
     /// @resolution.name source=shape target=shape
-    /// @resolution.member source=shape.draw receiver=draw.T0 kind=union targets=[Rectangle.draw, Circle.draw]
-    /// @resolution.call source=shape.draw() parameters=() return=void kind=union targets=[Rectangle.draw, Circle.draw] receiver=draw.T0
+    /// @resolution.member source=shape.draw receiver=draw.T0 kind=universal targets=[Rectangle.draw, Circle.draw]
+    /// @resolution.call source=shape.draw() parameters=() return=void kind=universal targets=[Rectangle.draw, Circle.draw] receiver=draw.T0
 
 }
 "#);

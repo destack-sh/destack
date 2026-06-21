@@ -157,9 +157,11 @@ impl FunctionLowerer<'_> {
 
         match &resolution.target {
             dir::MemberTarget::Symbol(candidate) => Some(candidate.symbol),
-            dir::MemberTarget::Builtin(_)
-            | dir::MemberTarget::Field(_)
-            | dir::MemberTarget::Union(_) => None,
+            dir::MemberTarget::Field(_)
+            | dir::MemberTarget::Element(_)
+            | dir::MemberTarget::Index(_)
+            | dir::MemberTarget::Existential(_)
+            | dir::MemberTarget::Universal(_) => None,
         }
     }
 

@@ -149,23 +149,26 @@ fn add_member_resolution_row(
         .type_field("receiver", builder.global_type_label(resolution.receiver));
 
     let row = match &resolution.target {
-        dir::MemberTarget::Builtin(builtin) => row
-            .field("kind", "builtin")
-            .field("builtin", builtin_member_label(*builtin)),
         dir::MemberTarget::Field(key) => row
             .field("kind", "field")
             .field("key", builder.static_key(*key)),
+        dir::MemberTarget::Element(index) => row
+            .field("kind", "element")
+            .field("index", index.to_string()),
+        dir::MemberTarget::Index(key) => row
+            .field("kind", "index")
+            .type_field("key", builder.global_type_label(*key)),
         dir::MemberTarget::Symbol(candidate) => row
             .field("kind", "symbol")
             .field("target", builder.member_candidate_label(candidate))
             .optional_field("arguments", arguments_label(builder, &candidate.arguments)),
-        dir::MemberTarget::Overloaded(candidates) => row.field("kind", "overloaded").list_field(
+        dir::MemberTarget::Existential(candidates) => row.field("kind", "existential").list_field(
             "targets",
             candidates
                 .iter()
                 .map(|candidate| builder.member_candidate_label(candidate)),
         ),
-        dir::MemberTarget::Union(candidates) => row.field("kind", "union").list_field(
+        dir::MemberTarget::Universal(candidates) => row.field("kind", "universal").list_field(
             "targets",
             candidates
                 .iter()
@@ -203,7 +206,7 @@ fn add_call_resolution_row(
         dir::CallTarget::Symbol(candidate) => {
             add_call_candidate_fields(builder, row.field("kind", "symbol"), candidate)
         }
-        dir::CallTarget::Union(candidates) => row.field("kind", "union").list_field(
+        dir::CallTarget::Universal(candidates) => row.field("kind", "universal").list_field(
             "targets",
             candidates
                 .iter()
@@ -377,14 +380,6 @@ fn receiver_kind_label(kind: dir::ReceiverKind) -> &'static str {
     match kind {
         dir::ReceiverKind::This => "this",
         dir::ReceiverKind::Super => "super",
-    }
-}
-
-/// Return one builtin member label.
-fn builtin_member_label(builtin: dir::BuiltinMember) -> &'static str {
-    match builtin {
-        dir::BuiltinMember::Index => "subscript.index",
-        dir::BuiltinMember::Slice => "subscript.slice",
     }
 }
 
