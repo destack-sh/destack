@@ -53,19 +53,19 @@ function use(onValue?: (value: unknown) => void): void {
 
 === checked ===
 function use(onValue?: (value: unknown) => void): void {
-/// @type.symbol symbol=use type=((unknown) => void | undefined?) => void
-/// @type.symbol symbol=onValue source="onValue?: (value: unknown) => void" type=(unknown) => void | undefined
+/// @type.symbol symbol=use type=(Function<(unknown,), void> | undefined?) => void
+/// @type.symbol symbol=onValue source="onValue?: (value: unknown) => void" type=Function<(unknown,), void> | undefined
 
     if (onValue !== undefined) {
     /// @type.node type=void | void
     /// @type.node source="onValue !== undefined" type=boolean
-    /// @type.node source=onValue type=(unknown) => void | undefined
+    /// @type.node source=onValue type=Function<(unknown,), void> | undefined
     /// @resolution.name source=onValue target=onValue
     /// @resolution.call source="onValue !== undefined" parameters=() return=boolean kind=builtin builtin=binary.not_equal_strict
     /// @type.node source=undefined type=undefined
 
         onValue(1);
-        /// @type.node source=onValue type=(unknown) => void | undefined extends undefined ? never : (unknown) => void | undefined
+        /// @type.node source=onValue type=Function<(unknown,), void> | undefined extends undefined ? never : Function<(unknown,), void> | undefined
         /// @type.node source=onValue(1) type=void
         /// @resolution.name source=onValue target=onValue
         /// @resolution.call source=onValue(1) parameters=(unknown) return=void kind=expression
