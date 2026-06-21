@@ -68,11 +68,16 @@ impl CheckState<'_> {
                     }
                     _ => None,
                 };
-                let element = position.and_then(|position| tuple.elements.get(position));
+                let element = position.and_then(|position| {
+                    tuple
+                        .elements
+                        .get(position)
+                        .map(|element| (position, element))
+                });
 
                 match element {
-                    Some(element) => {
-                        self.record_index(node, receiver, dir::BuiltinMember::Index, element.ty)
+                    Some((position, element)) => {
+                        self.record_element(node, receiver, position, element.ty)
                     }
                     None => self.reject_index(
                         node,
@@ -93,12 +98,7 @@ impl CheckState<'_> {
                     let key = dir::StaticKey::Name(*name);
                     let field = shape.fields.iter().find(|field| field.key == key);
                     if let Some(field) = field {
-                        return self.record_index(
-                            node,
-                            receiver,
-                            dir::BuiltinMember::Index,
-                            field.ty,
-                        );
+                        return self.record_field(node, receiver, key, field.ty);
                     }
                 }
 
@@ -112,10 +112,10 @@ impl CheckState<'_> {
                     )?;
                     match accepts {
                         Answer::Ready(true) => {
-                            return self.record_index(
+                            return self.record_index_signature(
                                 node,
                                 receiver,
-                                dir::BuiltinMember::Index,
+                                signature.key_type,
                                 signature.value_type,
                             );
                         }
@@ -417,23 +417,60 @@ impl CheckState<'_> {
         ))
     }
 
-    /// Record one structural subscript projection and bound the node.
-    ///
-    /// Only declaration-free projections commit as builtins: tuple
-    /// positions and shape index signatures.
-    fn record_index(
+    /// Record one structural field projection and bound the node.
+    fn record_field(
         &mut self,
         node: dir::GlobalNodeIdAny,
         receiver: dir::GlobalTypeId,
-        builtin: dir::BuiltinMember,
+        key: dir::StaticKey,
         result: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
-        let resolution = dir::MemberResolution::new(receiver, dir::MemberTarget::Builtin(builtin));
+        let resolution = dir::MemberResolution::new(receiver, dir::MemberTarget::Field(key));
+        self.record_decision(node, Decision::Member(resolution))?;
+
+        // flow the field into the node variable
+        if let Some(variable) = self.node_variable(node)? {
+            self.push_lower_bound(variable, result)?;
+        }
+
+        Ok(Answer::Ready(()))
+    }
+
+    /// Record one structural element projection and bound the node.
+    fn record_element(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        receiver: dir::GlobalTypeId,
+        index: usize,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<()>> {
+        let target = dir::MemberTarget::Element(index);
+        let resolution = dir::MemberResolution::new(receiver, target);
         self.record_decision(node, Decision::Member(resolution))?;
 
         // flow the element into the node variable
         if let Some(variable) = self.node_variable(node)? {
-            self.push_lower_bound(variable, result)?;
+            self.push_lower_bound(variable, ty)?;
+        }
+
+        Ok(Answer::Ready(()))
+    }
+
+    /// Record one structural index signature projection and bound the node.
+    fn record_index_signature(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        receiver: dir::GlobalTypeId,
+        key: dir::GlobalTypeId,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<()>> {
+        let target = dir::MemberTarget::Index(key);
+        let resolution = dir::MemberResolution::new(receiver, target);
+        self.record_decision(node, Decision::Member(resolution))?;
+
+        // flow the value into the node variable
+        if let Some(variable) = self.node_variable(node)? {
+            self.push_lower_bound(variable, value)?;
         }
 
         Ok(Answer::Ready(()))

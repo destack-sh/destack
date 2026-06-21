@@ -324,11 +324,12 @@ impl CheckState<'_> {
 
                     Ok(Answer::Ready(Some(Callees::any(candidates))))
                 }
-                // one overload accepts; union members must all accept
-                dir::MemberTarget::Overloaded(overloads) | dir::MemberTarget::Union(overloads) => {
-                    let universal = matches!(resolution.target, dir::MemberTarget::Union(_));
+                // existential candidates need one match, universal candidates need every match
+                dir::MemberTarget::Existential(candidates)
+                | dir::MemberTarget::Universal(candidates) => {
+                    let is_universal = matches!(resolution.target, dir::MemberTarget::Universal(_));
                     let receiver = resolution.receiver;
-                    let candidates = overloads
+                    let candidates = candidates
                         .iter()
                         .map(|candidate| CalleeCandidate {
                             symbol: Some(candidate.symbol),
@@ -337,7 +338,7 @@ impl CheckState<'_> {
                         })
                         .collect::<SmallVec<[_; 2]>>();
 
-                    Ok(Answer::Ready(Some(if universal {
+                    Ok(Answer::Ready(Some(if is_universal {
                         Callees::every(candidates)
                     } else {
                         Callees::any(candidates)
@@ -593,7 +594,7 @@ impl CheckState<'_> {
         };
 
         let resolution = dir::CallResolution::new(
-            dir::CallTarget::Union(targets),
+            dir::CallTarget::Universal(targets),
             parameters.unwrap_or_default(),
             return_type,
         );

@@ -365,7 +365,7 @@ declare const bag: Bag;
 
 bag["missing"] satisfies int32 | undefined;
 /// @resolution.name source=bag target=bag
-/// @resolution.member source="bag[\"missing\"]" receiver={ [P: string]: int32 } kind=builtin builtin=subscript.index
+/// @resolution.member source="bag[\"missing\"]" receiver={ [P: string]: int32 } kind=index key=string
 "#,
     );
 }
@@ -415,7 +415,7 @@ const bag: Bag = map;
 const value = bag["missing"];
 /// @type.symbol symbol=value type=int32 | undefined
 /// @resolution.name source=bag target=bag
-/// @resolution.member source="bag[\"missing\"]" receiver={ [P: string]: int32 } kind=builtin builtin=subscript.index
+/// @resolution.member source="bag[\"missing\"]" receiver={ [P: string]: int32 } kind=index key=string
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value

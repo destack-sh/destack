@@ -76,12 +76,15 @@ pub fn resolution_target_symbols(
             dir::MemberTarget::Symbol(candidate) => {
                 push_unique_symbol(&mut symbols, candidate.symbol);
             }
-            dir::MemberTarget::Overloaded(candidates) | dir::MemberTarget::Union(candidates) => {
+            dir::MemberTarget::Existential(candidates)
+            | dir::MemberTarget::Universal(candidates) => {
                 for candidate in candidates {
                     push_unique_symbol(&mut symbols, candidate.symbol);
                 }
             }
-            dir::MemberTarget::Builtin(_) | dir::MemberTarget::Field(_) => {}
+            dir::MemberTarget::Field(_)
+            | dir::MemberTarget::Element(_)
+            | dir::MemberTarget::Index(_) => {}
         }
     }
 
@@ -90,7 +93,7 @@ pub fn resolution_target_symbols(
             dir::CallTarget::Symbol(candidate) => {
                 push_unique_symbol(&mut symbols, candidate.symbol);
             }
-            dir::CallTarget::Union(candidates) => {
+            dir::CallTarget::Universal(candidates) => {
                 for candidate in candidates {
                     push_unique_symbol(&mut symbols, candidate.symbol);
                 }

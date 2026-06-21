@@ -51,12 +51,12 @@ function read(bag: Bag): int32 | undefined {
     const x = bag["x"];
     /// @type.symbol symbol=x type=int32 | undefined
     /// @resolution.name source=bag target=bag
-    /// @resolution.member source="bag[\"x\"]" receiver=read.T0 kind=builtin builtin=subscript.index
+    /// @resolution.member source="bag[\"x\"]" receiver=read.T0 kind=index key=string
 
     const missing = bag["missing"];
     /// @type.symbol symbol=missing type=int32 | undefined
     /// @resolution.name source=bag target=bag
-    /// @resolution.member source="bag[\"missing\"]" receiver=read.T0 kind=builtin builtin=subscript.index
+    /// @resolution.member source="bag[\"missing\"]" receiver=read.T0 kind=index key=string
 
     missing satisfies int32 | undefined;
     /// @resolution.name source=missing target=missing
@@ -274,11 +274,11 @@ function write(bag: Bag): int32 | undefined {
 
     bag["x"] = 1;
     /// @resolution.name source=bag target=bag
-    /// @resolution.member source="bag[\"x\"]" receiver=write.T0 kind=builtin builtin=subscript.index
+    /// @resolution.member source="bag[\"x\"]" receiver=write.T0 kind=index key=string
 
     return bag["x"];
     /// @resolution.name source=bag target=bag
-    /// @resolution.member source="bag[\"x\"]" receiver=write.T0 kind=builtin builtin=subscript.index
+    /// @resolution.member source="bag[\"x\"]" receiver=write.T0 kind=index key=string
 
 }
 
@@ -395,7 +395,7 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
         /// @resolution.name source=this target=this
         /// @resolution.member source=this.storage receiver=Store kind=symbol target=Store.storage
         /// @resolution.name source=key target=key
-        /// @resolution.member source="this.storage[key]" receiver=Map<string, int32> kind=builtin builtin=subscript.index
+        /// @resolution.call source="this.storage[key]" parameters=(string) return=int32 | undefined kind=symbol target=collections.map.index receiver=Map<string, int32>
 
     }
 
@@ -409,7 +409,7 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
         /// @resolution.member source=this.storage receiver=Borrowed<Store, indexSet.L0, "exclusive"> kind=symbol target=Store.storage
         /// @resolution.name source=key target=key
         /// @resolution.name source=value target=value
-        /// @resolution.member source="this.storage[key]" receiver=Map<string, int32> kind=builtin builtin=subscript.index
+        /// @resolution.call source="this.storage[key]" parameters=(string, int32) return=void kind=symbol target=collections.map.indexSet receiver=Map<string, int32>
 
     }
 }
@@ -528,7 +528,7 @@ declare const bag: Bag;
 const value = bag["missing"];
 /// @type.symbol symbol=value type=int32 | undefined
 /// @resolution.name source=bag target=bag
-/// @resolution.member source="bag[\"missing\"]" receiver={ [P: string]: int32 } kind=builtin builtin=subscript.index
+/// @resolution.member source="bag[\"missing\"]" receiver={ [P: string]: int32 } kind=index key=string
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
@@ -574,7 +574,7 @@ declare const bag: Bag;
 const value = bag[1];
 /// @type.symbol symbol=value type=int32 | undefined
 /// @resolution.name source=bag target=bag
-/// @resolution.member source="bag[1]" receiver={ [P: usize]: int32 } kind=builtin builtin=subscript.index
+/// @resolution.member source="bag[1]" receiver={ [P: usize]: int32 } kind=index key=usize
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value

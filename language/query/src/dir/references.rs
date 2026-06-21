@@ -59,13 +59,15 @@ impl ModuleQueryContext<'_> {
                     dir::MemberTarget::Symbol(candidate) => {
                         dir.insert_reference_target_keys(&mut targets, candidate.symbol)
                     }
-                    dir::MemberTarget::Overloaded(candidates)
-                    | dir::MemberTarget::Union(candidates) => {
+                    dir::MemberTarget::Existential(candidates)
+                    | dir::MemberTarget::Universal(candidates) => {
                         for candidate in candidates {
                             dir.insert_reference_target_keys(&mut targets, candidate.symbol);
                         }
                     }
-                    dir::MemberTarget::Builtin(_) | dir::MemberTarget::Field(_) => {}
+                    dir::MemberTarget::Field(_)
+                    | dir::MemberTarget::Element(_)
+                    | dir::MemberTarget::Index(_) => {}
                 }
             }
             if let Some(resolution) = dir.resolutions().call_resolution(node_id) {
@@ -73,7 +75,7 @@ impl ModuleQueryContext<'_> {
                     dir::CallTarget::Symbol(candidate) => {
                         dir.insert_reference_target_keys(&mut targets, candidate.symbol)
                     }
-                    dir::CallTarget::Union(candidates) => {
+                    dir::CallTarget::Universal(candidates) => {
                         for candidate in candidates {
                             dir.insert_reference_target_keys(&mut targets, candidate.symbol);
                         }
@@ -828,11 +830,10 @@ impl DirQueryContext<'_> {
         };
 
         match &resolution.target {
-            dir::MemberTarget::Overloaded(candidates) | dir::MemberTarget::Union(candidates) => {
-                candidates.iter().any(|candidate| {
-                    ctx.symbol_matches_reference_target(candidate.symbol, canonical_id)
-                })
-            }
+            dir::MemberTarget::Existential(candidates)
+            | dir::MemberTarget::Universal(candidates) => candidates.iter().any(|candidate| {
+                ctx.symbol_matches_reference_target(candidate.symbol, canonical_id)
+            }),
             _ => false,
         }
     }
