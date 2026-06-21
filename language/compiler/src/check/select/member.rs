@@ -49,9 +49,12 @@ impl CheckState<'_> {
         // look the member up on the receiver
         let lookup = self.lookup_member(origin, module, receiver, space, key)?;
         match lookup {
-            // structural fields bound the node directly
+            // structural fields bind the node directly
             MemberLookup::Field(ty) => {
-                self.record_member_decision(node, receiver, key, None, ty)?;
+                let target = dir::MemberTarget::Field(key);
+                let resolution = dir::MemberResolution::new(receiver, target);
+                self.record_decision(node, Decision::Member(resolution))?;
+                self.bind_member_node(node, ty)?;
 
                 Ok(Answer::Ready(()))
             }
@@ -67,25 +70,48 @@ impl CheckState<'_> {
 
                         return self.reject_member(node, origin, receiver, key);
                     };
-                    // union receivers record one candidate per variant
+                    // union receivers keep one candidate per variant
                     let is_union = match self.evaluate_root(origin, receiver)? {
                         Answer::Ready(reduced) => {
                             matches!(self.ty(reduced)?, dir::Type::Union(_))
                         }
                         Answer::Pending(_) => false,
                     };
-                    self.record_candidate_member_decision(
-                        node,
-                        receiver,
-                        first.ty,
-                        &candidates,
-                        is_union,
-                    )?;
+                    let candidates = candidates
+                        .iter()
+                        .filter_map(|candidate| {
+                            Some(dir::MemberCandidate {
+                                receiver,
+                                symbol: candidate.symbol?,
+                                ty: candidate.ty,
+                                arguments: Vec::new(),
+                            })
+                        })
+                        .collect::<Vec<_>>();
+                    let target = if is_union {
+                        dir::MemberTarget::Universal(candidates)
+                    } else {
+                        dir::MemberTarget::Existential(candidates)
+                    };
+                    let resolution = dir::MemberResolution::new(receiver, target);
+                    self.record_decision(node, Decision::Member(resolution))?;
+                    self.bind_member_node(node, first.ty)?;
 
                     return Ok(Answer::Ready(()));
                 };
 
-                self.record_member_decision(node, receiver, key, candidate.symbol, candidate.ty)?;
+                let target = match candidate.symbol {
+                    Some(symbol) => dir::MemberTarget::Symbol(dir::MemberCandidate {
+                        receiver,
+                        symbol,
+                        ty: candidate.ty,
+                        arguments: Vec::new(),
+                    }),
+                    None => dir::MemberTarget::Field(key),
+                };
+                let resolution = dir::MemberResolution::new(receiver, target);
+                self.record_decision(node, Decision::Member(resolution))?;
+                self.bind_member_node(node, candidate.ty)?;
 
                 Ok(Answer::Ready(()))
             }
@@ -98,68 +124,8 @@ impl CheckState<'_> {
         }
     }
 
-    /// Record one member decision and bound the node variable.
-    fn record_member_decision(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        receiver: dir::GlobalTypeId,
-        key: dir::StaticKey,
-        symbol: Option<dir::GlobalSymbolId>,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        // record the committed resolution shape
-        let target = match symbol {
-            Some(symbol) => dir::MemberTarget::Symbol(dir::MemberCandidate {
-                receiver,
-                symbol,
-                ty,
-                arguments: Vec::new(),
-            }),
-            None => dir::MemberTarget::Field(key),
-        };
-        let resolution = dir::MemberResolution::new(receiver, target);
-        self.record_decision(node, Decision::Member(resolution))?;
-        self.bound_member_node(node, ty)?;
-
-        Ok(())
-    }
-
-    /// Record one candidate set member decision and bound the node.
-    ///
-    /// Call selection picks among the candidates' applied types.
-    fn record_candidate_member_decision(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        receiver: dir::GlobalTypeId,
-        ty: dir::GlobalTypeId,
-        candidates: &[MemberCandidate],
-        is_union: bool,
-    ) -> CompilerResult<()> {
-        let candidates = candidates
-            .iter()
-            .filter_map(|candidate| {
-                Some(dir::MemberCandidate {
-                    receiver,
-                    symbol: candidate.symbol?,
-                    ty: candidate.ty,
-                    arguments: Vec::new(),
-                })
-            })
-            .collect::<Vec<_>>();
-        let target = if is_union {
-            dir::MemberTarget::Universal(candidates)
-        } else {
-            dir::MemberTarget::Existential(candidates)
-        };
-        let resolution = dir::MemberResolution::new(receiver, target);
-        self.record_decision(node, Decision::Member(resolution))?;
-        self.bound_member_node(node, ty)?;
-
-        Ok(())
-    }
-
     /// Flow one selected member type into the member node variable.
-    fn bound_member_node(
+    fn bind_member_node(
         &mut self,
         node: dir::GlobalNodeIdAny,
         ty: dir::GlobalTypeId,
@@ -294,9 +260,9 @@ impl CheckState<'_> {
     /// Collect the member keys visible on one receiver.
     fn visible_member_keys(&mut self, receiver: dir::GlobalTypeId) -> CompilerResult<Vec<String>> {
         // look through memory forms to the carried value
-        let mut current = self.shallow_resolve(receiver)?;
+        let mut current = self.resolve_shallow(receiver)?;
         while let dir::Type::Form(form) = self.ty(current)? {
-            current = self.shallow_resolve(form.value)?;
+            current = self.resolve_shallow(form.value)?;
         }
 
         let mut keys = Vec::new();

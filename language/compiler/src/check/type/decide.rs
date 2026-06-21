@@ -90,7 +90,7 @@ impl CheckState<'_> {
         count: dir::GlobalTypeId,
         length: usize,
     ) -> CompilerResult<bool> {
-        let count = self.shallow_resolve(count)?;
+        let count = self.resolve_shallow(count)?;
         let dir::Type::Literal(dir::ScalarLiteral::Integer(count)) = self.ty(count)? else {
             return Ok(false);
         };
@@ -356,19 +356,9 @@ impl CheckState<'_> {
                 self.decide_any(origin, source, &elements)?
             }
 
-            // literals fit primitives by value
-            (dir::Type::Literal(literal), dir::Type::Primitive(primitive)) => {
-                Answer::Ready(literal.fits_primitive(*primitive))
-            }
-            (dir::Type::Literal(literal), dir::Type::Range(range)) => {
-                Answer::Ready(literal.fits_range(range))
-            }
-            (dir::Type::Range(range), dir::Type::Primitive(primitive)) => {
-                Answer::Ready(range.fits_primitive(*primitive))
-            }
-            (dir::Type::Range(source), dir::Type::Range(target)) => {
-                Answer::Ready(target.contains(source))
-            }
+            // literals and intervals widen by value
+            (dir::Type::Literal(literal), target) => Answer::Ready(literal.widens_to(target)),
+            (dir::Type::Range(range), target) => Answer::Ready(range.widens_to(target)),
 
             // mutable collections alias their elements and stay invariant
             (dir::Type::Array(source), dir::Type::Array(target)) => {
@@ -683,7 +673,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let target = self.shallow_resolve(target)?;
+        let target = self.resolve_shallow(target)?;
         if let Some(variable) = self.root_variable(target)? {
             self.push_lower_bound(variable, source)?;
         }

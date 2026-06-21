@@ -319,9 +319,8 @@ impl CheckState<'_> {
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
 
-        let covered = literal
-            .scalar_in_range(start.as_ref(), end.as_ref(), end_kind)
-            .unwrap_or(false);
+        let range = dir::RangeType::new(start, end, end_kind);
+        let covered = range.contains_literal(literal);
 
         Ok(Answer::Ready(covered))
     }
@@ -388,8 +387,8 @@ impl CheckState<'_> {
         &self,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Vec<dir::ScalarLiteral>>> {
-        let domain = match self.ty(value)? {
-            dir::Type::Primitive(dir::PrimitiveType::Boolean) => vec![
+        let domain = match self.ty(value)?.scalar_domain() {
+            Some(dir::ScalarDomain::Boolean) => vec![
                 dir::ScalarLiteral::Boolean(false),
                 dir::ScalarLiteral::Boolean(true),
             ],

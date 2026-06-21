@@ -60,7 +60,7 @@ impl<'a, 'b> Reifier<'a, 'b> {
         if depth == 0 {
             return Ok(None);
         }
-        let id = self.check.shallow_resolve(id)?;
+        let id = self.check.resolve_shallow(id)?;
         let ty = self.check.ty(id)?.clone();
         let next = depth - 1;
 
@@ -179,7 +179,7 @@ impl<'a, 'b> Reifier<'a, 'b> {
                 let Some(element) = self.reify_depth(array.element, next)? else {
                     return Ok(None);
                 };
-                let count = self.check.shallow_resolve(array.count)?;
+                let count = self.check.resolve_shallow(array.count)?;
                 let dir::Type::Literal(value) = self.check.ty(count)? else {
                     return Ok(None);
                 };
@@ -305,7 +305,7 @@ impl<'a, 'b> Reifier<'a, 'b> {
                     dir::Form::Readonly => dir::TypeExpression::Readonly { target_type },
                     dir::Form::Borrowed { access, .. } => {
                         let mutability =
-                            match self.check.ty(self.check.shallow_resolve(*access)?)? {
+                            match self.check.ty(self.check.resolve_shallow(*access)?)? {
                                 dir::Type::Memory(dir::MemoryLiteral::Access(
                                     dir::Access::Readonly,
                                 )) => Some(dir::Mutability::Immutable),
@@ -322,7 +322,7 @@ impl<'a, 'b> Reifier<'a, 'b> {
                         }
                     }
                     dir::Form::Placed { place } => {
-                        let place = match self.check.ty(self.check.shallow_resolve(*place)?)? {
+                        let place = match self.check.ty(self.check.resolve_shallow(*place)?)? {
                             dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(
                                 space,
                             ))) => *space,
@@ -509,7 +509,7 @@ impl<'a, 'b> Reifier<'a, 'b> {
         function: &dir::FunctionPointerType,
         depth: usize,
     ) -> CompilerResult<Option<dir::TypeExpression>> {
-        let signature = self.check.shallow_resolve(function.signature)?;
+        let signature = self.check.resolve_shallow(function.signature)?;
         let dir::Type::FunctionSignature(signature) = self.check.ty(signature)?.clone() else {
             return Ok(None);
         };

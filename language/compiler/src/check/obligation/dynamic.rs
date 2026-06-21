@@ -40,7 +40,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         visited: &mut IndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<bool>> {
-        let ty = self.shallow_resolve(ty)?;
+        let ty = self.resolve_shallow(ty)?;
         if !visited.insert(ty) {
             return Ok(Answer::Ready(true));
         }

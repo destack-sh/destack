@@ -104,7 +104,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         // variable-rooted solutions are aliases in disguise: storing
         // them would let resolution chains cycle through solutions
-        let solution = self.shallow_resolve(solution)?;
+        let solution = self.resolve_shallow(solution)?;
         if let Some(target) = self.root_variable(solution)? {
             let representative = self.variables.representative(variable)?;
             if target != representative {
