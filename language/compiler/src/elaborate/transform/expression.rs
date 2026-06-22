@@ -1,6 +1,4 @@
-use destack_dir::{
-    BindingTable, GuardTable, ResolutionSegment, ResolutionTable, Tree, TypeSegment, TypeTable,
-};
+use destack_dir::{BindingTable, ResolutionSegment, ResolutionTable, Tree, TypeSegment, TypeTable};
 use destack_repository::{ArtifactReader, Module, ProfileId, ProviderContext};
 
 use crate::elaborate::ElaborateState;
@@ -28,7 +26,6 @@ impl Compiler {
         types_tail: &mut TypeSegment,
         resolutions: &ResolutionTable<'_>,
         resolutions_tail: &mut ResolutionSegment,
-        guards: &mut GuardTable,
     ) -> ElaborateResult<()> {
         // ensure analysis is complete
         if !self.is_code_module(context.revision(), module.id) {
@@ -49,7 +46,6 @@ impl Compiler {
             types_tail,
             resolutions,
             resolutions_tail,
-            guards,
         );
 
         // 0. split multi-declarators into individual lets

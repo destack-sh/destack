@@ -466,8 +466,6 @@ pub struct DirElaborated {
     pub layouts: Arc<dir::LayoutSegment>,
     /// Top-level expressions.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
-    /// New guards.
-    pub guards: dir::GuardTable,
 }
 
 impl DirElaborated {

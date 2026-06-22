@@ -614,7 +614,7 @@ impl Compiler {
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // start with the type check for the tag
-        let mut condition = self.build_type_guard(state, match_id, value, ty, scope)?;
+        let mut condition = self.build_type_predicate(state, match_id, value, ty, scope)?;
 
         // extend the condition with field checks
         for (index, field_id) in fields.iter().enumerate() {
@@ -719,7 +719,7 @@ impl Compiler {
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // start with the type check for the tag
-        let mut condition = self.build_type_guard(state, match_id, value, ty, scope)?;
+        let mut condition = self.build_type_predicate(state, match_id, value, ty, scope)?;
 
         // extend the condition with field checks
         for field_id in fields.iter() {
@@ -1077,7 +1077,7 @@ impl Compiler {
 
             // newtype: type check plus constrained slot checks
             Pattern::NominalTuple { ty, fields } => {
-                let type_check = self.build_type_guard(state, match_id, value, ty, scope)?;
+                let type_check = self.build_type_predicate(state, match_id, value, ty, scope)?;
                 self.extend_sequence_pattern_check(
                     state,
                     match_id,
@@ -1090,7 +1090,7 @@ impl Compiler {
 
             // nominal object: type check plus constrained field checks
             Pattern::NominalObject { ty, fields } => {
-                let type_check = self.build_type_guard(state, match_id, value, ty, scope)?;
+                let type_check = self.build_type_predicate(state, match_id, value, ty, scope)?;
                 self.extend_object_pattern_check(
                     state,
                     match_id,
@@ -1318,8 +1318,8 @@ impl Compiler {
         }
     }
 
-    /// Build one runtime type guard: `value is Type`.
-    fn build_type_guard(
+    /// Build one runtime type predicate: `value is Type`.
+    fn build_type_predicate(
         &self,
         state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
@@ -1330,33 +1330,34 @@ impl Compiler {
         // build `value is ty`
         let expr_id = self.insert_is_type_check_expression(state, match_id, value, ty, scope);
 
-        // resolve the value type for runtime checks
-        let Some(value_type_id) = state.type_table().get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))
+        // resolve the value type for the predicate row
+        let module = state.tree.module_id;
+        let value_node = value.into_global_any(module);
+        let Some(value_type_id) = state.type_table().get_declared_or_inferred_type_id(value_node)
         else {
             return Err(ElaborateError::UnsupportedConstruct {
                 anchor: state.module_id.into(),
             });
         };
 
-        // resolve the target type for runtime checks
-        let Some(target_type_id) = state.type_table().get_declared_or_inferred_type_id(ty.into_global_any(state.tree.module_id))
+        // resolve the target type for the predicate row
+        let target_node = ty.into_global_any(module);
+        let Some(target_type_id) = state.type_table().get_declared_or_inferred_type_id(target_node)
         else {
             return Err(ElaborateError::UnsupportedConstruct {
                 anchor: state.module_id.into(),
             });
         };
 
-        // derive and record the runtime check kind
-        let guard_entry =
-            self.guard_entry_for_relation(&state.type_table(), value_type_id, target_type_id);
-        let Some(guard_entry) = guard_entry else {
-            return Err(ElaborateError::UnsupportedConstruct {
-                anchor: state.module_id.into(),
-            });
-        };
+        // record the synthesized runtime predicate
+        let resolution = dir::PredicateResolution::Is(dir::IsPredicate {
+            value_type: value_type_id.into_global(module),
+            target_type: target_type_id.into_global(module),
+        });
         state
-            .guards
-            .set_entry(expr_id.into_global_any(state.tree.module_id), guard_entry);
+            .resolutions_tail
+            .set_predicate_resolution(expr_id.into_global_any(module), resolution);
+
         Ok(expr_id)
     }
 

@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use destack_dir as dir;
-use destack_dir::GuardTable;
 use destack_repository::{ArtifactReader, Module, ProfileId, ProviderContext};
 use dir::{Expression, Condition, IfForm, LocalNodeId, MatchForm};
 
@@ -26,7 +25,6 @@ impl Compiler {
         types_tail: &mut dir::TypeSegment,
         resolutions: &dir::ResolutionTable<'_>,
         resolutions_tail: &mut dir::ResolutionSegment,
-        guards: &mut GuardTable,
     ) -> ElaborateResult<()> {
         // skip non-code modules
         if !self.is_code_module(context.revision(), module.id) {
@@ -47,7 +45,6 @@ impl Compiler {
             types_tail,
             resolutions,
             resolutions_tail,
-            guards,
         );
 
         // collect member expressions used as call callees

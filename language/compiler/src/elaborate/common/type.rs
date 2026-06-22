@@ -1,5 +1,4 @@
 use destack_dir as dir;
-use destack_dir::GuardEntry;
 use destack_source::ModuleId;
 use dir::{
     Block, Expression, LocalNodeId, LocalNodeIdAny, LocalTypeId, PrimitiveType, ScalarLiteral,
@@ -179,52 +178,4 @@ impl Compiler {
         }
     }
 
-    /// Determine the runtime check kind for a type guard relation.
-    pub(crate) fn guard_entry_for_relation(
-        &self,
-        types: &TypeTable<'_>,
-        value_type_id: LocalTypeId,
-        target_type_id: LocalTypeId,
-    ) -> Option<GuardEntry> {
-        let value_type_id = types.unwrap_form_payload_type_id(value_type_id);
-        let target_type_id = types.unwrap_form_payload_type_id(target_type_id);
-
-        // identical ids need no runtime check
-        if value_type_id == target_type_id {
-            return Some(GuardEntry::Constant(true));
-        }
-
-        // only runtime visible targets are currently checkable
-        if !is_runtime_checkable_target(types, target_type_id) {
-            return None;
-        }
-
-        guard_entry_for_value(types, value_type_id)
-    }
-}
-
-/// Return whether one target type can be checked at runtime.
-fn is_runtime_checkable_target(types: &TypeTable<'_>, type_id: LocalTypeId) -> bool {
-    match types.get_type(type_id) {
-        Type::Union(union) => {
-            union.elements.iter().copied().all(|element| {
-                is_runtime_checkable_target(types, types.unwrap_form_payload_type_id(element))
-            })
-        }
-        Type::Reference(_) => true,
-        _ => false,
-    }
-}
-
-/// Return the runtime identity carried by one value type.
-fn guard_entry_for_value(types: &TypeTable<'_>, type_id: LocalTypeId) -> Option<GuardEntry> {
-    match types.get_type(type_id) {
-        Type::Union(_) => Some(GuardEntry::UnionTag),
-        Type::Reference(_) => Some(GuardEntry::TypeDescriptor),
-        Type::Unknown => Some(GuardEntry::TypeDescriptor),
-        Type::Form(value) => {
-            guard_entry_for_value(types, types.unwrap_form_payload_type_id(value.value))
-        }
-        _ => None,
-    }
 }
