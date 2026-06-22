@@ -19,11 +19,11 @@ type Actual = Clone<{ readonly name: string; age?: int32 }>;
 
 === checked ===
 type Clone<T> = { [K in keyof T]: T[K] };
-/// @generic.template symbol=Clone parameters=[T]
+/// @generic.template symbol=Clone parameters=(T)
 /// @type.symbol symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" type={ [K in keyof T]: T[K] }
 /// @definition.type symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" template=LocalGenericTemplateId(0) value={ [K in keyof T]: T[K] }
 /// @type.symbol symbol=Clone.T source=T type=T
-/// @generic.template source=type_mapped_parameter parameters=[K: keyof T]
+/// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Clone.T
 /// @resolution.name source=T target=Clone.T
@@ -60,19 +60,18 @@ declare const bytes: Bytes;
 
 === checked ===
 type Slots<comptime N: usize> = [uint8; N];
-/// @generic.template symbol=Slots parameters=[comptime N: usize]
-/// @type.symbol symbol=Slots source="type Slots<comptime N: usize> = [uint8; N]" type=[uint8; N]
-/// @definition.type symbol=Slots source="type Slots<comptime N: usize> = [uint8; N]" template=LocalGenericTemplateId(0) value=[uint8; N]
-/// @type.symbol symbol=Slots.N source=N type=usize
-/// @resolution.name source=N target=Slots.N
+/// @generic.template symbol=Slots parameters=(comptime N: usize)
+/// @type.symbol symbol=Slots source="type Slots<comptime N: usize> = [uint8; N]" type=FixedArray<uint8, N>
+/// @definition.type symbol=Slots source="type Slots<comptime N: usize> = [uint8; N]" template=LocalGenericTemplateId(0) value=FixedArray<uint8, N>
+/// @type.symbol symbol=Slots.N source="comptime N: usize" type=usize
 
 type Bytes = Slots<16>;
-/// @type.symbol symbol=Bytes source="type Bytes = Slots<16>" type=[uint8; 16]
-/// @definition.type symbol=Bytes source="type Bytes = Slots<16>" value=[uint8; 16]
+/// @type.symbol symbol=Bytes source="type Bytes = Slots<16>" type=FixedArray<uint8, 16>
+/// @definition.type symbol=Bytes source="type Bytes = Slots<16>" value=FixedArray<uint8, 16>
 /// @resolution.name source=Slots target=Slots
 
 declare const bytes: Bytes;
-/// @type.symbol symbol=bytes source=bytes type=Slots<16>
+/// @type.symbol symbol=bytes source=bytes type=Bytes
 /// @resolution.name source=Bytes target=Bytes
 "#,
     );
@@ -107,18 +106,18 @@ type Printable = { print(): string };
 /// @definition.type symbol=Printable source="type Printable = { print(): string }" value={ print(): string }
 
 function print(value: Printable): string {
-/// @generic.template symbol=print parameters=[T0: Printable]
+/// @generic.template symbol=print parameters=(T0: Printable origin=induced.parameter_constraint)
 /// @type.symbol symbol=print type=<print.T0: Printable>(print.T0) => string
 /// @type.symbol symbol=value source="value: Printable" type=print.T0
 /// @resolution.name source=Printable target=Printable
 
     return value.print();
-    /// @type.node source=value.print() type=string
-    /// @type.node source=value.print type=() => string
     /// @type.node source=value type=print.T0
+    /// @type.node source=value.print type=() => string
+    /// @type.node source=value.print() type=string
     /// @resolution.name source=value target=value
-    /// @resolution.member source=value.print receiver=print.T0 kind=symbol target=Printable.print
-    /// @resolution.call source=value.print() parameters=() return=string kind=symbol target=Printable.print receiver=print.T0
+    /// @resolution.member source=value.print receiver=print.T0 kind=field key=print
+    /// @resolution.call source=value.print() parameters=() return=string kind=expression
 
 }
 "#,

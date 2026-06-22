@@ -259,6 +259,12 @@ impl DirSnapshotBuilder<'_> {
 
                 format!("Placed<{value}, {place}>")
             }
+            dir::Form::Readonly if form.value.module_id == types.module_id => {
+                match types.get_type(form.value.local_id) {
+                    dir::Type::Array(_) | dir::Type::Tuple(_) => format!("readonly {value}"),
+                    _ => format!("Readonly<{value}>"),
+                }
+            }
             dir::Form::Readonly => format!("Readonly<{value}>"),
         }
     }
@@ -723,6 +729,7 @@ impl DirSnapshotBuilder<'_> {
         // render parameter symbols with their constraints
         if let dir::Type::Parameter(parameter) = types.get_type(type_id.local_id) {
             let label = self.parameter_type_label(parameter);
+            let label = self.generic_parameter_head_label(parameter, label);
             let suffix = self.generic_parameter_signature_suffix(types, parameter);
 
             format!("{label}{suffix}")
@@ -758,6 +765,19 @@ impl DirSnapshotBuilder<'_> {
                 format!("{owner}.{name}")
             }
         }
+    }
+
+    /// Add generic parameter modifiers to one parameter list label.
+    fn generic_parameter_head_label(
+        &self,
+        parameter: &dir::GlobalGenericParameterId,
+        label: String,
+    ) -> String {
+        let Some((_, generic)) = self.generic_parameter_context(parameter) else {
+            return label;
+        };
+
+        self.generic_parameter_binding_head_label(generic, label)
     }
 
     /// Return the constraint and default label for one generic parameter.

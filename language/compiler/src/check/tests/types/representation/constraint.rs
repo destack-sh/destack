@@ -39,13 +39,16 @@ interface Drawable {
 }
 
 function paint(item: Drawable): void {
+/// @generic.template symbol=paint parameters=(T0: Drawable origin=induced.parameter_constraint)
 /// @type.symbol symbol=paint type=<paint.T0: Drawable>(paint.T0) => void
-/// @generic.template symbol=paint parameters=[T0: Drawable]
+/// @type.symbol symbol=item source="item: Drawable" type=paint.T0
+/// @resolution.name source=Drawable target=Drawable
 
     item.draw();
     /// @resolution.name source=item target=item
     /// @resolution.member source=item.draw receiver=paint.T0 kind=symbol target=Drawable.draw
-    /// @resolution.call source="item.draw()" parameters=() return=void kind=symbol target=Drawable.draw receiver=paint.T0
+    /// @resolution.call source=item.draw() parameters=() return=void kind=symbol target=Drawable.draw receiver=paint.T0
+
 }
 "#);
 }
@@ -80,24 +83,23 @@ function paint<T0: Drawable>(item: T0): void {
 === checked ===
 type Drawable = {
 /// @type.symbol symbol=Drawable type={ draw(): void }
-/// @definition.type symbol=Drawable source="type Drawable = {\n    draw(): void;\n}" value={ draw(): void }
+/// @definition.type symbol=Drawable value={ draw(): void }
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw type=() => void
-
 };
 
 function paint(item: Drawable): void {
-/// @generic.template symbol=paint parameters=[T0: Drawable]
+/// @generic.template symbol=paint parameters=(T0: Drawable origin=induced.parameter_constraint)
 /// @type.symbol symbol=paint type=<paint.T0: Drawable>(paint.T0) => void
-/// @type.symbol symbol=item type=paint.T0
+/// @type.symbol symbol=item source="item: Drawable" type=paint.T0
 /// @resolution.name source=Drawable target=Drawable
 
     item.draw();
     /// @resolution.name source=item target=item
-    /// @resolution.member source=item.draw receiver=paint.T0 kind=symbol target=Drawable.draw
-    /// @resolution.call source=item.draw() parameters=() return=void kind=symbol target=Drawable.draw receiver=paint.T0
+    /// @resolution.member source=item.draw receiver=paint.T0 kind=field key=draw
+    /// @resolution.call source=item.draw() parameters=() return=void kind=expression
 
 }
-"#);
+"#,
+    );
 }
