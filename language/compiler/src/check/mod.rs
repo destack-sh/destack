@@ -1,4 +1,5 @@
 mod decorator;
+mod dump;
 mod error;
 mod finish;
 mod flow;
@@ -17,6 +18,7 @@ pub use error::*;
 pub use warning::*;
 
 pub(in crate::check) use decorator::*;
+pub(in crate::check) use dump::*;
 pub(in crate::check) use flow::*;
 pub(in crate::check) use language::*;
 pub(in crate::check) use obligation::*;

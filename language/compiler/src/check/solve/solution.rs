@@ -140,7 +140,7 @@ impl CheckState<'_> {
             self.queue_task(waiter);
         }
 
-        self.record_event(CheckEvent::Solve {
+        self.record_event(CheckEvent::VariableSolution {
             variable: representative,
             solution,
         });
@@ -191,7 +191,7 @@ impl CheckState<'_> {
             }
         }
 
-        self.record_event(CheckEvent::Alias {
+        self.record_event(CheckEvent::VariableAlias {
             variable,
             representative: target,
         });

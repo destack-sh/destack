@@ -316,7 +316,7 @@ impl CheckState<'_> {
         decision: Decision,
     ) -> CompilerResult<()> {
         let waiters = self.decisions.decide(node, decision)?;
-        self.record_event(CheckEvent::Decide { node });
+        self.record_event(CheckEvent::Decision { node });
         self.journal.record_with(|| Mutation::DecisionSet {
             node,
             waiters: waiters.clone(),

@@ -109,7 +109,7 @@ impl CheckState<'_> {
         match answer? {
             Answer::Ready(()) => {
                 self.complete_constraint(id);
-                self.record_event(CheckEvent::Relate {
+                self.record_event(CheckEvent::RelationCheck {
                     constraint: id,
                     finished: true,
                 });
@@ -120,7 +120,7 @@ impl CheckState<'_> {
                 message: format!("check constraint {id:?} is pending without dependencies"),
             }),
             Answer::Pending(blockers) => {
-                self.record_event(CheckEvent::Relate {
+                self.record_event(CheckEvent::RelationCheck {
                     constraint: id,
                     finished: false,
                 });

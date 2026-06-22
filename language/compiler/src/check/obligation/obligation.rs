@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 
 use crate::{CheckError, CompilerError, CompilerResult, DiagnosticAnchor};
 
-use crate::check::{Answer, CheckState, Condition, Mutation, Place, Task};
+use crate::check::{Answer, CheckEvent, CheckState, Condition, Mutation, Place, Task};
 
 /// Stable index of one collected obligation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -12,7 +12,7 @@ pub(in crate::check) struct ObligationId(u32);
 
 impl ObligationId {
     /// Return the obligation index.
-    fn index(self) -> usize {
+    pub(in crate::check) fn index(self) -> usize {
         self.0 as usize
     }
 }
@@ -337,11 +337,22 @@ impl CheckState<'_> {
                 // skip obligations whose condition failed
                 Answer::Ready(false) => {
                     self.obligations.complete(id);
+                    self.record_event(CheckEvent::ObligationCheck {
+                        obligation: id,
+                        finished: true,
+                    });
 
                     return Ok(Answer::Ready(()));
                 }
                 Answer::Ready(true) => {}
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                Answer::Pending(blockers) => {
+                    self.record_event(CheckEvent::ObligationCheck {
+                        obligation: id,
+                        finished: false,
+                    });
+
+                    return Ok(Answer::Pending(blockers));
+                }
             }
         }
 
@@ -359,10 +370,21 @@ impl CheckState<'_> {
                         .push(diagnostic);
                 }
                 self.obligations.complete(id);
+                self.record_event(CheckEvent::ObligationCheck {
+                    obligation: id,
+                    finished: true,
+                });
 
                 Ok(Answer::Ready(()))
             }
-            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+            Answer::Pending(blockers) => {
+                self.record_event(CheckEvent::ObligationCheck {
+                    obligation: id,
+                    finished: false,
+                });
+
+                Ok(Answer::Pending(blockers))
+            }
         }
     }
 
