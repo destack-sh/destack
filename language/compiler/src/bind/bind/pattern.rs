@@ -24,6 +24,7 @@ impl Compiler {
             dir::SymbolKind::Variable,
             Some(dir::StaticKey::Name(*name)),
             binding.export,
+            dir::SymbolVisibility::Forward,
         );
 
         state.set_binding_mutability(symbol_id, binding.mutability);
@@ -53,6 +54,7 @@ impl Compiler {
                 dir::SymbolKind::Variable,
                 Some(name.static_key()),
                 binding.export,
+                dir::SymbolVisibility::Forward,
             );
 
             state.set_binding_mutability(symbol_id, binding.mutability);

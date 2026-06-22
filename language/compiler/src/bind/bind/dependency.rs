@@ -36,7 +36,13 @@ impl Compiler {
         };
 
         // declare imported symbol
-        let symbol_id = state.insert_symbol(dir::SymbolRole::Local, kind, Some(key), None);
+        let symbol_id = state.insert_symbol(
+            dir::SymbolRole::Local,
+            kind,
+            Some(key),
+            None,
+            dir::SymbolVisibility::Scope,
+        );
 
         state.declare_symbol(symbol_id, node_id);
     }
@@ -58,6 +64,7 @@ impl Compiler {
             dir::SymbolKind::Variable,
             None,
             Some(dir::ExportKind::Default),
+            dir::SymbolVisibility::Scope,
         );
 
         state.declare_symbol(symbol_id, node_id);

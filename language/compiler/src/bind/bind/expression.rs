@@ -25,6 +25,7 @@ impl Compiler {
                     Some(key),
                     None,
                     dir::ScopeKind::Label,
+                    dir::SymbolVisibility::Forward,
                 );
                 state.declare_symbol(symbol_id, id);
                 state.bind_node_to_scope(id.into_any(), scope_id);
@@ -410,6 +411,7 @@ impl Compiler {
                 dir::SymbolKind::Variable,
                 Some(dir::StaticKey::Name(*name)),
                 None,
+                dir::SymbolVisibility::Forward,
             );
 
             state.set_binding_mutability(symbol_id, Some(dir::Mutability::Mutable));

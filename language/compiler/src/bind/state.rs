@@ -66,6 +66,7 @@ impl<'a> BindState<'a> {
             None,
             namespace,
             None,
+            dir::SymbolVisibility::Scope,
         );
         bindings.get_scope_by_id_mut(namespace_scope).owner = Some(namespace_symbol);
 
@@ -191,11 +192,12 @@ impl<'a> BindState<'a> {
         kind: dir::SymbolKind,
         key: Option<dir::StaticKey>,
         export: Option<dir::ExportKind>,
+        visibility: dir::SymbolVisibility,
     ) -> dir::LocalSymbolId {
         let scope = self.scope();
         let symbol_id = self
             .bindings
-            .insert_symbol(role, kind, key, scope, export)
+            .insert_symbol(role, kind, key, scope, export, visibility)
             .0;
         if scope.id == self.global_scope {
             self.bindings.get_symbol_mut(symbol_id).origin = dir::SymbolOrigin::Global;
@@ -212,8 +214,9 @@ impl<'a> BindState<'a> {
         key: Option<dir::StaticKey>,
         export: Option<dir::ExportKind>,
         scope_kind: dir::ScopeKind,
+        visibility: dir::SymbolVisibility,
     ) -> (dir::LocalSymbolId, dir::LocalScopeId) {
-        let symbol_id = self.insert_symbol(role, kind, key, export);
+        let symbol_id = self.insert_symbol(role, kind, key, export, visibility);
         let scope_id = self
             .bindings
             .insert_scope(scope_kind, Some(self.scope()), Some(symbol_id));

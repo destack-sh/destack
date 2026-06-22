@@ -50,12 +50,24 @@ impl Compiler {
     ) -> Option<dir::LocalScopeId> {
         // declare scoped or plain member symbol
         let (symbol_id, scope_id) = if let Some(scope_kind) = scope_kind {
-            let (symbol_id, scope_id) =
-                state.insert_symbol_with_scope(dir::SymbolRole::Item, kind, key, None, scope_kind);
+            let (symbol_id, scope_id) = state.insert_symbol_with_scope(
+                dir::SymbolRole::Item,
+                kind,
+                key,
+                None,
+                scope_kind,
+                dir::SymbolVisibility::Scope,
+            );
 
             (symbol_id, Some(scope_id))
         } else {
-            let symbol_id = state.insert_symbol(dir::SymbolRole::Item, kind, key, None);
+            let symbol_id = state.insert_symbol(
+                dir::SymbolRole::Item,
+                kind,
+                key,
+                None,
+                dir::SymbolVisibility::Scope,
+            );
 
             (symbol_id, None)
         };
@@ -84,8 +96,13 @@ impl Compiler {
                 } if signature.this_parameter.is_none()
             );
             let key = has_name.then(|| dir::StaticKey::Name(self.strings().intern("this")));
-            let symbol =
-                state.insert_symbol(dir::SymbolRole::Local, dir::SymbolKind::Variable, key, None);
+            let symbol = state.insert_symbol(
+                dir::SymbolRole::Local,
+                dir::SymbolKind::Variable,
+                key,
+                None,
+                dir::SymbolVisibility::Forward,
+            );
 
             state.bindings.bind_implicit_receiver(id, symbol);
         }
@@ -210,6 +227,7 @@ impl Compiler {
                     None,
                     None,
                     dir::ScopeKind::Function,
+                    dir::SymbolVisibility::Forward,
                 );
 
                 state.declare_symbol(symbol_id, id);
