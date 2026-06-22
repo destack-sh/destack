@@ -1,30 +1,8 @@
-use crate::tests::harness::TestWorkspace;
-use crate::{Error, RevisionPolicy};
 use destack_query as query;
 use destack_repository::Revision;
 
-/// Advance the repository revision after file updates.
-#[test]
-fn test_apply_file_advances_revision() {
-    let test = TestWorkspace::new("workspace_revision_updates");
-    let source_a = "export const value = 1;\n";
-    let source_b = "export const value = 2;\n";
-    let path = test.write_text("main.ds", source_a);
-
-    let _ = test.apply_text(&path, source_a);
-    let revision_a = test
-        .workspace
-        .revision_at(&path)
-        .expect("expected first revision");
-
-    let _ = test.apply_text(&path, source_b);
-    let revision_b = test
-        .workspace
-        .revision_at(&path)
-        .expect("expected second revision");
-
-    assert_ne!(revision_b, revision_a, "expected revision to change");
-}
+use crate::tests::harness::TestWorkspace;
+use crate::{Error, RevisionPolicy};
 
 /// Require matching revision preconditions for selected queries.
 #[test]

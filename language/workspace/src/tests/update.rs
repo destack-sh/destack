@@ -1,5 +1,7 @@
+use destack_session as session;
+
+use crate::Error;
 use crate::tests::harness::TestWorkspace;
-use crate::{Edit, Error};
 
 /// Emit an explicit removed update when a tracked file is deleted.
 #[test]
@@ -16,7 +18,7 @@ fn test_apply_file_emits_removed_update() {
 
     let removed = test
         .workspace
-        .apply_file(Edit::Remove { path: path.clone() })
+        .apply_file(session::Edit::Remove { path: path.clone() })
         .expect("expected removed file update");
 
     assert!(
@@ -76,7 +78,7 @@ fn test_open_file_tracks_client_state() {
         .open_file(
             uri.clone(),
             1,
-            Edit::SetText {
+            session::Edit::SetText {
                 path: path.clone(),
                 text: source.to_string(),
             },
@@ -94,7 +96,7 @@ fn test_open_file_tracks_client_state() {
         .change_file(
             uri.clone(),
             2,
-            Edit::SetText {
+            session::Edit::SetText {
                 path: path.clone(),
                 text: changed.to_string(),
             },
@@ -120,6 +122,37 @@ fn test_open_file_tracks_client_state() {
     );
 }
 
+/// Clears root-scoped open file state when closing a workspace root.
+#[test]
+fn test_close_root_clears_open_files() {
+    let test = TestWorkspace::new("workspace_close_root");
+    let source = "export const value = 1;\n";
+    let path = test.write_text("main.ds", source);
+    let uri = test.uri_for_path(&path);
+
+    let _ = test
+        .workspace
+        .open_file(
+            uri,
+            1,
+            session::Edit::SetText {
+                path: path.clone(),
+                text: source.to_string(),
+            },
+        )
+        .expect("expected open file");
+
+    // close the root and check that root scoped live state disappears
+    test.workspace
+        .close_root(test.roots[0].as_path())
+        .expect("expected closed root");
+
+    assert!(
+        !test.workspace.has_open_file(&path),
+        "expected root close to clear open file state"
+    );
+}
+
 /// Reject stale open file changes before mutating source state.
 #[test]
 fn test_change_file_rejects_stale_version() {
@@ -133,7 +166,7 @@ fn test_change_file_rejects_stale_version() {
         .open_file(
             uri.clone(),
             2,
-            Edit::SetText {
+            session::Edit::SetText {
                 path: path.clone(),
                 text: source.to_string(),
             },
@@ -145,7 +178,7 @@ fn test_change_file_rejects_stale_version() {
         .change_file(
             uri,
             2,
-            Edit::SetText {
+            session::Edit::SetText {
                 path,
                 text: source.to_string(),
             },

@@ -1,91 +1,249 @@
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::path::{Path, PathBuf};
 
-use dashmap::DashMap;
-use destack_compiler::Compiler;
-use destack_linter::Linter;
-use destack_query::Query;
-use destack_repository::Repository;
-use destack_session::{Session, SessionEventHandler};
-use destack_source::OverlayFileSystem;
+use destack_artifact::{ArtifactPayload, ArtifactReference};
+use destack_repository::Revision;
+use destack_session as session;
+use destack_source::{Content, ContentId};
 
-use crate::diagnostic::Error;
-use crate::file::OpenFile;
+use super::{
+    DiagnosticsRequest, ExportRequest, ExportResult, QueryRequest, QueryResult, ReloadRequest,
+    ViewRequest, ViewResult,
+};
+use crate::diagnostic::{DiagnosticView, Error};
+use crate::file::{Commit, FileOperation};
+use crate::protocol::WatchPolicy;
+use crate::watch::WatchUpdate;
+use crate::{
+    BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
+    CheckOutput, CleanInput, CleanOutput, CommandError, CommandProgress, DocInput, DocOutput,
+    DoctorInput, DoctorOutput, FormatInput, FormatOutput, InfoInput, InfoOutput, InspectInput,
+    InspectOutput, LintInput, LintOutput, ManifestInput, ManifestOutput, RunInput, RunOutput,
+    SettingsInput, SettingsOutput, TargetsInput, TargetsOutput, TaskInput, TaskOutput, TestInput,
+    TestOutput, UpdateBatch,
+};
 
-/// Local workspace used by tooling integrations.
-pub struct Workspace {
-    /// Repository for workspace resolution.
-    pub(super) repository: Arc<Repository>,
-    /// Compiler used by opened sessions.
-    pub(super) compiler: Arc<Compiler>,
-    /// Linter used by opened sessions.
-    pub(super) linter: Arc<Linter>,
-    /// Query provider used by opened sessions.
-    pub(super) query: Arc<Query>,
-    /// Sessions keyed by root path.
-    pub(super) roots: DashMap<PathBuf, Arc<Session>>,
-    /// Open files keyed by source path.
-    pub(crate) open_file_by_path: DashMap<PathBuf, OpenFile>,
-    /// Overlay filesystem shared by live sessions.
-    pub(crate) overlay_file_system: Option<Arc<OverlayFileSystem>>,
-    /// Number of workers for each opened session.
-    pub(super) worker_limit: usize,
-    /// Optional session event handler for local progress reporting.
-    pub(super) event_handler: Option<SessionEventHandler>,
-}
+/// Workspace operations shared by local and remote workspace implementations.
+pub trait Workspace: std::fmt::Debug + Send + Sync {
+    // ================================================================================
+    // Roots
+    // ================================================================================
 
-impl std::fmt::Debug for Workspace {
-    /// Format the visible workspace state.
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("Workspace")
-            .field("repository", &self.repository)
-            .field("compiler", &self.compiler)
-            .field("linter", &self.linter)
-            .field("query", &self.query)
-            .field("sessions_by_root", &self.roots)
-            .field("open_file_by_path", &self.open_file_by_path.len())
-            .field("overlay_file_system", &self.overlay_file_system.is_some())
-            .field("worker_limit", &self.worker_limit)
-            .field("event_handler", &self.event_handler.is_some())
-            .finish()
-    }
-}
+    /// Return the workspace home path.
+    fn home(&self) -> &Path;
 
-impl Workspace {
-    /// Create a local workspace for the provided roots.
-    pub fn new(
-        repository: Arc<Repository>,
-        overlay_file_system: Option<Arc<OverlayFileSystem>>,
-        roots: Vec<PathBuf>,
-        worker_limit: usize,
-        event_handler: Option<SessionEventHandler>,
-    ) -> Result<Self, Error> {
-        let compiler = Arc::new(Compiler::new(repository.clone()));
-        let linter = Arc::new(Linter::new(repository.clone()));
-        let query = Arc::new(Query::new(repository.clone()));
+    /// Return one canonical path according to the workspace host.
+    fn canonicalize(&self, path: &Path) -> Result<PathBuf, Error>;
 
-        let workspace = Self {
-            repository,
-            compiler,
-            linter,
-            query,
-            roots: dashmap::DashMap::new(),
-            open_file_by_path: dashmap::DashMap::new(),
-            overlay_file_system,
-            worker_limit,
-            event_handler,
-        };
+    /// Return opened workspace roots.
+    fn roots(&self) -> Vec<PathBuf>;
 
-        for root in roots {
-            workspace.open_root(root)?;
-        }
+    /// Open one root.
+    fn open(&self, root: PathBuf) -> Result<(), Error>;
 
-        Ok(workspace)
-    }
+    /// Close one root.
+    fn close(&self, root: &Path) -> Result<(), Error>;
 
-    /// Return opened roots as a stable path list.
-    pub(crate) fn root_paths(&self) -> Vec<PathBuf> {
-        self.roots.iter().map(|entry| entry.key().clone()).collect()
-    }
+    /// Return the open root that owns one path.
+    fn root(&self, path: &Path) -> Result<PathBuf, Error>;
+
+    /// Return the current revision for a root.
+    fn revision(&self, root: &Path) -> Result<Revision, Error>;
+
+    // ================================================================================
+    // Source
+    // ================================================================================
+
+    /// Reload source state from the workspace host.
+    fn reload(&self, request: ReloadRequest) -> Result<UpdateBatch, Error>;
+
+    /// Apply one file operation through the workspace.
+    fn file(&self, operation: FileOperation) -> Result<UpdateBatch, Error>;
+
+    /// Return whether one file is currently open through the workspace.
+    fn is_file_open(&self, path: &Path) -> bool;
+
+    /// Apply one atomic source edit through the workspace.
+    fn edit(&self, root: &Path, update: session::Update) -> Result<Commit, Error>;
+
+    // ================================================================================
+    // Command
+    // ================================================================================
+
+    /// Check source state for a root.
+    fn check(
+        &self,
+        root: &Path,
+        input: CheckInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<CheckOutput, CommandError>;
+
+    /// Lint source state for a root.
+    fn lint(
+        &self,
+        root: &Path,
+        input: LintInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<LintOutput, CommandError>;
+
+    /// Format source files or content.
+    fn format(
+        &self,
+        root: &Path,
+        input: FormatInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<FormatOutput, CommandError>;
+
+    /// Build target artifacts for a root.
+    fn build(
+        &self,
+        root: &Path,
+        input: BuildInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<BuildOutput, CommandError>;
+
+    /// Run a workspace target.
+    fn run(
+        &self,
+        root: &Path,
+        input: RunInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<RunOutput, CommandError>;
+
+    /// Run workspace tests.
+    fn test(
+        &self,
+        root: &Path,
+        input: TestInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<TestOutput, CommandError>;
+
+    /// Generate documentation.
+    fn doc(
+        &self,
+        root: &Path,
+        input: DocInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<DocOutput, CommandError>;
+
+    /// Run benchmarks.
+    fn bench(
+        &self,
+        root: &Path,
+        input: BenchInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<BenchOutput, CommandError>;
+
+    /// Return workspace information.
+    fn info(
+        &self,
+        root: &Path,
+        input: InfoInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<InfoOutput, CommandError>;
+
+    /// Inspect compiler artifacts.
+    fn inspect(
+        &self,
+        root: &Path,
+        input: InspectInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<InspectOutput, CommandError>;
+
+    /// Return resolved manifest information.
+    fn manifest(
+        &self,
+        root: &Path,
+        input: ManifestInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<ManifestOutput, CommandError>;
+
+    /// Return configured targets.
+    fn targets(
+        &self,
+        root: &Path,
+        input: TargetsInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<TargetsOutput, CommandError>;
+
+    /// Return cache locations.
+    fn cache(
+        &self,
+        root: &Path,
+        input: CacheInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<CacheOutput, CommandError>;
+
+    /// Return resolved settings.
+    fn settings(
+        &self,
+        root: &Path,
+        input: SettingsInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<SettingsOutput, CommandError>;
+
+    /// Return workspace health information.
+    fn doctor(
+        &self,
+        root: &Path,
+        input: DoctorInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<DoctorOutput, CommandError>;
+
+    /// Run workspace tasks.
+    fn task(
+        &self,
+        root: &Path,
+        input: TaskInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<TaskOutput, CommandError>;
+
+    /// Clean generated state.
+    fn clean(
+        &self,
+        root: &Path,
+        input: CleanInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<CleanOutput, CommandError>;
+
+    // ================================================================================
+    // Query
+    // ================================================================================
+
+    /// Run one semantic query for a root.
+    fn query(&self, root: &Path, request: QueryRequest) -> Result<QueryResult, Error>;
+
+    /// Return one workspace view.
+    fn view(&self, root: &Path, request: ViewRequest) -> Result<ViewResult, Error>;
+
+    /// Return current diagnostic views.
+    fn diagnostics(&self, request: DiagnosticsRequest) -> Result<Vec<DiagnosticView>, Error>;
+
+    // ================================================================================
+    // Artifact
+    // ================================================================================
+
+    /// Return one artifact payload.
+    fn artifact(&self, root: &Path, artifact: ArtifactReference) -> Result<ArtifactPayload, Error>;
+
+    /// Store one content payload in the workspace content store.
+    fn store(&self, content: Content) -> Result<ContentId, Error>;
+
+    /// Return one content payload from the workspace content store.
+    fn load(&self, content: ContentId) -> Result<Content, Error>;
+
+    /// Materialize derived outputs on the workspace host.
+    fn export(&self, root: &Path, request: ExportRequest) -> Result<ExportResult, Error>;
+
+    // ================================================================================
+    // Watch
+    // ================================================================================
+
+    /// Watch workspace files.
+    fn watch(&self, roots: Vec<PathBuf>, policy: WatchPolicy) -> Result<(), Error>;
+
+    /// Return the next watch update.
+    fn next_watch(&self, root: &Path) -> Result<Option<WatchUpdate>, Error>;
+
+    /// Stop watching workspace files.
+    fn unwatch(&self, root: &Path) -> Result<(), Error>;
 }

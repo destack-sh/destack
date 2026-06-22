@@ -1,10 +1,14 @@
-use std::path::PathBuf;
+use destack_serde::Schema;
+use std::path::{Path, PathBuf};
 
 use destack_session as session;
-use destack_source::{Content, Diagnostic, File, FileId, FileType, ModuleId, Uri};
+use destack_source::{Content, Diagnostic, File, FileId, FileType, ModuleId, TextChange, Uri};
+use serde::{Deserialize, Serialize};
+
+use crate::diagnostic::Error;
 
 /// In-memory image for one updated file.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct FileImage {
     /// File id in the registry.
     pub id: FileId,
@@ -39,8 +43,28 @@ impl From<&File> for FileImage {
     }
 }
 
+impl FileImage {
+    /// Convert this image into a source file.
+    pub fn into_file(self) -> Result<File, Error> {
+        let Some(content) = self.content else {
+            return Err(Error::Internal {
+                detail: format!("file image is missing text content for {}", self.name),
+            });
+        };
+
+        Ok(File::from_text(
+            self.id,
+            self.name,
+            self.uri,
+            self.path,
+            self.file_type,
+            content,
+        ))
+    }
+}
+
 /// One coarse kind for a workspace file update.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
 pub enum UpdateKind {
     /// One ordinary source change.
     Source,
@@ -67,7 +91,7 @@ impl UpdateKind {
 }
 
 /// File update emitted by the workspace.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct FileUpdate {
     /// Updated module id when known.
     pub module_id: Option<ModuleId>,
@@ -136,6 +160,131 @@ impl From<session::Change> for FileUpdate {
                     diagnostics: Vec::new(),
                 }
             }
+        }
+    }
+}
+
+/// File operation applied through a workspace.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+pub enum FileOperation {
+    /// Open editor text content.
+    OpenText {
+        /// Path being opened.
+        path: PathBuf,
+        /// Editor document URI.
+        uri: Uri,
+        /// Editor document version.
+        version: i32,
+        /// Current text content.
+        content: String,
+    },
+    /// Open editor binary content.
+    OpenBytes {
+        /// Path being opened.
+        path: PathBuf,
+        /// Editor document URI.
+        uri: Uri,
+        /// Editor document version.
+        version: i32,
+        /// Current binary content.
+        content: Vec<u8>,
+    },
+    /// Change editor text content.
+    ChangeText {
+        /// Path being changed.
+        path: PathBuf,
+        /// Editor document URI.
+        uri: Uri,
+        /// Editor document version.
+        version: i32,
+        /// Current text content.
+        content: String,
+    },
+    /// Change editor binary content.
+    ChangeBytes {
+        /// Path being changed.
+        path: PathBuf,
+        /// Editor document URI.
+        uri: Uri,
+        /// Editor document version.
+        version: i32,
+        /// Current binary content.
+        content: Vec<u8>,
+    },
+    /// Patch editor text content.
+    PatchText {
+        /// Path being patched.
+        path: PathBuf,
+        /// Editor document URI.
+        uri: Uri,
+        /// Editor document version.
+        version: i32,
+        /// Incremental text changes.
+        changes: Vec<TextChange>,
+    },
+    /// Save editor text content.
+    SaveText {
+        /// Path being saved.
+        path: PathBuf,
+        /// Current text content.
+        content: Option<String>,
+    },
+    /// Save editor binary content.
+    SaveBytes {
+        /// Path being saved.
+        path: PathBuf,
+        /// Current binary content.
+        content: Option<Vec<u8>>,
+    },
+    /// Close editor overlay state and restore filesystem truth.
+    Close {
+        /// Path being closed.
+        path: PathBuf,
+    },
+    /// Write text content to disk and workspace state.
+    WriteText {
+        /// Path being written.
+        path: PathBuf,
+        /// Current text content.
+        content: String,
+    },
+    /// Write binary content to disk and workspace state.
+    WriteBytes {
+        /// Path being written.
+        path: PathBuf,
+        /// Current binary content.
+        content: Vec<u8>,
+    },
+    /// Remove a file from disk and workspace state.
+    Remove {
+        /// Path being removed.
+        path: PathBuf,
+    },
+    /// Move a file on disk and workspace state.
+    Move {
+        /// Source path.
+        from: PathBuf,
+        /// Destination path.
+        to: PathBuf,
+    },
+}
+
+impl FileOperation {
+    /// Return the source path for this operation.
+    pub fn path(&self) -> &Path {
+        match self {
+            Self::OpenText { path, .. }
+            | Self::OpenBytes { path, .. }
+            | Self::ChangeText { path, .. }
+            | Self::ChangeBytes { path, .. }
+            | Self::PatchText { path, .. }
+            | Self::SaveText { path, .. }
+            | Self::SaveBytes { path, .. }
+            | Self::Close { path }
+            | Self::WriteText { path, .. }
+            | Self::WriteBytes { path, .. }
+            | Self::Remove { path }
+            | Self::Move { from: path, .. } => path,
         }
     }
 }

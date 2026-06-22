@@ -6,7 +6,8 @@ use destack_repository::{Repository, Revision};
 use destack_source::{Diagnostic, File, FileId, Uri};
 
 use crate::diagnostic::Error;
-use crate::workspace::Workspace;
+use crate::protocol::DiagnosticSnapshot;
+use crate::workspace::LocalWorkspace;
 
 /// Diagnostic view for one file.
 #[derive(Debug, Clone)]
@@ -19,6 +20,22 @@ pub struct DiagnosticView {
     pub diagnostic_version: Option<i32>,
     /// The diagnostics for this file.
     pub diagnostics: Vec<Diagnostic>,
+}
+
+impl TryFrom<DiagnosticSnapshot> for DiagnosticView {
+    type Error = Error;
+
+    /// Convert one protocol diagnostic snapshot into a local diagnostic view.
+    fn try_from(snapshot: DiagnosticSnapshot) -> Result<Self, Self::Error> {
+        let file = snapshot.file.into_file()?;
+
+        Ok(Self {
+            file: Arc::new(file),
+            diagnostic_uri: snapshot.diagnostic_uri,
+            diagnostic_version: snapshot.diagnostic_version,
+            diagnostics: snapshot.diagnostics,
+        })
+    }
 }
 
 /// Return diagnostics grouped by primary file.
@@ -41,7 +58,7 @@ pub(crate) fn diagnostics_by_file(
     Ok(diagnostics_by_file)
 }
 
-impl Workspace {
+impl LocalWorkspace {
     /// Return a current diagnostic view for one file path.
     pub fn file_diagnostics(&self, path: &Path) -> Result<Option<DiagnosticView>, Error> {
         let root = self.root_at(path)?;

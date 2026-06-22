@@ -2,13 +2,10 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_query as query;
-use destack_repository::{DestackLayoutOverride, Environment, Repository, Revision, Settings};
-use destack_session as session;
+use destack_repository::{DestackLayoutOverride, Environment, Repository, Settings};
 use destack_session::{SessionEventHandler, open_repository_from_fs};
-use destack_source::{FileSystem, Uri};
-use destack_workspace::workspace::FileView;
-use destack_workspace::{self as workspace};
+use destack_source::{FileSystem, FileWatcher};
+use destack_workspace::{self as workspace, LocalWorkspace};
 use parking_lot::Mutex;
 
 use crate::DaemonError;
@@ -17,26 +14,28 @@ use super::RootLeaseTable;
 
 /// Workspace state owned by one daemon process.
 #[derive(Debug)]
-pub struct Workspace {
+pub struct WorkspaceState {
     /// Repository loaded for this workspace.
     pub repository: Arc<Repository>,
     /// Live workspace facade.
-    pub(super) workspace: Arc<workspace::Workspace>,
+    pub(super) workspace: Arc<workspace::LocalWorkspace>,
     /// Root leases held by protocol clients.
     root_lease_table: RootLeaseTable,
 }
 
-impl Workspace {
+impl WorkspaceState {
     /// Create daemon workspace state for a repository.
     pub fn new(
         repository: Arc<Repository>,
         roots: Vec<PathBuf>,
         worker_limit: usize,
         session_event_handler: Option<SessionEventHandler>,
+        file_watcher: Arc<dyn FileWatcher>,
     ) -> Result<Self, DaemonError> {
-        let workspace = workspace::Workspace::new(
+        let workspace = LocalWorkspace::new(
             repository.clone(),
             None,
+            Some(file_watcher),
             roots,
             worker_limit,
             session_event_handler,
@@ -49,9 +48,9 @@ impl Workspace {
         })
     }
 
-    /// Return the workspace root.
-    pub fn root(&self) -> &Path {
-        self.repository.path()
+    /// Return the local workspace.
+    pub fn workspace(&self) -> Arc<workspace::LocalWorkspace> {
+        self.workspace.clone()
     }
 
     /// Acquire a root lease.
@@ -74,78 +73,6 @@ impl Workspace {
 
         Ok(false)
     }
-
-    /// Open one editor file.
-    pub fn open_file(
-        &self,
-        uri: Uri,
-        version: i32,
-        edit: session::Edit,
-    ) -> Result<workspace::UpdateBatch, workspace::Error> {
-        self.workspace.open_file(uri, version, edit)
-    }
-
-    /// Change one editor file.
-    pub fn change_file(
-        &self,
-        uri: Uri,
-        version: i32,
-        edit: session::Edit,
-    ) -> Result<workspace::UpdateBatch, workspace::Error> {
-        self.workspace.change_file(uri, version, edit)
-    }
-
-    /// Close one editor file.
-    pub fn close_file(&self, path: &Path) -> Result<workspace::UpdateBatch, workspace::Error> {
-        self.workspace.close_file(path)
-    }
-
-    /// Run one query for a root.
-    pub fn query_root(
-        &self,
-        root: &Path,
-        request: query::QueryRequest,
-        revision: workspace::RevisionPolicy,
-    ) -> Result<workspace::QueryResult, workspace::Error> {
-        self.workspace.query_root(root, request, revision)
-    }
-
-    /// Return diagnostics for one root.
-    pub fn root_diagnostics(
-        &self,
-        root: &Path,
-    ) -> Result<Vec<workspace::DiagnosticView>, workspace::Error> {
-        self.workspace.root_diagnostics(root)
-    }
-
-    /// Return diagnostics for one file.
-    pub fn file_diagnostics(
-        &self,
-        path: &Path,
-    ) -> Result<Option<workspace::DiagnosticView>, workspace::Error> {
-        self.workspace.file_diagnostics(path)
-    }
-
-    /// Clear all workspace caches.
-    pub fn clear_cache_all(&self) -> Result<(), workspace::Error> {
-        self.workspace.clear_cache_all()
-    }
-
-    /// Return the current revision for one root.
-    pub fn revision(&self, root: &Path) -> Result<Revision, workspace::Error> {
-        self.workspace.revision(root)
-    }
-
-    /// Return one current file view.
-    pub fn file_view(&self, path: &Path) -> Result<FileView, workspace::Error> {
-        self.workspace.file_view(path)
-    }
-
-    /// Return the number of tracked roots.
-    #[cfg(test)]
-    pub fn root_count(&self) -> usize {
-        self.workspace.root_count()
-    }
 }
 
 /// Workspaces opened inside one daemon.
@@ -157,11 +84,13 @@ pub struct WorkspaceTable {
     /// Layout override used to load new workspaces.
     layout_override: DestackLayoutOverride,
     /// Workspaces keyed by workspace root.
-    workspaces: Mutex<HashMap<PathBuf, Arc<Workspace>>>,
+    workspaces: Mutex<HashMap<PathBuf, Arc<WorkspaceState>>>,
     /// Number of workers for each opened workspace.
     worker_limit: usize,
     /// Optional session event handler for opened workspaces.
     session_event_handler: Option<SessionEventHandler>,
+    /// File watcher used by opened local workspaces.
+    file_watcher: Arc<dyn FileWatcher>,
 }
 
 impl std::fmt::Debug for WorkspaceTable {
@@ -178,6 +107,7 @@ impl std::fmt::Debug for WorkspaceTable {
                 "session_event_handler",
                 &self.session_event_handler.is_some(),
             )
+            .field("file_watcher", &"<file_watcher>")
             .finish()
     }
 }
@@ -188,6 +118,7 @@ impl WorkspaceTable {
         repository: Arc<Repository>,
         worker_limit: usize,
         session_event_handler: Option<SessionEventHandler>,
+        file_watcher: Arc<dyn FileWatcher>,
     ) -> Result<Self, DaemonError> {
         let file_system = repository.file_system().clone();
         let settings = repository.settings().clone();
@@ -198,11 +129,12 @@ impl WorkspaceTable {
         };
         let workspace_root = repository.path().to_path_buf();
         let roots = vec![workspace_root.clone()];
-        let workspace = Arc::new(Workspace::new(
+        let workspace = Arc::new(WorkspaceState::new(
             repository.clone(),
             roots,
             worker_limit,
             session_event_handler.clone(),
+            file_watcher.clone(),
         )?);
         let mut workspaces = HashMap::new();
         workspaces.insert(workspace_root, workspace);
@@ -214,11 +146,12 @@ impl WorkspaceTable {
             workspaces: Mutex::new(workspaces),
             worker_limit,
             session_event_handler,
+            file_watcher,
         })
     }
 
     /// Return an opened workspace or load it from the filesystem.
-    pub fn open(&self, workspace_root: &Path) -> Result<Arc<Workspace>, DaemonError> {
+    pub fn open(&self, workspace_root: &Path) -> Result<Arc<WorkspaceState>, DaemonError> {
         // reuse existing workspace state
         if let Some(workspace) = self.workspaces.lock().get(workspace_root).cloned() {
             return Ok(workspace);
@@ -228,11 +161,12 @@ impl WorkspaceTable {
         let repository = self.load_repository(workspace_root)?;
         let workspace_root = repository.path().to_path_buf();
         let roots = vec![workspace_root.clone()];
-        let workspace = Arc::new(Workspace::new(
+        let workspace = Arc::new(WorkspaceState::new(
             Arc::new(repository),
             roots,
             self.worker_limit,
             self.session_event_handler.clone(),
+            self.file_watcher.clone(),
         )?);
 
         // publish the workspace unless another client raced us
@@ -246,7 +180,7 @@ impl WorkspaceTable {
     }
 
     /// Return one opened workspace.
-    pub fn get(&self, workspace_root: &Path) -> Option<Arc<Workspace>> {
+    pub fn get(&self, workspace_root: &Path) -> Option<Arc<WorkspaceState>> {
         self.workspaces.lock().get(workspace_root).cloned()
     }
 

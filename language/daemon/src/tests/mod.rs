@@ -1,10 +1,7 @@
 mod tests;
 
-pub use tests::{
-    RequestRetryPolicy, TestDaemon, TestProtocolHarness, TestWatchBatch, TestWatchHarness,
-    current_root_revision, wait_for_condition,
-};
+pub use tests::{TestDaemon, TestProtocolHarness, TestWatchBatch, TestWatchHarness};
 
-pub mod ipc;
+pub mod connection;
 pub mod root;
 pub mod watch;

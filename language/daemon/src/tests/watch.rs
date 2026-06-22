@@ -1,9 +1,10 @@
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use destack_source::{FileWatchEventKind, FileWatchRescanReason, FileWatchStatus};
+use destack_source::FileWatchEventKind;
+use destack_workspace::protocol::{WatchBatch, WatchStatus};
+use destack_workspace::{ReloadReason, WatchPolicy};
 
-use crate::WatchPolicy;
 use crate::tests::{TestDaemon, TestWatchBatch, TestWatchHarness};
 
 /// Coalesces multiple watch events into one batch.
@@ -77,7 +78,7 @@ fn test_watch_batch_updates_daemon() {
     harness.stop();
 }
 
-/// Applies config changes through toolchain watch flow.
+/// Applies config changes through command watch flow.
 #[test]
 fn test_watch_batch_requests_rescan_for_config() {
     let policy = WatchPolicy {
@@ -107,12 +108,17 @@ fn test_watch_batch_requests_rescan_for_config() {
 fn test_watch_batch_handles_status_rescan() {
     let harness = TestWatchHarness::new(WatchPolicy::default());
 
-    let mut batch = crate::WatchBatch::new(Instant::now());
-    batch.status.push(FileWatchStatus::RescanRequested {
+    let mut batch = WatchBatch {
+        events: Vec::new(),
+        status: Vec::new(),
+        overflowed: false,
+        started_at_ns: 0,
+        ended_at_ns: 0,
+    };
+    batch.status.push(WatchStatus::ReloadRequested {
         roots: vec![],
-        reason: FileWatchRescanReason::Manual,
+        reason: ReloadReason::Manual,
     });
-    batch.ended_at = Instant::now();
 
     let result = harness.test.apply_watch_batch(&batch);
 

@@ -5,7 +5,7 @@ use destack_session as session;
 use destack_source::{ContentId, FileId, Uri};
 
 use crate::diagnostic::Error;
-use crate::workspace::Workspace;
+use crate::workspace::LocalWorkspace;
 
 /// One currently open file tracked by the workspace.
 #[derive(Debug, Clone)]
@@ -20,11 +20,11 @@ pub(crate) struct OpenFile {
     pub content: session::Edit,
 }
 
-impl Workspace {
+impl LocalWorkspace {
     /// Return the open file for one path.
     pub(crate) fn open_state(&self, path: &Path) -> Option<OpenFile> {
         // open file paths are stored by normalized path
-        let path = Self::normalized_path(path);
+        let path = self.normalized_path(path);
 
         self.open_file_by_path
             .get(path.as_path())
@@ -46,7 +46,7 @@ impl Workspace {
         content: session::Edit,
     ) {
         // mirror open text into the shared filesystem overlay
-        let path = Self::normalized_path(path);
+        let path = self.normalized_path(path);
         let file = OpenFile {
             uri,
             version,
@@ -70,7 +70,7 @@ impl Workspace {
     /// Remove one open file.
     pub(crate) fn remove_open_state(&self, path: &Path) -> Option<OpenFile> {
         // remove overlay state before dropping open file metadata
-        let path = Self::normalized_path(path);
+        let path = self.normalized_path(path);
 
         if let Some(overlay_file_system) = self.overlay_file_system.as_ref() {
             overlay_file_system.remove_overlay(path.as_path());
@@ -91,18 +91,29 @@ impl Workspace {
     /// Return true when a path is open.
     pub fn has_open_file(&self, path: &Path) -> bool {
         // compare normalized paths with the open file map
-        let path = Self::normalized_path(path);
+        let path = self.normalized_path(path);
 
         self.open_file_by_path.contains_key(path.as_path())
     }
 
     /// Return open files contained by one root.
     pub(crate) fn open_files_under(&self, root: &Path) -> Vec<(PathBuf, OpenFile)> {
+        let root = self.normalized_path(root);
+
         self.open_file_by_path
             .iter()
-            .filter(|entry| entry.key().starts_with(root))
+            .filter(|entry| entry.key().starts_with(root.as_path()))
             .map(|entry| (entry.key().clone(), entry.value().clone()))
             .collect()
+    }
+
+    /// Remove open files contained by one root.
+    pub(crate) fn remove_open_files_under(&self, root: &Path) {
+        let files = self.open_files_under(root);
+
+        for (path, _file) in files {
+            self.remove_open_state(path.as_path());
+        }
     }
 
     /// Return the open file diagnostic version when it matches a revision.

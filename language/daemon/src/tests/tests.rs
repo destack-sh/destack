@@ -1,22 +1,22 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::{Duration, Instant};
 
 use destack_artifact::MemoryBlobStore;
-use destack_repository::{DestackLayoutOverride, Ref, Repository, Revision, Settings};
-use destack_session::open_repository_from_fs;
+use destack_repository::{DestackLayoutOverride, Repository, Settings};
+use destack_session::{self as session, open_repository_from_fs};
 use destack_source::{
-    FileId, FileSystem, FileWatchEvent, FileWatchEventKind, FileWatchOptions, MemoryFileSystem,
-    MemoryFileWatcher,
+    FileId, FileSystem, FileWatchEvent, FileWatchEventKind, MemoryFileSystem, MemoryFileWatcher,
 };
-use destack_workspace::{FileUpdate, UpdateBatch};
+use destack_workspace::protocol::{
+    OpenRootRequest, RootId, RootOpenOptions, WatchBatch, WorkspaceRequest, WorkspaceResponse,
+};
+use destack_workspace::{
+    Client, ClientOptions, FileUpdate, LocalWorkspace, Server, ServerError, ServerOptions,
+    UpdateBatch, Watch, WatchPolicy, loopback_transport_pair, source_watch_options,
+};
 
-use crate::protocol::{
-    Client, ClientOptions, DaemonRequest, DaemonResponse, OpenRootRequest, ProtocolErrorCode,
-    RootHandleId, RootOpenOptions, Server, ServerError, ServerOptions, loopback_transport_pair,
-};
-use crate::{Daemon, Watch, WatchBatch, WatchPolicy, Workspace};
+use crate::{Daemon, WorkspaceState};
 
 /// Test harness for daemon flows.
 #[derive(Debug, Clone)]
@@ -51,7 +51,7 @@ pub struct TestWatchBatch {
     batch: WatchBatch,
 }
 
-/// Harness for daemon protocol server/client.
+/// Harness for workspace protocol server/client.
 #[derive(Debug)]
 pub struct TestProtocolHarness {
     /// The daemon test state.
@@ -62,28 +62,6 @@ pub struct TestProtocolHarness {
     server_error: Arc<Mutex<Option<String>>>,
     /// Server thread handle.
     server_handle: Option<JoinHandle<Result<(), ServerError>>>,
-}
-
-/// Describe retry behavior for protocol requests.
-#[derive(Debug, Clone, Copy)]
-pub struct RequestRetryPolicy {
-    /// The maximum number of attempts.
-    pub max_attempts: usize,
-    /// The initial delay in milliseconds.
-    pub base_delay_ms: u64,
-    /// The incremental delay added per attempt in milliseconds.
-    pub backoff_step_ms: u64,
-}
-
-impl Default for RequestRetryPolicy {
-    /// Return a default retry policy for protocol requests.
-    fn default() -> Self {
-        Self {
-            max_attempts: 25,
-            base_delay_ms: 10,
-            backoff_step_ms: 5,
-        }
-    }
 }
 
 impl TestDaemon {
@@ -152,10 +130,15 @@ impl TestDaemon {
     }
 
     /// Return the primary daemon workspace.
-    pub fn workspace(&self) -> Arc<Workspace> {
+    pub fn workspace(&self) -> Arc<WorkspaceState> {
         self.daemon
             .workspace(self.repository.path())
             .expect("test workspace should be opened")
+    }
+
+    /// Return the primary local workspace.
+    pub fn local_workspace(&self) -> Arc<LocalWorkspace> {
+        self.workspace().workspace()
     }
 
     /// Write a text file into the test file system.
@@ -173,8 +156,11 @@ impl TestDaemon {
     /// Update a file and return all daemon updates.
     pub fn update_file(&self, path: impl AsRef<Path>, content: &str) -> Vec<FileUpdate> {
         let path = self.path_for(path);
-        self.workspace()
-            .update_file(&path, content.to_string())
+        self.local_workspace()
+            .write_file(session::Edit::SetText {
+                path: path.clone(),
+                text: content.to_string(),
+            })
             .unwrap_or_else(|error| panic!("update failed for {}: {error}", path.display()))
             .updates
     }
@@ -182,8 +168,11 @@ impl TestDaemon {
     /// Update an in-memory file and return all daemon updates.
     pub fn update_memory_file(&self, path: impl AsRef<Path>, content: &str) -> Vec<FileUpdate> {
         let path = self.path_for(path);
-        self.workspace()
-            .update_memory_file(&path, content.to_string())
+        self.local_workspace()
+            .apply_file(session::Edit::SetText {
+                path: path.clone(),
+                text: content.to_string(),
+            })
             .unwrap_or_else(|error| panic!("virtual update failed for {}: {error}", path.display()))
             .updates
     }
@@ -192,7 +181,7 @@ impl TestDaemon {
     pub fn file_id_for_path(&self, path: impl AsRef<Path>) -> FileId {
         let path = self.path_for(path);
         let view = self
-            .workspace()
+            .local_workspace()
             .file_view(&path)
             .unwrap_or_else(|error| panic!("missing file view for {}: {error}", path.display()));
 
@@ -203,7 +192,7 @@ impl TestDaemon {
     pub fn file_for_path(&self, path: impl AsRef<Path>) -> Arc<destack_source::File> {
         let path = self.path_for(path);
         let view = self
-            .workspace()
+            .local_workspace()
             .file_view(&path)
             .unwrap_or_else(|error| panic!("missing file view for {}: {error}", path.display()));
 
@@ -214,7 +203,7 @@ impl TestDaemon {
     pub fn module_id_for_path(&self, path: impl AsRef<Path>) -> destack_source::ModuleId {
         let path = self.path_for(path);
         let view = self
-            .workspace()
+            .local_workspace()
             .file_view(&path)
             .unwrap_or_else(|error| panic!("missing file view for {}: {error}", path.display()));
         let repository = view.repository();
@@ -252,19 +241,12 @@ impl TestDaemon {
         self.update_for_file_id(updates, file_id)
     }
 
-    /// Update a file and return the update for the target file.
-    pub fn update_file_for_path(&self, path: impl AsRef<Path>, content: &str) -> FileUpdate {
-        let path = self.path_for(path);
-        let updates = self.update_file(&path, content);
-        self.update_for_path(&updates, &path).clone()
-    }
-
     /// Build a watch for the test roots.
     pub fn watch(&self, policy: WatchPolicy) -> Watch {
         Watch::new(
             self.watcher.clone(),
             self.roots.clone(),
-            FileWatchOptions::default(),
+            source_watch_options(),
             policy,
         )
     }
@@ -278,22 +260,11 @@ impl TestDaemon {
         }
     }
 
-    /// Build a rename watch event for tests.
-    pub fn watch_rename_event(
-        &self,
-        from: impl AsRef<Path>,
-        to: impl AsRef<Path>,
-    ) -> FileWatchEvent {
-        FileWatchEvent {
-            path: self.path_for(to),
-            previous_path: Some(self.path_for(from)),
-            kind: FileWatchEventKind::Renamed,
-        }
-    }
-
     /// Apply a watch batch to the daemon and return the batch result.
     pub fn apply_watch_batch(&self, batch: &WatchBatch) -> UpdateBatch {
-        self.workspace().apply_watch_batch(batch)
+        self.local_workspace()
+            .apply_watch_batch(batch)
+            .expect("watch batch should apply")
     }
 
     /// Build a protocol harness for this daemon.
@@ -305,17 +276,6 @@ impl TestDaemon {
     pub fn protocol_with_options(&self, options: ServerOptions) -> TestProtocolHarness {
         TestProtocolHarness::from_test_with_options(self.clone(), options)
     }
-}
-
-/// Return the current root revision for one repository.
-pub fn current_root_revision(repository: &Repository) -> Revision {
-    // resolve the root ref first
-    let reference = Ref::for_root(repository.path());
-
-    // return the current published root revision
-    repository
-        .current(&reference)
-        .expect("expected current root revision")
 }
 
 /// Return the shallowest common root for the provided paths.
@@ -369,12 +329,6 @@ impl TestWatchHarness {
     /// Emit a watch event.
     pub fn emit(&self, path: impl AsRef<Path>, kind: FileWatchEventKind) {
         let event = self.test.watch_event(path, kind);
-        self.test.watcher.emit(event);
-    }
-
-    /// Emit a rename watch event.
-    pub fn emit_rename(&self, from: impl AsRef<Path>, to: impl AsRef<Path>) {
-        let event = self.test.watch_rename_event(from, to);
         self.test.watcher.emit(event);
     }
 
@@ -481,17 +435,20 @@ impl TestProtocolHarness {
     }
 
     /// Perform a handshake and return the response.
-    pub fn handshake(&self) -> crate::protocol::HandshakeResponse {
+    pub fn handshake(&self) -> destack_workspace::protocol::HandshakeResponse {
         self.handshake_with(ClientOptions::default())
     }
 
     /// Perform a handshake with explicit options.
-    pub fn handshake_with(&self, options: ClientOptions) -> crate::protocol::HandshakeResponse {
+    pub fn handshake_with(
+        &self,
+        options: ClientOptions,
+    ) -> destack_workspace::protocol::HandshakeResponse {
         self.client.handshake(options).expect("handshake")
     }
 
-    /// Send a daemon request through the protocol client.
-    pub fn send_request(&self, request: DaemonRequest) -> DaemonResponse {
+    /// Send a workspace request through the protocol client.
+    pub fn send_request(&self, request: WorkspaceRequest) -> WorkspaceResponse {
         match self.client.send_request(request) {
             Ok(response) => response,
             Err(error) => {
@@ -505,57 +462,27 @@ impl TestProtocolHarness {
         }
     }
 
-    /// Send a daemon request, retrying on NotReady responses.
-    pub fn send_request_with_retry<F>(
-        &self,
-        mut build: F,
-        policy: RequestRetryPolicy,
-    ) -> DaemonResponse
-    where
-        F: FnMut() -> DaemonRequest,
-    {
-        for attempt in 0..policy.max_attempts {
-            let response = self.send_request(build());
-            let should_retry = match &response {
-                DaemonResponse::Error(error) => error.code == ProtocolErrorCode::NotReady,
-                _ => false,
-            };
-
-            if !should_retry {
-                return response;
-            }
-
-            let delay_ms = policy.base_delay_ms + (attempt as u64 * policy.backoff_step_ms);
-            thread::sleep(Duration::from_millis(delay_ms));
-        }
-
-        panic!(
-            "query state did not become ready after {max_attempts} attempts",
-            max_attempts = policy.max_attempts
-        );
-    }
-
     /// Open the default root and return the handle id.
-    pub fn open_root(&self) -> RootHandleId {
+    pub fn open_root(&self) -> RootId {
         self.open_root_path(self.test.root.clone())
     }
 
     /// Open one explicit root and return the handle id.
-    pub fn open_root_path(&self, root: PathBuf) -> RootHandleId {
+    pub fn open_root_path(&self, root: PathBuf) -> RootId {
         let open = OpenRootRequest {
             workspace: self.test.repository.path().to_path_buf(),
             root,
             options: RootOpenOptions::default(),
         };
-        match self.send_request(DaemonRequest::OpenRoot(open)) {
-            DaemonResponse::RootOpened(response) => response.handle,
+        match self.send_request(WorkspaceRequest::OpenRoot(open)) {
+            WorkspaceResponse::RootOpened(response) => response.handle,
             other => panic!("unexpected response: {other:?}"),
         }
     }
 
     /// Shutdown the server and join the thread.
     pub fn shutdown(mut self) {
-        let _ = self.send_request(DaemonRequest::Shutdown);
+        let _ = self.send_request(WorkspaceRequest::Shutdown);
         if let Some(handle) = self.server_handle.take() {
             handle.join().expect("server join").expect("serve");
         }
@@ -574,27 +501,6 @@ impl Default for TestProtocolHarness {
     fn default() -> Self {
         Self::new()
     }
-}
-
-/// Wait until a predicate evaluates to true within a timeout.
-pub fn wait_for_condition(
-    timeout: Duration,
-    poll_interval: Duration,
-    mut condition: impl FnMut() -> bool,
-) -> bool {
-    // compute the deadline for the condition check
-    let deadline = Instant::now() + timeout;
-
-    // poll until the condition passes or the deadline expires
-    while Instant::now() < deadline {
-        if condition() {
-            return true;
-        }
-
-        thread::sleep(poll_interval);
-    }
-
-    condition()
 }
 
 /// Resolve a path relative to the provided root when needed.

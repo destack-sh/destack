@@ -11,43 +11,20 @@ rust-version.workspace = true
 path = "src/lib.rs"
 doctest = false
 
-[features]
-schema = ["schemars"]
-
 [dependencies]
 # language
-destack_artifact = { workspace = true }
-destack_compiler = { workspace = true, features = ["native"] }
-destack_core = { workspace = true }
-destack_dir = { workspace = true }
-destack_fir = { workspace = true }
-destack_formatter = { workspace = true }
-destack_heap = { workspace = true }
-destack_json = { workspace = true }
-destack_linter = { workspace = true }
-destack_mir = { workspace = true }
-destack_parser = { workspace = true }
 destack_query = { workspace = true }
 destack_repository = { workspace = true }
-destack_runtime = { workspace = true }
 destack_session = { workspace = true, features = ["native"] }
 destack_workspace = { workspace = true }
 destack_source = { workspace = true }
-destack_vm = { workspace = true }
 
 # general
-crossbeam-deque = { workspace = true }
-crossbeam-channel = { workspace = true }
-dashmap = { workspace = true }
-fs2 = { workspace = true }
-interprocess = { workspace = true }
 parking_lot = { workspace = true }
-rayon = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true, features = ["preserve_order"] }
-postcard = { workspace = true }
-smallvec = { workspace = true }
-schemars = { workspace = true, optional = true }
+
+[dev-dependencies]
+# language
+destack_artifact = { workspace = true }
 
 [lints]
 workspace = true

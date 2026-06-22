@@ -1,3 +1,3 @@
 # Destack Daemon
 
-Destack language daemon interacting with Destack workspaces and packages.
+Long-lived Destack process host for workspace protocol clients.

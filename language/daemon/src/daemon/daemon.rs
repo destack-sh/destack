@@ -1,26 +1,26 @@
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
-use destack_repository::{Ref, Repository};
+use destack_repository::Repository;
 use destack_session::SessionEventHandler;
 use destack_source::{FileWatcher, PhysicalFileWatcher};
+use destack_workspace as workspace;
+use workspace::WorkspaceRegistry;
+use workspace::protocol::{ProtocolError, ProtocolErrorCode};
 
 use crate::DaemonError;
 
-use super::{Workspace, WorkspaceTable};
+use super::{WorkspaceState, WorkspaceTable};
 
-/// Persistent process state for daemon clients.
+/// Persistent state for workspace server clients.
 #[derive(Clone)]
 pub struct Daemon {
     /// Number of workers for each opened session.
     pub worker_limit: usize,
-    /// Watcher implementation used by daemon-owned watches.
+    /// Watcher implementation used by server-owned watches.
     pub file_watcher: Arc<dyn FileWatcher>,
     /// Opened workspaces keyed by workspace root.
     workspaces: Arc<WorkspaceTable>,
-    /// Next id for private command session refs.
-    next_command_session_id: Arc<AtomicU64>,
 }
 
 impl std::fmt::Debug for Daemon {
@@ -31,7 +31,6 @@ impl std::fmt::Debug for Daemon {
             .field("worker_limit", &self.worker_limit)
             .field("file_watcher", &"<file_watcher>")
             .field("workspaces", &self.workspaces)
-            .field("next_command_session_id", &self.next_command_session_id)
             .finish()
     }
 }
@@ -60,33 +59,27 @@ impl Daemon {
         session_event_handler: Option<SessionEventHandler>,
         file_watcher: Arc<dyn FileWatcher>,
     ) -> Result<Self, DaemonError> {
-        let workspaces = WorkspaceTable::new(repository, worker_limit, session_event_handler)?;
+        let workspaces = WorkspaceTable::new(
+            repository,
+            worker_limit,
+            session_event_handler,
+            file_watcher.clone(),
+        )?;
 
         Ok(Self {
             worker_limit,
             file_watcher,
             workspaces: Arc::new(workspaces),
-            next_command_session_id: Arc::new(AtomicU64::new(1)),
         })
     }
 
-    /// Allocate one private session ref for a command.
-    pub(crate) fn next_command_session_ref(&self, root: &Path) -> Ref {
-        let id = self.next_command_session_id.fetch_add(1, Ordering::Relaxed);
-
-        Ref::new(format!("command:{}:{id}", root.display()))
-    }
-
     /// Open or return one workspace.
-    pub(crate) fn open_workspace(
-        &self,
-        workspace_root: &Path,
-    ) -> Result<Arc<Workspace>, DaemonError> {
+    pub(crate) fn open(&self, workspace_root: &Path) -> Result<Arc<WorkspaceState>, DaemonError> {
         self.workspaces.open(workspace_root)
     }
 
     /// Return one opened workspace.
-    pub(crate) fn workspace(&self, workspace_root: &Path) -> Option<Arc<Workspace>> {
+    pub(crate) fn workspace(&self, workspace_root: &Path) -> Option<Arc<WorkspaceState>> {
         self.workspaces.get(workspace_root)
     }
 
@@ -99,15 +92,40 @@ impl Daemon {
     pub fn workspace_count(&self) -> usize {
         self.workspaces.len()
     }
+}
 
-    /// Return the number of tracked roots.
-    #[cfg(test)]
-    pub(crate) fn root_count(&self) -> usize {
-        self.workspaces
-            .roots()
-            .iter()
-            .filter_map(|root| self.workspaces.get(root))
-            .map(|workspace| workspace.root_count())
-            .sum()
+impl WorkspaceRegistry for Daemon {
+    fn open(&self, workspace: &Path) -> Result<Arc<dyn workspace::Workspace>, ProtocolError> {
+        let workspace = Daemon::open(self, workspace)
+            .map_err(|error| ProtocolError::internal(error.to_string()))?;
+
+        Ok(workspace.workspace())
+    }
+
+    fn workspace(&self, workspace: &Path) -> Option<Arc<dyn workspace::Workspace>> {
+        self.workspace(workspace)
+            .map(|workspace| workspace.workspace() as Arc<dyn workspace::Workspace>)
+    }
+
+    fn acquire(&self, workspace: &Path, root: &Path) -> Result<(), ProtocolError> {
+        let workspace = Daemon::open(self, workspace)
+            .map_err(|error| ProtocolError::internal(error.to_string()))?;
+        workspace
+            .acquire_root(root)
+            .map_err(|error| ProtocolError::internal(error.to_string()))
+    }
+
+    fn release(&self, workspace: &Path, root: &Path) -> Result<(), ProtocolError> {
+        let Some(workspace) = self.workspace(workspace) else {
+            return Err(ProtocolError::new(
+                ProtocolErrorCode::NotFound,
+                "workspace is closed",
+            ));
+        };
+        workspace
+            .release_root(root)
+            .map_err(|error| ProtocolError::internal(error.to_string()))?;
+
+        Ok(())
     }
 }
