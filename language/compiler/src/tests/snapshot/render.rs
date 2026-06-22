@@ -3,6 +3,8 @@ use std::ops::Range;
 
 use super::{SnapshotAnchor, SnapshotField, SnapshotFieldStyle, SnapshotRow};
 
+const GENERIC_INSTANCE_ROW_RANK: u8 = 5;
+
 /// Renderer for source text with snapshot rows.
 pub(super) struct SnapshotRenderer<'a> {
     /// The source text to render.
@@ -20,13 +22,13 @@ impl<'a> SnapshotRenderer<'a> {
 
             (
                 left.anchor.sort_key(),
-                Self::table_rank(left.tag.table),
+                Self::row_rank(left),
                 Self::entry_rank(left.tag.entry),
                 left_fields,
             )
                 .cmp(&(
                     right.anchor.sort_key(),
-                    Self::table_rank(right.tag.table),
+                    Self::row_rank(right),
                     Self::entry_rank(right.tag.entry),
                     right_fields,
                 ))
@@ -287,6 +289,16 @@ impl<'a> SnapshotRenderer<'a> {
             "check" => 18,
             _ => u8::MAX,
         }
+    }
+
+    /// Return row ordering rank inside one anchor.
+    fn row_rank(row: &SnapshotRow) -> u8 {
+        // keep source-site generic instances after resolution rows
+        if row.tag.table == "generic" && row.tag.entry == "instance" {
+            return GENERIC_INSTANCE_ROW_RANK;
+        }
+
+        Self::table_rank(row.tag.table)
     }
 
     /// Return row ordering rank inside one table.

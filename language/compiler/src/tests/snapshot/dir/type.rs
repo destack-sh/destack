@@ -15,6 +15,11 @@ impl SnapshotTable for dir::TypeSegment {
                 .optional_field("source", builder.node_source(node_id))
                 .type_field("type", builder.global_type_label(type_id));
             builder.push(row);
+            builder.add_generic_instances_in_type(
+                builder.anchor_node(node_id),
+                builder.node_source(node_id),
+                type_id,
+            );
         }
 
         // render solved symbol types
@@ -24,6 +29,7 @@ impl SnapshotTable for dir::TypeSegment {
                 .optional_field("source", builder.symbol_source(symbol_id))
                 .type_field("type", builder.global_type_label(type_id));
             builder.push(row);
+            builder.add_generic_instances_in_type(SnapshotAnchor::End, None, type_id);
         }
 
         // summarize type table coverage

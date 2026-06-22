@@ -285,6 +285,15 @@ impl DirSnapshotBuilder<'_> {
             dir::TypeOperation::Conditional(conditional) => {
                 self.conditional_type_label(types, conditional)
             }
+            dir::TypeOperation::Narrow(narrow) => {
+                let source = self.type_id_label(types, narrow.source);
+                let target = self.type_id_label(types, narrow.target);
+                if narrow.is_positive {
+                    format!("Narrow<{source}, {target}>")
+                } else {
+                    format!("Narrow<{source}, !{target}>")
+                }
+            }
             dir::TypeOperation::Mapped(mapped) => self.mapped_type_label(types, mapped),
             dir::TypeOperation::Index(index) => {
                 // render indexed access as source-shaped type text
@@ -692,12 +701,65 @@ impl DirSnapshotBuilder<'_> {
         if parameter.is_rest {
             label.push_str("...");
         }
-        label.push_str(&self.type_id_label(types, parameter.ty));
+        label.push_str(&self.function_parameter_type_label(types, parameter));
         if parameter.is_optional {
             label.push('?');
         }
 
         label
+    }
+
+    /// Return one function parameter type label.
+    fn function_parameter_type_label(
+        &self,
+        types: &dir::TypeTable<'_>,
+        parameter: &dir::FunctionParameterType,
+    ) -> String {
+        if !parameter.is_optional {
+            return self.type_id_label(types, parameter.ty);
+        }
+
+        self.optional_parameter_type_label(types, parameter.ty)
+    }
+
+    /// Return one optional parameter type label without the implied undefined arm.
+    fn optional_parameter_type_label(
+        &self,
+        types: &dir::TypeTable<'_>,
+        type_id: dir::GlobalTypeId,
+    ) -> String {
+        if type_id.module_id != types.module_id {
+            return self.type_id_label(types, type_id);
+        }
+        let dir::Type::Union(union) = types.get_type(type_id.local_id) else {
+            return self.type_id_label(types, type_id);
+        };
+
+        let elements = union
+            .elements
+            .iter()
+            .copied()
+            .filter(|element| !self.type_is_undefined(types, *element))
+            .map(|element| self.type_id_label(types, element))
+            .collect::<Vec<_>>();
+
+        match elements.as_slice() {
+            [] => self.type_id_label(types, type_id),
+            [single] => single.clone(),
+            _ => elements.join(" | "),
+        }
+    }
+
+    /// Return whether one type is the undefined singleton.
+    fn type_is_undefined(&self, types: &dir::TypeTable<'_>, type_id: dir::GlobalTypeId) -> bool {
+        if type_id.module_id != types.module_id {
+            return false;
+        }
+
+        matches!(
+            types.get_type(type_id.local_id),
+            dir::Type::Undefined | dir::Type::Literal(dir::ScalarLiteral::Undefined)
+        )
     }
 
     /// Return one function generic parameter label.

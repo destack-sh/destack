@@ -105,19 +105,6 @@ impl SnapshotRow {
         self.type_field(key, format!("({value})"))
     }
 
-    /// Add one list field when it is nonempty.
-    pub(crate) fn optional_list_field<I>(self, key: &'static str, values: I) -> Self
-    where
-        I: IntoIterator<Item = String>,
-    {
-        let values = values.into_iter().collect::<Vec<_>>();
-        if values.is_empty() {
-            return self;
-        }
-
-        self.list_field(key, values)
-    }
-
     /// Add one tuple-shaped field when it is nonempty.
     pub(crate) fn optional_tuple_field<I>(self, key: &'static str, values: I) -> Self
     where
