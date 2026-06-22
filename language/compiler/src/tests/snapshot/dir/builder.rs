@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Debug;
 
 use destack_artifact::{
@@ -9,6 +9,7 @@ use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
+use super::generic::GenericInstanceSnapshot;
 use super::name::BindingSnapshotName;
 use super::rows::DirRows;
 use crate::tests::snapshot::render::SnapshotRenderer;
@@ -67,6 +68,10 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     summaries: bool,
     /// The rows collected so far.
     rows: Vec<SnapshotRow>,
+    /// Generic instances discovered while rendering rows.
+    pub(super) generic_instances: BTreeMap<String, GenericInstanceSnapshot>,
+    /// Source-anchored generic instance rows already emitted.
+    pub(super) generic_instance_sources: BTreeSet<(u32, String, String)>,
 }
 
 impl<'a> DirSnapshotBuilder<'a> {
@@ -95,6 +100,8 @@ impl<'a> DirSnapshotBuilder<'a> {
             type_references: false,
             summaries: true,
             rows: Vec::new(),
+            generic_instances: BTreeMap::new(),
+            generic_instance_sources: BTreeSet::new(),
         }
     }
 
@@ -475,6 +482,7 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Render the annotated source snapshot.
     pub(crate) fn render(mut self) -> String {
+        self.add_generic_instance_index_rows();
         SnapshotRenderer::sort_rows(&mut self.rows);
 
         SnapshotRenderer::new(self.source, &self.rows).render()
@@ -1090,5 +1098,21 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         result
+    }
+
+    /// Return one visible DIR type.
+    pub(super) fn global_type(&self, type_id: dir::GlobalTypeId) -> Option<&dir::Type> {
+        if type_id.module_id == self.tree.module_id {
+            let types = self
+                .types
+                .as_ref()
+                .unwrap_or_else(|| panic!("dir snapshot missing type table for {type_id:?}"));
+
+            return types.get_type_maybe(type_id.local_id);
+        }
+
+        self.foreign_types
+            .get(&type_id.module_id)
+            .and_then(|types| types.get_type_maybe(type_id.local_id))
     }
 }

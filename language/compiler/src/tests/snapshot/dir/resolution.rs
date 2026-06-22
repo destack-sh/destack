@@ -9,6 +9,10 @@ impl SnapshotTable for dir::ResolutionSegment {
             add_name_resolution_row(builder, node_id, resolution);
         }
 
+        for (node_id, resolution) in self.instantiation_entries() {
+            add_instantiation_resolution_row(builder, node_id, resolution);
+        }
+
         for (node_id, resolution) in self.label_entries() {
             add_label_resolution_row(builder, node_id, *resolution);
         }
@@ -29,6 +33,10 @@ impl SnapshotTable for dir::ResolutionSegment {
             add_read_write_resolution_row(builder, node_id, resolution);
         }
 
+        for (node_id, resolution) in self.predicate_entries() {
+            add_predicate_resolution_row(builder, node_id, resolution);
+        }
+
         for (node_id, resolution) in self.construct_entries() {
             add_construct_resolution_row(builder, node_id, resolution);
         }
@@ -42,20 +50,24 @@ impl SnapshotTable for dir::ResolutionSegment {
         }
 
         let name_count = self.name_entries().count();
+        let instantiation_count = self.instantiation_entries().count();
         let label_count = self.label_entries().count();
         let receiver_count = self.receiver_entries().count();
         let member_count = self.member_entries().count();
         let call_count = self.call_entries().count();
         let read_write_count = self.read_write_entries().count();
+        let predicate_count = self.predicate_entries().count();
         let construct_count = self.construct_entries().count();
         let pattern_count = self.pattern_entries().count();
         let assign_pattern_count = self.assign_pattern_entries().count();
         if name_count == 0
+            && instantiation_count == 0
             && label_count == 0
             && receiver_count == 0
             && member_count == 0
             && call_count == 0
             && read_write_count == 0
+            && predicate_count == 0
             && construct_count == 0
             && pattern_count == 0
             && assign_pattern_count == 0
@@ -65,10 +77,12 @@ impl SnapshotTable for dir::ResolutionSegment {
 
         let row = SnapshotRow::new(SnapshotAnchor::End, "resolution", "summary")
             .count_field("names", name_count)
+            .count_field("instantiations", instantiation_count)
             .count_field("labels", label_count)
             .count_field("receivers", receiver_count)
             .count_field("members", member_count)
             .count_field("calls", call_count)
+            .count_field("predicates", predicate_count)
             .count_field("constructs", construct_count)
             .count_field("patterns", pattern_count)
             .count_field("assign_patterns", assign_pattern_count);
@@ -101,6 +115,24 @@ fn add_name_resolution_row(
     };
 
     builder.push(row);
+}
+
+/// Add one explicit instantiation resolution row.
+fn add_instantiation_resolution_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::InstantiationResolution,
+) {
+    let anchor = builder.anchor_node(node_id);
+    let source = builder.node_source(node_id);
+    let instance = builder.generic_instance_label(resolution.symbol, &resolution.arguments);
+    let row = SnapshotRow::new(anchor, "resolution", "instantiation")
+        .optional_field("source", source.clone())
+        .field("target", builder.symbol_path_label(resolution.symbol))
+        .field("instance", instance);
+
+    builder.push(row);
+    builder.add_generic_instance(anchor, source, resolution.symbol, &resolution.arguments);
 }
 
 /// Add one label resolution row.
@@ -161,7 +193,10 @@ fn add_member_resolution_row(
         dir::MemberTarget::Symbol(candidate) => row
             .field("kind", "symbol")
             .field("target", builder.member_candidate_label(candidate))
-            .optional_field("arguments", arguments_label(builder, &candidate.arguments)),
+            .optional_field(
+                "instance",
+                generic_instance_label(builder, candidate.symbol, &candidate.arguments),
+            ),
         dir::MemberTarget::Existential(candidates) => row.field("kind", "existential").list_field(
             "targets",
             candidates
@@ -177,6 +212,7 @@ fn add_member_resolution_row(
     };
 
     builder.push(row);
+    add_member_target_generic_instances(builder, node_id, &resolution.target);
 }
 
 /// Add one call resolution row.
@@ -215,6 +251,7 @@ fn add_call_resolution_row(
     };
 
     builder.push(row);
+    add_call_target_generic_instances(builder, node_id, &resolution.target);
 }
 
 /// Add one paired read-write resolution row.
@@ -236,6 +273,41 @@ fn add_read_write_resolution_row(
             .field("read", builder.call_candidate_label(read))
             .field("write", builder.call_candidate_label(write)),
         _ => row,
+    };
+
+    builder.push(row);
+}
+
+/// Add one predicate resolution row.
+fn add_predicate_resolution_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::PredicateResolution,
+) {
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "predicate")
+        .optional_field("source", builder.node_source(node_id));
+
+    let row = match resolution {
+        dir::PredicateResolution::Is(predicate) => row
+            .field("kind", "is")
+            .type_field("value", builder.global_type_label(predicate.value_type))
+            .type_field("target", builder.global_type_label(predicate.target_type)),
+        dir::PredicateResolution::InstanceOf(predicate) => row
+            .field("kind", "instanceof")
+            .type_field("value", builder.global_type_label(predicate.value_type))
+            .field("target", builder.symbol_path_label(predicate.target))
+            .optional_field(
+                "instance",
+                generic_instance_label(builder, predicate.target, &predicate.arguments),
+            ),
+        dir::PredicateResolution::In(predicate) => row
+            .field("kind", "in")
+            .type_field("key_type", builder.global_type_label(predicate.key_type))
+            .type_field(
+                "receiver",
+                builder.global_type_label(predicate.receiver_type),
+            )
+            .optional_field("key", predicate.key.map(|key| builder.static_key(key))),
     };
 
     builder.push(row);
@@ -265,9 +337,22 @@ fn add_construct_resolution_row(
         dir::ConstructTarget::Newtype(candidate) => {
             add_construct_candidate_fields(builder, row.field("kind", "newtype"), candidate)
         }
+        dir::ConstructTarget::Variant(candidate) => row
+            .field("kind", "variant")
+            .field("owner", builder.symbol_path_label(candidate.owner))
+            .field("variant", builder.symbol_path_label(candidate.variant))
+            .optional_field(
+                "instance",
+                generic_instance_label(builder, candidate.owner, &candidate.arguments),
+            )
+            .field(
+                "discriminant",
+                builder.scalar_literal_label(&candidate.discriminant),
+            ),
     };
 
     builder.push(row);
+    add_construct_target_generic_instances(builder, node_id, &resolution.target);
 }
 
 /// Add one pattern resolution row.
@@ -323,20 +408,29 @@ fn add_pattern_resolution_row(
         ),
         dir::PatternResolution::Nominal(nominal) => row
             .field("target", builder.symbol_path_label(nominal.symbol))
-            .optional_field("arguments", arguments_label(builder, &nominal.arguments))
+            .optional_field(
+                "instance",
+                generic_instance_label(builder, nominal.symbol, &nominal.arguments),
+            )
             .object_field(
                 "fields",
                 pattern_keyed_fields_label(builder, segment, &nominal.fields),
             ),
         dir::PatternResolution::Newtype(newtype) => row
             .field("target", builder.symbol_path_label(newtype.symbol))
-            .optional_field("arguments", arguments_label(builder, &newtype.arguments))
+            .optional_field(
+                "instance",
+                generic_instance_label(builder, newtype.symbol, &newtype.arguments),
+            )
             .optional_field("value", newtype.value.map(|node| builder.node_label(node))),
         dir::PatternResolution::Variant(variant) => {
             let row = row
                 .field("owner", builder.symbol_path_label(variant.owner))
                 .field("variant", builder.symbol_path_label(variant.variant))
-                .optional_field("arguments", arguments_label(builder, &variant.arguments))
+                .optional_field(
+                    "instance",
+                    generic_instance_label(builder, variant.owner, &variant.arguments),
+                )
                 .field(
                     "discriminant",
                     builder.scalar_literal_label(&variant.discriminant),
@@ -373,6 +467,7 @@ fn add_pattern_resolution_row(
     };
 
     builder.push(row);
+    add_pattern_generic_instances(builder, node_id, resolution);
 }
 
 /// Return one receiver kind label.
@@ -486,7 +581,10 @@ fn add_call_candidate_fields(
             "receiver",
             candidate.receiver.map(|ty| builder.global_type_label(ty)),
         )
-        .optional_field("arguments", arguments_label(builder, &candidate.arguments))
+        .optional_field(
+            "instance",
+            generic_instance_label(builder, candidate.symbol, &candidate.arguments),
+        )
 }
 
 /// Add direct class construct candidate fields.
@@ -502,7 +600,10 @@ fn add_class_construct_candidate_fields(
                 .constructor
                 .map(|symbol| builder.symbol_path_label(symbol)),
         )
-        .optional_field("arguments", arguments_label(builder, &candidate.arguments))
+        .optional_field(
+            "instance",
+            generic_instance_label(builder, candidate.symbol, &candidate.arguments),
+        )
 }
 
 /// Add direct newtype construct candidate fields.
@@ -512,7 +613,134 @@ fn add_construct_candidate_fields(
     candidate: &dir::NewtypeConstructCandidate,
 ) -> SnapshotRow {
     row.field("target", builder.symbol_path_label(candidate.symbol))
-        .optional_field("arguments", arguments_label(builder, &candidate.arguments))
+        .optional_field(
+            "instance",
+            generic_instance_label(builder, candidate.symbol, &candidate.arguments),
+        )
+}
+
+/// Add generic instance rows from one member target.
+fn add_member_target_generic_instances(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    target: &dir::MemberTarget,
+) {
+    let anchor = builder.anchor_node(node_id);
+    let source = builder.node_source(node_id);
+
+    match target {
+        dir::MemberTarget::Symbol(candidate) => {
+            builder.add_generic_instance(anchor, source, candidate.symbol, &candidate.arguments);
+        }
+        dir::MemberTarget::Existential(candidates) | dir::MemberTarget::Universal(candidates) => {
+            for candidate in candidates {
+                builder.add_generic_instance(
+                    anchor,
+                    source.clone(),
+                    candidate.symbol,
+                    &candidate.arguments,
+                );
+            }
+        }
+        dir::MemberTarget::Field(_)
+        | dir::MemberTarget::Element(_)
+        | dir::MemberTarget::Index(_) => {}
+    }
+}
+
+/// Add generic instance rows from one call target.
+fn add_call_target_generic_instances(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    target: &dir::CallTarget,
+) {
+    let anchor = builder.anchor_node(node_id);
+    let source = builder.node_source(node_id);
+
+    match target {
+        dir::CallTarget::Symbol(candidate) => {
+            builder.add_generic_instance(anchor, source, candidate.symbol, &candidate.arguments);
+        }
+        dir::CallTarget::Universal(candidates) => {
+            for candidate in candidates {
+                builder.add_generic_instance(
+                    anchor,
+                    source.clone(),
+                    candidate.symbol,
+                    &candidate.arguments,
+                );
+            }
+        }
+        dir::CallTarget::Builtin(_) | dir::CallTarget::Expression { .. } => {}
+    }
+}
+
+/// Add generic instance rows from one construct target.
+fn add_construct_target_generic_instances(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    target: &dir::ConstructTarget,
+) {
+    let anchor = builder.anchor_node(node_id);
+    let source = builder.node_source(node_id);
+
+    match target {
+        dir::ConstructTarget::Class(candidate) => {
+            builder.add_generic_instance(anchor, source, candidate.symbol, &candidate.arguments);
+        }
+        dir::ConstructTarget::Newtype(candidate) => {
+            builder.add_generic_instance(anchor, source, candidate.symbol, &candidate.arguments);
+        }
+        dir::ConstructTarget::Variant(candidate) => {
+            builder.add_generic_instance(anchor, source, candidate.owner, &candidate.arguments);
+        }
+    }
+}
+
+/// Add generic instance rows from one pattern resolution.
+fn add_pattern_generic_instances(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::PatternResolution,
+) {
+    let anchor = builder.anchor_node(node_id);
+    let source = builder.node_source(node_id);
+
+    match resolution {
+        dir::PatternResolution::Nominal(nominal) => {
+            builder.add_generic_instance(anchor, source, nominal.symbol, &nominal.arguments);
+        }
+        dir::PatternResolution::Newtype(newtype) => {
+            builder.add_generic_instance(anchor, source, newtype.symbol, &newtype.arguments);
+        }
+        dir::PatternResolution::Variant(variant) => {
+            builder.add_generic_instance(anchor, source, variant.owner, &variant.arguments);
+        }
+        dir::PatternResolution::Wildcard
+        | dir::PatternResolution::Binding(_)
+        | dir::PatternResolution::Literal(_)
+        | dir::PatternResolution::Range(_)
+        | dir::PatternResolution::Tuple(_)
+        | dir::PatternResolution::Sequence(_)
+        | dir::PatternResolution::Shape(_)
+        | dir::PatternResolution::Union(_)
+        | dir::PatternResolution::Borrow(_)
+        | dir::PatternResolution::Move(_)
+        | dir::PatternResolution::Dereference(_) => {}
+    }
+}
+
+/// Render one applied generic declaration label.
+fn generic_instance_label(
+    builder: &DirSnapshotBuilder<'_>,
+    symbol: dir::GlobalSymbolId,
+    arguments: &[dir::GlobalTypeId],
+) -> Option<String> {
+    if arguments.is_empty() {
+        return None;
+    }
+
+    Some(builder.generic_instance_label(symbol, arguments))
 }
 
 /// Add ordered pattern sequence fields.
