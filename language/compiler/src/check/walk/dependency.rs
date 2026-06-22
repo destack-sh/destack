@@ -31,7 +31,7 @@ impl WalkState<'_, '_> {
             }
             // import { name }
             dir::DependencyItem::Binding { value: None, .. } => {}
-            // ignore damaged syntax
+            // ignore damaged nodes
             dir::DependencyItem::Error => {}
         };
 

@@ -29,7 +29,7 @@ impl WalkState<'_, '_> {
     ///
     /// Example:
     /// ```ds
-    /// if (condition) { value } else { fallback }
+    /// if (condition) { value } else { return }
     /// ```
     pub(in crate::check) fn expression_can_complete_normally(
         &self,
@@ -87,7 +87,7 @@ impl WalkState<'_, '_> {
 
                 finally && (body || catch)
             }
-            // expressions that do not force control transfer by syntax
+            // expressions that do not force control transfer by form
             dir::Expression::Declaration(_)
             | dir::Expression::Label { .. }
             | dir::Expression::Import { .. }
