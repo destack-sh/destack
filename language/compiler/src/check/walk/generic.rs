@@ -166,7 +166,7 @@ impl WalkState<'_, '_> {
         ty: dir::GlobalTypeId,
         position: GenericInductionPosition,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if !self.is_constraint_type(ty)? {
+        if !self.induces_generic_parameter(ty, position)? {
             return Ok(ty);
         }
 
@@ -177,32 +177,42 @@ impl WalkState<'_, '_> {
             .check
             .allocate_variable(self.module, origin, Widening::Preserve);
         let induced = self.check.push_variable_type(variable, source)?;
-        let recipe = GenericInductionParameter {
+        let induction = GenericInductionParameter {
             prefix: "T",
             constraint: Some(ty),
             is_comptime: false,
             induction: position.induction(),
         };
-        self.check.generics.insert_induction(variable, recipe)?;
+        self.check.generics.insert_induction(variable, induction)?;
         self.relate_type(origin, Relation::Assignable, induced, ty);
 
         Ok(induced)
     }
 
-    /// Return whether one type writes an inducible constraint.
-    fn is_constraint_type(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+    /// Return whether one written type induces a generic parameter.
+    fn induces_generic_parameter(
+        &self,
+        ty: dir::GlobalTypeId,
+        position: GenericInductionPosition,
+    ) -> CompilerResult<bool> {
         let symbol = match self.check.ty(ty)? {
-            dir::Type::Reference(instance) if instance.arguments.is_empty() => instance.symbol,
+            dir::Type::Reference(instance) => instance.symbol,
             _ => return Ok(false),
         };
         let kind = self.check.symbol_kind(symbol);
 
-        Ok(matches!(
-            kind,
-            dir::SymbolKind::AssociatedType
-                | dir::SymbolKind::Interface
-                | dir::SymbolKind::NewtypeInterface,
-        ))
+        let induces = match (position, kind) {
+            // transparent aliases are constraints at call sites
+            (GenericInductionPosition::Parameter, dir::SymbolKind::TypeAlias) => true,
+            // interfaces are always incomplete until implemented
+            (_, dir::SymbolKind::AssociatedType)
+            | (_, dir::SymbolKind::Interface)
+            | (_, dir::SymbolKind::NewtypeInterface) => true,
+            // concrete declarations already have a representation
+            _ => false,
+        };
+
+        Ok(induces)
     }
 }
 
@@ -241,9 +251,9 @@ impl CheckState<'_> {
         let mut induced = induced.into_iter().collect::<Vec<_>>();
         induced.sort_by_key(|(variable, _)| (variable.module_id, variable.index));
 
-        for (variable, (declaration, parent, symbol, recipe)) in induced {
+        for (variable, (declaration, parent, symbol, induction)) in induced {
             let template = self.declare_generic_template(declaration, parent, symbol)?;
-            let parameter = self.declare_induced_generic_parameter(template, recipe)?;
+            let parameter = self.declare_induced_generic_parameter(template, induction)?;
             let source = self.origin_source_node(Origin::Node(declaration))?;
             let solution = self.push_type(
                 declaration.module_id,

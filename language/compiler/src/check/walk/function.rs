@@ -62,6 +62,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         return_type: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let generic_parameters = self.signature_generic_parameters(source, template)?;
+        let return_type = match (return_type, declaration.return_type) {
+            (Some(return_type), _) => Some(return_type),
+            (None, Some(return_type)) => Some(self.walk_type_expression(return_type)?),
+            (None, None) => None,
+        };
 
         let this_parameter = if let Some(parameter) = declaration.this_parameter {
             self.parameter_type(parameter)?
@@ -104,6 +109,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         return_type: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let generic_parameters = self.signature_generic_parameters(source, template)?;
+        let return_type = match (return_type, declaration.return_type) {
+            (Some(return_type), _) => Some(return_type),
+            (None, Some(return_type)) => Some(self.walk_type_expression(return_type)?),
+            (None, None) => None,
+        };
 
         // collect runtime parameters
         let mut parameters = Vec::new();
@@ -182,7 +192,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let mut yield_target = None;
         let mut resume_target = None;
 
-        // open the async result channel
+        // open the async completion type
         if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
             let completed = self.open_type(source)?;
             let promised =
@@ -192,7 +202,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return_target = completed;
         }
 
-        // open the generator channels
+        // open the generator yielded, completed, and resumed types
         if signature.is_generator {
             let yielded = self.open_type(source)?;
             let completed = self.open_type(source)?;
@@ -325,6 +335,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         } else {
             written
         };
+        self.declare_node_type(id, written)?;
 
         Ok(Some(written))
     }

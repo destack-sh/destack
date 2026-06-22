@@ -20,14 +20,14 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
 
-        // the argument node carries its value's type for selection
+        // let selection read the argument value type from the argument node
         let value = match argument {
             // f(name: value), f(label = value), f(value), f(...value)
             dir::Argument::Named { value, .. }
             | dir::Argument::Labeled { value, .. }
             | dir::Argument::Positional { value }
             | dir::Argument::Spread { value, .. } => Some(*value),
-            // ignore damaged syntax
+            // ignore damaged nodes
             dir::Argument::Error => None,
         };
 
@@ -65,7 +65,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Walk one generic argument into its applied type.
-    /// Static types lower to singleton and operation types directly.
+    /// Static values become singleton and operation types directly.
     ///
     /// Example:
     /// ```ds
@@ -75,35 +75,28 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::GenericArgument>,
     ) -> CompilerResult<(Option<dir::StringId>, dir::GlobalTypeId)> {
-        match self.tree.get(id) {
+        let (name, ty) = match self.tree.get(id) {
             // <T> and <...T>
             dir::GenericArgument::Type { value } | dir::GenericArgument::SpreadType { value } => {
-                let value = *value;
-
-                Ok((None, self.walk_type_expression(value)?))
+                (None, self.walk_type_expression(*value)?)
             }
             // <type Item = T>
             dir::GenericArgument::AssociatedType { name, value } => {
-                let (name, value) = (*name, *value);
-
-                Ok((Some(name), self.walk_type_expression(value)?))
+                (Some(*name), self.walk_type_expression(*value)?)
             }
             // <C> and <...C>
             dir::GenericArgument::Value { value } | dir::GenericArgument::SpreadValue { value } => {
-                let value = *value;
-
-                Ok((None, self.lower_static_predicate(value)?))
+                (None, self.static_expression_type(*value)?)
             }
             // <comptime Size = N>
             dir::GenericArgument::AssociatedConst { name, value } => {
-                let (name, value) = (*name, *value);
-
-                Ok((Some(name), self.lower_static_predicate(value)?))
+                (Some(*name), self.static_expression_type(*value)?)
             }
             // keep the argument arity visible to solve
-            dir::GenericArgument::Error => {
-                Ok((None, self.push_type(dir::Type::Error, id.into_any())?))
-            }
-        }
+            dir::GenericArgument::Error => (None, self.push_type(dir::Type::Error, id.into_any())?),
+        };
+        self.declare_node_type(id, ty)?;
+
+        Ok((name, ty))
     }
 }

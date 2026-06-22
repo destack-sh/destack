@@ -84,7 +84,7 @@ impl WalkState<'_, '_> {
                 let source = value.into_any();
                 let bound = match widening {
                     Widening::Widen => self.check.widen_type(self.module, source, initializer)?,
-                    Widening::Preserve => initializer,
+                    Widening::Preserve | Widening::WidenAggregate => initializer,
                 };
                 self.declare_symbol_type(symbol, bound)?;
 
@@ -218,7 +218,7 @@ impl WalkState<'_, '_> {
         &self,
         id: dir::LocalNodeId<dir::Declarator>,
     ) -> bool {
-        // require a parent expression (otherwise this smells like damaged syntax)
+        // require a parent expression for destructuring context
         let Some(parent) = self.tree.get_parent(id.id) else {
             return true;
         };
