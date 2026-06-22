@@ -2,7 +2,52 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, MemberLookup, Origin, Relation};
+use crate::check::{Answer, CheckState, Dependency, MemberLookup, Origin, Relation};
+
+/// One applied heritage edge in a nominal declaration closure.
+#[derive(Debug, Clone)]
+pub(in crate::check) struct HeritageApplication {
+    /// The source clause that introduced the application.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The applied nominal or interface instance.
+    pub(in crate::check) instance: dir::GenericInstance,
+}
+
+/// One duplicate heritage application with incompatible arguments.
+#[derive(Debug, Clone)]
+pub(in crate::check) struct HeritageConflict {
+    /// The source clause that introduced the conflicting application.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The conflicting inherited application.
+    pub(in crate::check) current: dir::GenericInstance,
+}
+
+/// One heritage branch that exposes a cycle.
+#[derive(Debug, Clone)]
+pub(in crate::check) struct HeritageCycle {
+    /// The source branch that exposes the cycle.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+}
+
+/// Complete heritage closure for one nominal or interface application.
+#[derive(Debug, Clone, Default)]
+pub(in crate::check) struct HeritageClosure {
+    /// The inherited applications in traversal order.
+    pub(in crate::check) applications: SmallVec<[HeritageApplication; 8]>,
+    /// Duplicate applications with different arguments.
+    pub(in crate::check) conflicts: SmallVec<[HeritageConflict; 2]>,
+    /// Cycles found while walking heritage edges.
+    pub(in crate::check) cycles: SmallVec<[HeritageCycle; 2]>,
+}
+
+impl HeritageClosure {
+    /// Return the first application naming one symbol.
+    fn application(&self, symbol: dir::GlobalSymbolId) -> Option<&HeritageApplication> {
+        self.applications
+            .iter()
+            .find(|application| application.instance.symbol == symbol)
+    }
+}
 
 impl CheckState<'_> {
     /// Decide one check-only constraint relation between closed roots.
@@ -55,7 +100,17 @@ impl CheckState<'_> {
         let heritage = self.heritage_instance(origin, source_instance, target_instance.symbol)?;
         match heritage {
             Answer::Ready(Some(heritage)) => {
-                return self.decide_each_argument(origin, &heritage, target_instance);
+                let arguments = self.decide_each_argument(origin, &heritage, target_instance)?;
+                if !matches!(
+                    self.definition(target_instance.symbol),
+                    Some(dir::Definition::Interface(_))
+                ) {
+                    return Ok(arguments);
+                }
+
+                let members = self.decide_member_satisfies(origin, source, target_instance)?;
+
+                return Ok(arguments.and(members));
             }
             Answer::Ready(None) => {}
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
@@ -196,7 +251,7 @@ impl CheckState<'_> {
                     keys.push(field.key);
                 }
             }
-            for heritage in definition.heritages() {
+            for heritage in definition.bases() {
                 pending.push(heritage.symbol);
             }
         }
@@ -228,7 +283,7 @@ impl CheckState<'_> {
                     keys.push(key);
                 }
             }
-            for heritage in definition.heritages() {
+            for heritage in definition.bases() {
                 pending.push(heritage.symbol);
             }
         }
@@ -290,67 +345,114 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
-    /// Decide whether one source exposes every member of one interface application.
-    pub(in crate::check) fn decide_member_satisfies(
+    /// Return the full heritage closure for one nominal application.
+    pub(in crate::check) fn heritage_closure(
         &mut self,
         origin: Origin,
-        source: dir::GlobalTypeId,
-        target_instance: &dir::GenericInstance,
-    ) -> CompilerResult<Answer<bool>> {
-        let module = origin.module();
-        let Some(definition) = self.definition(target_instance.symbol) else {
-            return Ok(Answer::Ready(false));
+        instance: &dir::GenericInstance,
+    ) -> CompilerResult<Answer<HeritageClosure>> {
+        let mut closure = HeritageClosure::default();
+        let mut active = SmallVec::<[dir::GlobalSymbolId; 8]>::new();
+        let mut blockers = SmallVec::<[Dependency; 2]>::new();
+
+        active.push(instance.symbol);
+        self.collect_heritage(
+            origin,
+            instance,
+            None,
+            &mut active,
+            &mut closure,
+            &mut blockers,
+        )?;
+
+        if blockers.is_empty() {
+            Ok(Answer::Ready(closure))
+        } else {
+            let blockers = self.surviving_blockers(blockers);
+
+            Ok(Answer::Pending(blockers))
+        }
+    }
+
+    /// Collect inherited applications from one nominal application.
+    fn collect_heritage(
+        &mut self,
+        origin: Origin,
+        instance: &dir::GenericInstance,
+        branch_source: Option<dir::GlobalNodeIdAny>,
+        active: &mut SmallVec<[dir::GlobalSymbolId; 8]>,
+        closure: &mut HeritageClosure,
+        blockers: &mut SmallVec<[Dependency; 2]>,
+    ) -> CompilerResult<()> {
+        let Some(definition) = self.definition(instance.symbol) else {
+            return Ok(());
         };
-
-        // collect required members across both spaces
-        let members = definition
-            .members()
+        let heritages = definition
+            .heritages()
             .iter()
-            .filter_map(|member| member.key().map(|key| (member.space(), key, member.ty())))
-            .collect::<SmallVec<[_; 4]>>();
-        // the satisfying source binds the interface's `this`
-        let substitution = self
-            .parameter_substitution(target_instance)?
-            .with_receiver(source);
-        let source_node = self.origin_source_node(origin)?;
+            .map(|heritage| (*heritage).clone())
+            .collect::<SmallVec<[_; 2]>>();
+        let substitution = self.parameter_substitution(instance)?;
+        let module = origin.module();
+        let source = self.origin_source_node(origin)?;
 
-        // require each interface member from the source
-        let mut decision = Answer::Ready(true);
-        for (space, key, member_type) in members {
-            let lookup = self.lookup_member(origin, module, source, space, key)?;
-
-            let found = match lookup {
-                MemberLookup::Field(ty) => Some(ty),
-                MemberLookup::Found(candidates) => candidates.first().map(|candidate| candidate.ty),
-                MemberLookup::Missing => None,
-                MemberLookup::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-            };
-            let Some(found) = found else {
-                return Ok(Answer::Ready(false));
-            };
-
-            // associated types without values only need presence
-            let Some(member_type) = member_type else {
-                continue;
-            };
-            let member_type = if substitution.is_empty() {
-                member_type
-            } else {
-                self.fold_type(module, source_node, member_type, substitution.rewrite())?
-            };
-
-            decision = decision.and(self.decide_relation(
-                origin,
-                Relation::Assignable,
-                found,
-                member_type,
-            )?);
-            if decision == Answer::Ready(false) {
-                return Ok(decision);
+        // walk direct heritage edges in their applied view
+        for heritage in heritages {
+            let mut arguments = heritage.arguments;
+            for argument in &mut arguments {
+                if !substitution.is_empty() {
+                    *argument =
+                        self.fold_type(module, source, *argument, substitution.rewrite())?;
+                }
             }
+            let application = HeritageApplication {
+                source: branch_source.unwrap_or(heritage.source),
+                instance: dir::GenericInstance {
+                    symbol: heritage.symbol,
+                    arguments,
+                },
+            };
+
+            // cycles are reported at the branch that exposed the cycle
+            if active.contains(&application.instance.symbol) {
+                closure.cycles.push(HeritageCycle {
+                    source: application.source,
+                });
+                continue;
+            }
+
+            // duplicate applications must use the same arguments
+            if let Some(previous) = closure.application(application.instance.symbol) {
+                match self.decide_each_argument(
+                    origin,
+                    &previous.instance,
+                    &application.instance,
+                )? {
+                    Answer::Ready(true) => {}
+                    Answer::Ready(false) => closure.conflicts.push(HeritageConflict {
+                        source: application.source,
+                        current: application.instance,
+                    }),
+                    Answer::Pending(pending) => blockers.extend(pending),
+                }
+                continue;
+            }
+
+            // recurse through newly reached applications
+            closure.applications.push(application.clone());
+            active.push(application.instance.symbol);
+            self.collect_heritage(
+                origin,
+                &application.instance,
+                Some(application.source),
+                active,
+                closure,
+                blockers,
+            )?;
+            active.pop();
         }
 
-        Ok(decision)
+        Ok(())
     }
 
     /// Find one heritage application naming a target symbol, transitively.
@@ -360,58 +462,12 @@ impl CheckState<'_> {
         instance: &dir::GenericInstance,
         target: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<Option<dir::GenericInstance>>> {
-        let mut visited = SmallVec::new();
-        self.heritage_instance_guarded(origin, instance, target, &mut visited)
-    }
-
-    /// Find one heritage application with the visited chain tracked.
-    fn heritage_instance_guarded(
-        &mut self,
-        origin: Origin,
-        instance: &dir::GenericInstance,
-        target: dir::GlobalSymbolId,
-        visited: &mut SmallVec<[dir::GlobalSymbolId; 8]>,
-    ) -> CompilerResult<Answer<Option<dir::GenericInstance>>> {
-        // heritage cycles carry no relation
-        if visited.contains(&instance.symbol) {
-            return Ok(Answer::Ready(None));
-        }
-        visited.push(instance.symbol);
-
-        let Some(definition) = self.definition(instance.symbol) else {
-            return Ok(Answer::Ready(None));
+        let closure = match self.heritage_closure(origin, instance)? {
+            Answer::Ready(closure) => closure,
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
-        let heritages = definition
-            .heritages()
-            .iter()
-            .map(|heritage| (heritage.symbol, heritage.arguments.clone()))
-            .collect::<SmallVec<[_; 2]>>();
-        let substitution = self.parameter_substitution(instance)?;
-        let module = origin.module();
-        let source = self.origin_source_node(origin)?;
-
-        // search substituted heritage applications transitively
-        for (symbol, arguments) in heritages {
-            let mut arguments = arguments;
-            for argument in &mut arguments {
-                if !substitution.is_empty() {
-                    *argument =
-                        self.fold_type(module, source, *argument, substitution.rewrite())?;
-                }
-            }
-            let heritage = dir::GenericInstance { symbol, arguments };
-
-            // direct heritage names the target
-            if symbol == target {
-                return Ok(Answer::Ready(Some(heritage)));
-            }
-
-            // otherwise search the heritage's own chain
-            match self.heritage_instance_guarded(origin, &heritage, target, visited)? {
-                Answer::Ready(Some(found)) => return Ok(Answer::Ready(Some(found))),
-                Answer::Ready(None) => {}
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-            }
+        if let Some(application) = closure.application(target) {
+            return Ok(Answer::Ready(Some(application.instance.clone())));
         }
 
         Ok(Answer::Ready(None))

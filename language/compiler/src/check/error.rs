@@ -1784,4 +1784,85 @@ pub enum CheckError {
         /// The module being checked.
         module: ModuleId,
     },
+
+    /// Interface inheritance names a non-interface declaration.
+    ///
+    /// ```ds
+    /// struct Shape {}
+    /// interface Drawable extends Shape {}
+    /// ```
+    #[diagnostic(
+        code = "EC615",
+        message = "interface '{source}' can only extend interfaces, not '{target}'"
+    )]
+    InterfaceBaseNotInterface {
+        /// Report the extends clause.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The extending interface.
+        source: String,
+        /// The invalid base type.
+        target: String,
+    },
+
+    /// Implementation inheritance names a non-interface declaration.
+    ///
+    /// ```ds
+    /// struct Shape {}
+    /// struct Point implements Shape {}
+    /// ```
+    #[diagnostic(
+        code = "EC616",
+        message = "type '{source}' can only implement interfaces, not '{target}'"
+    )]
+    ImplementationTargetNotInterface {
+        /// Report the implements clause.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The implementing type.
+        source: String,
+        /// The invalid implemented type.
+        target: String,
+    },
+
+    /// Heritage reaches the same declaration with incompatible arguments.
+    ///
+    /// ```ds
+    /// interface Base<T> {}
+    /// interface Left extends Base<string> {}
+    /// interface Right extends Base<int32> {}
+    /// interface Both extends Left, Right {}
+    /// ```
+    #[diagnostic(
+        code = "EC617",
+        message = "type '{source}' has conflicting heritage for '{target}'"
+    )]
+    ConflictingHeritage {
+        /// Report the conflicting heritage clause.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The declaration whose heritage is invalid.
+        source: String,
+        /// The repeated declaration.
+        target: String,
+    },
+
+    /// Heritage reaches its own declaration again.
+    ///
+    /// ```ds
+    /// interface A extends B {}
+    /// interface B extends A {}
+    /// ```
+    #[diagnostic(code = "EC618", message = "type '{source}' has circular heritage")]
+    CircularHeritage {
+        /// Report the heritage clause whose branch exposes the cycle.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The declaration whose heritage is circular.
+        source: String,
+    },
 }

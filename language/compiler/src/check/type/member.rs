@@ -437,7 +437,7 @@ impl CheckState<'_> {
             })
             .collect::<SmallVec<[_; 2]>>();
         let heritages = definition
-            .heritages()
+            .bases()
             .iter()
             .map(|heritage| (heritage.symbol, heritage.arguments.clone()))
             .collect::<SmallVec<[_; 2]>>();
@@ -596,11 +596,41 @@ impl CheckState<'_> {
         symbols
     }
 
-    /// Check one freshly walked extension against the coherence rules:
-    /// blanket implementations stay in the interface's package, duplicate
-    /// implementations conflict, and fully foreign implementations warn.
-    /// Each conflict reports once, at the later declaration.
-    pub(in crate::check) fn check_extension_coherence(
+    /// Check one extension's implemented interfaces.
+    pub(in crate::check) fn check_extension_conformance(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+        let Some(dir::Definition::Extension(extension)) = self.definition(symbol) else {
+            return Ok(Answer::Ready(None));
+        };
+        let members = extension.members.clone();
+        let implements = extension
+            .implements
+            .iter()
+            .cloned()
+            .collect::<SmallVec<[_; 2]>>();
+        if implements.is_empty() {
+            return Ok(Answer::Ready(None));
+        }
+        let module = source.module_id;
+
+        // require each declared implementation to satisfy its interface
+        let conformance =
+            self.check_extension_members(source, extension.target.r#type(), &members, &implements)?;
+        match conformance {
+            Answer::Ready(diagnostics) => {
+                self.module_mut(module).diagnostics.extend(diagnostics);
+            }
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        }
+
+        Ok(Answer::Ready(None))
+    }
+
+    /// Check one extension's implementation coherence.
+    pub(in crate::check) fn check_implementation_coherence(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -612,7 +642,7 @@ impl CheckState<'_> {
         let implements = extension
             .implements
             .iter()
-            .map(|heritage| heritage.symbol)
+            .cloned()
             .collect::<SmallVec<[_; 2]>>();
         if implements.is_empty() {
             return Ok(Answer::Ready(None));
@@ -626,7 +656,7 @@ impl CheckState<'_> {
             dir::ExtensionTarget::Nominal { root, ty } => {
                 // report non-local implementation pairs
                 let foreign_target = root.module_id.package_id != package;
-                for interface in implements.iter().copied() {
+                for interface in implements.iter().map(|heritage| heritage.symbol) {
                     if foreign_target && interface.module_id.package_id != package {
                         let warning = CheckWarning::NonLocalImplementation {
                             anchor: anchor.clone(),
@@ -649,7 +679,7 @@ impl CheckState<'_> {
                 )?;
             }
             _ => {
-                for interface in implements.iter().copied() {
+                for interface in implements.iter().map(|heritage| heritage.symbol) {
                     if interface.module_id.package_id != package {
                         let error = CheckError::ForeignBlanketImplementation {
                             anchor: anchor.clone(),
@@ -665,6 +695,139 @@ impl CheckState<'_> {
         Ok(Answer::Ready(None))
     }
 
+    /// Check one extension's declared members against its implemented interfaces.
+    fn check_extension_members(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        target: dir::GlobalTypeId,
+        members: &[dir::DefinitionMember],
+        implements: &[dir::NominalHeritage],
+    ) -> CompilerResult<Answer<Vec<DiagnosticBuilder<CheckError>>>> {
+        let mut diagnostics = Vec::new();
+        let mut blockers = SmallVec::<[Dependency; 2]>::new();
+
+        // check each implemented interface independently
+        for heritage in implements {
+            let interface = dir::GenericInstance {
+                symbol: heritage.symbol,
+                arguments: heritage.arguments.clone(),
+            };
+            let result = self.check_extension_interface(
+                source,
+                heritage.source,
+                target,
+                members,
+                &interface,
+            )?;
+
+            match result {
+                Answer::Ready(Some(diagnostic)) => diagnostics.push(diagnostic),
+                Answer::Ready(None) => {}
+                Answer::Pending(pending) => blockers.extend(pending),
+            }
+        }
+
+        if blockers.is_empty() {
+            Ok(Answer::Ready(diagnostics))
+        } else {
+            let blockers = self.surviving_blockers(blockers);
+
+            Ok(Answer::Pending(blockers))
+        }
+    }
+
+    /// Check one extension's declared members against one implemented interface.
+    fn check_extension_interface(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        anchor_source: dir::GlobalNodeIdAny,
+        target: dir::GlobalTypeId,
+        members: &[dir::DefinitionMember],
+        interface: &dir::GenericInstance,
+    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+        let Some(definition) = self.definition(interface.symbol) else {
+            return Ok(Answer::Ready(None));
+        };
+        if !matches!(definition, dir::Definition::Interface(_)) {
+            return Ok(Answer::Ready(None));
+        }
+
+        let required = match self.interface_members(Origin::Node(source), interface, target)? {
+            Answer::Ready(required) => required,
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+
+        // compare each required member with the extension's declared member
+        for requirement in required {
+            let found = members.iter().find(|member| {
+                member.space() == requirement.space && member.key() == Some(requirement.key)
+            });
+            let Some(found) = found else {
+                return Ok(Answer::Ready(Some(self.extension_interface_error(
+                    anchor_source,
+                    target,
+                    interface.symbol,
+                ))));
+            };
+
+            // associated types without values only need presence
+            let Some(required_type) = requirement.ty else {
+                continue;
+            };
+            let Some(found_type) = found.ty() else {
+                return Ok(Answer::Ready(Some(self.extension_interface_error(
+                    anchor_source,
+                    target,
+                    interface.symbol,
+                ))));
+            };
+
+            let is_found_method = matches!(found, dir::DefinitionMember::Method(_));
+            let assignment = if is_found_method && requirement.is_method {
+                self.decide_method_assignable(Origin::Node(source), found_type, required_type)?
+            } else {
+                self.decide_relation(
+                    Origin::Node(source),
+                    Relation::Assignable,
+                    found_type,
+                    required_type,
+                )?
+            };
+
+            match assignment {
+                Answer::Ready(true) => {}
+                Answer::Ready(false) => {
+                    return Ok(Answer::Ready(Some(self.extension_interface_error(
+                        anchor_source,
+                        target,
+                        interface.symbol,
+                    ))));
+                }
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            }
+        }
+
+        Ok(Answer::Ready(None))
+    }
+
+    /// Return one extension interface diagnostic.
+    fn extension_interface_error(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        target: dir::GlobalTypeId,
+        interface: dir::GlobalSymbolId,
+    ) -> DiagnosticBuilder<CheckError> {
+        let (module, anchor) = self.source_anchor(source);
+        let error = CheckError::InterfaceNotImplemented {
+            anchor,
+            module,
+            source: self.format_type(target),
+            target: self.format_symbol(interface),
+        };
+
+        error.into()
+    }
+
     /// Report visible implementations conflicting with one new extension.
     fn check_conflicting_implementations(
         &mut self,
@@ -674,7 +837,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         root: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
-        implements: &[dir::GlobalSymbolId],
+        implements: &[dir::NominalHeritage],
     ) -> CompilerResult<()> {
         // generic implementations need instantiation overlap checking
         if self.generics.template_by_symbol(symbol).is_some() {
@@ -685,6 +848,9 @@ impl CheckState<'_> {
         let mut candidates = SmallVec::<[(dir::GlobalTypeId, dir::GlobalSymbolId); 2]>::new();
         for other in self.visible_extensions(module, root) {
             if other == symbol || self.generics.template_by_symbol(other).is_some() {
+                continue;
+            }
+            if !self.is_later_definition(source, other) {
                 continue;
             }
             let Some(dir::Definition::Extension(extension)) = self.definition(other) else {
@@ -704,7 +870,11 @@ impl CheckState<'_> {
                 .implements
                 .iter()
                 .map(|heritage| heritage.symbol)
-                .find(|interface| implements.contains(interface));
+                .find(|interface| {
+                    implements
+                        .iter()
+                        .any(|heritage| heritage.symbol == *interface)
+                });
             if let Some(interface) = shared {
                 candidates.push((other_ty, interface));
             }
@@ -727,6 +897,23 @@ impl CheckState<'_> {
         }
 
         Ok(())
+    }
+
+    /// Return whether `source` is later than one other local definition.
+    fn is_later_definition(
+        &self,
+        source: dir::GlobalNodeIdAny,
+        other: dir::GlobalSymbolId,
+    ) -> bool {
+        let Some(state) = self.modules.get(&other.module_id) else {
+            return true;
+        };
+        let other_source = state.definitions.definition_source(other);
+        if other_source.module_id != source.module_id {
+            return true;
+        }
+
+        source.local_id.id > other_source.local_id.id
     }
 
     /// Look up matching members from one extension declaration.
