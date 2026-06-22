@@ -1,8 +1,17 @@
 use std::path::{Component, Path};
 
-use destack_dir::SymbolSpace;
+use destack_dir::SymbolKind;
 
 use crate::{MatchQuality, match_quality};
+
+/// The use role expected by one import search.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SymbolUse {
+    /// Type-position use.
+    Type,
+    /// Value-position use.
+    Value,
+}
 
 /// The structural import-path relevance for one import candidate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,8 +31,8 @@ pub struct ImportPathRelevance {
 pub struct ImportRelevance {
     /// The lexical match quality for the exported name.
     pub lexical: MatchQuality,
-    /// The space preference rank.
-    pub space_rank: u8,
+    /// The use preference rank.
+    pub use_rank: u8,
     /// The same-directory preference rank.
     pub directory_rank: u8,
     /// The same-package preference rank.
@@ -37,8 +46,8 @@ pub struct ImportRelevance {
 /// The stable structured ordering key for one import candidate.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ImportSortKey {
-    /// The coarse space ordering rank.
-    pub space_rank: u8,
+    /// The coarse use ordering rank.
+    pub use_rank: u8,
     /// The same-directory ordering rank.
     pub directory_rank: u8,
     /// The same-package ordering rank.
@@ -59,16 +68,16 @@ pub struct ImportSortKey {
 pub fn import_relevance(
     query: &str,
     export_name: &str,
-    expected_space: Option<SymbolSpace>,
-    space: SymbolSpace,
+    expected_use: Option<SymbolUse>,
+    kind: SymbolKind,
     path: ImportPathRelevance,
 ) -> Option<ImportRelevance> {
     let lexical = match_quality(export_name, query)?;
-    let space_rank = import_space_rank(space, expected_space);
+    let use_rank = import_use_rank(kind, expected_use);
 
     Some(ImportRelevance {
         lexical,
-        space_rank,
+        use_rank,
         directory_rank: path.directory_rank,
         package_rank: path.package_rank,
         distance_rank: path.distance_rank,
@@ -86,7 +95,7 @@ pub fn import_sort_text(
 
     format!(
         "{}:{}:{}:{:04}:{:04}:{:04}:{display_path}:{export_name}",
-        sort_key.space_rank,
+        sort_key.use_rank,
         sort_key.directory_rank,
         sort_key.package_rank,
         sort_key.distance_rank,
@@ -102,7 +111,7 @@ pub fn import_sort_key(
     export_name: &str,
 ) -> ImportSortKey {
     ImportSortKey {
-        space_rank: relevance.space_rank,
+        use_rank: relevance.use_rank,
         directory_rank: relevance.directory_rank,
         package_rank: relevance.package_rank,
         distance_rank: relevance.distance_rank,
@@ -166,19 +175,14 @@ pub fn package_import_path_relevance(package_rank: u8) -> ImportPathRelevance {
     }
 }
 
-/// Return one coarse import space rank.
-fn import_space_rank(space: SymbolSpace, expected_space: Option<SymbolSpace>) -> u8 {
-    match expected_space {
-        Some(SymbolSpace::Type) => match space {
-            SymbolSpace::Type => 0,
-            SymbolSpace::Value => 1,
-            SymbolSpace::Label => 2,
-        },
-        _ => match space {
-            SymbolSpace::Value => 0,
-            SymbolSpace::Type => 1,
-            SymbolSpace::Label => 2,
-        },
+/// Return one coarse import use rank.
+fn import_use_rank(kind: SymbolKind, expected_use: Option<SymbolUse>) -> u8 {
+    match expected_use {
+        Some(SymbolUse::Type) if kind.can_be_used_as_type() => 0,
+        Some(SymbolUse::Value) if kind.can_be_used_as_value() => 0,
+        None if kind.can_be_used_as_value() => 0,
+        None if kind.can_be_used_as_type() => 1,
+        _ => 2,
     }
 }
 
