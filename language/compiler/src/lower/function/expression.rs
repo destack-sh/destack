@@ -235,45 +235,36 @@ impl FunctionLowerer<'_> {
         }
     }
 
-    /// Lower one runtime type guard expression.
-    pub(super) fn lower_runtime_type_guard_expression(
+    /// Lower one runtime type predicate expression.
+    pub(super) fn lower_type_predicate_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
-        target_type_id: dir::LocalTypeId,
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // require runtime check metadata from Analyze
-        let guard_entry = self
+        // read the checked predicate resolution
+        let predicate = self
             .context
-            .guards
-            .entry(expression_id.into_global_any(self.context.module_id));
-        let Some(guard_entry) = guard_entry else {
-            return Err(LowerError::Internal {
-                anchor: (self.context.module_id).into(),
+            .resolutions
+            .predicate_resolution(expression_id.into_global_any(self.context.module_id))
+            .ok_or_else(|| LowerError::Internal {
+                anchor: self.context.module_id.into(),
                 module: self.context.module_id,
-                message: "missing runtime check metadata for type guard".to_string(),
+                message: "missing predicate resolution for type predicate".to_string(),
+            })?;
+        let target_type_id = match predicate {
+            dir::PredicateResolution::Is(predicate) => predicate.target_type.into_local(),
+            dir::PredicateResolution::InstanceOf(_) => {
+                return self.unsupported_type_descriptor_predicate(expression_id);
             }
-            .into());
+            dir::PredicateResolution::In(_) => {
+                return Err(LowerError::Internal {
+                    anchor: self.context.module_id.into(),
+                    module: self.context.module_id,
+                    message: "member predicate reached type predicate lowering".to_string(),
+                }
+                .into());
+            }
         };
-
-        // handle constant guards early
-        if let dir::GuardEntry::Constant(value) = guard_entry {
-            let value = self.state.builder.bconst(value);
-            return Ok((value, self.context.type_lowerer.ty_bool));
-        }
-
-        // reject type descriptor guards until RTTI is lowered (#Incomplete)
-        if guard_entry == dir::GuardEntry::TypeDescriptor {
-            return Err(LowerError::UnsupportedConstruct {
-                anchor: self.diagnostic_anchor(
-                    expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
-                ),
-                message: "type descriptor checks are not lowered yet".to_string(),
-            }
-            .into());
-        }
 
         // resolve expression and target types
         let (left_value, left_mir_type) = self.lower_value_expression(left)?;
@@ -293,14 +284,6 @@ impl FunctionLowerer<'_> {
             self.context.types.get_type(left_type_id),
             dir::Type::Union(_)
         );
-        if guard_entry == dir::GuardEntry::UnionTag && !is_union_value {
-            return Err(LowerError::Internal {
-                anchor: (self.context.module_id).into(),
-                module: self.context.module_id,
-                message: "runtime check metadata expected union value".to_string(),
-            }
-            .into());
-        }
         if is_union_value {
             let layout = self
                 .context
@@ -366,29 +349,57 @@ impl FunctionLowerer<'_> {
             return Ok((cmp, self.context.type_lowerer.ty_bool));
         }
 
+        self.unsupported_type_descriptor_predicate(expression_id)
+    }
+
+    /// Lower one `key in value` predicate expression.
+    pub(super) fn lower_member_predicate_expression(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        let predicate = self
+            .context
+            .resolutions
+            .predicate_resolution(expression_id.into_global_any(self.context.module_id))
+            .ok_or_else(|| LowerError::Internal {
+                anchor: self.context.module_id.into(),
+                module: self.context.module_id,
+                message: "missing predicate resolution for member predicate".to_string(),
+            })?;
+        if !matches!(predicate, dir::PredicateResolution::In(_)) {
+            return Err(LowerError::Internal {
+                anchor: self.context.module_id.into(),
+                module: self.context.module_id,
+                message: "type predicate reached member predicate lowering".to_string(),
+            }
+            .into());
+        }
+
         Err(LowerError::UnsupportedConstruct {
             anchor: self.diagnostic_anchor(
                 expression_id
                     .into_global_any(self.context.module_id)
                     .into_anchored(Some(self.context.profile)),
             ),
-            message: "unsupported type check".to_string(),
+            message: "member predicate checks are not lowered yet".to_string(),
         }
         .into())
     }
 
-    /// Resolve the target type id for one `is` guard.
-    pub(crate) fn is_target_type_id(
+    /// Reject one predicate that needs RTTI lowering.
+    fn unsupported_type_descriptor_predicate(
         &self,
-        expression_id: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<dir::LocalTypeId> {
-        self.type_id_for_type_expression(expression_id)
-            .ok_or_else(|| {
-                self.missing_type_error_for_node(
-                    expression_id.into_global_any(self.context.module_id),
-                )
-            })
-            .map_err(CompilerError::from)
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        Err(LowerError::UnsupportedConstruct {
+            anchor: self.diagnostic_anchor(
+                expression_id
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
+            ),
+            message: "type descriptor checks are not lowered yet".to_string(),
+        }
+        .into())
     }
 
     /// Check whether two type ids refer to the same nominal type.

@@ -47,8 +47,6 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) types: &'a dir::TypeTable<'a>,
     /// Provide access to checked resolutions.
     pub(crate) resolutions: &'a dir::ResolutionTable<'a>,
-    /// Elaborated type guard entries.
-    pub(crate) guards: &'a dir::GuardTable,
     /// Provide access to capture metadata for function environments.
     pub(crate) captures: &'a dir::CaptureTable<'a>,
     /// Runtime check configuration for this target.
@@ -151,7 +149,6 @@ impl<'a> ModuleLowerer<'a> {
         symbols: &'a dir::BindingTable<'a>,
         types: &'a dir::TypeTable<'a>,
         resolutions: &'a dir::ResolutionTable<'a>,
-        guards: &'a dir::GuardTable,
         captures: &'a dir::CaptureTable<'a>,
         target: &'a TargetId,
         pointer_bytes: u8,
@@ -207,7 +204,6 @@ impl<'a> ModuleLowerer<'a> {
             symbols,
             types,
             resolutions,
-            guards,
             captures,
             runtime_checks,
             language_intrinsics,
