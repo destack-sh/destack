@@ -1,20 +1,18 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{
-    Decision, DynamicSafetyObligation, GenericInductionParameter, NameLookup, Obligation, Origin,
-    WalkState, Widening,
+    Decision, DynamicSafetyObligation, GenericInductionParameter, Obligation, Origin, WalkState,
+    Widening,
 };
+use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
-    /// Lower one annotation node to its working type.
+    /// Walk one type annotation and record its type.
     ///
-    /// Type expressions lower directly into working types here: named
-    /// references resolve through the resolve-phase tables, forms spell
-    /// their memory wrappers, and operations stay symbolic for reduce.
-    /// Each node records its input so guards, patterns, and selections
-    /// read annotation types uniformly.
+    /// Build a `Type` row for the annotation node.
+    /// Resolve reference annotations to symbols, allocate `Form` rows for
+    /// memory forms, and allocate `TypeOperation` rows for type operators.
     ///
     /// Example:
     /// ```ds
@@ -26,19 +24,19 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let node = id.into_global_any(self.module);
 
-        // reuse already-lowered annotation inputs
+        // reuse the recorded type for repeated annotation visits
         if let Some(ty) = self.check.node_type(node) {
             return Ok(ty);
         }
 
-        let ty = self.lower_type_expression(id)?;
+        let ty = self.build_type_expression(id)?;
         self.check.set_node_type(node, ty)?;
 
         Ok(ty)
     }
 
-    /// Lower one type expression node by its syntactic shape.
-    fn lower_type_expression(
+    /// Build the type for one `TypeExpression` node.
+    fn build_type_expression(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -57,7 +55,7 @@ impl WalkState<'_, '_> {
             dir::TypeExpression::Literal { value } => {
                 self.push_type(dir::Type::from(value.clone()), source)
             }
-            // intrinsic markers validate at their declarations
+            // validate intrinsic markers at their declarations
             dir::TypeExpression::Intrinsic => self.push_type(dir::Type::Error, source),
             // (A, B) and [A, B]
             dir::TypeExpression::Tuple { elements }
@@ -67,15 +65,15 @@ impl WalkState<'_, '_> {
                     dir::TypeExpression::ArrayTuple { .. } => dir::TupleForm::Array,
                     _ => dir::TupleForm::Tuple,
                 };
-                let mut lowered = Vec::new();
+                let mut element_types = Vec::new();
                 for element in elements {
-                    lowered.push(self.lower_tuple_element(element)?);
+                    element_types.push(self.build_tuple_element(element)?);
                 }
 
                 self.push_type(
                     dir::Type::Tuple(dir::TupleType {
                         form,
-                        elements: lowered,
+                        elements: element_types,
                     }),
                     source,
                 )
@@ -94,7 +92,7 @@ impl WalkState<'_, '_> {
             // [T; N]
             dir::TypeExpression::FixedArray { element, length } => {
                 let element = self.walk_type_expression(*element)?;
-                let count = self.lower_static_predicate(*length)?;
+                let count = self.static_expression_type(*length)?;
 
                 self.push_type(
                     dir::Type::FixedArray(dir::FixedArrayType { element, count }),
@@ -105,7 +103,7 @@ impl WalkState<'_, '_> {
             dir::TypeExpression::Object { members } => {
                 let members = members.iter().copied().collect::<SmallVec<[_; 4]>>();
 
-                self.lower_object_type(id, &members)
+                self.build_shape_type(id, &members)
             }
             // (value: T) => U
             dir::TypeExpression::Function(function) => {
@@ -130,7 +128,7 @@ impl WalkState<'_, '_> {
                     .copied()
                     .collect::<SmallVec<[_; 4]>>();
 
-                self.lower_reference_type(id, &path, &generic_arguments)
+                self.build_reference_type(id, &path, &generic_arguments)
             }
             // T.Item
             dir::TypeExpression::Member {
@@ -161,7 +159,7 @@ impl WalkState<'_, '_> {
                 start,
                 end,
                 end_kind,
-            } => self.lower_range_type(id, *start, *end, *end_kind),
+            } => self.build_range_type(id, *start, *end, *end_kind),
             // const outside `as const` positions
             dir::TypeExpression::Const => {
                 self.check.report_invalid_const_type(self.module, source);
@@ -184,10 +182,10 @@ impl WalkState<'_, '_> {
             }
             // local T, shared T
             dir::TypeExpression::Local { target_type } => {
-                self.lower_placed_type(id, *target_type, dir::Space::Local)
+                self.build_placed_type(id, *target_type, dir::Space::Local)
             }
             dir::TypeExpression::Shared { target_type } => {
-                self.lower_placed_type(id, *target_type, dir::Space::Shared)
+                self.build_placed_type(id, *target_type, dir::Space::Shared)
             }
             // keyof T
             dir::TypeExpression::KeyOf { target_type } => {
@@ -256,7 +254,7 @@ impl WalkState<'_, '_> {
                     source,
                 )
             }
-            // &T opens its elided lifetime for induction
+            // open the elided borrow lifetime for induction
             dir::TypeExpression::BorrowedOf {
                 mutability,
                 target_type,
@@ -270,8 +268,7 @@ impl WalkState<'_, '_> {
                     dir::Type::Memory(dir::MemoryLiteral::Access(access)),
                     source,
                 )?;
-                // the open lifetime induces a hidden comptime parameter
-                //  through the surrounding declaration's induction sites
+                // induce a hidden comptime parameter through declaration sites
                 let lifetime = self.open_type(source)?;
                 if let Some(variable) = self.check.root_variable(lifetime)? {
                     // constrain the induced parameter to the lifetime kind
@@ -290,13 +287,13 @@ impl WalkState<'_, '_> {
                         )?),
                         None => None,
                     };
-                    let recipe = GenericInductionParameter {
+                    let induction = GenericInductionParameter {
                         prefix: "L",
                         constraint,
                         is_comptime: true,
                         induction: dir::GenericParameterInduction::Form,
                     };
-                    self.check.generics.insert_induction(variable, recipe)?;
+                    self.check.generics.insert_induction(variable, induction)?;
                 }
 
                 self.push_type(
@@ -322,26 +319,30 @@ impl WalkState<'_, '_> {
             // A | B
             dir::TypeExpression::Union { elements } => {
                 let elements = elements.iter().copied().collect::<SmallVec<[_; 4]>>();
-                let mut lowered = Vec::new();
+                let mut element_types = Vec::new();
                 for element in elements {
-                    lowered.push(self.walk_type_expression(element)?);
+                    element_types.push(self.walk_type_expression(element)?);
                 }
 
                 self.push_type(
-                    dir::Type::Union(dir::UnionType { elements: lowered }),
+                    dir::Type::Union(dir::UnionType {
+                        elements: element_types,
+                    }),
                     source,
                 )
             }
             // A & B
             dir::TypeExpression::Intersection { elements } => {
                 let elements = elements.iter().copied().collect::<SmallVec<[_; 4]>>();
-                let mut lowered = Vec::new();
+                let mut element_types = Vec::new();
                 for element in elements {
-                    lowered.push(self.walk_type_expression(element)?);
+                    element_types.push(self.walk_type_expression(element)?);
                 }
 
                 self.push_type(
-                    dir::Type::Intersection(dir::IntersectionType { elements: lowered }),
+                    dir::Type::Intersection(dir::IntersectionType {
+                        elements: element_types,
+                    }),
                     source,
                 )
             }
@@ -354,17 +355,9 @@ impl WalkState<'_, '_> {
             } => {
                 let (extends_type, then_type, else_type) = (*extends_type, *then_type, *else_type);
                 let left = self.walk_type_expression(*left)?;
-                // only naked parameter scrutinees distribute over unions
+                // distribute only naked parameter scrutinees over unions
                 let is_distributive = match self.check.ty(left)? {
                     dir::Type::Parameter(_) => true,
-                    dir::Type::Reference(instance) => {
-                        instance.arguments.is_empty()
-                            && self
-                                .check
-                                .generics
-                                .parameter_by_symbol(instance.symbol)
-                                .is_some()
-                    }
                     _ => false,
                 };
                 let right = self.walk_type_expression(extends_type)?;
@@ -413,7 +406,7 @@ impl WalkState<'_, '_> {
                 readonly,
                 optional,
                 value,
-            } => self.lower_mapped_type(id, *parameter, *readonly, *optional, *value),
+            } => self.build_mapped_type(id, *parameter, *readonly, *optional, *value),
             // T[K]
             dir::TypeExpression::Index { left, index } => {
                 let left = self.walk_type_expression(*left)?;
@@ -428,16 +421,16 @@ impl WalkState<'_, '_> {
             dir::TypeExpression::TemplateLiteral { strings, spans } => {
                 let strings = strings.clone();
                 let spans = spans.iter().copied().collect::<SmallVec<[_; 4]>>();
-                let mut lowered = Vec::new();
+                let mut span_types = Vec::new();
                 for span in spans {
-                    lowered.push(self.walk_type_expression(span)?);
+                    span_types.push(self.walk_type_expression(span)?);
                 }
 
                 self.push_type(
                     dir::Type::Operation(dir::TypeOperation::TemplateLiteral(
                         dir::TemplateLiteralType {
                             strings,
-                            spans: lowered,
+                            spans: span_types,
                         },
                     )),
                     source,
@@ -452,7 +445,7 @@ impl WalkState<'_, '_> {
                 let (form, name, constraint) = (*form, *name, *constraint);
 
                 match form {
-                    // anonymous holes open fresh variables that widen
+                    // open a widening variable for anonymous holes
                     dir::InferForm::Hole => {
                         let node = id.into_global_any(self.module);
                         if let Some(ty) = self.check.node_type(node) {
@@ -468,7 +461,7 @@ impl WalkState<'_, '_> {
 
                         Ok(ty)
                     }
-                    // infer bindings stay symbolic for conditional probes
+                    // keep infer bindings symbolic for conditional probes
                     dir::InferForm::Infer => {
                         let constraint = match constraint {
                             Some(constraint) => Some(self.walk_type_expression(constraint)?),
@@ -485,15 +478,15 @@ impl WalkState<'_, '_> {
                     }
                 }
             }
-            // missing and malformed children poison silently
+            // produce the error type for damaged children
             dir::TypeExpression::Missing | dir::TypeExpression::Error => {
                 self.push_type(dir::Type::Error, source)
             }
         }
     }
 
-    /// Lower one named type reference through the resolve tables.
-    fn lower_reference_type(
+    /// Build the type for one reference annotation, such as `Foo<T>`.
+    fn build_reference_type(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         path: &dir::Path,
@@ -501,7 +494,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let source = id.into_global_any(self.module);
 
-        // resolve the path through the resolve-phase reference table
+        // read resolver output when available
         let reference = self
             .check
             .module(self.module)
@@ -509,91 +502,193 @@ impl WalkState<'_, '_> {
             .references
             .get(source)
             .cloned();
-        let symbol = match reference {
-            // a complete name path resolves to its declaration
-            Some(dir::Reference::Bound(symbols)) => symbols.first().copied(),
 
-            // a path that names a base then projects its tail as type members
-            Some(dir::Reference::Projected { base, from }) => {
-                return self.lower_projected_type(
-                    id,
-                    base,
-                    &path.segments[from as usize..],
-                    generic_arguments,
-                );
+        match reference {
+            // build a direct reference from one resolved type declaration
+            Some(dir::Reference::Bound(symbols)) => {
+                self.build_bound_reference_type(id, path, generic_arguments, &symbols)
             }
 
-            // conflicting targets fail loudly
+            // build a type-member path from the resolved base declaration
+            Some(dir::Reference::Projected { base, from }) => self.build_member_path_type(
+                id,
+                base,
+                &path.segments[from as usize..],
+                generic_arguments,
+            ),
+
+            // reject resolve conflicts in type position
             Some(dir::Reference::Ambiguous(_)) => {
                 self.check
                     .report_ambiguous_reference(self.module, id.into_any(), path);
 
-                None
+                self.push_type(dir::Type::Error, id.into_any())
             }
 
-            // a namespace or unresolved path is not a type here
+            // reject namespaces and missing references in type position
             Some(dir::Reference::Namespace(_)) | Some(dir::Reference::Missing) => {
                 self.check
                     .report_unresolved_reference(self.module, id.into_any(), path);
 
-                None
+                self.push_type(dir::Type::Error, id.into_any())
             }
 
-            // single-segment type names resolve lexically in type space
-            None => {
-                let symbol = if let [name] = path.segments.as_slice() {
-                    let lookup = self.check.lookup_name(
-                        self.module,
-                        id.into_any(),
-                        *name,
-                        dir::SymbolSpace::Type,
-                    );
+            // require resolve to write every lexical reference row
+            None => Err(CompilerError::Internal {
+                message: format!("type reference {source:?} has no resolved name"),
+            }),
+        }
+    }
 
-                    match lookup {
-                        NameLookup::Found(candidate) => candidate.symbol(),
-                        NameLookup::Missing | NameLookup::Ambiguous(_) => None,
-                    }
-                } else {
-                    None
-                };
-                if symbol.is_none() {
-                    self.check
-                        .report_unresolved_reference(self.module, id.into_any(), path);
-                }
+    /// Build the type for one resolver-bound reference annotation.
+    fn build_bound_reference_type(
+        &mut self,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        path: &dir::Path,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+        symbols: &[dir::GlobalSymbolId],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let source = id.into_global_any(self.module);
+        let symbols = self.check.available_symbols(symbols);
 
-                symbol
+        match symbols.as_slice() {
+            // reject malformed resolver state
+            [] => Err(CompilerError::Internal {
+                message: format!("type reference {source:?} resolved to no symbols"),
+            }),
+
+            // build the single resolved type declaration
+            [symbol] => self.build_symbol_reference_type(id, *symbol, generic_arguments),
+
+            // reject annotations that name more than one declaration
+            _ => {
+                self.check
+                    .report_ambiguous_reference(self.module, id.into_any(), path);
+
+                self.push_type(dir::Type::Error, id.into_any())
             }
-        };
+        }
+    }
 
-        let Some(symbol) = symbol else {
-            return self.push_type(dir::Type::Error, id.into_any());
-        };
+    /// Build the type for one declaration symbol with written type arguments.
+    fn build_symbol_reference_type(
+        &mut self,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        symbol: dir::GlobalSymbolId,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let source = id.into_global_any(self.module);
 
+        // record the resolved name for snapshots and downstream selection
         self.capture_symbol_reference(symbol);
         self.check
             .record_decision(source, Decision::Name(dir::NameResolution::new(symbol)))?;
 
-        if generic_arguments.is_empty() {
-            return self.reference_symbol_type(symbol);
+        // apply written type arguments and declaration defaults
+        let applied = self.walk_generic_arguments(generic_arguments)?;
+        let ty = self.build_applied_symbol_type(id.into_any(), symbol, &applied)?;
+
+        // require Dynamic<T> to carry a dynamically safe constraint
+        if self.is_dynamic_symbol(symbol) {
+            self.oblige_dynamic_reference(source, ty)?;
         }
 
-        // apply written arguments over the declared parameters
-        let applied = self.walk_generic_arguments(generic_arguments)?;
-        let arguments = self.canonical_generic_arguments(id.into_any(), symbol, &applied)?;
-        if self
-            .check
-            .environment
-            .language
-            .item(symbol)
-            .is_some_and(|item| item == dir::LanguageItem::Dynamic)
-            && let [constraint] = arguments.as_slice()
-        {
-            self.oblige_dynamic_safe(source, *constraint);
+        Ok(ty)
+    }
+
+    /// Build the type for one declaration symbol application.
+    fn build_applied_symbol_type(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+        applied: &[(Option<dir::StringId>, dir::GlobalTypeId)],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // return the parameter type for generic parameter names
+        if let Some(parameter) = self.check.generics.parameter_by_symbol(symbol) {
+            if !applied.is_empty() {
+                let name = self.check.format_symbol(symbol);
+                self.check
+                    .report_wrong_generic_arity(self.module, source, name, 0, applied.len());
+
+                return self.push_type(dir::Type::Error, source);
+            }
+
+            return self.push_type(dir::Type::Parameter(parameter), source);
+        }
+
+        // reject written arguments on non-generic declarations
+        let Some(template) = self.check.symbol_template(symbol) else {
+            if !applied.is_empty() {
+                let name = self.check.format_symbol(symbol);
+                self.check
+                    .report_wrong_generic_arity(self.module, source, name, 0, applied.len());
+
+                return self.push_type(dir::Type::Error, source);
+            }
+
+            return self.push_type(
+                dir::Type::Reference(dir::GenericInstance {
+                    symbol,
+                    arguments: Vec::new(),
+                }),
+                source,
+            );
+        };
+
+        // reject impossible arities before applying defaults
+        let parameters = self.check.generic_template_parameters(template);
+        if applied.len() > parameters.len() {
+            let name = self.check.format_symbol(symbol);
+            self.check.report_wrong_generic_arity(
+                self.module,
+                source,
+                name,
+                parameters.len(),
+                applied.len(),
+            );
+
+            return self.push_type(dir::Type::Error, source);
+        }
+
+        // apply written arguments and declared defaults in order
+        let mut arguments = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        let mut written = applied.iter().map(|(_, argument)| *argument);
+        for (index, parameter) in parameters.iter().copied().enumerate() {
+            let argument = match written.next() {
+                Some(argument) => argument,
+                None => {
+                    match self.check.generic_parameter_default(
+                        self.module,
+                        source,
+                        parameter,
+                        &parameters[..index],
+                        &arguments,
+                    )? {
+                        Some(default) => default,
+                        None => {
+                            let name = self.check.format_symbol(symbol);
+                            self.check.report_wrong_generic_arity(
+                                self.module,
+                                source,
+                                name,
+                                parameters.len(),
+                                applied.len(),
+                            );
+
+                            return self.push_type(dir::Type::Error, source);
+                        }
+                    }
+                }
+            };
+            arguments.push(argument);
         }
 
         self.push_type(
-            dir::Type::Reference(dir::GenericInstance { symbol, arguments }),
-            id.into_any(),
+            dir::Type::Reference(dir::GenericInstance {
+                symbol,
+                arguments: arguments.into_vec(),
+            }),
+            source,
         )
     }
 
@@ -608,8 +703,48 @@ impl WalkState<'_, '_> {
             }));
     }
 
-    /// Lower one type path that names a base then projects its trailing segments.
-    fn lower_projected_type(
+    /// Return whether one symbol names the `Dynamic` language item.
+    fn is_dynamic_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
+        self.check
+            .environment
+            .language
+            .item(symbol)
+            .is_some_and(|item| item == dir::LanguageItem::Dynamic)
+    }
+
+    /// Queue the dynamic-safety obligation for one known `Dynamic<T>` reference.
+    fn oblige_dynamic_reference(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        match self.check.ty(ty)? {
+            // read the single constraint argument from Dynamic<T>
+            dir::Type::Reference(instance) => match instance.arguments.as_slice() {
+                [constraint] => self.oblige_dynamic_safe(source, *constraint),
+                arguments => {
+                    return Err(CompilerError::Internal {
+                        message: format!("Dynamic reference carried {} arguments", arguments.len()),
+                    });
+                }
+            },
+
+            // skip failed references: arity checking already emitted the diagnostic
+            dir::Type::Error => {}
+
+            // reject broken internal construction
+            other => {
+                return Err(CompilerError::Internal {
+                    message: format!("Dynamic reference produced {other:?}"),
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Build a type-member path from one resolved base symbol.
+    fn build_member_path_type(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         base: dir::GlobalSymbolId,
@@ -622,8 +757,10 @@ impl WalkState<'_, '_> {
             Decision::Name(dir::NameResolution::new(base)),
         )?;
 
-        // project each trailing segment as a type member off the running type
-        let mut ty = self.reference_symbol_type(base)?;
+        // start from the resolved base symbol
+        let mut ty = self.build_applied_symbol_type(id.into_any(), base, &[])?;
+
+        // append each remaining path segment as a type member
         for (index, segment) in tail.iter().copied().enumerate() {
             let is_last = index + 1 == tail.len();
             let arguments = if is_last && !generic_arguments.is_empty() {
@@ -648,8 +785,8 @@ impl WalkState<'_, '_> {
         Ok(ty)
     }
 
-    /// Lower one object type expression to a structural shape.
-    fn lower_object_type(
+    /// Build a structural shape from one object type expression.
+    fn build_shape_type(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         members: &[dir::LocalNodeId<dir::TypeMember>],
@@ -741,7 +878,7 @@ impl WalkState<'_, '_> {
                         is_readonly,
                     });
                 }
-                // associated members live on declarations, not shapes
+                // skip associated members in structural shapes
                 _ => {}
             }
         }
@@ -757,8 +894,8 @@ impl WalkState<'_, '_> {
         )
     }
 
-    /// Lower one tuple element to its checked row.
-    fn lower_tuple_element(
+    /// Build one tuple element row.
+    fn build_tuple_element(
         &mut self,
         id: dir::LocalNodeId<dir::TupleElement>,
     ) -> CompilerResult<dir::TypeElement> {
@@ -806,8 +943,8 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Lower one placed type expression.
-    fn lower_placed_type(
+    /// Build one placed type expression.
+    fn build_placed_type(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         target_type: dir::LocalNodeId<dir::TypeExpression>,
@@ -828,8 +965,8 @@ impl WalkState<'_, '_> {
         )
     }
 
-    /// Lower one range type expression from its literal bounds.
-    fn lower_range_type(
+    /// Build one range type expression from its literal bounds.
+    fn build_range_type(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         start: Option<dir::LocalNodeId<dir::TypeExpression>>,
@@ -855,8 +992,8 @@ impl WalkState<'_, '_> {
         )
     }
 
-    /// Return one range bound's scalar literal value.
-    /// Symbolic bounds stay uninterpreted in interval types.
+    /// Read one range bound's scalar literal value.
+    /// Leave symbolic bounds uninterpreted in interval types.
     fn range_bound_literal(
         &mut self,
         bound: dir::LocalNodeId<dir::TypeExpression>,
@@ -867,8 +1004,8 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Lower one mapped type expression.
-    fn lower_mapped_type(
+    /// Build one mapped type expression.
+    fn build_mapped_type(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         parameter: dir::LocalNodeId<dir::TypeMappedParameter>,
@@ -888,8 +1025,7 @@ impl WalkState<'_, '_> {
         };
         let constraint = self.walk_type_expression(source_type)?;
 
-        // the binder is a generic parameter on its own template, so
-        // its uses stay symbolic and expansion substitutes per key
+        // create a local generic parameter for the mapped key
         let binder = match self.check.generics.parameter_by_symbol(symbol) {
             Some(binder) => binder,
             None => {

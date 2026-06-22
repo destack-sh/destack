@@ -1,6 +1,7 @@
-use crate::CompilerResult;
-use crate::check::{Decision, NameLookup, WalkState};
 use destack_dir as dir;
+
+use crate::CompilerResult;
+use crate::check::{Decision, WalkState};
 
 impl WalkState<'_, '_> {
     /// Walk one annotation invocation.
@@ -72,25 +73,29 @@ impl WalkState<'_, '_> {
         target: dir::LocalNodeId<dir::Expression>,
         name: dir::StringId,
     ) -> Option<dir::GlobalSymbolId> {
-        let lookup = self.check.lookup_name(
-            self.module,
-            target.into_any(),
-            name,
-            dir::SymbolSpace::Value,
-        );
+        let reference = self
+            .check
+            .module(self.module)
+            .resolved
+            .references
+            .get(target.into_global_any(self.module))
+            .cloned();
 
-        match lookup {
-            NameLookup::Found(candidate) => match candidate.symbol() {
-                Some(symbol) => Some(symbol),
-                // a namespace is not itself a decorator
-                None => {
-                    self.check
-                        .report_invalid_decorator_target(self.module, target.into_any());
+        match reference {
+            Some(dir::Reference::Bound(symbols)) => {
+                let symbols = self.check.available_symbols(&symbols);
+                match symbols.as_slice() {
+                    [symbol] => Some(*symbol),
+                    // a namespace is not itself a decorator
+                    _ => {
+                        self.check
+                            .report_invalid_decorator_target(self.module, target.into_any());
 
-                    None
+                        None
+                    }
                 }
-            },
-            NameLookup::Missing => {
+            }
+            Some(dir::Reference::Missing) => {
                 let path = dir::Path {
                     segments: smallvec::smallvec![name],
                 };
@@ -99,12 +104,18 @@ impl WalkState<'_, '_> {
 
                 None
             }
-            NameLookup::Ambiguous(_) => {
+            Some(dir::Reference::Ambiguous(_)) => {
                 let path = dir::Path {
                     segments: smallvec::smallvec![name],
                 };
                 self.check
                     .report_ambiguous_reference(self.module, target.into_any(), &path);
+
+                None
+            }
+            Some(dir::Reference::Namespace(_)) | Some(dir::Reference::Projected { .. }) | None => {
+                self.check
+                    .report_invalid_decorator_target(self.module, target.into_any());
 
                 None
             }
@@ -126,16 +137,19 @@ impl WalkState<'_, '_> {
 
         match reference {
             // a namespace path naming a single declaration
-            Some(dir::Reference::Bound(symbols)) => match symbols.as_slice() {
-                [symbol] => Some(*symbol),
-                // an overload set is not a single decorator
-                _ => {
-                    self.check
-                        .report_invalid_decorator_target(self.module, target.into_any());
+            Some(dir::Reference::Bound(symbols)) => {
+                let symbols = self.check.available_symbols(&symbols);
+                match symbols.as_slice() {
+                    [symbol] => Some(*symbol),
+                    // an overload set is not a single decorator
+                    _ => {
+                        self.check
+                            .report_invalid_decorator_target(self.module, target.into_any());
 
-                    None
+                        None
+                    }
                 }
-            },
+            }
             Some(dir::Reference::Ambiguous(_)) => {
                 if let Some(path) = self.tree.tree().reference_path(target) {
                     self.check
