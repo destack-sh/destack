@@ -458,7 +458,7 @@ declare const value: Value;
 
 === checked ===
 type Element<T: string[]> = T[usize];
-/// @generic.template symbol=Element parameters=[T: string[]]
+/// @generic.template symbol=Element parameters=(T: string[])
 /// @type.symbol symbol=Element source="type Element<T: string[]> = T[usize]" type=T[usize]
 /// @definition.type symbol=Element source="type Element<T: string[]> = T[usize]" template=LocalGenericTemplateId(0) value=T[usize]
 /// @type.symbol symbol=Element.T source=T type=T
@@ -501,7 +501,7 @@ declare const name: Name;
 
 === checked ===
 type ValueAt<T, K: keyof T> = T[K];
-/// @generic.template symbol=ValueAt parameters=[T, K: keyof T]
+/// @generic.template symbol=ValueAt parameters=(T, K: keyof T)
 /// @type.symbol symbol=ValueAt source="type ValueAt<T, K: keyof T> = T[K]" type=T[K]
 /// @definition.type symbol=ValueAt source="type ValueAt<T, K: keyof T> = T[K]" template=LocalGenericTemplateId(0) value=T[K]
 /// @type.symbol symbol=ValueAt.T source=T type=T
@@ -544,7 +544,7 @@ type ValueAt<T, K> = T[K];
 
 === checked ===
 type ValueAt<T, K> = T[K];
-/// @generic.template symbol=ValueAt parameters=[T, K]
+/// @generic.template symbol=ValueAt parameters=(T, K)
 /// @type.symbol symbol=ValueAt source="type ValueAt<T, K> = T[K]" type=T[K]
 /// @definition.type symbol=ValueAt source="type ValueAt<T, K> = T[K]" template=LocalGenericTemplateId(0) value=T[K]
 /// @type.symbol symbol=ValueAt.T source=T type=T
@@ -613,7 +613,7 @@ type User = {
 };
 
 function get<K: keyof User>(user: User, key: K): User[K] {
-/// @generic.template symbol=get parameters=[T0: User, K: keyof User]
+/// @generic.template symbol=get parameters=(T0: User, K: keyof User)
 /// @type.symbol symbol=get type=<get.T0: User, K: keyof User>(get.T0, K) => User[K]
 /// @type.symbol symbol=user type=get.T0
 /// @type.symbol symbol=key type=K
@@ -640,7 +640,7 @@ const name = get(user, "name");
 /// @resolution.name source=user target=user
 /// @resolution.call source="get(user, \"name\")" parameters=({ readonly name: string; readonly age: int32 }, "name") return=string kind=symbol target=get instance="get<User, \"name\">"
 /// @generic.instance source="get(user, \"name\")" id="get<User, \"name\">"
-/// @type.node source=get type=<get.T0: User, K: keyof User>(get.T0, K) => User[K]
+/// @type.node source=get type=(User, "name") => string
 /// @type.node source=user type={ readonly name: string; readonly age: int32 }
 /// @type.node source="\"name\"" type="name"
 /// @type.node source="get(user, \"name\")" type=string
@@ -651,7 +651,7 @@ const age = get(user, "age");
 /// @resolution.name source=user target=user
 /// @resolution.call source="get(user, \"age\")" parameters=({ readonly name: string; readonly age: int32 }, "age") return=int32 kind=symbol target=get instance="get<User, \"age\">"
 /// @generic.instance source="get(user, \"age\")" id="get<User, \"age\">"
-/// @type.node source=get type=<get.T0: User, K: keyof User>(get.T0, K) => User[K]
+/// @type.node source=get type=(User, "age") => int32
 /// @type.node source=user type={ readonly name: string; readonly age: int32 }
 /// @type.node source="\"age\"" type="age"
 /// @type.node source="get(user, \"age\")" type=int32
@@ -663,8 +663,8 @@ name satisfies string;
 age satisfies int32;
 /// @resolution.name source=age target=age
 /// @type.node source=age type=int32
-/// @generic.instance id="get<User, \"age\">" symbol=get arguments=[User, "age"]
-/// @generic.instance id="get<User, \"name\">" symbol=get arguments=[User, "name"]
+/// @generic.instance id="get<User, \"age\">" template=get arguments=(User, "age")
+/// @generic.instance id="get<User, \"name\">" template=get arguments=(User, "name")
 "#,
     );
 }

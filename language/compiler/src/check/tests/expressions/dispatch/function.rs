@@ -153,30 +153,30 @@ const value = map(() => 1);
 === annotated ===
 declare function map<T>(callback: (value: unknown) => T): T;
 
-const value: 1 = map<1>(() => 1);
+const value: float64 = map<float64>(() => 1);
 
 === checked ===
 declare function map<T>(callback: (value: unknown) => T): T;
-/// @generic.template source=declaration parameters=[T]
-/// @type.symbol symbol=map source="declare function map<T>(callback: (value: unknown) => T): T" type=<T>((unknown) => T) => T
+/// @generic.template source=declaration parameters=(T)
+/// @type.symbol symbol=map source="declare function map<T>(callback: (value: unknown) => T): T" type=<T>(Function<(unknown,), T>) => T
 /// @type.symbol symbol=map.T source=T type=T
-/// @type.symbol symbol=callback source="callback: (value: unknown) => T" type=(unknown) => T
+/// @type.symbol symbol=callback source="callback: (value: unknown) => T" type=Function<(unknown,), T>
 /// @type.symbol symbol=value#1 source="value: unknown" type=unknown
 /// @resolution.name source=T target=map.T
 /// @resolution.name source=T target=map.T
 
 const value = map(() => 1);
-/// @type.symbol symbol=value#2 source=value type=1
-/// @generic.instance source="map(() => 1)" id=map<1>
-/// @type.node source="map(() => 1)" type=1
-/// @type.node source=map type=<T>((unknown) => T) => T
+/// @type.symbol symbol=value#2 source=value type=float64
+/// @generic.instance source="map(() => 1)" id=map<float64>
+/// @type.node source="map(() => 1)" type=float64
+/// @type.node source=map type=(Function<(unknown,), float64>) => float64
 /// @resolution.name source=map target=map
-/// @resolution.call source="map(() => 1)" parameters=(Function<(unknown,), 1>) return=1 kind=symbol target=map instance=map<1>
-/// @type.symbol symbol=symbol5 source="() => 1" type=Function<(), 1>
-/// @type.node source="() => 1" type=Function<(), 1>
-/// @type.node source=1 type=1
+/// @resolution.call source="map(() => 1)" parameters=(Function<(unknown,), float64>) return=float64 kind=symbol target=map instance=map<float64>
+/// @type.symbol symbol=symbol5 source="() => 1" type=Function<(), float64>
+/// @type.node source="() => 1" type=Function<(), float64>
+/// @type.node source=1 type=float64
 
-/// @generic.instance id=map<1> template=map arguments=[1]
+/// @generic.instance id=map<float64> template=map arguments=(float64)
 "#,
     );
 }
