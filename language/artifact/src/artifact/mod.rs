@@ -16,6 +16,7 @@ mod package;
 mod payload;
 mod product;
 mod query;
+mod reference;
 mod script;
 
 pub use asset::*;
@@ -36,4 +37,5 @@ pub use package::*;
 pub use payload::*;
 pub use product::*;
 pub use query::*;
+pub use reference::*;
 pub use script::*;
