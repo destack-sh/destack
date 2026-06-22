@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Decision, DynamicSafeObligation, GenericInductionParameter, NameLookup, Obligation, Origin,
+    Decision, DynamicSafetyObligation, GenericInductionParameter, NameLookup, Obligation, Origin,
     WalkState, Widening,
 };
 
@@ -601,7 +601,7 @@ impl WalkState<'_, '_> {
     fn oblige_dynamic_safe(&mut self, source: dir::GlobalNodeIdAny, ty: dir::GlobalTypeId) {
         let condition = self.active_static_guard();
         self.check
-            .push_obligation(Obligation::DynamicSafe(DynamicSafeObligation {
+            .push_obligation(Obligation::DynamicSafety(DynamicSafetyObligation {
                 source,
                 condition,
                 ty,

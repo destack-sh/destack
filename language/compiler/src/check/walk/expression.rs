@@ -3,9 +3,10 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    ConditionBranch, ConstraintCause, Decision, DynamicSafeObligation, FlowBranch, FlowCheckpoint,
-    GuardOutcome, MatchCase, MatchObligation, Obligation, Origin, PatternObligation, Place,
-    PlaceAccess, PlaceObligation, PlaceTarget, Relation, WalkState,
+    ConditionBranch, ConstraintCause, Decision, DynamicSafetyObligation, FlowBranch,
+    FlowCheckpoint, GuardOutcome, MatchCase, Obligation, Origin, PatternCoverage,
+    PatternCoverageObligation, Place, PlaceAccess, PlaceTarget, Relation, WalkState,
+    WritablePlaceObligation,
 };
 
 impl WalkState<'_, '_> {
@@ -543,7 +544,7 @@ impl WalkState<'_, '_> {
                 let target = self.walk_type_expression(target_type)?;
                 let condition = self.active_static_guard();
                 self.check
-                    .push_obligation(Obligation::DynamicSafe(DynamicSafeObligation {
+                    .push_obligation(Obligation::DynamicSafety(DynamicSafetyObligation {
                         source: target_type.into_global_any(self.module),
                         condition,
                         ty: target,
@@ -581,8 +582,9 @@ impl WalkState<'_, '_> {
                 if let Some(place) = self.assignment_place(right, PlaceAccess::ReadWrite)? {
                     // the place must accept writes
                     let condition = self.active_static_guard();
-                    self.check
-                        .push_obligation(Obligation::Place(PlaceObligation { condition, place }));
+                    self.check.push_obligation(Obligation::WritablePlace(
+                        WritablePlaceObligation { condition, place },
+                    ));
 
                     self.mark_place_assigned(place);
                 }
@@ -1420,13 +1422,16 @@ impl WalkState<'_, '_> {
                 self.relate_type(origin, Relation::Assignable, value, pattern_type);
 
                 let condition = self.active_static_guard();
-                self.check
-                    .push_obligation(Obligation::CatchPattern(PatternObligation {
+                self.check.push_obligation(Obligation::PatternCoverage(
+                    PatternCoverageObligation {
                         source: pattern.into_global_any(self.module),
                         condition,
-                        pattern: pattern.into_global(self.module),
                         value,
-                    }));
+                        coverage: PatternCoverage::Catch {
+                            pattern: pattern.into_global(self.module),
+                        },
+                    },
+                ));
             }
 
             self.mark_bindings_assigned(pattern.into_any());
@@ -1529,11 +1534,11 @@ impl WalkState<'_, '_> {
         // matches must cover their scrutinee
         let condition = self.active_static_guard();
         self.check
-            .push_obligation(Obligation::Match(MatchObligation {
+            .push_obligation(Obligation::PatternCoverage(PatternCoverageObligation {
                 source: id.into_global_any(self.module),
                 condition,
                 value: value_type,
-                cases: case_rows,
+                coverage: PatternCoverage::Match { cases: case_rows },
             }));
 
         // the match evaluates to the union of its case values
@@ -1845,7 +1850,10 @@ impl WalkState<'_, '_> {
             // the place must accept writes
             let condition = self.active_static_guard();
             self.check
-                .push_obligation(Obligation::Place(PlaceObligation { condition, place }));
+                .push_obligation(Obligation::WritablePlace(WritablePlaceObligation {
+                    condition,
+                    place,
+                }));
 
             self.mark_place_assigned(place);
         }
@@ -1986,8 +1994,9 @@ impl WalkState<'_, '_> {
 
                     // the place must accept writes
                     let condition = self.active_static_guard();
-                    self.check
-                        .push_obligation(Obligation::Place(PlaceObligation { condition, place }));
+                    self.check.push_obligation(Obligation::WritablePlace(
+                        WritablePlaceObligation { condition, place },
+                    ));
 
                     self.mark_place_assigned(place);
                 }

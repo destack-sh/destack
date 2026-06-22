@@ -2,7 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    FlowPath, Obligation, Origin, PatternObligation, Relation, WalkState, Widening,
+    FlowPath, Obligation, Origin, PatternCoverage, PatternCoverageObligation, Relation, WalkState,
+    Widening,
 };
 
 impl WalkState<'_, '_> {
@@ -149,13 +150,16 @@ impl WalkState<'_, '_> {
             // non-matching positions must always succeed
             if self.is_irrefutable_declarator_pattern_required(id) {
                 let condition = self.active_static_guard();
-                self.check
-                    .push_obligation(Obligation::Pattern(PatternObligation {
+                self.check.push_obligation(Obligation::PatternCoverage(
+                    PatternCoverageObligation {
                         source: declarator.pattern.into_global_any(self.module),
                         condition,
-                        pattern: declarator.pattern.into_global(self.module),
                         value: matched,
-                    }));
+                        coverage: PatternCoverage::Binding {
+                            pattern: declarator.pattern.into_global(self.module),
+                        },
+                    },
+                ));
             }
         }
 

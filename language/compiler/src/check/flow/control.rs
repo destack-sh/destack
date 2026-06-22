@@ -2,7 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    ControlTarget, FlowBranch, Obligation, Origin, Relation, TryObligation, TryTarget, WalkState,
+    ControlTarget, FlowBranch, Obligation, Origin, Relation, TryPropagationObligation, TryTarget,
+    WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -194,12 +195,13 @@ impl WalkState<'_, '_> {
         // propagate to the enclosing function
         let return_type = self.current_return_target();
         let condition = self.flow().active_static_guard();
-        self.check.push_obligation(Obligation::Try(TryObligation {
-            source: source.into_global(self.module),
-            condition,
-            value,
-            return_type,
-        }));
+        self.check
+            .push_obligation(Obligation::TryPropagation(TryPropagationObligation {
+                source: source.into_global(self.module),
+                condition,
+                value,
+                return_type,
+            }));
 
         Ok(())
     }
