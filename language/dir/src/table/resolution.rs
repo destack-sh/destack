@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AssignPatternResolution, CallResolution, ConstructResolution, GlobalNodeIdAny, GlobalSymbolId,
-    LabelResolution, MemberResolution, NameResolution, PatternResolution, ReadWriteResolution,
-    ReceiverResolution, SegmentView,
+    InstantiationResolution, LabelResolution, MemberResolution, NameResolution, PatternResolution,
+    PredicateResolution, ReadWriteResolution, ReceiverResolution, SegmentView,
 };
 
 /// Cumulative checked resolutions for one DIR module.
@@ -66,6 +66,13 @@ impl<'a> ResolutionTable<'a> {
         self.visible_entries(|segment| &segment.names)
     }
 
+    /// Iterate visible generic instantiation resolutions.
+    pub fn instantiation_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &InstantiationResolution)> + '_ {
+        self.visible_entries(|segment| &segment.instantiations)
+    }
+
     /// Iterate visible label resolutions.
     pub fn label_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &LabelResolution)> + '_ {
         self.visible_entries(|segment| &segment.labels)
@@ -95,6 +102,13 @@ impl<'a> ResolutionTable<'a> {
         &self,
     ) -> impl Iterator<Item = (GlobalNodeIdAny, &ReadWriteResolution)> + '_ {
         self.visible_entries(|segment| &segment.read_writes)
+    }
+
+    /// Iterate visible predicate resolutions.
+    pub fn predicate_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &PredicateResolution)> + '_ {
+        self.visible_entries(|segment| &segment.predicates)
     }
 
     /// Iterate visible construct resolutions.
@@ -128,6 +142,14 @@ impl<'a> ResolutionTable<'a> {
         self.lookup(node_id, |segment| &segment.names)
     }
 
+    /// Get the explicit generic instantiation for a node.
+    pub fn instantiation_resolution(
+        &self,
+        node_id: GlobalNodeIdAny,
+    ) -> Option<&InstantiationResolution> {
+        self.lookup(node_id, |segment| &segment.instantiations)
+    }
+
     /// Get the label resolution for a node.
     pub fn label_resolution(&self, node_id: GlobalNodeIdAny) -> Option<LabelResolution> {
         self.lookup(node_id, |segment| &segment.labels).copied()
@@ -151,6 +173,11 @@ impl<'a> ResolutionTable<'a> {
     /// Get the paired read-write resolution for a node.
     pub fn read_write_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&ReadWriteResolution> {
         self.lookup(node_id, |segment| &segment.read_writes)
+    }
+
+    /// Get the predicate resolution for a node.
+    pub fn predicate_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&PredicateResolution> {
+        self.lookup(node_id, |segment| &segment.predicates)
     }
 
     /// Get the construct resolution for a node.
@@ -222,6 +249,8 @@ pub struct ResolutionSegment {
     pub module_id: ModuleId,
     /// Checked lexical or path resolutions keyed by DIR node.
     pub(crate) names: IndexMap<GlobalNodeIdAny, NameResolution>,
+    /// Checked generic instantiations keyed by DIR node.
+    pub(crate) instantiations: IndexMap<GlobalNodeIdAny, InstantiationResolution>,
     /// Checked label resolutions keyed by DIR node.
     pub(crate) labels: IndexMap<GlobalNodeIdAny, LabelResolution>,
     /// Checked receiver resolutions keyed by DIR node.
@@ -232,6 +261,8 @@ pub struct ResolutionSegment {
     pub(crate) calls: IndexMap<GlobalNodeIdAny, CallResolution>,
     /// Checked paired read-write resolutions keyed by DIR node.
     pub(crate) read_writes: IndexMap<GlobalNodeIdAny, ReadWriteResolution>,
+    /// Checked predicate resolutions keyed by DIR node.
+    pub(crate) predicates: IndexMap<GlobalNodeIdAny, PredicateResolution>,
     /// Checked construct resolutions keyed by DIR node.
     pub(crate) constructs: IndexMap<GlobalNodeIdAny, ConstructResolution>,
     /// Checked pattern resolutions keyed by DIR node.
@@ -246,11 +277,13 @@ impl ResolutionSegment {
         Self {
             module_id,
             names: IndexMap::new(),
+            instantiations: IndexMap::new(),
             labels: IndexMap::new(),
             receivers: IndexMap::new(),
             members: IndexMap::new(),
             calls: IndexMap::new(),
             read_writes: IndexMap::new(),
+            predicates: IndexMap::new(),
             constructs: IndexMap::new(),
             patterns: IndexMap::new(),
             assign_patterns: IndexMap::new(),
@@ -261,6 +294,10 @@ impl ResolutionSegment {
     pub fn copy_node_relations(&mut self, source: GlobalNodeIdAny, target: GlobalNodeIdAny) {
         if let Some(resolution) = self.names.get(&source).cloned() {
             self.names.insert(target, resolution);
+        }
+
+        if let Some(resolution) = self.instantiations.get(&source).cloned() {
+            self.instantiations.insert(target, resolution);
         }
 
         if let Some(resolution) = self.labels.get(&source).copied() {
@@ -281,6 +318,10 @@ impl ResolutionSegment {
 
         if let Some(resolution) = self.read_writes.get(&source).cloned() {
             self.read_writes.insert(target, resolution);
+        }
+
+        if let Some(resolution) = self.predicates.get(&source).cloned() {
+            self.predicates.insert(target, resolution);
         }
 
         if let Some(resolution) = self.constructs.get(&source).cloned() {
@@ -314,6 +355,23 @@ impl ResolutionSegment {
     /// Get the name resolution for a node.
     pub fn name_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&NameResolution> {
         self.names.get(&node_id)
+    }
+
+    /// Set the explicit generic instantiation for a node.
+    pub fn set_instantiation_resolution(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        resolution: InstantiationResolution,
+    ) {
+        self.instantiations.insert(node_id, resolution);
+    }
+
+    /// Get the explicit generic instantiation for a node.
+    pub fn instantiation_resolution(
+        &self,
+        node_id: GlobalNodeIdAny,
+    ) -> Option<&InstantiationResolution> {
+        self.instantiations.get(&node_id)
     }
 
     /// Set the label resolution for a node.
@@ -378,6 +436,20 @@ impl ResolutionSegment {
         self.read_writes.get(&node_id)
     }
 
+    /// Set the predicate resolution for a node.
+    pub fn set_predicate_resolution(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        resolution: PredicateResolution,
+    ) {
+        self.predicates.insert(node_id, resolution);
+    }
+
+    /// Get the predicate resolution for a node.
+    pub fn predicate_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&PredicateResolution> {
+        self.predicates.get(&node_id)
+    }
+
     /// Set the construct resolution for a node.
     pub fn set_construct_resolution(
         &mut self,
@@ -430,6 +502,15 @@ impl ResolutionSegment {
             .map(|(node_id, resolution)| (*node_id, resolution))
     }
 
+    /// Iterate visible generic instantiation resolutions.
+    pub fn instantiation_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &InstantiationResolution)> + '_ {
+        self.instantiations
+            .iter()
+            .map(|(node_id, resolution)| (*node_id, resolution))
+    }
+
     /// Iterate visible label resolutions.
     pub fn label_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &LabelResolution)> + '_ {
         self.labels
@@ -471,6 +552,15 @@ impl ResolutionSegment {
             .map(|(node_id, resolution)| (*node_id, resolution))
     }
 
+    /// Iterate visible predicate resolutions.
+    pub fn predicate_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &PredicateResolution)> + '_ {
+        self.predicates
+            .iter()
+            .map(|(node_id, resolution)| (*node_id, resolution))
+    }
+
     /// Iterate visible construct resolutions.
     pub fn construct_entries(
         &self,
@@ -501,11 +591,13 @@ impl ResolutionSegment {
     /// Return whether this segment has no resolutions.
     pub fn is_empty(&self) -> bool {
         self.names.is_empty()
+            && self.instantiations.is_empty()
             && self.labels.is_empty()
             && self.receivers.is_empty()
             && self.members.is_empty()
             && self.calls.is_empty()
             && self.read_writes.is_empty()
+            && self.predicates.is_empty()
             && self.constructs.is_empty()
             && self.patterns.is_empty()
             && self.assign_patterns.is_empty()

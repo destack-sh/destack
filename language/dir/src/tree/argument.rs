@@ -62,8 +62,10 @@ impl GenericParameter {
     /// Return the symbol space introduced by this generic parameter.
     pub fn symbol_space(&self) -> Option<SymbolSpace> {
         match self {
-            Self::Type { .. } | Self::VariadicType { .. } => Some(SymbolSpace::Type),
-            Self::Value { .. } | Self::VariadicValue { .. } => Some(SymbolSpace::Value),
+            Self::Type { .. }
+            | Self::VariadicType { .. }
+            | Self::Value { .. }
+            | Self::VariadicValue { .. } => Some(SymbolSpace::Declaration),
             Self::Error => None,
         }
     }

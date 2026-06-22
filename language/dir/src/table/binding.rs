@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Arena, ExportKind, GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScope, LocalScopeId,
     LocalScopeMark, LocalSymbolId, Node, Scope, ScopeIndex, ScopeKind, SegmentView, StaticKey,
-    Symbol, SymbolKind, SymbolLookup, SymbolOrigin, SymbolRole, SymbolSpace, View,
+    Symbol, SymbolKind, SymbolLookup, SymbolOrigin, SymbolRole, SymbolSpace, SymbolVisibility,
+    View,
 };
 
 /// Cumulative lexical scopes and symbols for one DIR module.
@@ -324,10 +325,19 @@ impl<'a> BindingTable<'a> {
     ) -> SymbolLookup {
         let mut lookup = SymbolLookup::Missing;
 
-        // collect matching symbols in the current scope
-        scope.for_symbols_by_key_up_to(key, mark, |symbol| {
-            if self.get_symbol(symbol).kind.is_visible_in(space) {
-                lookup.push(symbol);
+        // collect whole-scope bindings
+        scope.for_symbols_by_key(key, |symbol_id| {
+            let symbol = self.get_symbol(symbol_id);
+            if symbol.visibility == SymbolVisibility::Scope && symbol.kind.is_visible_in(space) {
+                lookup.push(symbol_id);
+            }
+        });
+
+        // collect forward bindings up to the current source mark
+        scope.for_symbols_by_key_up_to(key, mark, |symbol_id| {
+            let symbol = self.get_symbol(symbol_id);
+            if symbol.visibility == SymbolVisibility::Forward && symbol.kind.is_visible_in(space) {
+                lookup.push(symbol_id);
             }
         });
 
@@ -440,11 +450,13 @@ impl BindingSegment {
         key: Option<StaticKey>,
         scope: LocalScope,
         export: Option<ExportKind>,
+        visibility: SymbolVisibility,
     ) -> (LocalSymbolId, LocalScopeMark) {
         let symbol_id = LocalSymbolId::new(self.symbol_count());
         let symbol = Symbol {
             role,
             kind,
+            visibility,
             binding_mutability: None,
             origin: SymbolOrigin::Module,
             key,
