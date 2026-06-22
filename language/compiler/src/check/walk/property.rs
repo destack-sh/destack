@@ -164,7 +164,7 @@ impl WalkState<'_, '_> {
 
                 Ok(None)
             }
-            // ignore damaged syntax
+            // ignore damaged nodes
             dir::Property::Error => Ok(None),
         }
     }
@@ -276,7 +276,7 @@ impl WalkState<'_, '_> {
 
                 // the value is a static written form checked against the type
                 let written = value
-                    .map(|value| self.lower_static_predicate(value))
+                    .map(|value| self.static_expression_type(value))
                     .transpose()?;
 
                 let symbol = self
@@ -513,7 +513,7 @@ impl WalkState<'_, '_> {
 
                 Ok(None)
             }
-            // ignore damaged syntax
+            // ignore damaged nodes
             dir::Member::Error => Ok(None),
         }
     }
@@ -773,7 +773,7 @@ impl WalkState<'_, '_> {
                     .map(|declared_type| self.walk_type_expression(declared_type))
                     .transpose()?;
                 let written = value
-                    .map(|value| self.lower_static_predicate(value))
+                    .map(|value| self.static_expression_type(value))
                     .transpose()?;
 
                 let symbol = self
@@ -808,7 +808,7 @@ impl WalkState<'_, '_> {
                     },
                 )))
             }
-            // ignore damaged syntax
+            // ignore damaged nodes
             dir::TypeMember::Error => Ok(None),
         }
     }

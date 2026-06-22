@@ -39,7 +39,7 @@ impl WalkState<'_, '_> {
             dir::GenericParameter::Value { .. } => (None, false, false, true),
             // <comptime ...C: T>
             dir::GenericParameter::VariadicValue { .. } => (None, true, false, true),
-            // ignore damaged syntax
+            // ignore damaged nodes
             dir::GenericParameter::Error => return Ok(None),
         };
         let binding = dir::GenericParameterBinding {
@@ -136,14 +136,14 @@ impl WalkState<'_, '_> {
                         self.walk_expression(default, self.tree.get(default))?;
                         self.restore_flow(before_default);
 
-                        self.lower_static_predicate(default)
+                        self.static_expression_type(default)
                     })
                     .transpose()?;
 
                 self.check
                     .update_generic_parameter_bounds(parameter, constraint, default)?;
             }
-            // ignore damaged syntax
+            // ignore damaged nodes
             dir::GenericParameter::Error => {}
         }
 
@@ -326,7 +326,7 @@ impl WalkState<'_, '_> {
                     self.relate_type(origin, Relation::Assignable, parameter_type, pattern_type);
                 }
             }
-            // ignore damaged syntax
+            // ignore damaged nodes
             dir::Parameter::Error => {}
         }
 
@@ -359,7 +359,7 @@ impl WalkState<'_, '_> {
 
         // declare the hidden static parameter
         let default = default
-            .map(|default| self.lower_static_predicate(default))
+            .map(|default| self.static_expression_type(default))
             .transpose()?;
         let binding = dir::GenericParameterBinding {
             template: template.local_id,

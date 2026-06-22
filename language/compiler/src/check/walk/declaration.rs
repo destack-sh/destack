@@ -965,7 +965,7 @@ impl WalkState<'_, '_> {
                 .module(self.module)
                 .declaration_symbol(id.into_any())
             {
-                let written = self.lower_static_predicate(value)?;
+                let written = self.static_expression_type(value)?;
                 self.declare_symbol_value(symbol, written)?;
             }
         }
@@ -1254,10 +1254,10 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // use explicit return annotations
         if let Some(return_type) = signature.return_type {
-            let lowered = self.walk_type_expression(return_type)?;
-            self.bind_result_lifetimes(source, lowered, body.is_some())?;
+            let result = self.walk_type_expression(return_type)?;
+            self.bind_result_lifetimes(source, result, body.is_some())?;
 
-            return Ok(Some(lowered));
+            return Ok(Some(result));
         }
 
         // skip ambient signatures
@@ -1274,16 +1274,16 @@ impl WalkState<'_, '_> {
     fn bind_result_lifetimes(
         &mut self,
         source: dir::LocalNodeIdAny,
-        lowered: dir::GlobalTypeId,
+        result: dir::GlobalTypeId,
         has_body: bool,
     ) -> CompilerResult<()> {
         let mut reported = false;
-        for variable in self.check.type_variables(lowered)? {
+        for variable in self.check.type_variables(result)? {
             let representative = self.check.variables.representative(variable)?;
-            let Some(recipe) = self.check.generics.induction(representative) else {
+            let Some(induction) = self.check.generics.induction(representative) else {
                 continue;
             };
-            if recipe.induction != dir::GenericParameterInduction::Form {
+            if induction.induction != dir::GenericParameterInduction::Form {
                 continue;
             }
 
@@ -1341,24 +1341,18 @@ impl WalkState<'_, '_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::NominalHeritage>> {
         let global_source = source.into_global_any(self.module);
-        let Some(symbol) = self.heritage_symbol(source) else {
+        let ty = self.check.resolve_shallow(ty)?;
+        let dir::Type::Reference(instance) = self.check.ty(ty)? else {
             return Ok(None);
         };
+        let symbol = instance.symbol;
+        let arguments = instance.arguments.clone();
 
         // only declaration heads can become heritage graph edges
         let kind = self.check.symbol_kind(symbol);
         if !kind.is_nominal() && !kind.is_interface() {
             return Ok(None);
         }
-
-        // recover generic arguments only from the same declaration reference
-        let ty = self.check.resolve_shallow(ty)?;
-        let arguments = match self.check.ty(ty)? {
-            dir::Type::Reference(instance) if instance.symbol == symbol => {
-                instance.arguments.clone()
-            }
-            _ => Vec::new(),
-        };
 
         Ok(Some(dir::NominalHeritage {
             source: global_source,
@@ -1399,11 +1393,9 @@ impl WalkState<'_, '_> {
     }
 
     /// Return one extension target from a walked target annotation.
-    /// Nominal targets classify by their written name resolution, so
-    /// still-open header types cannot demote them to blankets.
     fn extension_target(
         &mut self,
-        annotation: dir::LocalNodeId<dir::TypeExpression>,
+        _annotation: dir::LocalNodeId<dir::TypeExpression>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::ExtensionTarget> {
         // nominal roots anchor member lookup
@@ -1412,18 +1404,6 @@ impl WalkState<'_, '_> {
                 root: instance.symbol,
                 ty,
             });
-        }
-
-        // written references classify by their resolved declaration
-        if let dir::TypeExpression::Reference { .. } = self.tree.get(annotation)
-            && let Some(Decision::Name(resolution)) = self
-                .check
-                .decisions
-                .get(annotation.into_global_any(self.module))
-            && let [symbol] = resolution.symbols()
-            && self.check.symbol_kind(*symbol).is_nominal()
-        {
-            return Ok(dir::ExtensionTarget::Nominal { root: *symbol, ty });
         }
 
         Ok(dir::ExtensionTarget::Blanket { ty })
