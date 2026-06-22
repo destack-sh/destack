@@ -2,12 +2,14 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use destack_repository::{Ref, Revision};
+use destack_serde::Schema;
 use destack_source::{Content, FileId, Span, Uri, apply_file_edit};
+use serde::{Deserialize, Serialize};
 
 use crate::{Change, Session, SessionError};
 
 /// One text range in byte offsets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct TextRange {
     /// Inclusive start byte offset.
     pub start: u32,
@@ -16,7 +18,7 @@ pub struct TextRange {
 }
 
 /// One text replacement.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct TextEdit {
     /// Replaced byte range.
     pub range: TextRange,
@@ -25,7 +27,7 @@ pub struct TextEdit {
 }
 
 /// One edit accepted by a session update.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum Edit {
     /// Replace or create one text file.
     SetText {
@@ -60,6 +62,15 @@ pub enum Edit {
         /// Destination repository or session relative path.
         to: PathBuf,
     },
+}
+
+/// One atomic session update.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub struct Update {
+    /// Expected base revision.
+    pub base: Option<Revision>,
+    /// Edits in this atomic update.
+    pub edits: Vec<Edit>,
 }
 
 impl Edit {
