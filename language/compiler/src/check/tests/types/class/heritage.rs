@@ -27,7 +27,87 @@ class Base {}
 class Document extends Base {}
 /// @type.symbol symbol=Document source="class Document extends Base {}" type=Document
 /// @definition.class symbol=Document source="class Document extends Base {}"
+/// @definition.extends symbol=Document source=Base target=Base
 /// @resolution.name source=Base target=Base
+"#,
+    );
+}
+
+#[test]
+fn test_class_extends_clause_requires_class_base() {
+    let session = TestSession::single(
+        r#"
+interface Drawable {}
+
+class Document extends Drawable {}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Drawable {}
+
+class Document extends Drawable {}
+
+=== checked ===
+interface Drawable {}
+/// @type.symbol symbol=Drawable source="interface Drawable {}" type=Drawable
+/// @definition.interface symbol=Drawable source="interface Drawable {}"
+
+class Document extends Drawable {}
+/// @type.symbol symbol=Document source="class Document extends Drawable {}" type=Document
+/// @definition.class symbol=Document source="class Document extends Drawable {}"
+/// @resolution.name source=Drawable target=Drawable
+"#,
+        r#"
+/// @diagnostic.error code=EC202 message="type 'Document' does not extend 'Drawable'"
+/// @diagnostic.label line=4 column=24 source="class Document extends Drawable {}"
+"#,
+    );
+}
+
+#[test]
+fn test_class_extends_rejects_type_alias_base() {
+    let session = TestSession::single(
+        r#"
+class Base {}
+type Alias = Base;
+
+class Document extends Alias {}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Base {}
+type Alias = Base;
+
+class Document extends Alias {}
+
+=== checked ===
+class Base {}
+/// @type.symbol symbol=Base source="class Base {}" type=Base
+/// @definition.class symbol=Base source="class Base {}"
+
+type Alias = Base;
+/// @type.symbol symbol=Alias source="type Alias = Base" type=Base
+/// @definition.type symbol=Alias source="type Alias = Base" value=Base
+/// @resolution.name source=Base target=Base
+
+class Document extends Alias {}
+/// @type.symbol symbol=Document source="class Document extends Alias {}" type=Document
+/// @definition.class symbol=Document source="class Document extends Alias {}"
+/// @resolution.name source=Alias target=Alias
+"#,
+        r#"
+/// @diagnostic.error code=EC202 message="type 'Document' does not extend 'Alias'"
+/// @diagnostic.label line=5 column=24 source="class Document extends Alias {}"
 "#,
     );
 }
@@ -73,6 +153,7 @@ interface Printable {
 class Document implements Printable {
 /// @type.symbol symbol=Document type=Document
 /// @definition.class symbol=Document
+/// @definition.implements symbol=Document source=Printable target=Printable
 /// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: Document) => void
 /// @resolution.name source=Printable target=Printable
 
@@ -80,6 +161,241 @@ class Document implements Printable {
     /// @type.symbol symbol=Document.print source="print(): void {}" type=(this: Document) => void
 
 }
+"#,
+    );
+}
+
+#[test]
+fn test_class_implements_rejects_type_alias_interface() {
+    let session = TestSession::single(
+        r#"
+interface Printable {
+    print(): void;
+}
+type Alias = Printable;
+
+class Document implements Alias {
+    print(): void {}
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Printable {
+    print(): void;
+}
+type Alias = Printable;
+
+class Document implements Alias {
+    print(): void {}
+}
+
+=== checked ===
+interface Printable {
+/// @type.symbol symbol=Printable type=Printable
+/// @definition.interface symbol=Printable
+/// @definition.method symbol=Printable.print source="print(): void" slot=print type=(this: Printable) => void
+
+    print(): void;
+    /// @type.symbol symbol=Printable.print source="print(): void" type=(this: Printable) => void
+
+}
+type Alias = Printable;
+/// @type.symbol symbol=Alias source="type Alias = Printable" type=Printable
+/// @definition.type symbol=Alias source="type Alias = Printable" value=Printable
+/// @resolution.name source=Printable target=Printable
+
+class Document implements Alias {
+/// @type.symbol symbol=Document type=Document
+/// @definition.class symbol=Document
+/// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: Document) => void
+/// @resolution.name source=Alias target=Alias
+
+    print(): void {}
+    /// @type.symbol symbol=Document.print source="print(): void {}" type=(this: Document) => void
+
+}
+"#,
+        r#"
+/// @diagnostic.error code=EC616 message="type 'Document' can only implement interfaces, not 'Alias'"
+/// @diagnostic.label line=7 column=27 source="class Document implements Alias {"
+"#,
+    );
+}
+
+#[test]
+fn test_class_implements_clause_requires_members() {
+    let session = TestSession::single(
+        r#"
+interface Drawable {
+    draw(): void;
+}
+
+class Point implements Drawable {
+    x: int32 = 0;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Drawable {
+    draw(): void;
+}
+
+class Point implements Drawable {
+    x: int32 = 0;
+}
+
+=== checked ===
+interface Drawable {
+/// @type.symbol symbol=Drawable type=Drawable
+/// @definition.interface symbol=Drawable
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
+
+    draw(): void;
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: Drawable) => void
+
+}
+
+class Point implements Drawable {
+/// @type.symbol symbol=Point type=Point
+/// @definition.field symbol=Point.x source="x: int32 = 0" key=x type=int32
+/// @definition.class symbol=Point
+/// @definition.implements symbol=Point source=Drawable target=Drawable
+/// @resolution.name source=Drawable target=Drawable
+
+    x: int32 = 0;
+    /// @type.symbol symbol=Point.x source="x: int32 = 0" type=int32
+
+}
+"#,
+        r#"
+/// @diagnostic.error code=EC203 message="type 'Point' does not implement interface 'Drawable'"
+/// @diagnostic.label line=6 column=24 source="class Point implements Drawable {"
+"#,
+    );
+}
+
+#[test]
+fn test_class_implements_clause_requires_inherited_members() {
+    let session = TestSession::single(
+        r#"
+interface Named {
+    name(): string;
+}
+
+interface Drawable extends Named {
+    draw(): void;
+}
+
+class Point implements Drawable {
+    draw(): void {}
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Named {
+    name(): string;
+}
+
+interface Drawable extends Named {
+    draw(): void;
+}
+
+class Point implements Drawable {
+    draw(): void {}
+}
+
+=== checked ===
+interface Named {
+/// @type.symbol symbol=Named type=Named
+/// @definition.interface symbol=Named
+/// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: Named) => string
+
+    name(): string;
+    /// @type.symbol symbol=Named.name source="name(): string" type=(this: Named) => string
+
+}
+
+interface Drawable extends Named {
+/// @type.symbol symbol=Drawable type=Drawable
+/// @definition.interface symbol=Drawable
+/// @definition.extends symbol=Drawable source=Named target=Named
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
+/// @resolution.name source=Named target=Named
+
+    draw(): void;
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: Drawable) => void
+
+}
+
+class Point implements Drawable {
+/// @type.symbol symbol=Point type=Point
+/// @definition.class symbol=Point
+/// @definition.implements symbol=Point source=Drawable target=Drawable
+/// @definition.method symbol=Point.draw source="draw(): void {}" slot=draw type=(this: Point) => void
+/// @resolution.name source=Drawable target=Drawable
+
+    draw(): void {}
+    /// @type.symbol symbol=Point.draw source="draw(): void {}" type=(this: Point) => void
+
+}
+"#,
+        r#"
+/// @diagnostic.error code=EC203 message="type 'Point' does not implement interface 'Drawable'"
+/// @diagnostic.label line=10 column=24 source="class Point implements Drawable {"
+"#,
+    );
+}
+
+#[test]
+fn test_class_extends_rejects_circular_heritage() {
+    let session = TestSession::single(
+        r#"
+class Left extends Right {}
+class Right extends Left {}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Left extends Right {}
+class Right extends Left {}
+
+=== checked ===
+class Left extends Right {}
+/// @type.symbol symbol=Left source="class Left extends Right {}" type=Left
+/// @definition.class symbol=Left source="class Left extends Right {}"
+/// @definition.extends symbol=Left source=Right target=Right
+/// @resolution.name source=Right target=Right
+
+class Right extends Left {}
+/// @type.symbol symbol=Right source="class Right extends Left {}" type=Right
+/// @definition.class symbol=Right source="class Right extends Left {}"
+/// @definition.extends symbol=Right source=Left target=Left
+/// @resolution.name source=Left target=Left
+"#,
+        r#"
+/// @diagnostic.error code=EC618 message="type 'Left' has circular heritage"
+/// @diagnostic.label line=2 column=20 source="class Left extends Right {}"
+/// @diagnostic.error code=EC618 message="type 'Right' has circular heritage"
+/// @diagnostic.label line=3 column=21 source="class Right extends Left {}"
 "#,
     );
 }
@@ -107,10 +423,11 @@ class Document {
 class Document {
 /// @type.symbol symbol=Document type=Document
 /// @definition.class symbol=Document
-/// @definition.method symbol=Document.print source="override print(): void {}" slot=print type=(this: Document) => void
+/// @definition.method symbol=Document.print source="override print(): void {}" slot=print override=true type=(this: Document) => void
 
     override print(): void {}
     /// @type.symbol symbol=Document.print source="override print(): void {}" type=(this: Document) => void
+
 }
 "#,
         r#"
@@ -161,6 +478,7 @@ class Base {
 class Document extends Base {
 /// @type.symbol symbol=Document type=Document
 /// @definition.class symbol=Document
+/// @definition.extends symbol=Document source=Base target=Base
 /// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: Document) => void
 /// @resolution.name source=Base target=Base
 
@@ -211,16 +529,19 @@ class Base {
 
     print(): void {}
     /// @type.symbol symbol=Base.print source="print(): void {}" type=(this: Base) => void
+
 }
 
 class Document extends Base {
 /// @type.symbol symbol=Document type=Document
 /// @definition.class symbol=Document
-/// @definition.method symbol=Document.print source="override print(): void {}" slot=print type=(this: Document) => void
+/// @definition.extends symbol=Document source=Base target=Base
+/// @definition.method symbol=Document.print source="override print(): void {}" slot=print override=true type=(this: Document) => void
 /// @resolution.name source=Base target=Base
 
     override print(): void {}
     /// @type.symbol symbol=Document.print source="override print(): void {}" type=(this: Document) => void
+
 }
 "#,
         r#"
@@ -252,11 +573,12 @@ class Header extends Packet {}
 === checked ===
 final class Packet {}
 /// @type.symbol symbol=Packet source="final class Packet {}" type=Packet
-/// @definition.class symbol=Packet source="final class Packet {}"
+/// @definition.class symbol=Packet source="final class Packet {}" final=true
 
 class Header extends Packet {}
 /// @type.symbol symbol=Header source="class Header extends Packet {}" type=Header
 /// @definition.class symbol=Header source="class Header extends Packet {}"
+/// @definition.extends symbol=Header source=Packet target=Packet
 /// @resolution.name source=Packet target=Packet
 "#,
         r#"
@@ -289,11 +611,12 @@ class Writer {
 class Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.class symbol=Writer
-/// @definition.method symbol=Writer.write source="abstract write(value: string): void" slot=write type=(this: Writer, string) => void
+/// @definition.method symbol=Writer.write source="abstract write(value: string): void" slot=write abstraction=abstract type=(this: Writer, string) => void
 
     abstract write(value: string): void;
     /// @type.symbol symbol=Writer.write source="abstract write(value: string): void" type=(this: Writer, string) => void
     /// @type.symbol symbol=value source="value: string" type=string
+
 }
 "#,
         r#"
@@ -329,17 +652,19 @@ class FileWriter extends Writer {}
 === checked ===
 abstract class Writer {
 /// @type.symbol symbol=Writer type=Writer
-/// @definition.class symbol=Writer
-/// @definition.method symbol=Writer.write source="abstract write(value: string): void" slot=write type=(this: Writer, string) => void
+/// @definition.class symbol=Writer abstract=true
+/// @definition.method symbol=Writer.write source="abstract write(value: string): void" slot=write abstraction=abstract type=(this: Writer, string) => void
 
     abstract write(value: string): void;
     /// @type.symbol symbol=Writer.write source="abstract write(value: string): void" type=(this: Writer, string) => void
     /// @type.symbol symbol=value source="value: string" type=string
+
 }
 
 class FileWriter extends Writer {}
 /// @type.symbol symbol=FileWriter source="class FileWriter extends Writer {}" type=FileWriter
 /// @definition.class symbol=FileWriter source="class FileWriter extends Writer {}"
+/// @definition.extends symbol=FileWriter source=Writer target=Writer
 /// @resolution.name source=Writer target=Writer
 "#,
         r#"
@@ -371,10 +696,9 @@ new Writer();
 === checked ===
 abstract class Writer {}
 /// @type.symbol symbol=Writer source="abstract class Writer {}" type=Writer
-/// @definition.class symbol=Writer source="abstract class Writer {}"
+/// @definition.class symbol=Writer source="abstract class Writer {}" abstract=true
 
 new Writer();
-/// @type.node source="new Writer()" type=<error>
 /// @resolution.name source=Writer target=Writer
 "#,
         r#"
@@ -423,7 +747,7 @@ class Parser extends Base {
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
-/// @definition.method symbol=Base.parse source="virtual parse(value: string): string {\n        return value;\n    }" slot=parse type=(this: Base, string) => string
+/// @definition.method symbol=Base.parse slot=parse abstraction=virtual type=(this: Base, string) => string
 
     virtual parse(value: string): string {
     /// @type.symbol symbol=Base.parse type=(this: Base, string) => string
@@ -431,13 +755,15 @@ class Base {
 
         return value;
         /// @resolution.name source=value target=value#1
+
     }
 }
 
 class Parser extends Base {
 /// @type.symbol symbol=Parser type=Parser
 /// @definition.class symbol=Parser
-/// @definition.method symbol=Parser.parse source="override parse(value: string): int32 {\n        return 1;\n    }" slot=parse type=(this: Parser, string) => int32
+/// @definition.extends symbol=Parser source=Base target=Base
+/// @definition.method symbol=Parser.parse slot=parse override=true type=(this: Parser, string) => int32
 /// @resolution.name source=Base target=Base
 
     override parse(value: string): int32 {
@@ -445,12 +771,11 @@ class Parser extends Base {
     /// @type.symbol symbol=value#2 source="value: string" type=string
 
         return 1;
-        /// @type.node source=1 type=int32
     }
 }
 "#,
         r#"
-/// @diagnostic.error code=EC610 message="override 'parse' has type '(this: Parser, string) => int32', which is not assignable to the inherited type '(this: Base, string) => string'"
+/// @diagnostic.error code=EC610 message="override 'parse' has type '(string) => int32', which is not assignable to the inherited type '(string) => string'"
 /// @diagnostic.label line=9 column=5 source="override parse(value: string): int32 {"
 "#,
     );

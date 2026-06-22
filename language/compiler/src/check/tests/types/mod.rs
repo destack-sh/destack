@@ -4,6 +4,7 @@ mod r#class;
 mod r#enum;
 mod extension;
 mod generic;
+mod interface;
 mod interval;
 mod literal;
 mod narrowing;
