@@ -266,7 +266,7 @@ struct Point implements Left, Right {}
 
 === checked ===
 interface Base<T> {}
-/// @generic.template symbol=Base parameters=[T]
+/// @generic.template symbol=Base parameters=(T)
 /// @type.symbol symbol=Base source="interface Base<T> {}" type=Base<T>
 /// @definition.interface symbol=Base source="interface Base<T> {}" template=LocalGenericTemplateId(0)
 /// @type.symbol symbol=Base.T source=T type=T
@@ -274,13 +274,13 @@ interface Base<T> {}
 interface Left extends Base<string> {}
 /// @type.symbol symbol=Left source="interface Left extends Base<string> {}" type=Left
 /// @definition.interface symbol=Left source="interface Left extends Base<string> {}"
-/// @definition.extends symbol=Left source=Base<string> target=Base arguments=string
+/// @definition.extends symbol=Left source=Base<string> target=Base arguments=(string)
 /// @resolution.name source=Base target=Base
 
 interface Right extends Base<int32> {}
 /// @type.symbol symbol=Right source="interface Right extends Base<int32> {}" type=Right
 /// @definition.interface symbol=Right source="interface Right extends Base<int32> {}"
-/// @definition.extends symbol=Right source=Base<int32> target=Base arguments=int32
+/// @definition.extends symbol=Right source=Base<int32> target=Base arguments=(int32)
 /// @resolution.name source=Base target=Base
 
 struct Point implements Left, Right {}

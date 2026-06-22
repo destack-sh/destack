@@ -20,7 +20,7 @@ impl SnapshotTable for dir::AnnotationSegment {
                         "resolution",
                         builder.annotation_target_label(invocation.resolution),
                     )
-                    .optional_list_field("arguments", arguments);
+                    .optional_tuple_field("arguments", arguments);
 
             builder.push(row);
         }

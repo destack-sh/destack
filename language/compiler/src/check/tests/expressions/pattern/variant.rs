@@ -50,7 +50,7 @@ match (status) {
 
     Status.Ok(value) => value satisfies string
     /// @type.symbol symbol=value source=value type=string
-    /// @resolution.pattern source="Status.Ok(value)" kind=variant owner=Status variant=Ok payload=tuple fields=[value]
+    /// @resolution.pattern source="Status.Ok(value)" kind=variant owner=Status variant=Ok payload=tuple fields=(value)
     /// @resolution.name source=Status target=Status
     /// @resolution.variant source=Status.Ok owner=Status variant=Ok
     /// @resolution.pattern source=value kind=binding target=value
@@ -60,7 +60,7 @@ match (status) {
 
     Status.Err(code) => code satisfies int32
     /// @type.symbol symbol=code source=code type=int32
-    /// @resolution.pattern source="Status.Err(code)" kind=variant owner=Status variant=Err payload=tuple fields=[code]
+    /// @resolution.pattern source="Status.Err(code)" kind=variant owner=Status variant=Err payload=tuple fields=(code)
     /// @resolution.name source=Status target=Status
     /// @resolution.variant source=Status.Err owner=Status variant=Err
     /// @resolution.pattern source=code kind=binding target=code
@@ -206,7 +206,7 @@ match (status) {
 
     Other.Done(value) => value
     /// @type.symbol symbol=value source=value type=<error>
-    /// @resolution.pattern source="Other.Done(value)" kind=variant owner=Other variant=Done payload=tuple fields=[value]
+    /// @resolution.pattern source="Other.Done(value)" kind=variant owner=Other variant=Done payload=tuple fields=(value)
     /// @resolution.name source=Other target=Other
     /// @resolution.variant source=Other.Done owner=Other variant=Done
     /// @resolution.pattern source=value kind=binding target=value
@@ -268,7 +268,7 @@ match (status) {
 
     Status.Done(value) => value
     /// @type.symbol symbol=value source=value type=<error>
-    /// @resolution.pattern source="Status.Done(value)" kind=variant owner=Status variant=Done payload=tuple fields=[value]
+    /// @resolution.pattern source="Status.Done(value)" kind=variant owner=Status variant=Done payload=tuple fields=(value)
     /// @resolution.name source=Status target=Status
     /// @resolution.pattern source=value kind=binding target=value
     /// @type.node source=value type=<error>
@@ -332,12 +332,12 @@ const label = match (status) {
 
     Status.Ok(value) => "ok"
     /// @type.symbol symbol=value source=value type=string
-    /// @resolution.pattern source="Status.Ok(value)" kind=variant owner=Status variant=Ok payload=tuple fields=[value]
+    /// @resolution.pattern source="Status.Ok(value)" kind=variant owner=Status variant=Ok payload=tuple fields=(value)
     /// @type.node source="\"ok\"" type="ok"
 
     Status.Err(code) => "err"
     /// @type.symbol symbol=code source=code type=int32
-    /// @resolution.pattern source="Status.Err(code)" kind=variant owner=Status variant=Err payload=tuple fields=[code]
+    /// @resolution.pattern source="Status.Err(code)" kind=variant owner=Status variant=Err payload=tuple fields=(code)
     /// @type.node source="\"err\"" type="err"
 
 };
@@ -394,13 +394,13 @@ const label = match (status) {
 
     Status.Ok(value) if (value.length > 0) => "ok"
     /// @type.symbol symbol=value source=value type=string
-    /// @resolution.pattern source="Status.Ok(value)" kind=variant owner=Status variant=Ok payload=tuple fields=[value]
+    /// @resolution.pattern source="Status.Ok(value)" kind=variant owner=Status variant=Ok payload=tuple fields=(value)
     /// @type.node source="value.length > 0" type=boolean
     /// @type.node source="\"ok\"" type="ok"
 
     Status.Err(code) => "err"
     /// @type.symbol symbol=code source=code type=int32
-    /// @resolution.pattern source="Status.Err(code)" kind=variant owner=Status variant=Err payload=tuple fields=[code]
+    /// @resolution.pattern source="Status.Err(code)" kind=variant owner=Status variant=Err payload=tuple fields=(code)
     /// @type.node source="\"err\"" type="err"
 
 };

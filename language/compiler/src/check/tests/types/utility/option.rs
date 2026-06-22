@@ -86,8 +86,8 @@ some satisfies Option<int32>;
 none satisfies Option<int32>;
 /// @resolution.name source=none target=none
 /// @resolution.name source=Option target=types.option.Option
-/// @generic.instance id=types.option.Option.none<int32> symbol=types.option.Option.none arguments=[int32]
-/// @generic.instance id=types.option.Option.some<int32> symbol=types.option.Option.some arguments=[int32]
+/// @generic.instance id=types.option.Option.none<int32> template=types.option.Option.none arguments=(int32)
+/// @generic.instance id=types.option.Option.some<int32> template=types.option.Option.some arguments=(int32)
 "#,
     );
 }
@@ -127,7 +127,7 @@ const value = Option.fromNullish(input);
 value satisfies Option<string>;
 /// @resolution.name source=value target=value
 /// @resolution.name source=Option target=types.option.Option
-/// @generic.instance id=types.option.Option.fromNullish<string> symbol=types.option.Option.fromNullish arguments=[string]
+/// @generic.instance id=types.option.Option.fromNullish<string> template=types.option.Option.fromNullish arguments=(string)
 "#,
     );
 }
@@ -206,7 +206,7 @@ value.map((x) => x + 1) satisfies Option<int32>;
 value.mapOr(0, (x) => x + 1) satisfies int32;
 /// @resolution.name source=value target=value
 /// @resolution.member source=value.mapOr receiver=Option<int32> kind=symbol target=types.option.Option.mapOr
-/// @generic.instance id=types.option.Option.some<int32> symbol=types.option.Option.some arguments=[int32]
+/// @generic.instance id=types.option.Option.some<int32> template=types.option.Option.some arguments=(int32)
 "#,
     );
 }

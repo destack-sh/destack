@@ -72,7 +72,7 @@ declare const values: [int32; 1];
 
 [value = fallback] = values;
 /// @type.node source="[value = fallback] = values" type=[int32; 1]
-/// @resolution.pattern.assign source="[value = fallback]" kind=sequence fields=[value]
+/// @resolution.pattern.assign source="[value = fallback]" kind=sequence fields=(value)
 /// @resolution.pattern.assign source="value = fallback" kind=default pattern=value value=fallback
 /// @resolution.pattern.assign source=value kind=place target=value
 /// @type.node source=value type=int32

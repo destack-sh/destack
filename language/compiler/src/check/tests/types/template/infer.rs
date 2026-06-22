@@ -23,7 +23,7 @@ declare const name: Name;
 
 === checked ===
 type Segment<T> = T extends `/${infer Name}` ? Name : never;
-/// @generic.template symbol=Segment parameters=[T]
+/// @generic.template symbol=Segment parameters=(T)
 /// @type.symbol symbol=Segment type=T extends `/${infer Name}` ? Name : never
 
 type Name = Segment<"/api">;
@@ -35,7 +35,7 @@ declare const name: Name;
 /// @resolution.name source=Name target=Name
 /// @type.symbol symbol=name type="api"
 
-/// @generic.instance id="Segment<\"/api\">" symbol=Segment arguments=["/api"]
+/// @generic.instance id="Segment<\"/api\">" template=Segment arguments=("/api")
 "#,
     );
 }
@@ -67,7 +67,7 @@ const no: No = false;
 
 === checked ===
 type HasId<T> = T extends `id:${infer _}` ? true : false;
-/// @generic.template symbol=HasId parameters=[T]
+/// @generic.template symbol=HasId parameters=(T)
 /// @type.symbol symbol=HasId type=T extends `id:${infer _}` ? true : false
 /// @generic.infer symbol=_ constraint=unknown
 
@@ -88,8 +88,8 @@ const yes: Yes = true;
 const no: No = false;
 /// @type.symbol symbol=no source=no type=false
 /// @resolution.name source=No target=No
-/// @generic.instance id="HasId<\"id:users\">" symbol=HasId arguments=["id:users"]
-/// @generic.instance id="HasId<\"users\">" symbol=HasId arguments=["users"]
+/// @generic.instance id="HasId<\"id:users\">" template=HasId arguments=("id:users")
+/// @generic.instance id="HasId<\"users\">" template=HasId arguments=("users")
 "#,
     );
 }
@@ -119,7 +119,7 @@ const b: Result = "b" as Result;
 
 === checked ===
 type Extract<T> = T extends `foo-${infer A}` ? A : never;
-/// @generic.template symbol=Extract parameters=[T]
+/// @generic.template symbol=Extract parameters=(T)
 /// @type.symbol symbol=Extract type=T extends `foo-${infer A}` ? A : never
 
 type Result = Extract<`foo-a` | `foo-b`>;
@@ -135,7 +135,7 @@ const b: Result = "b";
 /// @type.symbol symbol=b source=b type="a" | "b"
 /// @resolution.name source=Result target=Result
 
-/// @generic.instance id="Extract<`foo-a` | `foo-b`>" symbol=Extract arguments=[`foo-a` | `foo-b`]
+/// @generic.instance id="Extract<`foo-a` | `foo-b`>" template=Extract arguments=(`foo-a` | `foo-b`)
 "#,
     );
 }
@@ -163,7 +163,7 @@ const matched: Match = "foo";
 
 === checked ===
 type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
-/// @generic.template symbol=Repeat parameters=[T]
+/// @generic.template symbol=Repeat parameters=(T)
 /// @type.symbol symbol=Repeat type=T extends `${infer A}-${infer A}` ? A : "no"
 
 type Match = Repeat<"foo-foo">;
@@ -175,7 +175,7 @@ const matched: Match = "foo";
 /// @type.symbol symbol=matched source=matched type="foo"
 /// @resolution.name source=Match target=Match
 
-/// @generic.instance id="Repeat<\"foo-foo\">" symbol=Repeat arguments=["foo-foo"]
+/// @generic.instance id="Repeat<\"foo-foo\">" template=Repeat arguments=("foo-foo")
 "#,
     );
 }
@@ -203,7 +203,7 @@ const matched: Match = "no";
 
 === checked ===
 type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
-/// @generic.template symbol=Repeat parameters=[T]
+/// @generic.template symbol=Repeat parameters=(T)
 /// @type.symbol symbol=Repeat type=T extends `${infer A}-${infer A}` ? A : "no"
 
 type Match = Repeat<"foo-bar">;
@@ -215,7 +215,7 @@ const matched: Match = "no";
 /// @type.symbol symbol=matched source=matched type="no"
 /// @resolution.name source=Match target=Match
 
-/// @generic.instance id="Repeat<\"foo-bar\">" symbol=Repeat arguments=["foo-bar"]
+/// @generic.instance id="Repeat<\"foo-bar\">" template=Repeat arguments=("foo-bar")
 "#,
     );
 }
@@ -243,7 +243,7 @@ const result: Result = ("foo", "bar-baz");
 
 === checked ===
 type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
-/// @generic.template symbol=Pair parameters=[T]
+/// @generic.template symbol=Pair parameters=(T)
 /// @type.symbol symbol=Pair type=T extends `${infer A}-${infer B}` ? (A, B) : never
 
 type Result = Pair<"foo-bar-baz">;
@@ -255,7 +255,7 @@ const result: Result = ("foo", "bar-baz");
 /// @type.symbol symbol=result source=result type=("foo", "bar-baz")
 /// @resolution.name source=Result target=Result
 
-/// @generic.instance id="Pair<\"foo-bar-baz\">" symbol=Pair arguments=["foo-bar-baz"]
+/// @generic.instance id="Pair<\"foo-bar-baz\">" template=Pair arguments=("foo-bar-baz")
 "#,
     );
 }
@@ -283,7 +283,7 @@ const bad: Result = ("foo-bar", "baz");
 
 === checked ===
 type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
-/// @generic.template symbol=Pair parameters=[T]
+/// @generic.template symbol=Pair parameters=(T)
 /// @type.symbol symbol=Pair type=T extends `${infer A}-${infer B}` ? (A, B) : never
 
 type Result = Pair<"foo-bar-baz">;
@@ -294,7 +294,7 @@ type Result = Pair<"foo-bar-baz">;
 const bad: Result = ("foo-bar", "baz");
 /// @type.symbol symbol=bad source=bad type=("foo", "bar-baz")
 /// @resolution.name source=Result target=Result
-/// @generic.instance id="Pair<\"foo-bar-baz\">" symbol=Pair arguments=["foo-bar-baz"]
+/// @generic.instance id="Pair<\"foo-bar-baz\">" template=Pair arguments=("foo-bar-baz")
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '(\"foo-bar\", \"baz\")' is not assignable to type 'Result'"
@@ -328,7 +328,7 @@ const bad: Result = ("", "a");
 
 === checked ===
 type Split<T> = T extends `${infer A}${infer B}` ? (A, B) : never;
-/// @generic.template symbol=Split parameters=[T]
+/// @generic.template symbol=Split parameters=(T)
 /// @type.symbol symbol=Split type=T extends `${infer A}${infer B}` ? (A, B) : never
 
 type Result = Split<"a">;
@@ -343,7 +343,7 @@ const ok: Result = ("a", "");
 const bad: Result = ("", "a");
 /// @type.symbol symbol=bad source=bad type=("a", "")
 /// @resolution.name source=Result target=Result
-/// @generic.instance id="Split<\"a\">" symbol=Split arguments=["a"]
+/// @generic.instance id="Split<\"a\">" template=Split arguments=("a")
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '(\"\", \"a\")' is not assignable to type 'Result'"
@@ -375,7 +375,7 @@ const ok: Result = ("", "");
 
 === checked ===
 type Split<T> = T extends `a${infer A}${infer B}` ? (A, B) : never;
-/// @generic.template symbol=Split parameters=[T]
+/// @generic.template symbol=Split parameters=(T)
 /// @type.symbol symbol=Split type=T extends `a${infer A}${infer B}` ? (A, B) : never
 
 type Result = Split<"a">;
@@ -386,7 +386,7 @@ type Result = Split<"a">;
 const ok: Result = ("", "");
 /// @type.symbol symbol=ok source=ok type=("", "")
 /// @resolution.name source=Result target=Result
-/// @generic.instance id="Split<\"a\">" symbol=Split arguments=["a"]
+/// @generic.instance id="Split<\"a\">" template=Split arguments=("a")
 "#,
     );
 }

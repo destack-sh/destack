@@ -310,7 +310,7 @@ type Bag = Record<string, int32>;
 /// @resolution.name source=Record target=types.object.Record
 
 declare function read(bag: Bag): int32 | undefined;
-/// @generic.template symbol=read parameters=[T0: Bag]
+/// @generic.template symbol=read parameters=(T0: Bag)
 /// @type.symbol symbol=read type=<read.T0: Bag>(read.T0) => int32 | undefined
 /// @type.symbol symbol=bag type=read.T0
 /// @resolution.name source=Bag target=Bag

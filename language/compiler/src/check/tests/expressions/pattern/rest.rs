@@ -32,7 +32,7 @@ declare const values: int32[];
 let [head, ...tail] = values;
 /// @type.symbol symbol=head source=head type=int32
 /// @type.symbol symbol=tail source=tail type=Array<int32>
-/// @resolution.pattern source="[head, ...tail]" kind=sequence sequence=array fields=[head] rest=...tail
+/// @resolution.pattern source="[head, ...tail]" kind=sequence sequence=array fields=(head) rest=...tail
 /// @resolution.pattern source=head kind=binding target=head
 /// @resolution.pattern source=tail kind=binding target=tail
 /// @type.node source=values type=Array<int32>
@@ -70,7 +70,7 @@ let [...middle, last] = [1, 2, 3];
 let [...middle, last] = [1, 2, 3];
 /// @type.symbol symbol=middle source=middle type=Array<float64>
 /// @type.symbol symbol=last source=last type=float64
-/// @resolution.pattern source="[...middle, last]" kind=sequence sequence=array fields=[last] rest=...middle
+/// @resolution.pattern source="[...middle, last]" kind=sequence sequence=array fields=(last) rest=...middle
 /// @resolution.pattern source=middle kind=binding target=middle
 /// @resolution.pattern source=last kind=binding target=last
 /// @type.node source=[1, 2, 3] type=Array<float64>
@@ -105,7 +105,7 @@ let [head, ...middle, ...tail] = [1, 2, 3];
 /// @type.symbol symbol=head source=head type=float64
 /// @type.symbol symbol=middle source=middle type=Array<float64>
 /// @type.symbol symbol=tail source=tail type=Array<float64>
-/// @resolution.pattern source="[head, ...middle, ...tail]" kind=sequence sequence=array fields=[head] rest=...middle
+/// @resolution.pattern source="[head, ...middle, ...tail]" kind=sequence sequence=array fields=(head) rest=...middle
 /// @resolution.pattern source=head kind=binding target=head
 /// @resolution.pattern source=middle kind=binding target=middle
 /// @resolution.pattern source=tail kind=binding target=tail

@@ -105,7 +105,7 @@ class Counter {
     }
 
     borrow(&this): int32 {
-    /// @generic.template symbol=Counter.borrow parameters=[comptime L0: Lifetime origin=induced.form]
+    /// @generic.template symbol=Counter.borrow parameters=(comptime L0: Lifetime origin=induced.form)
     /// @type.symbol symbol=Counter.borrow type=<Counter.borrow.L0: Lifetime>(Borrowed<Counter, Counter.borrow.L0, "mutable">) => int32
     /// @type.symbol symbol=this source="&this" type=Borrowed<Counter, Counter.borrow.L0, "mutable">
 
@@ -117,7 +117,7 @@ class Counter {
     }
 
     inspect(&readonly this): int32 {
-    /// @generic.template symbol=Counter.inspect parameters=[comptime L0: Lifetime origin=induced.form]
+    /// @generic.template symbol=Counter.inspect parameters=(comptime L0: Lifetime origin=induced.form)
     /// @type.symbol symbol=Counter.inspect type=<Counter.inspect.L0: Lifetime>(Borrowed<Counter, Counter.inspect.L0, "readonly">) => int32
     /// @type.symbol symbol=this source="&readonly this" type=Borrowed<Counter, Counter.inspect.L0, "readonly">
 
@@ -129,7 +129,7 @@ class Counter {
     }
 
     increment(&exclusive this): void {
-    /// @generic.template symbol=Counter.increment parameters=[comptime L0: Lifetime origin=induced.form]
+    /// @generic.template symbol=Counter.increment parameters=(comptime L0: Lifetime origin=induced.form)
     /// @type.symbol symbol=Counter.increment type=<Counter.increment.L0: Lifetime>(Borrowed<Counter, Counter.increment.L0, "exclusive">) => void
     /// @type.symbol symbol=this source="&exclusive this" type=Borrowed<Counter, Counter.increment.L0, "exclusive">
 

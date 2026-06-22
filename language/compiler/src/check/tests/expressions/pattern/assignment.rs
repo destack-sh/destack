@@ -81,7 +81,7 @@ declare const values: [int32; 3];
 
 [first, , last] = values;
 /// @type.node source="[first, , last] = values" type=[int32; 3]
-/// @resolution.pattern.assign source="[first, , last]" kind=sequence fields=[first, last]
+/// @resolution.pattern.assign source="[first, , last]" kind=sequence fields=(first, last)
 /// @resolution.pattern.assign source=first kind=place target=first
 /// @type.node source=first type=int32
 /// @resolution.name source=first target=first
@@ -125,7 +125,7 @@ declare const values: [int32; 1];
 
 [first] += values;
 /// @type.node source="[first] += values" type=<error>
-/// @resolution.pattern.assign source="[first]" kind=sequence fields=[first]
+/// @resolution.pattern.assign source="[first]" kind=sequence fields=(first)
 /// @resolution.pattern.assign source=first kind=place target=first
 /// @type.node source=first type=int32
 /// @resolution.name source=first target=first
@@ -224,7 +224,7 @@ declare const values: int32[];
 
 [head, ...tail] = values;
 /// @type.node source="[head, ...tail] = values" type=Array<int32>
-/// @resolution.pattern.assign source="[head, ...tail]" kind=sequence sequence=array fields=[head] rest=...tail
+/// @resolution.pattern.assign source="[head, ...tail]" kind=sequence sequence=array fields=(head) rest=...tail
 /// @resolution.pattern.assign source=head kind=place target=head
 /// @resolution.pattern.assign source=tail kind=place target=tail
 /// @type.node source=values type=Array<int32>
@@ -273,7 +273,7 @@ declare const packet: { point: { x: int32 }; meta: (string,) };
 /// @resolution.pattern.assign source="{ point: { x }, meta: (label) }" kind=object fields={ point: pattern, meta: pattern }
 /// @resolution.pattern.assign source="{ x }" kind=object fields={ x }
 /// @resolution.pattern.assign source=x kind=place target=x
-/// @resolution.pattern.assign source="(label)" kind=tuple fields=[label]
+/// @resolution.pattern.assign source="(label)" kind=tuple fields=(label)
 /// @resolution.pattern.assign source=label kind=place target=label
 /// @type.node source=packet type={ point: { x: int32 }; meta: (string,) }
 /// @resolution.name source=packet target=packet
@@ -322,7 +322,7 @@ declare const packet: { count?: int32; labels: (string | undefined,) };
 /// @resolution.pattern.assign source="count = 1" kind=default pattern=count value=1
 /// @resolution.pattern.assign source=count kind=place target=count
 /// @type.node source=1 type=int32
-/// @resolution.pattern.assign source="(label = \"missing\")" kind=tuple fields=[label]
+/// @resolution.pattern.assign source="(label = \"missing\")" kind=tuple fields=(label)
 /// @resolution.pattern.assign source="label = \"missing\"" kind=default pattern=label value="missing"
 /// @resolution.pattern.assign source=label kind=place target=label
 /// @type.node source="\"missing\"" type=string

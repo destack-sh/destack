@@ -28,7 +28,7 @@ impl SnapshotTable for dir::GenericSegment {
                         .parent
                         .map(|parent| format!("template#{}", parent.0)),
                 )
-                .list_field(
+                .tuple_field(
                     "parameters",
                     template.parameters.iter().map(|parameter| {
                         generic_template_parameter_label(self.get_parameter(*parameter), builder)

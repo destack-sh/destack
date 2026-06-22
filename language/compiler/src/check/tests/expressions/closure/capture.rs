@@ -25,9 +25,9 @@ const next = () => count + 1;
 /// @type.symbol symbol=next type=Function<(), int32>
 /// @resolution.name source=count target=count
 /// @type.node source="count + 1" type=int32
-/// @capture.function function=next bindings=1 frames=[main.<frame0>]
+/// @capture.function function=next bindings=1 frames=(main.<frame0>)
 /// @capture.output function=next symbol=count mode=manage type=int32 frame=main.<frame0>
-/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ count: int32 }> fields=[count: int32]
+/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ count: int32 }> fields={ count: int32 }
 "#,
     );
 }
@@ -92,10 +92,10 @@ const foo = () => {
     /// @resolution.name source=b target=b
     /// @type.node source="b += 1" type=int32
 };
-/// @capture.function function=foo bindings=2 frames=[main.<frame0>]
+/// @capture.function function=foo bindings=2 frames=(main.<frame0>)
 /// @capture.output function=foo symbol=a mode=manage type=int32 frame=main.<frame0>
 /// @capture.output function=foo symbol=b mode=manage type=int32 frame=main.<frame0>
-/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ a: int32; b: int32; c: int32 }> fields=[a: int32, b: int32, c: int32]
+/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ a: int32; b: int32; c: int32 }> fields={ a: int32, b: int32, c: int32 }
 
 const boo = () => {
 /// @type.symbol symbol=boo type=Function<(), void>
@@ -108,7 +108,7 @@ const boo = () => {
     /// @resolution.name source=c target=c
     /// @type.node source="c += 1" type=int32
 };
-/// @capture.function function=boo bindings=2 frames=[main.<frame0>]
+/// @capture.function function=boo bindings=2 frames=(main.<frame0>)
 /// @capture.output function=boo symbol=b mode=manage type=int32 frame=main.<frame0>
 /// @capture.output function=boo symbol=c mode=manage type=int32 frame=main.<frame0>
 "#,
@@ -160,12 +160,12 @@ const next = () => count + step;
 /// @resolution.name source=count target=count
 /// @resolution.name source=step target=step
 /// @type.node source="count + step" type=int32
-/// @capture.function function=next bindings=2 frames=[main.<frame0>]
+/// @capture.function function=next bindings=2 frames=(main.<frame0>)
 /// @capture.output function=next symbol=count mode=manage type=int32 frame=main.<frame0>
 /// @capture.output function=next symbol=step mode=copy type=int32
 /// @capture.directive function=next default=manage rules=1
 /// @capture.rule function=next binding=step mode=copy
-/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ count: int32 }> fields=[count: int32]
+/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ count: int32 }> fields={ count: int32 }
 "#,
     );
 }
@@ -244,12 +244,12 @@ const send: ^Function<(string,), void> = (message) => {
     /// @resolution.name source=message target=message
     /// @resolution.call source="socket.write(message)" parameters=(string) return=void kind=symbol target=Socket.write receiver=Socket
 };
-/// @capture.function function=send bindings=2 frames=[main.<frame0>]
+/// @capture.function function=send bindings=2 frames=(main.<frame0>)
 /// @capture.output function=send symbol=count mode=manage type=int32 frame=main.<frame0>
 /// @capture.output function=send symbol=socket mode=move type=Socket
 /// @capture.directive function=send default=manage rules=1
 /// @capture.rule function=send binding=socket mode=move
-/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ count: int32 }> fields=[count: int32]
+/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ count: int32 }> fields={ count: int32 }
 "#,
     );
 }

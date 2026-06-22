@@ -172,12 +172,14 @@ fn add_one_heritage(
     heritage: &dir::NominalHeritage,
 ) {
     let arguments = (!heritage.arguments.is_empty()).then(|| {
-        heritage
+        let arguments = heritage
             .arguments
             .iter()
             .map(|argument| builder.global_type_label(*argument))
             .collect::<Vec<_>>()
-            .join(", ")
+            .join(", ");
+
+        format!("({arguments})")
     });
     let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", relation)
         .field("symbol", builder.symbol_path_label(owner))

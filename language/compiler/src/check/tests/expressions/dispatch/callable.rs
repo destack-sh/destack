@@ -31,7 +31,7 @@ const text = transform(1);
 /// @resolution.name source=transform target=transform
 /// @resolution.call source=transform(1) parameters=(int32) return=string kind=symbol target=transform
 /// @type.node source=1 type=int32
-/// @generic.instance id="types.function.Function<(int32,), string>" symbol=types.function.Function arguments=[(int32,), string]
+/// @generic.instance id="types.function.Function<(int32,), string>" template=types.function.Function arguments=((int32,), string)
 "#,
     );
 }

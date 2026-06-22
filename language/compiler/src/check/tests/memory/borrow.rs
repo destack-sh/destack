@@ -47,7 +47,7 @@ struct Node {
 }
 
 function access(read: &readonly Node, write: &Node, exclusive: &exclusive Node): void {
-/// @generic.template symbol=access parameters=[comptime L0: Lifetime origin=induced.form, comptime L1: Lifetime origin=induced.form, comptime L2: Lifetime origin=induced.form]
+/// @generic.template symbol=access parameters=(comptime L0: Lifetime origin=induced.form, comptime L1: Lifetime origin=induced.form, comptime L2: Lifetime origin=induced.form)
 /// @type.symbol symbol=access type=(Borrowed<Node, access.L0, "readonly">, Borrowed<Node, access.L1, "mutable">, Borrowed<Node, access.L2, "exclusive">) => void
 /// @type.symbol symbol=read source="read: &readonly Node" type=Borrowed<Node, access.L0, "readonly">
 /// @resolution.name source=Node target=Node

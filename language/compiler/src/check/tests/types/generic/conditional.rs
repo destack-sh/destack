@@ -75,11 +75,11 @@ interface NumberSink {
 }
 
 type SinkFor<T> = T extends string ? TextSink : NumberSink;
-/// @generic.template symbol=SinkFor parameters=[T]
+/// @generic.template symbol=SinkFor parameters=(T)
 /// @type.symbol symbol=SinkFor type=T extends string ? TextSink : NumberSink
 
 function write<T>(value: T, sink: SinkFor<T>): void {
-/// @generic.template symbol=write parameters=[T, T0: SinkFor<T>]
+/// @generic.template symbol=write parameters=(T, T0: SinkFor<T>)
 /// @type.symbol symbol=write type=<T, write.T0: SinkFor<T>>(T, write.T0) => void
 
     sink.write(value);
@@ -104,8 +104,8 @@ write(1, number);
 /// @resolution.call source="write(1, number)" parameters=(int32, NumberSink) return=void kind=symbol target=write instance="write<int32, NumberSink>"
 /// @generic.instance source="write(1, number)" id="write<int32, NumberSink>"
 
-/// @generic.instance id="write<string, TextSink>" symbol=write arguments=[string, TextSink]
-/// @generic.instance id="write<int32, NumberSink>" symbol=write arguments=[int32, NumberSink]
+/// @generic.instance id="write<string, TextSink>" template=write arguments=(string, TextSink)
+/// @generic.instance id="write<int32, NumberSink>" template=write arguments=(int32, NumberSink)
 "#,
     );
 }
@@ -179,11 +179,11 @@ interface NumberSink {
 }
 
 type SinkFor<T> = T extends string ? TextSink : NumberSink;
-/// @generic.template symbol=SinkFor parameters=[T]
+/// @generic.template symbol=SinkFor parameters=(T)
 /// @type.symbol symbol=SinkFor type=T extends string ? TextSink : NumberSink
 
 function write<T>(value: T, sink: SinkFor<T>): void {
-/// @generic.template symbol=write parameters=[T, T0: SinkFor<T>]
+/// @generic.template symbol=write parameters=(T, T0: SinkFor<T>)
 /// @type.symbol symbol=write type=<T, write.T0: SinkFor<T>>(T, write.T0) => void
 
     sink.write(value);

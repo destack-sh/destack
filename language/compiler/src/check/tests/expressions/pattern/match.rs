@@ -329,7 +329,7 @@ match (packet) {
     /// @type.symbol symbol=second source=second type=string
     /// @resolution.pattern source="{ point: { x, y }, labels: [first, second] }" kind=object fields={ point: pattern, labels: pattern }
     /// @resolution.pattern source="{ x, y }" kind=object fields={ x, y }
-    /// @resolution.pattern source="[first, second]" kind=sequence sequence=fixed_array length=2 fields=[first, second]
+    /// @resolution.pattern source="[first, second]" kind=sequence sequence=fixed_array length=2 fields=(first, second)
 
         x satisfies int32;
         /// @type.node source="x satisfies int32" type=int32
@@ -460,7 +460,7 @@ match (values) {
     [head, ...tail] => {
     /// @type.symbol symbol=head source=head type=int32
     /// @type.symbol symbol=tail source=tail type=Array<int32>
-    /// @resolution.pattern source="[head, ...tail]" kind=sequence sequence=array fields=[head] rest=...tail
+    /// @resolution.pattern source="[head, ...tail]" kind=sequence sequence=array fields=(head) rest=...tail
 
         head satisfies int32;
         /// @type.node source="head satisfies int32" type=int32

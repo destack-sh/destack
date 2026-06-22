@@ -32,7 +32,7 @@ declare const pair: (int32, string);
 let (count, label) = pair;
 /// @type.symbol symbol=count source=count type=int32
 /// @type.symbol symbol=label source=label type=string
-/// @resolution.pattern source="(count, label)" kind=tuple fields=[count, label]
+/// @resolution.pattern source="(count, label)" kind=tuple fields=(count, label)
 /// @resolution.pattern source=count kind=binding target=count
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node source=pair type=(int32, string)
@@ -77,7 +77,7 @@ declare const point: { x: int32; y: int32 };
 let (x, y) = point;
 /// @type.symbol symbol=x source=x type=<error>
 /// @type.symbol symbol=y source=y type=<error>
-/// @resolution.pattern source="(x, y)" kind=tuple fields=[x, y]
+/// @resolution.pattern source="(x, y)" kind=tuple fields=(x, y)
 /// @resolution.pattern source=x kind=binding target=x
 /// @resolution.pattern source=y kind=binding target=y
 /// @type.node source=point type={ x: int32; y: int32 }

@@ -33,7 +33,7 @@ if (let (count, label) = pair) {
 /// @type.node type=void | void
 /// @type.symbol symbol=count source=count type=int32
 /// @type.symbol symbol=label source=label type=string
-/// @resolution.pattern source="(count, label)" kind=tuple fields=[count, label]
+/// @resolution.pattern source="(count, label)" kind=tuple fields=(count, label)
 /// @resolution.pattern source=count kind=binding target=count
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node source=pair type=(int32, string) | null
@@ -145,7 +145,7 @@ if (ready && let (count, label) = pair && count > 0) {
 /// @resolution.name source=ready target=ready
 /// @type.symbol symbol=count source=count type=int32
 /// @type.symbol symbol=label source=label type=string
-/// @resolution.pattern source="(count, label)" kind=tuple fields=[count, label]
+/// @resolution.pattern source="(count, label)" kind=tuple fields=(count, label)
 /// @resolution.pattern source=count kind=binding target=count
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node source=pair type=(int32, string) | null

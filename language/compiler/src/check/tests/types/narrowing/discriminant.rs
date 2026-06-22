@@ -87,7 +87,7 @@ type State = Pending | Fulfilled;
 /// @resolution.name source=Fulfilled target=Fulfilled
 
 function read(state: State): int32 {
-/// @generic.template symbol=read parameters=[T0: State]
+/// @generic.template symbol=read parameters=(T0: State)
 /// @type.symbol symbol=read type=<read.T0: State>(read.T0) => int32
 /// @type.symbol symbol=state source="state: State" type=read.T0
 /// @resolution.name source=State target=State

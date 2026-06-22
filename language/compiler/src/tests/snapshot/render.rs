@@ -335,15 +335,17 @@ impl<'a> SnapshotRenderer<'a> {
         match field.style {
             SnapshotFieldStyle::Plain => Self::quote_value(&field.value),
             SnapshotFieldStyle::Type => field.value.to_string(),
-            SnapshotFieldStyle::Object => field.value.to_string(),
+            SnapshotFieldStyle::Verbatim => field.value.to_string(),
         }
     }
 
     /// Quote a plain row field value when needed.
     fn quote_value(value: &str) -> String {
-        let is_list = value.starts_with('[') && value.ends_with(']');
+        let is_delimited = (value.starts_with('(') && value.ends_with(')'))
+            || (value.starts_with('[') && value.ends_with(']'))
+            || (value.starts_with('{') && value.ends_with('}'));
         let needs_quotes = value.is_empty()
-            || (!is_list
+            || (!is_delimited
                 && value.chars().any(|character| {
                     character.is_whitespace() || character == '"' || character == '\\'
                 }));

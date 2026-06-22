@@ -200,7 +200,7 @@ declare const key: Actual;
 
 === checked ===
 type Keys<T: { a: int32 }> = keyof T;
-/// @generic.template symbol=Keys parameters=[T: { a: int32 }]
+/// @generic.template symbol=Keys parameters=(T: { a: int32 })
 /// @type.symbol symbol=Keys source="type Keys<T: { a: int32 }> = keyof T" type=keyof T
 /// @definition.type symbol=Keys source="type Keys<T: { a: int32 }> = keyof T" template=LocalGenericTemplateId(0) value=keyof T
 /// @type.symbol symbol=Keys.T source=T type=T

@@ -145,7 +145,7 @@ struct Point {
 }
 
 function kernel(data: shared &Point): int32 {
-/// @generic.template symbol=kernel parameters=[comptime L0: Lifetime origin=induced.form]
+/// @generic.template symbol=kernel parameters=(comptime L0: Lifetime origin=induced.form)
 /// @type.symbol symbol=kernel type=(Borrowed<Placed<Point, "shared">, kernel.L0, "mutable">) => int32
 /// @type.symbol symbol=data source="data: shared &Point" type=Borrowed<Placed<Point, "shared">, kernel.L0, "mutable">
 /// @resolution.name source=Point target=Point
@@ -223,7 +223,7 @@ struct Payload {
 }
 
 struct Request<T> {
-/// @generic.template symbol=Request parameters=[T]
+/// @generic.template symbol=Request parameters=(T)
 /// @type.symbol symbol=Request type=Request<T>
 /// @definition.struct symbol=Request
 

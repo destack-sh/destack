@@ -63,7 +63,7 @@ struct WideMeta {}
 /// @type.node source="struct WideMeta {}" type=WideMeta
 
 class Segment<Row> {
-/// @generic.template symbol=Segment parameters=[Row]
+/// @generic.template symbol=Segment parameters=(Row)
 /// @type.symbol symbol=Segment type=Segment<Row>
 /// @type.node type=Segment<Row>
 
@@ -121,8 +121,8 @@ const wideMeta = wide.wide;
 /// @resolution.member source=wide.wide receiver=Segment<string> kind=symbol target=Segment.wide application=Segment<string>
 /// @type.node source=wide type=Segment<string>
 /// @type.node source=wide.wide type=WideMeta
-/// @generic.instance id=Segment<int32> symbol=Segment arguments=[int32]
-/// @generic.instance id=Segment<string> symbol=Segment arguments=[string]
+/// @generic.instance id=Segment<int32> template=Segment arguments=(int32)
+/// @generic.instance id=Segment<string> template=Segment arguments=(string)
 /// @static.entry value=Row
 /// @static.entry value=int32
 /// @static.entry value=string
@@ -186,7 +186,7 @@ struct WideMeta {}
 /// @type.node source="struct WideMeta {}" type=WideMeta
 
 class Segment<Row> {
-/// @generic.template symbol=Segment parameters=[Row]
+/// @generic.template symbol=Segment parameters=(Row)
 /// @type.symbol symbol=Segment type=Segment<Row>
 /// @type.node type=Segment<Row>
 
@@ -224,7 +224,7 @@ declare const segment: Segment<string>;
 segment.narrow;
 /// @resolution.name source=segment target=segment
 /// @type.node source=segment type=Segment<string>
-/// @generic.instance id=Segment<string> symbol=Segment arguments=[string]
+/// @generic.instance id=Segment<string> template=Segment arguments=(string)
 /// @static.entry value=Row
 /// @static.entry value=string
 "#,

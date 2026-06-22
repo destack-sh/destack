@@ -29,7 +29,7 @@ const ok: InlineBuffer<uint8, 16> = InlineBuffer<uint8, 16> {
 
 === checked ===
 struct InlineBuffer<T, comptime N: 0..=4096> {
-/// @generic.template symbol=InlineBuffer parameters=[T, comptime N: 0..=4096]
+/// @generic.template symbol=InlineBuffer parameters=(T, comptime N: 0..=4096)
 /// @type.symbol symbol=InlineBuffer type=InlineBuffer<T, N>
 /// @definition.struct symbol=InlineBuffer template=LocalGenericTemplateId(0)
 /// @definition.field symbol=InlineBuffer.storage source="storage: [T; N]" key=storage type=[T; N]
@@ -83,7 +83,7 @@ type TooLarge = InlineBuffer<uint8, 4097>;
 
 === checked ===
 struct InlineBuffer<T, comptime N: 0..=4096> {
-/// @generic.template symbol=InlineBuffer parameters=[T, comptime N: 0..=4096]
+/// @generic.template symbol=InlineBuffer parameters=(T, comptime N: 0..=4096)
 /// @type.symbol symbol=InlineBuffer type=InlineBuffer<T, N>
 /// @definition.struct symbol=InlineBuffer template=LocalGenericTemplateId(0)
 /// @definition.field symbol=InlineBuffer.storage source="storage: [T; N]" key=storage type=[T; N]

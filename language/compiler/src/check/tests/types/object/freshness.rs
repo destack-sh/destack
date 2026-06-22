@@ -111,7 +111,7 @@ const extra: boolean = value.extra;
 
 === checked ===
 function keep<T: { name: string }>(value: T): T {
-/// @generic.template symbol=keep parameters=[T: { name: string }]
+/// @generic.template symbol=keep parameters=(T: { name: string })
 /// @type.symbol symbol=keep type=<T: { name: string }>(T) => T
 /// @type.symbol symbol=keep.name type=string
 /// @type.symbol symbol=value#1 type=T
@@ -140,7 +140,7 @@ const extra = value.extra;
 /// @type.node source=value.extra type=boolean
 /// @resolution.name source=value target=value#2
 /// @resolution.member source=value.extra receiver={ name: string; extra: boolean } kind=field key=extra
-/// @generic.instance id="keep<{ name: string; extra: boolean }>" symbol=keep arguments=[{ name: string; extra: boolean }]
+/// @generic.instance id="keep<{ name: string; extra: boolean }>" template=keep arguments=({ name: string; extra: boolean })
 "#,
     );
 }

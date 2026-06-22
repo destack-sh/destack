@@ -69,7 +69,7 @@ interface Readable {
 }
 
 struct Box<T> {
-/// @generic.template symbol=Box parameters=[T#1]
+/// @generic.template symbol=Box parameters=(T#1)
 /// @type.symbol symbol=Box type=Box<T#1>
 /// @definition.field symbol=Box.value source="value: T" key=value type=T#1
 /// @definition.struct symbol=Box template=LocalGenericTemplateId(0)
@@ -94,7 +94,7 @@ struct Document {
 }
 
 extension<T> of Box<T> where T: Readable {
-/// @generic.template parameters=[T#2: Readable]
+/// @generic.template parameters=(T#2: Readable)
 /// @definition.extension form=inherent target=Box<T#2>
 /// @definition.where source="T: Readable" left=T#2 right=Readable
 /// @definition.method symbol=read slot=read type=(this: Box<T#2>) => string
@@ -127,8 +127,8 @@ const text = boxed.read();
 /// @resolution.member source=boxed.read receiver=Box<Document> kind=symbol target=read instance=<extension><Document>
 /// @resolution.call source=boxed.read() parameters=() return=string kind=symbol target=read receiver=Box<Document> instance=<extension><Document>
 
-/// @generic.instance id=Box<T#2> symbol=Box arguments=[T#2]
-/// @generic.instance id=<extension><Document> arguments=[Document]
+/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
+/// @generic.instance id=<extension><Document> arguments=(Document)
 "#,
     );
 }
@@ -194,7 +194,7 @@ interface Readable {
 }
 
 struct Box<T> {
-/// @generic.template symbol=Box parameters=[T#1]
+/// @generic.template symbol=Box parameters=(T#1)
 /// @type.symbol symbol=Box type=Box<T#1>
 /// @definition.field symbol=Box.value source="value: T" key=value type=T#1
 /// @definition.struct symbol=Box template=LocalGenericTemplateId(0)
@@ -211,7 +211,7 @@ struct Token {}
 /// @definition.struct symbol=Token source="struct Token {}"
 
 extension<T> of Box<T> where T: Readable {
-/// @generic.template parameters=[T#2: Readable]
+/// @generic.template parameters=(T#2: Readable)
 /// @definition.extension form=inherent target=Box<T#2>
 /// @definition.where source="T: Readable" left=T#2 right=Readable
 /// @definition.method symbol=read slot=read type=(this: Box<T#2>) => string
@@ -246,7 +246,7 @@ boxed.read();
 /// @type.node source=boxed.read() type=<error>
 /// @resolution.name source=boxed target=boxed
 
-/// @generic.instance id=Box<T#2> symbol=Box arguments=[T#2]
+/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 "#,
         r#"
 /// @diagnostic.error code=EC300 message="missing member 'read'"

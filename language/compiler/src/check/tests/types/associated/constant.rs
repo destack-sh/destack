@@ -27,7 +27,7 @@ declare const lane: Segment<string>.Lane;
 
 === checked ===
 class Segment<Row> {
-/// @generic.template symbol=Segment parameters=[Row]
+/// @generic.template symbol=Segment parameters=(Row)
 /// @type.symbol symbol=Segment type=Segment<Row>
 
     comptime const Width: uint = Row extends string ? 8 : 4;
@@ -45,7 +45,7 @@ declare const lane: Segment<string>.Lane;
 /// @generic.instance source="Segment<string>" id=Segment<string>
 /// @type.symbol symbol=lane type=[uint8; 8]
 
-/// @generic.instance id=Segment<string> symbol=Segment arguments=[string]
+/// @generic.instance id=Segment<string> template=Segment arguments=(string)
 "#,
     );
 }
@@ -95,7 +95,7 @@ interface RegisterBlock {
 }
 
 function readHeader<T: RegisterBlock<comptime Width = 16>>(block: T): [uint8; 16] {
-/// @generic.template symbol=readHeader parameters=[T: RegisterBlock<comptime Width = 16>]
+/// @generic.template symbol=readHeader parameters=(T: RegisterBlock<comptime Width = 16>)
 /// @type.symbol symbol=readHeader type=<T: RegisterBlock<comptime Width = 16>>(T) => [uint8; 16]
 /// @resolution.name source=RegisterBlock target=RegisterBlock
 

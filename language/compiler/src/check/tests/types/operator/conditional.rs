@@ -27,7 +27,7 @@ declare const number: Number;
 
 === checked ===
 type Select<T> = T extends string ? "yes" : "no";
-/// @generic.template symbol=Select parameters=[T]
+/// @generic.template symbol=Select parameters=(T)
 /// @type.symbol symbol=Select source="type Select<T> = T extends string ? \"yes\" : \"no\"" type=T extends string ? "yes" : "no"
 /// @definition.type symbol=Select source="type Select<T> = T extends string ? \"yes\" : \"no\"" template=LocalGenericTemplateId(0) value=T extends string ? "yes" : "no"
 /// @type.symbol symbol=Select.T source=T type=T
@@ -77,7 +77,7 @@ declare const value: Result;
 
 === checked ===
 type OnlyStrings<T> = T extends string ? T : never;
-/// @generic.template symbol=OnlyStrings parameters=[T]
+/// @generic.template symbol=OnlyStrings parameters=(T)
 /// @type.symbol symbol=OnlyStrings source="type OnlyStrings<T> = T extends string ? T : never" type=T extends string ? T : never
 /// @definition.type symbol=OnlyStrings source="type OnlyStrings<T> = T extends string ? T : never" template=LocalGenericTemplateId(0) value=T extends string ? T : never
 /// @type.symbol symbol=OnlyStrings.T source=T type=T
@@ -119,7 +119,7 @@ declare const value: Result;
 
 === checked ===
 type Wrapped<T> = (T,) extends (string,) ? "yes" : "no";
-/// @generic.template symbol=Wrapped parameters=[T]
+/// @generic.template symbol=Wrapped parameters=(T)
 /// @type.symbol symbol=Wrapped source="type Wrapped<T> = (T,) extends (string,) ? \"yes\" : \"no\"" type=(T,) extends (string,) ? "yes" : "no"
 /// @definition.type symbol=Wrapped source="type Wrapped<T> = (T,) extends (string,) ? \"yes\" : \"no\"" template=LocalGenericTemplateId(0) value=(T,) extends (string,) ? "yes" : "no"
 /// @type.symbol symbol=Wrapped.T source=T type=T
@@ -160,7 +160,7 @@ let value: Result = "no";
 
 === checked ===
 type OnlyStrings<T> = T extends string ? T : never;
-/// @generic.template symbol=OnlyStrings parameters=[T]
+/// @generic.template symbol=OnlyStrings parameters=(T)
 /// @type.symbol symbol=OnlyStrings source="type OnlyStrings<T> = T extends string ? T : never" type=T extends string ? T : never
 /// @definition.type symbol=OnlyStrings source="type OnlyStrings<T> = T extends string ? T : never" template=LocalGenericTemplateId(0) value=T extends string ? T : never
 /// @type.symbol symbol=OnlyStrings.T source=T type=T
@@ -208,14 +208,14 @@ declare const value: Value;
 
 === checked ===
 type Box<T> = { value: T };
-/// @generic.template symbol=Box parameters=[T]
+/// @generic.template symbol=Box parameters=(T)
 /// @type.symbol symbol=Box source="type Box<T> = { value: T }" type={ value: T }
 /// @definition.type symbol=Box source="type Box<T> = { value: T }" template=LocalGenericTemplateId(0) value={ value: T }
 /// @type.symbol symbol=Box.T source=T type=T
 /// @resolution.name source=T target=Box.T
 
 type Unbox<T> = T extends Box<infer U> ? U : never;
-/// @generic.template symbol=Unbox parameters=[T]
+/// @generic.template symbol=Unbox parameters=(T)
 /// @type.symbol symbol=Unbox source="type Unbox<T> = T extends Box<infer U> ? U : never" type=T extends Box<infer U> ? U : never
 /// @definition.type symbol=Unbox source="type Unbox<T> = T extends Box<infer U> ? U : never" template=LocalGenericTemplateId(1) value=T extends Box<infer U> ? U : never
 /// @type.symbol symbol=Unbox.T source=T type=T
@@ -266,14 +266,14 @@ const no: No = false;
 
 === checked ===
 type Box<T> = { value: T };
-/// @generic.template symbol=Box parameters=[T]
+/// @generic.template symbol=Box parameters=(T)
 /// @type.symbol symbol=Box source="type Box<T> = { value: T }" type={ value: T }
 /// @definition.type symbol=Box source="type Box<T> = { value: T }" template=LocalGenericTemplateId(0) value={ value: T }
 /// @type.symbol symbol=Box.T source=T type=T
 /// @resolution.name source=T target=Box.T
 
 type IsBox<T> = T extends Box<infer _> ? true : false;
-/// @generic.template symbol=IsBox parameters=[T]
+/// @generic.template symbol=IsBox parameters=(T)
 /// @type.symbol symbol=IsBox source="type IsBox<T> = T extends Box<infer _> ? true : false" type=T extends Box<infer _> ? true : false
 /// @definition.type symbol=IsBox source="type IsBox<T> = T extends Box<infer _> ? true : false" template=LocalGenericTemplateId(1) value=T extends Box<infer _> ? true : false
 /// @type.symbol symbol=IsBox.T source=T type=T
@@ -330,14 +330,14 @@ const second: Value = "b" as Value;
 
 === checked ===
 type Box<T> = { value: T };
-/// @generic.template symbol=Box parameters=[T]
+/// @generic.template symbol=Box parameters=(T)
 /// @type.symbol symbol=Box source="type Box<T> = { value: T }" type={ value: T }
 /// @definition.type symbol=Box source="type Box<T> = { value: T }" template=LocalGenericTemplateId(0) value={ value: T }
 /// @type.symbol symbol=Box.T source=T type=T
 /// @resolution.name source=T target=Box.T
 
 type Unbox<T> = T extends Box<infer U> ? U : never;
-/// @generic.template symbol=Unbox parameters=[T]
+/// @generic.template symbol=Unbox parameters=(T)
 /// @type.symbol symbol=Unbox source="type Unbox<T> = T extends Box<infer U> ? U : never" type=T extends Box<infer U> ? U : never
 /// @definition.type symbol=Unbox source="type Unbox<T> = T extends Box<infer U> ? U : never" template=LocalGenericTemplateId(1) value=T extends Box<infer U> ? U : never
 /// @type.symbol symbol=Unbox.T source=T type=T

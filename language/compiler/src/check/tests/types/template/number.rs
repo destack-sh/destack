@@ -179,7 +179,7 @@ value satisfies number;
 
 === checked ===
 declare function parse<T: number>(value: `${T}`): T;
-/// @generic.template symbol=parse parameters=[T: number]
+/// @generic.template symbol=parse parameters=(T: number)
 /// @type.symbol symbol=parse type=<T: number>(`${T}`) => T
 /// @type.symbol symbol=value type=`${T}`
 
@@ -191,7 +191,7 @@ const value = parse("1e3");
 
 value satisfies number;
 /// @resolution.name source=value target=value
-/// @generic.instance id=parse<number> symbol=parse arguments=[number]
+/// @generic.instance id=parse<number> template=parse arguments=(number)
 "#,
     );
 }
@@ -217,7 +217,7 @@ parse("128");
 
 === checked ===
 declare function parse<T: int8>(value: `${T}`): T;
-/// @generic.template symbol=parse parameters=[T: int8]
+/// @generic.template symbol=parse parameters=(T: int8)
 /// @type.symbol symbol=parse type=<T: int8>(`${T}`) => T
 /// @type.symbol symbol=value type=`${T}`
 
@@ -254,7 +254,7 @@ value satisfies -1n;
 
 === checked ===
 declare function parse<T: bigint>(value: `${T}`): T;
-/// @generic.template symbol=parse parameters=[T: bigint]
+/// @generic.template symbol=parse parameters=(T: bigint)
 /// @type.symbol symbol=parse type=<T: bigint>(`${T}`) => T
 /// @type.symbol symbol=value type=`${T}`
 
@@ -266,7 +266,7 @@ const value = parse("-1");
 
 value satisfies -1n;
 /// @resolution.name source=value target=value
-/// @generic.instance id="parse<-1n>" symbol=parse arguments=[-1n]
+/// @generic.instance id="parse<-1n>" template=parse arguments=(-1n)
 "#,
     );
 }

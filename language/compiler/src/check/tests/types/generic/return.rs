@@ -21,7 +21,7 @@ function capture<T>(value: T): { reactions: T[] } {
 
 === checked ===
 function capture<T>(value: T): { reactions: T[] } {
-/// @generic.template symbol=capture parameters=[T]
+/// @generic.template symbol=capture parameters=(T)
 /// @type.symbol symbol=value source=value type=T
 /// @type.symbol symbol=reactions source="reactions: T[]" type=Array<T>
 /// @resolution.name source=T target=T
@@ -83,7 +83,7 @@ function pending<T>(): State<T> {
 
 === checked ===
 interface Pending<T> {
-/// @generic.template symbol=Pending parameters=[T]
+/// @generic.template symbol=Pending parameters=(T)
 /// @type.symbol symbol=Pending type={ kind: "pending"; reactions: Array<T> }
 
     kind: "pending";
@@ -96,7 +96,7 @@ interface Pending<T> {
 }
 
 interface Done<T> {
-/// @generic.template symbol=Done parameters=[T]
+/// @generic.template symbol=Done parameters=(T)
 /// @type.symbol symbol=Done type={ kind: "done"; value: T }
 
     kind: "done";
@@ -109,7 +109,7 @@ interface Done<T> {
 }
 
 type State<T> = Pending<T> | Done<T>;
-/// @generic.template symbol=State parameters=[T]
+/// @generic.template symbol=State parameters=(T)
 /// @type.symbol symbol=State type=Pending<T> | Done<T>
 /// @resolution.name source=Pending target=Pending
 /// @generic.instance source=Pending<T> id=Pending<T>
@@ -119,7 +119,7 @@ type State<T> = Pending<T> | Done<T>;
 /// @resolution.name source=T target=T
 
 function pending<T>(): State<T> {
-/// @generic.template symbol=pending parameters=[T]
+/// @generic.template symbol=pending parameters=(T)
 /// @type.symbol symbol=pending type=() => Pending<T> | Done<T>
 /// @resolution.name source=State target=State
 /// @generic.instance source=State<T> id=State<T>
@@ -132,9 +132,9 @@ function pending<T>(): State<T> {
 
 }
 
-/// @generic.instance id=Done<T> symbol=Done arguments=[T]
-/// @generic.instance id=Pending<T> symbol=Pending arguments=[T]
-/// @generic.instance id=State<T> symbol=State arguments=[T]
+/// @generic.instance id=Done<T> template=Done arguments=(T)
+/// @generic.instance id=Pending<T> template=Pending arguments=(T)
+/// @generic.instance id=State<T> template=State arguments=(T)
 
 /// @check.stats.solve variables=2 terms=36 constraints=1 obligations=0 solutions=2 bounds=4 decisions=0
 "#,
