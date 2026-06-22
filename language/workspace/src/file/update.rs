@@ -1,3 +1,4 @@
+use destack_serde::Schema;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
@@ -7,13 +8,15 @@ use destack_session::Session;
 use destack_source::{
     ContentId, FileWatchEvent, FileWatchEventKind, TextChange, Uri, apply_text_changes,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{Error, diagnostics_by_file};
 use crate::file::FileUpdate;
-use crate::workspace::{Message, UpdateBatch, Workspace};
+use crate::protocol::{WatchBatch, WatchEventKind, WatchStatus};
+use crate::workspace::{LocalWorkspace, Message, ReloadReason, UpdateBatch};
 
 /// Workspace projection of one committed edit batch.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct Commit {
     /// Previous repository revision.
     pub before: Revision,
@@ -25,7 +28,7 @@ pub struct Commit {
     pub messages: Vec<Message>,
 }
 
-impl Workspace {
+impl LocalWorkspace {
     /// Open one file with its current content.
     pub fn open_file(
         &self,
@@ -153,6 +156,54 @@ impl Workspace {
         self.build_change_result(&session, commit.changes)
     }
 
+    /// Save text content from explicit content or host filesystem.
+    pub fn save_text_file(
+        &self,
+        path: &Path,
+        content: Option<String>,
+    ) -> Result<UpdateBatch, Error> {
+        let content = match content {
+            Some(content) => content,
+            None => self
+                .repository
+                .file_system()
+                .read_to_string(path)
+                .map_err(|source| Error::Io {
+                    path: path.to_path_buf(),
+                    source,
+                })?,
+        };
+
+        self.save_file(session::Edit::SetText {
+            path: path.to_path_buf(),
+            text: content,
+        })
+    }
+
+    /// Save binary content from explicit content or host filesystem.
+    pub fn save_bytes_file(
+        &self,
+        path: &Path,
+        content: Option<Vec<u8>>,
+    ) -> Result<UpdateBatch, Error> {
+        let content = match content {
+            Some(content) => content,
+            None => self
+                .repository
+                .file_system()
+                .read(path)
+                .map_err(|source| Error::Io {
+                    path: path.to_path_buf(),
+                    source,
+                })?,
+        };
+
+        self.save_file(session::Edit::SetBytes {
+            path: path.to_path_buf(),
+            bytes: content,
+        })
+    }
+
     /// Close one open file and restore filesystem backed source truth.
     pub fn close_file(&self, path: &Path) -> Result<UpdateBatch, Error> {
         // remove overlay state first so filesystem reads see disk truth
@@ -201,6 +252,13 @@ impl Workspace {
             .map_err(Error::from)?;
 
         self.build_change_result(&session, commit.changes)
+    }
+
+    /// Write one edit to the host filesystem and workspace.
+    pub fn write_file(&self, edit: session::Edit) -> Result<UpdateBatch, Error> {
+        self.write_update_to_disk(&edit)?;
+
+        self.apply_file(edit)
     }
 
     /// Apply atomic edits through the workspace.
@@ -254,6 +312,67 @@ impl Workspace {
 
         if require_reload {
             let reload = self.reload_all()?;
+            result.updates.extend(reload.updates);
+            result.messages.extend(reload.messages);
+        }
+
+        Ok(result)
+    }
+
+    /// Apply one complete watch batch through the workspace.
+    pub fn apply_watch_batch(&self, batch: &WatchBatch) -> Result<UpdateBatch, Error> {
+        let mut result = UpdateBatch::default();
+        let mut reload_roots = Vec::new();
+        let mut should_reload_all = false;
+
+        // collect status messages and requested reloads
+        for status in &batch.status {
+            match status {
+                WatchStatus::Error { message } => {
+                    result.messages.push(Message::warning(
+                        "watch_status_error",
+                        format!("watch: {message}"),
+                    ));
+                }
+                WatchStatus::ReloadRequested { roots, reason } => {
+                    if roots.is_empty() {
+                        should_reload_all = true;
+                    } else {
+                        reload_roots.extend(roots.iter().cloned());
+                    }
+                    result.messages.push(Message::info(
+                        "watch_reload_requested",
+                        watch_reload_requested_message(*reason),
+                    ));
+                }
+                WatchStatus::Ready { .. } | WatchStatus::Stopped => {}
+            }
+        }
+
+        // apply direct file events through the source update path
+        let events = batch.events.iter().map(FileWatchEvent::from).collect();
+        let event_result = self.apply_watch_events(events)?;
+        result.updates.extend(event_result.updates);
+        result.messages.extend(event_result.messages);
+
+        // overflow without an explicit overflow event still requires a reload
+        let has_overflow_event = batch
+            .events
+            .iter()
+            .any(|event| matches!(event.kind, WatchEventKind::Overflow));
+        if batch.overflowed && !has_overflow_event {
+            should_reload_all = true;
+        }
+
+        // apply requested reloads after precise events
+        let reload = if should_reload_all {
+            Some(self.reload_all()?)
+        } else if reload_roots.is_empty() {
+            None
+        } else {
+            Some(self.reload_roots(&reload_roots)?)
+        };
+        if let Some(reload) = reload {
             result.updates.extend(reload.updates);
             result.messages.extend(reload.messages);
         }
@@ -538,6 +657,78 @@ impl Workspace {
         }
 
         Ok(())
+    }
+
+    /// Write an edit to disk before applying it.
+    fn write_update_to_disk(&self, edit: &session::Edit) -> Result<(), Error> {
+        match edit {
+            session::Edit::SetText { path, text } => {
+                self.create_parent_directory(path)?;
+                self.repository
+                    .file_system()
+                    .write_string(path, text)
+                    .map_err(|source| Error::Io {
+                        path: path.to_path_buf(),
+                        source,
+                    })?;
+            }
+            session::Edit::SetBytes { path, bytes } => {
+                self.create_parent_directory(path)?;
+                self.repository
+                    .file_system()
+                    .write(path, bytes)
+                    .map_err(|source| Error::Io {
+                        path: path.to_path_buf(),
+                        source,
+                    })?;
+            }
+            session::Edit::Remove { path } => {
+                if let Err(source) = self.repository.file_system().remove_file(path)
+                    && source.kind() != ErrorKind::NotFound
+                {
+                    return Err(Error::Io {
+                        path: path.to_path_buf(),
+                        source,
+                    });
+                }
+            }
+            session::Edit::EditText { .. } => {
+                return Err(Error::InvalidEdit {
+                    detail: "text patch edits cannot be written directly to disk".to_string(),
+                });
+            }
+            session::Edit::Move { .. } => {
+                return Err(Error::InvalidEdit {
+                    detail: "move edits cannot be written directly to disk".to_string(),
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Create the parent directory for one file path.
+    fn create_parent_directory(&self, path: &Path) -> Result<(), Error> {
+        let Some(parent) = path.parent() else {
+            return Ok(());
+        };
+
+        self.repository
+            .file_system()
+            .create_dir_all(parent)
+            .map_err(|source| Error::Io {
+                path: parent.to_path_buf(),
+                source,
+            })
+    }
+}
+
+/// Return a user-facing message for one watch reload reason.
+fn watch_reload_requested_message(reason: ReloadReason) -> &'static str {
+    match reason {
+        ReloadReason::Overflow => "watch: filesystem reload requested after overflow",
+        ReloadReason::Manual => "watch: filesystem reload requested",
+        ReloadReason::Watch => "watch: filesystem reload requested after watch roots changed",
     }
 }
 

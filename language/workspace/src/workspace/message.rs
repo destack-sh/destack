@@ -1,7 +1,9 @@
 use crate::FileUpdate;
+use destack_serde::Schema;
+use serde::{Deserialize, Serialize};
 
 /// Message severity for one workspace operation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub enum MessageKind {
     /// Informational message.
     Info,
@@ -12,7 +14,7 @@ pub enum MessageKind {
 }
 
 /// Message payload emitted by one workspace operation.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct Message {
     /// Message severity.
     pub kind: MessageKind,
@@ -23,6 +25,15 @@ pub struct Message {
 }
 
 impl Message {
+    /// Build one informational message payload.
+    pub fn info(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            kind: MessageKind::Info,
+            code: code.into(),
+            message: message.into(),
+        }
+    }
+
     /// Build one warning message payload.
     pub fn warning(code: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
@@ -31,10 +42,19 @@ impl Message {
             message: message.into(),
         }
     }
+
+    /// Build one error message payload.
+    pub fn error(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            kind: MessageKind::Error,
+            code: code.into(),
+            message: message.into(),
+        }
+    }
 }
 
 /// Result of applying local workspace updates.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Schema)]
 pub struct UpdateBatch {
     /// Update records produced by the operation.
     pub updates: Vec<FileUpdate>,

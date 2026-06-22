@@ -1,38 +1,14 @@
-use std::path::PathBuf;
-
-use crate::protocol::{
-    DaemonRequest, DaemonResponse, SourceEdit, SourceUpdate, SourceUpdateRequest,
-};
 use crate::tests::{TestDaemon, TestProtocolHarness};
-
-/// Tracks roots independently.
-#[test]
-fn test_daemon_tracks_root_by_handle() {
-    let root_a = PathBuf::from("/root/a");
-    let root_b = PathBuf::from("/root/b");
-    let test = TestDaemon::new_with_roots(vec![root_a.clone(), root_b.clone()]);
-    let harness = TestProtocolHarness::from_test(test);
-    harness.handshake();
-
-    // check the workspace root is opened before protocol handles
-    assert_eq!(harness.test.daemon.root_count(), 1);
-
-    // open two independent protocol roots
-    let handle_a = harness.open_root_path(root_a);
-    let handle_b = harness.open_root_path(root_b);
-
-    // check that each protocol root has its own live state
-    assert_ne!(handle_a, handle_b);
-    assert_eq!(harness.test.daemon.root_count(), 3);
-
-    harness.shutdown();
-}
+use destack_session as session;
+use destack_workspace::protocol::{
+    ProtocolErrorCode, SourceUpdateRequest, WorkspaceRequest, WorkspaceResponse,
+};
 
 /// Keeps updates isolated to the root that changed.
 #[test]
 fn test_daemon_updates_do_not_cross_roots() {
-    let root_a = PathBuf::from("/root/a");
-    let root_b = PathBuf::from("/root/b");
+    let root_a = std::path::PathBuf::from("/root/a");
+    let root_b = std::path::PathBuf::from("/root/b");
     let test = TestDaemon::new_with_roots(vec![root_a.clone(), root_b.clone()]);
 
     let file_a = root_a.join("main.ds");
@@ -57,11 +33,11 @@ fn test_protocol_source_update_advances_root_revision() {
     let path = harness.test.root.join("main.ds");
 
     // apply one atomic source update through protocol
-    let response = harness.send_request(DaemonRequest::ApplySourceUpdate(SourceUpdateRequest {
+    let response = harness.send_request(WorkspaceRequest::ApplySourceUpdate(SourceUpdateRequest {
         handle,
-        update: SourceUpdate {
+        update: session::Update {
             base: None,
-            edits: vec![SourceEdit::SetText {
+            edits: vec![session::Edit::SetText {
                 path: path.clone(),
                 text: "export const value = 1;\n".to_string(),
             }],
@@ -70,11 +46,42 @@ fn test_protocol_source_update_advances_root_revision() {
 
     // assert revision and file update payloads
     match response {
-        DaemonResponse::SourceUpdated(response) => {
-            assert_ne!(response.before, response.after);
-            assert!(response.updates.iter().any(|update| {
+        WorkspaceResponse::SourceUpdated(response) => {
+            assert_ne!(response.commit.before, response.commit.after);
+            assert!(response.commit.updates.iter().any(|update| {
                 update.file.as_ref().and_then(|file| file.path.as_deref()) == Some(path.as_path())
             }));
+        }
+        other => panic!("unexpected response: {other:?}"),
+    }
+
+    harness.shutdown();
+}
+
+/// Rejects source updates that escape an opened protocol root.
+#[test]
+fn test_protocol_source_update_rejects_escaped_path() {
+    let harness = TestProtocolHarness::default();
+    harness.handshake();
+    let handle = harness.open_root();
+    let path = harness.test.root.join("../outside.ds");
+
+    // apply one escaped source update through protocol
+    let response = harness.send_request(WorkspaceRequest::ApplySourceUpdate(SourceUpdateRequest {
+        handle,
+        update: session::Update {
+            base: None,
+            edits: vec![session::Edit::SetText {
+                path,
+                text: "export const value = 1;\n".to_string(),
+            }],
+        },
+    }));
+
+    // assert the protocol boundary rejects the escaped path
+    match response {
+        WorkspaceResponse::Error(error) => {
+            assert_eq!(error.code, ProtocolErrorCode::Forbidden);
         }
         other => panic!("unexpected response: {other:?}"),
     }

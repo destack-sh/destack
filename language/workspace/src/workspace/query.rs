@@ -3,12 +3,14 @@ use std::path::Path;
 use destack_artifact::ArtifactKey;
 use destack_query as query;
 use destack_repository::{Repository, Revision};
+use destack_serde::Schema;
 use destack_session::Session;
 use destack_source::ProfileId;
+use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{Error, diagnostics_by_file};
 
-use super::{Snapshot, Workspace};
+use super::{LocalWorkspace, Snapshot};
 
 /// Result of executing one query.
 #[derive(Debug, Clone, PartialEq)]
@@ -17,6 +19,15 @@ pub struct QueryResult {
     pub revision: Revision,
     /// The query response payload.
     pub response: query::QueryResponse,
+}
+
+/// Request to run one semantic query.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+pub struct QueryRequest {
+    /// Expected revision for this query.
+    pub expected_revision: Option<Revision>,
+    /// Query request payload.
+    pub request: query::QueryRequest,
 }
 
 /// Revision selection policy for one query.
@@ -30,7 +41,7 @@ pub enum RevisionPolicy {
     Current(Revision),
 }
 
-impl Workspace {
+impl LocalWorkspace {
     /// Run one query for the root that owns a path.
     pub fn query(
         &self,

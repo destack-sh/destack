@@ -1,0 +1,34 @@
+use destack_artifact::ArtifactReference;
+use destack_serde::Schema;
+use destack_source::ContentId;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+
+/// Request to materialize derived outputs on the workspace host.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+pub struct ExportRequest {
+    /// Artifact to export.
+    pub artifact: ArtifactReference,
+    /// Output directory on the workspace host.
+    pub directory: PathBuf,
+    /// Whether existing files may be overwritten.
+    pub overwrite: bool,
+}
+
+/// Result of materializing derived outputs.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub struct ExportResult {
+    /// Files written on the workspace host.
+    pub files: Vec<ExportedFile>,
+}
+
+/// One file written by export.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub struct ExportedFile {
+    /// Path written on the workspace host.
+    pub path: PathBuf,
+    /// Content written to the path.
+    pub content: ContentId,
+    /// Number of bytes written.
+    pub size_bytes: u64,
+}

@@ -2,12 +2,13 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_repository::{DestackLayoutOverride, Environment, Settings};
+use destack_session as session;
 use destack_session::open_repository_from_fs;
 use destack_source::{
     FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri,
 };
 
-use crate::{Edit, UpdateBatch, Workspace};
+use crate::{LocalWorkspace, UpdateBatch};
 
 /// Test harness for workspace integration tests.
 #[derive(Debug)]
@@ -15,7 +16,7 @@ pub(super) struct TestWorkspace {
     /// Temporary filesystem root.
     pub fs: TemporaryPhysicalFileSystem,
     /// Workspace under test.
-    pub workspace: Workspace,
+    pub workspace: LocalWorkspace,
     /// Workspace roots registered in the workspace.
     pub roots: Vec<PathBuf>,
 }
@@ -47,8 +48,15 @@ impl TestWorkspace {
             )
             .expect("failed to import repository from overlay fs"),
         );
-        let workspace = Workspace::new(repository.clone(), Some(overlay), roots.clone(), 1, None)
-            .expect("expected workspace");
+        let workspace = LocalWorkspace::new(
+            repository.clone(),
+            Some(overlay),
+            None,
+            roots.clone(),
+            1,
+            None,
+        )
+        .expect("expected workspace");
 
         Self {
             fs,
@@ -88,7 +96,7 @@ impl TestWorkspace {
     /// Apply a text source update for a path.
     pub(super) fn apply_text(&self, path: &Path, source: &str) -> UpdateBatch {
         self.workspace
-            .apply_file(Edit::SetText {
+            .apply_file(session::Edit::SetText {
                 path: path.to_path_buf(),
                 text: source.to_string(),
             })
