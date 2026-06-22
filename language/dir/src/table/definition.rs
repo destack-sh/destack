@@ -687,4 +687,17 @@ impl Definition {
             Self::TypeAlias(_) | Self::Newtype(_) => SmallVec::new(),
         }
     }
+
+    /// Return the base declarations whose members are inherited.
+    pub fn bases(&self) -> SmallVec<[&NominalHeritage; 2]> {
+        match self {
+            Self::Class(definition) => definition.extends.iter().collect(),
+            Self::Interface(definition) => definition.extends.iter().collect(),
+            Self::Struct(_)
+            | Self::Enum(_)
+            | Self::Extension(_)
+            | Self::TypeAlias(_)
+            | Self::Newtype(_) => SmallVec::new(),
+        }
+    }
 }
