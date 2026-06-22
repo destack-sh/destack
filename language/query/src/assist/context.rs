@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_qir::SymbolUse;
 use destack_source::{EnclosingSpan, ModuleId};
 
 use crate::core::{DirQueryContext, ModuleQueryContext};
@@ -85,8 +86,8 @@ pub(crate) enum CompletionContext {
         target_module: Option<ModuleId>,
         /// Names already present in the import clause.
         existing_names: Vec<String>,
-        /// Optional namespace filter for the clause.
-        space_filter: Option<dir::SymbolSpace>,
+        /// Optional use filter for the clause.
+        use_filter: Option<SymbolUse>,
     },
     /// Explicitly suppressed completion context.
     Suppressed,

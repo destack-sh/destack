@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use destack_dir as dir;
+use destack_qir::SymbolUse;
 use destack_source::{ModuleId, Span};
 
 use crate::core::DirQueryContext;
@@ -59,7 +60,7 @@ impl DirQueryContext<'_> {
                 return Some(CompletionContext::ImportClause {
                     target_module,
                     existing_names: context.existing_names,
-                    space_filter: context.space_filter,
+                    use_filter: context.use_filter,
                 });
             }
         }
@@ -110,8 +111,8 @@ impl DirQueryContext<'_> {
 struct ImportClauseContext {
     /// Existing names in the clause.
     existing_names: Vec<String>,
-    /// Optional symbol space filter.
-    space_filter: Option<dir::SymbolSpace>,
+    /// Optional symbol use filter.
+    use_filter: Option<SymbolUse>,
 }
 
 impl DirQueryContext<'_> {
@@ -138,9 +139,9 @@ impl DirQueryContext<'_> {
         // detect cursor inside the clause braces
         let cursor_in_clause = offset >= open_brace.end && offset <= end_boundary.start;
 
-        // collect existing names and detect item space under the cursor
+        // collect existing names and detect item form under the cursor
         let mut existing_names = Vec::new();
-        let mut in_item_space = None;
+        let mut in_item_form = None;
 
         for item_id in items {
             let item = self.tree().get(*item_id);
@@ -154,7 +155,7 @@ impl DirQueryContext<'_> {
             };
 
             if span.contains(offset) {
-                in_item_space = item_space;
+                in_item_form = item_space;
                 continue;
             }
 
@@ -167,7 +168,7 @@ impl DirQueryContext<'_> {
             }
         }
 
-        if !cursor_in_clause && in_item_space.is_none() {
+        if !cursor_in_clause && in_item_form.is_none() {
             return None;
         }
 
@@ -186,12 +187,12 @@ impl DirQueryContext<'_> {
             false
         };
 
-        let space_filter = match form {
-            dir::DependencyForm::Type => Some(dir::SymbolSpace::Type),
-            dir::DependencyForm::Plain => match in_item_space {
-                Some(dir::DependencyForm::Type) => Some(dir::SymbolSpace::Type),
-                Some(dir::DependencyForm::Plain) => Some(dir::SymbolSpace::Value),
-                None if cursor_is_type => Some(dir::SymbolSpace::Type),
+        let use_filter = match form {
+            dir::DependencyForm::Type => Some(SymbolUse::Type),
+            dir::DependencyForm::Plain => match in_item_form {
+                Some(dir::DependencyForm::Type) => Some(SymbolUse::Type),
+                Some(dir::DependencyForm::Plain) => Some(SymbolUse::Value),
+                None if cursor_is_type => Some(SymbolUse::Type),
                 None => None,
             },
         };
@@ -201,7 +202,7 @@ impl DirQueryContext<'_> {
 
         Some(ImportClauseContext {
             existing_names,
-            space_filter,
+            use_filter,
         })
     }
 }

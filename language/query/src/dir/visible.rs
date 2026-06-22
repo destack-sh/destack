@@ -1,6 +1,7 @@
 use destack_dir as dir;
+use destack_qir::SymbolUse;
 
-use super::matches_symbol_space_filter;
+use super::symbol_matches_use;
 
 /// Information about a visible symbol.
 #[derive(Debug, Clone)]
@@ -22,18 +23,18 @@ pub(crate) struct VisibleSymbol<'a> {
 /// * `symbols` - The symbol table
 /// * `scope_id` - Starting scope id
 /// * `mark` - Scope mark (position within the scope)
-/// * `space_filter` - Optional filter for symbol space.
+/// * `use_filter` - Optional filter for symbol use.
 pub(crate) fn visible_symbols<'a>(
     symbols: &'a dir::BindingTable<'a>,
     scope_id: dir::LocalScopeId,
     mark: dir::LocalScopeMark,
-    space_filter: Option<dir::SymbolSpace>,
+    use_filter: Option<SymbolUse>,
 ) -> impl Iterator<Item = VisibleSymbol<'a>> + 'a {
     VisibleSymbolIterator {
         symbols,
         current_scope_id: Some(scope_id),
         current_mark: mark,
-        space_filter,
+        use_filter,
         seen_index: 0,
     }
 }
@@ -43,7 +44,7 @@ struct VisibleSymbolIterator<'a> {
     symbols: &'a dir::BindingTable<'a>,
     current_scope_id: Option<dir::LocalScopeId>,
     current_mark: dir::LocalScopeMark,
-    space_filter: Option<dir::SymbolSpace>,
+    use_filter: Option<SymbolUse>,
     seen_index: usize,
 }
 
@@ -55,12 +56,13 @@ impl<'a> Iterator for VisibleSymbolIterator<'a> {
             let scope_id = self.current_scope_id?;
             let scope = self.symbols.get_scope_by_id(scope_id);
 
-            // get named bindings up to the mark
+            // scan the current scope bindings
             let limit = self.current_mark.0 as usize;
-            let bindings = &scope.bindings[..limit.min(scope.bindings.len())];
+            let bindings = &scope.bindings;
 
             // try to find next valid symbol in current scope
             while self.seen_index < bindings.len() {
+                let index = self.seen_index;
                 let binding = bindings[self.seen_index];
                 self.seen_index += 1;
                 let Some(key) = binding.key else {
@@ -70,9 +72,14 @@ impl<'a> Iterator for VisibleSymbolIterator<'a> {
 
                 let symbol = self.symbols.get_symbol(symbol_id);
 
-                // filter by space if requested
-                if let Some(space) = self.space_filter {
-                    let matches = matches_symbol_space_filter(symbol.kind, Some(space));
+                // skip forward bindings after the cursor
+                if symbol.visibility == dir::SymbolVisibility::Forward && index >= limit {
+                    continue;
+                }
+
+                // filter by use if requested
+                if let Some(symbol_use) = self.use_filter {
+                    let matches = symbol_matches_use(symbol.kind, Some(symbol_use));
                     if !matches {
                         continue;
                     }

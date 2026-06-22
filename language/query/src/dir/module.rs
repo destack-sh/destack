@@ -15,8 +15,6 @@ pub(crate) struct ExportedSymbol {
     pub name: String,
     /// The kind of symbol.
     pub kind: dir::SymbolKind,
-    /// The export lookup space.
-    pub space: dir::SymbolSpace,
     /// The module that exports this symbol.
     pub module_id: ModuleId,
     /// The local symbol id within the module.
@@ -55,7 +53,6 @@ impl ModuleQueryContext<'_> {
             .map(|export| ImportEntry {
                 name: export.name,
                 kind: export.kind,
-                space: export.space,
                 module_id: export.module_id,
                 local_id: export.local_id,
                 module_path: export.module_path,
@@ -91,7 +88,6 @@ impl ModuleQueryContext<'_> {
             exports.push(ExportedSymbol {
                 name,
                 kind,
-                space: kind.symbol_space(),
                 module_id,
                 local_id: target_symbol.local_id,
                 module_path: module_path.clone(),
@@ -163,7 +159,6 @@ impl WorkspaceQueryContext<'_> {
         exports.extend(entries.into_iter().map(|entry| ExportedSymbol {
             name: entry.name,
             kind: entry.kind,
-            space: entry.space,
             module_id: entry.module_id,
             local_id: entry.local_id,
             module_path: entry.module_path,

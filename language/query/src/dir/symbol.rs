@@ -4,8 +4,9 @@ use std::collections::HashSet;
 use destack_core::StringPool;
 use destack_source::{ModuleId, Span};
 
-use super::{container_name_for_node, declaration_display_name, matches_symbol_space_filter};
+use super::{container_name_for_node, declaration_display_name, symbol_matches_use};
 use crate::core::{DirQueryContext, ModuleQueryContext, Name, SymbolEntry, SymbolEntryKind};
+use destack_qir::SymbolUse;
 
 /// Build a global symbol id from a module and local symbol id.
 pub(crate) fn global_symbol(
@@ -175,7 +176,7 @@ impl ModuleQueryContext<'_> {
             let symbols = self.dir().symbols();
             let symbol = symbols.get_symbol(symbol_id.local_id);
             (
-                matches_symbol_space_filter(symbol.kind, Some(dir::SymbolSpace::Type)),
+                symbol_matches_use(symbol.kind, Some(SymbolUse::Type)),
                 symbol.declaration,
             )
         };
