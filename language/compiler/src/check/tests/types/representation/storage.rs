@@ -237,7 +237,7 @@ interface PointLike {
 }
 
 struct Rectangle {
-/// @generic.template symbol=Rectangle parameters=[T0: PointLike, T1: PointLike]
+/// @generic.template symbol=Rectangle parameters=(T0: PointLike, T1: PointLike)
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle template=LocalGenericTemplateId(0)
 /// @definition.field symbol=Rectangle.start source="start: PointLike" type=T0
@@ -305,7 +305,7 @@ rectangle.end satisfies Offset;
 /// @resolution.name source=rectangle target=rectangle
 /// @resolution.member source=rectangle.end receiver=Rectangle<Point, Offset> kind=symbol target=Rectangle.end instance="Rectangle<Point, Offset>"
 /// @resolution.name source=Offset target=Offset
-/// @generic.instance id="Rectangle<Point, Offset>" symbol=Rectangle arguments=[Point, Offset]
+/// @generic.instance id="Rectangle<Point, Offset>" template=Rectangle arguments=(Point, Offset)
 "#,
     );
 }

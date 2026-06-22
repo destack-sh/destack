@@ -43,7 +43,7 @@ type Bag = { readonly [key: string]: int32 };
 /// @definition.type symbol=Bag source="type Bag = { readonly [key: string]: int32 }" value={ readonly [key: string]: int32 }
 
 function read(bag: Bag): int32 | undefined {
-/// @generic.template symbol=read parameters=[T0: Bag]
+/// @generic.template symbol=read parameters=(T0: Bag)
 /// @type.symbol symbol=read type=<read.T0: Bag>(read.T0) => int32 | undefined
 /// @type.symbol symbol=bag type=read.T0
 /// @resolution.name source=Bag target=Bag
@@ -78,7 +78,7 @@ const x = read(point);
 
 x satisfies int32 | undefined;
 /// @resolution.name source=x target=x
-/// @generic.instance id="read<{ x: int32; y: int32 }>" symbol=read arguments=[{ x: int32; y: int32 }]
+/// @generic.instance id="read<{ x: int32; y: int32 }>" template=read arguments=({ x: int32; y: int32 })
 "#,
     );
 }
@@ -114,7 +114,7 @@ type Bag = { readonly [key: string]: int32 };
 /// @definition.type symbol=Bag source="type Bag = { readonly [key: string]: int32 }" value={ readonly [key: string]: int32 }
 
 declare function read(bag: Bag): int32 | undefined;
-/// @generic.template symbol=read parameters=[T0: Bag]
+/// @generic.template symbol=read parameters=(T0: Bag)
 /// @type.symbol symbol=read type=<read.T0: Bag>(read.T0) => int32 | undefined
 /// @type.symbol symbol=bag type=read.T0
 /// @resolution.name source=Bag target=Bag
@@ -206,7 +206,7 @@ type Bag = { [key: string]: int32 };
 /// @definition.type symbol=Bag source="type Bag = { [key: string]: int32 }" value={ [key: string]: int32 }
 
 declare function write(bag: Bag): int32 | undefined;
-/// @generic.template symbol=write parameters=[T0: Bag]
+/// @generic.template symbol=write parameters=(T0: Bag)
 /// @type.symbol symbol=write type=<write.T0: Bag>(write.T0) => int32 | undefined
 /// @type.symbol symbol=bag type=write.T0
 /// @resolution.name source=Bag target=Bag
@@ -267,7 +267,7 @@ type Bag = { [key: string]: int32 };
 /// @definition.type symbol=Bag source="type Bag = { [key: string]: int32 }" value={ [key: string]: int32 }
 
 function write(bag: Bag): int32 | undefined {
-/// @generic.template symbol=write parameters=[T0: Bag]
+/// @generic.template symbol=write parameters=(T0: Bag)
 /// @type.symbol symbol=write type=<write.T0: Bag>(write.T0) => int32 | undefined
 /// @type.symbol symbol=bag type=write.T0
 /// @resolution.name source=Bag target=Bag
@@ -295,7 +295,7 @@ const value = write(map);
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
-/// @generic.instance id=write<Map<string, int32>> symbol=write arguments=[Map<string, int32>]
+/// @generic.instance id=write<Map<string, int32>> template=write arguments=(Map<string, int32>)
 "#,
     );
 }
@@ -419,7 +419,7 @@ declare let store: Store;
 /// @resolution.name source=Store target=Store
 
 declare function write(bag: Bag): int32 | undefined;
-/// @generic.template symbol=write parameters=[T0: Bag]
+/// @generic.template symbol=write parameters=(T0: Bag)
 /// @type.symbol symbol=write type=<write.T0: Bag>(write.T0) => int32 | undefined
 /// @type.symbol symbol=bag type=write.T0
 /// @resolution.name source=Bag target=Bag
@@ -433,7 +433,7 @@ const value = write(store);
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
-/// @generic.instance id=write<Store> symbol=write arguments=[Store]
+/// @generic.instance id=write<Store> template=write arguments=(Store)
 "#,
     );
 }
@@ -470,7 +470,7 @@ type Bag = Record<string, int32>;
 /// @resolution.name source=Record target=types.object.Record
 
 declare function read(bag: Bag): int32 | undefined;
-/// @generic.template symbol=read parameters=[T0: Bag]
+/// @generic.template symbol=read parameters=(T0: Bag)
 /// @type.symbol symbol=read type=<read.T0: Bag>(read.T0) => int32 | undefined
 /// @type.symbol symbol=bag type=read.T0
 /// @resolution.name source=Bag target=Bag

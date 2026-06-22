@@ -25,7 +25,7 @@ segment satisfies "users";
 
 === checked ===
 declare function parse<T: string>(value: `id:${T}`): T;
-/// @generic.template symbol=parse parameters=[T: string]
+/// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse type=<T: string>(`id:${T}`) => T
 /// @type.symbol symbol=value type=`id:${T}`
 
@@ -37,7 +37,7 @@ const segment = parse("id:users");
 
 segment satisfies "users";
 /// @resolution.name source=segment target=segment
-/// @generic.instance id="parse<\"users\">" symbol=parse arguments=["users"]
+/// @generic.instance id="parse<\"users\">" template=parse arguments=("users")
 "#,
     );
 }
@@ -67,7 +67,7 @@ key satisfies "id:users";
 
 === checked ===
 declare function build<T: string>(value: T): `id:${T}`;
-/// @generic.template symbol=build parameters=[T: string]
+/// @generic.template symbol=build parameters=(T: string)
 /// @type.symbol symbol=build type=<T: string>(T) => `id:${T}`
 /// @type.symbol symbol=value type=T
 
@@ -79,7 +79,7 @@ const key = build("users");
 
 key satisfies "id:users";
 /// @resolution.name source=key target=key
-/// @generic.instance id="build<\"users\">" symbol=build arguments=["users"]
+/// @generic.instance id="build<\"users\">" template=build arguments=("users")
 "#,
     );
 }
@@ -113,7 +113,7 @@ text satisfies string;
 
 === checked ===
 declare function identity<T: string>(value: `${T}`): T;
-/// @generic.template symbol=identity parameters=[T: string]
+/// @generic.template symbol=identity parameters=(T: string)
 /// @type.symbol symbol=identity type=<T: string>(`${T}`) => T
 /// @type.symbol symbol=value type=`${T}`
 
@@ -129,7 +129,7 @@ const text = identity(value);
 
 text satisfies string;
 /// @resolution.name source=text target=text
-/// @generic.instance id=identity<string> symbol=identity arguments=[string]
+/// @generic.instance id=identity<string> template=identity arguments=(string)
 "#,
     );
 }
@@ -159,7 +159,7 @@ parse(key);
 
 === checked ===
 declare function parse<T: string>(value: `id:${T}`): T;
-/// @generic.template symbol=parse parameters=[T: string]
+/// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse type=<T: string>(`id:${T}`) => T
 /// @type.symbol symbol=value type=`id:${T}`
 
@@ -202,7 +202,7 @@ segment satisfies "";
 
 === checked ===
 declare function parse<T: string>(value: `id:${T}`): T;
-/// @generic.template symbol=parse parameters=[T: string]
+/// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse type=<T: string>(`id:${T}`) => T
 /// @type.symbol symbol=value type=`id:${T}`
 
@@ -214,7 +214,7 @@ const segment = parse("id:");
 
 segment satisfies "";
 /// @resolution.name source=segment target=segment
-/// @generic.instance id="parse<\"\">" symbol=parse arguments=[""]
+/// @generic.instance id="parse<\"\">" template=parse arguments=("")
 "#,
     );
 }
@@ -244,7 +244,7 @@ value satisfies 42;
 
 === checked ===
 declare function parse<T: number>(value: `${T}`): T;
-/// @generic.template symbol=parse parameters=[T: number]
+/// @generic.template symbol=parse parameters=(T: number)
 /// @type.symbol symbol=parse type=<T: number>(`${T}`) => T
 /// @type.symbol symbol=value type=`${T}`
 
@@ -256,7 +256,7 @@ const value = parse("42");
 
 value satisfies 42;
 /// @resolution.name source=value target=value
-/// @generic.instance id=parse<42> symbol=parse arguments=[42]
+/// @generic.instance id=parse<42> template=parse arguments=(42)
 "#,
     );
 }
@@ -282,7 +282,7 @@ parse("no");
 
 === checked ===
 declare function parse<T: number>(value: `${T}`): T;
-/// @generic.template symbol=parse parameters=[T: number]
+/// @generic.template symbol=parse parameters=(T: number)
 /// @type.symbol symbol=parse type=<T: number>(`${T}`) => T
 /// @type.symbol symbol=value type=`${T}`
 

@@ -40,7 +40,7 @@ class Box<T> {
 
 === checked ===
 class Box<T> {
-/// @generic.template source=declaration parameters=[T]
+/// @generic.template source=declaration parameters=(T)
 /// @type.symbol symbol=Box type=Box<T>
 /// @definition.field symbol=Box.value source="value: T" key=value type=T
 /// @definition.class symbol=Box template=LocalGenericTemplateId(0)
@@ -53,7 +53,7 @@ class Box<T> {
     /// @resolution.name source=T target=Box.T
 
     get(&readonly this): T {
-    /// @generic.template source=member parent=Box parameters=[comptime L0: memory.lifetime.Lifetime origin=induced.form]
+    /// @generic.template source=member parent=Box parameters=(comptime L0: memory.lifetime.Lifetime origin=induced.form)
     /// @type.symbol symbol=Box.get type=<T>(this: Borrowed<Box<T>, member.L0, "readonly">) => T
     /// @type.symbol symbol=this#1 source="&readonly this" type=Borrowed<Box<T>, member.L0, "readonly">
     /// @resolution.name source=T target=Box.T
@@ -67,7 +67,7 @@ class Box<T> {
     }
 
     readFrom(&exclusive this, source: &readonly Box<T>): T {
-    /// @generic.template source=member parent=Box parameters=[comptime L0: memory.lifetime.Lifetime origin=induced.form, comptime L1: memory.lifetime.Lifetime origin=induced.form]
+    /// @generic.template source=member parent=Box parameters=(comptime L0: memory.lifetime.Lifetime origin=induced.form, comptime L1: memory.lifetime.Lifetime origin=induced.form)
     /// @type.symbol symbol=Box.readFrom type=<T>(this: Borrowed<Box<T>, member.L0, "exclusive">, Borrowed<Box<T>, member.L1, "readonly">) => T
     /// @type.symbol symbol=this#2 source="&exclusive this" type=Borrowed<Box<T>, member.L0, "exclusive">
     /// @type.symbol symbol=source source="source: &readonly Box<T>" type=Borrowed<Box<T>, member.L1, "readonly">
@@ -87,7 +87,7 @@ class Box<T> {
     }
 }
 
-/// @generic.instance id=member<member.L1> template=member arguments=[member.L1]
+/// @generic.instance id=member<member.L1> template=member arguments=(member.L1)
 "#,
     );
 }

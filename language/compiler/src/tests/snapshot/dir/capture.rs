@@ -25,12 +25,18 @@ impl SnapshotTable for dir::CaptureSegment {
 
                 format!("{symbol}: {ty}")
             });
+            let fields = fields.collect::<Vec<_>>().join(", ");
+            let fields = if fields.is_empty() {
+                "{}".to_string()
+            } else {
+                format!("{{ {fields} }}")
+            };
 
             let row = SnapshotRow::new(anchor, "capture", "frame")
                 .field("frame", builder.capture_frame_label(frame_id))
                 .field("scope", builder.global_scope_label(frame.scope))
                 .type_field("type", builder.global_type_label(frame.ty))
-                .list_field("fields", fields);
+                .object_field("fields", fields);
             builder.push(row);
             frame_field_count += frame.fields.len();
         }
@@ -44,7 +50,7 @@ impl SnapshotTable for dir::CaptureSegment {
             let row = SnapshotRow::new(anchor, "capture", "function")
                 .field("function", builder.symbol_path_label(*symbol_id))
                 .field("bindings", capture.captures.len().to_string())
-                .optional_list_field("frames", frames);
+                .optional_tuple_field("frames", frames);
             builder.push(row);
 
             // render explicit binding captures

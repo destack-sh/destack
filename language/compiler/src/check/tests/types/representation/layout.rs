@@ -112,7 +112,7 @@ struct Header {
 }
 
 declare function length<T, comptime N: usize>(values: [T; N]): N;
-/// @generic.template symbol=length parameters=[T, comptime N: usize]
+/// @generic.template symbol=length parameters=(T, comptime N: usize)
 /// @type.symbol symbol=length type=<T, comptime N: usize>([T; N]) => N
 /// @type.symbol symbol=values type=[T; N]
 
@@ -132,7 +132,7 @@ bytesLength satisfies sizeOf<Header>();
 /// @resolution.name source=bytesLength target=bytesLength
 /// @resolution.name source=Header target=Header
 /// @static.node source=sizeOf<Header>() value=8
-/// @generic.instance id="length<uint8, 8>" symbol=length arguments=[uint8, 8]
+/// @generic.instance id="length<uint8, 8>" template=length arguments=(uint8, 8)
 "#,
     );
 }
@@ -185,7 +185,7 @@ struct Header {
 }
 
 type Slots<T: Concrete, comptime N: usize = strideOf<T>()> = [uint8; N];
-/// @generic.template symbol=Slots parameters=[T: Concrete, comptime N: usize = strideOf<T>()]
+/// @generic.template symbol=Slots parameters=(T: Concrete, comptime N: usize = strideOf<T>())
 /// @type.symbol symbol=Slots source="type Slots<T: Concrete, comptime N: usize = strideOf<T>()> = [uint8; N]" type=[uint8; N]
 /// @definition.type symbol=Slots source="type Slots<T: Concrete, comptime N: usize = strideOf<T>()> = [uint8; N]" template=LocalGenericTemplateId(0) value=[uint8; N]
 /// @type.symbol symbol=Slots.T source=T type=T
@@ -205,7 +205,7 @@ slots satisfies [uint8; strideOf<Header>()];
 /// @resolution.name source=slots target=slots
 /// @resolution.name source=Header target=Header
 /// @static.node source=strideOf<Header>() value=8
-/// @generic.instance id="Slots<Header, 8>" symbol=Slots arguments=[Header, 8]
+/// @generic.instance id="Slots<Header, 8>" template=Slots arguments=(Header, 8)
 "#,
     );
 }

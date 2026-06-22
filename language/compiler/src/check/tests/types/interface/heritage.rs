@@ -173,7 +173,7 @@ interface Both extends Left, Right {}
 
 === checked ===
 interface Base<T> {
-/// @generic.template symbol=Base parameters=[T]
+/// @generic.template symbol=Base parameters=(T)
 /// @type.symbol symbol=Base type=Base<T>
 /// @definition.interface symbol=Base template=LocalGenericTemplateId(0)
 /// @definition.method symbol=Base.value source="value(): T" slot=value type=<T>(this: Base<T>) => T
@@ -188,13 +188,13 @@ interface Base<T> {
 interface Left extends Base<string> {}
 /// @type.symbol symbol=Left source="interface Left extends Base<string> {}" type=Left
 /// @definition.interface symbol=Left source="interface Left extends Base<string> {}"
-/// @definition.extends symbol=Left source=Base<string> target=Base arguments=string
+/// @definition.extends symbol=Left source=Base<string> target=Base arguments=(string)
 /// @resolution.name source=Base target=Base
 
 interface Right extends Base<int32> {}
 /// @type.symbol symbol=Right source="interface Right extends Base<int32> {}" type=Right
 /// @definition.interface symbol=Right source="interface Right extends Base<int32> {}"
-/// @definition.extends symbol=Right source=Base<int32> target=Base arguments=int32
+/// @definition.extends symbol=Right source=Base<int32> target=Base arguments=(int32)
 /// @resolution.name source=Base target=Base
 
 interface Both extends Left, Right {}

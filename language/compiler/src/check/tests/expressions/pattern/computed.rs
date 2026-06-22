@@ -186,7 +186,7 @@ type User = {
 };
 
 function get<K: keyof User>(user: User, key: K): User[K] {
-/// @generic.template symbol=get parameters=[T0: User, K: keyof User]
+/// @generic.template symbol=get parameters=(T0: User, K: keyof User)
 /// @type.symbol symbol=get type=<get.T0: User, K: keyof User>(get.T0, K) => User[K]
 /// @type.symbol symbol=user type=get.T0
 /// @type.symbol symbol=key type=K

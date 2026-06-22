@@ -27,7 +27,7 @@ declare const value: Box<string>.Item;
 
 === checked ===
 struct Box<T> {
-/// @generic.template symbol=Box parameters=[T]
+/// @generic.template symbol=Box parameters=(T)
 /// @type.symbol symbol=Box type=Box<T>
 
     type Item = T;
@@ -43,7 +43,7 @@ declare const value: Box<string>.Item;
 /// @generic.instance source="Box<string>" id=Box<string>
 /// @type.symbol symbol=value type=string
 
-/// @generic.instance id=Box<string> symbol=Box arguments=[string]
+/// @generic.instance id=Box<string> template=Box arguments=(string)
 "#,
     );
 }
@@ -136,7 +136,7 @@ interface Iterator {
 }
 
 function nextByte<I: Iterator<type Item = uint8>>(iter: I): Option<uint8> {
-/// @generic.template symbol=nextByte parameters=[I: Iterator<type Item = uint8>]
+/// @generic.template symbol=nextByte parameters=(I: Iterator<type Item = uint8>)
 /// @type.symbol symbol=nextByte type=<I: Iterator<type Item = uint8>>(I) => Option<uint8>
 /// @resolution.name source=Iterator target=Iterator
 /// @resolution.name source=Option target=option.Option
@@ -196,7 +196,7 @@ interface Iterator {
 }
 
 function nextDefault<I: Iterator>(iter: I): Option<uint8> {
-/// @generic.template symbol=nextDefault parameters=[I: Iterator]
+/// @generic.template symbol=nextDefault parameters=(I: Iterator)
 /// @type.symbol symbol=nextDefault type=<I: Iterator>(I) => Option<uint8>
 /// @resolution.name source=Iterator target=Iterator
 /// @resolution.name source=Option target=option.Option

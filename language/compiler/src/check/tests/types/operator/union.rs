@@ -305,7 +305,7 @@ type Shape = Rectangle | Circle;
 /// @resolution.name source=Circle target=Circle
 
 function draw(shape: Shape): void {
-/// @generic.template symbol=draw parameters=[T0: Shape]
+/// @generic.template symbol=draw parameters=(T0: Shape)
 /// @type.symbol symbol=draw type=<draw.T0: Shape>(draw.T0) => void
 /// @type.symbol symbol=shape source="shape: Shape" type=draw.T0
 /// @resolution.name source=Shape target=Shape

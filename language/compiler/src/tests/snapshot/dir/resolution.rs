@@ -310,7 +310,7 @@ fn add_pattern_resolution_row(
                 range.end.map(|value| builder.scalar_literal_label(&value)),
             )
             .field("bound", DirSnapshotBuilder::variant_label(range.end_bound)),
-        dir::PatternResolution::Tuple(tuple) => row.list_field(
+        dir::PatternResolution::Tuple(tuple) => row.tuple_field(
             "fields",
             pattern_positional_field_labels(builder, segment, &tuple.fields),
         ),
@@ -437,7 +437,7 @@ fn add_assign_pattern_resolution_row(
             )
             .field("value", builder.node_label(default.value)),
         dir::AssignPatternResolution::Sequence(sequence) => row
-            .list_field(
+            .tuple_field(
                 "fields",
                 assign_pattern_positional_field_labels(builder, segment, &sequence.fields),
             )
@@ -525,7 +525,7 @@ fn add_pattern_sequence_fields(
     match sequence {
         dir::PatternSequenceResolution::Array { fields, rest } => row
             .field("sequence", "array")
-            .list_field(
+            .tuple_field(
                 "fields",
                 pattern_positional_field_labels(builder, segment, fields),
             )
@@ -536,7 +536,7 @@ fn add_pattern_sequence_fields(
             ),
         dir::PatternSequenceResolution::Slice { fields, rest } => row
             .field("sequence", "slice")
-            .list_field(
+            .tuple_field(
                 "fields",
                 pattern_positional_field_labels(builder, segment, fields),
             )
@@ -548,7 +548,7 @@ fn add_pattern_sequence_fields(
         dir::PatternSequenceResolution::FixedArray { fields, length } => row
             .field("sequence", "fixed_array")
             .field("length", builder.global_type_label(*length))
-            .list_field(
+            .tuple_field(
                 "fields",
                 pattern_positional_field_labels(builder, segment, fields),
             ),
@@ -563,7 +563,7 @@ fn add_pattern_variant_fields(
     fields: &[dir::PatternFieldResolution],
 ) -> SnapshotRow {
     if pattern_fields_are_positional(fields) {
-        row.list_field(
+        row.tuple_field(
             "fields",
             pattern_positional_field_labels(builder, segment, fields),
         )
@@ -842,11 +842,11 @@ fn arguments_label(
         return None;
     }
 
-    Some(
-        arguments
-            .iter()
-            .map(|argument| builder.global_type_label(*argument))
-            .collect::<Vec<_>>()
-            .join(", "),
-    )
+    let arguments = arguments
+        .iter()
+        .map(|argument| builder.global_type_label(*argument))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    Some(format!("({arguments})"))
 }

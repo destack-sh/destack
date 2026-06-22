@@ -54,6 +54,15 @@ impl SnapshotRow {
 
     /// Add one object-shaped field to the row.
     pub(crate) fn object_field(
+        self,
+        key: impl Into<Cow<'static, str>>,
+        value: impl Into<String>,
+    ) -> Self {
+        self.verbatim_field(key, value)
+    }
+
+    /// Add one field that is already rendered.
+    pub(crate) fn verbatim_field(
         mut self,
         key: impl Into<Cow<'static, str>>,
         value: impl Into<String>,
@@ -61,9 +70,19 @@ impl SnapshotRow {
         self.fields.push(SnapshotField {
             key: key.into(),
             value: value.into(),
-            style: SnapshotFieldStyle::Object,
+            style: SnapshotFieldStyle::Verbatim,
         });
         self
+    }
+
+    /// Add one tuple-shaped field to the row.
+    pub(crate) fn tuple_field<I>(self, key: &'static str, values: I) -> Self
+    where
+        I: IntoIterator<Item = String>,
+    {
+        let value = values.into_iter().collect::<Vec<_>>().join(", ");
+
+        self.verbatim_field(key, format!("({value})"))
     }
 
     /// Add one list field to the row.
@@ -97,6 +116,19 @@ impl SnapshotRow {
         }
 
         self.list_field(key, values)
+    }
+
+    /// Add one tuple-shaped field when it is nonempty.
+    pub(crate) fn optional_tuple_field<I>(self, key: &'static str, values: I) -> Self
+    where
+        I: IntoIterator<Item = String>,
+    {
+        let values = values.into_iter().collect::<Vec<_>>();
+        if values.is_empty() {
+            return self;
+        }
+
+        self.tuple_field(key, values)
     }
 
     /// Add one optional field to the row.
@@ -176,6 +208,6 @@ pub(crate) enum SnapshotFieldStyle {
     Plain,
     /// Render the field as DIR type text.
     Type,
-    /// Render the field as object-shaped text.
-    Object,
+    /// Render the field value without quoting.
+    Verbatim,
 }

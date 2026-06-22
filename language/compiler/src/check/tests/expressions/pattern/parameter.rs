@@ -74,7 +74,7 @@ function first([head]: int32[]): int32 {
 function first([head]: int32[]): int32 {
 /// @type.symbol symbol=first type=(Array<int32>) => int32
 /// @type.symbol symbol=head source=head type=int32
-/// @resolution.pattern source=[head] kind=sequence sequence=array fields=[head]
+/// @resolution.pattern source=[head] kind=sequence sequence=array fields=(head)
 /// @resolution.pattern source=head kind=binding target=head
 
     head

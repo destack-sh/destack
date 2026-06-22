@@ -29,7 +29,7 @@ size satisfies usize;
 
 === checked ===
 function storageSize<T: Concrete>(): usize {
-/// @generic.template symbol=storageSize parameters=[T: Concrete]
+/// @generic.template symbol=storageSize parameters=(T: Concrete)
 /// @type.symbol symbol=storageSize type=<T: Concrete>() => usize
 /// @resolution.name source=Concrete target=memory.Concrete
 
@@ -50,7 +50,7 @@ const size = storageSize<int32>();
 
 size satisfies usize;
 /// @resolution.name source=size target=size
-/// @generic.instance id=storageSize<int32> symbol=storageSize arguments=[int32]
+/// @generic.instance id=storageSize<int32> template=storageSize arguments=(int32)
 "#,
     );
 }

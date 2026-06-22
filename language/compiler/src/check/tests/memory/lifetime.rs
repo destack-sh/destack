@@ -42,7 +42,7 @@ struct Node {
 }
 
 function first(a: &Node, b: &Node): &Node {
-/// @generic.template symbol=first parameters=[comptime L0: Lifetime origin=induced.form, comptime L1: Lifetime origin=induced.form]
+/// @generic.template symbol=first parameters=(comptime L0: Lifetime origin=induced.form, comptime L1: Lifetime origin=induced.form)
 /// @type.symbol symbol=first type=(Borrowed<Node, first.L0, "mutable">, Borrowed<Node, first.L1, "mutable">) => Borrowed<Node, first.L0, "mutable">
 /// @type.symbol symbol=a source="a: &Node" type=Borrowed<Node, first.L0, "mutable">
 /// @resolution.name source=Node target=Node
@@ -101,7 +101,7 @@ struct Node {
 }
 
 function choose(a: &Node, b: &Node, flag: boolean): &Node {
-/// @generic.template symbol=choose parameters=[comptime L0: Lifetime origin=induced.form, comptime L1: Lifetime origin=induced.form]
+/// @generic.template symbol=choose parameters=(comptime L0: Lifetime origin=induced.form, comptime L1: Lifetime origin=induced.form)
 /// @type.symbol symbol=choose type=(Borrowed<Node, choose.L0, "mutable">, Borrowed<Node, choose.L1, "mutable">, boolean) => Borrowed<Node, choose.L0 | choose.L1, "mutable">
 /// @type.symbol symbol=a source="a: &Node" type=Borrowed<Node, choose.L0, "mutable">
 /// @resolution.name source=Node target=Node
@@ -158,7 +158,7 @@ struct Node {
 }
 
 declare function choose(a: &Node, b: &Node): &Node;
-/// @generic.template symbol=choose parameters=[comptime L0: Lifetime origin=induced.form, comptime L1: Lifetime origin=induced.form, comptime L2: Lifetime origin=induced.form]
+/// @generic.template symbol=choose parameters=(comptime L0: Lifetime origin=induced.form, comptime L1: Lifetime origin=induced.form, comptime L2: Lifetime origin=induced.form)
 /// @type.symbol symbol=choose source="declare function choose(a: &Node, b: &Node): &Node" type=(Borrowed<Node, choose.L0, "mutable">, Borrowed<Node, choose.L1, "mutable">) => Borrowed<Node, choose.L2, "mutable">
 /// @type.symbol symbol=a source="a: &Node" type=Borrowed<Node, choose.L0, "mutable">
 /// @resolution.name source=Node target=Node
@@ -232,7 +232,7 @@ struct AssetStore {
 }
 
 struct WorldView {
-/// @generic.template symbol=WorldView parameters=[comptime L0: Lifetime origin=induced.form, comptime L1: Lifetime origin=induced.form]
+/// @generic.template symbol=WorldView parameters=(comptime L0: Lifetime origin=induced.form, comptime L1: Lifetime origin=induced.form)
 /// @type.symbol symbol=WorldView type=WorldView<WorldView.L0, WorldView.L1>
 /// @definition.field symbol=WorldView.assets source="assets: &AssetStore" key=assets type=Borrowed<AssetStore, WorldView.L1, "mutable">
 /// @definition.field symbol=WorldView.engine source="engine: &Engine" key=engine type=Borrowed<Engine, WorldView.L0, "mutable">
