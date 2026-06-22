@@ -1,6 +1,9 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
+use destack_serde::Schema;
+use serde::{Deserialize, Serialize};
+
 /// Error produced while applying text changes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TextChangeError {
@@ -56,7 +59,7 @@ impl Display for TextChangeError {
 impl Error for TextChangeError {}
 
 /// One textual edit in an open text buffer.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct TextChange {
     /// Optional range to replace, absent for full replacement.
     pub range: Option<TextRange>,
@@ -65,7 +68,7 @@ pub struct TextChange {
 }
 
 /// One text range expressed in UTF-16 positions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct TextRange {
     /// Start position.
     pub start: TextPosition,
@@ -74,7 +77,7 @@ pub struct TextRange {
 }
 
 /// One zero-based UTF-16 text position.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
 pub struct TextPosition {
     /// Zero-based line number.
     pub line: u32,
