@@ -333,9 +333,9 @@ const moved: Point = Point { ...point, x: 3 };
 === checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @definition.field symbol=Point.y source="y: int32" key=y type=int32
-/// @definition.struct symbol=Point
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
@@ -395,9 +395,9 @@ const object: { x: int32; y: int32; label: string } = { ...point, label: "origin
 === checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @definition.field symbol=Point.y source="y: int32" key=y type=int32
-/// @definition.struct symbol=Point
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
@@ -456,9 +456,9 @@ const point: Point = Point { ...base };
 === checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @definition.field symbol=Point.y source="y: int32" key=y type=int32
-/// @definition.struct symbol=Point
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
@@ -522,8 +522,8 @@ const object: { name: string } = { ...user };
 === checked ===
 class User {
 /// @type.symbol symbol=User type=User
-/// @definition.field symbol=User.name source="name: string" key=name type=string
 /// @definition.class symbol=User
+/// @definition.field symbol=User.name source="name: string" key=name type=string
 /// @definition.method symbol=User.constructor slot=constructor role=constructor type=(string) => User
 
     name: string;

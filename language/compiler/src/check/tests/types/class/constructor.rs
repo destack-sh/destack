@@ -26,8 +26,8 @@ const counter: Counter = new Counter();
 === checked ===
 class Counter {
 /// @type.symbol symbol=Counter type=Counter
-/// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
 /// @definition.class symbol=Counter
+/// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
 /// @definition.method symbol=Counter.constructor slot=constructor role=constructor implicit=true type=() => Counter
 
     value: int32 = 0;
@@ -83,8 +83,8 @@ const derived: Derived = new Derived(1);
 === checked ===
 class Base {
 /// @type.symbol symbol=Base type=Base
-/// @definition.field symbol=Base.value source="value: int32" key=value type=int32
 /// @definition.class symbol=Base
+/// @definition.field symbol=Base.value source="value: int32" key=value type=int32
 /// @definition.method symbol=Base.constructor source="constructor(value: int32) {\n        this.value = value;\n    }" slot=constructor role=constructor type=(int32) => Base
 
     value: int32;
@@ -156,8 +156,8 @@ const counter: Counter = new Counter(1);
 === checked ===
 class Counter {
 /// @type.symbol symbol=Counter type=Counter
-/// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
 /// @definition.class symbol=Counter
+/// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
 /// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(int32) => Counter
 
     value: int32;
@@ -233,8 +233,8 @@ const number: Box = new Box(1);
 === checked ===
 class Box {
 /// @type.symbol symbol=Box type=Box
-/// @definition.field symbol=Box.value source="value: string | int32" key=value type=string | int32
 /// @definition.class symbol=Box
+/// @definition.field symbol=Box.value source="value: string | int32" key=value type=string | int32
 /// @definition.method symbol=Box.constructor#1 slot=constructor role=constructor type=(string) => Box
 /// @definition.method symbol=Box.constructor#2 slot=constructor role=constructor type=(int32) => Box
 
@@ -331,8 +331,8 @@ new Box(true);
 === checked ===
 class Box {
 /// @type.symbol symbol=Box type=Box
-/// @definition.field symbol=Box.value source="value: string | int32" key=value type=string | int32
 /// @definition.class symbol=Box
+/// @definition.field symbol=Box.value source="value: string | int32" key=value type=string | int32
 /// @definition.method symbol=Box.constructor#1 slot=constructor role=constructor type=(string) => Box
 /// @definition.method symbol=Box.constructor#2 slot=constructor role=constructor type=(int32) => Box
 
@@ -411,8 +411,8 @@ declare class Box {
 === checked ===
 declare class Box {
 /// @type.symbol symbol=Box type=Box
-/// @definition.field symbol=Box.value source="value: string | int32" key=value type=string | int32
 /// @definition.class symbol=Box
+/// @definition.field symbol=Box.value source="value: string | int32" key=value type=string | int32
 /// @definition.method symbol=Box.constructor#1 slot=constructor role=constructor type=(string) => Box
 /// @definition.method symbol=Box.constructor#2 slot=constructor role=constructor type=(int32) => Box
 

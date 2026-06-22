@@ -113,7 +113,7 @@ class Document extends Alias {}
 }
 
 #[test]
-fn test_class_implements_interface_contract() {
+fn test_class_implements_interface_members() {
     let session = TestSession::single(
         r#"
 interface Printable {
@@ -267,9 +267,9 @@ interface Drawable {
 
 class Point implements Drawable {
 /// @type.symbol symbol=Point type=Point
-/// @definition.field symbol=Point.x source="x: int32 = 0" key=x type=int32
 /// @definition.class symbol=Point
 /// @definition.implements symbol=Point source=Drawable target=Drawable
+/// @definition.field symbol=Point.x source="x: int32 = 0" key=x type=int32
 /// @resolution.name source=Drawable target=Drawable
 
     x: int32 = 0;

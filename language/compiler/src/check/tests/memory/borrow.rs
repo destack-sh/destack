@@ -38,8 +38,8 @@ function access<comptime L0: Lifetime, comptime L1: Lifetime, comptime L2: Lifet
 === checked ===
 struct Node {
 /// @type.symbol symbol=Node type=Node
-/// @definition.field symbol=Node.id source="id: int32" key=id type=int32
 /// @definition.struct symbol=Node
+/// @definition.field symbol=Node.id source="id: int32" key=id type=int32
 
     id: int32;
     /// @type.symbol symbol=Node.id source="id: int32" type=int32
@@ -112,8 +112,8 @@ point.x satisfies int32;
 === checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
-/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32

@@ -42,8 +42,8 @@ class Box<T> {
 class Box<T> {
 /// @generic.template source=declaration parameters=(T)
 /// @type.symbol symbol=Box type=Box<T>
-/// @definition.field symbol=Box.value source="value: T" key=value type=T
 /// @definition.class symbol=Box template=LocalGenericTemplateId(0)
+/// @definition.field symbol=Box.value source="value: T" key=value type=T
 /// @definition.method symbol=Box.get slot=get type=<T>(this: Borrowed<Box<T>, member.L0, "readonly">) => T
 /// @definition.method symbol=Box.readFrom slot=readFrom type=<T>(this: Borrowed<Box<T>, member.L0, "exclusive">, Borrowed<Box<T>, member.L1, "readonly">) => T
 /// @type.symbol symbol=Box.T source=T type=T

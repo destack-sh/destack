@@ -1,7 +1,9 @@
 use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
-use crate::check::{CheckState, ConstraintCause, Origin, Relation};
+use crate::check::{
+    CheckState, ConstraintCause, ConstraintId, Dependency, ObligationId, Origin, Relation, Task,
+};
 
 /// Rendering context for check trace values.
 pub(in crate::check) struct DumpContext<'a, 'b> {
@@ -16,12 +18,12 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     }
 
     /// Return a compact constraint id label.
-    pub(in crate::check) fn constraint_label(&self, id: crate::check::ConstraintId) -> String {
+    pub(in crate::check) fn constraint_label(&self, id: ConstraintId) -> String {
         format!("c{}", id.index())
     }
 
     /// Return a compact obligation id label.
-    pub(in crate::check) fn obligation_label(&self, id: crate::check::ObligationId) -> String {
+    pub(in crate::check) fn obligation_label(&self, id: ObligationId) -> String {
         format!("o{}", id.index())
     }
 
@@ -64,9 +66,63 @@ impl<'a, 'b> DumpContext<'a, 'b> {
 
     /// Return a compact type list label.
     pub(in crate::check) fn type_list_label(&self, types: &[dir::GlobalTypeId]) -> String {
+        if types.is_empty() {
+            return "none".to_string();
+        }
+
         types
             .iter()
             .map(|ty| self.type_label(*ty))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    /// Return a compact optional type label.
+    pub(in crate::check) fn optional_type_label(&self, ty: Option<dir::GlobalTypeId>) -> String {
+        ty.map(|ty| self.type_label(ty))
+            .unwrap_or_else(|| "none".to_string())
+    }
+
+    /// Return a compact dependency label.
+    pub(in crate::check) fn dependency_label(&self, dependency: Dependency) -> String {
+        match dependency {
+            Dependency::Variable(variable) => self.variable_label(variable),
+            Dependency::Decision(node) => self.node_label(node),
+        }
+    }
+
+    /// Return a compact dependency list label.
+    pub(in crate::check) fn dependency_list_label(&self, dependencies: &[Dependency]) -> String {
+        if dependencies.is_empty() {
+            return "none".to_string();
+        }
+
+        dependencies
+            .iter()
+            .map(|dependency| self.dependency_label(*dependency))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    /// Return a compact task label.
+    pub(in crate::check) fn task_label(&self, task: Task) -> String {
+        match task {
+            Task::Relate(constraint) => format!("relate {}", self.constraint_label(constraint)),
+            Task::Select(node) => format!("select {}", self.node_label(node)),
+            Task::Solve(variable) => format!("solve {}", self.variable_label(variable)),
+            Task::Oblige(obligation) => format!("oblige {}", self.obligation_label(obligation)),
+        }
+    }
+
+    /// Return a compact task list label.
+    pub(in crate::check) fn task_list_label(&self, tasks: &[Task]) -> String {
+        if tasks.is_empty() {
+            return "none".to_string();
+        }
+
+        tasks
+            .iter()
+            .map(|task| self.task_label(*task))
             .collect::<Vec<_>>()
             .join(", ")
     }

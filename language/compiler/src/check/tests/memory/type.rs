@@ -42,8 +42,8 @@ payload satisfies Borrowed<Cell, "static">;
 === checked ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 /// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Cell.value source="value: int32" type=int32
@@ -131,8 +131,8 @@ borrowedAccess satisfies "mutable";
 === checked ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 /// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Cell.value source="value: int32" type=int32
@@ -205,8 +205,8 @@ type PlaceDefault = PlaceOr<Cell, "shared">;
 === checked ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 /// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Cell.value source="value: int32" type=int32
@@ -262,8 +262,8 @@ type SpaceFallback = SpaceOr<Cell, "shared">;
 === checked ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 /// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Cell.value source="value: int32" type=int32
@@ -311,8 +311,8 @@ type AmbientInShared = PlaceIn<Cell, "shared">;
 === checked ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 /// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Cell.value source="value: int32" type=int32
@@ -354,8 +354,8 @@ type LocalInShared = PlaceIn<local Cell, "shared">;
 === checked ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 /// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Cell.value source="value: int32" type=int32
@@ -403,8 +403,8 @@ type RawKind = OwnershipOf<Raw<Cell>>;
 === checked ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 /// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Cell.value source="value: int32" type=int32
@@ -474,8 +474,8 @@ type RawCheck = IsRaw<Raw<Cell>>;
 === checked ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 /// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Cell.value source="value: int32" type=int32
@@ -541,8 +541,8 @@ type AmbientSharedCheck = IsSharedIn<Cell, "shared">;
 === checked ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 /// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Cell.value source="value: int32" type=int32
@@ -604,8 +604,8 @@ borrowedCell satisfies Borrowed<Cell, "static">;
 === checked ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 /// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Cell.value source="value: int32" type=int32
@@ -678,8 +678,8 @@ sharedOwned satisfies shared ^Cell;
 === checked ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 /// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Cell.value source="value: int32" type=int32
@@ -737,8 +737,8 @@ staticBorrow satisfies Borrowed<Cell, "static">;
 === checked ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 /// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Cell.value source="value: int32" type=int32
@@ -804,8 +804,8 @@ localSharedOwned satisfies local ^Cell;
 === checked ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 /// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Cell.value source="value: int32" type=int32
@@ -883,8 +883,8 @@ exclusiveBorrow satisfies Borrowed<Cell, "static", "exclusive">;
 === checked ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 /// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Cell.value source="value: int32" type=int32
@@ -966,8 +966,8 @@ rebased satisfies shared ^readonly Payload;
 === checked ===
 struct Cell {
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 /// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Cell.value source="value: int32" type=int32
@@ -976,8 +976,8 @@ struct Cell {
 
 struct Payload {
 /// @type.symbol symbol=Payload type=Payload
-/// @definition.field symbol=Payload.value source="value: int32" key=value type=int32
 /// @definition.struct symbol=Payload
+/// @definition.field symbol=Payload.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Payload.value source="value: int32" type=int32

@@ -36,8 +36,8 @@ export interface Box<T> {
 export interface Box<T> {
 /// @generic.template source=declaration parameters=(T)
 /// @type.symbol symbol=Box type=Box<T>
-/// @definition.field symbol=Box.value source="value: T" key=value type=T
 /// @definition.interface symbol=Box template=LocalGenericTemplateId(0)
+/// @definition.field symbol=Box.value source="value: T" key=value type=T
 /// @type.symbol symbol=Box.T source=T type=T
 
     value: T;

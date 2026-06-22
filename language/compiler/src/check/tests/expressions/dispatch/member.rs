@@ -28,8 +28,8 @@ const x: int32 = point.x;
 === checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
-/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
@@ -89,8 +89,8 @@ const length: int32 = point.length();
 === checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
-/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @definition.method symbol=Point.length slot=length type=(this: Point) => int32
 
     x: int32;

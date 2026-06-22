@@ -33,8 +33,8 @@ function first<comptime L0: Lifetime, comptime L1: Lifetime>(
 === checked ===
 struct Node {
 /// @type.symbol symbol=Node type=Node
-/// @definition.field symbol=Node.id source="id: int32" key=id type=int32
 /// @definition.struct symbol=Node
+/// @definition.field symbol=Node.id source="id: int32" key=id type=int32
 
     id: int32;
     /// @type.symbol symbol=Node.id source="id: int32" type=int32
@@ -92,8 +92,8 @@ function choose<comptime L0: Lifetime, comptime L1: Lifetime>(
 === checked ===
 struct Node {
 /// @type.symbol symbol=Node type=Node
-/// @definition.field symbol=Node.id source="id: int32" key=id type=int32
 /// @definition.struct symbol=Node
+/// @definition.field symbol=Node.id source="id: int32" key=id type=int32
 
     id: int32;
     /// @type.symbol symbol=Node.id source="id: int32" type=int32
@@ -149,8 +149,8 @@ declare function choose(a: &Node, b: &Node): &Node;
 === checked ===
 struct Node {
 /// @type.symbol symbol=Node type=Node
-/// @definition.field symbol=Node.id source="id: int32" key=id type=int32
 /// @definition.struct symbol=Node
+/// @definition.field symbol=Node.id source="id: int32" key=id type=int32
 
     id: int32;
     /// @type.symbol symbol=Node.id source="id: int32" type=int32
@@ -213,8 +213,8 @@ struct WorldView<comptime L0: Lifetime, comptime L1: Lifetime> {
 === checked ===
 struct Engine {
 /// @type.symbol symbol=Engine type=Engine
-/// @definition.field symbol=Engine.frame source="frame: uint64" key=frame type=uint64
 /// @definition.struct symbol=Engine
+/// @definition.field symbol=Engine.frame source="frame: uint64" key=frame type=uint64
 
     frame: uint64;
     /// @type.symbol symbol=Engine.frame source="frame: uint64" type=uint64
@@ -223,8 +223,8 @@ struct Engine {
 
 struct AssetStore {
 /// @type.symbol symbol=AssetStore type=AssetStore
-/// @definition.field symbol=AssetStore.count source="count: uint32" key=count type=uint32
 /// @definition.struct symbol=AssetStore
+/// @definition.field symbol=AssetStore.count source="count: uint32" key=count type=uint32
 
     count: uint32;
     /// @type.symbol symbol=AssetStore.count source="count: uint32" type=uint32
@@ -234,9 +234,9 @@ struct AssetStore {
 struct WorldView {
 /// @generic.template symbol=WorldView parameters=(comptime L0: Lifetime origin=induced.form, comptime L1: Lifetime origin=induced.form)
 /// @type.symbol symbol=WorldView type=WorldView<WorldView.L0, WorldView.L1>
+/// @definition.struct symbol=WorldView
 /// @definition.field symbol=WorldView.assets source="assets: &AssetStore" key=assets type=Borrowed<AssetStore, WorldView.L1, "mutable">
 /// @definition.field symbol=WorldView.engine source="engine: &Engine" key=engine type=Borrowed<Engine, WorldView.L0, "mutable">
-/// @definition.struct symbol=WorldView
 
     engine: &Engine;
     /// @type.symbol symbol=WorldView.engine source="engine: &Engine" type=Borrowed<Engine, WorldView.L0, "mutable">

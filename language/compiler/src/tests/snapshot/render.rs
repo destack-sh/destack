@@ -23,13 +23,13 @@ impl<'a> SnapshotRenderer<'a> {
             (
                 left.anchor.sort_key(),
                 Self::row_rank(left),
-                Self::entry_rank(left.tag.entry),
+                Self::entry_rank(left),
                 left_fields,
             )
                 .cmp(&(
                     right.anchor.sort_key(),
                     Self::row_rank(right),
-                    Self::entry_rank(right.tag.entry),
+                    Self::entry_rank(right),
                     right_fields,
                 ))
         });
@@ -302,8 +302,12 @@ impl<'a> SnapshotRenderer<'a> {
     }
 
     /// Return row ordering rank inside one table.
-    fn entry_rank(entry: &str) -> u8 {
-        match entry {
+    fn entry_rank(row: &SnapshotRow) -> u8 {
+        if row.tag.table == "definition" {
+            return Self::definition_entry_rank(row.tag.entry);
+        }
+
+        match row.tag.entry {
             "symbol" => 0,
             "scope" => 1,
             "parameters" => 2,
@@ -338,6 +342,18 @@ impl<'a> SnapshotRenderer<'a> {
             "summary" => 31,
             "stats" => 32,
             "stats.solve" => 33,
+            _ => 128,
+        }
+    }
+
+    /// Return row ordering rank inside the definition table.
+    fn definition_entry_rank(entry: &str) -> u8 {
+        match entry {
+            "type" | "struct" | "class" | "interface" | "enum" | "newtype" | "extension" => 0,
+            "extends" | "implements" | "where" => 1,
+            "field" | "associated.type" | "associated.const" | "variant" => 2,
+            "method" | "signature" => 3,
+            "summary" => 4,
             _ => 128,
         }
     }

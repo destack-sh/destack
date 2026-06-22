@@ -71,8 +71,8 @@ interface Readable {
 struct Box<T> {
 /// @generic.template symbol=Box parameters=(T#1)
 /// @type.symbol symbol=Box type=Box<T#1>
-/// @definition.field symbol=Box.value source="value: T" key=value type=T#1
 /// @definition.struct symbol=Box template=LocalGenericTemplateId(0)
+/// @definition.field symbol=Box.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=T#1 source=T type=T#1
 
     value: T;
@@ -196,8 +196,8 @@ interface Readable {
 struct Box<T> {
 /// @generic.template symbol=Box parameters=(T#1)
 /// @type.symbol symbol=Box type=Box<T#1>
-/// @definition.field symbol=Box.value source="value: T" key=value type=T#1
 /// @definition.struct symbol=Box template=LocalGenericTemplateId(0)
+/// @definition.field symbol=Box.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=T#1 source=T type=T#1
 
     value: T;

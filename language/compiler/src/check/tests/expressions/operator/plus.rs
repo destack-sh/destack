@@ -82,9 +82,9 @@ const sum: Vector = left + right;
 === checked ===
 struct Vector {
 /// @type.symbol symbol=Vector type=Vector
+/// @definition.struct symbol=Vector
 /// @definition.field symbol=Vector.x source="x: int32" key=x type=int32
 /// @definition.field symbol=Vector.y source="y: int32" key=y type=int32
-/// @definition.struct symbol=Vector
 
     x: int32;
     /// @type.symbol symbol=Vector.x source="x: int32" type=int32

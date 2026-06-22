@@ -314,9 +314,9 @@ newtype FileDescriptor = int32;
 /// @layout.type type=WireHeader shape=struct size=5 align=1
 /// @layout.field parent=WireHeader key=size type=uint32 offset=1 size=4 align=1
 /// @layout.field parent=WireHeader key=tag type=uint8 offset=0 size=1 align=1
+/// @definition.struct symbol=WireHeader
 /// @definition.field symbol=WireHeader.size source="size: uint32" key=size type=uint32
 /// @definition.field symbol=WireHeader.tag source="tag: uint8" key=tag type=uint8
-/// @definition.struct symbol=WireHeader
 
 struct WireHeader {
     tag: uint8;
@@ -373,8 +373,8 @@ enum Mode {
 /// @type.symbol symbol=Block type=Block
 /// @layout.type type=Block shape=struct size=16 align=16
 /// @layout.field parent=Block key=value type=uint8 offset=0 size=1 align=1
-/// @definition.field symbol=Block.value source="value: uint8" key=value type=uint8
 /// @definition.struct symbol=Block
+/// @definition.field symbol=Block.value source="value: uint8" key=value type=uint8
 
 struct Block {
     value: uint8;
