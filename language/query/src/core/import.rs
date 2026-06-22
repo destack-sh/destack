@@ -2,7 +2,7 @@ use std::path::Path;
 
 use destack_dir as dir;
 use destack_qir::{
-    ImportPathRelevance, ImportRelevance, import_package_rank, import_path_relevance,
+    ImportPathRelevance, ImportRelevance, SymbolUse, import_package_rank, import_path_relevance,
     import_relevance, package_import_path_relevance,
 };
 use destack_repository::{Repository, Revision};
@@ -17,8 +17,8 @@ pub(crate) fn repository_import_relevance(
     current_package_id: Option<PackageId>,
     query: &str,
     export_name: &str,
-    expected_space: Option<dir::SymbolSpace>,
-    space: dir::SymbolSpace,
+    expected_use: Option<SymbolUse>,
+    kind: dir::SymbolKind,
     module_id: ModuleId,
     module_path: &str,
 ) -> Option<ImportRelevance> {
@@ -31,7 +31,7 @@ pub(crate) fn repository_import_relevance(
         module_path,
     );
 
-    import_relevance(query, export_name, expected_space, space, path)
+    import_relevance(query, export_name, expected_use, kind, path)
 }
 
 /// Compute structural path relevance for one import candidate.

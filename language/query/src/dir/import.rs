@@ -2,6 +2,7 @@ use std::path::Path;
 
 use destack_core::StringId;
 use destack_dir as dir;
+use destack_qir::SymbolUse;
 use destack_source::{FileId, Patch, PathExt, Span};
 
 use crate::core::path::{normalize_separators, relative_path};
@@ -38,40 +39,19 @@ pub(crate) struct ImportClauseBounds {
     pub end_boundary: Span,
 }
 
-/// Check whether a symbol matches a requested symbol space filter.
-pub(crate) fn matches_symbol_space_filter(
+/// Return true when a symbol can satisfy the requested use.
+pub(crate) fn symbol_matches_use(
     symbol_kind: dir::SymbolKind,
-    filter: Option<dir::SymbolSpace>,
+    requested_use: Option<SymbolUse>,
 ) -> bool {
-    let Some(filter) = filter else {
+    let Some(requested_use) = requested_use else {
         return true;
     };
 
-    symbol_kind.is_visible_in(filter)
-}
-
-/// Check whether an exported lookup space matches a requested symbol space filter.
-pub(crate) fn matches_export_space_filter(
-    export_space: dir::SymbolSpace,
-    filter: Option<dir::SymbolSpace>,
-) -> bool {
-    let Some(filter) = filter else {
-        return true;
-    };
-
-    export_space == filter
-}
-
-/// Check whether a symbol matches an explicit import-clause space filter.
-pub(crate) fn matches_import_clause_space_filter(
-    symbol_kind: dir::SymbolKind,
-    filter: Option<dir::SymbolSpace>,
-) -> bool {
-    let Some(filter) = filter else {
-        return true;
-    };
-
-    matches_symbol_space_filter(symbol_kind, Some(filter))
+    match requested_use {
+        SymbolUse::Type => symbol_kind.can_be_used_as_type(),
+        SymbolUse::Value => symbol_kind.can_be_used_as_value(),
+    }
 }
 
 impl ModuleQueryContext<'_> {
@@ -152,7 +132,7 @@ impl ModuleQueryContext<'_> {
         &self,
         symbol_name: &str,
         import_path: &str,
-        import_form: ImportEditSpace,
+        import_form: ImportEditForm,
     ) -> Vec<Patch> {
         // collect existing imports for the file
         let file_id = self.file_id();
@@ -178,8 +158,8 @@ impl ModuleQueryContext<'_> {
 
             // decide whether to merge into the existing import
             let can_merge = match import_form {
-                ImportEditSpace::Value => !existing.is_type_only,
-                ImportEditSpace::Type => true,
+                ImportEditForm::Value => !existing.is_type_only,
+                ImportEditForm::Type => true,
             };
 
             if can_merge {
@@ -256,26 +236,26 @@ impl ModuleQueryContext<'_> {
     }
 }
 
-/// The import space for a new import edit.
+/// The syntactic form for a new import edit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ImportEditSpace {
+pub(crate) enum ImportEditForm {
     /// A value import.
     Value,
     /// A type only import.
     Type,
 }
 
-impl ImportEditSpace {
-    /// Resolve the auto import edit space for one requested space and exported symbol space.
+impl ImportEditForm {
+    /// Resolve the auto import form for one requested use and exported symbol kind.
     pub(crate) fn for_auto_import(
-        requested_space: Option<dir::SymbolSpace>,
-        symbol_space: dir::SymbolSpace,
+        requested_use: Option<SymbolUse>,
+        symbol_kind: dir::SymbolKind,
     ) -> Self {
-        if requested_space != Some(dir::SymbolSpace::Type) {
+        if requested_use != Some(SymbolUse::Type) {
             return Self::Value;
         }
 
-        if symbol_space == dir::SymbolSpace::Type {
+        if symbol_kind.can_be_used_as_type() && !symbol_kind.can_be_used_as_value() {
             return Self::Type;
         }
 
@@ -323,15 +303,15 @@ fn build_new_import_edit(
     symbol_name: &str,
     import_path: &str,
     existing_imports: &[ExistingImport],
-    import_form: ImportEditSpace,
+    import_form: ImportEditForm,
 ) -> Vec<Patch> {
     // resolve the import group
     let new_group = ImportGroup::from_path(import_path);
 
-    // choose the import text for the space
+    // choose the import text for the form
     let import_text = match import_form {
-        ImportEditSpace::Value => format!("import {{ {symbol_name} }} from \"{import_path}\";\n"),
-        ImportEditSpace::Type => {
+        ImportEditForm::Value => format!("import {{ {symbol_name} }} from \"{import_path}\";\n"),
+        ImportEditForm::Type => {
             format!("import type {{ {symbol_name} }} from \"{import_path}\";\n")
         }
     };

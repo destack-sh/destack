@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use destack_dir as dir;
+use destack_qir::SymbolUse;
 use destack_source::{File, FileType, Loader, ModuleId, PackageId, Patch};
 use serde::{Deserialize, Serialize};
 
@@ -16,8 +17,8 @@ use crate::core::{
     repository_import_relevance,
 };
 use crate::dir::{
-    ImportEditSpace, MemberCandidate, MemberKind, MemberName, matches_export_space_filter,
-    matches_import_clause_space_filter, module_name_from_path, visible_symbols,
+    ImportEditForm, MemberCandidate, MemberKind, MemberName, module_name_from_path,
+    symbol_matches_use, visible_symbols,
 };
 use crate::format::format_global_type;
 
@@ -447,8 +448,8 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
             CompletionContext::ImportClause {
                 target_module,
                 existing_names,
-                space_filter,
-            } => self.complete_imports(*target_module, existing_names, *space_filter),
+                use_filter,
+            } => self.complete_imports(*target_module, existing_names, *use_filter),
             CompletionContext::Suppressed => Vec::new(),
             CompletionContext::Unknown => {
                 Self::complete_all(matches!(trigger, CompletionTrigger::Invoked))
@@ -456,12 +457,12 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
         };
 
         // layer in auto imports when this context supports them
-        if let Some((space_filter, scope_id, scope_mark, constructable_only)) =
+        if let Some((use_filter, scope_id, scope_mark, constructable_only)) =
             context.auto_import_settings()
         {
             let mut auto_imports = self.complete_auto_imports_with_visibility(
                 prefix,
-                Some(space_filter),
+                Some(use_filter),
                 scope_id,
                 scope_mark,
                 &excluded_labels,
@@ -817,7 +818,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
             let symbols = self.ctx.dir().symbols();
             let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
-            for visible in visible_symbols(symbols, scope_id, mark, Some(dir::SymbolSpace::Value)) {
+            for visible in visible_symbols(symbols, scope_id, mark, Some(SymbolUse::Value)) {
                 let dir::StaticKey::Name(name_id) = visible.key else {
                     continue;
                 };
@@ -886,13 +887,8 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
         let visible_scope_id = scope_id.unwrap_or(self.ctx.dir().namespace_scope());
         let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
-        // collect visible type-space names first
-        for visible in visible_symbols(
-            symbols,
-            visible_scope_id,
-            mark,
-            Some(dir::SymbolSpace::Type),
-        ) {
+        // collect visible type names first
+        for visible in visible_symbols(symbols, visible_scope_id, mark, Some(SymbolUse::Type)) {
             let dir::StaticKey::Name(name_id) = visible.key else {
                 continue;
             };
@@ -914,14 +910,14 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
             results.push(self.attach_completion_documentation(completion, symbol_id));
         }
 
-        // then include exported dependency items in the same type space
+        // then include exported dependency items usable as types
         for (item_id, _) in dir_tree.iter_nodes_of_type::<dir::DependencyItem>() {
             let Some(symbol_id) = self.ctx.dir().symbol_for_node(item_id.into()) else {
                 continue;
             };
 
             let symbol = symbols.get_symbol(symbol_id);
-            if !symbol.kind.is_visible_in(dir::SymbolSpace::Type) {
+            if !symbol.kind.can_be_used_as_type() {
                 continue;
             }
 
@@ -964,7 +960,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
 
         let mut results = Vec::new();
 
-        // snapshot the visible value-space symbols before building completions
+        // snapshot the visible value symbols before building completions
         let symbols_to_process: Vec<(dir::LocalSymbolId, String, dir::SymbolKind)> = {
             let symbols = self.ctx.dir().symbols();
             let mut symbols_to_process = Vec::new();
@@ -972,7 +968,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
             let scope_id = scope_id.unwrap_or(self.ctx.dir().namespace_scope());
             let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
-            for visible in visible_symbols(symbols, scope_id, mark, Some(dir::SymbolSpace::Value)) {
+            for visible in visible_symbols(symbols, scope_id, mark, Some(SymbolUse::Value)) {
                 let dir::StaticKey::Name(name_id) = visible.key else {
                     continue;
                 };
@@ -1147,16 +1143,15 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
     fn complete_auto_imports_with_visibility(
         &self,
         prefix: &str,
-        space_filter: Option<dir::SymbolSpace>,
+        use_filter: Option<SymbolUse>,
         scope_id: Option<dir::LocalScopeId>,
         scope_mark: Option<dir::LocalScopeMark>,
         excluded_labels: &HashSet<String>,
         allow_short_prefix: bool,
     ) -> Vec<Completion> {
-        let mut completions = self.complete_auto_imports(prefix, space_filter, allow_short_prefix);
+        let mut completions = self.complete_auto_imports(prefix, use_filter, allow_short_prefix);
 
-        if let Some(visible_names) = self.collect_visible_names(scope_id, scope_mark, space_filter)
-        {
+        if let Some(visible_names) = self.collect_visible_names(scope_id, scope_mark, use_filter) {
             completions.retain(|item| !visible_names.contains(item.label.as_str()));
         }
 
@@ -1173,7 +1168,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
     fn complete_auto_imports(
         &self,
         prefix: &str,
-        space_filter: Option<dir::SymbolSpace>,
+        use_filter: Option<SymbolUse>,
         allow_short_prefix: bool,
     ) -> Vec<Completion> {
         // empty and very short prefixes do not earn import search
@@ -1205,7 +1200,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
 
         // turn indexed export matches into importable completions
         for export in exports {
-            if !matches_export_space_filter(export.space, space_filter) {
+            if !symbol_matches_use(export.kind, use_filter) {
                 continue;
             }
 
@@ -1218,7 +1213,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
                 continue;
             }
 
-            let import_form = ImportEditSpace::for_auto_import(space_filter, export.space);
+            let import_form = ImportEditForm::for_auto_import(use_filter, export.kind);
 
             self.push_auto_import_completion(
                 current_package_id,
@@ -1228,8 +1223,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
                 module_path,
                 &export.name,
                 export.kind,
-                space_filter,
-                export.space,
+                use_filter,
                 import_form,
                 &mut results,
             );
@@ -1238,19 +1232,19 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
         results
     }
 
-    /// Collect visible symbol names for a scope and space.
+    /// Collect visible symbol names for a scope and use.
     fn collect_visible_names(
         &self,
         scope_id: Option<dir::LocalScopeId>,
         scope_mark: Option<dir::LocalScopeMark>,
-        space_filter: Option<dir::SymbolSpace>,
+        use_filter: Option<SymbolUse>,
     ) -> Option<HashSet<String>> {
         let symbols = self.ctx.dir().symbols();
         let scope_id = scope_id.unwrap_or(self.ctx.dir().namespace_scope());
         let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
         let mut names = HashSet::new();
-        for visible in visible_symbols(symbols, scope_id, mark, space_filter) {
+        for visible in visible_symbols(symbols, scope_id, mark, use_filter) {
             let dir::StaticKey::Name(name_id) = visible.key else {
                 continue;
             };
@@ -1271,9 +1265,8 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
         module_path: &str,
         export_name: &str,
         symbol_kind: dir::SymbolKind,
-        expected_space: Option<dir::SymbolSpace>,
-        symbol_space: dir::SymbolSpace,
-        import_form: ImportEditSpace,
+        expected_use: Option<SymbolUse>,
+        import_form: ImportEditForm,
         results: &mut Vec<Completion>,
     ) {
         let display_path = self.ctx.import_display_path(module_path);
@@ -1291,8 +1284,8 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
             current_package_id,
             prefix,
             export_name,
-            expected_space,
-            symbol_space,
+            expected_use,
+            symbol_kind,
             module_id,
             module_path,
         ) else {
@@ -1329,7 +1322,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
         &self,
         target_module: Option<ModuleId>,
         existing_names: &[String],
-        space_filter: Option<dir::SymbolSpace>,
+        use_filter: Option<SymbolUse>,
     ) -> Vec<Completion> {
         let Some(module_id) = target_module else {
             return Vec::new();
@@ -1351,7 +1344,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
                 continue;
             };
 
-            if !matches_import_clause_space_filter(symbol.kind, space_filter) {
+            if !symbol_matches_use(symbol.kind, use_filter) {
                 continue;
             }
 
@@ -2091,7 +2084,7 @@ impl CompletionContext {
     fn auto_import_settings(
         &self,
     ) -> Option<(
-        dir::SymbolSpace,
+        SymbolUse,
         Option<dir::LocalScopeId>,
         Option<dir::LocalScopeMark>,
         bool,
@@ -2113,15 +2106,15 @@ impl CompletionContext {
                 scope_id,
                 scope_mark,
                 ..
-            } => Some((dir::SymbolSpace::Value, *scope_id, *scope_mark, false)),
+            } => Some((SymbolUse::Value, *scope_id, *scope_mark, false)),
             CompletionContext::TypePosition {
                 scope_id,
                 scope_mark,
-            } => Some((dir::SymbolSpace::Type, *scope_id, *scope_mark, false)),
+            } => Some((SymbolUse::Type, *scope_id, *scope_mark, false)),
             CompletionContext::NewExpression {
                 scope_id,
                 scope_mark,
-            } => Some((dir::SymbolSpace::Value, *scope_id, *scope_mark, true)),
+            } => Some((SymbolUse::Value, *scope_id, *scope_mark, true)),
             _ => None,
         }
     }

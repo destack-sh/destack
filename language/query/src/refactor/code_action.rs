@@ -13,9 +13,9 @@ use crate::core::{
     ModuleQueryContext, QueryRange, WorkspaceQueryContext, import_sort_key,
     repository_import_relevance,
 };
-use crate::dir::{ImportEditSpace, matches_export_space_filter};
+use crate::dir::{ImportEditForm, symbol_matches_use};
 use crate::source::is_simple_identifier;
-use destack_dir::SymbolSpace;
+use destack_qir::SymbolUse;
 
 /// Kind of code action.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -374,12 +374,12 @@ impl ModuleQueryContext<'_> {
                 continue;
             };
 
-            let space_filter = ctx.auto_import_form_filter_for_offset(diagnostic_span.start);
+            let use_filter = ctx.auto_import_use_filter_for_offset(diagnostic_span.start);
             ctx.collect_auto_import_actions_for_symbol(
                 workspace,
                 &symbol_name,
                 exclude_module_id,
-                space_filter,
+                use_filter,
                 Some(&diagnostic.code),
                 actions,
             );
@@ -389,12 +389,12 @@ impl ModuleQueryContext<'_> {
         if let Some(symbol_name) = ctx.token_at_offset(range.start)
             && is_simple_identifier(&symbol_name)
         {
-            let space_filter = ctx.auto_import_form_filter_for_offset(range.start);
+            let use_filter = ctx.auto_import_use_filter_for_offset(range.start);
             ctx.collect_auto_import_actions_for_symbol(
                 workspace,
                 &symbol_name,
                 exclude_module_id,
-                space_filter,
+                use_filter,
                 None,
                 actions,
             );
@@ -407,7 +407,7 @@ impl ModuleQueryContext<'_> {
         workspace: &WorkspaceQueryContext<'_>,
         symbol_name: &str,
         exclude_module_id: Option<destack_source::ModuleId>,
-        space_filter: Option<SymbolSpace>,
+        use_filter: Option<SymbolUse>,
         diagnostic_code: Option<&str>,
         actions: &mut Vec<CodeAction>,
     ) {
@@ -424,7 +424,7 @@ impl ModuleQueryContext<'_> {
         let current_package_id = Some(current_module.package_id);
         let mut candidates = workspace.search_importable_symbols(symbol_name, exclude_module_id);
         candidates.retain(|export| {
-            export.name == symbol_name && matches_export_space_filter(export.space, space_filter)
+            export.name == symbol_name && symbol_matches_use(export.kind, use_filter)
         });
 
         // track seen module paths and preferred action index
@@ -454,8 +454,8 @@ impl ModuleQueryContext<'_> {
                 current_package_id,
                 symbol_name,
                 &export.name,
-                space_filter,
-                export.space,
+                use_filter,
+                export.kind,
                 export.module_id,
                 module_path,
             ) else {
@@ -474,7 +474,7 @@ impl ModuleQueryContext<'_> {
         });
 
         for (_, export, display_path) in ranked_candidates {
-            let import_form = ImportEditSpace::for_auto_import(space_filter, export.space);
+            let import_form = ImportEditForm::for_auto_import(use_filter, export.kind);
 
             // build import patches and skip already imported symbols
             let import_edits = ctx.build_import_edits(symbol_name, &display_path, import_form);
@@ -513,16 +513,16 @@ impl ModuleQueryContext<'_> {
         }
     }
 
-    /// Resolve the auto import space filter for an offset.
-    fn auto_import_form_filter_for_offset(&self, offset: u32) -> Option<SymbolSpace> {
+    /// Resolve the auto import use filter for an offset.
+    fn auto_import_use_filter_for_offset(&self, offset: u32) -> Option<SymbolUse> {
         let ctx = self;
         // detect the completion context at the cursor
         let context = ctx.completion_input_at_offset(offset);
 
-        // choose import visibility based on type position
+        // choose import use based on type position
         match context.context {
-            CompletionContext::TypePosition { .. } => Some(SymbolSpace::Type),
-            _ => Some(SymbolSpace::Value),
+            CompletionContext::TypePosition { .. } => Some(SymbolUse::Type),
+            _ => Some(SymbolUse::Value),
         }
     }
 

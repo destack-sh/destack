@@ -318,6 +318,15 @@ pub fn format_type_operation(
             let else_type = format_global_type(conditional.else_type, ctx);
             format!("{left} extends {right} ? {then_type} : {else_type}")
         }
+        dir::TypeOperation::Narrow(narrow) => {
+            let source = format_global_type(narrow.source, ctx);
+            let target = format_global_type(narrow.target, ctx);
+            if narrow.is_positive {
+                format!("Narrow<{source}, {target}>")
+            } else {
+                format!("Narrow<{source}, !{target}>")
+            }
+        }
         dir::TypeOperation::Mapped(mapped) => {
             let name = strings.get(mapped.parameter.name).to_string();
             let constraint = format_global_type(mapped.parameter.constraint, ctx);

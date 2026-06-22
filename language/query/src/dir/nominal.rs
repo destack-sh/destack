@@ -131,7 +131,7 @@ impl DirQueryContext<'_> {
         }
 
         if let Some(target_symbol) = self.expression_symbol_target(expression_id)
-            && self.symbol_is_visible_in_type_space(target_symbol)
+            && self.symbol_can_be_used_as_type(target_symbol)
         {
             return Some(target_symbol);
         }
@@ -139,9 +139,8 @@ impl DirQueryContext<'_> {
         None
     }
 
-    /// Check whether a symbol is visible in type space.
-    fn symbol_is_visible_in_type_space(self, symbol_id: dir::GlobalSymbolId) -> bool {
-        let _ctx = self;
+    /// Return true when a symbol can be used as a type.
+    fn symbol_can_be_used_as_type(self, symbol_id: dir::GlobalSymbolId) -> bool {
         let Some(ctx) = self.module_context(symbol_id.module_id) else {
             return false;
         };
@@ -149,7 +148,7 @@ impl DirQueryContext<'_> {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
 
-        symbol.kind.is_visible_in(dir::SymbolSpace::Type)
+        symbol.kind.can_be_used_as_type()
     }
 
     /// Return one unambiguous symbol target from a recorded expression resolution.
