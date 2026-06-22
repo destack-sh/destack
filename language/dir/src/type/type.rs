@@ -622,6 +622,48 @@ impl RangeType {
             _ => false,
         }
     }
+
+    /// Return whether this interval shares any value with another interval.
+    pub fn overlaps_range(&self, other: &RangeType) -> bool {
+        let left_domain = self.scalar_domain();
+        let right_domain = other.scalar_domain();
+        if matches!((left_domain, right_domain), (Some(left), Some(right)) if left != right) {
+            return false;
+        }
+
+        // reject ranges where the left upper bound falls before the right start
+        if Self::end_excludes_start(&self.end, self.is_inclusive, &other.start) {
+            return false;
+        }
+
+        // reject ranges where the right upper bound falls before the left start
+        if Self::end_excludes_start(&other.end, other.is_inclusive, &self.start) {
+            return false;
+        }
+
+        true
+    }
+
+    /// Return whether one upper bound excludes one lower bound.
+    fn end_excludes_start(
+        end: &Option<ScalarLiteral>,
+        is_inclusive: bool,
+        start: &Option<ScalarLiteral>,
+    ) -> bool {
+        match (end, start) {
+            (Some(ScalarLiteral::Integer(end)), Some(ScalarLiteral::Integer(start))) => {
+                end < start || (end == start && !is_inclusive)
+            }
+            (Some(ScalarLiteral::Bigint(end)), Some(ScalarLiteral::Bigint(start))) => {
+                end < start || (end == start && !is_inclusive)
+            }
+            (Some(ScalarLiteral::Character(end)), Some(ScalarLiteral::Character(start))) => {
+                end < start || (end == start && !is_inclusive)
+            }
+            (Some(_), Some(_)) => true,
+            _ => false,
+        }
+    }
 }
 
 /// Runtime-length homogeneous view type.
@@ -1238,6 +1280,9 @@ impl Type {
             Self::Primitive(PrimitiveType::Boolean) => ScalarDomain::Boolean,
             Self::Primitive(PrimitiveType::Character) => ScalarDomain::Character,
             Self::Primitive(PrimitiveType::String) => ScalarDomain::String,
+            Self::Primitive(PrimitiveType::Symbol | PrimitiveType::UniqueSymbol) => {
+                ScalarDomain::Symbol
+            }
             Self::Primitive(PrimitiveType::Bigint) => ScalarDomain::Bigint,
             Self::Primitive(PrimitiveType::Integer(_) | PrimitiveType::Float(_)) => {
                 ScalarDomain::Numeric

@@ -21,6 +21,8 @@ pub enum ScalarDomain {
     Character,
     /// String scalar values.
     String,
+    /// Symbol scalar values.
+    Symbol,
     /// Boolean scalar values.
     Boolean,
     /// Null singleton values.
