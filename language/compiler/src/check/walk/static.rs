@@ -3,7 +3,7 @@ use std::ptr::NonNull;
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Condition, FlowState, NameLookup, NameTarget, StaticIfCondition, WalkState};
+use crate::check::{Condition, FlowState, StaticIfCondition, WalkState};
 use crate::r#static::{StaticContext, StaticError};
 
 /// One active static guard scope.
@@ -41,8 +41,8 @@ pub(in crate::check) enum GuardOutcome {
 impl WalkState<'_, '_> {
     /// Evaluate the static guard attached to one decorated node.
     ///
-    /// Profile-level conditions decide eagerly; everything else lowers
-    /// to predicate types that the solver decides or assumes.
+    /// Profile-level conditions decide eagerly; everything else becomes
+    /// predicate types that the solver decides or assumes.
     ///
     /// Example:
     /// ```ds
@@ -200,9 +200,9 @@ impl WalkState<'_, '_> {
 
                 Ok(GuardOutcome::Absent)
             }
-            // open conditions lower to predicate types for the solver
+            // turn open conditions into predicate types for the solver
             Err(StaticError::NotStatic(_)) => {
-                let predicate = self.lower_static_predicate(condition)?;
+                let predicate = self.static_expression_type(condition)?;
 
                 Ok(GuardOutcome::Present(Condition::When(smallvec::smallvec![
                     predicate
@@ -211,13 +211,13 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Lower one static guard expression to a predicate type.
+    /// Return one static expression as a type-level term.
     ///
     /// Example:
     /// ```ds
     /// Mode == "inline"
     /// ```
-    pub(in crate::check) fn lower_static_predicate(
+    pub(in crate::check) fn static_expression_type(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -246,43 +246,47 @@ impl WalkState<'_, '_> {
         match self.tree.get(expression) {
             // (C)
             dir::Expression::Parenthesized { expression } => {
-                let expression = *expression;
-
-                self.lower_static_predicate(expression)
+                self.static_expression_type(*expression)
             }
             // type
             dir::Expression::Type { value } => {
-                let value = *value;
                 if let dir::TypeExpression::Infer {
                     form: dir::InferForm::Hole,
                     ..
-                } = self.tree.get(value)
+                } = self.tree.get(*value)
                 {
-                    return self.node_type_any(value.into_global_any(self.module));
+                    return self.node_type_any((*value).into_global_any(self.module));
                 }
 
-                self.walk_type_expression(value)
+                self.walk_type_expression(*value)
             }
             // 1
             dir::Expression::ScalarLiteral(value) => {
-                let value = *value;
-
-                self.push_type(dir::Type::Literal(value), source)
+                self.push_type(dir::Type::Literal(*value), source)
             }
             // this
             dir::Expression::This => self.push_type(dir::Type::This, source),
             // names reference comptime parameters and static constants
-            dir::Expression::Identifier { name } => {
-                let name = *name;
-                let lookup =
-                    self.check
-                        .lookup_name(self.module, source, name, dir::SymbolSpace::Value);
-                let symbol = match lookup {
-                    NameLookup::Found(candidate) => match candidate.target {
-                        NameTarget::Symbol(symbol) => Some(symbol),
-                        NameTarget::Namespace(_) => None,
-                    },
-                    NameLookup::Missing | NameLookup::Ambiguous(_) => None,
+            dir::Expression::Identifier { .. } => {
+                let reference = self
+                    .check
+                    .module(self.module)
+                    .resolved
+                    .references
+                    .get(expression.into_global_any(self.module));
+                let symbol = match reference {
+                    Some(dir::Reference::Bound(symbols)) => {
+                        let symbols = self.check.available_symbols(symbols);
+                        match symbols.as_slice() {
+                            [symbol] => Some(*symbol),
+                            _ => None,
+                        }
+                    }
+                    Some(dir::Reference::Missing)
+                    | Some(dir::Reference::Namespace(_))
+                    | Some(dir::Reference::Projected { .. })
+                    | Some(dir::Reference::Ambiguous(_))
+                    | None => None,
                 };
                 let Some(symbol) = symbol else {
                     self.check.report_invalid_static_guard(self.module, source);
@@ -312,8 +316,7 @@ impl WalkState<'_, '_> {
                 operator,
                 right,
             } => {
-                let (operator, left, right) = (*operator, *left, *right);
-                let Ok(operator) = dir::StaticBinaryOperator::try_from(operator) else {
+                let Ok(operator) = dir::StaticBinaryOperator::try_from(*operator) else {
                     self.check.report_invalid_static_guard(self.module, source);
 
                     return self.push_type(
@@ -321,8 +324,8 @@ impl WalkState<'_, '_> {
                         source,
                     );
                 };
-                let left = self.lower_static_predicate(left)?;
-                let right = self.lower_static_predicate(right)?;
+                let left = self.static_expression_type(*left)?;
+                let right = self.static_expression_type(*right)?;
                 let operation = dir::TypeOperation::StaticBinary(dir::StaticBinaryType {
                     operator,
                     left,
@@ -333,8 +336,7 @@ impl WalkState<'_, '_> {
             }
             // !C
             dir::Expression::Unary { operator, right } => {
-                let (operator, target) = (*operator, *right);
-                let Ok(operator) = dir::StaticUnaryOperator::try_from(operator) else {
+                let Ok(operator) = dir::StaticUnaryOperator::try_from(*operator) else {
                     self.check.report_invalid_static_guard(self.module, source);
 
                     return self.push_type(
@@ -342,7 +344,7 @@ impl WalkState<'_, '_> {
                         source,
                     );
                 };
-                let target = self.lower_static_predicate(target)?;
+                let target = self.static_expression_type(*right)?;
                 let operation =
                     dir::TypeOperation::StaticUnary(dir::StaticUnaryType { operator, target });
 
@@ -353,11 +355,10 @@ impl WalkState<'_, '_> {
                 left,
                 name: Some(name),
             } => {
-                let (left, name) = (*left, *name);
-                let owner = self.lower_static_predicate(left)?;
+                let owner = self.static_expression_type(*left)?;
                 let member = dir::Type::Member(dir::MemberType {
                     owner,
-                    key: dir::StaticKey::Name(name),
+                    key: dir::StaticKey::Name(*name),
                     arguments: Vec::new(),
                 });
 
