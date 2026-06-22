@@ -392,56 +392,94 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        // compare signature metadata and collect directed pairs in one pure pass
+        // collect directed comparison pairs
         let pairs = {
             let (dir::Type::FunctionSignature(source), dir::Type::FunctionSignature(target)) =
                 (self.ty(source)?, self.ty(target)?)
             else {
                 return Ok(Answer::Ready(false));
             };
-            if source.asynchrony != target.asynchrony || source.is_generator != target.is_generator
-            {
+
+            let Some(pairs) = collect_function_assignability_pairs(source, target, true) else {
                 return Ok(Answer::Ready(false));
-            }
-
-            let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
-
-            // compare receiver input contravariantly
-            match (source.this_parameter, target.this_parameter) {
-                (Some(source), Some(target)) => pairs.push((target, source)),
-                (None, _) => {}
-                (Some(_), None) => return Ok(Answer::Ready(false)),
-            }
-
-            // require source parameters to accept every target call arity
-            if !accepts_contextual_arities(&source.parameters, &target.parameters) {
-                return Ok(Answer::Ready(false));
-            }
-
-            // compare runtime inputs contravariantly
-            let shared = source.parameters.len().min(target.parameters.len());
-            for (source, target) in source.parameters[..shared]
-                .iter()
-                .zip(&target.parameters[..shared])
-            {
-                if source.is_rest != target.is_rest {
-                    return Ok(Answer::Ready(false));
-                }
-                pairs.push((target.ty, source.ty));
-            }
-
-            // compare outputs covariantly
-            match (source.return_type, target.return_type) {
-                (Some(source), Some(target)) => pairs.push((source, target)),
-                (_, None) => {}
-                (None, Some(_)) => return Ok(Answer::Ready(false)),
-            }
-
+            };
             pairs
         };
 
         self.decide_each(origin, Relation::Assignable, &pairs)
     }
+
+    /// Decide assignability of two selected methods.
+    pub(in crate::check) fn decide_method_assignable(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        // collect directed comparison pairs
+        let pairs = {
+            let (dir::Type::FunctionSignature(source), dir::Type::FunctionSignature(target)) =
+                (self.ty(source)?, self.ty(target)?)
+            else {
+                return Ok(Answer::Ready(false));
+            };
+
+            let Some(pairs) = collect_function_assignability_pairs(source, target, false) else {
+                return Ok(Answer::Ready(false));
+            };
+            pairs
+        };
+
+        self.decide_each(origin, Relation::Assignable, &pairs)
+    }
+}
+
+/// Collect directed function assignment pairs.
+fn collect_function_assignability_pairs(
+    source: &dir::FunctionSignatureType,
+    target: &dir::FunctionSignatureType,
+    is_receiver_compared: bool,
+) -> Option<SmallVec<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>> {
+    if source.asynchrony != target.asynchrony || source.is_generator != target.is_generator {
+        return None;
+    }
+
+    let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
+
+    // compare receiver input contravariantly for function values
+    if is_receiver_compared {
+        match (source.this_parameter, target.this_parameter) {
+            (Some(source), Some(target)) => pairs.push((target, source)),
+            (None, _) => {}
+            (Some(_), None) => return None,
+        }
+    }
+
+    // require source parameters to accept every target call arity
+    if !accepts_contextual_arities(&source.parameters, &target.parameters) {
+        return None;
+    }
+
+    // compare runtime inputs contravariantly
+    let shared = source.parameters.len().min(target.parameters.len());
+    for (source, target) in source.parameters[..shared]
+        .iter()
+        .zip(&target.parameters[..shared])
+    {
+        if source.is_rest != target.is_rest {
+            return None;
+        }
+        pairs.push((target.ty, source.ty));
+    }
+
+    // compare outputs covariantly
+    match (source.return_type, target.return_type) {
+        (Some(source), Some(target)) => pairs.push((source, target)),
+        (_, None) => {}
+        (None, Some(_)) => return None,
+    }
+
+    Some(pairs)
 }
 
 /// Return whether source parameters accept every target call arity.
