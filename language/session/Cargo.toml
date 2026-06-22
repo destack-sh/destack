@@ -15,12 +15,13 @@ doctest = false
 # language
 destack_artifact = { workspace = true }
 destack_core = { workspace = true }
-destack_compiler.workspace = true
+destack_compiler = { workspace = true, default-features = false }
 destack_dir = { workspace = true }
 destack_linter = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_query = { workspace = true }
+destack_serde = { workspace = true }
 destack_source = { workspace = true }
 destack_repository = { path = "../repository", default-features = false }
 
