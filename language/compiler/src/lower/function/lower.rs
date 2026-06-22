@@ -40,8 +40,6 @@ pub(crate) struct FunctionLoweringContext<'a> {
     pub(crate) types: &'a dir::TypeTable<'a>,
     /// Provide access to checked resolutions.
     pub(crate) resolutions: &'a dir::ResolutionTable<'a>,
-    /// Elaborated type guard entries.
-    pub(crate) guards: &'a dir::GuardTable,
     /// Provide access to capture metadata for function environments.
     pub(crate) captures: &'a dir::CaptureTable<'a>,
     /// Provide access to the program string pool for name resolution.
@@ -566,19 +564,25 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             dir::Expression::Binary {
+                operator: dir::BinaryOperator::In,
+                ..
+            } => self.lower_member_predicate_expression(expression_id),
+
+            dir::Expression::Binary {
                 left,
                 operator,
                 right,
             } => self.lower_binary_expression(expression_id, *left, *operator, *right),
 
-            dir::Expression::Is { value, target_type } => {
-                let target_type_id = self.is_target_type_id(*target_type)?;
-                self.lower_runtime_type_guard_expression(expression_id, *value, target_type_id)
+            dir::Expression::Is {
+                value,
+                target_type: _,
+            } => {
+                self.lower_type_predicate_expression(expression_id, *value)
             }
 
-            dir::Expression::InstanceOf { value, target } => {
-                let target_type_id = self.type_for_expression_or_error(*target)?;
-                self.lower_runtime_type_guard_expression(expression_id, *value, target_type_id)
+            dir::Expression::InstanceOf { value, target: _ } => {
+                self.lower_type_predicate_expression(expression_id, *value)
             }
 
             dir::Expression::Assign { left, right, .. } => {
