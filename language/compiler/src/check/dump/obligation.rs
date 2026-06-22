@@ -1,4 +1,5 @@
 use destack_artifact::ArtifactEvent;
+use destack_dir as dir;
 
 use crate::check::{
     DumpContext, MatchCase, Obligation, ObligationId, PatternCoverage, PlaceTarget,
@@ -52,6 +53,10 @@ impl Obligation {
             Self::DynamicSafety(obligation) => {
                 event.text("type", context.type_label(obligation.ty))
             }
+            Self::RuntimePredicate(obligation) => event.text(
+                "predicate",
+                runtime_predicate_label(&obligation.predicate, context),
+            ),
             Self::ExtensionConformance(obligation) => {
                 event.text("symbol", context.symbol_label(obligation.symbol))
             }
@@ -72,9 +77,37 @@ impl Obligation {
             Self::WritablePlace(_) => "writable.place",
             Self::Representation(_) => "representation",
             Self::DynamicSafety(_) => "dynamic.safety",
+            Self::RuntimePredicate(_) => "runtime.predicate",
             Self::ExtensionConformance(_) => "extension.conformance",
             Self::ImplementationCoherence(_) => "implementation.coherence",
             Self::DeclarationHeritage(_) => "declaration.heritage",
+        }
+    }
+}
+
+/// Render one runtime predicate payload.
+fn runtime_predicate_label(
+    predicate: &dir::PredicateResolution,
+    context: &DumpContext<'_, '_>,
+) -> String {
+    match predicate {
+        dir::PredicateResolution::Is(predicate) => {
+            let value = context.type_label(predicate.value_type);
+            let target = context.type_label(predicate.target_type);
+
+            format!("{value} is {target}")
+        }
+        dir::PredicateResolution::InstanceOf(predicate) => {
+            let value = context.type_label(predicate.value_type);
+            let target = context.symbol_label(predicate.target);
+
+            format!("{value} instanceof {target}")
+        }
+        dir::PredicateResolution::In(predicate) => {
+            let key = context.type_label(predicate.key_type);
+            let receiver = context.type_label(predicate.receiver_type);
+
+            format!("{key} in {receiver}")
         }
     }
 }

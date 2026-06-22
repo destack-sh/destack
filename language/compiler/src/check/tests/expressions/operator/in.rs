@@ -24,7 +24,7 @@ hasX satisfies boolean;
 === checked ===
 const point = { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type=Managed<{ x: float64; y: float64 }>
-/// @type.node source="{ x: 1, y: 2 }" type=Managed<{ x: float64; y: float64 }>
+/// @type.node source={ x: 1, y: 2 } type=Managed<{ x: float64; y: float64 }>
 /// @type.node source=1 type=float64
 /// @type.node source=2 type=float64
 
@@ -32,7 +32,7 @@ const hasX = "x" in point;
 /// @type.symbol symbol=hasX source=hasX type=boolean
 /// @type.node source="\"x\" in point" type=boolean
 /// @type.node source="\"x\"" type="x"
-/// @resolution.call source="\"x\" in point" parameters=() return=boolean kind=builtin builtin=binary.in
+/// @resolution.predicate source="\"x\" in point" kind=in key_type="x" receiver=Managed<{ x: float64; y: float64 }> key=x
 /// @type.node source=point type=Managed<{ x: float64; y: float64 }>
 /// @resolution.name source=point target=point
 
@@ -68,7 +68,7 @@ hasName satisfies boolean;
 === checked ===
 const point = { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type=Managed<{ x: float64; y: float64 }>
-/// @type.node source="{ x: 1, y: 2 }" type=Managed<{ x: float64; y: float64 }>
+/// @type.node source={ x: 1, y: 2 } type=Managed<{ x: float64; y: float64 }>
 /// @type.node source=1 type=float64
 /// @type.node source=2 type=float64
 
@@ -76,7 +76,7 @@ const hasName = "name" in point;
 /// @type.symbol symbol=hasName source=hasName type=boolean
 /// @type.node source="\"name\" in point" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.call source="\"name\" in point" parameters=() return=boolean kind=builtin builtin=binary.in
+/// @resolution.predicate source="\"name\" in point" kind=in key_type="name" receiver=Managed<{ x: float64; y: float64 }> key=name
 /// @type.node source=point type=Managed<{ x: float64; y: float64 }>
 /// @resolution.name source=point target=point
 
@@ -127,7 +127,7 @@ type Numbered = { id: int32 };
 /// @definition.type symbol=Numbered source="type Numbered = { id: int32 }" value={ id: int32 }
 
 declare const value: Named | Numbered;
-/// @type.symbol symbol=value source=value type={ name: string } | { id: int32 }
+/// @type.symbol symbol=value source=value type=Named | Numbered
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=Numbered target=Numbered
 
@@ -135,16 +135,16 @@ if ("name" in value) {
 /// @type.node type=void | void
 /// @type.node source="\"name\" in value" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.call source="\"name\" in value" parameters=() return=boolean kind=builtin builtin=binary.in
-/// @type.node source=value type={ name: string } | { id: int32 }
+/// @resolution.predicate source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered key=name
+/// @type.node source=value type=Named | Numbered
 /// @resolution.name source=value target=value
 
     value.name satisfies string;
     /// @type.node source="value.name satisfies string" type=string
-    /// @type.node source=value type={ name: string } | { id: int32 } extends { name: unknown } ? { name: string } | { id: int32 } : never
+    /// @type.node source=value type={ name: string }
     /// @type.node source=value.name type=string
     /// @resolution.name source=value target=value
-    /// @resolution.member source=value.name receiver={ name: string } | { id: int32 } extends { name: unknown } ? { name: string } | { id: int32 } : never kind=field key=name
+    /// @resolution.member source=value.name receiver={ name: string } kind=field key=name
 
 }
 "#,
@@ -168,13 +168,14 @@ fn test_in_rejects_primitive_receiver() {
 
 === checked ===
 "x" in 1;
-/// @type.node source="\"x\" in 1" type=<error>
+/// @type.node source="\"x\" in 1" type=boolean
 /// @type.node source="\"x\"" type="x"
+/// @resolution.predicate source="\"x\" in 1" kind=in key_type="x" receiver=1 key=x
 /// @type.node source=1 type=1
 "#,
         r#"
 /// @diagnostic.error code=EC306 message="operator 'in' is not defined for '\"x\"' and '1'"
-/// @diagnostic.label line=2 column=1 source="\"x\" in 1;"
+/// @diagnostic.label line=2 column=5 source="\"x\" in 1;"
 "#,
     );
 }
@@ -201,18 +202,19 @@ true in point;
 === checked ===
 const point = { x: 1 };
 /// @type.symbol symbol=point source=point type=Managed<{ x: float64 }>
-/// @type.node source="{ x: 1 }" type=Managed<{ x: float64 }>
+/// @type.node source={ x: 1 } type=Managed<{ x: float64 }>
 /// @type.node source=1 type=float64
 
 true in point;
-/// @type.node source="true in point" type=<error>
+/// @type.node source="true in point" type=boolean
 /// @type.node source=true type=true
+/// @resolution.predicate source="true in point" kind=in key_type=true receiver=Managed<{ x: float64 }>
 /// @type.node source=point type=Managed<{ x: float64 }>
 /// @resolution.name source=point target=point
 "#,
         r#"
 /// @diagnostic.error code=EC306 message="operator 'in' is not defined for 'true' and '{ x: float64 }'"
-/// @diagnostic.label line=4 column=1 source="true in point;"
+/// @diagnostic.label line=4 column=6 source="true in point;"
 "#,
     );
 }
@@ -241,14 +243,15 @@ declare const value: unknown;
 /// @type.symbol symbol=value source=value type=unknown
 
 "name" in value;
-/// @type.node source="\"name\" in value" type=<error>
+/// @type.node source="\"name\" in value" type=boolean
 /// @type.node source="\"name\"" type="name"
+/// @resolution.predicate source="\"name\" in value" kind=in key_type="name" receiver=unknown key=name
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
 "#,
         r#"
 /// @diagnostic.error code=EC306 message="operator 'in' is not defined for '\"name\"' and 'unknown'"
-/// @diagnostic.label line=4 column=1 source="\"name\" in value;"
+/// @diagnostic.label line=4 column=8 source="\"name\" in value;"
 "#,
     );
 }

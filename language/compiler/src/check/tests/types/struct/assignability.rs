@@ -36,8 +36,8 @@ value satisfies HasX;
 === checked ===
 interface HasX {
 /// @type.symbol symbol=HasX type=HasX
-/// @definition.field symbol=HasX.x source="x: int32" key=x type=int32
 /// @definition.interface symbol=HasX
+/// @definition.field symbol=HasX.x source="x: int32" key=x type=int32
 
     x: int32;
     /// @type.symbol symbol=HasX.x source="x: int32" type=int32
@@ -46,8 +46,8 @@ interface HasX {
 
 struct Point {
 /// @type.symbol symbol=Point type=Point
-/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
@@ -96,8 +96,8 @@ value satisfies { readonly x: int32 };
 === checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
-/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
@@ -154,8 +154,8 @@ counter satisfies HasCount;
 === checked ===
 interface HasCount {
 /// @type.symbol symbol=HasCount type=HasCount
-/// @definition.field symbol=HasCount.count source="count?: int32" key=count type=int32 | undefined
 /// @definition.interface symbol=HasCount
+/// @definition.field symbol=HasCount.count source="count?: int32" key=count type=int32 | undefined
 
     count?: int32;
     /// @type.symbol symbol=HasCount.count source="count?: int32" type=int32 | undefined
@@ -164,8 +164,8 @@ interface HasCount {
 
 struct Counter {
 /// @type.symbol symbol=Counter type=Counter
-/// @definition.field symbol=Counter.count source="count: int32" key=count type=int32
 /// @definition.struct symbol=Counter
+/// @definition.field symbol=Counter.count source="count: int32" key=count type=int32
 
     count: int32;
     /// @type.symbol symbol=Counter.count source="count: int32" type=int32
@@ -224,9 +224,9 @@ interface Drawable {
 
 struct Point implements Drawable {
 /// @type.symbol symbol=Point type=Point
-/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @definition.struct symbol=Point
 /// @definition.implements symbol=Point source=Drawable target=Drawable
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @resolution.name source=Drawable target=Drawable
 
     x: int32;
@@ -334,8 +334,8 @@ const value: PointClass = point;
 === checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
-/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
@@ -344,8 +344,8 @@ struct Point {
 
 class PointClass {
 /// @type.symbol symbol=PointClass type=PointClass
-/// @definition.field symbol=PointClass.x source="x: int32 = 0" key=x type=int32
 /// @definition.class symbol=PointClass
+/// @definition.field symbol=PointClass.x source="x: int32 = 0" key=x type=int32
 
     x: int32 = 0;
     /// @type.symbol symbol=PointClass.x source="x: int32 = 0" type=int32
@@ -404,8 +404,8 @@ const value: Point = point;
 === checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
-/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
@@ -414,8 +414,8 @@ struct Point {
 
 class PointClass {
 /// @type.symbol symbol=PointClass type=PointClass
-/// @definition.field symbol=PointClass.x source="x: int32 = 0" key=x type=int32
 /// @definition.class symbol=PointClass
+/// @definition.field symbol=PointClass.x source="x: int32 = 0" key=x type=int32
 
     x: int32 = 0;
     /// @type.symbol symbol=PointClass.x source="x: int32 = 0" type=int32

@@ -42,9 +42,9 @@ const value: int32 = point.sum();
 === checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @definition.field symbol=Point.y source="y: int32" key=y type=int32
-/// @definition.struct symbol=Point
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
@@ -133,9 +133,9 @@ point.length();
 === checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @definition.field symbol=Point.y source="y: int32" key=y type=int32
-/// @definition.struct symbol=Point
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
