@@ -246,7 +246,7 @@ fn collect_module_table_dependencies(
     modules: &dir::ModuleTable<'_>,
     dependencies: &mut Vec<ModuleId>,
 ) {
-    // collect import edges for both value and type space
+    // collect import edges for all dependency forms
     for dependency in modules.iter() {
         // keep resolved module edges
         if let Some(module_id) = dependency.target {

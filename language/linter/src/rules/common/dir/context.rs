@@ -44,7 +44,7 @@ pub fn expression_is_in_type_position(
             return false;
         };
 
-        // any ancestor type node means the value expression lives in type space
+        // any ancestor type node means the expression is in type position
         if parent_node_id.ty == dir::NodeType::TypeExpression {
             return true;
         }

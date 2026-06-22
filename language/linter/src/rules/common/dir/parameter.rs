@@ -79,7 +79,7 @@ fn parameter_declares_value_name(
     })
 }
 
-/// Collect value-space binding symbols declared by one parameter.
+/// Collect value binding symbols declared by one parameter.
 pub fn collect_parameter_value_binding_symbols(
     tree: &dir::Tree,
     symbols: &dir::BindingTable<'_>,
@@ -89,11 +89,11 @@ pub fn collect_parameter_value_binding_symbols(
     // resolve the parameter node
     let parameter = tree.get(parameter_id);
 
-    // collect the parameter root symbol when it lives in value space
+    // collect the parameter root symbol when it can be used as a value
     if let Some(parameter_symbol) =
         symbols.declaration_symbol(parameter_id.into_global_any(symbols.module_id))
     {
-        collect_symbol_when_value_space(symbols, parameter_symbol, bindings);
+        collect_symbol_when_value(symbols, parameter_symbol, bindings);
     }
 
     // collect nested pattern symbols for pattern parameters
@@ -108,7 +108,7 @@ pub fn collect_parameter_value_binding_symbols(
     }
 }
 
-/// Collect value-space binding symbols declared by a pattern subtree.
+/// Collect value binding symbols declared by a pattern subtree.
 pub fn collect_pattern_value_binding_symbols(
     tree: &dir::Tree,
     symbols: &dir::BindingTable<'_>,
@@ -121,7 +121,7 @@ pub fn collect_pattern_value_binding_symbols(
     if let Some(symbol_id) =
         symbols.declaration_symbol(pattern_id.into_global_any(symbols.module_id))
     {
-        collect_symbol_when_value_space(symbols, symbol_id, bindings);
+        collect_symbol_when_value(symbols, symbol_id, bindings);
     }
 
     // recurse through child patterns
@@ -158,7 +158,7 @@ pub fn collect_pattern_value_binding_symbols(
     }
 }
 
-/// Collect value-space binding symbols declared by one pattern field.
+/// Collect value binding symbols declared by one pattern field.
 pub fn collect_pattern_field_value_binding_symbols(
     tree: &dir::Tree,
     symbols: &dir::BindingTable<'_>,
@@ -170,7 +170,7 @@ pub fn collect_pattern_field_value_binding_symbols(
     // collect the field binding symbol when present
     if let Some(symbol_id) = symbols.declaration_symbol(field_id.into_global_any(symbols.module_id))
     {
-        collect_symbol_when_value_space(symbols, symbol_id, bindings);
+        collect_symbol_when_value(symbols, symbol_id, bindings);
     }
 
     // recurse into nested field patterns
@@ -190,14 +190,14 @@ pub fn collect_pattern_field_value_binding_symbols(
     }
 }
 
-/// Collect one symbol when it belongs to value space.
-fn collect_symbol_when_value_space(
+/// Collect one symbol when it can be used as a value.
+fn collect_symbol_when_value(
     symbols: &dir::BindingTable<'_>,
     symbol_id: dir::LocalSymbolId,
     bindings: &mut HashSet<dir::LocalSymbolId>,
 ) {
     let symbol = symbols.get_symbol(symbol_id);
-    if symbol.kind.is_visible_in(dir::SymbolSpace::Value) {
+    if symbol.kind.can_be_used_as_value() {
         bindings.insert(symbol_id);
     }
 }
@@ -255,7 +255,7 @@ pub fn collect_callable_parameter_value_binding_symbols(
     global_symbols
 }
 
-/// Collect value-space parameter bindings for one callable signature as globals.
+/// Collect value parameter bindings for one callable signature as globals.
 fn collect_signature_parameter_value_binding_symbols(
     module_id: ModuleId,
     tree: &dir::Tree,

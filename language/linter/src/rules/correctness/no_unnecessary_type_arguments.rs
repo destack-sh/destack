@@ -149,9 +149,9 @@ struct GenericParameterDefault {
 /// One generic parameter default value.
 #[derive(Clone, Copy)]
 enum GenericParameterDefaultValue {
-    /// One type-space default.
+    /// One type default.
     Type(dir::LocalNodeId<dir::TypeExpression>),
-    /// One value-space default.
+    /// One value default.
     Value(dir::LocalNodeId<dir::Expression>),
 }
 

@@ -90,8 +90,8 @@ impl LintRule for NoShadow {
 
 /// Return true when this symbol can participate in no-shadow checks.
 fn symbol_is_shadow_candidate(symbol: &dir::Symbol) -> bool {
-    // keep named value-space symbols only
-    if !symbol.kind.is_visible_in(dir::SymbolSpace::Value) {
+    // keep named value bindings only
+    if !symbol.kind.can_be_used_as_value() {
         return false;
     }
     if symbol.key.is_none() {
@@ -121,7 +121,7 @@ fn symbol_has_shadowable_declaration(symbol: &dir::Symbol) -> bool {
 
 /// Return true when two symbols are comparable for no-shadow checks.
 fn symbols_shadow_each_other(current: &dir::Symbol, ancestor: &dir::Symbol) -> bool {
-    // keep comparable value-space bindings only
+    // keep comparable value bindings only
     symbol_is_shadow_candidate(current) && symbol_is_shadow_candidate(ancestor)
 }
 

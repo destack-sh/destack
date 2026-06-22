@@ -35,7 +35,7 @@ impl LintRule for NoParameterReassignment {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        // collect all value space parameter symbols for callable bodies
+        // collect all value parameter symbols for callable bodies
         let parameter_symbols = collect_callable_parameter_value_binding_symbols(
             ctx.module_id(),
             ctx.dir.tree(),

@@ -871,7 +871,7 @@ pub fn expression_is_potentially_tainted(
     )
 }
 
-/// Return true when one generic argument contains a matching type-space reference segment.
+/// Return true when one generic argument contains a matching type reference segment.
 fn generic_argument_contains_reference_segment(
     tree: &dir::Tree,
     generic_argument_id: dir::LocalNodeId<dir::GenericArgument>,

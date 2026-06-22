@@ -177,7 +177,7 @@ fn candidate_member_symbol(
     member: &dir::Member,
 ) -> Option<dir::LocalSymbolId> {
     match member {
-        // inspect only value space member forms
+        // inspect only value member forms
         dir::Member::Field { .. } => ctx.local_symbol_for_node(member_id),
         dir::Member::Method { signature, .. } => {
             // constructors are invoked by allocation and should not be linted here

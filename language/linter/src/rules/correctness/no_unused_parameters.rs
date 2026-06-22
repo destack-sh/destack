@@ -48,7 +48,7 @@ impl LintRule for NoUnusedParameters {
                 continue;
             };
 
-            // keep value space bindings only
+            // keep value bindings only
             if !symbol_is_value_binding(ctx, symbol_id) {
                 continue;
             }
@@ -238,10 +238,10 @@ fn unused_named_parameter_fix(
     Some(LintFix::r#unsafe("Prefix unused parameter with `_`").with_patches(edits))
 }
 
-/// Return true when this symbol is a value space binding.
+/// Return true when this symbol can be used as a value.
 fn symbol_is_value_binding(ctx: &LintModuleContext<'_>, symbol_id: dir::LocalSymbolId) -> bool {
     let symbol = ctx.symbols.get_symbol(symbol_id);
-    symbol.kind.is_visible_in(dir::SymbolSpace::Value)
+    symbol.kind.can_be_used_as_value()
 }
 
 /// Return true when the parameter belongs to a declaration or member body.
