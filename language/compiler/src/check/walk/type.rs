@@ -906,6 +906,7 @@ impl WalkState<'_, '_> {
                     default: None,
                     origin: dir::GenericParameterOrigin::Explicit,
                     is_variadic: false,
+                    is_const: false,
                     is_comptime: false,
                 };
 

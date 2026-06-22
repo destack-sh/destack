@@ -57,14 +57,8 @@ fn generic_template_parameter_label(
     builder: &DirSnapshotBuilder<'_>,
 ) -> String {
     // spell the parameter head with its modifiers
-    let mut name = generic_parameter_name(parameter.key, builder);
-    if parameter.is_comptime {
-        name = format!("comptime {name}");
-    }
-    if parameter.is_variadic {
-        name = format!("...{name}");
-    }
-    let name = generic_variance_label(parameter.variance, name);
+    let name = generic_parameter_name(parameter.key, builder);
+    let name = builder.generic_parameter_binding_head_label(parameter, name);
 
     // spell the constraint and default suffixes
     let constraint = parameter
@@ -90,13 +84,28 @@ fn generic_parameter_name(
     }
 }
 
-/// Add one optional variance prefix.
-fn generic_variance_label(variance: Option<dir::VarianceModifier>, name: String) -> String {
-    if let Some(variance) = variance {
-        return format!("{} {name}", variance.as_str());
-    }
+impl DirSnapshotBuilder<'_> {
+    /// Add generic parameter modifiers to one label.
+    pub(super) fn generic_parameter_binding_head_label(
+        &self,
+        parameter: &dir::GenericParameterBinding,
+        mut label: String,
+    ) -> String {
+        if parameter.is_variadic {
+            label = format!("...{label}");
+        }
+        if parameter.is_const {
+            label = format!("const {label}");
+        }
+        if parameter.is_comptime {
+            label = format!("comptime {label}");
+        }
+        if let Some(variance) = parameter.variance {
+            label = format!("{} {label}", variance.as_str());
+        }
 
-    name
+        label
+    }
 }
 
 /// Add one induced origin suffix.

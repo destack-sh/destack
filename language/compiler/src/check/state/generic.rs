@@ -299,6 +299,7 @@ impl CheckState<'_> {
             constraint: parameter.constraint,
             default: None,
             is_variadic: false,
+            is_const: false,
             is_comptime: parameter.is_comptime,
         };
 
