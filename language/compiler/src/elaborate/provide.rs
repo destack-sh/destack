@@ -48,7 +48,6 @@ impl Compiler {
             captures: Arc::new(dir::CaptureSegment::new(module)),
             layouts: Arc::new(dir::LayoutSegment::from_base(&materialized.layouts)),
             roots: materialized.roots.clone(),
-            guards: dir::GuardTable::new(module),
         };
 
         Ok(ArtifactPayload::DirElaborated(Arc::new(elaborated)))
