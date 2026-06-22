@@ -205,6 +205,8 @@ pub struct GenericParameterBinding {
     pub origin: GenericParameterOrigin,
     /// Whether the parameter captures remaining arguments.
     pub is_variadic: bool,
+    /// Whether type inference preserves fresh argument precision.
+    pub is_const: bool,
     /// Whether arguments must solve to singleton types.
     pub is_comptime: bool,
 }

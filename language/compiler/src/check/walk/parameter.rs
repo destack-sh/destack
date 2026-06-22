@@ -26,15 +26,19 @@ impl WalkState<'_, '_> {
         }
 
         // shape the parameter binding by its declared kind
-        let (variance, is_variadic, is_comptime) = match generic_parameter {
+        let (variance, is_variadic, is_const, is_comptime) = match generic_parameter {
             // <T>
-            dir::GenericParameter::Type { variance, .. } => (*variance, false, false),
+            dir::GenericParameter::Type {
+                variance, is_const, ..
+            } => (*variance, false, *is_const, false),
             // <...T>
-            dir::GenericParameter::VariadicType { variance, .. } => (*variance, true, false),
+            dir::GenericParameter::VariadicType {
+                variance, is_const, ..
+            } => (*variance, true, *is_const, false),
             // <comptime C: T>
-            dir::GenericParameter::Value { .. } => (None, false, true),
+            dir::GenericParameter::Value { .. } => (None, false, false, true),
             // <comptime ...C: T>
-            dir::GenericParameter::VariadicValue { .. } => (None, true, true),
+            dir::GenericParameter::VariadicValue { .. } => (None, true, false, true),
             // ignore damaged syntax
             dir::GenericParameter::Error => return Ok(None),
         };
@@ -46,6 +50,7 @@ impl WalkState<'_, '_> {
             default: None,
             origin: dir::GenericParameterOrigin::Explicit,
             is_variadic,
+            is_const,
             is_comptime,
         };
         let parameter = self
@@ -364,6 +369,7 @@ impl WalkState<'_, '_> {
             default,
             origin: dir::GenericParameterOrigin::Induced(dir::GenericParameterInduction::Comptime),
             is_variadic,
+            is_const: false,
             is_comptime: true,
         };
         let parameter = self
