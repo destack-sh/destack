@@ -287,11 +287,11 @@ const user = service.signup(...); // user from API or wherever
 // ... some more illustrative logic ...
 ```
 
-- When possible, we should model the noun trees and the main boxes and lines in ASCII form, either as literal ASCII art with boxes and lines and/or with nice noun trees and schemas. Ideally we should annotate exact field names and types, though both can be complementary
+- When possible, we should model the noun trees and the main boxes and lines in ASCII form, either as literal ASCII art with boxes and lines and/or with nice noun trees and schemas. Ideally we should annotate exact field names and types, though both can be complementary. The more detail the better, proper fields / methods / signatures are very helpful here (the below is abbreviated for brevity).
 
 ```
 Heap // per owner
-├── HeapOptions
+├── HeapOptions { gc: GcOptions, size_class: SizeClassTable, ... }
 ├── HeapLimits
 ├── GcPacer
 ├── GcRequest
