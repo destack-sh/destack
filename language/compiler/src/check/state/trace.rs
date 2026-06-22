@@ -1,7 +1,7 @@
 use destack_artifact::{ArtifactEvent, ArtifactEventLog};
 use destack_dir as dir;
 
-use crate::check::{CheckState, ConstraintId, Task};
+use crate::check::{CheckState, ConstraintId, DumpContext, ObligationId, Task};
 
 /// Derived size counters for one checked component.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,27 +46,34 @@ pub(in crate::check) enum CheckEvent {
         /// The number of variables present after solving.
         variables: usize,
     },
-    /// One constraint was solved or parked.
-    Relate {
+    /// One relation constraint was checked or parked.
+    RelationCheck {
         /// The constraint.
         constraint: ConstraintId,
         /// Whether the constraint finished.
         finished: bool,
     },
+    /// One obligation was checked or parked.
+    ObligationCheck {
+        /// The obligation.
+        obligation: ObligationId,
+        /// Whether the obligation finished.
+        finished: bool,
+    },
     /// One node was decided.
-    Decide {
+    Decision {
         /// The decided node.
         node: dir::GlobalNodeIdAny,
     },
     /// One variable was solved.
-    Solve {
+    VariableSolution {
         /// The solved variable.
         variable: dir::TypeVariableId,
         /// The solution type.
         solution: dir::GlobalTypeId,
     },
     /// Two open variables were aliased.
-    Alias {
+    VariableAlias {
         /// The aliased variable.
         variable: dir::TypeVariableId,
         /// The new representative.
@@ -82,7 +89,10 @@ impl CheckState<'_> {
         }
 
         if cfg!(debug_assertions) {
-            eprintln!("check.event[{}] {event:?}", self.events.len());
+            let context = DumpContext::new(self);
+            let timestamp = self.events.len();
+
+            eprintln!("{}", event.render_plain_at(&context, timestamp));
         }
 
         self.events.push(event);
@@ -90,6 +100,7 @@ impl CheckState<'_> {
 
     /// Return rendered event rows for this component.
     pub(in crate::check) fn events(&self) -> ArtifactEventLog {
+        let context = DumpContext::new(self);
         let mut log = ArtifactEventLog::new();
 
         // summarize retained trace state
@@ -100,13 +111,8 @@ impl CheckState<'_> {
         );
 
         // render retained events in order
-        for (index, event) in self.events.iter().enumerate() {
-            log.push(
-                ArtifactEvent::new("check.events")
-                    .info()
-                    .usize("index", index)
-                    .text("event", format!("{event:?}")),
-            );
+        for event in self.events.iter().copied() {
+            event.render(&context, &mut log);
         }
 
         log
