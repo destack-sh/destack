@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use smallvec::smallvec;
 
 use crate::resolve::state::{PathReference, ResolveState};
 
@@ -18,10 +19,13 @@ impl ResolveState<'_> {
     ) {
         match expression {
             dir::Expression::Identifier { name } => {
-                let source = id.into_any();
-                let key = dir::StaticKey::Name(*name);
-
-                self.collect_global_reference(source, key, dir::SymbolSpace::Value);
+                self.collect_path_reference(PathReference {
+                    source: id.into_global_any(self.module),
+                    path: dir::Path {
+                        segments: smallvec![*name],
+                    },
+                    space: dir::SymbolSpace::Value,
+                });
             }
             dir::Expression::Member { .. } => {
                 // collect the path once, at the outermost member of a chain
@@ -32,6 +36,7 @@ impl ResolveState<'_> {
                     self.collect_path_reference(PathReference {
                         source: id.into_global_any(self.module),
                         path,
+                        space: dir::SymbolSpace::Value,
                     });
                 }
 
@@ -133,16 +138,18 @@ impl ResolveState<'_> {
     ) {
         match ty {
             dir::TypeExpression::Reference { path, .. } if path.segments.len() == 1 => {
-                let source = id.into_any();
-                let key = dir::StaticKey::Name(path.segments[0]);
-
-                self.collect_global_reference(source, key, dir::SymbolSpace::Type);
+                self.collect_path_reference(PathReference {
+                    source: id.into_global_any(self.module),
+                    path: path.clone(),
+                    space: dir::SymbolSpace::Type,
+                });
                 dir::walk_type_expression(self, tree, id, ty);
             }
             dir::TypeExpression::Reference { path, .. } => {
                 self.collect_path_reference(PathReference {
                     source: id.into_global_any(self.module),
                     path: path.clone(),
+                    space: dir::SymbolSpace::Type,
                 });
                 dir::walk_type_expression(self, tree, id, ty);
             }

@@ -4,6 +4,7 @@ use destack_dir as dir;
 use destack_repository::ArtifactReader;
 use destack_source::{ModuleId, ProfileId};
 use indexmap::IndexSet;
+use smallvec::{SmallVec, smallvec};
 
 use crate::export::{ExportLookup, ExportResolver};
 use crate::resolve::stats::ResolveStats;
@@ -75,6 +76,8 @@ pub(in crate::resolve) struct PathReference {
     pub(in crate::resolve) source: dir::GlobalNodeIdAny,
     /// The source path.
     pub(in crate::resolve) path: dir::Path,
+    /// The symbol space used by the first segment.
+    pub(in crate::resolve) space: dir::SymbolSpace,
 }
 
 /// Function context visible to syntax-dependent dependency collection.
@@ -120,9 +123,96 @@ impl<'a> ResolveState<'a> {
         }
     }
 
-    /// Collect one namespace path reference for later target lookup.
+    /// Collect one source path reference for later target lookup.
     pub(in crate::resolve) fn collect_path_reference(&mut self, reference: PathReference) {
+        let Some(root) = reference.path.segments.first().copied() else {
+            return;
+        };
+
+        // expression member chains already visit their root identifier
+        if reference.source.local_id.ty != dir::NodeType::TypeExpression
+            && reference.path.segments.len() > 1
+        {
+            self.path_references.push(reference);
+
+            return;
+        }
+
+        // collect required global keys only when no local root wins
+        self.stats.local_binding_lookups += 1;
+        let key = dir::StaticKey::Name(root);
+        let local_symbols = self.visible_symbols(reference.source.local_id, key, reference.space);
+        if local_symbols.is_empty() && self.global_keys.insert(key) {
+            self.stats.required_globals += 1;
+        }
+
         self.path_references.push(reference);
+    }
+
+    /// Return symbols visible at one source node.
+    pub(in crate::resolve) fn visible_symbols(
+        &self,
+        source: dir::LocalNodeIdAny,
+        key: dir::StaticKey,
+        space: dir::SymbolSpace,
+    ) -> SmallVec<[dir::GlobalSymbolId; 2]> {
+        // type declarations are hoisted through their lexical scope
+        if space == dir::SymbolSpace::Type {
+            return self.hoisted_type_symbols(source, key);
+        }
+
+        // value and label declarations respect source order
+        let lookup = self
+            .bindings
+            .lookup_symbol_at(&self.view, source, key, space);
+
+        self.symbols_from_lookup(lookup)
+    }
+
+    /// Return hoisted type symbols visible at one source node.
+    fn hoisted_type_symbols(
+        &self,
+        source: dir::LocalNodeIdAny,
+        key: dir::StaticKey,
+    ) -> SmallVec<[dir::GlobalSymbolId; 2]> {
+        let mut scope = self.bindings.scope_at(&self.view, source);
+
+        loop {
+            let current = self.bindings.get_scope(scope);
+            let mut symbols = SmallVec::new();
+
+            // collect all type-space symbols in this lexical scope
+            current.for_symbols_by_key(key, |symbol| {
+                if self
+                    .bindings
+                    .get_symbol(symbol)
+                    .kind
+                    .is_visible_in(dir::SymbolSpace::Type)
+                {
+                    symbols.push(symbol.into_global(self.module));
+                }
+            });
+            if !symbols.is_empty() {
+                return symbols;
+            }
+
+            let Some(parent) = current.parent else {
+                return SmallVec::new();
+            };
+            scope = parent;
+        }
+    }
+
+    /// Return global symbols from one local lookup result.
+    fn symbols_from_lookup(&self, lookup: dir::SymbolLookup) -> SmallVec<[dir::GlobalSymbolId; 2]> {
+        match lookup {
+            dir::SymbolLookup::Found(symbol) => smallvec![symbol.into_global(self.module)],
+            dir::SymbolLookup::Ambiguous(symbols) => symbols
+                .into_iter()
+                .map(|symbol| symbol.into_global(self.module))
+                .collect(),
+            dir::SymbolLookup::Missing => SmallVec::new(),
+        }
     }
 
     /// Require one syntax-required language item.
@@ -150,25 +240,60 @@ impl<'a> ResolveState<'a> {
         self.function_stack.last().copied()
     }
 
-    /// Collect one bare reference for global resolution when no local binding exists.
-    pub(in crate::resolve) fn collect_global_reference(
-        &mut self,
-        source: dir::LocalNodeIdAny,
-        key: dir::StaticKey,
-        space: dir::SymbolSpace,
-    ) {
-        self.stats.local_binding_lookups += 1;
+    /// Return a reference from one visible symbol set.
+    pub(in crate::resolve) fn reference_from_symbols(
+        &self,
+        symbols: SmallVec<[dir::GlobalSymbolId; 2]>,
+    ) -> dir::Reference {
+        // resolve local import aliases to their exported targets
+        let targets = symbols.into_iter().map(|symbol| {
+            if symbol.module_id == self.module
+                && let Some(target) = self.imports.symbol_target(symbol.local_id)
+            {
+                target
+            } else {
+                dir::ImportTarget::Symbol(symbol)
+            }
+        });
 
-        if !matches!(
-            self.bindings
-                .lookup_symbol_at(&self.view, source, key, space),
-            dir::SymbolLookup::Missing,
-        ) {
-            return;
+        self.reference_from_targets(targets)
+    }
+
+    /// Return a reference from visible import targets.
+    pub(in crate::resolve) fn reference_from_targets(
+        &self,
+        targets: impl IntoIterator<Item = dir::ImportTarget>,
+    ) -> dir::Reference {
+        let mut symbols: SmallVec<[dir::GlobalSymbolId; 2]> = SmallVec::new();
+        let mut namespace = None;
+        let mut is_conflicting_namespace = false;
+
+        // collect symbols and a possible namespace target
+        for target in targets {
+            match target {
+                dir::ImportTarget::Symbol(symbol) if !symbols.contains(&symbol) => {
+                    symbols.push(symbol);
+                }
+                dir::ImportTarget::Symbol(_) => {}
+                dir::ImportTarget::Namespace(module) => {
+                    is_conflicting_namespace |= namespace.replace(module).is_some();
+                }
+            }
         }
 
-        if self.global_keys.insert(key) {
-            self.stats.required_globals += 1;
+        // prefer concrete symbols over namespace objects
+        if !symbols.is_empty() {
+            dir::Reference::Bound(symbols)
+        }
+        // keep a single namespace reference
+        else if let Some(module) = namespace
+            && !is_conflicting_namespace
+        {
+            dir::Reference::Namespace(module)
+        }
+        // no visible target remains
+        else {
+            dir::Reference::Missing
         }
     }
 

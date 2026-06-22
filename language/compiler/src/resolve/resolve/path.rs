@@ -7,7 +7,7 @@ use crate::export::{ExportLookup, ExportTarget};
 use crate::resolve::state::{PathReference, ResolveState};
 
 impl ResolveState<'_> {
-    /// Resolve the namespace paths collected during the resolve walk.
+    /// Resolve the source paths collected during the resolve walk.
     pub(in crate::resolve) fn resolve_path_references(&mut self) -> CompilerResult<()> {
         let references = std::mem::take(&mut self.path_references);
 
@@ -18,21 +18,22 @@ impl ResolveState<'_> {
         Ok(())
     }
 
-    /// Resolve one namespace path into its per node references.
+    /// Resolve one source path into its per node references.
     fn resolve_path_reference(&mut self, reference: PathReference) -> CompilerResult<()> {
         let segments = reference.path.segments.clone();
         let Some((root, tail)) = segments.split_first() else {
             return Ok(());
         };
 
-        // stop when the root names no namespace: such members resolve by type in check
-        let Some(mut module) = self.namespace_root_module(reference.source.local_id, *root) else {
+        let root = self.resolve_path_root(reference.source.local_id, *root, reference.space);
+        let mut prefixes: SmallVec<[dir::Reference; 4]> = smallvec![root.clone()];
+
+        // walk exports only while the running prefix is a namespace
+        let Some(mut module) = self.namespace_module(&root) else {
+            self.record_reference(reference.source, &prefixes, segments.len());
+
             return Ok(());
         };
-
-        // resolve each segment against the running namespace, stopping at the first non-namespace
-        let mut prefixes: SmallVec<[dir::Reference; 4]> =
-            smallvec![dir::Reference::Namespace(module)];
         for segment in tail.iter().copied() {
             let key = dir::ExportKey::named(dir::StaticKey::Name(segment));
             match self.resolve_export_target(module, key)? {
@@ -72,14 +73,58 @@ impl ResolveState<'_> {
             }
         }
 
-        // record one reference for a flat type node, or one per member node for a value chain
-        if reference.source.local_id.ty == dir::NodeType::TypeExpression {
-            self.record_flat_reference(reference.source, &prefixes, segments.len());
-        } else {
-            self.record_chain_references(reference.source, &prefixes);
-        }
+        self.record_reference(reference.source, &prefixes, segments.len());
 
         Ok(())
+    }
+
+    /// Resolve the first segment of one source path.
+    fn resolve_path_root(
+        &self,
+        source: dir::LocalNodeIdAny,
+        root: dir::StringId,
+        space: dir::SymbolSpace,
+    ) -> dir::Reference {
+        let key = dir::StaticKey::Name(root);
+        let symbols = self.visible_symbols(source, key, space);
+        if !symbols.is_empty() {
+            return self.reference_from_symbols(symbols);
+        }
+
+        let Some(targets) = self.imports.global_targets(key) else {
+            return dir::Reference::Missing;
+        };
+
+        self.reference_from_targets(targets.iter().copied())
+    }
+
+    /// Return the namespace module named by one resolved prefix.
+    fn namespace_module(&self, reference: &dir::Reference) -> Option<destack_source::ModuleId> {
+        match reference {
+            dir::Reference::Namespace(module) => Some(*module),
+            dir::Reference::Bound(symbols) => match symbols.as_slice() {
+                [symbol] => self.local_namespace_symbol_module(*symbol),
+                _ => None,
+            },
+            dir::Reference::Ambiguous(_)
+            | dir::Reference::Missing
+            | dir::Reference::Projected { .. } => None,
+        }
+    }
+
+    /// Record one resolved source path in the reference table.
+    fn record_reference(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        prefixes: &[dir::Reference],
+        total: usize,
+    ) {
+        // record one reference for a flat type node, or one per member node for a value chain
+        if source.local_id.ty == dir::NodeType::TypeExpression {
+            self.record_flat_reference(source, prefixes, total);
+        } else {
+            self.record_chain_references(source, prefixes);
+        }
     }
 
     /// Record the single reference carried by one flat type reference node.
@@ -109,10 +154,10 @@ impl ResolveState<'_> {
             return;
         }
 
-        // otherwise the final segment carries the reference, unless it names a namespace
+        // otherwise the final segment carries the reference
         match prefixes.last() {
-            Some(dir::Reference::Namespace(_)) | None => {}
             Some(reference) => self.references.insert(source, reference.clone()),
+            None => {}
         }
     }
 
@@ -142,46 +187,6 @@ impl ResolveState<'_> {
             self.references
                 .insert(node.into_global_any(self.module), reference.clone());
         }
-    }
-
-    /// Return the namespace module one path root selects.
-    fn namespace_root_module(
-        &self,
-        source: dir::LocalNodeIdAny,
-        root: dir::StringId,
-    ) -> Option<ModuleId> {
-        let key = dir::StaticKey::Name(root);
-        let lookup =
-            self.bindings
-                .lookup_symbol_at(&self.view, source, key, dir::SymbolSpace::Value);
-
-        // prefer a lexical namespace import
-        match lookup {
-            dir::SymbolLookup::Found(symbol) => {
-                let Some(dir::ImportTarget::Namespace(module)) = self.imports.symbol_target(symbol)
-                else {
-                    return None;
-                };
-
-                return Some(module);
-            }
-            dir::SymbolLookup::Ambiguous(_) => return None,
-            dir::SymbolLookup::Missing => {}
-        }
-
-        // otherwise fall back to a single ambient namespace global
-        let targets = self.imports.global_targets(key)?;
-        let mut modules = targets.iter().filter_map(|target| match target {
-            dir::ImportTarget::Namespace(module) => Some(*module),
-            dir::ImportTarget::Symbol(_) => None,
-        });
-
-        let module = modules.next()?;
-        if modules.next().is_some() {
-            return None;
-        }
-
-        Some(module)
     }
 
     /// Return the namespace module one local namespace-import symbol selects.

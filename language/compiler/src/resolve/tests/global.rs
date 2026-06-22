@@ -75,11 +75,13 @@ global {
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 const value = answer;
+/// @reference.bound source=answer targets=[globals.answer]
 
 /// @import.global key=answer targets=[globals.answer]
 
 /// @import.summary globals=1
 /// @resolve.stats roots=1 expressions=2 types=0 globals=required:1
+/// @reference.summary references=1
 "#,
     );
 }
@@ -125,11 +127,13 @@ export type Option = string;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 let local = Function;
+/// @reference.bound source=Function targets=[types.function.Function, types.Function]
 
 /// @import.global key=Function targets=[types.function.Function, types.Function]
 
 /// @import.summary globals=1
 /// @resolve.stats roots=1 expressions=2 types=0 globals=required:1
+/// @reference.summary references=1
 "#,
     );
 }
@@ -174,11 +178,13 @@ export const value = 1;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 let local = api;
+/// @reference.namespace source=api module=api.ds
 
 /// @import.global key=api targets=[api.ds]
 
 /// @import.summary globals=1
 /// @resolve.stats roots=1 expressions=2 types=0 globals=required:1
+/// @reference.summary references=1
 "#,
     );
 }
@@ -280,11 +286,13 @@ export class Promise<T> {}
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 let promise: Promise<string>;
+/// @reference.bound source=Promise targets=[async.promise.Promise, async.Promise]
 
 /// @import.global key=Promise targets=[async.promise.Promise, async.Promise]
 
 /// @import.summary globals=1
 /// @resolve.stats roots=1 expressions=1 types=2 globals=required:1
+/// @reference.summary references=1
 "#,
     );
 }
@@ -305,11 +313,13 @@ let promise: Promise<string>;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 let promise: Promise<string>;
+/// @reference.bound source=Promise targets=[async.promise.Promise]
 
 /// @import.global key=Promise targets=[async.promise.Promise]
 
 /// @import.summary globals=1
 /// @resolve.stats roots=1 expressions=1 types=2 globals=required:1
+/// @reference.summary references=1
 "#,
     );
 }
@@ -416,11 +426,14 @@ const value = left + right;
 const left = 1;
 const right = 2;
 const value = left + right;
+/// @reference.bound source=left targets=[left]
+/// @reference.bound source=right targets=[right]
 
 /// @import.language item=ops.Add symbol=ops.plus.Add
 
 /// @import.summary language=1
 /// @resolve.stats roots=3 expressions=8 types=0 language=required:1
+/// @reference.summary references=2
 "#,
     );
 }
@@ -461,9 +474,11 @@ global {
         r#"
 const answer = 1;
 const value = answer;
+/// @reference.bound source=answer targets=[answer]
 
 /// @import.summary
 /// @resolve.stats roots=2 expressions=4 types=0
+/// @reference.summary references=1
 "#,
     );
 }
@@ -507,10 +522,13 @@ global {
 function read() {
     const answer = 1;
     return answer;
+    /// @reference.bound source=answer targets=[answer]
+
 }
 
 /// @import.summary
 /// @resolve.stats roots=1 expressions=6 types=0
+/// @reference.summary references=1
 "#,
     );
 }
@@ -557,6 +575,7 @@ export const value = 1;
         r#"
 const api = {};
 const value = api.value;
+/// @reference.bound source=api targets=[api]
 
 /// @import.language item=collections.Array symbol=collections.array.Array
 /// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
@@ -566,6 +585,7 @@ const value = api.value;
 
 /// @import.summary language=5
 /// @resolve.stats roots=2 expressions=5 types=0 language=required:5
+/// @reference.summary references=1
 "#,
     );
 }
