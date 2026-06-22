@@ -1,8 +1,9 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 /// Invocation override applied to one manifest value.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ManifestOverride {
     /// Manifest path, such as `compiler.target`.
     pub path: String,

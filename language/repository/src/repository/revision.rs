@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use destack_core::{TreapRoot, stable_hash_value_256};
+use destack_serde::Schema;
 use destack_source::FileId;
 use parking_lot::{RwLock, RwLockWriteGuard};
 use rustc_hash::FxHashSet;
@@ -14,7 +15,7 @@ use crate::repository::{Repository, RepositoryError, RevisionCache};
 
 /// Content identity for one repository source and environment state.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema)]
 #[serde(transparent)]
 pub struct Revision(pub [u8; 32]);
 
@@ -51,7 +52,7 @@ impl Display for Revision {
 }
 
 /// A movable name pointing at one repository revision.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema)]
 #[serde(transparent)]
 pub struct Ref(String);
 

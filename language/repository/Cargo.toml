@@ -28,6 +28,7 @@ destack_dir = { workspace = true }
 destack_program = { workspace = true }
 destack_heap = { workspace = true }
 destack_mir = { workspace = true }
+destack_serde = { workspace = true }
 destack_source = { workspace = true }
 
 # general
@@ -42,7 +43,6 @@ schemars = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
 tracing = { workspace = true }
-postcard = { workspace = true }
 
 [target.'cfg(all(not(target_os = "wasi"), not(target_arch = "wasm32")))'.dependencies]
 fs2 = { workspace = true }
