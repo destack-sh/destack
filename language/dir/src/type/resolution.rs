@@ -323,6 +323,17 @@ pub enum CallTarget {
     Universal(Vec<CallCandidate>),
 }
 
+impl CallTarget {
+    /// Return the generic arguments selected for one direct call target.
+    pub fn direct_generic_arguments(&self) -> Option<&[GlobalTypeId]> {
+        match self {
+            Self::Expression { arguments } => Some(arguments),
+            Self::Symbol(candidate) => Some(&candidate.arguments),
+            Self::Builtin(_) | Self::Universal(_) => None,
+        }
+    }
+}
+
 /// Compiler builtin callable selected at a usage site.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum BuiltinCall {
