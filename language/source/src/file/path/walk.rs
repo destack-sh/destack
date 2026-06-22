@@ -2,6 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::PhysicalFileSystem;
+
 use super::IgnoreSet;
 
 /// Options for directory walking.
@@ -36,10 +38,11 @@ where
     // stack-based DFS to avoid recursion
     let mut dir_stack: Vec<PathBuf> = vec![options.root.clone()];
     let mut ignore_set = IgnoreSet::new();
+    let file_system = PhysicalFileSystem;
 
     while let Some(dir) = dir_stack.pop() {
         // consider ignore set
-        ignore_set.load_dir(&dir);
+        ignore_set.load(&file_system, &dir);
 
         // walk entries
         let read_dir = match std::fs::read_dir(&dir) {
@@ -62,12 +65,8 @@ where
             // if directory, add to stack
             if is_dir {
                 if let Some(name) = path.file_name().and_then(|s| s.to_str())
-                    && options
-                        .ignore
-                        .as_ref()
-                        .unwrap_or(&vec![])
-                        .iter()
-                        .any(|d| d == name)
+                    && let Some(ignore) = &options.ignore
+                    && ignore.iter().any(|directory| directory == name)
                 {
                     continue;
                 }
