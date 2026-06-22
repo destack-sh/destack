@@ -91,6 +91,28 @@ impl NameResolution {
     }
 }
 
+/// Explicit generic application selected at a usage site.
+///
+/// Examples:
+/// ```ds
+/// make<string>      // symbol: make, arguments: (string)
+/// Box<int32>        // symbol: Box, arguments: (int32)
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub struct InstantiationResolution {
+    /// The generic declaration being applied.
+    pub symbol: GlobalSymbolId,
+    /// The complete generic arguments after defaults are filled.
+    pub arguments: Vec<GlobalTypeId>,
+}
+
+impl InstantiationResolution {
+    /// Create an instantiation resolution.
+    pub fn new(symbol: GlobalSymbolId, arguments: Vec<GlobalTypeId>) -> Self {
+        Self { symbol, arguments }
+    }
+}
+
 /// Target selected by a labeled transfer.
 ///
 /// Examples:
@@ -239,6 +261,8 @@ pub struct MemberCandidate {
 pub struct CallResolution {
     /// The selected callable target.
     pub target: CallTarget,
+    /// The callable type selected at the call site, when one exists.
+    pub callable_type: Option<GlobalTypeId>,
     /// The dynamic parameter types after static substitutions.
     pub parameters: Vec<GlobalTypeId>,
     /// The return type after static substitutions.
@@ -249,11 +273,13 @@ impl CallResolution {
     /// Create a call resolution.
     pub fn new(
         target: CallTarget,
+        callable_type: Option<GlobalTypeId>,
         parameters: Vec<GlobalTypeId>,
         return_type: GlobalTypeId,
     ) -> Self {
         Self {
             target,
+            callable_type,
             parameters,
             return_type,
         }
@@ -332,6 +358,48 @@ impl CallTarget {
             Self::Builtin(_) | Self::Universal(_) => None,
         }
     }
+}
+
+/// Runtime predicate selected during checking.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub enum PredicateResolution {
+    /// Runtime `is` predicate, like `value is T`.
+    Is(IsPredicate),
+    /// Runtime `instanceof` predicate, like `value instanceof User`.
+    InstanceOf(InstanceOfPredicate),
+    /// Runtime `in` predicate, like `"name" in value`.
+    In(InPredicate),
+}
+
+/// Runtime `is` predicate selected during checking.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub struct IsPredicate {
+    /// The tested value type.
+    pub value_type: GlobalTypeId,
+    /// The tested target type.
+    pub target_type: GlobalTypeId,
+}
+
+/// Runtime `instanceof` predicate selected during checking.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub struct InstanceOfPredicate {
+    /// The tested value type.
+    pub value_type: GlobalTypeId,
+    /// The selected right-hand-side declaration.
+    pub target: GlobalSymbolId,
+    /// The generic arguments of the target symbol, empty when not statically applied.
+    pub arguments: Vec<GlobalTypeId>,
+}
+
+/// Runtime `in` predicate selected during checking.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub struct InPredicate {
+    /// The tested key type.
+    pub key_type: GlobalTypeId,
+    /// The tested receiver type.
+    pub receiver_type: GlobalTypeId,
+    /// The statically known key, when the source key is static.
+    pub key: Option<StaticKey>,
 }
 
 /// Compiler builtin callable selected at a usage site.
@@ -427,6 +495,13 @@ pub enum ConstructTarget {
     /// UserId("u-1")      // wraps the raw value in the newtype
     /// ```
     Newtype(NewtypeConstructCandidate),
+    /// Tagged union variant constructor selected at compile time.
+    ///
+    /// Examples:
+    /// ```ds
+    /// Shape.Rectangle({ width, height })
+    /// ```
+    Variant(VariantConstructCandidate),
 }
 
 impl ConstructTarget {
@@ -435,6 +510,7 @@ impl ConstructTarget {
         match self {
             Self::Class(candidate) => candidate.symbol,
             Self::Newtype(candidate) => candidate.symbol,
+            Self::Variant(candidate) => candidate.variant,
         }
     }
 }
@@ -468,6 +544,24 @@ pub struct NewtypeConstructCandidate {
     pub symbol: GlobalSymbolId,
     /// The generic arguments of the newtype symbol, empty when not statically applied.
     pub arguments: Vec<GlobalTypeId>,
+}
+
+/// One tagged variant construction candidate after checking.
+///
+/// Examples:
+/// ```ds
+/// Shape.Rectangle({ width, height })
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub struct VariantConstructCandidate {
+    /// The selected variant family symbol.
+    pub owner: GlobalSymbolId,
+    /// The selected variant symbol.
+    pub variant: GlobalSymbolId,
+    /// The generic arguments of the owner symbol, empty when not statically applied.
+    pub arguments: Vec<GlobalTypeId>,
+    /// The discriminant value injected by the constructor.
+    pub discriminant: ScalarLiteral,
 }
 
 /// Pattern meaning selected during checking.

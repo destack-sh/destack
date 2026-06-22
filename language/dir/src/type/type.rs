@@ -301,6 +301,17 @@ pub struct ConditionalType {
     pub is_distributive: bool,
 }
 
+/// A runtime guard narrowing applied to one source type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub struct NarrowType {
+    /// The source type being narrowed.
+    pub source: GlobalTypeId,
+    /// The runtime-tested target type.
+    pub target: GlobalTypeId,
+    /// Whether matching arms are kept or removed.
+    pub is_positive: bool,
+}
+
 /// A mapped type.
 ///
 /// Examples:
@@ -1063,6 +1074,8 @@ pub enum TypeOperation {
     },
     /// Conditional type expression, like `T extends string ? A : B`.
     Conditional(ConditionalType),
+    /// Runtime guard narrowing, like the true or false branch of `value is T`.
+    Narrow(NarrowType),
     /// Mapped type expression, like `{ [K in keyof T]: T[K] }`.
     Mapped(MappedType),
     /// Indexed access type expression, like `User["name"]`.
@@ -1295,6 +1308,10 @@ impl Type {
                     visit(conditional.then_type);
                     visit(conditional.else_type);
                 }
+                TypeOperation::Narrow(narrow) => {
+                    visit(narrow.source);
+                    visit(narrow.target);
+                }
                 TypeOperation::Mapped(mapped) => {
                     visit(mapped.parameter.constraint);
                     if let Some(key_remap) = mapped.parameter.key_remap {
@@ -1449,6 +1466,10 @@ impl Type {
                     conditional.right = map(conditional.right);
                     conditional.then_type = map(conditional.then_type);
                     conditional.else_type = map(conditional.else_type);
+                }
+                TypeOperation::Narrow(narrow) => {
+                    narrow.source = map(narrow.source);
+                    narrow.target = map(narrow.target);
                 }
                 TypeOperation::Mapped(mapped) => {
                     mapped.parameter.constraint = map(mapped.parameter.constraint);

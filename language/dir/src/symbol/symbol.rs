@@ -12,6 +12,8 @@ pub struct Symbol {
     pub role: SymbolRole,
     /// The declaration kind of the symbol.
     pub kind: SymbolKind,
+    /// The lexical visibility extent of this symbol.
+    pub visibility: SymbolVisibility,
     /// The mutability for value bindings when known.
     pub binding_mutability: Option<Mutability>,
 
@@ -82,12 +84,21 @@ impl SymbolLookup {
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub enum SymbolSpace {
-    /// The type space.
-    Type,
-    /// The value space.
-    Value,
+    /// The declaration space.
+    Declaration,
     /// The label space.
     Label,
+}
+
+/// The lexical visibility extent of a symbol.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+)]
+pub enum SymbolVisibility {
+    /// Visible from the binding point forward in its scope.
+    Forward,
+    /// Visible throughout its whole scope.
+    Scope,
 }
 
 impl SymbolSpace {
@@ -98,8 +109,8 @@ impl SymbolSpace {
             // labels only conflict with labels
             (Self::Label, Self::Label) => true,
             (Self::Label, _) | (_, Self::Label) => false,
-            // destack keeps type and value names in one declaration namespace
-            (Self::Type, _) | (Self::Value, _) => true,
+            // declarations share one namespace
+            (Self::Declaration, Self::Declaration) => true,
         }
     }
 }
@@ -257,57 +268,66 @@ impl SymbolKind {
     /// Return the symbol space normally introduced by this symbol kind.
     pub fn symbol_space(self) -> SymbolSpace {
         match self {
-            Self::AssociatedType
-            | Self::Interface
-            | Self::NewtypeInterface
-            | Self::TypeAlias
-            | Self::GenericTypeParameter => SymbolSpace::Type,
             Self::Label => SymbolSpace::Label,
-            Self::Class
+            Self::AssociatedType
             | Self::AssociatedConst
+            | Self::Class
             | Self::Enum
             | Self::EnumField
             | Self::Extension
             | Self::Function
-            | Self::Import
-            | Self::Newtype
+            | Self::GenericTypeParameter
             | Self::GenericValueParameter
+            | Self::Import
+            | Self::Interface
+            | Self::Newtype
+            | Self::NewtypeInterface
             | Self::Struct
-            | Self::Variable => SymbolSpace::Value,
+            | Self::TypeAlias
+            | Self::Variable => SymbolSpace::Declaration,
         }
+    }
+
+    /// Check whether this symbol kind can be used in type syntax.
+    pub fn can_be_used_as_type(self) -> bool {
+        matches!(
+            self,
+            Self::AssociatedType
+                | Self::Class
+                | Self::Enum
+                | Self::EnumField
+                | Self::Extension
+                | Self::Import
+                | Self::Interface
+                | Self::Newtype
+                | Self::NewtypeInterface
+                | Self::Struct
+                | Self::TypeAlias
+                | Self::GenericTypeParameter
+        )
+    }
+
+    /// Check whether this symbol kind can be used as a runtime value.
+    pub fn can_be_used_as_value(self) -> bool {
+        matches!(
+            self,
+            Self::AssociatedConst
+                | Self::Class
+                | Self::Enum
+                | Self::EnumField
+                | Self::Function
+                | Self::Import
+                | Self::Newtype
+                | Self::GenericValueParameter
+                | Self::Struct
+                | Self::Variable
+        )
     }
 
     /// Check whether this symbol kind is visible in one lookup space.
     pub fn is_visible_in(self, space: SymbolSpace) -> bool {
         match space {
-            SymbolSpace::Type => matches!(
-                self,
-                Self::AssociatedType
-                    | Self::Class
-                    | Self::Enum
-                    | Self::EnumField
-                    | Self::Extension
-                    | Self::Import
-                    | Self::Interface
-                    | Self::Newtype
-                    | Self::NewtypeInterface
-                    | Self::Struct
-                    | Self::TypeAlias
-                    | Self::GenericTypeParameter
-            ),
-            SymbolSpace::Value => matches!(
-                self,
-                Self::Class
-                    | Self::AssociatedConst
-                    | Self::Enum
-                    | Self::EnumField
-                    | Self::Function
-                    | Self::Import
-                    | Self::Newtype
-                    | Self::GenericValueParameter
-                    | Self::Struct
-                    | Self::Variable
-            ),
+            SymbolSpace::Declaration => !matches!(self, Self::Label),
             SymbolSpace::Label => self == Self::Label,
         }
     }

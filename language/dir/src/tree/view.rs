@@ -2,10 +2,11 @@ use std::collections::BTreeMap;
 
 use destack_source::Span;
 use indexmap::IndexSet;
+use smallvec::SmallVec;
 
 use crate::{
-    Comment, Decorator, Documentation, LocalNodeId, LocalNodeIdAny, Node, NodeType, Patch, Tree,
-    TreeStore,
+    Comment, Decorator, Documentation, Expression, LocalNodeId, LocalNodeIdAny, Node, NodeType,
+    Patch, Path, Tree, TreeStore,
 };
 
 /// A borrowed DIR tree with ordered structural patches.
@@ -158,6 +159,36 @@ impl<'a> View<'a> {
             .unwrap_or_else(|| panic!("DIR node {node_id:?} is not visible"));
 
         tree.get_source(node_id.id)
+    }
+
+    /// Return the static path a visible reference expression spells.
+    pub fn reference_path(&self, id: LocalNodeId<Expression>) -> Option<Path> {
+        let mut segments = SmallVec::new();
+        let mut current = id;
+
+        loop {
+            match self.get(current) {
+                // stop at the named root
+                Expression::Identifier { name } => {
+                    segments.push(*name);
+                    segments.reverse();
+
+                    return Some(Path { segments });
+                }
+
+                // prepend static member segments
+                Expression::Member {
+                    left,
+                    name: Some(name),
+                } => {
+                    segments.push(*name);
+                    current = *left;
+                }
+
+                // dynamic members do not spell a static path
+                _ => return None,
+            }
+        }
     }
 
     /// Get the visible node id associated with one source node id.
