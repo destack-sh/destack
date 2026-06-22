@@ -21,8 +21,14 @@ impl Compiler {
         let export = declaration.export();
 
         // declare surface symbol and scope
-        let (symbol_id, scope_id) =
-            state.insert_symbol_with_scope(role, kind, key, export, scope_kind);
+        let (symbol_id, scope_id) = state.insert_symbol_with_scope(
+            role,
+            kind,
+            key,
+            export,
+            scope_kind,
+            dir::SymbolVisibility::Scope,
+        );
 
         state.declare_symbol(symbol_id, node_id);
 
@@ -190,6 +196,7 @@ impl Compiler {
             dir::SymbolKind::EnumField,
             Some(field.name.static_key()),
             None,
+            dir::SymbolVisibility::Scope,
         );
         state.declare_symbol(symbol_id, id);
 

@@ -134,7 +134,13 @@ impl Compiler {
         }
 
         // declare generic parameter symbol
-        let symbol_id = state.insert_symbol(dir::SymbolRole::Local, kind, Some(key), None);
+        let symbol_id = state.insert_symbol(
+            dir::SymbolRole::Local,
+            kind,
+            Some(key),
+            None,
+            dir::SymbolVisibility::Forward,
+        );
 
         state.declare_symbol(symbol_id, node_id);
     }
@@ -237,6 +243,7 @@ impl Compiler {
             dir::SymbolKind::Variable,
             Some(key),
             None,
+            dir::SymbolVisibility::Forward,
         );
 
         state.declare_symbol(symbol_id, node_id);

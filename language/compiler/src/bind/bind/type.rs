@@ -219,6 +219,7 @@ impl Compiler {
             dir::SymbolKind::TypeAlias,
             Some(dir::StaticKey::Name(parameter.name)),
             None,
+            dir::SymbolVisibility::Forward,
         );
         state.declare_symbol(symbol_id, id);
 
@@ -254,6 +255,7 @@ impl Compiler {
                 dir::SymbolKind::TypeAlias,
                 Some(dir::StaticKey::Name(name)),
                 None,
+                dir::SymbolVisibility::Forward,
             );
             state.declare_symbol(symbol_id, id);
         }
@@ -301,11 +303,18 @@ impl Compiler {
                 Some(key),
                 None,
                 scope_kind,
+                dir::SymbolVisibility::Scope,
             );
 
             (symbol_id, Some(scope_id))
         } else {
-            let symbol_id = state.insert_symbol(dir::SymbolRole::Item, kind, Some(key), None);
+            let symbol_id = state.insert_symbol(
+                dir::SymbolRole::Item,
+                kind,
+                Some(key),
+                None,
+                dir::SymbolVisibility::Scope,
+            );
 
             (symbol_id, None)
         };
@@ -334,8 +343,13 @@ impl Compiler {
                 } if signature.this_parameter.is_none()
             );
             let key = has_name.then(|| dir::StaticKey::Name(self.strings().intern("this")));
-            let symbol =
-                state.insert_symbol(dir::SymbolRole::Local, dir::SymbolKind::Variable, key, None);
+            let symbol = state.insert_symbol(
+                dir::SymbolRole::Local,
+                dir::SymbolKind::Variable,
+                key,
+                None,
+                dir::SymbolVisibility::Forward,
+            );
 
             state.bindings.bind_implicit_receiver(id, symbol);
         }
