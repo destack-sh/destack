@@ -808,12 +808,13 @@ impl ModuleLowerer<'_> {
                         .insert_from_source_any(ty, self.module.id, source_id)
                 }
                 // narrowing and static operations close before lowering
-                dir::TypeOperation::TryOutput { .. }
+                dir::TypeOperation::Narrow(_)
+                | dir::TypeOperation::TryOutput { .. }
                 | dir::TypeOperation::TryResidual { .. }
                 | dir::TypeOperation::StaticBinary(_)
                 | dir::TypeOperation::StaticUnary(_) => {
                     return Err(self.internal_error(
-                        "JS lowering cannot emit an unevaluated static operation".to_string(),
+                        "JS lowering cannot emit an unevaluated type operation".to_string(),
                     ));
                 }
             },
