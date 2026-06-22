@@ -156,51 +156,11 @@ impl<'a> ResolveState<'a> {
         key: dir::StaticKey,
         space: dir::SymbolSpace,
     ) -> SmallVec<[dir::GlobalSymbolId; 2]> {
-        // type declarations are hoisted through their lexical scope
-        if space == dir::SymbolSpace::Type {
-            return self.hoisted_type_symbols(source, key);
-        }
-
-        // value and label declarations respect source order
         let lookup = self
             .bindings
             .lookup_symbol_at(&self.view, source, key, space);
 
         self.symbols_from_lookup(lookup)
-    }
-
-    /// Return hoisted type symbols visible at one source node.
-    fn hoisted_type_symbols(
-        &self,
-        source: dir::LocalNodeIdAny,
-        key: dir::StaticKey,
-    ) -> SmallVec<[dir::GlobalSymbolId; 2]> {
-        let mut scope = self.bindings.scope_at(&self.view, source);
-
-        loop {
-            let current = self.bindings.get_scope(scope);
-            let mut symbols = SmallVec::new();
-
-            // collect all type-space symbols in this lexical scope
-            current.for_symbols_by_key(key, |symbol| {
-                if self
-                    .bindings
-                    .get_symbol(symbol)
-                    .kind
-                    .is_visible_in(dir::SymbolSpace::Type)
-                {
-                    symbols.push(symbol.into_global(self.module));
-                }
-            });
-            if !symbols.is_empty() {
-                return symbols;
-            }
-
-            let Some(parent) = current.parent else {
-                return SmallVec::new();
-            };
-            scope = parent;
-        }
     }
 
     /// Return global symbols from one local lookup result.
