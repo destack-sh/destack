@@ -8,7 +8,7 @@ impl WalkState<'_, '_> {
     ///
     /// Every pattern node opens its own type. Matched values flow in at
     /// the match site, structural constraints carry components into the
-    /// nested pattern holes, and selection records the pattern meaning
+    /// nested pattern holes, and selection records the resolved pattern
     /// once the scrutinee closes.
     ///
     /// Example:
@@ -35,27 +35,25 @@ impl WalkState<'_, '_> {
             | dir::Pattern::MoveOf { right: pattern, .. }
             // *pattern
             | dir::Pattern::DereferenceOf { right: pattern } => {
-                let pattern = *pattern;
-                self.walk_pattern(pattern, self.tree.get(pattern))?;
+                self.walk_pattern(*pattern, self.tree.get(*pattern))?;
 
-                // forward the inner pattern type through the wrapper
-                let inner = self.node_type(pattern)?;
+                // forward the inner pattern type through the outer form
+                let inner = self.node_type(*pattern)?;
                 self.declare_node_type(id, inner)?;
             }
             // pattern = value
             dir::Pattern::Assign { pattern, value } => {
-                let (pattern, value) = (*pattern, *value);
-                self.walk_pattern(pattern, self.tree.get(pattern))?;
+                self.walk_pattern(*pattern, self.tree.get(*pattern))?;
 
                 // check pattern default in selector context
                 let before_value = self.fork_flow();
-                self.walk_expression(value, self.tree.get(value))?;
+                self.walk_expression(*value, self.tree.get(*value))?;
                 self.restore_flow(before_value);
 
                 // defaults flow into the pattern hole
-                let inner = self.node_type(pattern)?;
-                let default = self.node_type(value)?;
-                let origin = Origin::Node(value.into_global_any(self.module));
+                let inner = self.node_type(*pattern)?;
+                let default = self.node_type(*value)?;
+                let origin = Origin::Node((*value).into_global_any(self.module));
                 self.relate_type(origin, Relation::Assignable, default, inner);
                 self.declare_node_type(id, inner)?;
             }
@@ -64,11 +62,10 @@ impl WalkState<'_, '_> {
                 pattern: Some(pattern),
                 ..
             } => {
-                let pattern = *pattern;
-                self.walk_pattern(pattern, self.tree.get(pattern))?;
+                self.walk_pattern(*pattern, self.tree.get(*pattern))?;
 
                 // bind the name to the inner pattern type
-                let inner = self.node_type(pattern)?;
+                let inner = self.node_type(*pattern)?;
                 self.declare_node_type(id, inner)?;
                 self.declare_binding_pattern_symbol(id, inner)?;
             }
@@ -79,27 +76,24 @@ impl WalkState<'_, '_> {
             }
             // value
             dir::Pattern::Expression { value } => {
-                let value = *value;
-
                 // check value pattern in selector context
                 let before_value = self.fork_flow();
-                self.walk_expression(value, self.tree.get(value))?;
+                self.walk_expression(*value, self.tree.get(*value))?;
                 self.restore_flow(before_value);
 
-                let expected = self.node_type(value)?;
+                let expected = self.node_type(*value)?;
                 self.declare_node_type(id, expected)?;
             }
             // start..end
             dir::Pattern::Range { start, end, .. } => {
-                let (start, end) = (*start, *end);
                 // check range bound in selector context
-                if let Some(start) = start {
+                if let Some(start) = *start {
                     let before_start = self.fork_flow();
                     self.walk_expression(start, self.tree.get(start))?;
                     self.restore_flow(before_start);
                 }
                 // check range bound in selector context
-                if let Some(end) = end {
+                if let Some(end) = *end {
                     let before_end = self.fork_flow();
                     self.walk_expression(end, self.tree.get(end))?;
                     self.restore_flow(before_end);
@@ -116,8 +110,8 @@ impl WalkState<'_, '_> {
             }
             // T(a, b), T { name }
             dir::Pattern::NominalTuple { ty, fields } | dir::Pattern::NominalObject { ty, fields } => {
-                let (ty, fields) = (*ty, fields.clone());
-                let tag = self.walk_type_expression(ty)?;
+                let fields = fields.clone();
+                let tag = self.walk_type_expression(*ty)?;
                 for field in fields {
                     self.walk_pattern_field(field, self.tree.get(field))?;
                 }
@@ -134,7 +128,7 @@ impl WalkState<'_, '_> {
             }
         }
 
-        // selection resolves the pattern once the scrutinee closes
+        // queue selection once the scrutinee type is known
         self.node_type(id)?;
         self.queue_select(id.into_global_any(self.module));
 
@@ -159,8 +153,7 @@ impl WalkState<'_, '_> {
         match field {
             // { name: pattern }, { name }
             dir::PatternField::Named { pattern, .. } => {
-                let pattern = *pattern;
-                if let Some(pattern) = pattern {
+                if let Some(pattern) = *pattern {
                     self.walk_pattern(pattern, self.tree.get(pattern))?;
                 } else {
                     // shorthand fields bind their own name
@@ -171,13 +164,11 @@ impl WalkState<'_, '_> {
             // { [key]: pattern }, [pattern]
             dir::PatternField::Computed { pattern, .. }
             | dir::PatternField::Positional { pattern } => {
-                let pattern = *pattern;
-                self.walk_pattern(pattern, self.tree.get(pattern))?;
+                self.walk_pattern(*pattern, self.tree.get(*pattern))?;
             }
             // { ...pattern }
             dir::PatternField::Spread { pattern } => {
-                let pattern = *pattern;
-                if let Some(pattern) = pattern {
+                if let Some(pattern) = *pattern {
                     self.walk_pattern(pattern, self.tree.get(pattern))?;
                 }
             }

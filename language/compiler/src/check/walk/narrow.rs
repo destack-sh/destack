@@ -85,16 +85,14 @@ impl WalkState<'_, '_> {
         match self.tree.get(id) {
             // (value)
             dir::Expression::Parenthesized { expression } => {
-                let expression = *expression;
-                self.narrow_expression(expression, branch)?;
+                self.narrow_expression(*expression, branch)?;
             }
             // !value
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Not,
                 right,
             } => {
-                let right = *right;
-                self.narrow_expression(right, branch.opposite())?;
+                self.narrow_expression(*right, branch.opposite())?;
             }
             // left && right
             dir::Expression::Binary {
@@ -102,9 +100,8 @@ impl WalkState<'_, '_> {
                 operator: dir::BinaryOperator::And,
                 right,
             } if branch == ConditionBranch::True => {
-                let (left, right) = (*left, *right);
-                self.narrow_expression(left, branch)?;
-                self.narrow_expression(right, branch)?;
+                self.narrow_expression(*left, branch)?;
+                self.narrow_expression(*right, branch)?;
             }
             // left || right
             dir::Expression::Binary {
@@ -112,9 +109,8 @@ impl WalkState<'_, '_> {
                 operator: dir::BinaryOperator::Or,
                 right,
             } if branch == ConditionBranch::False => {
-                let (left, right) = (*left, *right);
-                self.narrow_expression(left, branch)?;
-                self.narrow_expression(right, branch)?;
+                self.narrow_expression(*left, branch)?;
+                self.narrow_expression(*right, branch)?;
             }
             // left === right
             dir::Expression::Binary {
@@ -122,14 +118,13 @@ impl WalkState<'_, '_> {
                 operator,
                 right,
             } if operator.is_equality() => {
-                let (left, right) = (*left, *right);
                 let branch = if operator.is_negative_equality() {
                     branch.opposite()
                 } else {
                     branch
                 };
-                self.narrow_by_equality(left, right, branch)?;
-                self.narrow_by_equality(right, left, branch)?;
+                self.narrow_by_equality(*left, *right, branch)?;
+                self.narrow_by_equality(*right, *left, branch)?;
             }
             // key in value
             dir::Expression::Binary {
@@ -137,18 +132,15 @@ impl WalkState<'_, '_> {
                 operator: dir::BinaryOperator::In,
                 right,
             } => {
-                let (left, right) = (*left, *right);
-                self.narrow_by_key_membership(left, right, branch)?;
+                self.narrow_by_key_membership(*left, *right, branch)?;
             }
             // value is T
             dir::Expression::Is { value, target_type } => {
-                let (value, target_type) = (*value, *target_type);
-                self.narrow_by_is(value, target_type, branch)?;
+                self.narrow_by_is(*value, *target_type, branch)?;
             }
             // value instanceof Target
             dir::Expression::InstanceOf { value, target } => {
-                let (value, target) = (*value, *target);
-                self.narrow_by_instance(value, target, branch)?;
+                self.narrow_by_instance(*value, *target, branch)?;
             }
             // expressions without flow effects
             _ => {}
