@@ -2,49 +2,46 @@
 
 from __future__ import annotations
 
-from .dependency import (
+from .._generated.artifact.dependency import (
     ArtifactDependency,
 )
-from .key import (
+from .._generated.artifact.key import (
     ArtifactKey,
 )
-from .output import (
-    BuildProfile,
-    BuildLinkage,
-    EmitFormat,
-    FileType,
-    SourceMapSource,
-    SourceMap,
-    Declaration,
-    ScriptLanguage,
-    Script,
-    ObjectFormat,
-    Object,
+from .._generated.artifact.output import (
     Asset,
     Build,
-    BundleSection,
-    BundleMode,
-    BundleFile,
+    BuildLinkage,
+    BuildProfile,
     Bundle,
+    BundleFile,
+    BundleMode,
+    BundleSection,
+    Declaration,
+    EmitFormat,
+    FileType,
+    Host,
+    Object,
+    ObjectFormat,
+    Product,
+    ProductTarget,
+    Program,
     ProgramFormat,
     ProgramHeader,
-    Program,
     Runtime,
-    Host,
-    ProductTarget,
-    Product,
-    ModuleBuildKind,
-    BuildRequest,
-    BuildOutput,
+    Script,
+    ScriptLanguage,
+    SourceMap,
+    SourceMapSource,
 )
-from .record import (
-    ArtifactString,
+from .._generated.artifact.record import (
     ArtifactRecord,
+    ArtifactString,
 )
-from .sidecar import (
-    ArtifactSidecarLabel,
+from .._generated.artifact.sidecar import (
     ArtifactSidecar,
+    ArtifactSidecarLabel,
 )
-from .version import (
+from .._generated.artifact.version import (
     ArtifactVersion,
 )

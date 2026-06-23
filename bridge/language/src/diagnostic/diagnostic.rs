@@ -1,6 +1,4 @@
-use destack_source as source;
-
-use crate::{BatchEdit, ContentId, SourceIdParseError, Span, bridge};
+use crate::{ContentId, PatchSet, SourceIdParseError, Span, bridge};
 
 /// Diagnostic severity crossing bridge boundaries.
 #[bridge]
@@ -68,8 +66,8 @@ pub struct DiagnosticHelp {
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DiagnosticSuggestion {
-    /// Exact source edits for machine application.
-    pub edits: BatchEdit,
+    /// Exact source patches for machine application.
+    pub patches: PatchSet,
     /// Source labels to show with the suggestion.
     pub labels: Vec<DiagnosticLabel>,
     /// Suggestion message.
@@ -104,65 +102,65 @@ pub struct Diagnostic {
 
 impl DiagnosticSeverity {
     /// Convert one source diagnostic severity into one bridge severity.
-    pub fn from_source(severity: source::DiagnosticSeverity) -> Self {
+    pub fn from_source(severity: destack_source::DiagnosticSeverity) -> Self {
         match severity {
-            source::DiagnosticSeverity::Note => Self::Note,
-            source::DiagnosticSeverity::Warning => Self::Warning,
-            source::DiagnosticSeverity::Error => Self::Error,
+            destack_source::DiagnosticSeverity::Note => Self::Note,
+            destack_source::DiagnosticSeverity::Warning => Self::Warning,
+            destack_source::DiagnosticSeverity::Error => Self::Error,
         }
     }
 
     /// Convert this bridge severity into one source diagnostic severity.
-    pub fn into_source(self) -> source::DiagnosticSeverity {
+    pub fn into_source(self) -> destack_source::DiagnosticSeverity {
         match self {
-            Self::Note => source::DiagnosticSeverity::Note,
-            Self::Warning => source::DiagnosticSeverity::Warning,
-            Self::Error => source::DiagnosticSeverity::Error,
+            Self::Note => destack_source::DiagnosticSeverity::Note,
+            Self::Warning => destack_source::DiagnosticSeverity::Warning,
+            Self::Error => destack_source::DiagnosticSeverity::Error,
         }
     }
 }
 
 impl DiagnosticTag {
     /// Convert one source diagnostic tag into one bridge tag.
-    pub fn from_source(tag: source::DiagnosticTag) -> Self {
+    pub fn from_source(tag: destack_source::DiagnosticTag) -> Self {
         match tag {
-            source::DiagnosticTag::Unnecessary => Self::Unnecessary,
-            source::DiagnosticTag::Deprecated => Self::Deprecated,
+            destack_source::DiagnosticTag::Unnecessary => Self::Unnecessary,
+            destack_source::DiagnosticTag::Deprecated => Self::Deprecated,
         }
     }
 
     /// Convert this bridge tag into one source diagnostic tag.
-    pub fn into_source(self) -> source::DiagnosticTag {
+    pub fn into_source(self) -> destack_source::DiagnosticTag {
         match self {
-            Self::Unnecessary => source::DiagnosticTag::Unnecessary,
-            Self::Deprecated => source::DiagnosticTag::Deprecated,
+            Self::Unnecessary => destack_source::DiagnosticTag::Unnecessary,
+            Self::Deprecated => destack_source::DiagnosticTag::Deprecated,
         }
     }
 }
 
 impl Applicability {
     /// Convert one source applicability into one bridge applicability.
-    pub fn from_source(applicability: source::Applicability) -> Self {
+    pub fn from_source(applicability: destack_source::Applicability) -> Self {
         match applicability {
-            source::Applicability::Automatic => Self::Automatic,
-            source::Applicability::Unsafe => Self::Unsafe,
-            source::Applicability::Dangerous => Self::Dangerous,
+            destack_source::Applicability::Automatic => Self::Automatic,
+            destack_source::Applicability::Unsafe => Self::Unsafe,
+            destack_source::Applicability::Dangerous => Self::Dangerous,
         }
     }
 
     /// Convert this bridge applicability into one source applicability.
-    pub fn into_source(self) -> source::Applicability {
+    pub fn into_source(self) -> destack_source::Applicability {
         match self {
-            Self::Automatic => source::Applicability::Automatic,
-            Self::Unsafe => source::Applicability::Unsafe,
-            Self::Dangerous => source::Applicability::Dangerous,
+            Self::Automatic => destack_source::Applicability::Automatic,
+            Self::Unsafe => destack_source::Applicability::Unsafe,
+            Self::Dangerous => destack_source::Applicability::Dangerous,
         }
     }
 }
 
 impl DiagnosticLabel {
     /// Convert one source diagnostic label into one bridge label.
-    pub fn from_source(label: source::DiagnosticLabel) -> Self {
+    pub fn from_source(label: destack_source::DiagnosticLabel) -> Self {
         Self {
             content: label.content.into(),
             span: label.span.into(),
@@ -171,8 +169,8 @@ impl DiagnosticLabel {
     }
 
     /// Convert this bridge label into one source diagnostic label.
-    pub fn into_source(self) -> Result<source::DiagnosticLabel, SourceIdParseError> {
-        Ok(source::DiagnosticLabel {
+    pub fn into_source(self) -> Result<destack_source::DiagnosticLabel, SourceIdParseError> {
+        Ok(destack_source::DiagnosticLabel {
             content: self.content.into_source()?,
             span: self.span.into_source()?,
             message: self.message,
@@ -182,9 +180,9 @@ impl DiagnosticLabel {
 
 impl DiagnosticSuggestion {
     /// Convert one source diagnostic suggestion into one bridge suggestion.
-    pub fn from_source(suggestion: source::DiagnosticSuggestion) -> Self {
+    pub fn from_source(suggestion: destack_source::DiagnosticSuggestion) -> Self {
         Self {
-            edits: suggestion.edits.into(),
+            patches: suggestion.patches.into(),
             labels: suggestion
                 .labels
                 .into_iter()
@@ -196,15 +194,15 @@ impl DiagnosticSuggestion {
     }
 
     /// Convert this bridge suggestion into one source diagnostic suggestion.
-    pub fn into_source(self) -> Result<source::DiagnosticSuggestion, SourceIdParseError> {
+    pub fn into_source(self) -> Result<destack_source::DiagnosticSuggestion, SourceIdParseError> {
         let labels = self
             .labels
             .into_iter()
             .map(DiagnosticLabel::into_source)
             .collect::<Result<Vec<_>, _>>()?;
-        let mut suggestion = source::DiagnosticSuggestion::new(
+        let mut suggestion = destack_source::DiagnosticSuggestion::new(
             self.message,
-            self.edits.into_source()?,
+            self.patches.into_source()?,
             self.applicability.into_source(),
         );
         suggestion.labels = labels;
@@ -215,7 +213,7 @@ impl DiagnosticSuggestion {
 
 impl Diagnostic {
     /// Convert one source diagnostic into one bridge diagnostic.
-    pub fn from_source(diagnostic: source::Diagnostic) -> Self {
+    pub fn from_source(diagnostic: destack_source::Diagnostic) -> Self {
         Self {
             code: diagnostic.code,
             severity: DiagnosticSeverity::from_source(diagnostic.severity),
@@ -254,56 +252,56 @@ impl Diagnostic {
     }
 }
 
-impl From<source::DiagnosticSeverity> for DiagnosticSeverity {
+impl From<destack_source::DiagnosticSeverity> for DiagnosticSeverity {
     /// Convert one source diagnostic severity into one bridge severity.
-    fn from(severity: source::DiagnosticSeverity) -> Self {
+    fn from(severity: destack_source::DiagnosticSeverity) -> Self {
         Self::from_source(severity)
     }
 }
 
-impl From<DiagnosticSeverity> for source::DiagnosticSeverity {
+impl From<DiagnosticSeverity> for destack_source::DiagnosticSeverity {
     /// Convert one bridge severity into one source diagnostic severity.
     fn from(severity: DiagnosticSeverity) -> Self {
         severity.into_source()
     }
 }
 
-impl From<source::DiagnosticTag> for DiagnosticTag {
+impl From<destack_source::DiagnosticTag> for DiagnosticTag {
     /// Convert one source diagnostic tag into one bridge tag.
-    fn from(tag: source::DiagnosticTag) -> Self {
+    fn from(tag: destack_source::DiagnosticTag) -> Self {
         Self::from_source(tag)
     }
 }
 
-impl From<DiagnosticTag> for source::DiagnosticTag {
+impl From<DiagnosticTag> for destack_source::DiagnosticTag {
     /// Convert one bridge tag into one source diagnostic tag.
     fn from(tag: DiagnosticTag) -> Self {
         tag.into_source()
     }
 }
 
-impl From<source::Applicability> for Applicability {
+impl From<destack_source::Applicability> for Applicability {
     /// Convert one source applicability into one bridge applicability.
-    fn from(applicability: source::Applicability) -> Self {
+    fn from(applicability: destack_source::Applicability) -> Self {
         Self::from_source(applicability)
     }
 }
 
-impl From<Applicability> for source::Applicability {
+impl From<Applicability> for destack_source::Applicability {
     /// Convert one bridge applicability into one source applicability.
     fn from(applicability: Applicability) -> Self {
         applicability.into_source()
     }
 }
 
-impl From<source::DiagnosticLabel> for DiagnosticLabel {
+impl From<destack_source::DiagnosticLabel> for DiagnosticLabel {
     /// Convert one source diagnostic label into one bridge label.
-    fn from(label: source::DiagnosticLabel) -> Self {
+    fn from(label: destack_source::DiagnosticLabel) -> Self {
         Self::from_source(label)
     }
 }
 
-impl TryFrom<DiagnosticLabel> for source::DiagnosticLabel {
+impl TryFrom<DiagnosticLabel> for destack_source::DiagnosticLabel {
     type Error = SourceIdParseError;
 
     /// Convert one bridge label into one source diagnostic label.
@@ -312,46 +310,46 @@ impl TryFrom<DiagnosticLabel> for source::DiagnosticLabel {
     }
 }
 
-impl From<source::DiagnosticNote> for DiagnosticNote {
+impl From<destack_source::DiagnosticNote> for DiagnosticNote {
     /// Convert one source diagnostic note into one bridge note.
-    fn from(note: source::DiagnosticNote) -> Self {
+    fn from(note: destack_source::DiagnosticNote) -> Self {
         Self {
             message: note.message,
         }
     }
 }
 
-impl From<DiagnosticNote> for source::DiagnosticNote {
+impl From<DiagnosticNote> for destack_source::DiagnosticNote {
     /// Convert one bridge diagnostic note into one source note.
     fn from(note: DiagnosticNote) -> Self {
-        source::DiagnosticNote::new(note.message)
+        destack_source::DiagnosticNote::new(note.message)
     }
 }
 
-impl From<source::DiagnosticHelp> for DiagnosticHelp {
+impl From<destack_source::DiagnosticHelp> for DiagnosticHelp {
     /// Convert one source diagnostic help into one bridge help.
-    fn from(help: source::DiagnosticHelp) -> Self {
+    fn from(help: destack_source::DiagnosticHelp) -> Self {
         Self {
             message: help.message,
         }
     }
 }
 
-impl From<DiagnosticHelp> for source::DiagnosticHelp {
+impl From<DiagnosticHelp> for destack_source::DiagnosticHelp {
     /// Convert one bridge diagnostic help into one source help.
     fn from(help: DiagnosticHelp) -> Self {
-        source::DiagnosticHelp::new(help.message)
+        destack_source::DiagnosticHelp::new(help.message)
     }
 }
 
-impl From<source::DiagnosticSuggestion> for DiagnosticSuggestion {
+impl From<destack_source::DiagnosticSuggestion> for DiagnosticSuggestion {
     /// Convert one source diagnostic suggestion into one bridge suggestion.
-    fn from(suggestion: source::DiagnosticSuggestion) -> Self {
+    fn from(suggestion: destack_source::DiagnosticSuggestion) -> Self {
         Self::from_source(suggestion)
     }
 }
 
-impl TryFrom<DiagnosticSuggestion> for source::DiagnosticSuggestion {
+impl TryFrom<DiagnosticSuggestion> for destack_source::DiagnosticSuggestion {
     type Error = SourceIdParseError;
 
     /// Convert one bridge suggestion into one source diagnostic suggestion.
@@ -360,9 +358,9 @@ impl TryFrom<DiagnosticSuggestion> for source::DiagnosticSuggestion {
     }
 }
 
-impl From<source::Diagnostic> for Diagnostic {
+impl From<destack_source::Diagnostic> for Diagnostic {
     /// Convert one source diagnostic into one bridge diagnostic.
-    fn from(diagnostic: source::Diagnostic) -> Self {
+    fn from(diagnostic: destack_source::Diagnostic) -> Self {
         Self::from_source(diagnostic)
     }
 }

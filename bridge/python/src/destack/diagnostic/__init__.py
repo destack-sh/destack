@@ -1,19 +1,19 @@
 # generated bridge target, do not edit
 
-from .diagnostic import (
-    DiagnosticSeverity,
-    DiagnosticTag,
+from .._generated.diagnostic.diagnostic import (
     Applicability,
+    Diagnostic,
+    DiagnosticHelp,
     DiagnosticLabel,
     DiagnosticNote,
-    DiagnosticHelp,
+    DiagnosticSeverity,
     DiagnosticSuggestion,
-    Diagnostic,
+    DiagnosticTag,
 )
-from .edit import (
-    Replacement,
+from .._generated.diagnostic.edit import (
     FilePatch,
-    BatchEdit,
+    Patch,
+    PatchSet,
 )
 
 __all__ = [
@@ -25,7 +25,7 @@ __all__ = [
     "DiagnosticHelp",
     "DiagnosticSuggestion",
     "Diagnostic",
-    "Replacement",
+    "Patch",
     "FilePatch",
-    "BatchEdit",
+    "PatchSet",
 ]

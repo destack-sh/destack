@@ -1,6 +1,4 @@
-use destack_source as source;
-
-use crate::source::parse_u128;
+use super::parse_u128;
 use crate::{PackageId, SourceIdParseError, bridge};
 
 /// External product id crossing bridge boundaries.
@@ -15,7 +13,7 @@ pub struct ProductId {
 
 impl ProductId {
     /// Convert one source product id into one bridge product id.
-    pub fn from_source(id: source::ProductId) -> Self {
+    pub fn from_source(id: destack_source::ProductId) -> Self {
         Self {
             package: PackageId::from_source(id.package_id),
             key: format!("{:032x}", id.product_key.raw()),
@@ -23,25 +21,25 @@ impl ProductId {
     }
 
     /// Convert this bridge product id into one source product id.
-    pub fn into_source(self) -> Result<source::ProductId, SourceIdParseError> {
+    pub fn into_source(self) -> Result<destack_source::ProductId, SourceIdParseError> {
         let package = self.package.into_source()?;
         let key = parse_u128("product", &self.key)?;
 
-        Ok(source::ProductId {
+        Ok(destack_source::ProductId {
             package_id: package,
-            product_key: source::ProductKey::new(key),
+            product_key: destack_source::ProductKey::new(key),
         })
     }
 }
 
-impl From<source::ProductId> for ProductId {
+impl From<destack_source::ProductId> for ProductId {
     /// Convert one source product id into one bridge product id.
-    fn from(id: source::ProductId) -> Self {
+    fn from(id: destack_source::ProductId) -> Self {
         Self::from_source(id)
     }
 }
 
-impl TryFrom<ProductId> for source::ProductId {
+impl TryFrom<ProductId> for destack_source::ProductId {
     type Error = SourceIdParseError;
 
     /// Convert one bridge product id into one source product id.

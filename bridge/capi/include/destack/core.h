@@ -15,9 +15,17 @@ typedef enum DestackStatus {
 } DestackStatus;
 
 typedef struct DestackError DestackError;
-typedef struct DestackSession DestackSession;
-typedef struct DestackSource DestackSource;
-typedef struct DestackEdits DestackEdits;
+typedef struct DestackLocalWorkspaceServer DestackLocalWorkspaceServer;
+
+typedef struct DestackProtocolPayload {
+    uint8_t *ptr;
+    size_t len;
+} DestackProtocolPayload;
+
+typedef struct DestackProtocolPayloadArray {
+    DestackProtocolPayload *ptr;
+    size_t len;
+} DestackProtocolPayloadArray;
 
 const char *destack_error_message(const DestackError *error);
 void destack_error_destroy(DestackError *error);

@@ -11,24 +11,24 @@
 extern "C" {
 #endif
 
-typedef struct DestackReplacement {
+typedef struct DestackPatch {
     DestackSpan span;
     char *new_text;
-} DestackReplacement;
+} DestackPatch;
 
-typedef struct DestackReplacementArray {
-    DestackReplacement *ptr;
+typedef struct DestackPatchArray {
+    DestackPatch *ptr;
     size_t len;
-} DestackReplacementArray;
+} DestackPatchArray;
 
-typedef struct DestackOptionalReplacement {
+typedef struct DestackOptionalPatch {
     bool is_some;
-    DestackReplacement value;
-} DestackOptionalReplacement;
+    DestackPatch value;
+} DestackOptionalPatch;
 
 typedef struct DestackFilePatch {
     DestackFileId file;
-    DestackReplacementArray replacements;
+    DestackPatchArray patches;
 } DestackFilePatch;
 
 typedef struct DestackFilePatchArray {
@@ -41,26 +41,26 @@ typedef struct DestackOptionalFilePatch {
     DestackFilePatch value;
 } DestackOptionalFilePatch;
 
-typedef struct DestackBatchEdit {
+typedef struct DestackPatchSet {
     DestackFilePatchArray files;
-} DestackBatchEdit;
+} DestackPatchSet;
 
-typedef struct DestackBatchEditArray {
-    DestackBatchEdit *ptr;
+typedef struct DestackPatchSetArray {
+    DestackPatchSet *ptr;
     size_t len;
-} DestackBatchEditArray;
+} DestackPatchSetArray;
 
-typedef struct DestackOptionalBatchEdit {
+typedef struct DestackOptionalPatchSet {
     bool is_some;
-    DestackBatchEdit value;
-} DestackOptionalBatchEdit;
+    DestackPatchSet value;
+} DestackOptionalPatchSet;
 
-void destack_replacement_destroy(DestackReplacement *value);
-void destack_replacement_array_destroy(DestackReplacementArray array);
+void destack_patch_destroy(DestackPatch *value);
+void destack_patch_array_destroy(DestackPatchArray array);
 void destack_file_patch_destroy(DestackFilePatch *value);
 void destack_file_patch_array_destroy(DestackFilePatchArray array);
-void destack_batch_edit_destroy(DestackBatchEdit *value);
-void destack_batch_edit_array_destroy(DestackBatchEditArray array);
+void destack_patch_set_destroy(DestackPatchSet *value);
+void destack_patch_set_array_destroy(DestackPatchSetArray array);
 
 #ifdef __cplusplus
 }

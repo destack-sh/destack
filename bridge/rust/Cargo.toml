@@ -18,20 +18,17 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-destack_artifact.workspace = true
 destack_bridge_language.workspace = true
-destack_compiler.workspace = true
-destack_formatter.workspace = true
-destack_linter.workspace = true
-destack_query.workspace = true
 destack_repository.workspace = true
-destack_session.workspace = true
 destack_source.workspace = true
-destack_workspace.workspace = true
+destack_workspace = { workspace = true, default-features = false }
 
 [features]
 default = ["native"]
-native = ["destack_compiler/native", "destack_session/native"]
+native = ["destack_workspace/native"]
+
+[dev-dependencies]
+parking_lot.workspace = true
 
 [lints]
 workspace = true

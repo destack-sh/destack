@@ -1,6 +1,4 @@
-use destack_source as source;
-
-use crate::source::parse_u128;
+use super::parse_u128;
 use crate::{PackageId, SourceIdParseError, bridge};
 
 /// External module id crossing bridge boundaries.
@@ -15,7 +13,7 @@ pub struct ModuleId {
 
 impl ModuleId {
     /// Convert one source module id into one bridge module id.
-    pub fn from_source(id: source::ModuleId) -> Self {
+    pub fn from_source(id: destack_source::ModuleId) -> Self {
         Self {
             package: PackageId::from_source(id.package_id),
             key: format!("{:032x}", id.module_key.raw()),
@@ -23,22 +21,22 @@ impl ModuleId {
     }
 
     /// Convert this bridge module id into one source module id.
-    pub fn into_source(self) -> Result<source::ModuleId, SourceIdParseError> {
+    pub fn into_source(self) -> Result<destack_source::ModuleId, SourceIdParseError> {
         let package = self.package.into_source()?;
         let key = parse_u128("module", &self.key)?;
 
-        Ok(source::ModuleId::new(package, key))
+        Ok(destack_source::ModuleId::new(package, key))
     }
 }
 
-impl From<source::ModuleId> for ModuleId {
+impl From<destack_source::ModuleId> for ModuleId {
     /// Convert one source module id into one bridge module id.
-    fn from(id: source::ModuleId) -> Self {
+    fn from(id: destack_source::ModuleId) -> Self {
         Self::from_source(id)
     }
 }
 
-impl TryFrom<ModuleId> for source::ModuleId {
+impl TryFrom<ModuleId> for destack_source::ModuleId {
     type Error = SourceIdParseError;
 
     /// Convert one bridge module id into one source module id.

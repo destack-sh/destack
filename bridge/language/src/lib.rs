@@ -2,15 +2,13 @@ mod artifact;
 mod diagnostic;
 mod dir;
 mod repository;
-mod session;
+mod schema;
 mod source;
 
-use destack_bridge_language_macros as macros;
-
 pub use artifact::*;
+pub use destack_bridge_language_macros::bridge;
 pub use diagnostic::*;
 pub use dir::*;
-pub use macros::bridge;
 pub use repository::*;
-pub use session::*;
+pub use schema::*;
 pub use source::*;

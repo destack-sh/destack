@@ -1,29 +1,29 @@
 # generated bridge target, do not edit
 
-from .component import (
+from .._generated.source.component import (
     ComponentId,
 )
-from .file import (
-    FileId,
-    ContentId,
+from .._generated.source.file import (
     Content,
+    ContentId,
+    FileId,
 )
-from .module import (
+from .._generated.source.module import (
     ModuleId,
 )
-from .package import (
+from .._generated.source.package import (
     PackageId,
 )
-from .product import (
+from .._generated.source.product import (
     ProductId,
 )
-from .profile import (
+from .._generated.source.profile import (
     ProfileId,
 )
-from .span import (
+from .._generated.source.span import (
     Span,
 )
-from .target import (
+from .._generated.source.target import (
     TargetId,
 )
 

@@ -1,5 +1,3 @@
-use destack_source as source;
-
 use crate::{FileId, SourceIdParseError, bridge};
 
 /// Source byte span crossing bridge boundaries.
@@ -16,7 +14,7 @@ pub struct Span {
 
 impl Span {
     /// Convert one source span into one bridge span.
-    pub fn from_source(span: source::Span) -> Self {
+    pub fn from_source(span: destack_source::Span) -> Self {
         Self {
             file: span.file.into(),
             start: span.start,
@@ -25,8 +23,8 @@ impl Span {
     }
 
     /// Convert this bridge span into one source span.
-    pub fn into_source(self) -> Result<source::Span, SourceIdParseError> {
-        Ok(source::Span::new(
+    pub fn into_source(self) -> Result<destack_source::Span, SourceIdParseError> {
+        Ok(destack_source::Span::new(
             self.file.into_source()?,
             self.start,
             self.end,
@@ -34,14 +32,14 @@ impl Span {
     }
 }
 
-impl From<source::Span> for Span {
+impl From<destack_source::Span> for Span {
     /// Convert one source span into one bridge span.
-    fn from(span: source::Span) -> Self {
+    fn from(span: destack_source::Span) -> Self {
         Self::from_source(span)
     }
 }
 
-impl TryFrom<Span> for source::Span {
+impl TryFrom<Span> for destack_source::Span {
     type Error = SourceIdParseError;
 
     /// Convert one bridge span into one source span.

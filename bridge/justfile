@@ -75,11 +75,13 @@ format:
     just generate
     cargo fmt {{ format-packages }}
     bun x biome format --write napi wasm typescript
+    cd python && uv run --no-project --with ruff==0.15.18 ruff format src tests
 
 # check formatting
 format-check:
     cargo fmt --check {{ format-packages }}
     bun x biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false napi wasm typescript
+    cd python && uv run --no-project --with ruff==0.15.18 ruff format --check src tests
 
 # alias for format
 alias fmt := format

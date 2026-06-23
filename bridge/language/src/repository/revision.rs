@@ -1,7 +1,5 @@
 use std::fmt::{self, Display, Formatter};
 
-use destack_repository as repository;
-
 use crate::bridge;
 
 /// External revision value crossing bridge boundaries.
@@ -14,26 +12,26 @@ pub struct Revision {
 
 impl Revision {
     /// Convert one repository revision into one bridge revision.
-    pub fn from_repository(revision: repository::Revision) -> Self {
+    pub fn from_repository(revision: destack_repository::Revision) -> Self {
         Self {
             id: revision.to_string(),
         }
     }
 
     /// Convert this bridge revision into one repository revision.
-    pub fn into_repository(self) -> Result<repository::Revision, RevisionParseError> {
+    pub fn into_repository(self) -> Result<destack_repository::Revision, RevisionParseError> {
         parse_repository_revision(&self.id)
     }
 }
 
-impl From<repository::Revision> for Revision {
+impl From<destack_repository::Revision> for Revision {
     /// Convert one repository revision into one bridge revision.
-    fn from(revision: repository::Revision) -> Self {
+    fn from(revision: destack_repository::Revision) -> Self {
         Self::from_repository(revision)
     }
 }
 
-impl TryFrom<Revision> for repository::Revision {
+impl TryFrom<Revision> for destack_repository::Revision {
     type Error = RevisionParseError;
 
     /// Convert one bridge revision into one repository revision.
@@ -59,7 +57,9 @@ impl Display for RevisionParseError {
 impl std::error::Error for RevisionParseError {}
 
 /// Parse one displayed repository revision.
-pub fn parse_repository_revision(value: &str) -> Result<repository::Revision, RevisionParseError> {
+pub fn parse_repository_revision(
+    value: &str,
+) -> Result<destack_repository::Revision, RevisionParseError> {
     let Some(hex) = value.strip_prefix('r') else {
         return Err(RevisionParseError {
             revision: value.to_string(),
@@ -82,5 +82,5 @@ pub fn parse_repository_revision(value: &str) -> Result<repository::Revision, Re
         *byte = parsed;
     }
 
-    Ok(repository::Revision::new(bytes))
+    Ok(destack_repository::Revision::new(bytes))
 }

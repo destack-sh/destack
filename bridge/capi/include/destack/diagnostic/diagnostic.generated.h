@@ -89,7 +89,7 @@ typedef struct DestackOptionalDiagnosticSeverity {
 } DestackOptionalDiagnosticSeverity;
 
 typedef struct DestackDiagnosticSuggestion {
-    DestackBatchEdit edits;
+    DestackPatchSet patches;
     DestackDiagnosticLabelArray labels;
     char *message;
     DestackApplicability applicability;

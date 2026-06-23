@@ -1,5 +1,3 @@
-use destack_artifact as artifact;
-
 use crate::{ArtifactVersion, ModuleId, bridge};
 
 /// Typed projection of one parsed DIR artifact.
@@ -15,9 +13,9 @@ pub struct DirParsed {
 impl DirParsed {
     /// Project one parsed DIR artifact.
     pub fn from_artifact(
-        version: artifact::ArtifactVersion,
+        version: destack_artifact::ArtifactVersion,
         module: ModuleId,
-        _parsed: &artifact::DirParsed,
+        _parsed: &destack_artifact::DirParsed,
     ) -> Self {
         Self {
             version: ArtifactVersion::from_artifact(version),

@@ -1,6 +1,4 @@
-use destack_source as source;
-
-use crate::source::parse_u128;
+use super::parse_u128;
 use crate::{SourceIdParseError, bridge};
 
 /// External profile id crossing bridge boundaries.
@@ -13,28 +11,28 @@ pub struct ProfileId {
 
 impl ProfileId {
     /// Convert one source profile id into one bridge profile id.
-    pub fn from_source(id: source::ProfileId) -> Self {
+    pub fn from_source(id: destack_source::ProfileId) -> Self {
         Self {
             id: format!("{:032x}", id.raw()),
         }
     }
 
     /// Convert this bridge profile id into one source profile id.
-    pub fn into_source(self) -> Result<source::ProfileId, SourceIdParseError> {
+    pub fn into_source(self) -> Result<destack_source::ProfileId, SourceIdParseError> {
         let id = parse_u128("profile", &self.id)?;
 
-        Ok(source::ProfileId::new(id))
+        Ok(destack_source::ProfileId::new(id))
     }
 }
 
-impl From<source::ProfileId> for ProfileId {
+impl From<destack_source::ProfileId> for ProfileId {
     /// Convert one source profile id into one bridge profile id.
-    fn from(id: source::ProfileId) -> Self {
+    fn from(id: destack_source::ProfileId) -> Self {
         Self::from_source(id)
     }
 }
 
-impl TryFrom<ProfileId> for source::ProfileId {
+impl TryFrom<ProfileId> for destack_source::ProfileId {
     type Error = SourceIdParseError;
 
     /// Convert one bridge profile id into one source profile id.

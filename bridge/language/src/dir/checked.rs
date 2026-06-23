@@ -1,5 +1,3 @@
-use destack_artifact as artifact;
-
 use crate::{ArtifactVersion, ComponentId, ModuleId, ProfileId, bridge};
 
 /// Typed projection of one checked DIR module artifact.
@@ -21,10 +19,10 @@ pub struct DirChecked {
 impl DirChecked {
     /// Project one checked DIR artifact.
     pub fn from_artifact(
-        version: artifact::ArtifactVersion,
+        version: destack_artifact::ArtifactVersion,
         module: ModuleId,
         profile: ProfileId,
-        checked: &artifact::DirChecked,
+        checked: &destack_artifact::DirChecked,
     ) -> Self {
         Self {
             version: ArtifactVersion::from_artifact(version),

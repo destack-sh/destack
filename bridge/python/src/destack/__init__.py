@@ -1,13 +1,14 @@
 # generated bridge target, do not edit
 
-from ._native import VERSION, Repository, Session, Workspace, version
-from .artifact.dependency import (
+from ._native import VERSION, version
+from .workspace import RemoteWorkspace, Workspace, open_workspace
+from ._generated.artifact.dependency import (
     ArtifactDependency,
 )
-from .artifact.key import (
+from ._generated.artifact.key import (
     ArtifactKey,
 )
-from .artifact.output import (
+from ._generated.artifact.output import (
     BuildProfile,
     BuildLinkage,
     EmitFormat,
@@ -32,22 +33,19 @@ from .artifact.output import (
     Host,
     ProductTarget,
     Product,
-    ModuleBuildKind,
-    BuildRequest,
-    BuildOutput,
 )
-from .artifact.record import (
+from ._generated.artifact.record import (
     ArtifactString,
     ArtifactRecord,
 )
-from .artifact.sidecar import (
+from ._generated.artifact.sidecar import (
     ArtifactSidecarLabel,
     ArtifactSidecar,
 )
-from .artifact.version import (
+from ._generated.artifact.version import (
     ArtifactVersion,
 )
-from .diagnostic.diagnostic import (
+from ._generated.diagnostic.diagnostic import (
     DiagnosticSeverity,
     DiagnosticTag,
     Applicability,
@@ -57,24 +55,24 @@ from .diagnostic.diagnostic import (
     DiagnosticSuggestion,
     Diagnostic,
 )
-from .diagnostic.edit import (
-    Replacement,
+from ._generated.diagnostic.edit import (
+    Patch,
     FilePatch,
-    BatchEdit,
+    PatchSet,
 )
-from .dir.checked import (
+from ._generated.dir.checked import (
     DirChecked,
 )
-from .dir.parsed import (
+from ._generated.dir.parsed import (
     DirParsed,
 )
-from .dir.resolved import (
+from ._generated.dir.resolved import (
     DirResolved,
 )
-from .repository.revision import (
+from ._generated.repository.revision import (
     Revision,
 )
-from .repository.trace import (
+from ._generated.repository.trace import (
     TraceReport,
     TraceStage,
     TraceTime,
@@ -82,71 +80,37 @@ from .repository.trace import (
     TraceSpan,
     TraceCounter,
 )
-from .session.command.check import (
-    CheckOutput,
-)
-from .session.command.format import (
-    Document,
-    FormatRequest,
-    FormatOutput,
-)
-from .session.command.lint import (
-    Scope,
-    LintRequest,
-    LintOutput,
-)
-from .session.command.parse import (
-    ParseOutput,
-)
-from .session.file import (
-    SessionFile,
-)
-from .session.module import (
-    Module,
-)
-from .session.source.file import (
-    Change,
-)
-from .session.source.source import (
-    Source,
-)
-from .session.source.update import (
-    TextRange,
-    TextEdit,
-    Edit,
-    Commit,
-)
-from .source.component import (
+from ._generated.source.component import (
     ComponentId,
 )
-from .source.file import (
+from ._generated.source.file import (
     FileId,
     ContentId,
     Content,
 )
-from .source.module import (
+from ._generated.source.module import (
     ModuleId,
 )
-from .source.package import (
+from ._generated.source.package import (
     PackageId,
 )
-from .source.product import (
+from ._generated.source.product import (
     ProductId,
 )
-from .source.profile import (
+from ._generated.source.profile import (
     ProfileId,
 )
-from .source.span import (
+from ._generated.source.span import (
     Span,
 )
-from .source.target import (
+from ._generated.source.target import (
     TargetId,
 )
 
 __all__ = [
-    "Repository",
-    "Session",
     "Workspace",
+    "RemoteWorkspace",
+    "open_workspace",
     "ArtifactDependency",
     "ArtifactKey",
     "BuildProfile",
@@ -173,9 +137,6 @@ __all__ = [
     "Host",
     "ProductTarget",
     "Product",
-    "ModuleBuildKind",
-    "BuildRequest",
-    "BuildOutput",
     "ArtifactString",
     "ArtifactRecord",
     "ArtifactSidecarLabel",
@@ -189,9 +150,9 @@ __all__ = [
     "DiagnosticHelp",
     "DiagnosticSuggestion",
     "Diagnostic",
-    "Replacement",
+    "Patch",
     "FilePatch",
-    "BatchEdit",
+    "PatchSet",
     "DirChecked",
     "DirParsed",
     "DirResolved",
@@ -202,22 +163,6 @@ __all__ = [
     "TraceArtifact",
     "TraceSpan",
     "TraceCounter",
-    "CheckOutput",
-    "Document",
-    "FormatRequest",
-    "FormatOutput",
-    "Scope",
-    "LintRequest",
-    "LintOutput",
-    "ParseOutput",
-    "SessionFile",
-    "Module",
-    "Change",
-    "Source",
-    "TextRange",
-    "TextEdit",
-    "Edit",
-    "Commit",
     "ComponentId",
     "FileId",
     "ContentId",

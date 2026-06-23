@@ -1,5 +1,3 @@
-use destack_repository as repository;
-
 use crate::bridge;
 
 /// One bridge trace report.
@@ -92,7 +90,7 @@ pub struct TraceCounter {
 
 impl TraceReport {
     /// Convert one repository trace snapshot into one bridge trace report.
-    pub fn from_repository(value: repository::TraceSnapshot) -> Self {
+    pub fn from_repository(value: destack_repository::TraceSnapshot) -> Self {
         Self {
             total_micros: value.total_micros,
             workers: value.workers,
@@ -127,7 +125,7 @@ impl TraceReport {
 
 impl TraceStage {
     /// Convert one repository stage report into one bridge trace stage.
-    fn from_repository(value: repository::TraceStageSnapshot) -> Self {
+    fn from_repository(value: destack_repository::TraceStageSnapshot) -> Self {
         Self {
             name: value.name,
             micros: value.micros,
@@ -137,7 +135,7 @@ impl TraceStage {
 
 impl TraceTime {
     /// Convert one repository time rollup into one bridge trace time.
-    fn from_repository(value: repository::TraceTimeSnapshot) -> Self {
+    fn from_repository(value: destack_repository::TraceTimeSnapshot) -> Self {
         Self {
             name: value.name,
             micros: value.micros,
@@ -147,7 +145,7 @@ impl TraceTime {
 
 impl TraceArtifact {
     /// Convert one repository artifact report into one bridge trace artifact.
-    fn from_repository(value: repository::ArtifactAttemptSnapshot) -> Self {
+    fn from_repository(value: destack_repository::ArtifactAttemptSnapshot) -> Self {
         Self {
             name: value.name,
             stage: value.stage,
@@ -173,7 +171,7 @@ impl TraceArtifact {
 
 impl TraceSpan {
     /// Convert one repository span report into one bridge trace span.
-    fn from_repository(value: repository::TraceSpanSnapshot) -> Self {
+    fn from_repository(value: destack_repository::TraceSpanSnapshot) -> Self {
         Self {
             name: value.name,
             start_micros: value.start_micros,
@@ -184,7 +182,7 @@ impl TraceSpan {
 
 impl TraceCounter {
     /// Convert one repository counter report into one bridge trace counter.
-    fn from_repository(value: repository::TraceCounterSnapshot) -> Self {
+    fn from_repository(value: destack_repository::TraceCounterSnapshot) -> Self {
         Self {
             name: value.name,
             value: value.value,

@@ -1,5 +1,3 @@
-use destack_artifact as artifact;
-
 use crate::{ArtifactVersion, ContentId, FileId, bridge};
 
 /// One exact dependency read while building an artifact.
@@ -22,13 +20,13 @@ pub enum ArtifactDependency {
 
 impl ArtifactDependency {
     /// Convert one public artifact dependency into one bridge dependency.
-    pub(crate) fn from_artifact(dependency: artifact::ArtifactDependency) -> Option<Self> {
+    pub(crate) fn from_artifact(dependency: destack_artifact::ArtifactDependency) -> Option<Self> {
         match dependency {
-            artifact::ArtifactDependency::Artifact(version) => Some(Self::Artifact {
+            destack_artifact::ArtifactDependency::Artifact(version) => Some(Self::Artifact {
                 version: ArtifactVersion::from_artifact(version),
             }),
-            artifact::ArtifactDependency::Projection(_) => None,
-            artifact::ArtifactDependency::Source(dependency) => Some(Self::Source {
+            destack_artifact::ArtifactDependency::Projection(_) => None,
+            destack_artifact::ArtifactDependency::Source(dependency) => Some(Self::Source {
                 file: FileId::from_source(dependency.file),
                 content: ContentId::from_source(dependency.content),
             }),

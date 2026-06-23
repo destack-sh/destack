@@ -16,6 +16,11 @@ typedef struct DestackByteArray {
     size_t len;
 } DestackByteArray;
 
+typedef struct DestackU128 {
+    uint64_t high;
+    uint64_t low;
+} DestackU128;
+
 typedef struct DestackStringArray {
     char **ptr;
     size_t len;
