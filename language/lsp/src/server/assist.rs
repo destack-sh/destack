@@ -2,17 +2,17 @@ use destack_lsp_types as lsp;
 use destack_query as query;
 use destack_source::File;
 
-use super::common::{byte_span_to_range, byte_to_utf16_position};
+use super::position::{byte_span_to_range, byte_to_utf16_position};
 
 /// Convert an inlay hint to an LSP inlay hint.
-pub fn inlay_hint_to_lsp(file: &File, hint: &query::InlayHint) -> Option<lsp::InlayHint> {
-    let (line, character) = byte_to_utf16_position(file, hint.position)?;
+pub(super) fn inlay_hint_to_lsp(file: &File, hint: &query::InlayHint) -> lsp::InlayHint {
+    let (line, character) = byte_to_utf16_position(file, hint.position);
     let position = lsp::Position { line, character };
     let kind = match hint.kind {
         query::InlayHintKind::Type => Some(lsp::InlayHintKind::TYPE),
         query::InlayHintKind::Parameter => Some(lsp::InlayHintKind::PARAMETER),
     };
-    Some(lsp::InlayHint {
+    lsp::InlayHint {
         position,
         label: lsp::InlayHintLabel::String(hint.label.clone()),
         kind,
@@ -21,11 +21,11 @@ pub fn inlay_hint_to_lsp(file: &File, hint: &query::InlayHint) -> Option<lsp::In
         padding_left: Some(hint.padding_left),
         padding_right: Some(hint.padding_right),
         data: None,
-    })
+    }
 }
 
 /// Convert a code lens to an LSP code lens.
-pub fn code_lens_to_lsp(file: &File, lens: &query::CodeLens) -> lsp::CodeLens {
+pub(super) fn code_lens_to_lsp(file: &File, lens: &query::CodeLens) -> lsp::CodeLens {
     let range = byte_span_to_range(file, lens.range);
     let suffix = |count: usize| if count == 1 { "" } else { "s" };
     let command = match &lens.action {
