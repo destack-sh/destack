@@ -221,6 +221,13 @@ pub enum WorkspaceQuery {
         /// Source path.
         path: PathBuf,
     },
+    /// Request whether one source file is open.
+    FileOpen {
+        /// Root handle.
+        handle: RootId,
+        /// Source path.
+        path: PathBuf,
+    },
     /// Request the current semantic revision.
     CurrentRevision { handle: RootId },
     /// Request query context for one root.
@@ -269,6 +276,8 @@ pub enum WorkspaceQueryResponse {
     DiagnosticSnapshots(Vec<DiagnosticSnapshot>),
     /// Diagnostics for one file.
     FileDiagnostics(Option<DiagnosticSnapshot>),
+    /// Whether one source file is open.
+    FileOpen(bool),
     /// The current semantic revision.
     CurrentRevision(Revision),
     /// Query context for one root.
