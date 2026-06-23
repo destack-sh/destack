@@ -1,7 +1,7 @@
 use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
-use crate::{BatchEdit, DiagnosticLabel};
+use crate::{DiagnosticLabel, PatchSet};
 
 /// Whether a suggestion can be applied automatically.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
@@ -17,8 +17,8 @@ pub enum Applicability {
 /// One suggested source change for a diagnostic.
 #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize, Schema)]
 pub struct DiagnosticSuggestion {
-    /// Exact source edits for machine application.
-    pub edits: BatchEdit,
+    /// Exact source patches for machine application.
+    pub patches: PatchSet,
     /// Source labels to show with the suggestion.
     pub labels: Vec<DiagnosticLabel>,
     /// The message of the suggestion.
@@ -29,9 +29,13 @@ pub struct DiagnosticSuggestion {
 
 impl DiagnosticSuggestion {
     /// Create one diagnostic suggestion.
-    pub fn new(message: impl Into<String>, edits: BatchEdit, applicability: Applicability) -> Self {
+    pub fn new(
+        message: impl Into<String>,
+        patches: PatchSet,
+        applicability: Applicability,
+    ) -> Self {
         Self {
-            edits,
+            patches,
             labels: Vec::new(),
             message: message.into(),
             applicability,
