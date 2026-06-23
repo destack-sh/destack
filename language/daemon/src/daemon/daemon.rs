@@ -9,7 +9,7 @@ use destack_workspace::{Workspace, WorkspaceRegistry};
 
 use crate::DaemonError;
 
-use super::{WorkspaceState, WorkspaceTable};
+use super::{OpenedWorkspace, WorkspaceTable};
 
 /// Persistent state for workspace server clients.
 #[derive(Clone)]
@@ -73,12 +73,12 @@ impl Daemon {
     }
 
     /// Open or return one workspace.
-    pub(crate) fn open(&self, workspace_root: &Path) -> Result<Arc<WorkspaceState>, DaemonError> {
+    pub(crate) fn open(&self, workspace_root: &Path) -> Result<Arc<OpenedWorkspace>, DaemonError> {
         self.workspaces.open(workspace_root)
     }
 
     /// Return one opened workspace.
-    pub(crate) fn workspace(&self, workspace_root: &Path) -> Option<Arc<WorkspaceState>> {
+    pub(crate) fn workspace(&self, workspace_root: &Path) -> Option<Arc<OpenedWorkspace>> {
         self.workspaces.get(workspace_root)
     }
 

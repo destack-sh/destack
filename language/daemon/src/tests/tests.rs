@@ -3,8 +3,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 use destack_artifact::MemoryBlobStore;
-use destack_repository::{DestackLayoutOverride, Repository, Settings};
-use destack_session::open_repository_from_fs;
+use destack_repository::{DestackLayoutOverride, Repository, Settings, open_repository_from_fs};
 use destack_source::{
     Edit, FileId, FileSystem, FileWatchEvent, FileWatchEventKind, MemoryFileSystem,
     MemoryFileWatcher,
@@ -17,7 +16,7 @@ use destack_workspace::{
     UpdateBatch, Watch, WatchPolicy, loopback_transport_pair, source_watch_options,
 };
 
-use crate::{Daemon, WorkspaceState};
+use crate::{Daemon, OpenedWorkspace};
 
 /// Test harness for daemon flows.
 #[derive(Debug, Clone)]
@@ -131,7 +130,7 @@ impl TestDaemon {
     }
 
     /// Return the primary daemon workspace.
-    pub fn workspace(&self) -> Arc<WorkspaceState> {
+    pub fn workspace(&self) -> Arc<OpenedWorkspace> {
         self.daemon
             .workspace(self.repository.path())
             .expect("test workspace should be opened")

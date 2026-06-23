@@ -1,7 +1,8 @@
+use destack_serde::Schema;
 use serde::{Deserialize, Serialize};
 
 /// The indent style.
-#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash, Default, Serialize, Deserialize, Schema)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum IndentStyle {
@@ -39,7 +40,7 @@ impl std::fmt::Display for IndentStyle {
 }
 
 /// The type of line ending to apply to the printed input.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Default, Serialize, Deserialize, Schema)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum LineEnding {
     /// Line Feed only (\n), common on Linux and macOS as well as inside git repos.

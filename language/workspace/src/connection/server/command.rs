@@ -2,9 +2,8 @@ use std::path::Path;
 
 use crate::{
     BenchInput, BuildInput, CacheInput, CheckInput, CleanInput, CommandError, CommandErrorKind,
-    CommandProgress, DocInput, DoctorInput, FormatInput, InfoInput, InspectInput, LintInput,
-    ManifestInput, ProgressEvent, RunInput, SettingsInput, TargetsInput, TaskInput, TestInput,
-    Transport, Workspace,
+    CommandProgress, DocInput, DoctorInput, FormatInput, InfoInput, LintInput, ProgressEvent,
+    RunInput, SettingsInput, TargetsInput, TaskInput, TestInput, Transport, Workspace,
 };
 
 use super::Server;
@@ -146,36 +145,6 @@ impl Server {
             notify,
             |workspace, root, progress| workspace.info(root, input, progress),
             WorkspaceResponse::Info,
-        )
-    }
-
-    /// Handle an inspect request.
-    pub(super) fn handle_inspect(
-        &self,
-        handle: RootId,
-        input: InspectInput,
-        notify: &(dyn Fn(ProgressEvent) + Sync),
-    ) -> Result<WorkspaceResponse, ProtocolError> {
-        self.handle_command(
-            handle,
-            notify,
-            |workspace, root, progress| workspace.inspect(root, input, progress),
-            WorkspaceResponse::Inspect,
-        )
-    }
-
-    /// Handle a manifest request.
-    pub(super) fn handle_manifest(
-        &self,
-        handle: RootId,
-        input: ManifestInput,
-        notify: &(dyn Fn(ProgressEvent) + Sync),
-    ) -> Result<WorkspaceResponse, ProtocolError> {
-        self.handle_command(
-            handle,
-            notify,
-            |workspace, root, progress| workspace.manifest(root, input, progress),
-            WorkspaceResponse::Manifest,
         )
     }
 

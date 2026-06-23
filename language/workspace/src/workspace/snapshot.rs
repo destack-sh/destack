@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_query::QueryModule;
-use destack_repository::{Repository, Revision, RevisionPin};
+use destack_repository::{FormatterOptions, Repository, Revision, RevisionPin};
 use destack_serde::Schema;
 use destack_session::{Session, SessionError};
 use destack_source::{File, FileId, PackageId, ProfileId, TargetId};
@@ -217,11 +217,13 @@ impl LocalWorkspace {
             None
         };
         let file = FileImage::from(view.file.as_ref());
+        let formatter = self.formatter_options(revision, &request.path)?;
 
         Ok(Some(FileSnapshot {
             revision,
             file_id,
             module,
+            formatter,
             file,
         }))
     }
@@ -269,5 +271,30 @@ impl LocalWorkspace {
         let profile = self.repository.profile_for_target(revision, target_id)?;
 
         Ok(vec![profile.id()])
+    }
+
+    /// Return selected formatter options for one path.
+    fn formatter_options(
+        &self,
+        revision: Revision,
+        path: &Path,
+    ) -> Result<FormatterOptions, Error> {
+        // prefer package-local formatter options
+        let package = self.repository.nearest_package(revision, path)?;
+        if let Some(package) = package
+            && let Some(config) = self
+                .repository
+                .destack_for_package_id(revision, package.id)?
+        {
+            return Ok(config.formatter);
+        }
+
+        // fall back to workspace formatter options
+        let config = self.repository.destack_for_workspace(revision)?;
+        let formatter = config
+            .map(|config| config.formatter)
+            .unwrap_or_else(FormatterOptions::default);
+
+        Ok(formatter)
     }
 }
