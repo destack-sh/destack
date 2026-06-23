@@ -1,5 +1,6 @@
 #![feature(default_field_values)]
 #![allow(clippy::result_large_err)]
+#![allow(clippy::too_many_arguments)]
 
 mod analyze;
 mod bind;
