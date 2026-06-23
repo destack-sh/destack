@@ -6,7 +6,7 @@ use destack_core::{Color, pluralize};
 use crate::{
     AnnotateOptions, Applicability, DiagnosticCollection, DiagnosticLabel, DiagnosticRenderError,
     DiagnosticSuggestion, DiffOptions, File, FileId, SourceColorizer, annotate_file,
-    apply_file_edit, format_diff,
+    apply_file_patch, format_diff,
 };
 
 /// Write a diagnostic line.
@@ -261,11 +261,11 @@ where
         write_block(options, &body);
     }
 
-    for file_edit in &suggestion.edits.files {
-        let file = file_for_id(file_edit.file).ok_or(DiagnosticRenderError::MissingFile {
-            file: file_edit.file,
+    for file_patch in &suggestion.patches.files {
+        let file = file_for_id(file_patch.file).ok_or(DiagnosticRenderError::MissingFile {
+            file: file_patch.file,
         })?;
-        let updated = apply_file_edit(&file, file_edit)?;
+        let updated = apply_file_patch(&file, file_patch)?;
         if updated == file.text() {
             continue;
         }
@@ -302,8 +302,8 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     use crate::{
-        Applicability, BatchEdit, Diagnostic, DiagnosticCollection, DiagnosticLabel,
-        DiagnosticSuggestion, Edit, File, FileEdit, FileId, FileType, PrintOptions, Span, Uri,
+        Applicability, Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticSuggestion,
+        File, FileId, FilePatch, FileType, Patch, PatchSet, PrintOptions, Span, Uri,
         print_diagnostics,
     };
 
@@ -331,7 +331,7 @@ mod tests {
         lines.lock().unwrap().join("\n")
     }
 
-    /// Render suggestion labels and edit diffs.
+    /// Render suggestion labels and patch diffs.
     #[test]
     fn test_prints_suggestion_labels_and_diff() {
         let file_id = FileId::new(1);
@@ -345,11 +345,11 @@ mod tests {
         ));
         let let_span = Span::new(file_id, 0, 3);
         let content = file.content_id();
-        let mut file_edit = FileEdit::new(file_id);
-        file_edit.push(Edit::replace(let_span, "const"));
+        let mut file_patch = FilePatch::new(file_id);
+        file_patch.push(Patch::replace(let_span, "const"));
         let suggestion = DiagnosticSuggestion::new(
             "use `const`",
-            BatchEdit::single(file_edit),
+            PatchSet::single(file_patch),
             Applicability::Automatic,
         )
         .label(DiagnosticLabel::message(

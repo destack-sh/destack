@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-use crate::{ContentId, EditApplyError, FileId};
+use crate::{ContentId, FileId, PatchApplyError};
 
 /// Error produced while annotating one source span.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -115,10 +115,10 @@ pub enum DiagnosticRenderError {
         /// The annotation error.
         error: AnnotateError,
     },
-    /// One diagnostic suggestion edit could not be applied.
-    Edit {
-        /// The edit application error.
-        error: EditApplyError,
+    /// One diagnostic suggestion patch could not be applied.
+    Patch {
+        /// The patch application error.
+        error: PatchApplyError,
     },
 }
 
@@ -137,7 +137,7 @@ impl Display for DiagnosticRenderError {
                 "diagnostic references content {expected} but file {file:?} has content {actual}"
             ),
             Self::Annotate { error } => Display::fmt(error, formatter),
-            Self::Edit { error } => Display::fmt(error, formatter),
+            Self::Patch { error } => Display::fmt(error, formatter),
         }
     }
 }
@@ -146,7 +146,7 @@ impl Error for DiagnosticRenderError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Annotate { error } => Some(error),
-            Self::Edit { error } => Some(error),
+            Self::Patch { error } => Some(error),
             _ => None,
         }
     }
@@ -158,8 +158,8 @@ impl From<AnnotateError> for DiagnosticRenderError {
     }
 }
 
-impl From<EditApplyError> for DiagnosticRenderError {
-    fn from(error: EditApplyError) -> Self {
-        Self::Edit { error }
+impl From<PatchApplyError> for DiagnosticRenderError {
+    fn from(error: PatchApplyError) -> Self {
+        Self::Patch { error }
     }
 }

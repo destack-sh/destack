@@ -1,42 +1,40 @@
-use crate::{BatchEdit, Edit, FileEdit, FileId, Span};
+use crate::{FileId, FilePatch, Patch, PatchSet, Span};
 
-/// Builder for constructing multiple edits for a single file.
+/// Builder for constructing multiple patches for a single file.
 ///
-/// Provides a fluent API for building up edits. Can optionally hold a reference
-/// to source text for operations like `wrap` and `replace_with` that need to
-/// read existing content.
+/// Provides a fluent API for building patches from optional source text.
 ///
 /// # Example
 ///
 /// ```ignore
-/// let edit = EditBuilder::from_file(file_id, source)
+/// let patch = PatchBuilder::from_file(file_id, source)
 ///     .insert_before(span, "await ")
 ///     .wrap(span, "(", ")")
 ///     .replace_with(other_span, |text| format!("Object.is({text}, -0)"))
-///     .into_edits();
+///     .into_patches();
 /// ```
 #[derive(Debug, Clone)]
-pub struct EditBuilder<'a> {
+pub struct PatchBuilder<'a> {
     file: FileId,
     source: Option<&'a str>,
-    edits: Vec<Edit>,
+    patches: Vec<Patch>,
 }
 
-impl<'a> EditBuilder<'a> {
+impl<'a> PatchBuilder<'a> {
     /// Create a new builder with source text for text-aware operations.
     pub fn from_file(file: FileId, source: &'a str) -> Self {
         Self {
             file,
             source: Some(source),
-            edits: Vec::new(),
+            patches: Vec::new(),
         }
     }
 
-    /// Get the text at a span. Panics if source was not provided.
+    /// Get the text at a span.
     pub fn get_text(&self, span: Span) -> &str {
         let source = self
             .source
-            .expect("get_text requires EditBuilder::with_source");
+            .expect("get_text requires PatchBuilder source text");
         &source[span.start as usize..span.end as usize]
     }
 
@@ -46,39 +44,40 @@ impl<'a> EditBuilder<'a> {
             .map(|s| &s[span.start as usize..span.end as usize])
     }
 
-    /// Add a replacement edit.
+    /// Add a replacement patch.
     pub fn replace(mut self, span: Span, text: impl Into<String>) -> Self {
-        self.edits.push(Edit::replace(span, text));
+        self.patches.push(Patch::replace(span, text));
         self
     }
 
-    /// Add a deletion edit.
+    /// Add a deletion patch.
     pub fn delete(mut self, span: Span) -> Self {
-        self.edits.push(Edit::delete(span));
+        self.patches.push(Patch::delete(span));
         self
     }
 
-    /// Add an insertion edit at an absolute position.
+    /// Add an insertion patch at an absolute position.
     pub fn insert(mut self, position: u32, text: impl Into<String>) -> Self {
-        self.edits.push(Edit::insert(self.file, position, text));
+        self.patches.push(Patch::insert(self.file, position, text));
         self
     }
 
     /// Insert text before a span.
     pub fn insert_before(mut self, span: Span, text: impl Into<String>) -> Self {
-        self.edits.push(Edit::insert(self.file, span.start, text));
+        self.patches
+            .push(Patch::insert(self.file, span.start, text));
         self
     }
 
     /// Insert text after a span.
     pub fn insert_after(mut self, span: Span, text: impl Into<String>) -> Self {
-        self.edits.push(Edit::insert(self.file, span.end, text));
+        self.patches.push(Patch::insert(self.file, span.end, text));
         self
     }
 
     /// Wrap content at span with prefix and suffix.
     ///
-    /// Requires source text (use `with_source`).
+    /// Requires source text.
     ///
     /// # Example
     /// ```ignore
@@ -96,7 +95,7 @@ impl<'a> EditBuilder<'a> {
 
     /// Replace span using a function that receives the current text.
     ///
-    /// Requires source text (use `with_source`).
+    /// Requires source text.
     ///
     /// # Example
     /// ```ignore
@@ -113,23 +112,23 @@ impl<'a> EditBuilder<'a> {
     // Build methods
     // -------------------------------------------------------------------------
 
-    /// Get the accumulated edits.
-    pub fn edits(&self) -> &[Edit] {
-        &self.edits
+    /// Get the accumulated patches.
+    pub fn patches(&self) -> &[Patch] {
+        &self.patches
     }
 
-    /// Take the accumulated edits.
-    pub fn into_edits(self) -> Vec<Edit> {
-        self.edits
+    /// Take the accumulated patches.
+    pub fn into_patches(self) -> Vec<Patch> {
+        self.patches
     }
 
-    /// Build into a FileEdit.
-    pub fn build(self) -> FileEdit {
-        FileEdit::with_edits(self.file, self.edits)
+    /// Build into a FilePatch.
+    pub fn build(self) -> FilePatch {
+        FilePatch::with_patches(self.file, self.patches)
     }
 
-    /// Build into a BatchEdit (single file).
-    pub fn into_batch(self) -> BatchEdit {
-        BatchEdit::single(self.build())
+    /// Build into a single-file PatchSet.
+    pub fn into_patch_set(self) -> PatchSet {
+        PatchSet::single(self.build())
     }
 }
