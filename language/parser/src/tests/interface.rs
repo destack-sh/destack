@@ -132,9 +132,9 @@ interface Foo<G> {
                 assert!(constraint.is_none());
             });
             assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
+            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                 assert_string!(parser, *name, "bar");
-                assert_expression_path!(parser, parser.tree.get(declared_type.unwrap()), "G");
+                assert_expression_path!(parser, parser.tree.get(*ty), "G");
             });
             assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "T");
         });
@@ -465,9 +465,9 @@ interface SQL {
             });
             // value: T
             assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
+            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                 assert_string!(parser, *name, "value");
-                assert_expression_path!(parser, parser.tree.get(declared_type.unwrap()), "T");
+                assert_expression_path!(parser, parser.tree.get(*ty), "T");
             });
             // SQL.Result<T>
             assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "SQL.Result");
@@ -477,16 +477,16 @@ interface SQL {
         assert_node!(parser.tree, members[1], TypeMember::CallSignature { signature } => {
             // (value: any, ...arguments: any[])
             assert_eq!(signature.parameters.len(), 2);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
+            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                 assert_string!(parser, *name, "value");
-                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
                     assert_eq!(*value, TypeLiteral::Any);
                 });
             });
             // ...arguments: any[]
-            assert_node!(parser.tree, signature.parameters[1], Parameter::VariadicNamed { name, declared_type, .. } => {
+            assert_node!(parser.tree, signature.parameters[1], Parameter::VariadicNamed { name, declared_type: Some(ty), .. } => {
                 assert_string!(parser, *name, "arguments");
-                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Array { element } => {
+                assert_node!(parser.tree, *ty, TypeExpression::Array { element } => {
                     assert_node!(parser.tree, *element, TypeExpression::Literal { value } => {
                         assert_eq!(*value, TypeLiteral::Any);
                     });

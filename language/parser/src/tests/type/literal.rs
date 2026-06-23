@@ -292,9 +292,9 @@ fn test_parse_type_literal_call_signature_with_parameters() {
                 // (num: number): number
                 assert_node!(parser.tree, properties[0], TypeMember::CallSignature { signature } => {
                     assert_eq!(signature.parameters.len(), 1);
-                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
+                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                         assert_string!(parser, *name, "num");
-                        assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
                             assert_eq!(*value, TypeLiteral::Number);
                         });
                     });
@@ -305,9 +305,9 @@ fn test_parse_type_literal_call_signature_with_parameters() {
                 // (str: string): string
                 assert_node!(parser.tree, properties[1], TypeMember::CallSignature { signature } => {
                     assert_eq!(signature.parameters.len(), 1);
-                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
+                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                         assert_string!(parser, *name, "str");
-                        assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
                             assert_eq!(*value, TypeLiteral::String);
                         });
                     });
@@ -333,9 +333,9 @@ fn test_parse_type_literal_construct_signature() {
                 assert_eq!(properties.len(), 1);
                 assert_node!(parser.tree, properties[0], TypeMember::ConstructSignature { signature } => {
                     assert_eq!(signature.parameters.len(), 1);
-                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
+                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                         assert_string!(parser, *name, "x");
-                        assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
                             assert_eq!(*value, TypeLiteral::Number);
                         });
                     });
@@ -388,9 +388,9 @@ fn test_parse_type_literal_generic_call_overloads() {
                         });
                     });
                     assert_eq!(signature.parameters.len(), 1);
-                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
+                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                         assert_string!(parser, *name, "num");
-                        assert_node!(parser.tree, *declared_type, TypeExpression::Reference { path, .. } => {
+                        assert_node!(parser.tree, *ty, TypeExpression::Reference { path, .. } => {
                             assert_path!(parser, *path, "N");
                         });
                     });
@@ -422,9 +422,9 @@ fn test_parse_type_literal_generic_call_overloads() {
                         });
                     });
                     assert_eq!(signature.parameters.len(), 1);
-                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
+                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                         assert_string!(parser, *name, "str");
-                        assert_node!(parser.tree, *declared_type, TypeExpression::Reference { path, .. } => {
+                        assert_node!(parser.tree, *ty, TypeExpression::Reference { path, .. } => {
                             assert_path!(parser, *path, "S");
                         });
                     });
@@ -1082,9 +1082,9 @@ fn test_parse_type_member_generic_arrow_nested_parameter_type() {
                             assert!(default.is_none());
                         });
                         assert_eq!(function.parameters.len(), 1);
-                        assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, declared_type, .. } => {
+                        assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, declared_type: Some(ty), .. } => {
                             assert_string!(parser, *name, "MISMATCH");
-                            assert_mismatch_args(&parser, declared_type.expect("expected parameter type"));
+                            assert_mismatch_args(&parser, *ty);
                         });
                         assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::ScalarLiteral { value } => {
                             assert_eq!(*value, ScalarLiteral::Boolean(true));
@@ -1165,9 +1165,9 @@ fn test_parse_function_type_nested_conditional_constraint() {
                     assert_expected_nested_conditional_constraint(&parser, constraint.expect("expected constraint"));
                 });
                 assert_eq!(function.parameters.len(), 1);
-                assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, declared_type, .. } => {
+                assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, declared_type: Some(ty), .. } => {
                     assert_string!(parser, *name, "MISMATCH");
-                    assert_mismatch_args(&parser, declared_type.expect("expected parameter type"));
+                    assert_mismatch_args(&parser, *ty);
                 });
                 assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::ScalarLiteral { value } => {
                     assert_eq!(*value, ScalarLiteral::Boolean(true));
@@ -1238,9 +1238,9 @@ fn test_parse_type_member_generic_arrow_nested_conditional_constraint() {
                         });
 
                         assert_eq!(function.parameters.len(), 1);
-                        assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, declared_type, .. } => {
+                        assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, declared_type: Some(ty), .. } => {
                             assert_string!(parser, *name, "MISMATCH");
-                            assert_mismatch_args(&parser, declared_type.expect("expected parameter type"));
+                            assert_mismatch_args(&parser, *ty);
                         });
                         assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::ScalarLiteral { value } => {
                             assert_eq!(*value, ScalarLiteral::Boolean(true));
@@ -1303,11 +1303,10 @@ fn test_parse_type_member_generic_arrow_constraint_before_parameter_list() {
                         });
 
                         assert_eq!(function.parameters.len(), 1);
-                        assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, is_optional, declared_type, default, .. } => {
+                        assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(ty), is_optional, .. } => {
                             assert_string!(parser, *name, "x");
                             assert!(!*is_optional);
-                            assert!(default.is_none());
-                            assert_plain_type_reference(&parser, declared_type.expect("expected parameter type"), "U");
+                            assert_plain_type_reference(&parser, *ty, "U");
                         });
 
                         assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::ScalarLiteral { value } => {

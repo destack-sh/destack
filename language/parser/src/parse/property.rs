@@ -99,7 +99,7 @@ struct ParsedMethodTail {
 }
 
 /// Build one call signature declaration from a parsed function signature.
-fn function_type_from_signature(signature: FunctionSignature) -> FunctionTypeExpression {
+fn call_signature_from_function_signature(signature: FunctionSignature) -> FunctionTypeExpression {
     debug_assert!(signature.role.is_none() || signature.role == Some(FunctionRole::Call));
 
     FunctionTypeExpression {
@@ -113,7 +113,7 @@ fn function_type_from_signature(signature: FunctionSignature) -> FunctionTypeExp
 }
 
 /// Build one construct signature declaration from a parsed function signature.
-fn constructor_type_from_signature(signature: FunctionSignature) -> ConstructorType {
+fn construct_signature_from_function_signature(signature: FunctionSignature) -> ConstructorType {
     debug_assert!(matches!(
         signature.role,
         Some(FunctionRole::Constructor | FunctionRole::New)
@@ -1894,11 +1894,11 @@ impl Parser {
                 },
                 (None, Some(FunctionRole::New | FunctionRole::Constructor)) => {
                     TypeMember::ConstructSignature {
-                        signature: constructor_type_from_signature(signature),
+                        signature: construct_signature_from_function_signature(signature),
                     }
                 }
                 (None, None | Some(FunctionRole::Call)) => TypeMember::CallSignature {
-                    signature: function_type_from_signature(signature),
+                    signature: call_signature_from_function_signature(signature),
                 },
                 (None, Some(FunctionRole::Getter | FunctionRole::Setter)) => {
                     return Err(ParserError::unexpected(self.peek()?.span));

@@ -387,9 +387,9 @@ fn test_parse_function_type_with_this_parameter() {
                 assert_eq!(function.this_form, Some(ThisForm::Explicit));
                 assert_eq!(function.parameters.len(), 1);
                 // value: Bar
-                assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type, .. } => {
+                assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                     assert_string!(parser, *name, "value");
-                    assert_expression_path!(parser, parser.tree.get(declared_type.unwrap()), "Bar");
+                    assert_expression_path!(parser, parser.tree.get(*ty), "Bar");
                 });
             });
         });
@@ -940,9 +940,9 @@ fn test_parse_function_with_function_return_type() {
         assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Function(function) => {
             assert_eq!(function.parameters.len(), 1);
             // str: string
-            assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type, .. } => {
+            assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                 assert_string!(parser, *name, "str");
-                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
                     assert_eq!(*value, TypeLiteral::String);
                 });
             });
@@ -1419,15 +1419,17 @@ fn test_parse_lambda_return_type_with_optional_parameter_function_type() {
                 assert_eq!(function.parameters.len(), 2);
 
                 // fiberId?: FiberId.FiberId
-                assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type, .. } => {
+                assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(ty), is_optional, .. } => {
                     assert_string!(parser, *name, "fiberId");
-                    assert_expression_path!(parser, parser.tree.get(declared_type.unwrap()), "FiberId.FiberId");
+                    assert!(*is_optional);
+                    assert_expression_path!(parser, parser.tree.get(*ty), "FiberId.FiberId");
                 });
 
                 // options?: Runtime.RunCallbackOptions<any, any> | undefined
-                assert_node!(parser.tree, function.parameters[1], Parameter::Named { name, declared_type, .. } => {
+                assert_node!(parser.tree, function.parameters[1], Parameter::Named { name, declared_type: Some(ty), is_optional, .. } => {
                     assert_string!(parser, *name, "options");
-                    assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Union { elements } => {
+                    assert!(*is_optional);
+                    assert_node!(parser.tree, *ty, TypeExpression::Union { elements } => {
                         assert_eq!(elements.len(), 2);
                     });
                 });
