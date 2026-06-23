@@ -1,11 +1,9 @@
-use destack_session as session;
-
 use super::{Client, ClientError};
-use crate::FileOperation;
 use crate::protocol::{
     FileOperationRequest, FileOperationResponse, RootId, SourceUpdateRequest, SourceUpdateResponse,
     WorkspaceRequest, WorkspaceResponse,
 };
+use crate::{FileOperation, SourceUpdate};
 
 impl Client {
     /// Apply a file operation to a workspace root handle.
@@ -30,7 +28,7 @@ impl Client {
     pub fn apply_source_update(
         &self,
         handle: RootId,
-        update: session::Update,
+        update: SourceUpdate,
     ) -> Result<SourceUpdateResponse, ClientError> {
         // send the source update request
         let request = SourceUpdateRequest { handle, update };

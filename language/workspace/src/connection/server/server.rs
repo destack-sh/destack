@@ -96,6 +96,28 @@ impl Server {
         result
     }
 
+    /// Dispatch one encoded protocol message through this server.
+    pub fn dispatch(&self, payload: &[u8]) -> Result<Vec<Vec<u8>>, ServerError> {
+        let transport = DispatchTransport::default();
+
+        // decode the incoming request
+        let codec = self.codec.lock();
+        let message = codec.decode_message(payload).map_err(ServerError::Codec)?;
+        drop(codec);
+
+        // dispatch the request and collect progress notifications
+        let response = self.handle_message(&transport, message)?;
+        let Some((response, payloads)) = response else {
+            return Ok(transport.finish());
+        };
+
+        // collect the final response and deferred payload chunks
+        self.send_message(&transport, &response)?;
+        self.flush_payloads(&transport, payloads)?;
+
+        Ok(transport.finish())
+    }
+
     /// Receive a protocol message from the transport.
     fn recv_message<T: Transport + ?Sized>(
         &self,
@@ -392,4 +414,32 @@ impl Server {
             .send(transport, &codec)
             .map_err(ServerError::Payload)
     }
+}
+
+/// Transport collecting frames produced by one direct server dispatch.
+#[derive(Debug, Default)]
+struct DispatchTransport {
+    /// Frames emitted during the dispatch.
+    frames: Mutex<Vec<Vec<u8>>>,
+}
+
+impl DispatchTransport {
+    /// Return collected response frames.
+    fn finish(self) -> Vec<Vec<u8>> {
+        self.frames.into_inner()
+    }
+}
+
+impl Transport for DispatchTransport {
+    fn send(&self, payload: &[u8]) -> Result<(), crate::TransportError> {
+        self.frames.lock().push(payload.to_vec());
+
+        Ok(())
+    }
+
+    fn recv(&self) -> Result<Vec<u8>, crate::TransportError> {
+        Err(crate::TransportError::Closed)
+    }
+
+    fn close(&self) {}
 }

@@ -2,7 +2,6 @@ use std::path::{Path, PathBuf};
 
 use destack_artifact::{ArtifactPayload, ArtifactReference};
 use destack_repository::Revision;
-use destack_session as session;
 use destack_source::{Content, ContentId};
 
 use super::{
@@ -10,7 +9,7 @@ use super::{
     ViewRequest, ViewResult,
 };
 use crate::diagnostic::{DiagnosticView, Error};
-use crate::file::{Commit, FileOperation};
+use crate::file::{Commit, FileOperation, SourceUpdate};
 use crate::protocol::WatchPolicy;
 use crate::watch::WatchUpdate;
 use crate::{
@@ -63,7 +62,7 @@ pub trait Workspace: std::fmt::Debug + Send + Sync {
     fn is_file_open(&self, path: &Path) -> bool;
 
     /// Apply one atomic source edit through the workspace.
-    fn edit(&self, root: &Path, update: session::Update) -> Result<Commit, Error>;
+    fn edit(&self, root: &Path, update: SourceUpdate) -> Result<Commit, Error>;
 
     // ================================================================================
     // Command

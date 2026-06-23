@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use destack_repository::{Repository, Revision};
-use destack_session as session;
-use destack_source::{ContentId, FileId, Uri};
+use destack_source::{ContentId, Edit, FileId, Uri};
 
 use crate::diagnostic::Error;
 use crate::workspace::LocalWorkspace;
@@ -17,7 +16,7 @@ pub(crate) struct OpenFile {
     /// Repository content id corresponding to the open content.
     pub content_id: ContentId,
     /// Current open content.
-    pub content: session::Edit,
+    pub content: Edit,
 }
 
 impl LocalWorkspace {
@@ -43,7 +42,7 @@ impl LocalWorkspace {
         uri: Uri,
         version: i32,
         content_id: ContentId,
-        content: session::Edit,
+        content: Edit,
     ) {
         // mirror open text into the shared filesystem overlay
         let path = self.normalized_path(path);

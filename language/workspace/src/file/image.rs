@@ -1,7 +1,7 @@
 use destack_serde::Schema;
 use std::path::{Path, PathBuf};
 
-use destack_session as session;
+use destack_session::Change;
 use destack_source::{Content, Diagnostic, File, FileId, FileType, ModuleId, TextChange, Uri};
 use serde::{Deserialize, Serialize};
 
@@ -111,11 +111,11 @@ pub struct FileUpdate {
     pub diagnostics: Vec<Diagnostic>,
 }
 
-impl From<session::Change> for FileUpdate {
+impl From<Change> for FileUpdate {
     /// Project one session change into a workspace payload.
-    fn from(update: session::Change) -> Self {
+    fn from(update: Change) -> Self {
         match update {
-            session::Change::Updated {
+            Change::Updated {
                 module_id,
                 file_id,
                 uri,
@@ -138,7 +138,7 @@ impl From<session::Change> for FileUpdate {
                     diagnostics: Vec::new(),
                 }
             }
-            session::Change::Removed {
+            Change::Removed {
                 module_id,
                 file_id,
                 uri,

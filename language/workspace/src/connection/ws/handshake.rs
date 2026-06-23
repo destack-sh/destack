@@ -2,7 +2,7 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 
 use base64::Engine;
-use base64::engine::general_purpose::STANDARD as BASE64;
+use base64::engine::general_purpose;
 use sha1::{Digest, Sha1};
 
 use super::WorkspaceWebSocketError;
@@ -149,5 +149,5 @@ fn websocket_accept(key: &str) -> String {
     hasher.update(WEBSOCKET_GUID.as_bytes());
     let digest = hasher.finalize();
 
-    BASE64.encode(digest)
+    general_purpose::STANDARD.encode(digest)
 }

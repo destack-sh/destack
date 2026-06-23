@@ -3,10 +3,9 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use destack_repository::Revision;
-use destack_session as session;
-use destack_session::Session;
+use destack_session::{Change, Session};
 use destack_source::{
-    ContentId, FileWatchEvent, FileWatchEventKind, TextChange, Uri, apply_text_changes,
+    ContentId, Edit, FileWatchEvent, FileWatchEventKind, TextChange, Uri, apply_text_changes,
 };
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +13,15 @@ use crate::diagnostic::{Error, diagnostics_by_file};
 use crate::file::FileUpdate;
 use crate::protocol::{WatchBatch, WatchEventKind, WatchStatus};
 use crate::workspace::{LocalWorkspace, Message, ReloadReason, UpdateBatch};
+
+/// One requested source mutation batch.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub struct SourceUpdate {
+    /// Optional expected base revision.
+    pub base: Option<Revision>,
+    /// Source file edits.
+    pub edits: Vec<Edit>,
+}
 
 /// Workspace projection of one committed edit batch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
@@ -30,22 +38,12 @@ pub struct Commit {
 
 impl LocalWorkspace {
     /// Open one file with its current content.
-    pub fn open_file(
-        &self,
-        uri: Uri,
-        version: i32,
-        edit: session::Edit,
-    ) -> Result<UpdateBatch, Error> {
+    pub fn open_file(&self, uri: Uri, version: i32, edit: Edit) -> Result<UpdateBatch, Error> {
         self.change_file(uri, version, edit)
     }
 
     /// Change one open file to its current content.
-    pub fn change_file(
-        &self,
-        uri: Uri,
-        version: i32,
-        edit: session::Edit,
-    ) -> Result<UpdateBatch, Error> {
+    pub fn change_file(&self, uri: Uri, version: i32, edit: Edit) -> Result<UpdateBatch, Error> {
         let path = file_content_edit_path(&edit)?.to_path_buf();
 
         // reject stale client versions before mutating repository state
@@ -115,7 +113,7 @@ impl LocalWorkspace {
         self.change_file(
             uri,
             version,
-            session::Edit::SetText {
+            Edit::SetText {
                 path: path.to_path_buf(),
                 text: content,
             },
@@ -123,7 +121,7 @@ impl LocalWorkspace {
     }
 
     /// Save one open file to explicit content.
-    pub fn save_file(&self, edit: session::Edit) -> Result<UpdateBatch, Error> {
+    pub fn save_file(&self, edit: Edit) -> Result<UpdateBatch, Error> {
         let path = file_content_edit_path(&edit)?.to_path_buf();
 
         // publish the saved content to the repository revision
@@ -174,7 +172,7 @@ impl LocalWorkspace {
                 })?,
         };
 
-        self.save_file(session::Edit::SetText {
+        self.save_file(Edit::SetText {
             path: path.to_path_buf(),
             text: content,
         })
@@ -198,7 +196,7 @@ impl LocalWorkspace {
                 })?,
         };
 
-        self.save_file(session::Edit::SetBytes {
+        self.save_file(Edit::SetBytes {
             path: path.to_path_buf(),
             bytes: content,
         })
@@ -215,7 +213,7 @@ impl LocalWorkspace {
         // read the current filesystem truth for this path
         let edit = match session.read_filesystem_edit(path) {
             Ok(edit) => edit,
-            Err(error) if error.kind() == ErrorKind::NotFound => session::Edit::Remove {
+            Err(error) if error.kind() == ErrorKind::NotFound => Edit::Remove {
                 path: path.to_path_buf(),
             },
             Err(error) => {
@@ -242,7 +240,7 @@ impl LocalWorkspace {
     }
 
     /// Apply one edit through the workspace.
-    pub fn apply_file(&self, edit: session::Edit) -> Result<UpdateBatch, Error> {
+    pub fn apply_file(&self, edit: Edit) -> Result<UpdateBatch, Error> {
         let path = file_content_edit_path(&edit)?.to_path_buf();
 
         // apply direct edits through the owning session
@@ -255,18 +253,14 @@ impl LocalWorkspace {
     }
 
     /// Write one edit to the host filesystem and workspace.
-    pub fn write_file(&self, edit: session::Edit) -> Result<UpdateBatch, Error> {
+    pub fn write_file(&self, edit: Edit) -> Result<UpdateBatch, Error> {
         self.write_update_to_disk(&edit)?;
 
         self.apply_file(edit)
     }
 
     /// Apply atomic edits through the workspace.
-    pub fn apply_source_edits(
-        &self,
-        root: &Path,
-        edits: Vec<session::Edit>,
-    ) -> Result<Commit, Error> {
+    pub fn apply_source_edits(&self, root: &Path, edits: Vec<Edit>) -> Result<Commit, Error> {
         // publish the edit batch through the owning session
         let session = self.session(root)?;
         let commit = session.edit(session.head(), edits)?;
@@ -278,7 +272,7 @@ impl LocalWorkspace {
         &self,
         root: &Path,
         revision: Revision,
-        edits: Vec<session::Edit>,
+        edits: Vec<Edit>,
     ) -> Result<Commit, Error> {
         // publish the edit batch through the owning session
         let session = self.session(root)?;
@@ -291,7 +285,7 @@ impl LocalWorkspace {
     fn workspace_commit(
         &self,
         session: &Session,
-        commit: session::Commit,
+        commit: destack_session::Commit,
     ) -> Result<Commit, Error> {
         let before = commit.before;
         let after = commit.after;
@@ -458,7 +452,7 @@ impl LocalWorkspace {
         // publish the removal when the file was tracked
         match session.edit(
             session.head(),
-            vec![session::Edit::Remove {
+            vec![Edit::Remove {
                 path: path.to_path_buf(),
             }],
         ) {
@@ -509,7 +503,7 @@ impl LocalWorkspace {
     fn extend_with_change_result(
         &self,
         session: &Session,
-        changes: Vec<session::Change>,
+        changes: Vec<Change>,
         result: &mut UpdateBatch,
     ) -> Result<(), Error> {
         // rebuild workspace updates from the committed session changes
@@ -569,7 +563,7 @@ impl LocalWorkspace {
     fn build_change_result(
         &self,
         session: &Session,
-        changes: Vec<session::Change>,
+        changes: Vec<Change>,
     ) -> Result<UpdateBatch, Error> {
         // convert session changes before requesting derived artifacts
         let revision = session.revision(session.head())?;
@@ -586,7 +580,7 @@ impl LocalWorkspace {
         &self,
         session: &Session,
         revision: Revision,
-        changes: Vec<session::Change>,
+        changes: Vec<Change>,
     ) -> Result<Vec<FileUpdate>, Error> {
         let mut file_updates = Vec::new();
 
@@ -603,7 +597,7 @@ impl LocalWorkspace {
         &self,
         session: &Session,
         revision: Revision,
-        change: session::Change,
+        change: Change,
     ) -> Result<FileUpdate, Error> {
         let mut update = FileUpdate::from(change);
 
@@ -660,9 +654,9 @@ impl LocalWorkspace {
     }
 
     /// Write an edit to disk before applying it.
-    fn write_update_to_disk(&self, edit: &session::Edit) -> Result<(), Error> {
+    fn write_update_to_disk(&self, edit: &Edit) -> Result<(), Error> {
         match edit {
-            session::Edit::SetText { path, text } => {
+            Edit::SetText { path, text } => {
                 self.create_parent_directory(path)?;
                 self.repository
                     .file_system()
@@ -672,7 +666,7 @@ impl LocalWorkspace {
                         source,
                     })?;
             }
-            session::Edit::SetBytes { path, bytes } => {
+            Edit::SetBytes { path, bytes } => {
                 self.create_parent_directory(path)?;
                 self.repository
                     .file_system()
@@ -682,7 +676,7 @@ impl LocalWorkspace {
                         source,
                     })?;
             }
-            session::Edit::Remove { path } => {
+            Edit::Remove { path } => {
                 if let Err(source) = self.repository.file_system().remove_file(path)
                     && source.kind() != ErrorKind::NotFound
                 {
@@ -692,12 +686,12 @@ impl LocalWorkspace {
                     });
                 }
             }
-            session::Edit::EditText { .. } => {
+            Edit::EditText { .. } => {
                 return Err(Error::InvalidEdit {
                     detail: "text patch edits cannot be written directly to disk".to_string(),
                 });
             }
-            session::Edit::Move { .. } => {
+            Edit::Move { .. } => {
                 return Err(Error::InvalidEdit {
                     detail: "move edits cannot be written directly to disk".to_string(),
                 });
@@ -733,15 +727,15 @@ fn watch_reload_requested_message(reason: ReloadReason) -> &'static str {
 }
 
 /// Return the path for a full content edit.
-fn file_content_edit_path(edit: &session::Edit) -> Result<&Path, Error> {
+fn file_content_edit_path(edit: &Edit) -> Result<&Path, Error> {
     match edit {
-        session::Edit::SetText { path, .. }
-        | session::Edit::SetBytes { path, .. }
-        | session::Edit::Remove { path } => Ok(path.as_path()),
-        session::Edit::EditText { .. } => Err(Error::InvalidEdit {
+        Edit::SetText { path, .. } | Edit::SetBytes { path, .. } | Edit::Remove { path } => {
+            Ok(path.as_path())
+        }
+        Edit::EditText { .. } => Err(Error::InvalidEdit {
             detail: "text patch edits are only valid in edit batches".to_string(),
         }),
-        session::Edit::Move { .. } => Err(Error::InvalidEdit {
+        Edit::Move { .. } => Err(Error::InvalidEdit {
             detail: "move edits are only valid in edit batches".to_string(),
         }),
     }

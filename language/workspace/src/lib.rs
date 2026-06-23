@@ -8,7 +8,7 @@ pub mod workspace;
 pub use command::*;
 pub use destack_artifact::ArtifactPayload;
 pub use diagnostic::{DiagnosticView, Error};
-pub use file::{Commit, FileImage, FileOperation, FileUpdate, UpdateKind};
+pub use file::{Commit, FileImage, FileOperation, FileUpdate, SourceUpdate, UpdateKind};
 pub use protocol::*;
 pub use watch::*;
 pub use workspace::*;

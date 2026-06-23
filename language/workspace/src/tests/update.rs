@@ -1,4 +1,4 @@
-use destack_session as session;
+use destack_source::Edit;
 
 use crate::Error;
 use crate::tests::harness::TestWorkspace;
@@ -18,7 +18,7 @@ fn test_apply_file_emits_removed_update() {
 
     let removed = test
         .workspace
-        .apply_file(session::Edit::Remove { path: path.clone() })
+        .apply_file(Edit::Remove { path: path.clone() })
         .expect("expected removed file update");
 
     assert!(
@@ -78,7 +78,7 @@ fn test_open_file_tracks_client_state() {
         .open_file(
             uri.clone(),
             1,
-            session::Edit::SetText {
+            Edit::SetText {
                 path: path.clone(),
                 text: source.to_string(),
             },
@@ -96,7 +96,7 @@ fn test_open_file_tracks_client_state() {
         .change_file(
             uri.clone(),
             2,
-            session::Edit::SetText {
+            Edit::SetText {
                 path: path.clone(),
                 text: changed.to_string(),
             },
@@ -135,7 +135,7 @@ fn test_close_root_clears_open_files() {
         .open_file(
             uri,
             1,
-            session::Edit::SetText {
+            Edit::SetText {
                 path: path.clone(),
                 text: source.to_string(),
             },
@@ -166,7 +166,7 @@ fn test_change_file_rejects_stale_version() {
         .open_file(
             uri.clone(),
             2,
-            session::Edit::SetText {
+            Edit::SetText {
                 path: path.clone(),
                 text: source.to_string(),
             },
@@ -178,7 +178,7 @@ fn test_change_file_rejects_stale_version() {
         .change_file(
             uri,
             2,
-            session::Edit::SetText {
+            Edit::SetText {
                 path,
                 text: source.to_string(),
             },
