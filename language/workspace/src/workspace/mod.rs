@@ -1,4 +1,3 @@
-mod export;
 mod local;
 mod message;
 mod query;
@@ -7,7 +6,6 @@ mod root;
 mod snapshot;
 mod workspace;
 
-pub use export::{ExportRequest, ExportResult, ExportedFile};
 pub use local::LocalWorkspace;
 pub use message::{Message, MessageKind, UpdateBatch};
 pub use query::{QueryRequest, QueryResult, RevisionPolicy};

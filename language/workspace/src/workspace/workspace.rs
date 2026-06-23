@@ -5,8 +5,7 @@ use destack_repository::Revision;
 use destack_source::{Content, ContentId};
 
 use super::{
-    DiagnosticsRequest, ExportRequest, ExportResult, QueryRequest, QueryResult, ReloadRequest,
-    ViewRequest, ViewResult,
+    DiagnosticsRequest, QueryRequest, QueryResult, ReloadRequest, ViewRequest, ViewResult,
 };
 use crate::diagnostic::{DiagnosticView, Error};
 use crate::file::{Commit, FileOperation, SourceUpdate};
@@ -15,9 +14,9 @@ use crate::watch::WatchUpdate;
 use crate::{
     BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
     CheckOutput, CleanInput, CleanOutput, CommandError, CommandProgress, DocInput, DocOutput,
-    DoctorInput, DoctorOutput, FormatInput, FormatOutput, InfoInput, InfoOutput, LintInput,
-    LintOutput, RunInput, RunOutput, SettingsInput, SettingsOutput, TargetsInput, TargetsOutput,
-    TaskInput, TaskOutput, TestInput, TestOutput, UpdateBatch,
+    DoctorInput, DoctorOutput, ExportRequest, ExportResult, FormatInput, FormatOutput, InfoInput,
+    InfoOutput, LintInput, LintOutput, RunInput, RunOutput, SettingsInput, SettingsOutput,
+    TargetsInput, TargetsOutput, TaskInput, TaskOutput, TestInput, TestOutput, UpdateBatch,
 };
 
 /// Workspace operations shared by local and remote workspace implementations.
@@ -58,7 +57,7 @@ pub trait Workspace: std::fmt::Debug + Send + Sync {
     fn file(&self, operation: FileOperation) -> Result<UpdateBatch, Error>;
 
     /// Return whether one file is currently open through the workspace.
-    fn is_file_open(&self, path: &Path) -> bool;
+    fn is_file_open(&self, path: &Path) -> Result<bool, Error>;
 
     /// Apply one atomic source edit through the workspace.
     fn edit(&self, root: &Path, update: SourceUpdate) -> Result<Commit, Error>;

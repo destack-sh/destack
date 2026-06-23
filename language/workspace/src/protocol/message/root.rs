@@ -21,8 +21,6 @@ impl RootId {
 /// Request to open a root.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct OpenRootRequest {
-    /// The workspace root owning this workspace root.
-    pub workspace: PathBuf,
     /// The root path.
     pub root: PathBuf,
     /// Root open options.

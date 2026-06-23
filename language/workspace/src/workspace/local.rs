@@ -33,9 +33,10 @@ use destack_source::{
 use parking_lot::Mutex;
 
 use super::{
-    DiagnosticsRequest, ExportRequest, ExportResult, ExportedFile, QueryRequest, QueryResult,
-    ReloadRequest, UpdateBatch, ViewRequest, ViewResult,
+    DiagnosticsRequest, QueryRequest, QueryResult, ReloadRequest, UpdateBatch, ViewRequest,
+    ViewResult,
 };
+use crate::{ExportRequest, ExportResult, ExportedFile};
 
 /// Local workspace used by tooling integrations.
 pub struct LocalWorkspace {
@@ -349,8 +350,8 @@ impl Workspace for LocalWorkspace {
         LocalWorkspace::apply_file_operation(self, operation)
     }
 
-    fn is_file_open(&self, path: &Path) -> bool {
-        LocalWorkspace::has_open_file(self, path)
+    fn is_file_open(&self, path: &Path) -> Result<bool, Error> {
+        Ok(LocalWorkspace::has_open_file(self, path))
     }
 
     fn edit(&self, root: &Path, update: SourceUpdate) -> Result<Commit, Error> {

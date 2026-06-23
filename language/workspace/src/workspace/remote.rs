@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -7,21 +6,18 @@ use destack_repository::Revision;
 use destack_source::{Content, ContentId};
 use parking_lot::Mutex;
 
-use super::{
-    DiagnosticsRequest, ExportRequest, ExportResult, QueryRequest, ReloadRequest, ViewRequest,
-    ViewResult,
-};
-use crate::connection::Client;
+use super::{DiagnosticsRequest, QueryRequest, ReloadRequest, ViewRequest, ViewResult};
 use crate::diagnostic::{DiagnosticView, Error};
 use crate::file::{Commit, FileOperation, SourceUpdate};
 use crate::protocol::{self, RequestOptions, RootId, RootOpenOptions};
 use crate::{
     BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
-    CheckOutput, CleanInput, CleanOutput, ClientError, CommandError, CommandProgress, DocInput,
-    DocOutput, DoctorInput, DoctorOutput, FormatInput, FormatOutput, InfoInput, InfoOutput,
-    LintInput, LintOutput, ProgressEvent, QueryResult, RevisionPolicy, RunInput, RunOutput,
-    SettingsInput, SettingsOutput, TargetsInput, TargetsOutput, TaskInput, TaskOutput, TestInput,
-    TestOutput, UpdateBatch, WatchPolicy, WatchUpdate, Workspace,
+    CheckOutput, CleanInput, CleanOutput, Client, ClientError, CommandError, CommandProgress,
+    DocInput, DocOutput, DoctorInput, DoctorOutput, ExportRequest, ExportResult, FormatInput,
+    FormatOutput, InfoInput, InfoOutput, LintInput, LintOutput, ProgressEvent, QueryResult,
+    RevisionPolicy, RunInput, RunOutput, SettingsInput, SettingsOutput, TargetsInput,
+    TargetsOutput, TaskInput, TaskOutput, TestInput, TestOutput, UpdateBatch, WatchPolicy,
+    WatchUpdate, Workspace,
 };
 
 /// Workspace backed by a protocol client.
@@ -33,8 +29,6 @@ pub struct RemoteWorkspace {
     client: Arc<Client>,
     /// Open protocol roots.
     roots: Mutex<Vec<RemoteRoot>>,
-    /// Open file paths mirrored from successful protocol operations.
-    open_files: Mutex<HashSet<PathBuf>>,
 }
 
 /// Open remote root handle.
@@ -55,7 +49,6 @@ impl RemoteWorkspace {
             root,
             client,
             roots: Mutex::new(Vec::new()),
-            open_files: Mutex::new(HashSet::new()),
         }
     }
 
@@ -121,13 +114,6 @@ impl RemoteWorkspace {
 
         Ok(response.updates)
     }
-
-    /// Remove mirrored open file state under one root.
-    fn remove_open_files_under(&self, root: &RemoteRoot) {
-        let mut open_files = self.open_files.lock();
-
-        open_files.retain(|path| !root.contains_path(path));
-    }
 }
 
 impl RemoteRoot {
@@ -188,7 +174,7 @@ impl Workspace for RemoteWorkspace {
         let requested = root.clone();
         let response = self
             .client
-            .open_root(self.root.clone(), root, RootOpenOptions::default())
+            .open_root(root, RootOpenOptions::default())
             .map_err(Self::workspace_error)?;
         let mut roots = self.roots.lock();
         if let Some(entry) = roots
@@ -220,7 +206,6 @@ impl Workspace for RemoteWorkspace {
         self.client
             .close_root(entry.handle)
             .map_err(Self::workspace_error)?;
-        self.remove_open_files_under(&entry);
 
         Ok(())
     }
@@ -262,24 +247,16 @@ impl Workspace for RemoteWorkspace {
     fn file(&self, operation: FileOperation) -> Result<UpdateBatch, Error> {
         let path = operation.path().to_path_buf();
         let handle = self.handle_for_path(&path)?;
-        let is_open = matches!(
-            operation,
-            FileOperation::OpenText { .. } | FileOperation::OpenBytes { .. }
-        );
-        let is_close = matches!(operation, FileOperation::Close { .. });
-        let result = self.apply_file_operation(handle, operation)?;
 
-        if is_open {
-            self.open_files.lock().insert(path);
-        } else if is_close {
-            self.open_files.lock().remove(&path);
-        }
-
-        Ok(result)
+        self.apply_file_operation(handle, operation)
     }
 
-    fn is_file_open(&self, path: &Path) -> bool {
-        self.open_files.lock().contains(path)
+    fn is_file_open(&self, path: &Path) -> Result<bool, Error> {
+        let handle = self.handle_for_path(path)?;
+
+        self.client
+            .file_open(handle, path.to_path_buf())
+            .map_err(Self::workspace_error)
     }
 
     fn edit(&self, root: &Path, update: SourceUpdate) -> Result<Commit, Error> {
