@@ -540,7 +540,7 @@ impl ModuleLowerer<'_> {
             .insert_from_source_any(parameter, self.module.id, source_id))
     }
 
-    /// Lower one semantic function type parameter with one synthesized name.
+    /// Lower one semantic signature parameter with one synthesized name.
     fn lower_semantic_function_parameter(
         &mut self,
         source_id: dir::LocalNodeIdAny,

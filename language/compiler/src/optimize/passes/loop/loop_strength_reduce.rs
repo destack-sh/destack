@@ -1234,6 +1234,7 @@ struct ScevMaterializer<'a> {
     /// Type context for layout sensitive operations.
     target_layout: TargetLayout,
 }
+
 impl<'a> ScevMaterializer<'a> {
     /// Create a new materializer for the preheader.
     fn new(
