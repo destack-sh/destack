@@ -17,16 +17,6 @@ use destack_program::vm::{
 };
 use destack_program::{FunctionId, Program, ProgramIndex, StaticId, TypeId};
 
-/// Lower one VM program for concrete heap allocation geometry.
-pub(crate) fn lower_program_with_heap_options(
-    tree: mir::Tree,
-    strings: StringPool,
-    heap_options: heap::HeapOptions,
-    shared_heap_options: heap::SharedHeapOptions,
-) -> Result<Program> {
-    ProgramBuilder::new(tree, strings, heap_options, shared_heap_options).build()
-}
-
 /// One initialized byte range inside a global payload.
 #[derive(Clone, Copy, Debug)]
 struct InitializerRange {
@@ -337,7 +327,8 @@ fn trace_table_from_layouts(layouts: &LayoutTable) -> mir::TraceTable {
 }
 
 /// Build one program from one MIR tree and immutable string pool.
-struct ProgramBuilder {
+#[derive(Debug)]
+pub struct ProgramLowerer {
     heap_options: heap::HeapOptions,
     shared_heap_options: heap::SharedHeapOptions,
     tree: mir::Tree,
@@ -346,9 +337,9 @@ struct ProgramBuilder {
     resume: ResumeTable,
 }
 
-impl ProgramBuilder {
+impl ProgramLowerer {
     /// Create one program builder.
-    fn new(
+    pub fn new(
         tree: mir::Tree,
         strings: StringPool,
         heap_options: heap::HeapOptions,
@@ -365,7 +356,7 @@ impl ProgramBuilder {
     }
 
     /// Build the program.
-    fn build(mut self) -> Result<Program> {
+    pub fn build(mut self) -> Result<Program> {
         let index = ProgramIndex::new(&self.tree);
         let (function_ids, target_by_id) = self.build_function_targets(&index);
         let layout_id_by_type = self.build_layout_id_map()?;

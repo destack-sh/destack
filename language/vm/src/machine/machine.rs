@@ -13,7 +13,7 @@ use program::StaticSpace;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult, StackTraceFrame};
-use crate::lower::lower_program_with_heap_options;
+use crate::lower::ProgramLowerer;
 use crate::options::{LimitOptions, MachineOptions};
 use crate::{Cell, Result as VmResult};
 use destack_program::Program;
@@ -118,13 +118,14 @@ impl Machine {
         strings: StringPool,
         options: MachineOptions,
     ) -> RuntimeResult<Self> {
-        let program = Arc::new(lower_program_with_heap_options(
+        let program = ProgramLowerer::new(
             tree,
             strings,
             options.heap.clone(),
             options.shared_heap.clone(),
-        )?);
-        Self::new(program, options)
+        )
+        .build()?;
+        Self::new(Arc::new(program), options)
     }
 
     /// Initialize heap-shaped program metadata and static bytes.

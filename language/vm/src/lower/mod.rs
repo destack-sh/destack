@@ -26,5 +26,5 @@ mod value;
 mod vector;
 
 pub(crate) use lower::lower_function;
-pub(crate) use program::lower_program_with_heap_options;
+pub use program::ProgramLowerer;
 pub(crate) use tree::{ValueType, analyze_value_types};
