@@ -58,13 +58,15 @@ fn render_label(repository: &Repository, revision: Revision, label: &DiagnosticL
     let (line, column) = file
         .get_position(label.span.start)
         .expect("diagnostic snapshot position should exist");
-    let source = file.get_line_str(line).unwrap_or_default().trim();
+    let span = file.get_span_str(label.span).unwrap_or_default().trim();
+    let line_source = file.get_line_str(line).unwrap_or_default().trim();
     let line = line + 1;
     let column = column + 1;
 
     format!(
-        "/// @diagnostic.label line={line} column={column} source={}",
-        quote(source)
+        "/// @diagnostic.label line={line} column={column} span={} line_source={}",
+        quote(span),
+        quote(line_source)
     )
 }
 

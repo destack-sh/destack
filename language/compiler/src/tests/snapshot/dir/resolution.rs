@@ -296,9 +296,9 @@ fn add_predicate_resolution_row(
             .field("kind", "instanceof")
             .type_field("value", builder.global_type_label(predicate.value_type))
             .field("target", builder.symbol_path_label(predicate.target))
-            .optional_field(
-                "instance",
-                generic_instance_label(builder, predicate.target, &predicate.arguments),
+            .type_field(
+                "target_type",
+                builder.global_type_label(predicate.target_type),
             ),
         dir::PredicateResolution::In(predicate) => row
             .field("kind", "in")
