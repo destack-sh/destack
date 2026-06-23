@@ -6,6 +6,7 @@ import { Index, IndexSet } from "destack:ops";
 import { Bound, RangeBounds } from "destack:range";
 
 import { Array, FixedArray } from "./array.ds";
+import { Sequence } from "./sequence.ds";
 import { Slice } from "./slice.ds";
 
 /// A growable contiguous array with inline storage.
@@ -24,6 +25,7 @@ export struct SmallArray<T, comptime N: number> {
 }
 
 extension<T, comptime N: number> of SmallArray<T, N> implements
+    Sequence,
     Index<usize>,
     IndexSet<usize, T>,
     Iterable<T>,
@@ -38,6 +40,9 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     From<FixedArray<T, N>> {
     /// The indexed output type.
     type Output = T;
+
+    /// The contiguous range view type.
+    type View = Slice<T>;
 
     /// Create an empty small array.
     static new(): SmallArray<T, N> {
@@ -107,6 +112,15 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     /// Return the element at `index` by value.
     index(index: usize): T {
         todo("SmallArray.index")
+    }
+
+    /// Borrow a view over `start..end`.
+    view<comptime A: Access = "readonly">(
+        this: WithAccess<&SmallArray<T, N>, A>,
+        start: usize,
+        end?: usize,
+    ): WithAccess<&Slice<T>, A> {
+        todo("SmallArray.view")
     }
 
     /// Borrow the element at `index`.

@@ -13,6 +13,7 @@ import {
 import { Index, IndexSet } from "destack:ops";
 import { RangeBounds } from "destack:range";
 
+import { Sequence } from "./sequence.ds";
 import { Slice } from "./slice.ds";
 
 /// Readonly view of a dynamic array.
@@ -24,6 +25,7 @@ export type ReadonlyArray<T> = readonly T[];
 export type FixedArray<T, comptime N: number> = [T; N];
 
 extension<T, comptime N: number> of FixedArray<T, N> implements
+    Sequence,
     Index<usize>,
     IndexSet<usize, T>,
     Iterable<T>,
@@ -32,6 +34,9 @@ extension<T, comptime N: number> of FixedArray<T, N> implements
     Iterable<&exclusive T> {
     /// The indexed output type.
     type Output = T;
+
+    /// The contiguous range view type.
+    type View = Slice<T>;
 
     /// Return the number of elements.
     get length(): usize {
@@ -51,6 +56,15 @@ extension<T, comptime N: number> of FixedArray<T, N> implements
     /// Return the element at `index` by value.
     index(index: usize): T {
         todo("FixedArray.index")
+    }
+
+    /// Borrow a view over `start..end`.
+    view<comptime A: Access = "readonly">(
+        this: WithAccess<&FixedArray<T, N>, A>,
+        start: usize,
+        end?: usize,
+    ): WithAccess<&Slice<T>, A> {
+        todo("FixedArray.view")
     }
 
     /// Borrow the element at `index`.
@@ -160,6 +174,7 @@ export class Array<T> {
 }
 
 extension<T> of Array<T> implements
+    Sequence,
     Index<usize>,
     IndexSet<usize, T>,
     Iterable<T>,
@@ -169,6 +184,9 @@ extension<T> of Array<T> implements
     Extend<T, "exclusive"> {
     /// The indexed output type.
     type Output = T;
+
+    /// The contiguous range view type.
+    type View = Slice<T>;
 
     /// Create an empty array.
     static new(): ^Array<T> {
@@ -228,6 +246,17 @@ extension<T> of Array<T> implements
     /// Return the element at `index` by value.
     index(index: usize): T {
         todo("Array.index")
+    }
+
+    /// Borrow a view over `start..end`.
+    view<comptime A: Access = "readonly">(
+        this: WithAccess<&Array<T>, A>,
+        start: usize,
+        end?: usize,
+    ): WithAccess<&Slice<T>, A> {
+        let view = this.as();
+
+        view.slice(start, end)
     }
 
     /// Return the element at `index`, counting from the end when negative.
@@ -531,6 +560,21 @@ extension<T, comptime A: Access = "readonly"> of Array<T> implements
     /// Borrow the initialized storage as a slice.
     borrow(this: WithAccess<&Array<T>, A>): WithAccess<&Slice<T>, A> {
         this.as()
+    }
+}
+
+extension<T, R: RangeBounds<usize>> of Array<T> implements Index<R> {
+    /// The indexed output type.
+    type Output = Slice<T>;
+
+    /// Borrow the selected range as a view.
+    index<comptime A: Access = "readonly">(
+        this: WithAccess<&Array<T>, A>,
+        range: R,
+    ): WithAccess<&Slice<T>, A> {
+        let view = this.as();
+
+        view.index(range)
     }
 }
 
