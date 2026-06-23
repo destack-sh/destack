@@ -160,8 +160,8 @@ fn build_prefer_const_fix(
     let edits = ctx
         .edit_builder()
         .replace(replacement_span, "const")
-        .into_edits();
-    Some(LintFix::safe("Replace with const declaration").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Replace with const declaration").with_patches(edits))
 }
 
 /// Return the leading mutable declaration keyword.

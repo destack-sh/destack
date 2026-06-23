@@ -92,9 +92,9 @@ impl LintRule for NoPlusplus {
                 let edits = ctx
                     .edit_builder()
                     .replace(expression_span, replacement)
-                    .into_edits();
+                    .into_patches();
                 let fix = LintFix::safe("Replace increment or decrement with assignment")
-                    .with_edits(edits);
+                    .with_patches(edits);
                 diagnostic = diagnostic.fix(fix);
             }
 

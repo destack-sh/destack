@@ -227,10 +227,10 @@ fn no_shadow_restricted_names_fix(
     let edits = ctx
         .edit_builder()
         .replace(name_span, replacement_name.clone())
-        .into_edits();
+        .into_patches();
     Some(
         LintFix::suggestion(format!("Rename restricted binding to `{replacement_name}`"))
-            .with_edits(edits),
+            .with_patches(edits),
     )
 }
 

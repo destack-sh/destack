@@ -37,8 +37,8 @@ pub fn rename_local_symbol_fix(
         edit_builder = edit_builder.replace(span, replacement_name.to_string());
     }
 
-    let edits = edit_builder.into_edits();
-    Some(LintFix::r#unsafe(description).with_edits(edits))
+    let edits = edit_builder.into_patches();
+    Some(LintFix::r#unsafe(description).with_patches(edits))
 }
 
 /// Return a fresh name in one scope with a deterministic suffix strategy.

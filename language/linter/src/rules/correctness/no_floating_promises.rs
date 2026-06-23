@@ -307,8 +307,8 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(replacement_span, replacement)
-            .into_edits();
-        Some(LintFix::safe("Explicitly discard the Promise with void").with_edits(edits))
+            .into_patches();
+        Some(LintFix::safe("Explicitly discard the Promise with void").with_patches(edits))
     }
 }
 

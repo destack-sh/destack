@@ -108,8 +108,8 @@ impl LintRule for PreferTuple {
                 continue;
             };
 
-            let edits = ctx.edit_builder().replace(span, tuple_text).into_edits();
-            let fix = LintFix::safe("Convert to tuple").with_edits(edits);
+            let edits = ctx.edit_builder().replace(span, tuple_text).into_patches();
+            let fix = LintFix::safe("Convert to tuple").with_patches(edits);
 
             ctx.report(
                 LintReport::new(

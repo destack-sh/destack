@@ -180,8 +180,8 @@ fn redundant_assertion_diagnostic(
     let edits = ctx
         .edit_builder()
         .replace(assertion_span, source_text)
-        .into_edits();
-    let fix = LintFix::safe("Remove redundant assertion").with_edits(edits);
+        .into_patches();
+    let fix = LintFix::safe("Remove redundant assertion").with_patches(edits);
     diagnostic.fix(fix)
 }
 

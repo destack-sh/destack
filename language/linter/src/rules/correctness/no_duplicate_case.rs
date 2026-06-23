@@ -147,8 +147,8 @@ fn duplicate_case_fix(
     case_id: dir::LocalNodeId<dir::MatchCase>,
 ) -> Option<LintFix> {
     let case_span = ctx.dir.get_span(case_id);
-    let edits = ctx.edit_builder().replace(case_span, "").into_edits();
-    Some(LintFix::r#unsafe("Remove duplicate switch case").with_edits(edits))
+    let edits = ctx.edit_builder().replace(case_span, "").into_patches();
+    Some(LintFix::r#unsafe("Remove duplicate switch case").with_patches(edits))
 }
 
 #[cfg(test)]

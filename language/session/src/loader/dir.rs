@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactDependencySet, ArtifactPayload, DirParsed, DirParsedFile};
-use destack_dir as dir;
+use destack_dir::{Expression, ScalarLiteral, Tree};
 use destack_parser::{Parser, ParserOptions};
 use destack_repository::{Module, ModuleFile, ProviderContext};
 use destack_source::{File, LanguageType, ModuleId, Span};
@@ -60,12 +60,9 @@ impl SessionState {
 
     /// Build one empty parsed DIR for non-code source.
     fn make_empty_dir(file: &File, module_id: ModuleId) -> DirParsed {
-        let mut tree = dir::Tree::new(module_id);
+        let mut tree = Tree::new(module_id);
         let span = Span::empty(file.id);
-        let root_expression = tree.insert(
-            dir::Expression::ScalarLiteral(dir::ScalarLiteral::Null),
-            span,
-        );
+        let root_expression = tree.insert(Expression::ScalarLiteral(ScalarLiteral::Null), span);
 
         let file = DirParsedFile {
             file_id: file.id,
@@ -86,7 +83,7 @@ impl SessionState {
         module_id: ModuleId,
         attempt: &ProviderAttempt,
     ) -> Result<DirParsed, SessionError> {
-        let mut tree = dir::Tree::new(module_id);
+        let mut tree = Tree::new(module_id);
         let mut files = Vec::with_capacity(module.files.len());
 
         // parse contributing source files into one module tree
@@ -100,7 +97,7 @@ impl SessionState {
         // preserve a stable module-level anchor
         let span = Span::empty(module.file_id);
         let anchor_expression = tree.insert(
-            dir::Expression::ScalarLiteral(dir::ScalarLiteral::Boolean(false)),
+            Expression::ScalarLiteral(ScalarLiteral::Boolean(false)),
             span,
         );
         let dir = DirParsed::new(tree, files, anchor_expression);
@@ -113,7 +110,7 @@ impl SessionState {
         &self,
         file: Arc<File>,
         module_file: &ModuleFile,
-        tree: &mut dir::Tree,
+        tree: &mut Tree,
         attempt: &ProviderAttempt,
     ) -> Result<DirParsedFile, SessionError> {
         let repository = self.repository();
@@ -125,7 +122,7 @@ impl SessionState {
             })?;
 
         // parse and forward parser diagnostics
-        let tree_in = std::mem::replace(tree, dir::Tree::new(tree.module_id));
+        let tree_in = std::mem::replace(tree, Tree::new(tree.module_id));
         let mut parser = Parser::lex_module_tree_with_options(
             file.clone(),
             language_type,
@@ -143,7 +140,7 @@ impl SessionState {
         *tree = parser.tree;
         let span = Span::empty(file.id);
         let anchor_expression = tree.insert(
-            dir::Expression::ScalarLiteral(dir::ScalarLiteral::Boolean(false)),
+            Expression::ScalarLiteral(ScalarLiteral::Boolean(false)),
             span,
         );
 

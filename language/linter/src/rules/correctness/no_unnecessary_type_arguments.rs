@@ -466,8 +466,8 @@ fn redundant_type_arguments_fix(
     }
 
     // delete the redundant trailing type argument segment
-    let edits = ctx.edit_builder().delete(remove_span).into_edits();
-    Some(LintFix::safe("Remove redundant trailing type arguments").with_edits(edits))
+    let edits = ctx.edit_builder().delete(remove_span).into_patches();
+    Some(LintFix::safe("Remove redundant trailing type arguments").with_patches(edits))
 }
 
 /// Resolve the source text for one DIR type expression.

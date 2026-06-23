@@ -325,9 +325,9 @@ fn prefer_tuple_destructure_fix(
     let edits = ctx
         .edit_builder()
         .replace(ctx.get_span(parent_expression_id), replacement)
-        .into_edits();
+        .into_patches();
 
-    Some(LintFix::safe("Rewrite indexed tuple reads to destructuring").with_edits(edits))
+    Some(LintFix::safe("Rewrite indexed tuple reads to destructuring").with_patches(edits))
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@ use std::path::Path;
 
 use destack_core::StringId;
 use destack_dir as dir;
-use destack_source::{Edit, FileId, PathExt, Span};
+use destack_source::{FileId, Patch, PathExt, Span};
 
 use crate::core::path::{normalize_separators, relative_path};
 use crate::core::{DirQueryContext, ModuleQueryContext, WorkspaceQueryContext};
@@ -153,7 +153,7 @@ impl ModuleQueryContext<'_> {
         symbol_name: &str,
         import_path: &str,
         import_form: ImportEditSpace,
-    ) -> Vec<Edit> {
+    ) -> Vec<Patch> {
         // collect existing imports for the file
         let file_id = self.file_id();
         let existing_imports = self.dir().collect_existing_imports();
@@ -192,7 +192,7 @@ impl ModuleQueryContext<'_> {
                         format!(", {symbol_name}")
                     };
 
-                    return vec![Edit::insert(file_id, brace_pos, insert_text)];
+                    return vec![Patch::insert(file_id, brace_pos, insert_text)];
                 }
             }
         }
@@ -324,7 +324,7 @@ fn build_new_import_edit(
     import_path: &str,
     existing_imports: &[ExistingImport],
     import_form: ImportEditSpace,
-) -> Vec<Edit> {
+) -> Vec<Patch> {
     // resolve the import group
     let new_group = ImportGroup::from_path(import_path);
 
@@ -340,7 +340,7 @@ fn build_new_import_edit(
     let insert_pos = find_import_insert_position(import_path, new_group, existing_imports);
 
     // return the insertion edit
-    vec![Edit::insert(file_id, insert_pos, import_text)]
+    vec![Patch::insert(file_id, insert_pos, import_text)]
 }
 
 /// Find the correct position to insert a new import.

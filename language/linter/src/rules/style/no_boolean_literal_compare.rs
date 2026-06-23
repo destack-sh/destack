@@ -102,8 +102,8 @@ impl LintRule for NoBooleanLiteralCompare {
             let edits = ctx
                 .edit_builder()
                 .replace(expression_span, replacement)
-                .into_edits();
-            let fix = LintFix::safe("Simplify boolean comparison").with_edits(edits);
+                .into_patches();
+            let fix = LintFix::safe("Simplify boolean comparison").with_patches(edits);
 
             ctx.report(
                 LintReport::new(

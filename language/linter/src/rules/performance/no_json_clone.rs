@@ -239,8 +239,8 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(parse_call_span, replacement)
-            .into_edits();
-        Some(LintFix::r#unsafe("Replace JSON clone with structuredClone").with_edits(edits))
+            .into_patches();
+        Some(LintFix::r#unsafe("Replace JSON clone with structuredClone").with_patches(edits))
     }
 }
 

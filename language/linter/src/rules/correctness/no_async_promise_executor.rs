@@ -186,10 +186,10 @@ fn async_promise_executor_fix(
     let edits = ctx
         .edit_builder()
         .replace(replacement_span, rewritten)
-        .into_edits();
+        .into_patches();
 
     // return unsafe rewrite fix
-    Some(LintFix::r#unsafe("Remove async from Promise executor").with_edits(edits))
+    Some(LintFix::r#unsafe("Remove async from Promise executor").with_patches(edits))
 }
 
 impl NodeVisitor for AsyncPromiseExecutorVisitor<'_, '_> {

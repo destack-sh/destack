@@ -11,22 +11,19 @@ use destack_artifact::{
 };
 use destack_compiler::Compiler;
 use destack_core::StringPool;
-use destack_dir as dir;
-use destack_dir::NodeParentIndex;
-use destack_fir::format as fir_format;
+use destack_dir::{Expression, LocalNodeId, NodeParentIndex, ScalarLiteral, Tree};
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, ParserOptions};
 use destack_repository::{
-    DependencySetResolution, DestackLayoutOverride, Edit as RepositoryEdit, Environment,
-    LintCategory, LintSeverity, LinterOptions, Module, Profile, ProviderContext, ProviderError,
-    ProviderResult, Ref, Repository, Revision, Settings,
+    DependencySetResolution, DestackLayoutOverride, Edit, Environment, LintCategory, LintSeverity,
+    LinterOptions, Module, Profile, ProviderContext, ProviderError, ProviderResult, Ref,
+    Repository, Revision, Settings,
 };
 use destack_session::open_repository_from_fs;
 use destack_source::{
-    ContentId, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, DiffOptions,
-    Edit as SourceEdit, File, FileId, FileSystem, FileType, LanguageType, Loader, ModuleId,
-    OverlayFileSystem, PackageId, PhysicalFileSystem, PrintOptions, Span, TargetId, Uri,
-    print_diagnostics, print_diff,
+    ContentId, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, DiffOptions, File,
+    FileId, FileSystem, FileType, LanguageType, Loader, ModuleId, OverlayFileSystem, PackageId,
+    Patch, PhysicalFileSystem, PrintOptions, Span, TargetId, Uri, print_diagnostics, print_diff,
 };
 use parking_lot::Mutex;
 
@@ -208,7 +205,7 @@ fn source_file(compiler: &Compiler, revision: Revision, file_id: FileId) -> Arc<
 
 /// Build one stable parsed DIR for non-code source.
 fn anchor_dir_parsed(module_id: ModuleId, file: &File) -> DirParsed {
-    let mut tree = dir::Tree::new(module_id);
+    let mut tree = Tree::new(module_id);
     let anchor_expression = insert_anchor_expression(&mut tree, file.id);
 
     let file = DirParsedFile {
@@ -256,14 +253,11 @@ fn parse_code_dir(
 }
 
 /// Insert one synthetic anchor expression at the start of a file.
-fn insert_anchor_expression(
-    tree: &mut dir::Tree,
-    file_id: FileId,
-) -> dir::LocalNodeId<dir::Expression> {
+fn insert_anchor_expression(tree: &mut Tree, file_id: FileId) -> LocalNodeId<Expression> {
     let span = destack_source::Span::empty(file_id);
 
     tree.insert(
-        dir::Expression::ScalarLiteral(dir::ScalarLiteral::Boolean(false)),
+        Expression::ScalarLiteral(ScalarLiteral::Boolean(false)),
         span,
     )
 }
@@ -818,7 +812,7 @@ impl TestProgram {
     /// Publish repository edits to the current workspace revision.
     fn apply_edits<I>(&self, edits: I)
     where
-        I: IntoIterator<Item = RepositoryEdit>,
+        I: IntoIterator<Item = Edit>,
     {
         let reference = self.current_reference();
         let revision = self.current_revision();
@@ -952,7 +946,7 @@ impl TestProgram {
         let overlay_path = self.repository.path().join(path);
         self.fs.set_overlay(&overlay_path, content.to_string());
 
-        self.apply_edits([RepositoryEdit::set_text(path, content)]);
+        self.apply_edits([Edit::set_text(path, content)]);
     }
 
     /// Set one root target config with explicit entry paths.
@@ -1460,10 +1454,10 @@ impl<'a> LintResult<'a> {
         panic!("expected lint '{rule_id}' at line {line} but found at lines: {lines:?}");
     }
 
-    /// Apply edits to source code and return the result.
-    pub(crate) fn apply_edits(&self, edits: Vec<&SourceEdit>) -> String {
-        // return original source if no edits
-        if edits.is_empty() {
+    /// Apply patches to source code and return the result.
+    pub(crate) fn apply_patches(&self, patches: Vec<&Patch>) -> String {
+        // return original source if no patches
+        if patches.is_empty() {
             if let Some(d) = self.diagnostics.first() {
                 let file = self.repository_file(d.primary.file);
                 return file.text().to_string();
@@ -1471,18 +1465,18 @@ impl<'a> LintResult<'a> {
             return String::new();
         }
 
-        // sort by span start, descending (apply from end to preserve offsets)
-        let mut sorted_edits = edits;
-        sorted_edits.sort_by_key(|b| std::cmp::Reverse(b.span.start));
+        // sort by span start, descending
+        let mut patches = patches;
+        patches.sort_by_key(|patch| std::cmp::Reverse(patch.span.start));
 
-        // apply all edits to the source
-        let file_id = sorted_edits[0].span.file;
+        // apply patches from the end so byte offsets stay stable
+        let file_id = patches[0].span.file;
         let file = self.repository_file(file_id);
         let mut source = file.text().to_string();
-        for edit in sorted_edits {
-            let start = edit.span.start as usize;
-            let end = edit.span.end as usize;
-            source.replace_range(start..end, &edit.new_text);
+        for patch in patches {
+            let start = patch.span.start as usize;
+            let end = patch.span.end as usize;
+            source.replace_range(start..end, &patch.new_text);
         }
 
         source
@@ -1490,16 +1484,16 @@ impl<'a> LintResult<'a> {
 
     /// Apply fixes from diagnostics with the given applicability and return the fixed source.
     pub(crate) fn apply_fixes(&self, applicability: Option<Fixability>) -> String {
-        // collect all edits from fixes with matching applicability
-        let edits: Vec<&SourceEdit> = self
+        // collect all patches from fixes with matching applicability
+        let patches: Vec<&Patch> = self
             .diagnostics
             .iter()
             .flat_map(|d| &d.fixes)
             .filter(|f| applicability.map(|a| f.applicability == a).unwrap_or(true))
-            .flat_map(|f| &f.edits)
+            .flat_map(|f| &f.patches)
             .collect();
 
-        let fixed = self.apply_edits(edits);
+        let fixed = self.apply_patches(patches);
         self.format_source(&fixed)
     }
 
@@ -1615,7 +1609,8 @@ impl<'a> LintResult<'a> {
         let mut result = if expressions.is_empty() {
             String::new()
         } else {
-            let formatted = fir_format!(context.clone(), [statement_list(&expressions)]).unwrap();
+            let formatted =
+                destack_fir::format!(context.clone(), [statement_list(&expressions)]).unwrap();
             let printed = formatted.print().unwrap();
             printed.as_str().to_string()
         };

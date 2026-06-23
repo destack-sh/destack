@@ -10,7 +10,7 @@ use crate::mdtest::{
     MdTestCase, MdTestFile, MdTestLibs, parse_mdtest_libs, run_with_timeout, slug,
 };
 use crate::query::{QueryTestSession, runner};
-use destack_source::{BatchEdit, Edit};
+use destack_source::{Patch, PatchSet};
 
 /// A query expectation block parsed from markdown.
 #[derive(Debug, Clone)]
@@ -341,7 +341,7 @@ fn run_rename_expected_files(
     };
 
     // apply edits to sources
-    let applied = match apply_batch_edit(session, &result) {
+    let applied = match apply_patch_set(session, &result) {
         Ok(applied) => applied,
         Err(error) => {
             return CaseResult::Failed { message: error };
@@ -375,7 +375,7 @@ fn run_file_rename_expected_files(
     };
 
     // apply edits to sources
-    let applied = match apply_batch_edit(session, &result) {
+    let applied = match apply_patch_set(session, &result) {
         Ok(applied) => applied,
         Err(error) => {
             return CaseResult::Failed { message: error };
@@ -415,7 +415,7 @@ fn run_extract_function_expected_files(
     };
 
     // apply edits to sources
-    let applied = match apply_batch_edit(session, &result) {
+    let applied = match apply_patch_set(session, &result) {
         Ok(applied) => applied,
         Err(error) => {
             return CaseResult::Failed { message: error };
@@ -455,7 +455,7 @@ fn run_extract_variable_expected_files(
     };
 
     // apply edits to sources
-    let applied = match apply_batch_edit(session, &result) {
+    let applied = match apply_patch_set(session, &result) {
         Ok(applied) => applied,
         Err(error) => {
             return CaseResult::Failed { message: error };
@@ -491,7 +491,7 @@ fn run_inline_expected_files(
     };
 
     // apply edits to sources
-    let applied = match apply_batch_edit(session, &result) {
+    let applied = match apply_patch_set(session, &result) {
         Ok(applied) => applied,
         Err(error) => {
             return CaseResult::Failed { message: error };
@@ -538,7 +538,7 @@ fn run_change_signature_expected_files(
     };
 
     // apply edits to sources
-    let applied = match apply_batch_edit(session, &result) {
+    let applied = match apply_patch_set(session, &result) {
         Ok(applied) => applied,
         Err(error) => {
             return CaseResult::Failed { message: error };
@@ -603,10 +603,10 @@ fn compare_expected_files(
     CaseResult::Passed
 }
 
-/// Apply a batch of edits and return updated contents keyed by file path.
-fn apply_batch_edit(
+/// Apply a patch set and return updated contents keyed by file path.
+fn apply_patch_set(
     session: &QueryTestSession,
-    edits: &BatchEdit,
+    patches: &PatchSet,
 ) -> Result<HashMap<String, String>, String> {
     // map file ids to sources
     let mut sources = HashMap::new();
@@ -614,55 +614,54 @@ fn apply_batch_edit(
         sources.insert(file.file_id, (name.clone(), file.source.clone()));
     }
 
-    // apply edits per file
+    // apply patches per file
     let mut outputs = HashMap::new();
-    for file_edit in &edits.files {
-        let Some((name, source)) = sources.get(&file_edit.file) else {
+    for file_patch in &patches.files {
+        let Some((name, source)) = sources.get(&file_patch.file) else {
             return Err(format!(
-                "edit target file {:?} not found in session",
-                file_edit.file
+                "patch target file {:?} not found in session",
+                file_patch.file
             ));
         };
 
-        let updated = apply_file_edits(source, &file_edit.edits)?;
+        let updated = apply_file_patches(source, &file_patch.patches)?;
         outputs.insert(name.clone(), updated);
     }
 
     Ok(outputs)
 }
 
-/// Apply a set of edits to a source string.
-fn apply_file_edits(source: &str, edits: &[Edit]) -> Result<String, String> {
-    // return original source when no edits
-    if edits.is_empty() {
+/// Apply patches to a source string.
+fn apply_file_patches(source: &str, patches: &[Patch]) -> Result<String, String> {
+    // return original source when no patches
+    if patches.is_empty() {
         return Ok(source.to_string());
     }
 
-    // sort edits by start descending
-    let mut sorted_edits = edits.to_vec();
-    sorted_edits.sort_by_key(|edit| std::cmp::Reverse(edit.span.start));
+    // sort patches by start descending
+    let mut patches = patches.to_vec();
+    patches.sort_by_key(|patch| std::cmp::Reverse(patch.span.start));
 
-    // apply edits from the end
+    // apply patches from the end
     let mut updated = source.to_string();
-    for edit in sorted_edits {
-        let start = edit.span.start as usize;
-        let end = edit.span.end as usize;
+    for patch in patches {
+        let start = patch.span.start as usize;
+        let end = patch.span.end as usize;
 
         // validate span boundaries
         if start > end || end > updated.len() {
-            eprintln!(
-                "edit span out of bounds: start={start} end={end} len={}",
+            return Err(format!(
+                "patch span {start}..{end} is out of bounds for source length {}",
                 updated.len()
-            );
-            eprintln!("edit span: {:?}", edit.span);
-            eprintln!("edit new_text: {}", edit.new_text);
-            return Err("edit span is out of bounds".to_string());
+            ));
         }
         if !updated.is_char_boundary(start) || !updated.is_char_boundary(end) {
-            return Err("edit span is not on a char boundary".to_string());
+            return Err(format!(
+                "patch span {start}..{end} is not on a char boundary"
+            ));
         }
 
-        updated.replace_range(start..end, &edit.new_text);
+        updated.replace_range(start..end, &patch.new_text);
     }
 
     Ok(updated)

@@ -296,8 +296,8 @@ fn prefer_match_fix(
     let edits = ctx
         .edit_builder()
         .replace(ctx.dir.get_span(if_expression_id), replacement)
-        .into_edits();
-    Some(LintFix::safe("Rewrite if/else-if chain to match").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Rewrite if/else-if chain to match").with_patches(edits))
 }
 
 /// Return match arm body text for one expression.

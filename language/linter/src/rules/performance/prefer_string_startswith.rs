@@ -361,9 +361,9 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(expression_span, replacement)
-            .into_edits();
+            .into_patches();
 
-        Some(LintFix::safe("Replace indexOf() === 0 with startsWith()").with_edits(edits))
+        Some(LintFix::safe("Replace indexOf() === 0 with startsWith()").with_patches(edits))
     }
 
     /// Return true when an expression resolves to the constant value zero.
@@ -420,8 +420,11 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(expression_span, replacement)
-            .into_edits();
-        Some(LintFix::safe("Replace regex test() prefix check with startsWith()").with_edits(edits))
+            .into_patches();
+        Some(
+            LintFix::safe("Replace regex test() prefix check with startsWith()")
+                .with_patches(edits),
+        )
     }
 }
 

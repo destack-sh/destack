@@ -256,8 +256,8 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(self.ctx.get_span(expression_id), replacement)
-            .into_edits();
-        Some(LintFix::r#unsafe("Rewrite async forEach callback as for-of loop").with_edits(edits))
+            .into_patches();
+        Some(LintFix::r#unsafe("Rewrite async forEach callback as for-of loop").with_patches(edits))
     }
 }
 

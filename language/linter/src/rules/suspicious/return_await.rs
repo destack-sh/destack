@@ -257,8 +257,9 @@ fn check_return_value_expression(
             let edits = ctx
                 .edit_builder()
                 .replace(ctx.get_span(await_expression_id), awaited_text)
-                .into_edits();
-            let fix = LintFix::suggestion("Remove await from non-promise return").with_edits(edits);
+                .into_patches();
+            let fix =
+                LintFix::suggestion("Remove await from non-promise return").with_patches(edits);
             diagnostic = diagnostic.fix(fix);
         }
 
@@ -298,8 +299,8 @@ fn check_return_value_expression(
             let edits = ctx
                 .edit_builder()
                 .replace(return_value_span, replacement)
-                .into_edits();
-            let fix = LintFix::suggestion("Add await to returned promise").with_edits(edits);
+                .into_patches();
+            let fix = LintFix::suggestion("Add await to returned promise").with_patches(edits);
             diagnostic = diagnostic.fix(fix);
         }
 
@@ -330,8 +331,8 @@ fn check_return_value_expression(
             let edits = ctx
                 .edit_builder()
                 .replace(await_span, awaited_text)
-                .into_edits();
-            let fix = LintFix::suggestion("Remove redundant await in return").with_edits(edits);
+                .into_patches();
+            let fix = LintFix::suggestion("Remove redundant await in return").with_patches(edits);
             diagnostic = diagnostic.fix(fix);
         }
 

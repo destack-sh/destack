@@ -436,9 +436,9 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(expression_span, replacement)
-            .into_edits();
+            .into_patches();
 
-        Some(LintFix::safe("Replace indexOf comparison with includes()").with_edits(edits))
+        Some(LintFix::safe("Replace indexOf comparison with includes()").with_patches(edits))
     }
 
     /// Return true when an expression resolves to the constant value zero.
@@ -510,9 +510,9 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(expression_span, replacement)
-            .into_edits();
+            .into_patches();
 
-        Some(LintFix::safe("Replace simple regex test() with includes()").with_edits(edits))
+        Some(LintFix::safe("Replace simple regex test() with includes()").with_patches(edits))
     }
 }
 

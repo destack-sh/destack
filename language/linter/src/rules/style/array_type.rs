@@ -279,8 +279,8 @@ fn array_type_fix(
     };
 
     let span = ctx.dir.get_span(source_expression_id);
-    let edits = ctx.edit_builder().replace(span, replacement).into_edits();
-    Some(LintFix::safe("Rewrite array type form").with_edits(edits))
+    let edits = ctx.edit_builder().replace(span, replacement).into_patches();
+    Some(LintFix::safe("Rewrite array type form").with_patches(edits))
 }
 
 /// Return true when one type argument needs parentheses before appending `[]`.

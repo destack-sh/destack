@@ -160,8 +160,8 @@ fn unused_must_use_fix(
     let edits = ctx
         .edit_builder()
         .replace(replacement_span, replacement)
-        .into_edits();
-    Some(LintFix::safe("Explicitly discard the @mustUse result").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Explicitly discard the @mustUse result").with_patches(edits))
 }
 
 impl NodeVisitor for UnusedMustUseVisitor<'_, '_> {

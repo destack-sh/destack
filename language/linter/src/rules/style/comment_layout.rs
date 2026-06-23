@@ -277,8 +277,8 @@ fn uppercase_keyword_comment_fix(
     let edits = ctx
         .edit_builder()
         .replace(token_span, replacement)
-        .into_edits();
-    Some(LintFix::safe("Uppercase comment keyword").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Uppercase comment keyword").with_patches(edits))
 }
 
 #[cfg(test)]

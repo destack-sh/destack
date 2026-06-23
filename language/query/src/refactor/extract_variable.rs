@@ -1,5 +1,5 @@
 use destack_serde::Schema;
-use destack_source::{BatchEdit, Edit, FileEdit, Span};
+use destack_source::{FilePatch, Patch, PatchSet, Span};
 use serde::{Deserialize, Serialize};
 
 use super::extract::{expression_text_for_insert, line_start_and_indent};
@@ -19,12 +19,12 @@ pub struct ExtractVariableRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ExtractVariableResponse {
     /// Extract variable edit, if available.
-    pub edit: Option<BatchEdit>,
+    pub edit: Option<PatchSet>,
 }
 
 impl ModuleQueryContext<'_> {
     /// Extract a selected expression into a const variable in the nearest statement scope.
-    pub fn extract_variable(&self, selection: Span, new_name: &str) -> Option<BatchEdit> {
+    pub fn extract_variable(&self, selection: Span, new_name: &str) -> Option<PatchSet> {
         let ctx = self;
         // validate the variable name
         if !is_simple_identifier(new_name) {
@@ -58,12 +58,12 @@ impl ModuleQueryContext<'_> {
 
         // build replacement edits
         let declaration = format!("{indent}const {new_name} = {expression_text};\n");
-        let mut file_edit = FileEdit::new(ctx.file_id());
-        file_edit.push(Edit::insert(ctx.file_id(), line_start, declaration));
-        file_edit.push(Edit::replace(expression_span, new_name.to_string()));
+        let mut file_edit = FilePatch::new(ctx.file_id());
+        file_edit.push(Patch::insert(ctx.file_id(), line_start, declaration));
+        file_edit.push(Patch::replace(expression_span, new_name.to_string()));
         file_edit.sort();
 
-        let mut edits = BatchEdit::new();
+        let mut edits = PatchSet::new();
         edits.push(file_edit);
 
         Some(edits)

@@ -140,8 +140,8 @@ fn no_loop_single_iteration_fix(
     let edits = ctx
         .edit_builder()
         .replace(ctx.dir.get_span(loop_expression_id), replacement_text)
-        .into_edits();
-    Some(LintFix::r#unsafe("Replace one-shot loop with direct control flow").with_edits(edits))
+        .into_patches();
+    Some(LintFix::r#unsafe("Replace one-shot loop with direct control flow").with_patches(edits))
 }
 
 /// Check if a block unconditionally exits (return, break, throw, continue).

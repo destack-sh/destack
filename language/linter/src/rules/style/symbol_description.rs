@@ -155,8 +155,8 @@ fn symbol_description_fix(
     let edits = ctx
         .edit_builder()
         .replace(call_span, replacement)
-        .into_edits();
-    Some(LintFix::safe("Add Symbol description").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Add Symbol description").with_patches(edits))
 }
 
 #[cfg(test)]

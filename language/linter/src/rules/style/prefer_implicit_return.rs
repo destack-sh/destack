@@ -82,8 +82,8 @@ impl LintRule for PreferImplicitReturn {
                 let edits = ctx
                     .edit_builder()
                     .replace(body_span, replacement)
-                    .into_edits();
-                Some(LintFix::safe("Use concise implicit return").with_edits(edits))
+                    .into_patches();
+                Some(LintFix::safe("Use concise implicit return").with_patches(edits))
             };
 
             let diagnostic = LintReport::new(

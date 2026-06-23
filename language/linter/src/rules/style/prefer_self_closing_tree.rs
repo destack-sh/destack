@@ -88,8 +88,8 @@ impl LintRule for PreferSelfClosingTree {
             let edits = ctx
                 .edit_builder()
                 .replace(expression_span, replacement)
-                .into_edits();
-            let fix = LintFix::safe("Convert to self-closing").with_edits(edits);
+                .into_patches();
+            let fix = LintFix::safe("Convert to self-closing").with_patches(edits);
 
             ctx.report(
                 LintReport::new(

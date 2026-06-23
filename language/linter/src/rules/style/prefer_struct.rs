@@ -118,8 +118,8 @@ fn prefer_struct_fix(
     let edits = ctx
         .edit_builder()
         .replace(declaration_span, replacement)
-        .into_edits();
-    Some(LintFix::r#unsafe("Convert class declaration to struct").with_edits(edits))
+        .into_patches();
+    Some(LintFix::r#unsafe("Convert class declaration to struct").with_patches(edits))
 }
 
 #[cfg(test)]

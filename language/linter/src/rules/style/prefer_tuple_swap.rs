@@ -93,8 +93,8 @@ impl LintRule for PreferTupleSwap {
                         let edits = ctx
                             .edit_builder()
                             .replace(replace_span, replacement)
-                            .into_edits();
-                        let fix = LintFix::safe("Use tuple swap assignment").with_edits(edits);
+                            .into_patches();
+                        let fix = LintFix::safe("Use tuple swap assignment").with_patches(edits);
                         diagnostic = diagnostic.fix(fix);
                     }
 

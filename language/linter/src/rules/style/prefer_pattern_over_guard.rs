@@ -181,9 +181,9 @@ fn prefer_pattern_over_guard_fix(
             Span::new(pattern_span.file, pattern_span.end, guard_span.end),
             "",
         )
-        .into_edits();
+        .into_patches();
 
-    Some(LintFix::safe("Rewrite guard equality as literal pattern").with_edits(edits))
+    Some(LintFix::safe("Rewrite guard equality as literal pattern").with_patches(edits))
 }
 
 #[cfg(test)]

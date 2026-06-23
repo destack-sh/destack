@@ -212,8 +212,8 @@ fn confusing_operator_fix(
     let edits = ctx
         .edit_builder()
         .replace(left_span, replacement)
-        .into_edits();
-    Some(LintFix::suggestion("Wrap left operand in parentheses").with_edits(edits))
+        .into_patches();
+    Some(LintFix::suggestion("Wrap left operand in parentheses").with_patches(edits))
 }
 
 /// Report one optional chain confusion diagnostic for `foo!?.bar` forms.
@@ -302,8 +302,8 @@ fn parenthesize_non_null_before_optional_chain_fix(
     let edits = ctx
         .edit_builder()
         .replace(expression_span, replacement)
-        .into_edits();
-    Some(LintFix::safe("Add grouping around non-null assertion").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Add grouping around non-null assertion").with_patches(edits))
 }
 
 /// Build one safe fix by parenthesizing the optional chain before non null assertion.
@@ -323,8 +323,8 @@ fn parenthesize_optional_chain_before_non_null_fix(
     let edits = ctx
         .edit_builder()
         .replace(must_span, replacement)
-        .into_edits();
-    Some(LintFix::safe("Add grouping around optional chain").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Add grouping around optional chain").with_patches(edits))
 }
 
 fn is_optional_chain_target(

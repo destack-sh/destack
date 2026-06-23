@@ -344,8 +344,8 @@ fn no_duplicate_else_if_fix(
     let edits = ctx
         .edit_builder()
         .replace(ctx.dir.get_span(if_expression_id), replacement)
-        .into_edits();
-    Some(LintFix::r#unsafe("Remove duplicate else-if branch").with_edits(edits))
+        .into_patches();
+    Some(LintFix::r#unsafe("Remove duplicate else-if branch").with_patches(edits))
 }
 
 #[cfg(test)]

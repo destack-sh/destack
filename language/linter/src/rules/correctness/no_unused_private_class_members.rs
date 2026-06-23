@@ -166,8 +166,8 @@ fn unused_private_member_fix(
 
     // resolve diagnostic span
     let member_span = ctx.get_span(member_id);
-    let edits = ctx.edit_builder().delete(member_span).into_edits();
-    Some(LintFix::r#unsafe("Remove unused private method").with_edits(edits))
+    let edits = ctx.edit_builder().delete(member_span).into_patches();
+    Some(LintFix::r#unsafe("Remove unused private method").with_patches(edits))
 }
 
 /// Return the symbol id for members this rule should inspect.

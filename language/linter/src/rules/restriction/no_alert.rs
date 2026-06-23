@@ -162,8 +162,8 @@ fn no_alert_fix(
     }
 
     let statement_span = ctx.get_span(call_id);
-    let edits = ctx.edit_builder().delete(statement_span).into_edits();
-    Some(LintFix::r#unsafe("Remove alert dialog call").with_edits(edits))
+    let edits = ctx.edit_builder().delete(statement_span).into_patches();
+    Some(LintFix::r#unsafe("Remove alert dialog call").with_patches(edits))
 }
 
 impl NodeVisitor for NoAlertVisitor<'_, '_> {

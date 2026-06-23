@@ -34,7 +34,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
             Some(result) => CaseResult::Failed {
                 message: format!(
                     "inline should have produced no edits but produced {}",
-                    result.total_edits()
+                    result.total_patches()
                 ),
             },
         };
@@ -47,7 +47,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     };
 
     if content.is_empty() {
-        if result.total_edits() == 0 {
+        if result.total_patches() == 0 {
             return CaseResult::Failed {
                 message: "inline produced 0 edits".to_string(),
             };
@@ -62,11 +62,11 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
         };
     };
 
-    if result.total_edits() != expected_count {
+    if result.total_patches() != expected_count {
         return CaseResult::Failed {
             message: format!(
                 "inline produced {} edits, expected {}",
-                result.total_edits(),
+                result.total_patches(),
                 expected_count
             ),
         };

@@ -77,8 +77,8 @@ impl LintRule for PreferLoop {
             let body_span = ctx.dir.get_span(body_id);
             let body_text = ctx.get_span_text(body_span);
             let replacement = format!("loop {body_text}");
-            let edits = ctx.edit_builder().replace(span, replacement).into_edits();
-            let fix = LintFix::safe("Replace with `loop`").with_edits(edits);
+            let edits = ctx.edit_builder().replace(span, replacement).into_patches();
+            let fix = LintFix::safe("Replace with `loop`").with_patches(edits);
 
             ctx.report(
                 LintReport::new(

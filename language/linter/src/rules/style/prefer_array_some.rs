@@ -341,9 +341,9 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(expression_span, replacement)
-            .into_edits();
+            .into_patches();
 
-        Some(LintFix::safe("Replace find style comparison with some()").with_edits(edits))
+        Some(LintFix::safe("Replace find style comparison with some()").with_patches(edits))
     }
 
     /// Return true when the expression is a filter().length chain on an array.

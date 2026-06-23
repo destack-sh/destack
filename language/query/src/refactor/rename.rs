@@ -1,7 +1,7 @@
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_serde::Schema;
-use destack_source::{BatchEdit, Edit, FileEdit, FileId, ModuleId, Span};
+use destack_source::{FileId, FilePatch, ModuleId, Patch, PatchSet, Span};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -52,7 +52,7 @@ pub struct RenameRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct RenameResponse {
     /// Rename edit, if available.
-    pub edit: Option<BatchEdit>,
+    pub edit: Option<PatchSet>,
 }
 
 impl ModuleQueryContext<'_> {
@@ -183,7 +183,7 @@ impl ModuleQueryContext<'_> {
         workspace: &WorkspaceQueryContext<'_>,
         offset: u32,
         new_name: &str,
-    ) -> Option<BatchEdit> {
+    ) -> Option<PatchSet> {
         let ctx = self;
         // validate new_name is a valid identifier
         if !is_simple_identifier(new_name) {
@@ -243,14 +243,14 @@ impl ModuleQueryContext<'_> {
             prune_overlapping_spans(spans);
         }
 
-        // create BatchEdit from collected spans
-        let mut batch_edit = BatchEdit::new();
+        // create PatchSet from collected spans
+        let mut batch_edit = PatchSet::new();
         for (file_id, spans) in edits_by_file {
-            let edits: Vec<Edit> = spans
+            let edits: Vec<Patch> = spans
                 .into_iter()
-                .map(|span| Edit::replace(span, new_name.to_string()))
+                .map(|span| Patch::replace(span, new_name.to_string()))
                 .collect();
-            batch_edit.push(FileEdit::with_edits(file_id, edits));
+            batch_edit.push(FilePatch::with_patches(file_id, edits));
         }
 
         Some(batch_edit)

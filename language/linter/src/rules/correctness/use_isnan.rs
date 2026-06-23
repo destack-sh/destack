@@ -314,8 +314,8 @@ fn make_isnan_fix(
     let edits = ctx
         .edit_builder()
         .replace(expression_span, replacement)
-        .into_edits();
-    Some(LintFix::safe("Replace with Number.isNaN()").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Replace with Number.isNaN()").with_patches(edits))
 }
 
 #[cfg(test)]

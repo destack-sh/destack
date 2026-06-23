@@ -90,9 +90,9 @@ impl LintRule for NoUselessConstructor {
             let member_span = ctx.get_span(member_id);
             let member_text = ctx.get_span_text(member_span);
             if visibility.is_none() && !source_text_contains_comment_token(member_text) {
-                let edits = ctx.edit_builder().delete(member_span).into_edits();
-                let fix =
-                    LintFix::suggestion("Remove useless constructor declaration").with_edits(edits);
+                let edits = ctx.edit_builder().delete(member_span).into_patches();
+                let fix = LintFix::suggestion("Remove useless constructor declaration")
+                    .with_patches(edits);
                 diagnostic = diagnostic.fix(fix);
             }
 

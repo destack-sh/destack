@@ -204,8 +204,8 @@ fn unicode_regex_fix(
         let edits = ctx
             .edit_builder()
             .replace(expression_span, replacement)
-            .into_edits();
-        return Some(LintFix::safe("Add required Unicode regex flag").with_edits(edits));
+            .into_patches();
+        return Some(LintFix::safe("Add required Unicode regex flag").with_patches(edits));
     }
 
     // fix RegExp constructors by adding or extending the flags argument
@@ -259,8 +259,8 @@ fn unicode_regex_fix(
         let edits = ctx
             .edit_builder()
             .replace(flags_span, replacement_flags)
-            .into_edits();
-        return Some(LintFix::safe("Add required Unicode regex flag").with_edits(edits));
+            .into_patches();
+        return Some(LintFix::safe("Add required Unicode regex flag").with_patches(edits));
     }
 
     // add a missing flags argument
@@ -271,8 +271,8 @@ fn unicode_regex_fix(
             first_argument_span.end,
             format!(", \"{required_flag_char}\""),
         )
-        .into_edits();
-    Some(LintFix::safe("Add required Unicode regex flag").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Add required Unicode regex flag").with_patches(edits))
 }
 
 /// Append one flag character to a quoted string literal source text.

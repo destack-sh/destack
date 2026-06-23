@@ -156,8 +156,8 @@ fn template_literal_fix(
     }
 
     let replacement = format!("`{content}`");
-    let edits = ctx.edit_builder().replace(span, replacement).into_edits();
-    Some(LintFix::r#unsafe("Convert to a template literal").with_edits(edits))
+    let edits = ctx.edit_builder().replace(span, replacement).into_patches();
+    Some(LintFix::r#unsafe("Convert to a template literal").with_patches(edits))
 }
 
 #[cfg(test)]

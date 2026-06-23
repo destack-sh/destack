@@ -83,8 +83,8 @@ impl LintRule for PreferTemplate {
                 let edits = ctx
                     .edit_builder()
                     .replace(expression_span, replacement)
-                    .into_edits();
-                let fix = LintFix::safe("Convert to template literal").with_edits(edits);
+                    .into_patches();
+                let fix = LintFix::safe("Convert to template literal").with_patches(edits);
                 diagnostic = diagnostic.fix(fix);
             }
 

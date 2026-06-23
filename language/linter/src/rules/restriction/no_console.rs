@@ -154,8 +154,8 @@ fn no_console_fix(
     // remove `console...;` when the reported expression is directly statement scoped
     if expression_is_standalone_statement(ctx.dir.tree(), expression_id) {
         let statement_span = ctx.get_span(expression_id);
-        let edits = ctx.edit_builder().delete(statement_span).into_edits();
-        return Some(LintFix::r#unsafe("Remove console statement").with_edits(edits));
+        let edits = ctx.edit_builder().delete(statement_span).into_patches();
+        return Some(LintFix::r#unsafe("Remove console statement").with_patches(edits));
     }
 
     let parent = ctx.dir.get_parent(expression_id.id)?;
@@ -179,8 +179,8 @@ fn no_console_fix(
     }
 
     let statement_span = ctx.get_span(parent_id);
-    let edits = ctx.edit_builder().delete(statement_span).into_edits();
-    Some(LintFix::r#unsafe("Remove console statement").with_edits(edits))
+    let edits = ctx.edit_builder().delete(statement_span).into_patches();
+    Some(LintFix::r#unsafe("Remove console statement").with_patches(edits))
 }
 
 impl NodeVisitor for NoConsoleVisitor<'_, '_> {

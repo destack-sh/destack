@@ -3,8 +3,9 @@ use std::io;
 use std::path::Path;
 
 use destack_repository::Ref;
+use destack_source::Edit;
 
-use crate::{Change, Edit, FileSystemSource, Session, SessionError};
+use crate::{Change, FileSystemSource, Session, SessionError};
 
 impl Session {
     /// Reload filesystem source files into one ref.

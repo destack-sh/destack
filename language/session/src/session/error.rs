@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use destack_artifact::{ArtifactFailure, ArtifactKey, DiagnosticError};
 use destack_repository::{Ref, RepositoryError, Revision};
-use destack_source::{EditApplyError, FileId, ModuleId, PackageId};
+use destack_source::{FileId, ModuleId, PackageId, PatchApplyError};
 
 use crate::SourceError;
 
@@ -55,7 +55,7 @@ pub enum SessionError {
     /// One edit is invalid.
     InvalidEdit {
         /// The edit failure.
-        error: EditApplyError,
+        error: PatchApplyError,
     },
     /// Repository work failed inside the session.
     Repository(RepositoryError),
@@ -153,8 +153,8 @@ impl From<DiagnosticError> for SessionError {
     }
 }
 
-impl From<EditApplyError> for SessionError {
-    fn from(error: EditApplyError) -> Self {
+impl From<PatchApplyError> for SessionError {
+    fn from(error: PatchApplyError) -> Self {
         Self::InvalidEdit { error }
     }
 }

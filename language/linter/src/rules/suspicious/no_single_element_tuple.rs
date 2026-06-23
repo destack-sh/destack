@@ -91,10 +91,10 @@ fn no_single_element_tuple_fix(
     let edits = ctx
         .edit_builder()
         .replace(tuple_span, replacement)
-        .into_edits();
+        .into_patches();
     Some(
         LintFix::suggestion("Replace single-element tuple with grouped expression")
-            .with_edits(edits),
+            .with_patches(edits),
     )
 }
 

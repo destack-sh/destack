@@ -70,9 +70,9 @@ impl LintRule for NoImplicitReturn {
                     let edits = ctx
                         .edit_builder()
                         .replace(body_span, replacement)
-                        .into_edits();
+                        .into_patches();
                     let fix = LintFix::safe("Wrap implicit return in an explicit block")
-                        .with_edits(edits);
+                        .with_patches(edits);
                     diagnostic = diagnostic.fix(fix);
                 }
 

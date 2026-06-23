@@ -190,8 +190,8 @@ fn report_redundant_constituents(
             let edits = ctx
                 .edit_builder()
                 .replace(chain_span, replacement_text)
-                .into_edits();
-            let fix = LintFix::safe("Remove redundant type constituents").with_edits(edits);
+                .into_patches();
+            let fix = LintFix::safe("Remove redundant type constituents").with_patches(edits);
             diagnostic = diagnostic.fix(fix);
         }
 

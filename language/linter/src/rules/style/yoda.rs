@@ -115,8 +115,8 @@ impl LintRule for Yoda {
                 let edits = ctx
                     .edit_builder()
                     .replace(expression_span, replacement)
-                    .into_edits();
-                let fix = LintFix::safe("Flip comparison").with_edits(edits);
+                    .into_patches();
+                let fix = LintFix::safe("Flip comparison").with_patches(edits);
                 diagnostic = diagnostic.fix(fix);
             }
 

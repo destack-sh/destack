@@ -124,8 +124,8 @@ fn no_empty_pattern_fix(
 
     // replace the empty pattern with `_`
     let pattern_span = ctx.dir.get_span(pattern_id);
-    let edits = ctx.edit_builder().replace(pattern_span, "_").into_edits();
-    Some(LintFix::safe("Replace empty pattern with wildcard binding").with_edits(edits))
+    let edits = ctx.edit_builder().replace(pattern_span, "_").into_patches();
+    Some(LintFix::safe("Replace empty pattern with wildcard binding").with_patches(edits))
 }
 
 #[cfg(test)]

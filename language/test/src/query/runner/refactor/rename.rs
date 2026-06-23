@@ -45,7 +45,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
                     "rename at '{}' to '{}' should have failed but produced {} edits",
                     exp.target,
                     new_name,
-                    rename_result.total_edits(),
+                    rename_result.total_patches(),
                 ),
             },
         };
@@ -66,7 +66,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     if content.is_empty() {
         match result {
             Some(rename_result) => {
-                if rename_result.total_edits() == 0 {
+                if rename_result.total_patches() == 0 {
                     return CaseResult::Failed {
                         message: format!(
                             "rename at '{}' to '{}' produced 0 edits",
@@ -93,13 +93,13 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     match result {
         Some(rename_result) => {
-            if rename_result.total_edits() != expected_count {
+            if rename_result.total_patches() != expected_count {
                 CaseResult::Failed {
                     message: format!(
                         "rename at '{}' to '{}' produced {} edits, expected {}",
                         exp.target,
                         new_name,
-                        rename_result.total_edits(),
+                        rename_result.total_patches(),
                         expected_count
                     ),
                 }

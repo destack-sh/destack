@@ -445,8 +445,8 @@ where
     let edits = ctx
         .edit_builder()
         .replace(full_span, replacement)
-        .into_edits();
-    Some(LintFix::r#unsafe("Group getter and setter accessors together").with_edits(edits))
+        .into_patches();
+    Some(LintFix::r#unsafe("Group getter and setter accessors together").with_patches(edits))
 }
 
 /// Return reordered indices with the later accessor moved next to the earlier one.

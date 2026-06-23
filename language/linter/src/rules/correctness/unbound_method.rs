@@ -199,8 +199,8 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(method_text_span, replacement)
-            .into_edits();
-        Some(LintFix::r#unsafe("Bind method receiver explicitly").with_edits(edits))
+            .into_patches();
+        Some(LintFix::r#unsafe("Bind method receiver explicitly").with_patches(edits))
     }
 
     /// Return true when a method reference is already safely used.

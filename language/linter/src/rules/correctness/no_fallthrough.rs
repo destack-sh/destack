@@ -248,8 +248,8 @@ fn no_fallthrough_fix(
     let edits = ctx
         .edit_builder()
         .insert(case_span.end, "\n        break;")
-        .into_edits();
-    Some(LintFix::r#unsafe("Insert break to prevent fallthrough").with_edits(edits))
+        .into_patches();
+    Some(LintFix::r#unsafe("Insert break to prevent fallthrough").with_patches(edits))
 }
 
 /// Check if an expression ends with a terminating statement.

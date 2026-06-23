@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use destack_dir as dir;
-use destack_source::{Edit, File, FileType, Loader, ModuleId, PackageId};
+use destack_source::{File, FileType, Loader, ModuleId, PackageId, Patch};
 use serde::{Deserialize, Serialize};
 
 use super::{CompletionContext, CompletionInput, CursorToken};
@@ -134,7 +134,7 @@ pub struct Completion {
     /// Whether the item is deprecated.
     pub deprecated: bool,
     /// Additional text edits to apply, for example auto imports.
-    pub additional_text_edits: Vec<Edit>,
+    pub additional_text_edits: Vec<Patch>,
     /// Whether this completion inserts one auto import.
     #[serde(default)]
     pub is_auto_import: bool,
@@ -248,7 +248,7 @@ impl Completion {
     }
 
     /// Add additional edits.
-    pub fn with_additional_edits(mut self, edits: Vec<Edit>) -> Self {
+    pub fn with_additional_edits(mut self, edits: Vec<Patch>) -> Self {
         self.additional_text_edits = edits;
         self
     }

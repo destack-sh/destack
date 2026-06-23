@@ -356,9 +356,9 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
                 .ctx
                 .edit_builder()
                 .replace(span, replacement)
-                .into_edits();
+                .into_patches();
             let fix =
-                LintFix::safe("Replace filter first-element access with find").with_edits(edits);
+                LintFix::safe("Replace filter first-element access with find").with_patches(edits);
             diagnostic = diagnostic.fix(fix);
         }
 

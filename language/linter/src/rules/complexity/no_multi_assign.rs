@@ -215,8 +215,8 @@ fn no_multi_assign_fix(
     let edits = ctx
         .edit_builder()
         .replace(statement_span, replacement)
-        .into_edits();
-    Some(LintFix::safe("Split chained assignment into sequential assignments").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Split chained assignment into sequential assignments").with_patches(edits))
 }
 
 /// Collect left sides for a chained assignment and return the final rhs expression.

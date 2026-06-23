@@ -110,8 +110,8 @@ fn report_warning_comment(
 
 /// Build a suggestion by removing one warning comment.
 fn warning_comment_fix(ctx: &LintModuleContext<'_>, comment_span: Span) -> Option<LintFix> {
-    let edits = ctx.edit_builder().delete(comment_span).into_edits();
-    Some(LintFix::suggestion("Remove warning comment").with_edits(edits))
+    let edits = ctx.edit_builder().delete(comment_span).into_patches();
+    Some(LintFix::suggestion("Remove warning comment").with_patches(edits))
 }
 
 #[cfg(test)]

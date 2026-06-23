@@ -57,9 +57,12 @@ impl LintRule for PreferAsConst {
             }
 
             let right_span = ctx.dir.get_span(*right);
-            let edits = ctx.edit_builder().replace(right_span, "const").into_edits();
+            let edits = ctx
+                .edit_builder()
+                .replace(right_span, "const")
+                .into_patches();
             let fix =
-                LintFix::safe("Replace literal type assertion with `as const`").with_edits(edits);
+                LintFix::safe("Replace literal type assertion with `as const`").with_patches(edits);
 
             ctx.report(
                 LintReport::new(
@@ -188,9 +191,9 @@ fn declarator_literal_annotation_fix(
     let edits = ctx
         .edit_builder()
         .replace(declarator_span, replacement)
-        .into_edits();
+        .into_patches();
 
-    Some(LintFix::safe("Replace literal annotation with `as const`").with_edits(edits))
+    Some(LintFix::safe("Replace literal annotation with `as const`").with_patches(edits))
 }
 
 /// Build a safe class field fix from `field: 'x' = 'x'` to `field = 'x' as const`.
@@ -233,9 +236,9 @@ fn member_field_literal_annotation_fix(
     let edits = ctx
         .edit_builder()
         .replace(member_span, replacement)
-        .into_edits();
+        .into_patches();
 
-    Some(LintFix::safe("Replace literal annotation with `as const`").with_edits(edits))
+    Some(LintFix::safe("Replace literal annotation with `as const`").with_patches(edits))
 }
 
 /// Return true when a cast has the same literal value on both sides.

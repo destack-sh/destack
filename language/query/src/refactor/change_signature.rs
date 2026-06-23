@@ -2,7 +2,7 @@ use destack_serde::Schema;
 use std::collections::{HashMap, HashSet};
 
 use destack_dir as dir;
-use destack_source::{BatchEdit, Edit, File, FileEdit, FileId, Span};
+use destack_source::{File, FileId, FilePatch, Patch, PatchSet, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::core::{ModuleQueryContext, QueryPosition, WorkspaceQueryContext};
@@ -25,7 +25,7 @@ pub struct ChangeSignatureRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ChangeSignatureResponse {
     /// Change signature edit, if available.
-    pub edit: Option<BatchEdit>,
+    pub edit: Option<PatchSet>,
 }
 
 /// Resolve a function signature for a declaration, member, or binding node.
@@ -275,7 +275,7 @@ impl ModuleQueryContext<'_> {
         offset: u32,
         new_parameters: &str,
         new_arguments: &str,
-    ) -> Option<BatchEdit> {
+    ) -> Option<PatchSet> {
         let ctx = self;
         // resolve the function symbol at the cursor
         let symbol_at = ctx.find_symbol_at_offset(offset)?;
@@ -299,12 +299,12 @@ impl ModuleQueryContext<'_> {
             return None;
         }
 
-        let mut edits_by_file: HashMap<FileId, Vec<Edit>> = HashMap::new();
+        let mut edits_by_file: HashMap<FileId, Vec<Patch>> = HashMap::new();
         for param_span in param_spans {
             edits_by_file
                 .entry(param_span.file)
                 .or_default()
-                .push(Edit::replace(param_span, new_params.clone()));
+                .push(Patch::replace(param_span, new_params.clone()));
         }
 
         // narrow the scan to modules that actually call the target
@@ -362,7 +362,7 @@ impl ModuleQueryContext<'_> {
                 edits_by_file
                     .entry(arg_span.file)
                     .or_default()
-                    .push(Edit::replace(arg_span, argument_text));
+                    .push(Patch::replace(arg_span, argument_text));
             }
         }
 
@@ -370,9 +370,9 @@ impl ModuleQueryContext<'_> {
             return None;
         }
 
-        let mut batch_edit = BatchEdit::new();
+        let mut batch_edit = PatchSet::new();
         for (file_id, edits) in edits_by_file {
-            let mut file_edit = FileEdit::with_edits(file_id, edits);
+            let mut file_edit = FilePatch::with_patches(file_id, edits);
             file_edit.sort();
             batch_edit.push(file_edit);
         }

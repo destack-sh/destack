@@ -358,8 +358,8 @@ fn blank_target_fix(
     let edits = ctx
         .edit_builder()
         .insert(last_span.end, " rel=\"noopener\"")
-        .into_edits();
-    Some(LintFix::safe("Add rel=\"noopener\"").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Add rel=\"noopener\"").with_patches(edits))
 }
 
 /// Build a safe fix that amends one rel attribute with noopener.
@@ -386,8 +386,8 @@ fn blank_target_rel_fix(
     let edits = ctx
         .edit_builder()
         .replace(value_span, replacement)
-        .into_edits();
-    Some(LintFix::safe("Add noopener to rel attribute").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Add noopener to rel attribute").with_patches(edits))
 }
 
 /// Return one rel string literal using the same quote style as the original.

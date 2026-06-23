@@ -569,12 +569,12 @@ fn callback_fix(ctx: &LintModuleContext<'_>, candidate: &CallbackCandidate) -> O
     let edits = ctx
         .edit_builder()
         .replace(candidate.replacement_span, replacement)
-        .into_edits();
+        .into_patches();
     if edits.is_empty() {
         return None;
     }
 
-    Some(LintFix::safe("Convert to arrow function").with_edits(edits))
+    Some(LintFix::safe("Convert to arrow function").with_patches(edits))
 }
 
 /// Return true when one source slice contains comment trivia.

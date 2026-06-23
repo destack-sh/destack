@@ -490,8 +490,8 @@ fn require_await_fix(ctx: &LintModuleContext<'_>, callable_span: Span) -> Option
     let edits = ctx
         .edit_builder()
         .replace(callable_span, replacement)
-        .into_edits();
-    Some(LintFix::suggestion("Remove async keyword").with_edits(edits))
+        .into_patches();
+    Some(LintFix::suggestion("Remove async keyword").with_patches(edits))
 }
 
 #[cfg(test)]

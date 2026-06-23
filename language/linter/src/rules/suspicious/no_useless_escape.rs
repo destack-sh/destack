@@ -165,8 +165,9 @@ fn report_string_literal_escapes(
             && let Some(backslash_span) =
                 string_backslash_span(literal_span, raw_literal, backslash_position)
         {
-            let edits = ctx.edit_builder().delete(backslash_span).into_edits();
-            let fix = LintFix::suggestion("Remove unnecessary escape backslash").with_edits(edits);
+            let edits = ctx.edit_builder().delete(backslash_span).into_patches();
+            let fix =
+                LintFix::suggestion("Remove unnecessary escape backslash").with_patches(edits);
             diagnostic = diagnostic.fix(fix);
         }
 
@@ -238,8 +239,9 @@ fn report_regex_escapes(
             && let Some(backslash_span) =
                 regex_backslash_span(literal_span, raw_literal, backslash_position)
         {
-            let edits = ctx.edit_builder().delete(backslash_span).into_edits();
-            let fix = LintFix::suggestion("Remove unnecessary escape backslash").with_edits(edits);
+            let edits = ctx.edit_builder().delete(backslash_span).into_patches();
+            let fix =
+                LintFix::suggestion("Remove unnecessary escape backslash").with_patches(edits);
             diagnostic = diagnostic.fix(fix);
         }
 

@@ -265,8 +265,8 @@ fn useless_destructuring_rename_fix(
     let edits = ctx
         .edit_builder()
         .replace(field_span, replacement)
-        .into_edits();
-    Some(LintFix::safe("Remove useless rename").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Remove useless rename").with_patches(edits))
 }
 
 /// Build one safe fix for a useless import or export rename item.
@@ -291,8 +291,8 @@ fn useless_dependency_item_rename_fix(
     let edits = ctx
         .edit_builder()
         .replace(item_span, replacement)
-        .into_edits();
-    Some(LintFix::safe("Remove useless rename").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Remove useless rename").with_patches(edits))
 }
 
 #[cfg(test)]

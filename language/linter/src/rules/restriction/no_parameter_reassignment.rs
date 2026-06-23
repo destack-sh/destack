@@ -150,10 +150,10 @@ fn no_parameter_reassignment_fix(
     let edits = ctx
         .edit_builder()
         .replace(ctx.get_span(assignment_expression_id), replacement_text)
-        .into_edits();
+        .into_patches();
     Some(
         LintFix::r#unsafe("Introduce local shadow instead of parameter reassignment")
-            .with_edits(edits),
+            .with_patches(edits),
     )
 }
 

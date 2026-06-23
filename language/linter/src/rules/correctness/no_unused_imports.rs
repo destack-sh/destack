@@ -148,8 +148,8 @@ fn unused_import_fix(
     }
 
     // build fix edits
-    let edits = ctx.edit_builder().delete(remove_span).into_edits();
-    Some(LintFix::safe("Remove unused import binding").with_edits(edits))
+    let edits = ctx.edit_builder().delete(remove_span).into_patches();
+    Some(LintFix::safe("Remove unused import binding").with_patches(edits))
 }
 
 #[cfg(test)]

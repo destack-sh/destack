@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_source::{BatchEdit, Edit, File, FileEdit, FileId, PathExt, ProfileId, Span};
+use destack_source::{File, FileId, FilePatch, Patch, PatchSet, PathExt, ProfileId, Span};
 use serde::{Deserialize, Serialize};
 
 use super::specifier::{SpecifierPolicy, apply_rename_to_specifier, match_specifier_rename};
@@ -32,7 +32,7 @@ pub struct RenameFilesRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct RenameFilesResponse {
     /// File rename edit, if available.
-    pub edit: Option<BatchEdit>,
+    pub edit: Option<PatchSet>,
 }
 
 impl WorkspaceQueryContext<'_> {
@@ -73,7 +73,7 @@ fn wrap_string_literal(literal: &str, specifier: &str) -> String {
 
 impl WorkspaceQueryContext<'_> {
     /// Resolve file rename edits across the workspace.
-    pub fn rename_files(&self, renames: &[FileRenameEntry]) -> Option<BatchEdit> {
+    pub fn rename_files(&self, renames: &[FileRenameEntry]) -> Option<PatchSet> {
         let ctx = self;
         let repository = ctx.repository();
         let revision = ctx.revision();
@@ -101,7 +101,7 @@ impl WorkspaceQueryContext<'_> {
         };
 
         // collect edits grouped by file id
-        let mut edits_by_file: HashMap<FileId, Vec<Edit>> = HashMap::new();
+        let mut edits_by_file: HashMap<FileId, Vec<Patch>> = HashMap::new();
 
         let mut entries_by_module = HashMap::new();
         let specifier_entries =
@@ -202,7 +202,7 @@ impl WorkspaceQueryContext<'_> {
                 edits_by_file
                     .entry(span.file)
                     .or_default()
-                    .push(Edit::replace(span, new_text));
+                    .push(Patch::replace(span, new_text));
             }
         }
 
@@ -212,9 +212,9 @@ impl WorkspaceQueryContext<'_> {
         }
 
         // build a batch edit from per file edits
-        let mut batch_edit = BatchEdit::new();
+        let mut batch_edit = PatchSet::new();
         for (file_id, edits) in edits_by_file {
-            let mut file_edit = FileEdit::with_edits(file_id, edits);
+            let mut file_edit = FilePatch::with_patches(file_id, edits);
             file_edit.sort();
             batch_edit.push(file_edit);
         }

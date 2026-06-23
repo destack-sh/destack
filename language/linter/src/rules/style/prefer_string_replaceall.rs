@@ -238,12 +238,12 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             edit_builder = edit_builder.replace(first_argument_span, pattern_replacement);
         }
 
-        let edits = edit_builder.into_edits();
+        let edits = edit_builder.into_patches();
         if edits.is_empty() {
             return None;
         }
 
-        Some(LintFix::safe("Use replaceAll with string pattern").with_edits(edits))
+        Some(LintFix::safe("Use replaceAll with string pattern").with_patches(edits))
     }
 
     /// Return true when the receiver expression is a string type.

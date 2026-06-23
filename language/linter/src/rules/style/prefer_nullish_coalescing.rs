@@ -426,8 +426,8 @@ fn make_nullish_fix(
     let edits = ctx
         .edit_builder()
         .replace(expression_span, replacement)
-        .into_edits();
-    Some(LintFix::safe("Replace `||` with `??`").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Replace `||` with `??`").with_patches(edits))
 }
 
 /// Build a safe `||=` to `??=` fix for one expression.
@@ -452,9 +452,9 @@ fn make_nullish_assignment_fix(
     let edits = ctx
         .edit_builder()
         .replace(expression_span, replacement)
-        .into_edits();
+        .into_patches();
 
-    Some(LintFix::safe("Replace `||=` with `??=`").with_edits(edits))
+    Some(LintFix::safe("Replace `||=` with `??=`").with_patches(edits))
 }
 
 /// Return true when this expression should not be linted.

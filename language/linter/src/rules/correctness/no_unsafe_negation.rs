@@ -75,8 +75,8 @@ impl LintRule for NoUnsafeNegation {
                 let edits = ctx
                     .edit_builder()
                     .replace(expression_span, replacement)
-                    .into_edits();
-                let fix = LintFix::safe("Wrap in parentheses").with_edits(edits);
+                    .into_patches();
+                let fix = LintFix::safe("Wrap in parentheses").with_patches(edits);
 
                 ctx.report(
                     LintReport::new(

@@ -6,9 +6,9 @@ use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, Host, Ref, Repository, RepositoryError,
     Settings, default_blob_store,
 };
-use destack_source::{FileSystem, MemoryFileSystem};
+use destack_source::{Edit, FileSystem, MemoryFileSystem};
 
-use super::Edit;
+use super::edit::apply_edits;
 use super::fs::FileSystemSource;
 use crate::SessionError;
 
@@ -34,7 +34,7 @@ pub fn open_repository_from_memory(
     layout_override: DestackLayoutOverride,
 ) -> Result<Repository, SessionError> {
     let file_system = Arc::new(MemoryFileSystem::new());
-    Edit::apply_all(file_system.as_ref(), &root, edits)?;
+    apply_edits(file_system.as_ref(), &root, edits)?;
 
     // keep memory sessions fully in memory
     let host = Host::new(environment, file_system, Arc::new(MemoryBlobStore::new()));

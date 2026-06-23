@@ -1,6 +1,6 @@
 use destack_query as query;
 use destack_query::{CodeAction, CodeActionKind};
-use destack_source::{Edit, FileEdit, FileId, Span};
+use destack_source::{FileId, FilePatch, Patch, Span};
 
 use crate::core::{CaseResult, module_artifact_diagnostics};
 use crate::query::runner::position::resolve_query_position;
@@ -57,7 +57,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     }
 
     // prefer protocol shaped snapshots when the expectation is structured
-    if looks_like_snapshot(content, &["[", "title=", "kind=", "edits="]) {
+    if looks_like_snapshot(content, &["[", "title=", "kind=", "patches="]) {
         // apply an optional top directive for large result sets
         let (top_limit, expected_snapshot) = parse_snapshot_top_directive(content);
 
@@ -257,11 +257,11 @@ fn validate_code_action_invariants(
         }
 
         // ensure all edit spans stay within their file bounds
-        for file_edit in &action.edits.files {
+        for file_edit in &action.patches.files {
             let source = source_for_file(session, file_edit.file);
             let source_len = u32::try_from(source.len()).unwrap_or(u32::MAX);
 
-            for edit in &file_edit.edits {
+            for edit in &file_edit.patches {
                 if edit.span.start > edit.span.end {
                     errors.push(format!(
                         "edit span start {} is after end {}",
@@ -329,44 +329,44 @@ fn format_code_action_line(
     let diagnostic = action.diagnostic_code.as_deref().unwrap_or("<none>");
 
     // render the edit summary for snapshot comparisons
-    let edits = format_action_edits(session, &action.edits.files);
+    let patches = format_action_edits(session, &action.patches.files);
 
     format!(
-        "[{index}] title={} kind={kind} preferred={} diag={diagnostic} edits={edits}",
+        "[{index}] title={} kind={kind} preferred={} diag={diagnostic} patches={patches}",
         action.title, action.is_preferred
     )
 }
 
-/// Format the edits for a code action.
-fn format_action_edits(session: &QueryTestSession, file_edits: &[FileEdit]) -> String {
+/// Format the patches for a code action.
+fn format_action_edits(session: &QueryTestSession, file_edits: &[FilePatch]) -> String {
     if file_edits.is_empty() {
         return "<none>".to_string();
     }
 
-    // sort file edits by file id for deterministic snapshots
+    // sort file patches by file id for deterministic snapshots
     let mut file_edits = file_edits.to_vec();
     file_edits.sort_by_key(|file_edit| file_edit.file.0);
 
     let mut parts = Vec::new();
     for file_edit in file_edits {
-        let file_part = format_file_edit(session, file_edit.file, &file_edit.edits);
+        let file_part = format_file_edit(session, file_edit.file, &file_edit.patches);
         parts.push(file_part);
     }
 
     parts.join("; ")
 }
 
-/// Format a file edit and its edits.
-fn format_file_edit(session: &QueryTestSession, file_id: FileId, edits: &[Edit]) -> String {
+/// Format a file edit and its patches.
+fn format_file_edit(session: &QueryTestSession, file_id: FileId, patches: &[Patch]) -> String {
     let Some(file) = file_for(session, file_id) else {
-        return format!("file=<unknown:{}> edits=<unknown>", file_id.0);
+        return format!("file=<unknown:{}> patches=<unknown>", file_id.0);
     };
 
-    let mut edits = edits.to_vec();
-    edits.sort_by_key(edit_key);
+    let mut patches = patches.to_vec();
+    patches.sort_by_key(patch_key);
 
     let mut parts = Vec::new();
-    for edit in edits {
+    for edit in patches {
         let range = format_span_line_col(&file.source, edit.span);
         let text = edit.new_text.replace('\n', "\\n");
         parts.push(format!("{}:{range}=>\"{text}\"", file.name));
@@ -382,9 +382,9 @@ fn code_action_key(action: &CodeAction) -> (u8, u8, &str, &str, String) {
     let preferred_rank = if action.is_preferred { 0 } else { 1 };
     let title = action.title.as_str();
     let diagnostic = action.diagnostic_code.as_deref().unwrap_or("");
-    let edits = action_edit_key(&action.edits.files);
+    let patches = action_patch_key(&action.patches.files);
 
-    (kind_rank, preferred_rank, title, diagnostic, edits)
+    (kind_rank, preferred_rank, title, diagnostic, patches)
 }
 
 /// Rank code action kinds for stable ordering in tests.
@@ -413,12 +413,12 @@ fn code_action_kind_name(kind: CodeActionKind) -> &'static str {
     }
 }
 
-/// Build a stable edit key for a list of file edits.
-fn action_edit_key(file_edits: &[FileEdit]) -> String {
+/// Build a stable edit key for a list of file patches.
+fn action_patch_key(file_edits: &[FilePatch]) -> String {
     let mut keys = Vec::new();
 
     for file_edit in file_edits {
-        let key = file_edit_key(file_edit.file, &file_edit.edits);
+        let key = file_patch_key(file_edit.file, &file_edit.patches);
         keys.push(key);
     }
 
@@ -427,15 +427,15 @@ fn action_edit_key(file_edits: &[FileEdit]) -> String {
 }
 
 /// Build a stable key for a file edit.
-fn file_edit_key(file_id: FileId, edits: &[Edit]) -> String {
-    let mut edits = edits.to_vec();
-    edits.sort_by_key(edit_key);
+fn file_patch_key(file_id: FileId, patches: &[Patch]) -> String {
+    let mut patches = patches.to_vec();
+    patches.sort_by_key(patch_key);
 
     let mut parts = Vec::new();
     parts.push(format!("file={}", file_id.0));
 
-    for edit in edits {
-        let (start, end, file, text) = edit_key(&edit);
+    for edit in patches {
+        let (start, end, file, text) = patch_key(&edit);
         parts.push(format!("{file}:{start}-{end}=>{text}"));
     }
 
@@ -443,7 +443,7 @@ fn file_edit_key(file_id: FileId, edits: &[Edit]) -> String {
 }
 
 /// Build a stable key for a single edit.
-fn edit_key(edit: &Edit) -> (u32, u32, u128, String) {
+fn patch_key(edit: &Patch) -> (u32, u32, u128, String) {
     // extract span coordinates and replacement text
     let file = edit.span.file.0;
     let start = edit.span.start;
