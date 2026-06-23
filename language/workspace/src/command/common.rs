@@ -121,6 +121,10 @@ pub enum JsonValue {
     I64(i64),
     /// Unsigned integer value.
     U64(u64),
+    /// Wide signed integer value.
+    I128(i128),
+    /// Wide unsigned integer value.
+    U128(u128),
     /// Floating point value.
     F64(f64),
     /// String value.
@@ -158,6 +162,18 @@ impl JsonValue {
             Self::Bool(value) => Ok(serde_json::Value::Bool(value)),
             Self::I64(value) => Ok(serde_json::Value::Number(value.into())),
             Self::U64(value) => Ok(serde_json::Value::Number(value.into())),
+            Self::I128(value) => {
+                let value = serde_json::Number::from_i128(value)
+                    .ok_or(JsonValueError::UnsupportedInteger)?;
+
+                Ok(serde_json::Value::Number(value))
+            }
+            Self::U128(value) => {
+                let value = serde_json::Number::from_u128(value)
+                    .ok_or(JsonValueError::UnsupportedInteger)?;
+
+                Ok(serde_json::Value::Number(value))
+            }
             Self::F64(value) => serde_json::Number::from_f64(value)
                 .map(serde_json::Value::Number)
                 .ok_or(JsonValueError::NonFiniteFloat),
@@ -192,6 +208,8 @@ impl From<serde_json::Value> for JsonValue {
 /// Errors produced while converting command JSON values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JsonValueError {
+    /// JSON cannot represent a wide integer with the current number backend.
+    UnsupportedInteger,
     /// JSON cannot represent a non-finite floating point value.
     NonFiniteFloat,
 }
@@ -200,6 +218,7 @@ impl std::fmt::Display for JsonValueError {
     /// Format a command JSON value error.
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::UnsupportedInteger => write!(formatter, "json value contains a wide integer"),
             Self::NonFiniteFloat => write!(formatter, "json value contains a non-finite float"),
         }
     }
@@ -257,10 +276,14 @@ fn json_number(value: serde_json::Number) -> JsonValue {
         JsonValue::I64(value)
     } else if let Some(value) = value.as_u64() {
         JsonValue::U64(value)
+    } else if let Some(value) = value.as_i128() {
+        JsonValue::I128(value)
+    } else if let Some(value) = value.as_u128() {
+        JsonValue::U128(value)
     } else if let Some(value) = value.as_f64() {
         JsonValue::F64(value)
     } else {
-        unreachable!("serde_json numbers are signed, unsigned, or floating point")
+        unreachable!("serde_json numbers are signed, unsigned, wide, or floating point")
     }
 }
 

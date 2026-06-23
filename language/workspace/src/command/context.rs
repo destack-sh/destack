@@ -3,6 +3,7 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
@@ -13,7 +14,7 @@ use destack_repository::{
     apply_manifest_overrides_to_json, parse_jsonc_text,
 };
 use destack_session::{Session, SessionEventHandler};
-use destack_source::{Edit, FileType, ModuleId, ProfileId, TargetId, glob};
+use destack_source::{DiagnosticCollection, Edit, FileType, ModuleId, ProfileId, TargetId, glob};
 use serde_json::{Map, Value};
 
 use crate::LocalWorkspace;
@@ -128,6 +129,26 @@ impl<'a> CommandContext<'a> {
             },
         );
         Ok(report)
+    }
+
+    /// Return diagnostics emitted by the requested artifact roots.
+    pub(super) fn command_diagnostics(
+        &self,
+        revision: Revision,
+        artifact_keys: &[ArtifactKey],
+    ) -> CommandResult<DiagnosticCollection> {
+        let mut diagnostics = DiagnosticCollection::new();
+
+        // merge diagnostics in root order
+        for artifact_key in artifact_keys {
+            let artifact_diagnostics = self
+                .repository
+                .diagnostics(revision, Some(*artifact_key))
+                .map_err(|error| error.to_string())?;
+            diagnostics.merge_from(&artifact_diagnostics);
+        }
+
+        Ok(diagnostics)
     }
 
     /// Resolve the revision used to fork the command session.

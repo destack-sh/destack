@@ -5,7 +5,7 @@ use std::sync::Arc;
 use destack_repository::{DestackLayoutOverride, Environment, Repository, Settings};
 use destack_session::{SessionEventHandler, open_repository_from_fs};
 use destack_source::{FileSystem, FileWatcher};
-use destack_workspace::{self as workspace, LocalWorkspace};
+use destack_workspace::LocalWorkspace;
 use parking_lot::Mutex;
 
 use crate::DaemonError;
@@ -18,7 +18,7 @@ pub struct WorkspaceState {
     /// Repository loaded for this workspace.
     pub repository: Arc<Repository>,
     /// Live workspace facade.
-    pub(super) workspace: Arc<workspace::LocalWorkspace>,
+    pub(super) workspace: Arc<LocalWorkspace>,
     /// Root leases held by protocol clients.
     root_lease_table: RootLeaseTable,
 }
@@ -49,7 +49,7 @@ impl WorkspaceState {
     }
 
     /// Return the local workspace.
-    pub fn workspace(&self) -> Arc<workspace::LocalWorkspace> {
+    pub fn workspace(&self) -> Arc<LocalWorkspace> {
         self.workspace.clone()
     }
 

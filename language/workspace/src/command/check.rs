@@ -188,10 +188,7 @@ impl CommandContext<'_> {
 
         // report where the check spent its time
         let trace = self.command_trace(revision, input.trace)?;
-        let diagnostics = self
-            .repository
-            .diagnostics(revision, None)
-            .map_err(|error| error.to_string())?;
+        let diagnostics = self.command_diagnostics(revision, &artifact_keys)?;
         self.apply_diagnostic_suggestions(revision, &diagnostics, &lint_options)?;
         let exit_code = diagnostics.get_status_code();
         let profile_count = self.selected_profile_count(revision, &modules)?;
@@ -224,10 +221,7 @@ impl CommandContext<'_> {
         self.session
             .provide(revision, &artifact_keys)
             .map_err(|error| error.to_string())?;
-        let diagnostics = self
-            .repository
-            .diagnostics(revision, None)
-            .map_err(|error| error.to_string())?;
+        let diagnostics = self.command_diagnostics(revision, &artifact_keys)?;
         self.apply_diagnostic_suggestions(revision, &diagnostics, &input.lint_options())?;
         let exit_code = diagnostics.get_status_code();
         let profile_count = self.selected_profile_count(revision, &modules)?;
