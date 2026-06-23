@@ -66,7 +66,7 @@ generate-schema:
 
 # build cli binaries for npm target packages
 build-cli-binaries:
-    bash scripts/build-cli-binaries.sh
+    bash cli/scripts/build-binaries.sh
 
 # package cli release archives and checksums
 package-cli-release version="" artifacts="cli/install/artifacts":
@@ -100,7 +100,7 @@ validate-cli-publish:
 
 # publish selected cli target packages
 publish-cli-targets dry="--dry-run":
-    bash scripts/publish-cli-targets.sh "{{dry}}"
+    bash cli/scripts/publish-targets.sh "{{dry}}"
 
 # publish cli npm packages dry by default
 publish-cli dry="--dry-run":

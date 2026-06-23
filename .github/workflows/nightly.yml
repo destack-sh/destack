@@ -130,8 +130,8 @@ jobs:
       - name: Check Service
         run: just service/check-full
 
-  app-check:
-    name: App Check
+  cli-check:
+    name: CLI Check
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -146,7 +146,7 @@ jobs:
           rust_components: rustfmt clippy
           install_js_dependencies: "true"
 
-      - name: Check App
+      - name: Check CLI
         run: just app/check-full
 
   bridge-check:
@@ -223,7 +223,7 @@ jobs:
       - language-check
       - library-check
       - service-check
-      - app-check
+      - cli-check
       - bridge-check
       - language-runtime-linux-check
       - language-runtime-macos-check
