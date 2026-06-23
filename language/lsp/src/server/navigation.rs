@@ -1,35 +1,36 @@
+use std::sync::Arc;
+
 use destack_lsp_types as lsp;
 use destack_query as query;
-use destack_repository::{Repository, Revision};
-use destack_source::File;
+use destack_repository::Revision;
+use destack_source::{File, FileId};
 use serde_json::{from_value, json, to_value};
 
-use super::common::{byte_span_to_range, span_to_location, symbol_kind_to_lsp};
+use super::position::{byte_span_to_range, span_to_location};
+use super::symbol::symbol_kind_to_lsp;
 use crate::uri::{lsp_uri_for_file, lsp_uri_for_path};
 
 /// Convert one navigation target to an LSP location.
-pub fn navigation_target_to_location(
-    repository: &Repository,
-    revision: Revision,
+pub(super) fn navigation_target_to_location(
     target: &query::NavigationTarget,
+    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
 ) -> Option<lsp::Location> {
-    span_to_location(repository, revision, target.target.span)
+    span_to_location(target.target.span, file_for_id)
 }
 
 /// Convert navigation targets to LSP locations.
-pub fn navigation_targets_to_locations(
-    repository: &Repository,
-    revision: Revision,
+pub(super) fn navigation_targets_to_locations(
     targets: &[query::NavigationTarget],
+    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
 ) -> Vec<lsp::Location> {
     targets
         .iter()
-        .filter_map(|target| navigation_target_to_location(repository, revision, target))
+        .filter_map(|target| navigation_target_to_location(target, file_for_id))
         .collect()
 }
 
 /// Convert a document highlight to an LSP document highlight.
-pub fn document_highlight_to_lsp(
+pub(super) fn document_highlight_to_lsp(
     file: &File,
     highlight: &query::DocumentHighlight,
 ) -> Option<lsp::DocumentHighlight> {
@@ -44,7 +45,7 @@ pub fn document_highlight_to_lsp(
 
 /// Convert a document symbol to an LSP document symbol.
 #[allow(deprecated)]
-pub fn document_symbol_to_lsp(
+pub(super) fn document_symbol_to_lsp(
     file: &File,
     symbol: &query::DocumentSymbol,
 ) -> Option<lsp::DocumentSymbol> {
@@ -81,7 +82,10 @@ pub fn document_symbol_to_lsp(
 }
 
 /// Convert a selection range to an LSP selection range.
-pub fn selection_range_to_lsp(file: &File, range: query::SelectionRange) -> lsp::SelectionRange {
+pub(super) fn selection_range_to_lsp(
+    file: &File,
+    range: query::SelectionRange,
+) -> lsp::SelectionRange {
     let lsp_range = byte_span_to_range(file, range.range);
     let parent = range
         .parent
@@ -93,7 +97,10 @@ pub fn selection_range_to_lsp(file: &File, range: query::SelectionRange) -> lsp:
 }
 
 /// Convert a document link to an LSP document link.
-pub fn document_link_to_lsp(file: &File, link: &query::DocumentLink) -> Option<lsp::DocumentLink> {
+pub(super) fn document_link_to_lsp(
+    file: &File,
+    link: &query::DocumentLink,
+) -> Option<lsp::DocumentLink> {
     let range = byte_span_to_range(file, link.range);
     let target = match &link.target {
         query::DocumentLinkTarget::File { path } => lsp_uri_for_path(path),
@@ -119,15 +126,12 @@ fn file_position_uri_from_path_string(path: &str, line: u32, column: u32) -> Opt
 }
 
 /// Convert a call hierarchy item to an LSP call hierarchy item.
-pub fn call_hierarchy_item_to_lsp(
-    repository: &Repository,
+pub(super) fn call_hierarchy_item_to_lsp(
     revision: Revision,
     item: &query::CallHierarchyItem,
+    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
 ) -> Option<lsp::CallHierarchyItem> {
-    let file = repository
-        .file(revision, item.target.span.file)
-        .ok()
-        .flatten()?;
+    let file = file_for_id(item.target.span.file)?;
     let uri = lsp_uri_for_file(&file)?;
     let range = byte_span_to_range(&file, item.target.span);
     let selection_span = item.target.selection_span.unwrap_or(item.target.span);
@@ -157,7 +161,7 @@ pub fn call_hierarchy_item_to_lsp(
 }
 
 /// Extract a query call hierarchy item and revision from lsp item data.
-pub fn call_hierarchy_query_item_from_lsp(
+pub(super) fn call_hierarchy_query_item_from_lsp(
     item: &lsp::CallHierarchyItem,
 ) -> Option<(Revision, query::CallHierarchyItem)> {
     let data = item.data.as_ref()?;
@@ -170,16 +174,13 @@ pub fn call_hierarchy_query_item_from_lsp(
 }
 
 /// Convert an incoming call to LSP format.
-pub fn incoming_call_to_lsp(
-    repository: &Repository,
+pub(super) fn incoming_call_to_lsp(
     revision: Revision,
     call: &query::CallHierarchyIncomingCall,
+    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
 ) -> Option<lsp::CallHierarchyIncomingCall> {
-    let from = call_hierarchy_item_to_lsp(repository, revision, &call.from)?;
-    let file = repository
-        .file(revision, call.from.target.span.file)
-        .ok()
-        .flatten()?;
+    let from = call_hierarchy_item_to_lsp(revision, &call.from, file_for_id)?;
+    let file = file_for_id(call.from.target.span.file)?;
     let from_ranges = call
         .from_ranges
         .iter()
@@ -190,38 +191,29 @@ pub fn incoming_call_to_lsp(
 }
 
 /// Convert an outgoing call to LSP format.
-pub fn outgoing_call_to_lsp(
-    repository: &Repository,
+pub(super) fn outgoing_call_to_lsp(
     revision: Revision,
     call: &query::CallHierarchyOutgoingCall,
+    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
 ) -> Option<lsp::CallHierarchyOutgoingCall> {
-    let to = call_hierarchy_item_to_lsp(repository, revision, &call.to)?;
+    let to = call_hierarchy_item_to_lsp(revision, &call.to, file_for_id)?;
 
     let from_ranges = call
         .from_ranges
         .iter()
-        .filter_map(|span| {
-            repository
-                .file(revision, span.file)
-                .ok()
-                .flatten()
-                .map(|file| byte_span_to_range(&file, *span))
-        })
+        .filter_map(|span| file_for_id(span.file).map(|file| byte_span_to_range(&file, *span)))
         .collect();
 
     Some(lsp::CallHierarchyOutgoingCall { to, from_ranges })
 }
 
 /// Convert a type hierarchy item to an LSP type hierarchy item.
-pub fn type_hierarchy_item_to_lsp(
-    repository: &Repository,
+pub(super) fn type_hierarchy_item_to_lsp(
     revision: Revision,
     item: &query::TypeHierarchyItem,
+    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
 ) -> Option<lsp::TypeHierarchyItem> {
-    let file = repository
-        .file(revision, item.target.span.file)
-        .ok()
-        .flatten()?;
+    let file = file_for_id(item.target.span.file)?;
     let uri = lsp_uri_for_file(&file)?;
     let range = byte_span_to_range(&file, item.target.span);
     let selection_span = item.target.selection_span.unwrap_or(item.target.span);
@@ -253,7 +245,7 @@ pub fn type_hierarchy_item_to_lsp(
 }
 
 /// Extract a query type hierarchy item and revision from lsp item data.
-pub fn type_hierarchy_query_item_from_lsp(
+pub(super) fn type_hierarchy_query_item_from_lsp(
     item: &lsp::TypeHierarchyItem,
 ) -> Option<(Revision, query::TypeHierarchyItem)> {
     let data = item.data.as_ref()?;
@@ -267,15 +259,11 @@ pub fn type_hierarchy_query_item_from_lsp(
 
 /// Convert a workspace symbol to an LSP workspace symbol.
 #[allow(deprecated)]
-pub fn workspace_symbol_to_lsp(
-    repository: &Repository,
-    revision: Revision,
+pub(super) fn workspace_symbol_to_lsp(
     symbol: &query::WorkspaceSymbol,
+    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
 ) -> Option<lsp::SymbolInformation> {
-    let file = repository
-        .file(revision, symbol.target.span.file)
-        .ok()
-        .flatten()?;
+    let file = file_for_id(symbol.target.span.file)?;
     let uri = lsp_uri_for_file(&file)?;
     let range = byte_span_to_range(&file, symbol.target.span);
     let kind = symbol_kind_to_lsp(symbol.kind);

@@ -1,18 +1,85 @@
+use std::path::Path;
 use std::sync::Arc;
 
+use destack_core::StableHasher;
 use destack_lsp_types as lsp;
 use destack_query as query;
-use destack_repository::{Repository, Revision};
 use destack_source::{
     Diagnostic, DiagnosticLabel, DiagnosticSeverity, DiagnosticTag, File, FileId,
 };
+use destack_workspace::{
+    DiagnosticSnapshot, DiagnosticsRequest, Error, ReloadReason, ReloadRequest, Workspace,
+};
 use serde_json::Value;
+use std::hash::Hash;
 
-use super::common::byte_span_to_range;
-use super::refactor::batch_edit_to_workspace_edit;
+use super::edit::patch_set_to_workspace_edit;
+use super::position::byte_span_to_range;
+
+/// Return diagnostic snapshots for one root.
+pub(super) fn diagnostic_root_snapshots(
+    workspace: &dyn Workspace,
+    root: &Path,
+) -> Result<Vec<DiagnosticSnapshot>, Error> {
+    let revision = workspace.revision(root)?;
+    let views = workspace.diagnostics(DiagnosticsRequest::Root(root.to_path_buf()))?;
+
+    Ok(views
+        .iter()
+        .map(|view| DiagnosticSnapshot::new(revision, view))
+        .collect())
+}
+
+/// Return diagnostic snapshots for the root owning one path.
+pub(super) fn diagnostic_path_snapshots(
+    workspace: &dyn Workspace,
+    path: &Path,
+) -> Result<Vec<DiagnosticSnapshot>, Error> {
+    let root = workspace.root(path)?;
+
+    diagnostic_root_snapshots(workspace, &root)
+}
+
+/// Return one diagnostic snapshot for a path.
+pub(super) fn diagnostic_file_snapshot(
+    workspace: &dyn Workspace,
+    path: &Path,
+) -> Result<Option<DiagnosticSnapshot>, Error> {
+    let root = workspace.root(path)?;
+    let revision = workspace.revision(&root)?;
+    let views = workspace.diagnostics(DiagnosticsRequest::File(path.to_path_buf()))?;
+
+    Ok(views
+        .first()
+        .map(|view| DiagnosticSnapshot::new(revision, view)))
+}
+
+/// Return diagnostic snapshots for every open root.
+pub(super) fn diagnostic_snapshots(
+    workspace: &dyn Workspace,
+) -> Result<Vec<DiagnosticSnapshot>, Error> {
+    let mut diagnostics = Vec::new();
+    for root in workspace.roots() {
+        diagnostics.extend(diagnostic_root_snapshots(workspace, &root)?);
+    }
+
+    Ok(diagnostics)
+}
+
+/// Reload all roots and return current diagnostic snapshots.
+pub(super) fn reload_diagnostic_snapshots(
+    workspace: &dyn Workspace,
+) -> Result<Vec<DiagnosticSnapshot>, Error> {
+    workspace.reload(ReloadRequest {
+        roots: Vec::new(),
+        reason: ReloadReason::Manual,
+    })?;
+
+    diagnostic_snapshots(workspace)
+}
 
 /// Convert a Destack diagnostic to an LSP diagnostic.
-pub fn diagnostic_to_lsp_diagnostic<F>(
+pub(super) fn diagnostic_to_lsp_diagnostic<F>(
     diagnostic: &Diagnostic,
     file_for_id: &F,
 ) -> Option<lsp::Diagnostic>
@@ -94,13 +161,36 @@ where
     })
 }
 
+/// Compute a deterministic result id for a diagnostics payload.
+pub(super) fn diagnostic_result_id(diagnostics: &[Diagnostic]) -> String {
+    let mut hasher = StableHasher::new();
+    diagnostics.len().hash(&mut hasher);
+    for diagnostic in diagnostics {
+        diagnostic.code.hash(&mut hasher);
+        diagnostic.message.hash(&mut hasher);
+        let primary = diagnostic.primary_label();
+        primary.content.hash(&mut hasher);
+        let primary_span = primary.span;
+        primary_span.start.hash(&mut hasher);
+        primary_span.end.hash(&mut hasher);
+        let severity = match diagnostic.severity {
+            DiagnosticSeverity::Error => 0u8,
+            DiagnosticSeverity::Warning => 1u8,
+            DiagnosticSeverity::Note => 2u8,
+        };
+        severity.hash(&mut hasher);
+    }
+
+    format!("{:x}", hasher.finish_u64())
+}
+
 /// Return true when one diagnostic label still points at the same file content.
 fn label_matches_file(label: &DiagnosticLabel, file: &File) -> bool {
     label.span.file == file.id && label.content == file.content_id()
 }
 
 /// Convert a workspace code action kind to an LSP code action kind.
-pub fn code_action_kind_to_lsp(kind: query::CodeActionKind) -> lsp::CodeActionKind {
+pub(super) fn code_action_kind_to_lsp(kind: query::CodeActionKind) -> lsp::CodeActionKind {
     match kind {
         query::CodeActionKind::QuickFix => lsp::CodeActionKind::QUICKFIX,
         query::CodeActionKind::Refactor => lsp::CodeActionKind::REFACTOR,
@@ -113,19 +203,14 @@ pub fn code_action_kind_to_lsp(kind: query::CodeActionKind) -> lsp::CodeActionKi
 }
 
 /// Convert a code action to an LSP code action.
-pub fn code_action_to_lsp(
-    repository: &Repository,
-    revision: Revision,
+pub(super) fn code_action_to_lsp(
     action: &query::CodeAction,
     include_edit: bool,
     data: Option<Value>,
+    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
 ) -> Option<lsp::CodeActionOrCommand> {
-    let edit = if include_edit && !action.edits.is_empty() {
-        Some(batch_edit_to_workspace_edit(
-            repository,
-            revision,
-            &action.edits,
-        ))
+    let edit = if include_edit && !action.patches.is_empty() {
+        Some(patch_set_to_workspace_edit(&action.patches, file_for_id))
     } else {
         None
     };

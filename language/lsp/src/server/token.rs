@@ -1,253 +1,222 @@
 use destack_lsp_types as lsp;
+use destack_query as query;
+use destack_source::File;
 
-/// A diff operation between semantic token streams.
-#[derive(Debug)]
-enum SemanticTokensDiffOp {
-    /// A matching token in both streams.
-    Equal,
-    /// A token inserted from the next stream.
-    Insert(lsp::SemanticToken),
-    /// A token deleted from the previous stream.
-    Delete,
+use super::position::byte_to_utf16_position;
+
+/// Semantic token types in legend order (index = type id).
+pub const SEMANTIC_TOKEN_TYPES: [lsp::SemanticTokenType; 22] = [
+    lsp::SemanticTokenType::NAMESPACE,
+    lsp::SemanticTokenType::TYPE,
+    lsp::SemanticTokenType::CLASS,
+    lsp::SemanticTokenType::ENUM,
+    lsp::SemanticTokenType::INTERFACE,
+    lsp::SemanticTokenType::STRUCT,
+    lsp::SemanticTokenType::TYPE_PARAMETER,
+    lsp::SemanticTokenType::PARAMETER,
+    lsp::SemanticTokenType::VARIABLE,
+    lsp::SemanticTokenType::PROPERTY,
+    lsp::SemanticTokenType::ENUM_MEMBER,
+    lsp::SemanticTokenType::FUNCTION,
+    lsp::SemanticTokenType::METHOD,
+    lsp::SemanticTokenType::MACRO,
+    lsp::SemanticTokenType::KEYWORD,
+    lsp::SemanticTokenType::MODIFIER,
+    lsp::SemanticTokenType::COMMENT,
+    lsp::SemanticTokenType::STRING,
+    lsp::SemanticTokenType::NUMBER,
+    lsp::SemanticTokenType::REGEXP,
+    lsp::SemanticTokenType::OPERATOR,
+    lsp::SemanticTokenType::DECORATOR,
+];
+
+/// Semantic token modifiers in legend order (bit index = modifier id).
+pub const SEMANTIC_TOKEN_MODIFIERS: [lsp::SemanticTokenModifier; 11] = [
+    lsp::SemanticTokenModifier::DECLARATION,
+    lsp::SemanticTokenModifier::DEFINITION,
+    lsp::SemanticTokenModifier::READONLY,
+    lsp::SemanticTokenModifier::STATIC,
+    lsp::SemanticTokenModifier::DEPRECATED,
+    lsp::SemanticTokenModifier::ABSTRACT,
+    lsp::SemanticTokenModifier::ASYNC,
+    lsp::SemanticTokenModifier::MODIFICATION,
+    lsp::SemanticTokenModifier::DOCUMENTATION,
+    lsp::SemanticTokenModifier::DEFAULT_LIBRARY,
+    lsp::SemanticTokenModifier::new("mutable"),
+];
+
+/// Build the legend advertised to the client.
+pub(super) fn legend() -> lsp::SemanticTokensLegend {
+    lsp::SemanticTokensLegend {
+        token_types: SEMANTIC_TOKEN_TYPES.to_vec(),
+        token_modifiers: SEMANTIC_TOKEN_MODIFIERS.to_vec(),
+    }
 }
 
-/// Build a Myers diff between two semantic token payloads.
-fn semantic_tokens_diff_ops(
-    previous: &[lsp::SemanticToken],
-    next: &[lsp::SemanticToken],
-) -> Vec<SemanticTokensDiffOp> {
-    let previous_len = previous.len() as isize;
-    let next_len = next.len() as isize;
-    if previous_len == 0 && next_len == 0 {
-        return Vec::new();
+/// Convert a query SemanticTokenType to legend index.
+fn token_type_to_index(token_type: query::SemanticTokenType) -> u32 {
+    match token_type {
+        query::SemanticTokenType::Namespace => 0,
+        query::SemanticTokenType::Type => 1,
+        query::SemanticTokenType::Class => 2,
+        query::SemanticTokenType::Enum => 3,
+        query::SemanticTokenType::Interface => 4,
+        query::SemanticTokenType::Struct => 5,
+        query::SemanticTokenType::TypeParameter => 6,
+        query::SemanticTokenType::Parameter => 7,
+        query::SemanticTokenType::Variable => 8,
+        query::SemanticTokenType::Property => 9,
+        query::SemanticTokenType::EnumMember => 10,
+        query::SemanticTokenType::Function => 11,
+        query::SemanticTokenType::Method => 12,
+        query::SemanticTokenType::Macro => 13,
+        query::SemanticTokenType::Keyword => 14,
+        query::SemanticTokenType::Modifier => 15,
+        query::SemanticTokenType::Comment => 16,
+        query::SemanticTokenType::String => 17,
+        query::SemanticTokenType::Number => 18,
+        query::SemanticTokenType::Regexp => 19,
+        query::SemanticTokenType::Operator => 20,
+        query::SemanticTokenType::Decorator => 21,
+        query::SemanticTokenType::Label => 8, // map to variable (no LSP Label type)
     }
+}
 
-    let max = previous_len + next_len;
-    let mut v = vec![0isize; (2 * max + 1) as usize];
-    let mut trace = Vec::new();
-    let mut end_d = 0usize;
+/// Convert semantic tokens to delta-encoded LSP format.
+pub(super) fn tokens_to_lsp(
+    file: &File,
+    tokens: &[query::SemanticToken],
+) -> Vec<lsp::SemanticToken> {
+    // set up delta encoding state
+    let mut result = Vec::with_capacity(tokens.len());
+    let mut prev_line = 0u32;
+    let mut prev_char = 0u32;
 
-    for d in 0..=max as usize {
-        let d_isize = d as isize;
-        let mut done = false;
-        for k in (-d_isize..=d_isize).step_by(2) {
-            let k_index = (k + max) as usize;
-            let x = if k == -d_isize
-                || (k != d_isize && v[(k - 1 + max) as usize] < v[(k + 1 + max) as usize])
-            {
-                v[(k + 1 + max) as usize]
-            } else {
-                v[(k - 1 + max) as usize] + 1
-            };
-            let mut x = x;
-            let mut y = x - k;
-            while x < previous_len && y < next_len && previous[x as usize] == next[y as usize] {
-                x += 1;
-                y += 1;
+    // emit tokens in document order
+    for token in tokens {
+        // resolve token positions
+        let (start_line, start_char) = byte_to_utf16_position(file, token.span.start);
+        let (end_line, end_char) = byte_to_utf16_position(file, token.span.end);
+
+        // cache type and modifiers for split segments
+        let token_type = token_type_to_index(token.token_type);
+        let modifiers = token.modifiers.bits();
+
+        // emit single line tokens
+        if start_line == end_line {
+            let length = end_char.saturating_sub(start_char);
+            if length == 0 {
+                continue;
             }
-            v[k_index] = x;
-            if x >= previous_len && y >= next_len {
-                done = true;
-                break;
-            }
+            push_token(
+                &mut result,
+                &mut prev_line,
+                &mut prev_char,
+                start_line,
+                start_char,
+                length,
+                token_type,
+                modifiers,
+            );
+            continue;
         }
-        trace.push(v.clone());
-        if done {
-            end_d = d;
-            break;
-        }
-    }
 
-    let mut ops = Vec::new();
-    let mut x = previous_len;
-    let mut y = next_len;
-
-    for d in (1..=end_d).rev() {
-        let d_isize = d as isize;
-        let v_snapshot = &trace[d - 1];
-        let k = x - y;
-        let prev_k = if k == -d_isize
-            || (k != d_isize
-                && v_snapshot[(k - 1 + max) as usize] < v_snapshot[(k + 1 + max) as usize])
-        {
-            k + 1
-        } else {
-            k - 1
+        // emit first line segment
+        let Some(line_span) = file.get_line_span(start_line) else {
+            continue;
         };
-        let prev_x = v_snapshot[(prev_k + max) as usize];
-        let prev_y = prev_x - prev_k;
-
-        while x > prev_x && y > prev_y {
-            ops.push(SemanticTokensDiffOp::Equal);
-            x -= 1;
-            y -= 1;
+        if let Some(length) = utf16_len_between(file, token.span.start, line_span.end)
+            && length > 0
+        {
+            push_token(
+                &mut result,
+                &mut prev_line,
+                &mut prev_char,
+                start_line,
+                start_char,
+                length,
+                token_type,
+                modifiers,
+            );
         }
 
-        if x == prev_x {
-            let index = (y - 1) as usize;
-            ops.push(SemanticTokensDiffOp::Insert(next[index]));
-            y -= 1;
-        } else {
-            ops.push(SemanticTokensDiffOp::Delete);
-            x -= 1;
+        // emit middle line segments
+        for line in (start_line + 1)..end_line {
+            let Some(line_span) = file.get_line_span(line) else {
+                continue;
+            };
+            if let Some(length) = utf16_len_between(file, line_span.start, line_span.end)
+                && length > 0
+            {
+                push_token(
+                    &mut result,
+                    &mut prev_line,
+                    &mut prev_char,
+                    line,
+                    0,
+                    length,
+                    token_type,
+                    modifiers,
+                );
+            }
+        }
+
+        // emit last line segment
+        if end_char > 0 {
+            push_token(
+                &mut result,
+                &mut prev_line,
+                &mut prev_char,
+                end_line,
+                0,
+                end_char,
+                token_type,
+                modifiers,
+            );
         }
     }
 
-    while x > 0 && y > 0 {
-        ops.push(SemanticTokensDiffOp::Equal);
-        x -= 1;
-        y -= 1;
-    }
-    while x > 0 {
-        ops.push(SemanticTokensDiffOp::Delete);
-        x -= 1;
-    }
-    while y > 0 {
-        let index = (y - 1) as usize;
-        ops.push(SemanticTokensDiffOp::Insert(next[index]));
-        y -= 1;
-    }
-
-    ops.reverse();
-    ops
+    result
 }
 
-/// Push a semantic tokens edit if it carries changes.
-fn push_semantic_tokens_edit(
-    edits: &mut Vec<lsp::SemanticTokensEdit>,
-    start: usize,
-    delete_count: usize,
-    data: &mut Vec<lsp::SemanticToken>,
-) {
-    if delete_count == 0 && data.is_empty() {
-        return;
+/// Convert a byte span to utf16 length.
+fn utf16_len_between(file: &File, start: u32, end: u32) -> Option<u32> {
+    if start > end || end > file.len {
+        return None;
     }
+    let slice = &file.text()[start as usize..end as usize];
+    Some(slice.encode_utf16().count() as u32)
+}
 
-    let data = if data.is_empty() {
-        None
+/// Push a token in delta encoded form.
+#[allow(clippy::too_many_arguments)]
+fn push_token(
+    output: &mut Vec<lsp::SemanticToken>,
+    prev_line: &mut u32,
+    prev_char: &mut u32,
+    line: u32,
+    character: u32,
+    length: u32,
+    token_type: u32,
+    modifiers: u32,
+) {
+    // compute delta encoding
+    let delta_line = line.saturating_sub(*prev_line);
+    let delta_start = if delta_line == 0 {
+        character.saturating_sub(*prev_char)
     } else {
-        Some(std::mem::take(data))
+        character
     };
 
-    edits.push(lsp::SemanticTokensEdit {
-        start: start as u32,
-        delete_count: delete_count as u32,
-        data,
+    output.push(lsp::SemanticToken {
+        delta_line,
+        delta_start,
+        length,
+        token_type,
+        token_modifiers_bitset: modifiers,
     });
-}
 
-/// Build edit deltas between two semantic token payloads.
-pub(super) fn semantic_tokens_edits(
-    previous: &[lsp::SemanticToken],
-    next: &[lsp::SemanticToken],
-) -> Vec<lsp::SemanticTokensEdit> {
-    if previous == next {
-        return Vec::new();
-    }
-
-    let ops = semantic_tokens_diff_ops(previous, next);
-    let mut edits = Vec::new();
-
-    let mut cursor = 0usize;
-    let mut pending_start = None;
-    let mut pending_delete = 0usize;
-    let mut pending_data = Vec::new();
-    let mut pending_cursor = 0usize;
-
-    for op in ops {
-        match op {
-            SemanticTokensDiffOp::Equal => {
-                if let Some(start) = pending_start {
-                    push_semantic_tokens_edit(&mut edits, start, pending_delete, &mut pending_data);
-                    cursor = pending_cursor;
-                    pending_start = None;
-                    pending_delete = 0;
-                }
-                cursor += 1;
-            }
-            SemanticTokensDiffOp::Delete => {
-                if pending_start.is_none() {
-                    pending_start = Some(cursor);
-                    pending_cursor = cursor;
-                }
-                pending_delete += 1;
-            }
-            SemanticTokensDiffOp::Insert(token) => {
-                if pending_start.is_none() {
-                    pending_start = Some(cursor);
-                    pending_cursor = cursor;
-                }
-                pending_data.push(token);
-                pending_cursor += 1;
-            }
-        }
-    }
-
-    if let Some(start) = pending_start {
-        push_semantic_tokens_edit(&mut edits, start, pending_delete, &mut pending_data);
-    }
-
-    edits
-}
-
-#[cfg(test)]
-mod tests {
-    use destack_lsp_types as lsp;
-
-    use super::semantic_tokens_edits;
-
-    /// Build a deterministic semantic token for tests.
-    fn token(line: u32, start: u32, length: u32, token_type: u32) -> lsp::SemanticToken {
-        lsp::SemanticToken {
-            delta_line: line,
-            delta_start: start,
-            length,
-            token_type,
-            token_modifiers_bitset: 0,
-        }
-    }
-
-    /// Apply semantic token edits to a payload.
-    fn apply_edits(
-        mut tokens: Vec<lsp::SemanticToken>,
-        edits: &[lsp::SemanticTokensEdit],
-    ) -> Vec<lsp::SemanticToken> {
-        for edit in edits {
-            let start = edit.start as usize;
-            let delete_count = edit.delete_count as usize;
-            let data = edit.data.clone().unwrap_or_default();
-            tokens.splice(start..start + delete_count, data);
-        }
-        tokens
-    }
-
-    /// Apply edits with insertion only.
-    #[test]
-    fn test_semantic_tokens_edits_insertion() {
-        let previous = vec![token(0, 0, 1, 0), token(0, 2, 1, 0)];
-        let next = vec![token(0, 0, 1, 0), token(0, 1, 1, 1), token(0, 2, 1, 0)];
-        let edits = semantic_tokens_edits(&previous, &next);
-        let applied = apply_edits(previous, &edits);
-        assert_eq!(applied, next);
-    }
-
-    /// Apply edits with deletion only.
-    #[test]
-    fn test_semantic_tokens_edits_deletion() {
-        let previous = vec![token(0, 0, 1, 0), token(0, 1, 1, 1), token(0, 2, 1, 0)];
-        let next = vec![token(0, 0, 1, 0), token(0, 2, 1, 0)];
-        let edits = semantic_tokens_edits(&previous, &next);
-        let applied = apply_edits(previous, &edits);
-        assert_eq!(applied, next);
-    }
-
-    /// Apply edits with mixed changes.
-    #[test]
-    fn test_semantic_tokens_edits_multiple_changes() {
-        let previous = vec![token(0, 0, 1, 0), token(0, 1, 1, 1)];
-        let next = vec![token(0, 0, 1, 0), token(0, 1, 1, 2), token(0, 2, 1, 3)];
-        let edits = semantic_tokens_edits(&previous, &next);
-        let applied = apply_edits(previous, &edits);
-        assert_eq!(applied, next);
-    }
+    // update previous position
+    *prev_line = line;
+    *prev_char = character;
 }
