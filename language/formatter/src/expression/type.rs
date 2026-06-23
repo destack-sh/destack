@@ -1777,8 +1777,8 @@ pub(crate) fn type_expression_needs_parentheses_in_parent(
     }
 }
 
-/// Write one list of callable parameters in type position.
-fn write_type_parameters_from_parts<'ast>(
+/// Write one list of value parameters in type position.
+fn write_value_parameters<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     this_form: Option<destack_dir::ThisForm>,
     this_parameter: Option<LocalNodeId<Parameter>>,
@@ -1786,20 +1786,16 @@ fn write_type_parameters_from_parts<'ast>(
 ) -> FormatResult<()> {
     let mut parameters = Vec::with_capacity(parameter_ids.len() + 1);
 
-    // this parameter
     if let Some(this_parameter) = this_parameter {
         parameters.push(this_parameter);
     }
 
-    // regular parameters
     parameters.extend(parameter_ids.iter().copied());
 
-    // empty list
     if parameters.is_empty() {
         return write!(f, [token("("), token(")")]);
     }
 
-    // hugging
     if should_hug_function_parameters(f.context(), &parameters, false) {
         return write_signature_hug_parameter_list_with_this(
             f,
@@ -1809,7 +1805,6 @@ fn write_type_parameters_from_parts<'ast>(
         );
     }
 
-    // grouped list
     let disallow_trailing_parameter_separator = parameters
         .last()
         .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id));
@@ -1823,8 +1818,8 @@ fn write_type_parameters_from_parts<'ast>(
     )
 }
 
-/// Write callable type parameters, value parameters, and return type.
-fn write_type_callable_parameters_with_return_type<'ast, H, R>(
+/// Write value parameters and return type in type position.
+fn write_value_callable_parameters_with_return_type<'ast, H, R>(
     f: &mut DestackFormatter<'ast, '_>,
     generic_parameters: &[LocalNodeId<GenericParameter>],
     this_form: Option<destack_dir::ThisForm>,
@@ -1840,7 +1835,7 @@ where
     R: Format<DestackFormatContext<'ast>>,
 {
     let format_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write_type_parameters_from_parts(f, this_form, this_parameter, parameters)
+        write_value_parameters(f, this_form, this_parameter, parameters)
     });
 
     let parameter_count = parameters.len() + usize::from(this_parameter.is_some());
@@ -1996,7 +1991,7 @@ fn write_function_type<'ast>(
             write_type_callable_arrow_return(f, _node_id, function.return_type)
         });
 
-        write_type_callable_parameters_with_return_type(
+        write_value_callable_parameters_with_return_type(
             f,
             &function.generic_parameters,
             function.this_form,
@@ -2040,7 +2035,7 @@ fn write_constructor_type<'ast>(
             write_type_callable_arrow_return(f, _node_id, function.return_type)
         });
 
-        write_type_callable_parameters_with_return_type(
+        write_value_callable_parameters_with_return_type(
             f,
             &function.generic_parameters,
             None,
@@ -2128,7 +2123,7 @@ fn write_type_signature<'ast>(
             Ok(())
         });
 
-        write_type_callable_parameters_with_return_type(
+        write_value_callable_parameters_with_return_type(
             f,
             &signature.generic_parameters,
             signature.this_form,
@@ -2170,7 +2165,7 @@ fn write_call_signature<'ast>(
             Ok(())
         });
 
-        write_type_callable_parameters_with_return_type(
+        write_value_callable_parameters_with_return_type(
             f,
             &signature.generic_parameters,
             signature.this_form,
@@ -2218,7 +2213,7 @@ fn write_construct_signature<'ast>(
             Ok(())
         });
 
-        write_type_callable_parameters_with_return_type(
+        write_value_callable_parameters_with_return_type(
             f,
             &signature.generic_parameters,
             None,
