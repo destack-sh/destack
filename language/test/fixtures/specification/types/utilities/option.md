@@ -4,13 +4,13 @@
 
 ## construction
 
-### Option accepts values and null
+### Option constructs from nullable values
 
-`Option<T>` is the nominal `T | null`.
+`Option<T>` keeps a nominal boundary around `T | null`.
 
 ```ds
-const some: Option<int32> = 1 as Option<int32>;
-const none: Option<int32> = null as Option<int32>;
+const some = Option.fromNullable(1);
+const none = Option<int32>.fromNullable(null);
 
 some satisfies Option<int32>;
 none satisfies Option<int32>;
@@ -30,12 +30,12 @@ none satisfies Option<int32>;
 
 ### Option projects to nullable
 
-An option reads back as its nullable union.
+An option reads back as its nullable union through an explicit projection.
 
 ```ds
 declare const option: Option<string>;
 
-const raw: string | null = option as string | null;
+const raw = option.toNullable();
 raw satisfies string | null;
 ```
 
