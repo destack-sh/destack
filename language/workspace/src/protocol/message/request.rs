@@ -10,8 +10,8 @@ use super::{
 };
 use crate::{
     BenchInput, BuildInput, CacheInput, CheckInput, CleanInput, DocInput, DoctorInput,
-    ExportRequest, FormatInput, InfoInput, InspectInput, LintInput, ManifestInput, RunInput,
-    SettingsInput, TargetsInput, TaskInput, TestInput,
+    ExportRequest, FormatInput, InfoInput, LintInput, RunInput, SettingsInput, TargetsInput,
+    TaskInput, TestInput,
 };
 
 /// Requests accepted by the workspace protocol.
@@ -103,20 +103,6 @@ pub enum WorkspaceRequest {
         handle: RootId,
         /// Information input.
         input: InfoInput,
-    },
-    /// Inspect compiler artifacts.
-    Inspect {
-        /// Root handle.
-        handle: RootId,
-        /// Inspect input.
-        input: InspectInput,
-    },
-    /// Return resolved manifest information.
-    Manifest {
-        /// Root handle.
-        handle: RootId,
-        /// Manifest input.
-        input: ManifestInput,
     },
     /// Return configured targets.
     Targets {

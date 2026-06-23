@@ -19,10 +19,9 @@ use crate::{
     BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
     CheckOutput, CleanInput, CleanOutput, ClientError, CommandError, CommandProgress, DocInput,
     DocOutput, DoctorInput, DoctorOutput, FormatInput, FormatOutput, InfoInput, InfoOutput,
-    InspectInput, InspectOutput, LintInput, LintOutput, ManifestInput, ManifestOutput,
-    ProgressEvent, QueryResult, RevisionPolicy, RunInput, RunOutput, SettingsInput, SettingsOutput,
-    TargetsInput, TargetsOutput, TaskInput, TaskOutput, TestInput, TestOutput, UpdateBatch,
-    WatchPolicy, WatchUpdate, Workspace,
+    LintInput, LintOutput, ProgressEvent, QueryResult, RevisionPolicy, RunInput, RunOutput,
+    SettingsInput, SettingsOutput, TargetsInput, TargetsOutput, TaskInput, TaskOutput, TestInput,
+    TestOutput, UpdateBatch, WatchPolicy, WatchUpdate, Workspace,
 };
 
 /// Workspace backed by a protocol client.
@@ -434,38 +433,6 @@ impl Workspace for RemoteWorkspace {
 
         self.client
             .info(handle, request, RequestOptions::default(), &mut notify)
-            .map_err(Self::command_error)
-    }
-
-    fn inspect(
-        &self,
-        root: &Path,
-        request: InspectInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<InspectOutput, CommandError> {
-        let handle = self
-            .handle_for_root(root)
-            .map_err(Self::remote_command_error)?;
-        let mut notify = Self::client_progress(progress);
-
-        self.client
-            .inspect(handle, request, RequestOptions::default(), &mut notify)
-            .map_err(Self::command_error)
-    }
-
-    fn manifest(
-        &self,
-        root: &Path,
-        request: ManifestInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<ManifestOutput, CommandError> {
-        let handle = self
-            .handle_for_root(root)
-            .map_err(Self::remote_command_error)?;
-        let mut notify = Self::client_progress(progress);
-
-        self.client
-            .manifest(handle, request, RequestOptions::default(), &mut notify)
             .map_err(Self::command_error)
     }
 

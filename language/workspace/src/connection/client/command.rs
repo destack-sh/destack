@@ -3,9 +3,9 @@ use crate::protocol::{RequestOptions, RootId, WorkspaceRequest, WorkspaceRespons
 use crate::{
     BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
     CheckOutput, CleanInput, CleanOutput, DocInput, DocOutput, DoctorInput, DoctorOutput,
-    FormatInput, FormatOutput, InfoInput, InfoOutput, InspectInput, InspectOutput, LintInput,
-    LintOutput, ManifestInput, ManifestOutput, ProgressEvent, RunInput, RunOutput, SettingsInput,
-    SettingsOutput, TargetsInput, TargetsOutput, TaskInput, TaskOutput, TestInput, TestOutput,
+    FormatInput, FormatOutput, InfoInput, InfoOutput, LintInput, LintOutput, ProgressEvent,
+    RunInput, RunOutput, SettingsInput, SettingsOutput, TargetsInput, TargetsOutput, TaskInput,
+    TaskOutput, TestInput, TestOutput,
 };
 
 impl Client {
@@ -195,48 +195,6 @@ impl Client {
             WorkspaceResponse::Info(response) => Ok(response),
             WorkspaceResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("info result", other)),
-        }
-    }
-
-    /// Inspect compiler artifacts for a workspace root handle.
-    pub fn inspect(
-        &self,
-        handle: RootId,
-        input: InspectInput,
-        options: RequestOptions,
-        on_progress: &mut dyn FnMut(ProgressEvent),
-    ) -> Result<InspectOutput, ClientError> {
-        let response = self.send_request_with_progress(
-            WorkspaceRequest::Inspect { handle, input },
-            options,
-            on_progress,
-        )?;
-
-        match response {
-            WorkspaceResponse::Inspect(response) => Ok(response),
-            WorkspaceResponse::Error(error) => Err(ClientError::Server(error)),
-            other => Err(Self::unexpected_response("inspect result", other)),
-        }
-    }
-
-    /// Return resolved manifest information for a workspace root handle.
-    pub fn manifest(
-        &self,
-        handle: RootId,
-        input: ManifestInput,
-        options: RequestOptions,
-        on_progress: &mut dyn FnMut(ProgressEvent),
-    ) -> Result<ManifestOutput, ClientError> {
-        let response = self.send_request_with_progress(
-            WorkspaceRequest::Manifest { handle, input },
-            options,
-            on_progress,
-        )?;
-
-        match response {
-            WorkspaceResponse::Manifest(response) => Ok(response),
-            WorkspaceResponse::Error(error) => Err(ClientError::Server(error)),
-            other => Err(Self::unexpected_response("manifest result", other)),
         }
     }
 

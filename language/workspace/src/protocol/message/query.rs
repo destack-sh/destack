@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use destack_query::{QueryModule, QueryRequest, QueryResponse};
-use destack_repository::Revision;
+use destack_repository::{FormatterOptions, Revision};
 use destack_source::{Diagnostic, FileId, ProfileId, Uri};
 
 use super::{BinaryPayload, BinaryPayloadDecodeError, DiagnosticBatch, RootId};
@@ -37,6 +37,8 @@ pub struct FileSnapshot {
     pub file_id: FileId,
     /// Query module for the requested target.
     pub module: Option<QueryModule>,
+    /// Formatter options selected for the file.
+    pub formatter: FormatterOptions,
     /// File image used for range conversion.
     pub file: FileImage,
 }

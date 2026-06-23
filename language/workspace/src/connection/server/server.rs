@@ -231,16 +231,6 @@ impl Server {
 
                 self.handle_info(handle, input, &notify)
             }
-            WorkspaceRequest::Inspect { handle, input } => {
-                let notify = self.progress_notification(transport, handle);
-
-                self.handle_inspect(handle, input, &notify)
-            }
-            WorkspaceRequest::Manifest { handle, input } => {
-                let notify = self.progress_notification(transport, handle);
-
-                self.handle_manifest(handle, input, &notify)
-            }
             WorkspaceRequest::Targets { handle, input } => {
                 let notify = self.progress_notification(transport, handle);
 

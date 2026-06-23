@@ -2,8 +2,10 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_repository::{DestackLayoutOverride, Environment, Repository, Settings};
-use destack_session::{SessionEventHandler, open_repository_from_fs};
+use destack_repository::{
+    DestackLayoutOverride, Environment, Repository, Settings, open_repository_from_fs,
+};
+use destack_session::SessionEventHandler;
 use destack_source::{FileSystem, FileWatcher};
 use destack_workspace::LocalWorkspace;
 use parking_lot::Mutex;
@@ -12,19 +14,17 @@ use crate::DaemonError;
 
 use super::RootLeaseTable;
 
-/// Workspace state owned by one daemon process.
+/// One workspace opened inside a daemon process.
 #[derive(Debug)]
-pub struct WorkspaceState {
-    /// Repository loaded for this workspace.
-    pub repository: Arc<Repository>,
+pub struct OpenedWorkspace {
     /// Live workspace facade.
     pub(super) workspace: Arc<LocalWorkspace>,
     /// Root leases held by protocol clients.
     root_lease_table: RootLeaseTable,
 }
 
-impl WorkspaceState {
-    /// Create daemon workspace state for a repository.
+impl OpenedWorkspace {
+    /// Open one daemon workspace for a repository.
     pub fn new(
         repository: Arc<Repository>,
         roots: Vec<PathBuf>,
@@ -33,7 +33,7 @@ impl WorkspaceState {
         file_watcher: Arc<dyn FileWatcher>,
     ) -> Result<Self, DaemonError> {
         let workspace = LocalWorkspace::new(
-            repository.clone(),
+            repository,
             None,
             Some(file_watcher),
             roots,
@@ -42,7 +42,6 @@ impl WorkspaceState {
         )?;
 
         Ok(Self {
-            repository,
             workspace: Arc::new(workspace),
             root_lease_table: RootLeaseTable::default(),
         })
@@ -84,7 +83,7 @@ pub struct WorkspaceTable {
     /// Layout override used to load new workspaces.
     layout_override: DestackLayoutOverride,
     /// Workspaces keyed by workspace root.
-    workspaces: Mutex<HashMap<PathBuf, Arc<WorkspaceState>>>,
+    workspaces: Mutex<HashMap<PathBuf, Arc<OpenedWorkspace>>>,
     /// Number of workers for each opened workspace.
     worker_limit: usize,
     /// Optional session event handler for opened workspaces.
@@ -129,7 +128,7 @@ impl WorkspaceTable {
         };
         let workspace_root = repository.path().to_path_buf();
         let roots = vec![workspace_root.clone()];
-        let workspace = Arc::new(WorkspaceState::new(
+        let workspace = Arc::new(OpenedWorkspace::new(
             repository.clone(),
             roots,
             worker_limit,
@@ -151,8 +150,8 @@ impl WorkspaceTable {
     }
 
     /// Return an opened workspace or load it from the filesystem.
-    pub fn open(&self, workspace_root: &Path) -> Result<Arc<WorkspaceState>, DaemonError> {
-        // reuse existing workspace state
+    pub fn open(&self, workspace_root: &Path) -> Result<Arc<OpenedWorkspace>, DaemonError> {
+        // reuse an already opened workspace
         if let Some(workspace) = self.workspaces.lock().get(workspace_root).cloned() {
             return Ok(workspace);
         }
@@ -161,7 +160,7 @@ impl WorkspaceTable {
         let repository = self.load_repository(workspace_root)?;
         let workspace_root = repository.path().to_path_buf();
         let roots = vec![workspace_root.clone()];
-        let workspace = Arc::new(WorkspaceState::new(
+        let workspace = Arc::new(OpenedWorkspace::new(
             Arc::new(repository),
             roots,
             self.worker_limit,
@@ -180,7 +179,7 @@ impl WorkspaceTable {
     }
 
     /// Return one opened workspace.
-    pub fn get(&self, workspace_root: &Path) -> Option<Arc<WorkspaceState>> {
+    pub fn get(&self, workspace_root: &Path) -> Option<Arc<OpenedWorkspace>> {
         self.workspaces.lock().get(workspace_root).cloned()
     }
 

@@ -1,18 +1,15 @@
-use destack_serde::Schema;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_core::StringPool;
-use destack_dir::{NodeParentIndex, TokenSpan};
-use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
+use destack_formatter::format_source;
 use destack_json::{JsonFormatOptions, format_json};
-use destack_parser::{Parser, colorize_source, source_colorizer};
+use destack_parser::{colorize_source, source_colorizer};
 use destack_repository::{FormatterOptions, Repository, Revision};
+use destack_serde::Schema;
 use destack_source::{
-    Content, ContentId, DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, File,
-    FileId, FileSystem, FileType, IgnoreSet, LanguageType, PrintOptions, TextRange, Uri,
-    print_diagnostics,
+    Content, ContentId, DiagnosticCollection, DiagnosticSeverity, File, FileId, FileSystem,
+    FileType, IgnoreSet, PrintOptions, Uri, print_diagnostics,
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -89,14 +86,11 @@ pub struct FormatInput {
     pub source: FormatSource,
     /// Formatting mode.
     pub mode: FormatMode,
-    /// Optional selected text range.
-    pub selection: Option<TextRange>,
 }
 
 impl_command_input_options!(FormatInput {
     source: FormatSource::Files(Vec::new()),
     mode: FormatMode::Preview,
-    selection: None,
 });
 
 /// Formatting source.
@@ -135,18 +129,11 @@ impl CommandContext<'_> {
         _root: &Path,
         source: &FormatSource,
         mode: FormatMode,
-        selection: Option<&TextRange>,
     ) -> CommandResult<CommandOutcome<FormatPayload>> {
-        if selection.is_some() {
-            return Err(CommandError::invalid_input(
-                "formatting a selected range is not supported",
-            ));
-        }
-
         // resolve formatting inputs
         let check = matches!(mode, FormatMode::Check);
         let suppress_output = false;
-        let command_diagnostics = DiagnosticCollector::new();
+        let mut command_diagnostics = DiagnosticCollection::new();
         let revision = self.revision()?;
 
         // build formatter state
@@ -187,29 +174,32 @@ impl CommandContext<'_> {
                 }
             };
 
-            let strings = self.repository.string_pool().clone();
-            let (formatted, diagnostics) = format_file(file.clone(), default_formatting, strings)?;
-            command_diagnostics.merge_from(&diagnostics);
-            if check_and_collect_errors(&file_for_id, &diagnostics, suppress_output, self.output) {
+            let formatted = format_source(file.as_ref(), file.text(), default_formatting)
+                .map_err(|error| CommandError::internal(error.to_string()))?;
+            command_diagnostics.merge_from(&formatted.diagnostics);
+            if check_and_collect_errors(
+                &file_for_id,
+                &formatted.diagnostics,
+                suppress_output,
+                self.output,
+            ) {
                 report.errors += 1;
                 report.error_files.push("<eval>".to_string());
-                let diagnostics = command_diagnostics.collect();
                 let payload = report.payload();
 
-                return Ok(CommandOutcome::new(diagnostics, 1, 0, 0, 0).with_data(payload));
+                return Ok(CommandOutcome::new(command_diagnostics, 1, 0, 0, 0).with_data(payload));
             }
 
-            if check && file.text() != formatted {
+            if check && file.text() != formatted.text {
                 report.files_changed = 1;
                 report.changed_files.push(name.clone());
             }
 
-            report.formatted_output = Some(formatted.clone());
+            report.formatted_output = Some(formatted.text.clone());
             if !check {
                 self.output
-                    .push_stdout(colorize_formatted_output(&formatted).into_bytes());
+                    .push_stdout(colorize_formatted_output(&formatted.text).into_bytes());
             }
-            let diagnostics = command_diagnostics.collect();
             let payload = report.payload();
             let exit_code = if check && report.files_changed > 0 {
                 1
@@ -217,7 +207,9 @@ impl CommandContext<'_> {
                 0
             };
 
-            return Ok(CommandOutcome::new(diagnostics, exit_code, 0, 0, 0).with_data(payload));
+            return Ok(
+                CommandOutcome::new(command_diagnostics, exit_code, 0, 0, 0).with_data(payload)
+            );
         }
 
         // collect file paths to format
@@ -257,7 +249,7 @@ impl CommandContext<'_> {
                     &self.repository,
                     revision,
                     &path,
-                    &command_diagnostics,
+                    &mut command_diagnostics,
                     suppress_output,
                     mode,
                     self.output,
@@ -289,7 +281,7 @@ impl CommandContext<'_> {
                         &self.repository,
                         revision,
                         &file_path,
-                        &command_diagnostics,
+                        &mut command_diagnostics,
                         suppress_output,
                         mode,
                         self.output,
@@ -321,10 +313,9 @@ impl CommandContext<'_> {
             exit_code = 1;
         }
 
-        let diagnostics = command_diagnostics.collect();
         let payload = report.payload();
 
-        Ok(CommandOutcome::new(diagnostics, exit_code, 0, 0, 0).with_data(payload))
+        Ok(CommandOutcome::new(command_diagnostics, exit_code, 0, 0, 0).with_data(payload))
     }
 }
 
@@ -377,16 +368,15 @@ impl FormatReport {
 /// Print diagnostics and return whether there were errors.
 fn check_and_collect_errors(
     file_for_id: &impl Fn(FileId) -> Option<Arc<File>>,
-    diagnostics: &DiagnosticCollector,
+    diagnostics: &DiagnosticCollection,
     suppress_output: bool,
     output: &mut OutputBuffer,
 ) -> bool {
     // collect diagnostics and check for errors
-    let diagnostics = diagnostics.collect();
     let has_errors = diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error);
     if has_errors
         && !suppress_output
-        && let Err(error) = print_diagnostics_to_output(file_for_id, &diagnostics, output)
+        && let Err(error) = print_diagnostics_to_output(file_for_id, diagnostics, output)
     {
         output.push_stderr(format!("failed to render diagnostics: {error}\n").into_bytes());
     }
@@ -424,70 +414,6 @@ fn print_diagnostics_to_output(
     }
 
     Ok(())
-}
-
-/// Format a single file and return the formatted content.
-fn format_file(
-    file: Arc<File>,
-    formatter: FormatterOptions,
-    strings: Arc<StringPool>,
-) -> CommandResult<(String, DiagnosticCollector)> {
-    let language_type = LanguageType::try_from(file.ty).map_err(|_| {
-        CommandError::internal(format!(
-            "formatter received non-code file type: {:?}",
-            file.ty
-        ))
-    })?;
-    let mut parser = Parser::lex_file(file.clone(), language_type, strings);
-    let expressions = parser.parse();
-    let diagnostics = parser.diagnostics();
-    let diagnostic_collector = DiagnosticCollector::new();
-    for diagnostic in diagnostics.iter() {
-        diagnostic_collector.insert(diagnostic.clone());
-    }
-
-    let side_span = parser.compute_side_span();
-    let (tokens, side_tokens) = parser.take_tokens();
-    let tokens = tokens
-        .into_iter()
-        .map(|token| TokenSpan::new(token, file.id))
-        .collect::<Vec<_>>();
-    let side_tokens = side_tokens
-        .into_iter()
-        .map(|token| TokenSpan::new(token, file.id))
-        .collect::<Vec<_>>();
-    let parents = NodeParentIndex::from_tree(&parser.tree);
-    let format_options = DestackFormatOptions {
-        language_type,
-        ..formatter.into()
-    };
-    let context = DestackFormatContext::new(
-        format_options,
-        file.as_ref(),
-        &parser.tree,
-        &tokens,
-        &side_tokens,
-        &side_span,
-        parser.strings.as_ref(),
-        parents,
-    );
-
-    let mut result = if expressions.is_empty() {
-        String::new()
-    } else {
-        let formatted = destack_fir::format!(context.clone(), [statement_list(&expressions)])
-            .map_err(|error| CommandError::internal(error.to_string()))?;
-        let printed = formatted
-            .print()
-            .map_err(|error| CommandError::internal(error.to_string()))?;
-        printed.as_str().to_string()
-    };
-
-    if !result.is_empty() && !result.ends_with('\n') {
-        result.push('\n');
-    }
-
-    Ok((result, diagnostic_collector))
 }
 
 /// Collect all formattable files in a directory.
@@ -573,7 +499,7 @@ fn format_single_file(
     repository: &Arc<Repository>,
     revision: Revision,
     path: &Path,
-    command_diagnostics: &DiagnosticCollector,
+    command_diagnostics: &mut DiagnosticCollection,
     suppress_output: bool,
     mode: FormatMode,
     output: &mut OutputBuffer,
@@ -639,9 +565,7 @@ fn format_single_file(
                     None
                 }
             };
-            let strings = repository.string_pool().clone();
-            let (result, diagnostics) = match format_file(file.clone(), formatting_options, strings)
-            {
+            let formatted = match format_source(file.as_ref(), file.text(), formatting_options) {
                 Ok(result) => result,
                 Err(error) => {
                     if !suppress_output {
@@ -653,13 +577,18 @@ fn format_single_file(
                     return Ok(FormatResult::Error);
                 }
             };
-            command_diagnostics.merge_from(&diagnostics);
+            command_diagnostics.merge_from(&formatted.diagnostics);
 
-            if check_and_collect_errors(&file_for_id, &diagnostics, suppress_output, output) {
+            if check_and_collect_errors(
+                &file_for_id,
+                &formatted.diagnostics,
+                suppress_output,
+                output,
+            ) {
                 return Ok(FormatResult::Error);
             }
 
-            result
+            formatted.text
         }
     };
 

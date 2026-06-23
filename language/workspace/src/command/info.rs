@@ -10,6 +10,7 @@ use super::common::{
 };
 use super::context::CommandContext;
 use super::outcome::CommandOutcome;
+use super::targets::TargetEntry;
 /// Options for the info command.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema, Default)]
 pub struct InfoOptions {
@@ -28,25 +29,6 @@ pub struct InfoWorkspace {
     pub packages: Vec<String>,
 }
 
-/// Target info for info command output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
-pub struct InfoTarget {
-    /// Target name.
-    pub name: String,
-    /// Target emit format.
-    pub emit: String,
-    /// Target runtime.
-    pub runtime: String,
-    /// Target platform.
-    pub platform: String,
-    /// Output directory.
-    pub out_dir: String,
-    /// Output file when present.
-    pub out_file: Option<String>,
-    /// Package directory when present.
-    pub package_dir: Option<String>,
-}
-
 /// Payload for info command output.
 #[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct InfoPayload {
@@ -55,9 +37,9 @@ pub struct InfoPayload {
     /// Resolved destack.json path.
     pub manifest: Option<String>,
     /// Targets for the active package.
-    pub targets: Option<Vec<InfoTarget>>,
+    pub targets: Option<Vec<TargetEntry>>,
     /// Targets for all workspace packages.
-    pub workspace_targets: Option<Vec<InfoTarget>>,
+    pub workspace_targets: Option<Vec<TargetEntry>>,
 }
 
 /// Request to return workspace information.
@@ -130,48 +112,16 @@ impl CommandContext<'_> {
             None
         };
 
-        // derive target summaries
-        let targets = config.as_ref().map(|config| {
-            config
-                .targets
-                .iter()
-                .map(|(name, target)| InfoTarget {
-                    name: name.clone(),
-                    emit: format!("{:?}", target.emit),
-                    runtime: format!("{:?}", target.runtime()),
-                    platform: format!("{:?}", target.platform),
-                    out_dir: target.output.directory.display().to_string(),
-                    out_file: target
-                        .output
-                        .file
-                        .as_ref()
-                        .map(|path| path.display().to_string()),
-                    package_dir: None,
-                })
-                .collect::<Vec<_>>()
-        });
+        // derive target rows
+        let targets = config
+            .as_ref()
+            .map(|config| TargetEntry::for_config(config, false));
 
-        // derive workspace target summaries
+        // derive workspace target rows
         let workspace_targets = workspace_configs.as_ref().map(|configs| {
             configs
                 .iter()
-                .flat_map(|config| {
-                    let package_dir = config.directory.display().to_string();
-
-                    config.targets.iter().map(move |(name, target)| InfoTarget {
-                        name: name.clone(),
-                        emit: format!("{:?}", target.emit),
-                        runtime: format!("{:?}", target.runtime()),
-                        platform: format!("{:?}", target.platform),
-                        out_dir: target.output.directory.display().to_string(),
-                        out_file: target
-                            .output
-                            .file
-                            .as_ref()
-                            .map(|path| path.display().to_string()),
-                        package_dir: Some(package_dir.clone()),
-                    })
-                })
+                .flat_map(|config| TargetEntry::for_config(config, true))
                 .collect::<Vec<_>>()
         });
 

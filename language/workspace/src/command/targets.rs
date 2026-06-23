@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use destack_repository::{DestackFile, Target};
 use destack_serde::Schema;
 use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
@@ -18,9 +19,9 @@ pub struct TargetsOptions {
     pub all: bool,
 }
 
-/// Target entry for targets command output.
+/// Target row shown by workspace discovery commands.
 #[derive(Debug, Clone, Serialize, Deserialize, Schema)]
-pub struct TargetsEntry {
+pub struct TargetEntry {
     /// The target name.
     pub name: String,
     /// The emit format.
@@ -33,17 +34,17 @@ pub struct TargetsEntry {
     pub out_dir: String,
     /// The output file path, when applicable.
     pub out_file: Option<String>,
-    /// The default target name for the package.
-    pub default_target: Option<String>,
-    /// The owning package directory.
-    pub package_dir: String,
+    /// Whether this is the package default target.
+    pub is_default: bool,
+    /// The owning package directory, when workspace-wide output is requested.
+    pub package_dir: Option<String>,
 }
 
 /// Payload for targets command output.
 #[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct TargetsPayload {
     /// List of target entries.
-    pub targets: Vec<TargetsEntry>,
+    pub targets: Vec<TargetEntry>,
 }
 
 /// Request to return configured targets.
@@ -102,20 +103,7 @@ impl CommandContext<'_> {
         // collect target details
         let mut entries = Vec::new();
         for config in &configs {
-            let options = config;
-            let default_target = options.default_target.clone();
-            for (name, target) in &options.targets {
-                entries.push(TargetsEntry {
-                    name: name.clone(),
-                    emit: format!("{:?}", target.emit),
-                    runtime: format!("{:?}", target.runtime()),
-                    platform: format!("{:?}", target.platform),
-                    out_dir: target.output.directory.display().to_string(),
-                    out_file: target.output.file.as_ref().map(|p| p.display().to_string()),
-                    default_target: default_target.clone(),
-                    package_dir: config.directory.display().to_string(),
-                });
-            }
+            entries.extend(TargetEntry::for_config(config, options.all));
         }
 
         if entries.is_empty() {
@@ -125,5 +113,38 @@ impl CommandContext<'_> {
         let payload = TargetsPayload { targets: entries };
 
         Ok(CommandOutcome::new(DiagnosticCollection::default(), 0, 0, 0, 0).with_data(payload))
+    }
+}
+
+impl TargetEntry {
+    /// Return target entries for one package config.
+    pub(crate) fn for_config(config: &DestackFile, include_package: bool) -> Vec<Self> {
+        config
+            .targets
+            .iter()
+            .map(|(name, target)| Self::from_target(name, target, config, include_package))
+            .collect()
+    }
+
+    /// Return one target entry.
+    fn from_target(
+        name: &str,
+        target: &Target,
+        config: &DestackFile,
+        include_package: bool,
+    ) -> Self {
+        let package_dir = include_package.then(|| config.directory.display().to_string());
+        let is_default = config.default_target.as_deref() == Some(name);
+
+        Self {
+            name: name.to_string(),
+            emit: format!("{:?}", target.emit),
+            runtime: format!("{:?}", target.runtime()),
+            platform: format!("{:?}", target.platform),
+            out_dir: target.output.directory.display().to_string(),
+            out_file: target.output.file.as_ref().map(|p| p.display().to_string()),
+            is_default,
+            package_dir,
+        }
     }
 }

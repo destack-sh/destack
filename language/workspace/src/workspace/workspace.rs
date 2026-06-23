@@ -15,10 +15,9 @@ use crate::watch::WatchUpdate;
 use crate::{
     BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
     CheckOutput, CleanInput, CleanOutput, CommandError, CommandProgress, DocInput, DocOutput,
-    DoctorInput, DoctorOutput, FormatInput, FormatOutput, InfoInput, InfoOutput, InspectInput,
-    InspectOutput, LintInput, LintOutput, ManifestInput, ManifestOutput, RunInput, RunOutput,
-    SettingsInput, SettingsOutput, TargetsInput, TargetsOutput, TaskInput, TaskOutput, TestInput,
-    TestOutput, UpdateBatch,
+    DoctorInput, DoctorOutput, FormatInput, FormatOutput, InfoInput, InfoOutput, LintInput,
+    LintOutput, RunInput, RunOutput, SettingsInput, SettingsOutput, TargetsInput, TargetsOutput,
+    TaskInput, TaskOutput, TestInput, TestOutput, UpdateBatch,
 };
 
 /// Workspace operations shared by local and remote workspace implementations.
@@ -139,22 +138,6 @@ pub trait Workspace: std::fmt::Debug + Send + Sync {
         input: InfoInput,
         progress: Option<CommandProgress<'_>>,
     ) -> Result<InfoOutput, CommandError>;
-
-    /// Inspect compiler artifacts.
-    fn inspect(
-        &self,
-        root: &Path,
-        input: InspectInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<InspectOutput, CommandError>;
-
-    /// Return resolved manifest information.
-    fn manifest(
-        &self,
-        root: &Path,
-        input: ManifestInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<ManifestOutput, CommandError>;
 
     /// Return configured targets.
     fn targets(

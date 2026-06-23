@@ -11,8 +11,6 @@ mod doctor;
 mod error;
 mod format;
 mod info;
-mod inspect;
-mod manifest;
 mod outcome;
 mod output;
 mod run;
@@ -35,21 +33,19 @@ pub use doctor::{
 };
 pub use error::{CommandError, CommandErrorKind, CommandResult};
 pub use format::{FormatInput, FormatMode, FormatPayload, FormatSource};
-pub use info::{InfoInput, InfoOptions, InfoPayload, InfoTarget, InfoWorkspace};
-pub use inspect::{InspectInput, InspectOptions, InspectPayload, InspectView};
-pub use manifest::{ManifestInput, ManifestOptions, ManifestPayload};
+pub use info::{InfoInput, InfoOptions, InfoPayload, InfoWorkspace};
 pub(crate) use outcome::CommandOutcome;
 pub(crate) use output::OutputBuffer;
 pub use output::{
     BenchOutput, BuildOutput, CacheOutput, CheckOutput, CleanOutput, CommandOutput, DocOutput,
-    DoctorOutput, FormatOutput, InfoOutput, InspectOutput, LintOutput, ManifestOutput, Output,
-    RunOutput, SettingsOutput, TargetsOutput, TaskOutput, TestOutput,
+    DoctorOutput, FormatOutput, InfoOutput, LintOutput, Output, RunOutput, SettingsOutput,
+    TargetsOutput, TaskOutput, TestOutput,
 };
 pub use run::{RunInput, RunMode, RunOptions, RunPayload};
 pub use settings::{
     SettingsInput, SettingsNetwork, SettingsOptions, SettingsPayload, SettingsRegistry,
     SettingsRegistryAuthentication,
 };
-pub use targets::{TargetsEntry, TargetsInput, TargetsOptions, TargetsPayload};
+pub use targets::{TargetEntry, TargetsInput, TargetsOptions, TargetsPayload};
 pub use task::{TaskAction, TaskEntry, TaskInput, TaskOptions, TaskPayload, TaskResult};
 pub use test::{TestInput, TestOptions};

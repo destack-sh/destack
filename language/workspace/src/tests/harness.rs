@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_repository::{DestackLayoutOverride, Environment, Settings};
-use destack_session::open_repository_from_fs;
+use destack_repository::{DestackLayoutOverride, Environment, Settings, open_repository_from_fs};
 use destack_source::{
     Edit, FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri,
 };

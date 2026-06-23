@@ -13,8 +13,7 @@ use crate::{
     CacheOutput, CheckInput, CheckOutput, CleanInput, CleanOptions, CleanOutput, CommandContext,
     CommandError, CommandOptions, CommandOutcome, CommandProgress, CommandResult, CommandRevision,
     DocInput, DocOptions, DocOutput, DoctorInput, DoctorOptions, DoctorOutput, FormatInput,
-    FormatOutput, InfoInput, InfoOptions, InfoOutput, InspectInput, InspectOptions, InspectOutput,
-    LintInput, LintOutput, ManifestInput, ManifestOptions, ManifestOutput, Output, OutputBuffer,
+    FormatOutput, InfoInput, InfoOptions, InfoOutput, LintInput, LintOutput, Output, OutputBuffer,
     ProgressEvent, RunInput, RunOutput, SettingsInput, SettingsOptions, SettingsOutput,
     TargetsInput, TargetsOptions, TargetsOutput, TaskInput, TaskOptions, TaskOutput, TestInput,
     TestOptions, TestOutput, Workspace, source_watch_options,
@@ -91,6 +90,11 @@ impl std::fmt::Debug for LocalWorkspace {
 }
 
 impl LocalWorkspace {
+    /// Return the default worker count for a local workspace.
+    pub fn default_worker_count() -> usize {
+        std::thread::available_parallelism().map_or(1, usize::from)
+    }
+
     /// Create a local workspace for the provided roots.
     pub fn new(
         repository: Arc<Repository>,
@@ -392,12 +396,7 @@ impl Workspace for LocalWorkspace {
         let common = request.command_options();
 
         self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_format_command(
-                root,
-                &request.source,
-                request.mode,
-                request.selection.as_ref(),
-            )
+            context.run_format_command(root, &request.source, request.mode)
         })
     }
 
@@ -476,35 +475,6 @@ impl Workspace for LocalWorkspace {
 
         self.run_command(root, &common, request.revision, progress, |context| {
             context.run_info_command(&InfoOptions { all: request.all })
-        })
-    }
-
-    fn inspect(
-        &self,
-        root: &Path,
-        request: InspectInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<InspectOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_inspect_command(&InspectOptions { view: request.view })
-        })
-    }
-
-    fn manifest(
-        &self,
-        root: &Path,
-        request: ManifestInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<ManifestOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_manifest_command(&ManifestOptions {
-                path: request.path.clone(),
-                full: request.full,
-            })
         })
     }
 
