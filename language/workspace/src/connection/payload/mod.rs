@@ -1,7 +1,7 @@
+mod buffer;
 mod error;
-mod receiver;
 mod writer;
 
+pub(crate) use buffer::*;
 pub use error::*;
-pub(crate) use receiver::*;
 pub(crate) use writer::*;

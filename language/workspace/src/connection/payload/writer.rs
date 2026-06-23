@@ -45,7 +45,7 @@ impl PayloadWriter {
         }
 
         // require enough room for chunked transfer
-        let chunk_limit = payload_chunk_bytes(self.limits);
+        let chunk_limit = payload_chunk_bytes(self.limits).map_err(PayloadWriteError::Codec)?;
         if chunk_limit == 0 {
             return Err(PayloadWriteError::ChunkLimitTooSmall);
         }
@@ -71,7 +71,7 @@ impl PayloadWriter {
         }
 
         // derive a chunk size from negotiated limits
-        let chunk_size = payload_chunk_bytes(self.limits);
+        let chunk_size = payload_chunk_bytes(self.limits).map_err(PayloadSendError::Codec)?;
         if chunk_size == 0 {
             return Err(PayloadSendError::ChunkLimitTooSmall);
         }

@@ -135,10 +135,14 @@ impl WebSocketMessage {
             payload.extend_from_slice(&frame.payload);
 
             if frame.fin {
-                return Ok(Self {
-                    opcode: message_opcode.unwrap_or(frame.opcode),
-                    payload,
-                });
+                // resolve the opcode captured from the first frame
+                let Some(opcode) = message_opcode else {
+                    return Err(TransportError::from(
+                        WorkspaceWebSocketError::UnsupportedFrame("missing message opcode"),
+                    ));
+                };
+
+                return Ok(Self { opcode, payload });
             }
         }
     }

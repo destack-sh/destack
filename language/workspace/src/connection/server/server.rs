@@ -365,6 +365,10 @@ impl Server {
     /// Convert a payload write error into a protocol error.
     pub(super) fn payload_error(&self, error: PayloadWriteError) -> ProtocolError {
         match error {
+            PayloadWriteError::Codec(error) => self.protocol_error(
+                ProtocolErrorCode::Internal,
+                &format!("payload serialization failed: {error}"),
+            ),
             PayloadWriteError::ChunkLimitTooSmall => self.protocol_error(
                 ProtocolErrorCode::TooLarge,
                 "payload limit too small for streaming",

@@ -90,8 +90,10 @@ impl std::error::Error for PayloadSendError {
 }
 
 /// Errors returned while preparing chunked payloads.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum PayloadWriteError {
+    /// Protocol codec error.
+    Codec(ProtocolCodecError),
     /// Chunked transfer cannot fit inside negotiated limits.
     ChunkLimitTooSmall,
 }
@@ -100,9 +102,18 @@ impl std::fmt::Display for PayloadWriteError {
     /// Format the payload write error.
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Codec(error) => write!(formatter, "protocol codec error: {error}"),
             Self::ChunkLimitTooSmall => write!(formatter, "payload limit too small for streaming"),
         }
     }
 }
 
-impl std::error::Error for PayloadWriteError {}
+impl std::error::Error for PayloadWriteError {
+    /// Return the underlying error source when present.
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Codec(error) => Some(error),
+            _ => None,
+        }
+    }
+}
