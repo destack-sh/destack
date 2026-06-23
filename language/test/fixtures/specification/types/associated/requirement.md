@@ -61,7 +61,7 @@ A required type member has no default.
 ```ds
 interface Iterator {
     type Item;
-    next(): Option<this.Item>;
+    next(): this.Item;
 }
 
 class Empty implements Iterator {}

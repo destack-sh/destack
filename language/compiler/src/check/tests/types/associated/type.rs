@@ -97,10 +97,10 @@ fn test_associated_type_refinement_flows_through_constraint() {
 interface Iterator {
     type Item;
 
-    next(): Option<this.Item>;
+    next(): this.Item;
 }
 
-function nextByte<I: Iterator<type Item = uint8>>(iter: I): Option<uint8> {
+function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
     return iter.next();
 }
 "#,
@@ -114,10 +114,10 @@ function nextByte<I: Iterator<type Item = uint8>>(iter: I): Option<uint8> {
 interface Iterator {
     type Item;
 
-    next(): Option<this.Item>;
+    next(): this.Item;
 }
 
-function nextByte<I: Iterator<type Item = uint8>>(iter: I): Option<uint8> {
+function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
     return iter.next();
 }
 
@@ -129,22 +129,20 @@ interface Iterator {
     type Item;
     /// @type.symbol symbol=Iterator.Item type=Iterator.Item
 
-    next(): Option<this.Item>;
-    /// @resolution.name source=Option target=option.Option
+    next(): this.Item;
     /// @resolution.member source=this.Item receiver=Iterator kind=symbol target=Iterator.Item
-    /// @type.symbol symbol=Iterator.next type=(this: Iterator) => Option<Iterator.Item>
+    /// @type.symbol symbol=Iterator.next type=(this: Iterator) => Iterator.Item
 }
 
-function nextByte<I: Iterator<type Item = uint8>>(iter: I): Option<uint8> {
+function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
 /// @generic.template symbol=nextByte parameters=(I: Iterator<type Item = uint8>)
-/// @type.symbol symbol=nextByte type=<I: Iterator<type Item = uint8>>(I) => Option<uint8>
+/// @type.symbol symbol=nextByte type=<I: Iterator<type Item = uint8>>(I) => uint8
 /// @resolution.name source=Iterator target=Iterator
-/// @resolution.name source=Option target=option.Option
 
     return iter.next();
     /// @resolution.name source=iter target=iter
     /// @resolution.member source=iter.next receiver=I kind=symbol target=Iterator.next
-    /// @resolution.call source=iter.next() parameters=() return=Option<uint8> kind=symbol target=Iterator.next receiver=I
+    /// @resolution.call source=iter.next() parameters=() return=uint8 kind=symbol target=Iterator.next receiver=I
 }
 "#,
     );
@@ -157,10 +155,10 @@ fn test_associated_type_default_flows_through_constraint() {
 interface Iterator {
     type Item = uint8;
 
-    next(): Option<this.Item>;
+    next(): this.Item;
 }
 
-function nextDefault<I: Iterator>(iter: I): Option<uint8> {
+function nextDefault<I: Iterator>(iter: I): uint8 {
     return iter.next();
 }
 "#,
@@ -174,10 +172,10 @@ function nextDefault<I: Iterator>(iter: I): Option<uint8> {
 interface Iterator {
     type Item = uint8;
 
-    next(): Option<this.Item>;
+    next(): this.Item;
 }
 
-function nextDefault<I: Iterator>(iter: I): Option<uint8> {
+function nextDefault<I: Iterator>(iter: I): uint8 {
     return iter.next();
 }
 
@@ -189,22 +187,20 @@ interface Iterator {
     type Item = uint8;
     /// @type.symbol symbol=Iterator.Item type=uint8
 
-    next(): Option<this.Item>;
-    /// @resolution.name source=Option target=option.Option
+    next(): this.Item;
     /// @resolution.member source=this.Item receiver=Iterator kind=symbol target=Iterator.Item
-    /// @type.symbol symbol=Iterator.next type=(this: Iterator) => Option<uint8>
+    /// @type.symbol symbol=Iterator.next type=(this: Iterator) => uint8
 }
 
-function nextDefault<I: Iterator>(iter: I): Option<uint8> {
+function nextDefault<I: Iterator>(iter: I): uint8 {
 /// @generic.template symbol=nextDefault parameters=(I: Iterator)
-/// @type.symbol symbol=nextDefault type=<I: Iterator>(I) => Option<uint8>
+/// @type.symbol symbol=nextDefault type=<I: Iterator>(I) => uint8
 /// @resolution.name source=Iterator target=Iterator
-/// @resolution.name source=Option target=option.Option
 
     return iter.next();
     /// @resolution.name source=iter target=iter
     /// @resolution.member source=iter.next receiver=I kind=symbol target=Iterator.next
-    /// @resolution.call source=iter.next() parameters=() return=Option<uint8> kind=symbol target=Iterator.next receiver=I
+    /// @resolution.call source=iter.next() parameters=() return=uint8 kind=symbol target=Iterator.next receiver=I
 }
 "#,
     );

@@ -579,7 +579,8 @@ trait Iterator {
 ```ds
 newtype interface Iterator {
     type Item;
-    next(): Option<this.Item>;
+    type Return = void;
+    next(): IteratorResult<this.Item, this.Return>;
 }
 ```
 
@@ -654,16 +655,17 @@ match (shape) {
 }
 ```
 
-#### Option
-
-`Option<T>` is the nominal carrier over `T | null`, so it interoperates with TypeScript's nullable style instead of replacing it:
+#### Optionality
 
 ```ds
-const some: Option<int32> = 1;
-const none: Option<int32> = null;
+const some: int32 | null = 1;
+const none: int32 | null = null;
 
-const raw: int32 | null = some; // projects back to the nullable union
+type Present = NonNullable<int32 | null | undefined>;
 ```
+
+Destack does not mirror Rust's `Option<T>` as a standard carrier.
+Ordinary absence uses TypeScript-style `null` / `undefined` unions directly, while APIs that need to distinguish completion from a yielded nullish value use explicit tagged results like `IteratorResult<Y, R>`.
 
 ### Errors
 

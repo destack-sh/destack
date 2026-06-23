@@ -679,6 +679,15 @@ define_language_items! {
 
             /// Iterator interface.
             Iterator => (NewtypeInterface, "iter/iterator", "Iterator"),
+
+            /// Iterator result newtype.
+            IteratorResult => (Newtype, "iter/iterator", "IteratorResult"),
+
+            /// Iterator return struct.
+            IteratorReturn => (Struct, "iter/iterator", "IteratorReturn"),
+
+            /// Iterator yield struct.
+            IteratorYield => (Struct, "iter/iterator", "IteratorYield"),
         }
     }
 
@@ -1504,12 +1513,6 @@ define_language_items! {
 
             /// Uppercase string mapping alias.
             Uppercase => (Type, "types/string", "Uppercase"),
-        }
-
-        /// `destack:types/option`.
-        option {
-            /// Explicit optional value.
-            Option => (Newtype, "types/option", "Option"),
         }
 
         /// `destack:types/symbol`.
