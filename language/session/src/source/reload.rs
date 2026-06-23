@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use std::io;
 use std::path::Path;
 
-use destack_repository::Ref;
+use destack_repository::{FileSystemSource, Ref};
 use destack_source::Edit;
 
-use crate::{Change, FileSystemSource, Session, SessionError};
+use crate::{Change, Session, SessionError};
 
 impl Session {
     /// Reload filesystem source files into one ref.

@@ -4,7 +4,7 @@ use destack_repository::{DestackLayoutOverride, Environment, Ref, Settings};
 use destack_source::{ByteRange, Edit, FileId, TextPatch};
 
 use super::TestSession;
-use crate::open_repository_from_memory;
+use destack_repository::open_repository_from_memory;
 
 #[test]
 fn test_open_imports_root_package_sources() {
