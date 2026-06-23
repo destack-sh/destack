@@ -9,15 +9,15 @@ use crate::protocol::{
 
 /// Deferred payload chunks received while waiting for a response.
 #[derive(Debug, Default)]
-pub(crate) struct PayloadReceiver {
+pub(crate) struct PayloadBuffer {
     /// Pending payload streams keyed by payload id.
     pending: HashMap<PayloadId, PayloadStream>,
     /// Completed payloads keyed by payload id.
     completed: HashMap<PayloadId, ReceivedPayload>,
 }
 
-impl PayloadReceiver {
-    /// Create an empty payload receiver.
+impl PayloadBuffer {
+    /// Create an empty payload buffer.
     pub(crate) fn new() -> Self {
         Self::default()
     }

@@ -10,7 +10,7 @@ use crate::protocol::{
     ProtocolRequest, RequestId, RequestOptions, WorkspaceNotification, WorkspaceRequest,
     WorkspaceResponse,
 };
-use crate::{PayloadReceiver, ProgressEvent, Transport};
+use crate::{PayloadBuffer, ProgressEvent, Transport};
 
 /// Client configuration for the workspace protocol.
 #[derive(Debug, Clone)]
@@ -143,7 +143,7 @@ impl Client {
         self.send_message(&message)?;
 
         // track deferred payloads while waiting for a response
-        let mut payloads = PayloadReceiver::new();
+        let mut payloads = PayloadBuffer::new();
         let mut pending_response: Option<WorkspaceResponse> = None;
 
         // receive messages until the response is fully resolved

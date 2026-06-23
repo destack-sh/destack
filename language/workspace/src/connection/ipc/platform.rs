@@ -1,5 +1,7 @@
 use std::io;
 use std::path::Path;
+#[cfg(windows)]
+use std::path::PathBuf;
 
 use super::WorkspaceIpcError;
 
@@ -40,7 +42,7 @@ pub(super) fn bind_listener(path: &Path) -> Result<IpcListener, WorkspaceIpcErro
 #[cfg(windows)]
 pub(super) fn bind_listener(path: &Path) -> Result<IpcListener, WorkspaceIpcError> {
     // resolve the pipe name
-    let name = path_to_pipe_name(path);
+    let name = path_to_pipe_name(path)?;
 
     // bind the listener
     LocalSocketListener::bind(name).map_err(WorkspaceIpcError::Io)
@@ -84,7 +86,7 @@ pub(super) fn connect_stream(path: &Path) -> Result<IpcStream, WorkspaceIpcError
 #[cfg(windows)]
 pub(super) fn connect_stream(path: &Path) -> Result<IpcStream, WorkspaceIpcError> {
     // resolve the pipe name
-    let name = path_to_pipe_name(path);
+    let name = path_to_pipe_name(path)?;
 
     // connect to the pipe
     LocalSocketStream::connect(name).map_err(WorkspaceIpcError::Io)
@@ -92,11 +94,11 @@ pub(super) fn connect_stream(path: &Path) -> Result<IpcStream, WorkspaceIpcError
 
 /// Convert a socket path to a local pipe name.
 #[cfg(windows)]
-fn path_to_pipe_name(path: &Path) -> String {
+fn path_to_pipe_name(path: &Path) -> Result<String, WorkspaceIpcError> {
     // derive a pipe name from the socket path
-    let root_id = path
-        .file_stem()
-        .and_then(|name| name.to_str())
-        .unwrap_or("root");
-    format!(r"\\.\pipe\destack-{root_id}")
+    let Some(root_id) = path.file_stem().and_then(|name| name.to_str()) else {
+        return Err(WorkspaceIpcError::InvalidPath(PathBuf::from(path)));
+    };
+
+    Ok(format!(r"\\.\pipe\destack-{root_id}"))
 }

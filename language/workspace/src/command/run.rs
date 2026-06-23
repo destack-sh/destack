@@ -437,13 +437,9 @@ fn create_program(
     let artifacts = repository.artifact_reader(revision);
     let tree = machine_mir_tree(&artifacts, module_id, profile_id, *target_id)?;
     let strings = repository.string_pool().as_ref().clone();
-    let program = destack_vm::lower::lower_program_with_heap_options(
-        tree,
-        strings,
-        options.heap,
-        options.shared_heap,
-    )
-    .map_err(|error| error.to_string())?;
+    let program = destack_vm::ProgramLowerer::new(tree, strings, options.heap, options.shared_heap)
+        .build()
+        .map_err(|error| error.to_string())?;
 
     Ok(Arc::new(program))
 }

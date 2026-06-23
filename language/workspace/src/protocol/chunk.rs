@@ -1,7 +1,7 @@
 use super::{
     DEFAULT_INLINE_PAYLOAD_MAX_BYTES, INLINE_PAYLOAD_OVERHEAD_BYTES, PAYLOAD_CHUNK_HEADROOM_BYTES,
-    PayloadChunkNotification, PayloadId, ProtocolLimits, ProtocolMessage, ProtocolNotification,
-    WorkspaceNotification,
+    PayloadChunkNotification, PayloadId, ProtocolCodecError, ProtocolLimits, ProtocolMessage,
+    ProtocolNotification, WorkspaceNotification,
 };
 
 /// Compute the max inline payload size for negotiated limits.
@@ -17,23 +17,27 @@ pub fn inline_payload_max_bytes(limits: ProtocolLimits) -> usize {
 }
 
 /// Compute the payload chunk size for negotiated limits.
-pub fn payload_chunk_bytes(limits: ProtocolLimits) -> usize {
+pub fn payload_chunk_bytes(limits: ProtocolLimits) -> Result<usize, ProtocolCodecError> {
     // derive the max payload limit
     let max_payload_bytes = max_payload_bytes(limits);
 
     // reserve space for chunk metadata
-    let overhead = payload_chunk_overhead_bytes();
-    max_payload_bytes.saturating_sub(overhead)
+    let overhead = payload_chunk_overhead_bytes()?;
+
+    Ok(max_payload_bytes.saturating_sub(overhead))
 }
 
 /// Return the negotiated payload limit as an in-process size.
 fn max_payload_bytes(limits: ProtocolLimits) -> usize {
-    // clamp the payload limit to usize
-    usize::try_from(limits.max_payload_bytes).unwrap_or(usize::MAX)
+    // fit the protocol limit into the local address width
+    match usize::try_from(limits.max_payload_bytes) {
+        Ok(max_payload_bytes) => max_payload_bytes,
+        Err(_error) => usize::MAX,
+    }
 }
 
 /// Return the encoded overhead reserved for payload chunks.
-fn payload_chunk_overhead_bytes() -> usize {
+fn payload_chunk_overhead_bytes() -> Result<usize, ProtocolCodecError> {
     // build a minimal payload chunk message
     let notification = PayloadChunkNotification {
         id: PayloadId::new(0),
@@ -47,6 +51,7 @@ fn payload_chunk_overhead_bytes() -> usize {
     }));
 
     // compute the encoded size with extra headroom
-    let base = destack_serde::to_vec(&message).map_or(0, |bytes| bytes.len());
-    base + PAYLOAD_CHUNK_HEADROOM_BYTES
+    let bytes = destack_serde::to_vec(&message).map_err(ProtocolCodecError::Serialize)?;
+
+    Ok(bytes.len() + PAYLOAD_CHUNK_HEADROOM_BYTES)
 }
