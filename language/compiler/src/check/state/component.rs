@@ -7,9 +7,9 @@ use destack_source::{ComponentId, ModuleId, ProfileId};
 use indexmap::IndexMap;
 
 use crate::check::{
-    Assumption, CheckEvent, CheckExternalModuleState, CheckModuleState, ConstraintTable,
-    DecisionTable, GenericIndex, Journal, Mutation, ObligationTable, Queue, RelationCache,
-    VariableTable, VarianceEntry,
+    Assumption, CheckEvent, CheckExternalModuleState, CheckModuleState, CoercionTable,
+    ConstraintTable, DecisionTable, GenericIndex, Journal, Mutation, ObligationTable, Queue,
+    RelationCache, VariableTable, VarianceEntry,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -51,6 +51,8 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) constraints: ConstraintTable,
     /// Decided node meanings.
     pub(in crate::check) decisions: DecisionTable,
+    /// Implicit coercions selected by accepted value relations.
+    pub(in crate::check) coercions: CoercionTable,
     /// Obligated checks collected while walking.
     pub(in crate::check) obligations: ObligationTable,
     /// Memoized relation verdicts with the in-progress cycle guard.
@@ -102,6 +104,7 @@ impl<'a> CheckState<'a> {
             variables: VariableTable::new(),
             constraints: ConstraintTable::new(),
             decisions: DecisionTable::new(),
+            coercions: CoercionTable::new(),
             relations: RelationCache::new(),
             evaluations: IndexMap::new(),
             assumptions: Vec::new(),

@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use indexmap::IndexMap;
 use smallvec::SmallVec;
 
@@ -24,17 +25,26 @@ pub(in crate::check) struct GenericInductionSite {
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
 
-/// One generated generic parameter recipe.
+/// One generic parameter induced from a declaration type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct GenericInductionParameter {
     /// The generated parameter name prefix.
-    pub(in crate::check) prefix: &'static str,
+    pub(in crate::check) name_prefix: &'static str,
     /// The optional generated parameter constraint.
     pub(in crate::check) constraint: Option<dir::GlobalTypeId>,
     /// Whether arguments must solve to singleton types.
     pub(in crate::check) is_comptime: bool,
     /// The reason this parameter was induced.
     pub(in crate::check) induction: dir::GenericParameterInduction,
+}
+
+/// How omitted generic arguments are resolved at one instantiation site.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum GenericArgumentMode {
+    /// Infer omitted arguments from surrounding constraints.
+    Infer,
+    /// Fill omitted arguments from declared defaults.
+    Default,
 }
 
 /// Inference bookkeeping over working generic segments.
@@ -117,7 +127,7 @@ impl GenericIndex {
         Ok(())
     }
 
-    /// Return the induced generic parameter recipe for one variable.
+    /// Return the generic parameter induced by one variable.
     pub(in crate::check) fn induction(
         &self,
         variable: dir::TypeVariableId,
@@ -125,7 +135,7 @@ impl GenericIndex {
         self.inductions.get(&variable).copied()
     }
 
-    /// Remove one variable's induction recipe.
+    /// Remove the generic parameter induced by one variable.
     pub(in crate::check) fn remove_induction(
         &mut self,
         variable: dir::TypeVariableId,
@@ -191,6 +201,19 @@ impl CheckState<'_> {
         None
     }
 
+    /// Return the inference widening policy for one generic parameter.
+    pub(in crate::check) fn generic_parameter_widening(&self, id: GenericParameterId) -> Widening {
+        let Some(parameter) = self.generic_parameter(id) else {
+            return Widening::Preserve;
+        };
+
+        if parameter.is_const || parameter.is_comptime {
+            Widening::Preserve
+        } else {
+            Widening::Widen
+        }
+    }
+
     /// Collect one template's parameter ids in declaration order.
     pub(in crate::check) fn generic_template_parameters(
         &self,
@@ -205,6 +228,34 @@ impl CheckState<'_> {
             .iter()
             .map(|parameter| parameter.into_global(id.module_id))
             .collect()
+    }
+
+    /// Return one generic parameter's default after earlier arguments apply.
+    pub(in crate::check) fn generic_parameter_default(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        parameter: GenericParameterId,
+        parameters: &[GenericParameterId],
+        arguments: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let Some(default) = self
+            .generic_parameter(parameter)
+            .and_then(|binding| binding.default)
+        else {
+            return Ok(None);
+        };
+        if parameters.is_empty() {
+            return Ok(Some(default));
+        }
+        let substitution = Substitution {
+            parameters: parameters.iter().copied().collect(),
+            arguments: arguments.iter().copied().collect(),
+            receiver: None,
+        };
+        let default = self.fold_type(module, source, default, substitution.rewrite())?;
+
+        Ok(Some(default))
     }
 
     /// Return the generic template declared at one source node, declaring it once.
@@ -275,7 +326,7 @@ impl CheckState<'_> {
         Ok(id)
     }
 
-    /// Declare one induced generic parameter from its recipe.
+    /// Declare one induced generic parameter.
     pub(in crate::check) fn declare_induced_generic_parameter(
         &mut self,
         template: GenericTemplateId,
@@ -284,12 +335,11 @@ impl CheckState<'_> {
         // generate the parameter name from its template position
         let number = self
             .generic_template(template)
-            .map(|template| template.parameters.len())
-            .unwrap_or(0); // (we actually do want to begin with 0 here)
+            .map_or(0, |template| template.parameters.len());
         let name = self
             .module_mut(template.module_id)
             .strings
-            .intern(&format!("{}{number}", parameter.prefix));
+            .intern(&format!("{}{number}", parameter.name_prefix));
 
         let binding = dir::GenericParameterBinding {
             template: template.local_id,
@@ -333,37 +383,88 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Hypothesize fresh variables for one template's parameters.
+    /// Instantiate one template's parameters.
     /// Returns the substitution from parameters to variable types.
     pub(in crate::check) fn instantiate_template(
         &mut self,
         origin: Origin,
         template: GenericTemplateId,
-    ) -> CompilerResult<Substitution> {
+        written: &[dir::GlobalTypeId],
+        mode: GenericArgumentMode,
+    ) -> CompilerResult<Option<Substitution>> {
         let parameters = self.generic_template_parameters(template);
+
+        self.instantiate_generic_parameters(origin, &parameters, written, mode)
+    }
+
+    /// Instantiate one ordered generic parameter list.
+    /// Returns the substitution from parameters to applied argument types.
+    pub(in crate::check) fn instantiate_generic_parameters(
+        &mut self,
+        origin: Origin,
+        parameters: &[GenericParameterId],
+        written: &[dir::GlobalTypeId],
+        mode: GenericArgumentMode,
+    ) -> CompilerResult<Option<Substitution>> {
+        if written.len() > parameters.len() {
+            return Ok(None);
+        }
         let source = self.origin_source_node(origin)?;
         let mut arguments = SmallVec::new();
 
-        // allocate one hypothesis variable per parameter
-        for parameter in parameters.iter().copied() {
-            let variable = self.allocate_variable(origin.module(), origin, Widening::Preserve);
-            let ty = self.push_variable_type(variable, source)?;
+        // apply written arguments before opening inference variables
+        for (index, parameter) in parameters.iter().copied().enumerate() {
+            let ty = match written.get(index).copied() {
+                Some(written) => written,
+                None => match mode {
+                    GenericArgumentMode::Default => {
+                        let Some(default) = self.generic_parameter_default(
+                            origin.module(),
+                            source,
+                            parameter,
+                            &parameters[..index],
+                            &arguments,
+                        )?
+                        else {
+                            return Ok(None);
+                        };
 
-            // seed declared constraints as upper bounds
-            let constraint = self
-                .generic_parameter(parameter)
-                .and_then(|binding| binding.constraint);
-            if let Some(constraint) = constraint {
-                self.push_upper_bound(variable, constraint)?;
-            }
+                        default
+                    }
+                    GenericArgumentMode::Infer => {
+                        let widening = self.generic_parameter_widening(parameter);
+                        let variable = self.allocate_variable(origin.module(), origin, widening);
+                        let ty = self.push_variable_type(variable, source)?;
+
+                        // seed declared constraints as upper bounds
+                        let constraint = self
+                            .generic_parameter(parameter)
+                            .and_then(|binding| binding.constraint);
+                        if let Some(constraint) = constraint {
+                            self.push_upper_bound(variable, constraint)?;
+                        }
+                        if let Some(default) = self.generic_parameter_default(
+                            origin.module(),
+                            source,
+                            parameter,
+                            &parameters[..index],
+                            &arguments,
+                        )? {
+                            self.set_variable_default(variable, default)?;
+                        }
+
+                        ty
+                    }
+                },
+            };
 
             arguments.push(ty);
         }
 
-        Ok(Substitution {
-            parameters,
+        Ok(Some(Substitution {
+            parameters: parameters.iter().copied().collect(),
             arguments,
             receiver: None,
-        })
+        }))
     }
 }

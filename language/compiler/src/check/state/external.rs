@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{DirExpanded, DirParsed, DirResolved};
 use destack_dir as dir;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, Span};
 
 use indexmap::IndexSet;
 
@@ -36,6 +36,22 @@ impl CheckExternalModuleState {
             &self.parsed.tree,
             std::slice::from_ref(&self.expanded.patch),
         )
+    }
+
+    /// Return the authored diagnostic span of one visible node.
+    pub(in crate::check) fn diagnostic_span(&self, node: dir::LocalNodeIdAny) -> Option<Span> {
+        let view = self.view();
+        let source = view.get_source_any(node);
+
+        // prefer the authored node that produced the visible node
+        if let Some(span) = self.parsed.tree.get_main_span_by_id(source) {
+            return Some(span);
+        }
+        if let Some(span) = self.parsed.tree.get_span_by_id(source) {
+            return Some(span);
+        }
+
+        view.get_span_by_id(node.id)
     }
 }
 

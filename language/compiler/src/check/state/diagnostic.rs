@@ -310,13 +310,11 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) -> DiagnosticAnchor {
-        // anchors may point into external modules, notably "declared
-        // here" labels on imported declarations
-        let view = match self.modules.get(&module) {
-            Some(state) => state.view(),
-            None => self.external_module(module).view(),
+        let span = match self.modules.get(&module) {
+            Some(state) => state.diagnostic_span(source),
+            None => self.external_module(module).diagnostic_span(source),
         };
-        let span = match view.get_span_by_id(source.id) {
+        let span = match span {
             Some(span) => span,
             None => unreachable!("check node {} has no source span", source.id),
         };
@@ -384,7 +382,7 @@ impl CheckState<'_> {
         let name = self.module(module).strings.get(*name).to_string();
 
         let bindings = self.module(module).binding_table();
-        let scope = self.scope_at(module, bindings, source);
+        let scope = bindings.scope_at(&self.module(module).view(), source);
         let mut candidates = Vec::new();
 
         // collect lexical names visible at the source node
@@ -420,9 +418,7 @@ impl CheckState<'_> {
             // collect names declared before the visible scope mark
             for (key, symbol) in current.named_symbols_up_to(scope.mark) {
                 let kind = bindings.get_symbol(symbol).kind;
-                if !kind.is_visible_in(dir::SymbolSpace::Value)
-                    && !kind.is_visible_in(dir::SymbolSpace::Type)
-                {
+                if !kind.is_visible_in(dir::SymbolSpace::Declaration) {
                     continue;
                 }
 

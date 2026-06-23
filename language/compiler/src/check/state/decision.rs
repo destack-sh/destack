@@ -11,6 +11,8 @@ use crate::{CompilerError, CompilerResult};
 pub(in crate::check) enum Decision {
     /// Resolved lexical name.
     Name(dir::NameResolution),
+    /// Resolved explicit generic application.
+    Instantiation(dir::InstantiationResolution),
     /// Resolved contextual receiver.
     Receiver(dir::ReceiverResolution),
     /// Resolved member access.
@@ -19,6 +21,8 @@ pub(in crate::check) enum Decision {
     Call(dir::CallResolution),
     /// Resolved paired read-write place accessors.
     ReadWrite(dir::ReadWriteResolution),
+    /// Resolved runtime predicate expression.
+    Predicate(dir::PredicateResolution),
     /// Resolved construct expression.
     Construct(dir::ConstructResolution),
     /// Resolved pattern meaning.

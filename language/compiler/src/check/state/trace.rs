@@ -1,7 +1,8 @@
 use destack_artifact::{ArtifactEvent, ArtifactEventLog};
 use destack_dir as dir;
+use smallvec::SmallVec;
 
-use crate::check::{CheckState, ConstraintId, DumpContext, ObligationId, Task};
+use crate::check::{CheckState, ConstraintId, Dependency, DumpContext, ObligationId, Task};
 
 /// Derived size counters for one checked component.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,57 +24,71 @@ pub(in crate::check) struct CheckStats {
 }
 
 /// One event emitted by check.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::check) enum CheckEvent {
     /// The solver started.
-    SolveStart {
+    SolveStarted {
         /// The number of queued tasks.
         tasks: usize,
         /// The number of variables present before solving.
         variables: usize,
     },
     /// One solver task ran once.
-    SolveStep {
+    TaskRan {
         /// The zero-based step index.
         step: usize,
         /// The task that ran.
         task: Task,
     },
     /// The solver reached an empty queue.
-    SolveFinish {
+    SolveFinished {
         /// The number of iterations run.
         iterations: usize,
         /// The number of variables present after solving.
         variables: usize,
     },
     /// One relation constraint was checked or parked.
-    RelationCheck {
+    RelationChecked {
         /// The constraint.
         constraint: ConstraintId,
         /// Whether the constraint finished.
-        finished: bool,
+        is_finished: bool,
     },
     /// One obligation was checked or parked.
-    ObligationCheck {
+    ObligationChecked {
         /// The obligation.
         obligation: ObligationId,
         /// Whether the obligation finished.
-        finished: bool,
+        is_finished: bool,
     },
     /// One node was decided.
-    Decision {
+    NodeDecided {
         /// The decided node.
         node: dir::GlobalNodeIdAny,
     },
     /// One variable was solved.
-    VariableSolution {
+    VariableSolved {
         /// The solved variable.
         variable: dir::TypeVariableId,
         /// The solution type.
         solution: dir::GlobalTypeId,
+        /// The number of tasks woken by this solution.
+        waiters: usize,
+    },
+    /// One variable solve is blocked on open dependencies.
+    VariableBlocked {
+        /// The blocked variable.
+        variable: dir::TypeVariableId,
+        /// The dependencies blocking the solve.
+        blockers: SmallVec<[Dependency; 2]>,
+    },
+    /// One variable solve had no usable bounds.
+    VariableUnsolved {
+        /// The unsolved variable.
+        variable: dir::TypeVariableId,
     },
     /// Two open variables were aliased.
-    VariableAlias {
+    VariableAliased {
         /// The aliased variable.
         variable: dir::TypeVariableId,
         /// The new representative.
@@ -111,7 +126,7 @@ impl CheckState<'_> {
         );
 
         // render retained events in order
-        for event in self.events.iter().copied() {
+        for event in &self.events {
             event.render(&context, &mut log);
         }
 
