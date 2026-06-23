@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use destack_artifact::{ArtifactKey, ArtifactStage};
+use destack_serde::Schema;
 use destack_source::TargetId;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -152,7 +153,7 @@ impl Trace {
     /// Build one serializable snapshot of this trace.
     pub fn snapshot(
         &self,
-        detailed: bool,
+        view: TraceView,
         label: impl Fn(&ArtifactKey) -> Option<String>,
         target: impl Fn(TargetId) -> Option<String>,
     ) -> TraceSnapshot {
@@ -195,8 +196,14 @@ impl Trace {
             }
         }
 
+        // count terminal outcomes for cheap summary consumers
+        let mut outcomes = TraceStats::default();
+        for attempt in attempts.iter() {
+            outcomes.add(attempt.outcome);
+        }
+
         // detailed snapshots carry the labeled artifact rows
-        let artifacts = if detailed {
+        let artifacts = if view.includes_artifacts() {
             attempts
                 .iter()
                 .map(|attempt| ArtifactAttemptSnapshot {
@@ -224,12 +231,12 @@ impl Trace {
             Vec::new()
         };
         let total = self.duration(&spans, &attempts);
-        let spans = if detailed {
+        let spans = if view.includes_artifacts() {
             spans.iter().map(TraceSpanSnapshot::from_span).collect()
         } else {
             Vec::new()
         };
-        let counters = if detailed {
+        let counters = if view.includes_artifacts() {
             counters
                 .iter()
                 .map(TraceCounterSnapshot::from_counter)
@@ -241,6 +248,7 @@ impl Trace {
         TraceSnapshot {
             total_micros: total.as_micros() as u64,
             workers,
+            stats: outcomes,
             spans,
             counters,
             stages,
@@ -304,12 +312,14 @@ impl Trace {
 }
 
 /// Serializable snapshot of one trace.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Schema)]
 pub struct TraceSnapshot {
     /// The wall time of the traced operation in microseconds.
     pub total_micros: u64,
     /// The number of workers that recorded attempts.
     pub workers: usize,
+    /// Artifact stats.
+    pub stats: TraceStats,
     /// Operation-level spans around artifact execution.
     pub spans: Vec<TraceSpanSnapshot>,
     /// Operation-level counters.
@@ -322,8 +332,62 @@ pub struct TraceSnapshot {
     pub artifacts: Vec<ArtifactAttemptSnapshot>,
 }
 
+/// Trace detail returned to a caller.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub enum TraceView {
+    /// Return aggregate trace data.
+    #[default]
+    Summary,
+    /// Return aggregate trace data and attempt rows.
+    Detailed,
+}
+
+impl TraceView {
+    /// Return detailed view when requested, otherwise summary view.
+    pub fn detailed(is_detailed: bool) -> Self {
+        if is_detailed {
+            Self::Detailed
+        } else {
+            Self::Summary
+        }
+    }
+
+    /// Return whether this view includes artifact attempt rows.
+    fn includes_artifacts(self) -> bool {
+        matches!(self, Self::Detailed)
+    }
+}
+
+/// Artifact attempt outcome counts in one trace.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Schema)]
+pub struct TraceStats {
+    /// Attempts that produced an artifact.
+    pub built: u64,
+    /// Attempts served from memory.
+    pub memory_cached: u64,
+    /// Attempts restored from the persistent store.
+    pub store_cached: u64,
+    /// Attempts parked on missing requirements.
+    pub parked: u64,
+    /// Attempts that failed.
+    pub failed: u64,
+}
+
+impl TraceStats {
+    /// Add one terminal attempt outcome.
+    fn add(&mut self, outcome: ArtifactAttemptOutcome) {
+        match outcome {
+            ArtifactAttemptOutcome::Built => self.built += 1,
+            ArtifactAttemptOutcome::MemoryCached => self.memory_cached += 1,
+            ArtifactAttemptOutcome::StoreCached => self.store_cached += 1,
+            ArtifactAttemptOutcome::Parked => self.parked += 1,
+            ArtifactAttemptOutcome::Failed => self.failed += 1,
+        }
+    }
+}
+
 /// Busy time of one toolchain stage.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct TraceStageSnapshot {
     /// The stage display name.
     pub name: String,
@@ -332,7 +396,7 @@ pub struct TraceStageSnapshot {
 }
 
 /// Summed time of one named trace span.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct TraceTimeSnapshot {
     /// The span name.
     pub name: String,
@@ -355,7 +419,7 @@ impl TraceTimeSnapshot {
 }
 
 /// One span in a trace snapshot.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct TraceSpanSnapshot {
     /// The span name.
     pub name: String,
@@ -377,7 +441,7 @@ impl TraceSpanSnapshot {
 }
 
 /// One counter in a trace snapshot.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct TraceCounterSnapshot {
     /// The counter name.
     pub name: String,
@@ -396,7 +460,7 @@ impl TraceCounterSnapshot {
 }
 
 /// One artifact attempt in a detailed trace snapshot.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct ArtifactAttemptSnapshot {
     /// The artifact kind name.
     pub name: String,

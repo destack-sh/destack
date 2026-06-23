@@ -7,7 +7,7 @@ use destack_linter::Linter;
 use destack_query::Query;
 use destack_repository::{
     DestackLayoutOverride, Environment, Execution, Host, Ref, Repository, Revision, Settings,
-    TraceSnapshot,
+    TraceSnapshot, TraceView,
 };
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 
@@ -274,7 +274,7 @@ impl TestSession {
             .last_trace()
             .expect("test trace should be recorded");
 
-        trace.snapshot(true, |_| None, |_| None)
+        trace.snapshot(TraceView::Detailed, |_| None, |_| None)
     }
 
     /// Return editable repository files at the current head.
