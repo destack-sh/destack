@@ -20,7 +20,7 @@ const value: symbol = Symbol.create("id");
 /// @type.symbol symbol=value source=value type=symbol
 /// @type.node source="Symbol.create(\"id\")" type=symbol
 /// @type.node source=Symbol type=types.symbol.Symbol
-/// @type.node source=Symbol.create type=(string | float64 | undefined?) => symbol
+/// @type.node source=Symbol.create type=(string | float64 | undefined) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.create receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.create
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=types.symbol.Symbol
@@ -51,7 +51,7 @@ const value: string = Symbol.create("id");
 /// @type.symbol symbol=value source=value type=string
 /// @type.node source="Symbol.create(\"id\")" type=symbol
 /// @type.node source=Symbol type=types.symbol.Symbol
-/// @type.node source=Symbol.create type=(string | float64 | undefined?) => symbol
+/// @type.node source=Symbol.create type=(string | float64 | undefined) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.create receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.create
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=types.symbol.Symbol
@@ -87,7 +87,7 @@ const value: symbol | string = Symbol.create("id");
 /// @type.symbol symbol=value source=value type=symbol | string
 /// @type.node source="Symbol.create(\"id\")" type=symbol
 /// @type.node source=Symbol type=types.symbol.Symbol
-/// @type.node source=Symbol.create type=(string | float64 | undefined?) => symbol
+/// @type.node source=Symbol.create type=(string | float64 | undefined) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.create receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.create
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=types.symbol.Symbol
@@ -118,7 +118,7 @@ const value: number = Symbol.create("id");
 /// @type.symbol symbol=value source=value type=float64
 /// @type.node source="Symbol.create(\"id\")" type=symbol
 /// @type.node source=Symbol type=types.symbol.Symbol
-/// @type.node source=Symbol.create type=(string | float64 | undefined?) => symbol
+/// @type.node source=Symbol.create type=(string | float64 | undefined) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.create receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.create
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=types.symbol.Symbol
