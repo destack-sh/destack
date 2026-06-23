@@ -58,32 +58,32 @@ export struct PathSpan {
 
 /// Build a byte-oriented host path.
 export function pathBytes(bytes: PathBytes): Path {
-    BytePath {
+    Path(BytePath {
         kind: "bytes",
         bytes,
-    }
+    })
 }
 
 /// Build a UTF-16-oriented host path.
 export function pathUtf16(units: PathUtf16): Path {
-    Utf16Path {
+    Path(Utf16Path {
         kind: "utf16",
         units,
-    }
+    })
 }
 
 /// Build a byte-oriented host path output buffer.
 export function pathByteBuffer(bytes: PathByteBuffer): PathBuffer {
-    BytePathBuffer {
+    PathBuffer(BytePathBuffer {
         kind: "bytes",
         bytes,
-    }
+    })
 }
 
 /// Build a UTF-16-oriented host path output buffer.
 export function pathUtf16Buffer(units: PathUtf16Buffer): PathBuffer {
-    Utf16PathBuffer {
+    PathBuffer(Utf16PathBuffer {
         kind: "utf16",
         units,
-    }
+    })
 }

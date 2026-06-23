@@ -2,7 +2,7 @@ import { Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Default } from "destack:memory";
-import { Compare } from "destack:ops";
+import { Compare, Has } from "destack:ops";
 import { RangeBounds } from "destack:range";
 
 import { SortedMap } from "./sorted-map.ds";
@@ -38,6 +38,7 @@ extension<T> of ^SortedSet<T> implements Default {
 }
 
 extension<T: Compare<T>> of SortedSet<T> implements
+    Has<T>,
     Iterable<T>,
     Iterable<&readonly T>,
     Extend<T, "exclusive"> {

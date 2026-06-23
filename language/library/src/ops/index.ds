@@ -11,6 +11,6 @@ export { Equal, PartialEqual } from "./equality.ds";
 export { Compare, Ordering, PartialCompare } from "./comparison.ds";
 export { Hash, Hasher } from "./hash.ds";
 export { Debug, Display } from "./format.ds";
-export { Index, IndexSet } from "./subscript.ds";
+export { Has, Index, IndexSet } from "./subscript.ds";
 export { Dereference } from "./dereference.ds";
 export * from "./try.ds";

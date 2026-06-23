@@ -25,28 +25,38 @@ extension<T> of Option<T> {
     @intrinsic("types.option.none")
     static none(): Option<T>;
 
+    /// Convert a nullable value into an option.
+    static fromNullable(value: T | null): Option<T> {
+        value as Option<T>
+    }
+
     /// Convert `null` and `undefined` into absence.
     static fromNullish(value: T | null | undefined): Option<T> {
         match (value) {
-            null => Option.none()
-            undefined => Option.none()
-            value => Option.some(value)
+            null => Option<T>.none()
+            undefined => Option<T>.none()
+            value => Option<T>.some(value)
         }
+    }
+
+    /// Return this option as its nullable carrier.
+    toNullable(): T | null {
+        this as T | null
     }
 
     /// Return true when this option has a value.
     isSome(&readonly this): boolean {
-        this != null
+        this.toNullable() != null
     }
 
     /// Return true when this option is empty.
     isNone(&readonly this): boolean {
-        this == null
+        this.toNullable() == null
     }
 
     /// Return true when this option has a value accepted by `predicate`.
     isSomeAnd(&readonly this, predicate: (value: &readonly T) => boolean): boolean {
-        match (this) {
+        match (this.toNullable()) {
             null => false
             value => predicate(&readonly value)
         }
@@ -54,7 +64,7 @@ extension<T> of Option<T> {
 
     /// Return true when this option is empty or has a value accepted by `predicate`.
     isNoneOr(&readonly this, predicate: (value: &readonly T) => boolean): boolean {
-        match (this) {
+        match (this.toNullable()) {
             null => true
             value => predicate(&readonly value)
         }
@@ -77,7 +87,7 @@ extension<T> of Option<T> {
 
     /// Return the value or panic with `message`.
     expect(message: string): T {
-        match (this) {
+        match (this.toNullable()) {
             null => panic(message)
             value => value
         }
@@ -96,7 +106,7 @@ extension<T> of Option<T> {
 
     /// Return the value or `default`.
     unwrapOr(default: T): T {
-        match (this) {
+        match (this.toNullable()) {
             null => default
             value => value
         }
@@ -104,7 +114,7 @@ extension<T> of Option<T> {
 
     /// Return the value or the default value.
     unwrapOrDefault(): T where T: Default {
-        match (this) {
+        match (this.toNullable()) {
             null => T.default()
             value => value
         }
@@ -112,7 +122,7 @@ extension<T> of Option<T> {
 
     /// Return the value or compute one.
     unwrapOrElse(f: () => T): T {
-        match (this) {
+        match (this.toNullable()) {
             null => f()
             value => value
         }
@@ -120,15 +130,15 @@ extension<T> of Option<T> {
 
     /// Map the value.
     map<U>(f: (value: T) => U): Option<U> {
-        match (this) {
-            null => Option.none()
-            value => Option.some(f(value))
+        match (this.toNullable()) {
+            null => Option<U>.none()
+            value => Option<U>.some(f(value))
         }
     }
 
     /// Map the value or return `default`.
     mapOr<U>(default: U, f: (value: T) => U): U {
-        match (this) {
+        match (this.toNullable()) {
             null => default
             value => f(value)
         }
@@ -136,7 +146,7 @@ extension<T> of Option<T> {
 
     /// Map the value or compute a fallback.
     mapOrElse<U>(default: () => U, f: (value: T) => U): U {
-        match (this) {
+        match (this.toNullable()) {
             null => default()
             value => f(value)
         }
@@ -144,32 +154,32 @@ extension<T> of Option<T> {
 
     /// Continue with another option-returning operation.
     andThen<U>(f: (value: T) => Option<U>): Option<U> {
-        match (this) {
-            null => Option.none()
+        match (this.toNullable()) {
+            null => Option<U>.none()
             value => f(value)
         }
     }
 
     /// Keep the value when `predicate` returns true.
     filter(predicate: (value: &readonly T) => boolean): Option<T> {
-        match (this) {
-            null => Option.none()
+        match (this.toNullable()) {
+            null => Option<T>.none()
             value if (predicate(&readonly value)) => this
-            _ => Option.none()
+            _ => Option<T>.none()
         }
     }
 
     /// Return `other` when this option has a value.
     and<U>(other: Option<U>): Option<U> {
-        match (this) {
-            null => Option.none()
+        match (this.toNullable()) {
+            null => Option<U>.none()
             _ => other
         }
     }
 
     /// Return this option or `other`.
     or(other: Option<T>): Option<T> {
-        match (this) {
+        match (this.toNullable()) {
             null => other
             _ => this
         }
@@ -177,7 +187,7 @@ extension<T> of Option<T> {
 
     /// Return this option or compute another option.
     orElse(f: () => Option<T>): Option<T> {
-        match (this) {
+        match (this.toNullable()) {
             null => f()
             _ => this
         }
@@ -185,31 +195,31 @@ extension<T> of Option<T> {
 
     /// Return whichever option has a value, or none when both states match.
     xor(other: Option<T>): Option<T> {
-        match (this) {
-            null => other.isSome() ? other : Option.none()
-            value => other.isNone() ? Option.some(value) : Option.none()
+        match (this.toNullable()) {
+            null => other.isSome() ? other : Option<T>.none()
+            value => other.isNone() ? Option<T>.some(value) : Option<T>.none()
         }
     }
 
     /// Combine two options.
     zip<U>(other: Option<U>): Option<(T, U)> {
-        match (this) {
-            null => Option.none()
+        match (this.toNullable()) {
+            null => Option<(T, U)>.none()
             value => other.map((otherValue) => (value, otherValue))
         }
     }
 
     /// Combine two options with `f`.
     zipWith<U, V>(other: Option<U>, f: (left: T, right: U) => V): Option<V> {
-        match (this) {
-            null => Option.none()
+        match (this.toNullable()) {
+            null => Option<V>.none()
             value => other.map((otherValue) => f(value, otherValue))
         }
     }
 
     /// Convert this option to a result.
     okOr<E>(error: E): Result<T, E> {
-        match (this) {
+        match (this.toNullable()) {
             null => Result.err(error)
             value => Result.ok(value)
         }
@@ -217,7 +227,7 @@ extension<T> of Option<T> {
 
     /// Convert this option to a result with a computed error.
     okOrElse<E>(f: () => E): Result<T, E> {
-        match (this) {
+        match (this.toNullable()) {
             null => Result.err(f())
             value => Result.ok(value)
         }
@@ -225,7 +235,7 @@ extension<T> of Option<T> {
 
     /// Fold either option state into one value.
     match<U>(arms: { some: (value: T) => U; none: () => U }): U {
-        match (this) {
+        match (this.toNullable()) {
             null => arms.none()
             value => arms.some(value)
         }
@@ -233,31 +243,31 @@ extension<T> of Option<T> {
 
     /// Flatten one nested option layer.
     flatten<U>(this: Option<Option<U>>): Option<U> {
-        match (this) {
-            null => Option.none()
+        match (this.toNullable()) {
+            null => Option<U>.none()
             value => value
         }
     }
 
     /// Move an option outside a result.
     transpose<U, E>(this: Option<Result<U, E>>): Result<Option<U>, E> {
-        match (this) {
-            null => Result.ok(Option.none())
-            value => value.map((inner) => Option.some(inner))
+        match (this.toNullable()) {
+            null => Result.ok(Option<U>.none())
+            value => value.map((inner) => Option<U>.some(inner))
         }
     }
 
     /// Split an optional pair into a pair of options.
     unzip<U, V>(this: Option<(U, V)>): (Option<U>, Option<V>) {
-        match (this) {
-            null => (Option.none(), Option.none())
-            (left, right) => (Option.some(left), Option.some(right))
+        match (this.toNullable()) {
+            null => (Option<U>.none(), Option<V>.none())
+            (left, right) => (Option<U>.some(left), Option<V>.some(right))
         }
     }
 
     /// Run a side effect on the value and keep the original option.
     tap(f: (value: &readonly T) => void): Option<T> {
-        match (this) {
+        match (this.toNullable()) {
             null => this
             value => {
                 f(&readonly value);
@@ -305,14 +315,14 @@ extension<T> of Option<T> {
 extension<T> of Option<T> implements Default {
     /// Create an empty option.
     static default(): Option<T> {
-        Option.none()
+        Option<T>.none()
     }
 }
 
 extension<T> of Option<T> implements From<T> {
     /// Convert a value into an option.
     static from(value: T): Option<T> {
-        Option.some(value)
+        Option<T>.some(value)
     }
 }
 
@@ -325,13 +335,13 @@ extension<T> of Option<T> implements Try {
 
     /// Create an option from a successful value.
     static fromOutput(output: T): Option<T> {
-        Option.some(output)
+        Option<T>.some(output)
     }
 
     /// Branch into present or absent control flow.
     branch(): ControlFlow<Option<never>, T> {
-        match (this) {
-            null => Break { kind: "break", residual: Option.none() }
+        match (this.toNullable()) {
+            null => Break { kind: "break", residual: Option<never>.none() }
             value => Continue { kind: "continue", value }
         }
     }
@@ -340,17 +350,17 @@ extension<T> of Option<T> implements Try {
 extension<T> of Option<T> implements FromResidual<Option<never>> {
     /// Create an option from a propagated residual.
     static fromResidual(residual: Option<never>): Option<T> {
-        Option.none()
+        Option<T>.none()
     }
 }
 
 extension<T: Equal<T>> of Option<T> implements Equal<Option<T>> {
     /// Compare two options.
     equal(other: Option<T>): boolean {
-        match (this) {
-            null => other == null
+        match (this.toNullable()) {
+            null => other.toNullable() == null
             value => {
-                match (other) {
+                match (other.toNullable()) {
                     null => false
                     otherValue => value.equal(otherValue)
                 }
@@ -362,10 +372,10 @@ extension<T: Equal<T>> of Option<T> implements Equal<Option<T>> {
 extension<T: Compare<T>> of Option<T> implements Compare<Option<T>> {
     /// Compare two options, with none ordered before some.
     compare(other: Option<T>): Ordering {
-        match (this) {
-            null => other == null ? Ordering.Equal : Ordering.Less
+        match (this.toNullable()) {
+            null => other.toNullable() == null ? Ordering.Equal : Ordering.Less
             value => {
-                match (other) {
+                match (other.toNullable()) {
                     null => Ordering.Greater
                     otherValue => value.compare(otherValue)
                 }
