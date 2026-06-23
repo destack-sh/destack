@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use crate::{ExportKind, GlobalNodeIdAny, LocalScope, Mutability, NodeType, StaticKey, StringId};
+use crate::{ExportKind, GlobalNodeIdAny, LocalScope, Mutability, StaticKey, StringId};
 
 /// A bindable item or local in a scope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -42,8 +42,10 @@ impl Symbol {
 
     /// Check whether this symbol is a generic parameter.
     pub fn is_generic_parameter(&self) -> bool {
-        self.declaration
-            .is_some_and(|declaration| declaration.local_id.ty == NodeType::GenericParameter)
+        matches!(
+            self.kind,
+            SymbolKind::GenericTypeParameter | SymbolKind::GenericValueParameter
+        )
     }
 }
 
