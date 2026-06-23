@@ -511,7 +511,7 @@ match (value) {
 
     { left: item } | { right: item } => item satisfies int32
     /// @type.symbol symbol=item source=item type=int32
-    /// @resolution.pattern source="{ left: item } | { right: item }" kind=union alternatives=[pattern, pattern]
+    /// @resolution.pattern source="{ left: item } | { right: item }" kind=union patterns=[pattern, pattern]
     /// @resolution.pattern source="{ left: item }" kind=object fields={ left: item }
     /// @resolution.pattern source="{ right: item }" kind=object fields={ right: item }
     /// @type.node source="item satisfies int32" type=int32

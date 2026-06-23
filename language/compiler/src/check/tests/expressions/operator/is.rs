@@ -45,18 +45,17 @@ if (value is string) {
 }
 
 #[test]
-fn test_is_guard_narrows_dynamic_unknown_to_target() {
+fn test_is_guard_rejects_dynamic_structural_target() {
     let session = TestSession::single(
         r#"
 declare const value: Dynamic<unknown>;
 
 if (value is { name: string }) {
-    value.name satisfies string;
 }
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir_checked_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -64,7 +63,6 @@ if (value is { name: string }) {
 declare const value: Dynamic<unknown>;
 
 if (value is { name: string }) {
-    value.name satisfies string;
 }
 
 === checked ===
@@ -77,19 +75,16 @@ if (value is { name: string }) {
 /// @type.node source="value is { name: string }" type=boolean
 /// @type.node source=value type=memory.dynamic.Dynamic<unknown>
 /// @resolution.name source=value target=value
-/// @resolution.predicate source="value is { name: string }" kind=is value=Dynamic<unknown> target={ name: string }
+/// @resolution.guard source="value is { name: string }" kind=is value=Dynamic<unknown> target={ name: string } predicate=never
 /// @generic.instance source=value id=memory.dynamic.Dynamic<unknown>
-
-    value.name satisfies string;
-    /// @type.node source="value.name satisfies string" type=string
-    /// @type.node source=value type={ name: string }
-    /// @type.node source=value.name type=string
-    /// @resolution.name source=value target=value
-    /// @resolution.member source=value.name receiver={ name: string } kind=field key=name
 
 }
 
 /// @generic.instance id=memory.dynamic.Dynamic<unknown> template=memory.dynamic.Dynamic arguments=(unknown)
+"#,
+        r#"
+/// @diagnostic.error code=EC320 message="type '{ name: string }' cannot be tested at runtime"
+/// @diagnostic.label line=4 column=14 source="if (value is { name: string }) {"
 "#,
     );
 }

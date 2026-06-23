@@ -24,7 +24,7 @@ ok satisfies "red" | "blue";
 === checked ===
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 /// @generic.template symbol=choose parameters=(C: string)
-/// @type.symbol symbol=choose type=<C: string>(Array<C>, NoInfer<C>?) => C
+/// @type.symbol symbol=choose type=<C: string>(Array<C>, NoInfer<C> | undefined) => C
 /// @type.symbol symbol=values type=Array<C>
 /// @type.symbol symbol=fallback type=NoInfer<C> | undefined
 /// @resolution.name source=NoInfer target=types.object.NoInfer
@@ -64,7 +64,7 @@ choose<"red" | "blue">(["red", "blue"], "green");
 === checked ===
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 /// @generic.template symbol=choose parameters=(C: string)
-/// @type.symbol symbol=choose type=<C: string>(Array<C>, NoInfer<C>?) => C
+/// @type.symbol symbol=choose type=<C: string>(Array<C>, NoInfer<C> | undefined) => C
 /// @type.symbol symbol=values type=Array<C>
 /// @type.symbol symbol=fallback type=NoInfer<C> | undefined
 /// @resolution.name source=NoInfer target=types.object.NoInfer

@@ -254,7 +254,7 @@ if (let 1 | 2 = value) {
 /// @type.node type=void | void
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
-/// @resolution.pattern source="1 | 2" kind=union alternatives=[pattern, pattern]
+/// @resolution.pattern source="1 | 2" kind=union patterns=[pattern, pattern]
 /// @resolution.pattern source=1 kind=literal value=1
 /// @resolution.pattern source=2 kind=literal value=2
 /// @type.node source=value type=1 | 2 | 3

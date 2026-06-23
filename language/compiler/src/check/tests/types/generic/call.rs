@@ -365,7 +365,7 @@ function identity<T>(value: T): T {
     return value;
 }
 
-const asInt: (p0: int32) => int32 = identity<int32>;
+const asInt: (int32) => int32 = identity<int32>;
 
 === checked ===
 function identity<T>(value: T): T {
@@ -496,7 +496,7 @@ const overridden: (float64, string) = pair<float64, string>(1, "x" as string | u
 === checked ===
 declare function pair<T, U = T>(left: T, right?: U): (T, U);
 /// @generic.template symbol=pair parameters=(T, U = T)
-/// @type.symbol symbol=pair source="declare function pair<T, U = T>(left: T, right?: U): (T, U)" type=<T, U = T>(T, U?) => (T, U)
+/// @type.symbol symbol=pair source="declare function pair<T, U = T>(left: T, right?: U): (T, U)" type=<T, U = T>(T, U | undefined) => (T, U)
 /// @type.symbol symbol=pair.T source=T type=T
 /// @type.symbol symbol=pair.U source="U = T" type=U
 /// @resolution.name source=T target=pair.T
@@ -509,7 +509,7 @@ declare function pair<T, U = T>(left: T, right?: U): (T, U);
 
 const defaulted = pair(1);
 /// @type.symbol symbol=defaulted source=defaulted type=(float64, float64)
-/// @type.node source=pair type=(float64, float64?) => (float64, float64)
+/// @type.node source=pair type=(float64, float64 | undefined) => (float64, float64)
 /// @type.node source=pair(1) type=(float64, float64)
 /// @resolution.name source=pair target=pair
 /// @resolution.call source=pair(1) parameters=(float64) return=(float64, float64) kind=symbol target=pair instance="pair<float64, float64>"
@@ -519,7 +519,7 @@ const defaulted = pair(1);
 const overridden = pair(1, "x");
 /// @type.symbol symbol=overridden source=overridden type=(float64, string)
 /// @type.node source="pair(1, \"x\")" type=(float64, string)
-/// @type.node source=pair type=(float64, string?) => (float64, string)
+/// @type.node source=pair type=(float64, string | undefined) => (float64, string)
 /// @resolution.name source=pair target=pair
 /// @resolution.call source="pair(1, \"x\")" parameters=(float64, string | undefined) return=(float64, string) kind=symbol target=pair instance="pair<float64, string>"
 /// @generic.instance source="pair(1, \"x\")" id="pair<float64, string>"

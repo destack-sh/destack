@@ -46,14 +46,14 @@ function use(onValue?: (value: unknown) => void): void {
 === annotated ===
 function use(onValue?: (value: unknown) => void): void {
     if (onValue !== undefined) {
-        onValue(1);
+        onValue(1 as unknown);
     } else {
     }
-}
+} as void
 
 === checked ===
 function use(onValue?: (value: unknown) => void): void {
-/// @type.symbol symbol=use type=(Function<(unknown,), void> | undefined?) => void
+/// @type.symbol symbol=use type=(Function<(unknown,), void> | undefined) => void
 /// @type.symbol symbol=onValue source="onValue?: (value: unknown) => void" type=Function<(unknown,), void> | undefined
 
     if (onValue !== undefined) {
@@ -65,7 +65,7 @@ function use(onValue?: (value: unknown) => void): void {
     /// @type.node source=undefined type=undefined
 
         onValue(1);
-        /// @type.node source=onValue type=Function<(unknown,), void> | undefined extends undefined ? never : Function<(unknown,), void> | undefined
+        /// @type.node source=onValue type=Function<(unknown,), void>
         /// @type.node source=onValue(1) type=void
         /// @resolution.name source=onValue target=onValue
         /// @resolution.call source=onValue(1) parameters=(unknown) return=void kind=expression
@@ -100,6 +100,36 @@ const isMissing = undefined === undefined;
 /// @type.node source=undefined type=undefined
 /// @resolution.call source="undefined === undefined" parameters=() return=boolean kind=builtin builtin=binary.equal_strict
 /// @type.node source=undefined type=undefined
+"#,
+    );
+}
+
+#[test]
+fn test_strict_equality_rejects_disjoint_literal_types() {
+    let session = TestSession::single(
+        r#"
+const same = "ready" === "done";
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+const same: boolean = "ready" === "done";
+
+=== checked ===
+const same = "ready" === "done";
+/// @type.symbol symbol=same source=same type=boolean
+/// @type.node source="\"ready\" === \"done\"" type=boolean
+/// @type.node source="\"ready\"" type="ready"
+/// @resolution.call source="\"ready\" === \"done\"" parameters=() return=boolean kind=builtin builtin=binary.equal_strict
+/// @type.node source="\"done\"" type="done"
+"#,
+        r#"
+/// @diagnostic.error code=EC307 message="this comparison is unintentional: types '\"ready\"' and '\"done\"' have no overlap"
+/// @diagnostic.label line=2 column=22 span="===" line_source="const same = \"ready\" === \"done\";"
 "#,
     );
 }

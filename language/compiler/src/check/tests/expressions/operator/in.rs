@@ -32,7 +32,7 @@ const hasX = "x" in point;
 /// @type.symbol symbol=hasX source=hasX type=boolean
 /// @type.node source="\"x\" in point" type=boolean
 /// @type.node source="\"x\"" type="x"
-/// @resolution.predicate source="\"x\" in point" kind=in key_type="x" receiver=Managed<{ x: float64; y: float64 }> key=x
+/// @resolution.guard source="\"x\" in point" kind=in key_type="x" receiver=Managed<{ x: float64; y: float64 }> target=property key=x predicate=has(x)
 /// @type.node source=point type=Managed<{ x: float64; y: float64 }>
 /// @resolution.name source=point target=point
 
@@ -76,7 +76,7 @@ const hasName = "name" in point;
 /// @type.symbol symbol=hasName source=hasName type=boolean
 /// @type.node source="\"name\" in point" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.predicate source="\"name\" in point" kind=in key_type="name" receiver=Managed<{ x: float64; y: float64 }> key=name
+/// @resolution.guard source="\"name\" in point" kind=in key_type="name" receiver=Managed<{ x: float64; y: float64 }> target=property key=name predicate=has(name)
 /// @type.node source=point type=Managed<{ x: float64; y: float64 }>
 /// @resolution.name source=point target=point
 
@@ -84,6 +84,78 @@ hasName satisfies boolean;
 /// @type.node source="hasName satisfies boolean" type=boolean
 /// @type.node source=hasName type=boolean
 /// @resolution.name source=hasName target=hasName
+"#,
+    );
+}
+
+#[test]
+fn test_in_dispatches_to_has_for_nominal_receiver() {
+    let session = TestSession::single(
+        r#"
+class Bag implements Has<string> {
+    has(key: &readonly string): boolean {
+        return true;
+    }
+}
+
+declare const bag: Bag;
+
+const found = "name" in bag;
+found satisfies boolean;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class Bag implements Has<string> {
+    has(key: Borrowed<string, L0, "readonly">): boolean {
+        return true;
+    }
+}
+
+declare const bag: Bag;
+
+const found: boolean = "name" in bag;
+found satisfies boolean;
+
+=== checked ===
+class Bag implements Has<string> {
+/// @type.symbol symbol=Bag type=Bag
+/// @definition.class symbol=Bag
+/// @definition.implements symbol=Bag source=Has<string> target=ops.subscript.Has arguments=(string)
+/// @definition.method symbol=Bag.has slot=has type=(this: Bag, Borrowed<string, has.L0, "readonly">) => boolean
+/// @resolution.name source=Has target=ops.subscript.Has
+
+    has(key: &readonly string): boolean {
+    /// @generic.template symbol=Bag.has parameters=(comptime L0: Lifetime origin=induced.form)
+    /// @type.symbol symbol=Bag.has type=(this: Bag, Borrowed<string, has.L0, "readonly">) => boolean
+    /// @type.symbol symbol=key source="key: &readonly string" type=Borrowed<string, has.L0, "readonly">
+
+        return true;
+        /// @type.node source=true type=true
+
+    }
+}
+
+declare const bag: Bag;
+/// @type.symbol symbol=bag source=bag type=Bag
+/// @resolution.name source=Bag target=Bag
+
+const found = "name" in bag;
+/// @type.symbol symbol=found source=found type=boolean
+/// @type.node source="\"name\" in bag" type=boolean
+/// @type.node source="\"name\"" type="name"
+/// @resolution.guard source="\"name\" in bag" kind=in key_type="name" receiver=Bag target=operator method=Bag.has receiver=Bag
+/// @type.node source=bag type=Bag
+/// @resolution.name source=bag target=bag
+
+found satisfies boolean;
+/// @type.node source="found satisfies boolean" type=boolean
+/// @type.node source=found type=boolean
+/// @resolution.name source=found target=found
 "#,
     );
 }
@@ -135,7 +207,7 @@ if ("name" in value) {
 /// @type.node type=void | void
 /// @type.node source="\"name\" in value" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.predicate source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered key=name
+/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered target=property key=name predicate=has(name)
 /// @type.node source=value type=Named | Numbered
 /// @resolution.name source=value target=value
 
@@ -170,12 +242,12 @@ fn test_in_rejects_primitive_receiver() {
 "x" in 1;
 /// @type.node source="\"x\" in 1" type=boolean
 /// @type.node source="\"x\"" type="x"
-/// @resolution.predicate source="\"x\" in 1" kind=in key_type="x" receiver=1 key=x
+/// @resolution.guard source="\"x\" in 1" kind=in key_type="x" receiver=1 target=property key=x predicate=has(x)
 /// @type.node source=1 type=1
 "#,
         r#"
 /// @diagnostic.error code=EC306 message="operator 'in' is not defined for '\"x\"' and '1'"
-/// @diagnostic.label line=2 column=5 source="\"x\" in 1;"
+/// @diagnostic.label line=2 column=5 span="in" line_source="\"x\" in 1;"
 "#,
     );
 }
@@ -208,13 +280,13 @@ const point = { x: 1 };
 true in point;
 /// @type.node source="true in point" type=boolean
 /// @type.node source=true type=true
-/// @resolution.predicate source="true in point" kind=in key_type=true receiver=Managed<{ x: float64 }>
+/// @resolution.guard source="true in point" kind=in key_type=true receiver=Managed<{ x: float64 }> target=property predicate=has(runtime)
 /// @type.node source=point type=Managed<{ x: float64 }>
 /// @resolution.name source=point target=point
 "#,
         r#"
 /// @diagnostic.error code=EC306 message="operator 'in' is not defined for 'true' and '{ x: float64 }'"
-/// @diagnostic.label line=4 column=6 source="true in point;"
+/// @diagnostic.label line=4 column=6 span="in" line_source="true in point;"
 "#,
     );
 }
@@ -245,13 +317,13 @@ declare const value: unknown;
 "name" in value;
 /// @type.node source="\"name\" in value" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.predicate source="\"name\" in value" kind=in key_type="name" receiver=unknown key=name
+/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=unknown target=property key=name predicate=has(name)
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
 "#,
         r#"
 /// @diagnostic.error code=EC306 message="operator 'in' is not defined for '\"name\"' and 'unknown'"
-/// @diagnostic.label line=4 column=8 source="\"name\" in value;"
+/// @diagnostic.label line=4 column=8 span="in" line_source="\"name\" in value;"
 "#,
     );
 }

@@ -114,12 +114,12 @@ use(source);
 function source(value?: unknown): void {}
 declare function use(callback: (value: unknown) => void): void;
 
-use(source);
+use(source as (unknown) => void);
 
 === checked ===
 function source(value?: unknown): void {}
-/// @type.symbol symbol=source source="function source(value?: unknown): void {}" type=(unknown | undefined?) => void
-/// @type.symbol symbol=value#1 source="value?: unknown" type=unknown | undefined
+/// @type.symbol symbol=source source="function source(value?: unknown): void {}" type=(unknown | undefined) => void
+/// @type.symbol symbol=value source="value?: unknown" type=unknown | undefined
 
 declare function use(callback: (value: unknown) => void): void;
 /// @type.symbol symbol=use source="declare function use(callback: (value: unknown) => void): void" type=(Function<(unknown,), void>) => void
@@ -130,7 +130,7 @@ use(source);
 /// @type.node source=use(source) type=void
 /// @resolution.name source=use target=use
 /// @resolution.call source=use(source) parameters=(Function<(unknown,), void>) return=void kind=symbol target=use
-/// @type.node source=source type=(unknown | undefined?) => void
+/// @type.node source=source type=(unknown | undefined) => void
 /// @resolution.name source=source target=source
 "#,
     );
