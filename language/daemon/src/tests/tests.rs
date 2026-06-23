@@ -4,9 +4,10 @@ use std::thread::{self, JoinHandle};
 
 use destack_artifact::MemoryBlobStore;
 use destack_repository::{DestackLayoutOverride, Repository, Settings};
-use destack_session::{self as session, open_repository_from_fs};
+use destack_session::open_repository_from_fs;
 use destack_source::{
-    FileId, FileSystem, FileWatchEvent, FileWatchEventKind, MemoryFileSystem, MemoryFileWatcher,
+    Edit, FileId, FileSystem, FileWatchEvent, FileWatchEventKind, MemoryFileSystem,
+    MemoryFileWatcher,
 };
 use destack_workspace::protocol::{
     OpenRootRequest, RootId, RootOpenOptions, WatchBatch, WorkspaceRequest, WorkspaceResponse,
@@ -157,7 +158,7 @@ impl TestDaemon {
     pub fn update_file(&self, path: impl AsRef<Path>, content: &str) -> Vec<FileUpdate> {
         let path = self.path_for(path);
         self.local_workspace()
-            .write_file(session::Edit::SetText {
+            .write_file(Edit::SetText {
                 path: path.clone(),
                 text: content.to_string(),
             })
@@ -169,7 +170,7 @@ impl TestDaemon {
     pub fn update_memory_file(&self, path: impl AsRef<Path>, content: &str) -> Vec<FileUpdate> {
         let path = self.path_for(path);
         self.local_workspace()
-            .apply_file(session::Edit::SetText {
+            .apply_file(Edit::SetText {
                 path: path.clone(),
                 text: content.to_string(),
             })

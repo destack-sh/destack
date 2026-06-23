@@ -1,5 +1,6 @@
 use crate::tests::{TestDaemon, TestProtocolHarness};
-use destack_session as session;
+use destack_source::Edit;
+use destack_workspace::SourceUpdate;
 use destack_workspace::protocol::{
     ProtocolErrorCode, SourceUpdateRequest, WorkspaceRequest, WorkspaceResponse,
 };
@@ -35,9 +36,9 @@ fn test_protocol_source_update_advances_root_revision() {
     // apply one atomic source update through protocol
     let response = harness.send_request(WorkspaceRequest::ApplySourceUpdate(SourceUpdateRequest {
         handle,
-        update: session::Update {
+        update: SourceUpdate {
             base: None,
-            edits: vec![session::Edit::SetText {
+            edits: vec![Edit::SetText {
                 path: path.clone(),
                 text: "export const value = 1;\n".to_string(),
             }],
@@ -69,9 +70,9 @@ fn test_protocol_source_update_rejects_escaped_path() {
     // apply one escaped source update through protocol
     let response = harness.send_request(WorkspaceRequest::ApplySourceUpdate(SourceUpdateRequest {
         handle,
-        update: session::Update {
+        update: SourceUpdate {
             base: None,
-            edits: vec![session::Edit::SetText {
+            edits: vec![Edit::SetText {
                 path,
                 text: "export const value = 1;\n".to_string(),
             }],

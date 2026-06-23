@@ -144,15 +144,12 @@ impl CommandContext<'_> {
             trace: self.command_trace(revision, input.trace)?,
             ..BuildPayload::default()
         };
-        for key in artifact_keys {
-            self.push_build_artifact(revision, key, input.outputs, &mut payload)?;
+        for key in &artifact_keys {
+            self.push_build_artifact(revision, *key, input.outputs, &mut payload)?;
         }
 
         // collect diagnostics and counts
-        let diagnostics = self
-            .repository
-            .diagnostics(revision, None)
-            .map_err(|error| error.to_string())?;
+        let diagnostics = self.command_diagnostics(revision, &artifact_keys)?;
         let exit_code = diagnostics.get_status_code();
         let profile_count = module_targets
             .iter()

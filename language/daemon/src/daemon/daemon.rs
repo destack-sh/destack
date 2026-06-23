@@ -4,9 +4,8 @@ use std::sync::Arc;
 use destack_repository::Repository;
 use destack_session::SessionEventHandler;
 use destack_source::{FileWatcher, PhysicalFileWatcher};
-use destack_workspace as workspace;
-use workspace::WorkspaceRegistry;
-use workspace::protocol::{ProtocolError, ProtocolErrorCode};
+use destack_workspace::protocol::{ProtocolError, ProtocolErrorCode};
+use destack_workspace::{Workspace, WorkspaceRegistry};
 
 use crate::DaemonError;
 
@@ -95,16 +94,16 @@ impl Daemon {
 }
 
 impl WorkspaceRegistry for Daemon {
-    fn open(&self, workspace: &Path) -> Result<Arc<dyn workspace::Workspace>, ProtocolError> {
+    fn open(&self, workspace: &Path) -> Result<Arc<dyn Workspace>, ProtocolError> {
         let workspace = Daemon::open(self, workspace)
             .map_err(|error| ProtocolError::internal(error.to_string()))?;
 
         Ok(workspace.workspace())
     }
 
-    fn workspace(&self, workspace: &Path) -> Option<Arc<dyn workspace::Workspace>> {
+    fn workspace(&self, workspace: &Path) -> Option<Arc<dyn Workspace>> {
         self.workspace(workspace)
-            .map(|workspace| workspace.workspace() as Arc<dyn workspace::Workspace>)
+            .map(|workspace| workspace.workspace() as Arc<dyn Workspace>)
     }
 
     fn acquire(&self, workspace: &Path, root: &Path) -> Result<(), ProtocolError> {

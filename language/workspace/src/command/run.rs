@@ -157,10 +157,7 @@ impl CommandContext<'_> {
         self.session
             .provide(revision, &artifact_keys)
             .map_err(|error| error.to_string())?;
-        let diagnostics = self
-            .repository
-            .diagnostics(revision, None)
-            .map_err(|error| error.to_string())?;
+        let diagnostics = self.command_diagnostics(revision, &artifact_keys)?;
         let exit_code = diagnostics.get_status_code();
         let profile_count = self
             .target_profile_id(revision, entry_module, target.id)
