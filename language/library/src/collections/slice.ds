@@ -5,6 +5,8 @@ import { Access, Copy, Default, Raw, WithAccess } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
 import { Bound, RangeBounds } from "destack:range";
 
+import { Sequence } from "./sequence.ds";
+
 /// Well-known library type for the builtin slice descriptor form `[T]`.
 @languageItem("collections.Slice")
 export newtype Slice<T> = [T];
@@ -169,13 +171,25 @@ extension<T> of Slice<T> implements
     }
 }
 
-extension<T> of Slice<T> implements Index<usize>, IndexSet<usize, T> {
+extension<T> of Slice<T> implements Sequence, Index<usize>, IndexSet<usize, T> {
     /// The indexed output type.
     type Output = T;
+
+    /// The contiguous range view type.
+    type View = Slice<T>;
 
     /// Return the element at `index` by value.
     index(index: usize): T {
         todo("Slice.index")
+    }
+
+    /// Borrow a view over `start..end`.
+    view<comptime A: Access = "readonly">(
+        this: WithAccess<&Slice<T>, A>,
+        start: usize,
+        end?: usize,
+    ): WithAccess<&Slice<T>, A> {
+        this.slice(start, end)
     }
 
     /// Borrow the element at `index`.
