@@ -2,7 +2,7 @@ import { Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Access, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
-import { Equal, Hash, Index, IndexSet } from "destack:ops";
+import { Equal, Has, Hash, Index, IndexSet } from "destack:ops";
 
 import { Array } from "./array.ds";
 
@@ -111,6 +111,7 @@ extension<K, V> of ^Map<K, V> implements Default {
 }
 
 extension<K: Hash, V> of Map<K, V> implements
+    Has<K>,
     Index<K>,
     IndexSet<K, V>,
     Iterable<(K, V)>,

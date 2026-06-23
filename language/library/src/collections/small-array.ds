@@ -86,7 +86,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
 
     /// Return the allocated element count.
     get capacity(): usize {
-        this.spillStorage == undefined ? (N as usize) : this.spillCapacity;
+        this.spillStorage == undefined ? (N as usize) : this.spillCapacity
     }
 
     /// Return the inline element count.

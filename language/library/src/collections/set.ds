@@ -2,7 +2,7 @@ import { Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Default } from "destack:memory";
-import { Equal, Hash } from "destack:ops";
+import { Equal, Has, Hash } from "destack:ops";
 
 import { Map } from "./map.ds";
 
@@ -37,8 +37,11 @@ extension<T> of ^Set<T> implements Default {
     }
 }
 
-extension<T: Hash> of Set<T> implements Iterable<T>, Iterable<&readonly T>, Extend<T, "exclusive">
-where T: Equal<T> {
+extension<T: Hash> of Set<T> implements
+    Has<T>,
+    Iterable<T>,
+    Iterable<&readonly T>,
+    Extend<T, "exclusive"> where T: Equal<T> {
     /// Create a set from values.
     static from(values: Iterable<T>): ^Set<T> {
         todo("Set.from")
