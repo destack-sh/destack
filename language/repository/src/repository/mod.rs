@@ -14,6 +14,7 @@ mod profile;
 mod publish;
 mod repository;
 mod revision;
+mod source;
 mod target;
 
 pub use builtin::*;
@@ -26,3 +27,4 @@ pub use pin::*;
 pub use profile::*;
 pub use repository::*;
 pub use revision::*;
+pub use source::*;

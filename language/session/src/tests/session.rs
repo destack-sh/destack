@@ -7,11 +7,11 @@ use destack_linter::Linter;
 use destack_query::Query;
 use destack_repository::{
     DestackLayoutOverride, Environment, Execution, Host, Ref, Repository, Revision, Settings,
-    TraceSnapshot, TraceView,
+    TraceSnapshot, TraceView, open_repository,
 };
 use destack_source::{Edit, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 
-use crate::{Change, Commit, Session, SessionError, open_repository};
+use crate::{Change, Commit, Session, SessionError};
 
 const DEFAULT_ROOT: &str = "/workspace";
 
