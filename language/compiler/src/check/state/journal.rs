@@ -12,6 +12,13 @@ use crate::{CompilerError, CompilerResult};
 pub(in crate::check) enum Mutation {
     /// A variable was allocated.
     VariableAllocated { variable: dir::TypeVariableId },
+    /// A default solution was set on one variable.
+    VariableDefaultSet {
+        /// The variable receiving a default solution.
+        variable: dir::TypeVariableId,
+        /// The previous default solution.
+        previous: Option<dir::GlobalTypeId>,
+    },
     /// A working type was allocated in one module.
     TypeAllocated { module: ModuleId },
     /// A lower bound was pushed onto one variable.
@@ -59,6 +66,13 @@ pub(in crate::check) enum Mutation {
         node: dir::GlobalNodeIdAny,
         /// The drained waiter tasks.
         waiters: SmallVec<[Task; 2]>,
+    },
+    /// A coercion was recorded for one node.
+    CoercionSet {
+        /// The coerced node.
+        node: dir::GlobalNodeIdAny,
+        /// The previous coercion for the node.
+        previous: Option<dir::Coercion>,
     },
     /// A waiter task was pushed onto one undecided node.
     DecisionWaiterPushed { node: dir::GlobalNodeIdAny },
@@ -182,13 +196,13 @@ impl CheckState<'_> {
         }
 
         // validate that no rolled back id leaked into live state
-        self.validate_variable_bounds();
+        self.validate_variable_bounds()?;
 
         Ok(())
     }
 
-    /// Roll back one probe's shared solver mutations and close it.
-    pub(in crate::check) fn harvest_probe(&mut self, probe: Probe) -> CompilerResult<()> {
+    /// Keep one probe's local allocations and roll back shared solver mutations.
+    pub(in crate::check) fn keep_probe_allocations(&mut self, probe: Probe) -> CompilerResult<()> {
         let mutations = self.journal.unwind(probe)?;
 
         // collect variables allocated inside the probe
@@ -199,8 +213,7 @@ impl CheckState<'_> {
             }
         }
 
-        // split kept allocations and probe-local bindings from shared
-        // solver mutations
+        // split kept allocations and probe-local bindings from shared mutations
         let mut kept = Vec::new();
         let mut undone = Vec::new();
         for mutation in mutations {
@@ -225,35 +238,39 @@ impl CheckState<'_> {
             self.undo(mutation)?;
         }
 
-        // surviving allocations stay speculative under an enclosing
-        // probe, so its rollback still truncates them positionally
+        // keep surviving allocations visible to an enclosing probe
         for mutation in kept {
             self.journal.record(mutation);
         }
 
         // validate that no rolled back id leaked into live state
-        self.validate_variable_bounds();
+        self.validate_variable_bounds()?;
 
         Ok(())
     }
 
-    /// Panic on any variable bound referencing an unallocated type.
-    fn validate_variable_bounds(&self) {
+    /// Return an error when a variable bound references an unallocated type.
+    fn validate_variable_bounds(&self) -> CompilerResult<()> {
         for (variable, state) in self.variables.iter() {
             for bound in state.lower.iter().chain(state.upper.iter()) {
-                let live = self.modules.get(&bound.module_id).is_some_and(|module| {
-                    module.types.get_type_maybe(bound.local_id).is_some()
-                        || module.type_maybe(bound.local_id).is_some()
-                }) || self.external_modules.contains_key(&bound.module_id);
+                let live = self
+                    .modules
+                    .get(&bound.module_id)
+                    .is_some_and(|module| module.type_maybe(bound.local_id).is_some())
+                    || self.external_modules.contains_key(&bound.module_id);
 
                 if !live {
-                    panic!(
-                        "probe unwind leaked bound {bound:?} on variable {variable:?}                          lower={:?} upper={:?}",
-                        state.lower, state.upper
-                    );
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "probe unwind leaked bound {bound:?} on variable {variable:?} lower={:?} upper={:?}",
+                            state.lower, state.upper
+                        ),
+                    });
                 }
             }
         }
+
+        Ok(())
     }
 
     /// Undo one recorded mutation.
@@ -272,6 +289,9 @@ impl CheckState<'_> {
                 let count = self.variables.count_in(variable.module_id);
                 self.variables
                     .truncate(variable.module_id, count.saturating_sub(1));
+            }
+            Mutation::VariableDefaultSet { variable, previous } => {
+                self.variables.get_mut(variable)?.default = previous;
             }
             // pop pushed bounds and waiters
             Mutation::LowerBoundPushed { variable } => {
@@ -323,6 +343,7 @@ impl CheckState<'_> {
             } => self.relations.remove(relation, left, right),
             // forget speculative decisions, restoring parked waiters
             Mutation::DecisionSet { node, waiters } => self.decisions.undecide(node, waiters),
+            Mutation::CoercionSet { node, previous } => self.coercions.restore(node, previous),
             Mutation::DecisionWaiterPushed { node } => self.decisions.pop_waiter(node),
             // restore queue order
             Mutation::TaskQueued { task } => self.queue.remove_last(task),

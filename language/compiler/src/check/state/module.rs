@@ -10,7 +10,7 @@ use destack_source::{ModuleId, Span};
 use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
 
-use crate::check::{Capture, CheckError, CheckState, CheckWarning, PlaceAccess};
+use crate::check::{Capture, CheckError, CheckState, CheckWarning, Condition, PlaceAccess};
 use crate::{CompilerError, CompilerResult};
 
 /// State owned by one module inside a checked component.
@@ -77,7 +77,7 @@ impl CheckModuleState {
         resolved: Arc<DirResolved>,
         expanded: Arc<DirExpanded>,
     ) -> Self {
-        // build the inherited bindings and this check's open overlays
+        // create the inherited bindings and this check's open overlays
         let bindings = expanded.binding_table(&bound);
         let types = dir::TypeSegment::from_base(&expanded.types);
         let definitions = dir::DefinitionSegment::new(module.id);
@@ -136,8 +136,8 @@ impl CheckModuleState {
         )
     }
 
-    /// Return the authored parse tree that source renders print.
-    pub(in crate::check) fn parsed_tree(&self) -> &dir::Tree {
+    /// Return the authored source tree used for source rendering.
+    pub(in crate::check) fn source_tree(&self) -> &dir::Tree {
         &self.parsed.tree
     }
 
@@ -149,6 +149,22 @@ impl CheckModuleState {
     /// Return the authored source span of one node.
     pub(in crate::check) fn authored_span(&self, node: dir::LocalNodeIdAny) -> Span {
         self.parsed.tree.source_index.get_main_or_enclosing(node.id)
+    }
+
+    /// Return the authored diagnostic span of one visible node.
+    pub(in crate::check) fn diagnostic_span(&self, node: dir::LocalNodeIdAny) -> Option<Span> {
+        let view = self.view();
+        let source = view.get_source_any(node);
+
+        // prefer the authored node that produced the visible node
+        if let Some(span) = self.parsed.tree.get_main_span_by_id(source) {
+            return Some(span);
+        }
+        if let Some(span) = self.parsed.tree.get_span_by_id(source) {
+            return Some(span);
+        }
+
+        view.get_span_by_id(node.id)
     }
 
     /// Return the cumulative binding table visible to check.
@@ -229,6 +245,25 @@ impl CheckState<'_> {
         self.modules.contains_key(&module)
     }
 
+    /// Return the symbols whose static guards did not decide false.
+    pub(in crate::check) fn available_symbols(
+        &self,
+        symbols: &[dir::GlobalSymbolId],
+    ) -> SmallVec<[dir::GlobalSymbolId; 4]> {
+        symbols
+            .iter()
+            .copied()
+            .filter(|symbol| !self.is_unavailable_symbol(*symbol))
+            .collect()
+    }
+
+    /// Return whether one symbol's guard decided statically false.
+    pub(in crate::check) fn is_unavailable_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
+        self.modules
+            .get(&symbol.module_id)
+            .is_some_and(|module| module.unavailable.contains(&symbol))
+    }
+
     /// Return loaded state for one module.
     pub(in crate::check) fn module(&self, module: ModuleId) -> &CheckModuleState {
         match self.modules.get(&module) {
@@ -245,14 +280,28 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return the inferred type of one source node.
-    pub(in crate::check) fn node_type(
+    /// Return the checked type of one source node, if present.
+    pub(in crate::check) fn node_type_maybe(
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> Option<dir::GlobalTypeId> {
         self.modules
             .get(&node.module_id)
             .and_then(|module| module.types.get_node_type_id(node))
+    }
+
+    /// Return the checked type of one source node.
+    pub(in crate::check) fn node_type(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let Some(ty) = self.node_type_maybe(node) else {
+            return Err(CompilerError::Internal {
+                message: format!("node {node:?} has no checked type"),
+            });
+        };
+
+        Ok(ty)
     }
 
     /// Record the inferred type of one source node.
@@ -275,14 +324,32 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Return the inferred type of one source symbol.
-    pub(in crate::check) fn symbol_type(
+    /// Return one component symbol's checked type, if present.
+    pub(in crate::check) fn component_symbol_type_maybe(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Option<dir::GlobalTypeId> {
         self.modules
             .get(&symbol.module_id)
             .and_then(|module| module.types.get_symbol_type_id(symbol))
+    }
+
+    /// Return one loaded symbol's checked type, if present.
+    pub(in crate::check) fn symbol_type_maybe(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::GlobalTypeId> {
+        // prefer the component overlay over committed tables
+        if let Some(ty) = self.component_symbol_type_maybe(symbol) {
+            return Some(ty);
+        }
+
+        // read external committed symbol types
+        if let Some(external) = self.external_modules.get(&symbol.module_id) {
+            return external.types.get_symbol_type_id(symbol);
+        }
+
+        None
     }
 
     /// Record the inferred type of one source symbol.
@@ -343,6 +410,16 @@ impl CheckState<'_> {
             .get(&node.module_id)
             .and_then(|module| module.node_conditions.get(&node))
             .map_or(&[], |predicates| predicates.as_slice())
+    }
+
+    /// Return the active static condition of one source node.
+    pub(in crate::check) fn node_static_condition(&self, node: dir::GlobalNodeIdAny) -> Condition {
+        let predicates = self.node_condition(node);
+        if predicates.is_empty() {
+            Condition::Always
+        } else {
+            Condition::When(predicates.iter().copied().collect())
+        }
     }
 
     /// Record the active static `@if` guard predicates of one source node.

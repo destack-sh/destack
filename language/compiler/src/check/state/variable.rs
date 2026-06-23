@@ -19,7 +19,7 @@ pub(in crate::check) struct VariableState {
     pub(in crate::check) upper: SmallVec<[dir::GlobalTypeId; 2]>,
     /// The solved type, when solving finished.
     pub(in crate::check) solution: Option<dir::GlobalTypeId>,
-    /// The fallback solution applied when no bounds arrive.
+    /// The default solution applied when no bounds arrive.
     pub(in crate::check) default: Option<dir::GlobalTypeId>,
     /// The union-find representative, when aliased to another variable.
     pub(in crate::check) alias: Option<dir::TypeVariableId>,
@@ -134,8 +134,7 @@ impl VariableTable {
     pub(in crate::check) fn count_in(&self, module: ModuleId) -> usize {
         self.modules
             .get(&module)
-            .map(|variables| variables.len())
-            .unwrap_or(0)
+            .map_or(0, |variables| variables.len())
     }
 
     /// Return the total number of allocated variables.

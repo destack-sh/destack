@@ -1,5 +1,6 @@
 mod assumption;
 mod capture;
+mod coercion;
 mod component;
 mod decision;
 mod diagnostic;
@@ -14,6 +15,7 @@ mod variable;
 
 pub(in crate::check) use assumption::*;
 pub(in crate::check) use capture::*;
+pub(in crate::check) use coercion::*;
 pub(in crate::check) use component::*;
 pub(in crate::check) use decision::*;
 pub(in crate::check) use external::*;
