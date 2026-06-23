@@ -11,8 +11,7 @@
         "dsx": "npm/dist/bin/dsx.js"
     },
     "files": [
-        "npm/dist",
-        "README.md"
+        "npm/dist"
     ],
     "scripts": {
         "build": "bun x tsc -p ./npm/tsconfig.build.json",

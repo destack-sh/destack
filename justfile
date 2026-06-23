@@ -99,8 +99,8 @@ check-full:
 check-hygiene:
     just ensure-hygiene-toolchain
     PATH="${HOME}/.local/bin:${PATH}" actionlint
-    shellcheck -x dev/toolchain/*.sh dev/toolchain/lib/*.sh dev/ci/*.sh app/scripts/*.sh bridge/scripts/*.sh
-    shfmt -d dev/toolchain/*.sh dev/toolchain/lib/*.sh dev/ci/*.sh app/scripts/*.sh bridge/scripts/*.sh
+    shellcheck -x dev/toolchain/*.sh dev/toolchain/lib/*.sh dev/ci/*.sh app/cli/scripts/*.sh bridge/scripts/*.sh
+    shfmt -d dev/toolchain/*.sh dev/toolchain/lib/*.sh dev/ci/*.sh app/cli/scripts/*.sh bridge/scripts/*.sh
 
 # install ci hygiene toolchains on this host
 install-hygiene-toolchain:

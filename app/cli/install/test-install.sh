@@ -6,9 +6,10 @@ export LC_ALL="C"
 
 # test configuration
 DESTACK_VERSION_INPUT="${1:-}"
-DESTACK_ARTIFACTS_DIRECTORY="${2:-app/cli/install/artifacts}"
 DESTACK_RELEASE_TAG_INPUT="${DESTACK_RELEASE_TAG:-}"
 DESTACK_SCRIPT_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+DESTACK_CLI_DIRECTORY="$(cd -- "${DESTACK_SCRIPT_DIRECTORY}/.." >/dev/null 2>&1 && pwd)"
+DESTACK_ARTIFACTS_DIRECTORY="${2:-${DESTACK_CLI_DIRECTORY}/install/artifacts}"
 DESTACK_INSTALL_SCRIPT_PATH="${DESTACK_SCRIPT_DIRECTORY}/install.sh"
 
 # print an error message and exit

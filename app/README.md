@@ -1,25 +1,11 @@
 # App
 
-First-party applications and programmer tools.
+First-party Destack applications live here.
 
 ## Projects
 
-| Project | Status | Summary |
-|---------|--------|---------|
-| [`cli`](cli/README.md) | Alpha | Command-line interface for `destack`, `ds`, `dsc`, and `dsx` |
+| Project | Summary |
+|---------|---------|
+| [`cli`](cli) | Public Destack command-line app. |
 
-## Commands
-
-Run these commands from the repository root.
-
-```sh
-just app/format
-just app/format-check
-just app/lint
-just app/build
-just app/test
-just app/check-quick
-just app/check-full
-just app/generate-schema
-just app/publish --dry-run
-```
+The CLI currently delegates language commands to `language/cli`.

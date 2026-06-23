@@ -5,6 +5,8 @@ set -euo pipefail
 export LC_ALL="C"
 
 # packaging configuration
+DESTACK_SCRIPT_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+DESTACK_CLI_DIRECTORY="$(cd -- "${DESTACK_SCRIPT_DIRECTORY}/.." >/dev/null 2>&1 && pwd)"
 DESTACK_VERSION_INPUT="${1:-}"
 DESTACK_OUTPUT_DIRECTORY="${2:-}"
 DESTACK_TARGETS_INPUT="${DESTACK_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
@@ -77,7 +79,7 @@ resolve_output_directory() {
         return
     fi
 
-    printf '%s\n' "app/cli/install/artifacts"
+    printf '%s\n' "${DESTACK_CLI_DIRECTORY}/install/artifacts"
 }
 
 # resolve a target archive file extension

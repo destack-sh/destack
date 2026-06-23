@@ -1,0 +1,62 @@
+[package]
+name = "destack_language_cli"
+description = "Destack language CLI"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+default = ["dev"]
+dev = ["tiktoken-rs"]
+schema = ["schemars"]
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+# language
+destack_artifact = { workspace = true }
+destack_compiler = { workspace = true, features = ["native"] }
+destack_core = { workspace = true }
+destack_dir = { workspace = true }
+destack_program = { workspace = true }
+destack_fir = { workspace = true }
+destack_formatter = { workspace = true }
+destack_json = { workspace = true }
+destack_linter = { workspace = true }
+destack_mir = { workspace = true }
+destack_parser = { workspace = true }
+destack_query = { workspace = true }
+destack_repository = { workspace = true }
+destack_runtime = { workspace = true }
+destack_session = { workspace = true, features = ["native"] }
+destack_source = { workspace = true }
+destack_vm = { workspace = true }
+
+# platform
+destack_daemon = { workspace = true }
+destack_lsp = { workspace = true }
+destack_workspace = { workspace = true }
+
+# general
+clap = { workspace = true, features = ["derive"] }
+clap_complete = { workspace = true }
+console = { workspace = true }
+indicatif = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+schemars = { workspace = true, optional = true }
+
+# dev-only
+tiktoken-rs = { workspace = true, optional = true }
+
+[dev-dependencies]
+
+[lints]
+workspace = true
