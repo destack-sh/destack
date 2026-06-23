@@ -1,47 +1,45 @@
-use destack_source as source;
-
 use crate::{FileId, SourceIdParseError, Span, bridge};
 
-/// One source replacement crossing bridge boundaries.
+/// One source patch crossing bridge boundaries.
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Replacement {
+pub struct Patch {
     /// Source span to replace.
     pub span: Span,
-    /// Replacement text.
+    /// Patch text.
     pub new_text: String,
 }
 
-/// Edits for a single file.
+/// Patches for a single file.
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FilePatch {
     /// Edited file.
     pub file: FileId,
-    /// Source replacements.
-    pub replacements: Vec<Replacement>,
+    /// Source patches.
+    pub patches: Vec<Patch>,
 }
 
-/// Edits across multiple files.
+/// Patches across multiple files.
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct BatchEdit {
-    /// Per-file edits.
+pub struct PatchSet {
+    /// Per-file patches.
     pub files: Vec<FilePatch>,
 }
 
-impl Replacement {
-    /// Convert one source edit into one bridge replacement.
-    pub fn from_source(edit: source::Edit) -> Self {
+impl Patch {
+    /// Convert one source patch into one bridge patch.
+    pub fn from_source(patch: destack_source::Patch) -> Self {
         Self {
-            span: edit.span.into(),
-            new_text: edit.new_text,
+            span: patch.span.into(),
+            new_text: patch.new_text,
         }
     }
 
-    /// Convert this bridge replacement into one source edit.
-    pub fn into_source(self) -> Result<source::Edit, SourceIdParseError> {
-        Ok(source::Edit::replace(
+    /// Convert this bridge patch into one source patch.
+    pub fn into_source(self) -> Result<destack_source::Patch, SourceIdParseError> {
+        Ok(destack_source::Patch::replace(
             self.span.into_source()?,
             self.new_text,
         ))
@@ -49,95 +47,95 @@ impl Replacement {
 }
 
 impl FilePatch {
-    /// Convert one source file edit into one bridge file patch.
-    pub fn from_source(edit: source::FileEdit) -> Self {
+    /// Convert one source file patch into one bridge file patch.
+    pub fn from_source(patch: destack_source::FilePatch) -> Self {
         Self {
-            file: edit.file.into(),
-            replacements: edit
-                .edits
+            file: patch.file.into(),
+            patches: patch.patches.into_iter().map(Patch::from_source).collect(),
+        }
+    }
+
+    /// Convert this bridge file patch into one source file patch.
+    pub fn into_source(self) -> Result<destack_source::FilePatch, SourceIdParseError> {
+        let file = self.file.into_source()?;
+        let patches = self
+            .patches
+            .into_iter()
+            .map(Patch::into_source)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(destack_source::FilePatch::with_patches(file, patches))
+    }
+}
+
+impl PatchSet {
+    /// Convert one source patch set into one bridge patch set.
+    pub fn from_source(patch: destack_source::PatchSet) -> Self {
+        Self {
+            files: patch
+                .files
                 .into_iter()
-                .map(Replacement::from_source)
+                .map(FilePatch::from_source)
                 .collect(),
         }
     }
 
-    /// Convert this bridge file patch into one source file edit.
-    pub fn into_source(self) -> Result<source::FileEdit, SourceIdParseError> {
-        let file = self.file.into_source()?;
-        let edits = self
-            .replacements
-            .into_iter()
-            .map(Replacement::into_source)
-            .collect::<Result<Vec<_>, _>>()?;
-
-        Ok(source::FileEdit::with_edits(file, edits))
-    }
-}
-
-impl BatchEdit {
-    /// Convert one source batch edit into one bridge batch edit.
-    pub fn from_source(edit: source::BatchEdit) -> Self {
-        Self {
-            files: edit.files.into_iter().map(FilePatch::from_source).collect(),
-        }
-    }
-
-    /// Convert this bridge batch edit into one source batch edit.
-    pub fn into_source(self) -> Result<source::BatchEdit, SourceIdParseError> {
+    /// Convert this bridge patch set into one source patch set.
+    pub fn into_source(self) -> Result<destack_source::PatchSet, SourceIdParseError> {
         let files = self
             .files
             .into_iter()
             .map(FilePatch::into_source)
             .collect::<Result<Vec<_>, _>>()?;
 
-        Ok(source::BatchEdit::from_files(files))
+        Ok(destack_source::PatchSet::from_files(files))
     }
 }
 
-impl From<source::Edit> for Replacement {
-    /// Convert one source edit into one bridge replacement.
-    fn from(edit: source::Edit) -> Self {
-        Self::from_source(edit)
+impl From<destack_source::Patch> for Patch {
+    /// Convert one source patch into one bridge patch.
+    fn from(patch: destack_source::Patch) -> Self {
+        Self::from_source(patch)
     }
 }
 
-impl TryFrom<Replacement> for source::Edit {
+impl TryFrom<Patch> for destack_source::Patch {
     type Error = SourceIdParseError;
 
-    /// Convert one bridge replacement into one source edit.
-    fn try_from(replacement: Replacement) -> Result<Self, Self::Error> {
-        replacement.into_source()
+    /// Convert one bridge patch into one source patch.
+    fn try_from(patch: Patch) -> Result<Self, Self::Error> {
+        patch.into_source()
     }
 }
 
-impl From<source::FileEdit> for FilePatch {
-    /// Convert one source file edit into one bridge file patch.
-    fn from(edit: source::FileEdit) -> Self {
-        Self::from_source(edit)
+impl From<destack_source::FilePatch> for FilePatch {
+    /// Convert one source file patch into one bridge file patch.
+    fn from(patch: destack_source::FilePatch) -> Self {
+        Self::from_source(patch)
     }
 }
 
-impl TryFrom<FilePatch> for source::FileEdit {
+impl TryFrom<FilePatch> for destack_source::FilePatch {
     type Error = SourceIdParseError;
 
-    /// Convert one bridge file patch into one source file edit.
+    /// Convert one bridge file patch into one source file patch.
     fn try_from(patch: FilePatch) -> Result<Self, Self::Error> {
         patch.into_source()
     }
 }
 
-impl From<source::BatchEdit> for BatchEdit {
-    /// Convert one source batch edit into one bridge batch edit.
-    fn from(edit: source::BatchEdit) -> Self {
-        Self::from_source(edit)
+impl From<destack_source::PatchSet> for PatchSet {
+    /// Convert one source patch set into one bridge patch set.
+    fn from(patch: destack_source::PatchSet) -> Self {
+        Self::from_source(patch)
     }
 }
 
-impl TryFrom<BatchEdit> for source::BatchEdit {
+impl TryFrom<PatchSet> for destack_source::PatchSet {
     type Error = SourceIdParseError;
 
-    /// Convert one bridge batch edit into one source batch edit.
-    fn try_from(edit: BatchEdit) -> Result<Self, Self::Error> {
-        edit.into_source()
+    /// Convert one bridge patch set into one source patch set.
+    fn try_from(patch: PatchSet) -> Result<Self, Self::Error> {
+        patch.into_source()
     }
 }

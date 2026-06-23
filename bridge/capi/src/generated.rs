@@ -1,9 +1,7 @@
 // generated bridge target, do not edit
 
 use std::ffi::c_char;
-use std::ptr;
-
-use destack as rust;
+use std::{ptr, slice};
 
 use crate::core::{
     DestackError, DestackStatus, c_string, destroy_array, destroy_string, owned_array, read_bytes,
@@ -18,6 +16,16 @@ pub struct DestackByteArray {
     pub(crate) ptr: *mut u8,
     /// Byte count.
     pub(crate) len: usize,
+}
+
+/// C ABI unsigned 128 bit value.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct DestackU128 {
+    /// Most significant 64 bits.
+    pub(crate) high: u64,
+    /// Least significant 64 bits.
+    pub(crate) low: u64,
 }
 
 /// C ABI owned string array.
@@ -65,6 +73,21 @@ impl DestackByteArray {
     }
 }
 
+impl DestackU128 {
+    /// Convert one Rust `u128` into one C ABI value.
+    pub(crate) fn from_bridge(value: u128) -> Self {
+        Self {
+            high: (value >> 64) as u64,
+            low: value as u64,
+        }
+    }
+
+    /// Convert this C ABI value into one Rust `u128`.
+    pub(crate) fn to_bridge(self) -> u128 {
+        ((self.high as u128) << 64) | self.low as u128
+    }
+}
+
 impl DestackStringArray {
     /// Convert Rust strings into one C ABI string array.
     pub(crate) fn from_bridge(values: Vec<String>) -> Result<Self, String> {
@@ -84,7 +107,7 @@ impl DestackStringArray {
         if self.ptr.is_null() {
             return Err("string array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(read_string(*value)?);
@@ -151,7 +174,7 @@ impl DestackOptionalString {
 #[derive(Debug)]
 pub struct DestackArtifactKey {
     /// Rust bridge value.
-    pub(crate) value: rust::language::ArtifactKey,
+    pub(crate) value: destack::language::ArtifactKey,
 }
 
 /// C ABI bridge enum.
@@ -188,20 +211,20 @@ pub struct DestackOptionalApplicability {
 
 impl DestackApplicability {
     /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::Applicability) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::Applicability) -> Result<Self, String> {
         Ok(match value {
-            rust::language::Applicability::Automatic => Self::Automatic,
-            rust::language::Applicability::Unsafe => Self::Unsafe,
-            rust::language::Applicability::Dangerous => Self::Dangerous,
+            destack::language::Applicability::Automatic => Self::Automatic,
+            destack::language::Applicability::Unsafe => Self::Unsafe,
+            destack::language::Applicability::Dangerous => Self::Dangerous,
         })
     }
 
     /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(self) -> Result<rust::language::Applicability, String> {
+    pub(crate) fn to_bridge(self) -> Result<destack::language::Applicability, String> {
         Ok(match self {
-            Self::Automatic => rust::language::Applicability::Automatic,
-            Self::Unsafe => rust::language::Applicability::Unsafe,
-            Self::Dangerous => rust::language::Applicability::Dangerous,
+            Self::Automatic => destack::language::Applicability::Automatic,
+            Self::Unsafe => destack::language::Applicability::Unsafe,
+            Self::Dangerous => destack::language::Applicability::Dangerous,
         })
     }
 
@@ -215,7 +238,9 @@ impl DestackApplicability {
 
 impl DestackApplicabilityArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Applicability>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(
+        values: Vec<destack::language::Applicability>,
+    ) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackApplicability::from_bridge(value)?);
@@ -225,14 +250,14 @@ impl DestackApplicabilityArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Applicability>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::Applicability>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -256,7 +281,7 @@ impl DestackApplicabilityArray {
 impl DestackOptionalApplicability {
     /// Convert one optional bridge value into one C ABI optional value.
     pub(crate) fn from_bridge(
-        value: Option<rust::language::Applicability>,
+        value: Option<destack::language::Applicability>,
     ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
@@ -271,7 +296,7 @@ impl DestackOptionalApplicability {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Applicability>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::Applicability>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -321,7 +346,7 @@ pub struct DestackOptionalArtifactVersion {
 
 impl DestackArtifactVersion {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::ArtifactVersion) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::ArtifactVersion) -> Result<Self, String> {
         Ok(Self {
             key: Box::into_raw(Box::new(DestackArtifactKey { value: value.key })),
             fingerprint: c_string(value.fingerprint)?,
@@ -329,8 +354,8 @@ impl DestackArtifactVersion {
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ArtifactVersion, String> {
-        Ok(rust::language::ArtifactVersion {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::ArtifactVersion, String> {
+        Ok(destack::language::ArtifactVersion {
             key: {
                 let value = unsafe { self.key.as_ref() }.ok_or("artifact key is null")?;
                 value.value.clone()
@@ -363,7 +388,7 @@ impl DestackArtifactVersion {
 impl DestackArtifactVersionArray {
     /// Convert bridge values into one C ABI array.
     pub(crate) fn from_bridge(
-        values: Vec<rust::language::ArtifactVersion>,
+        values: Vec<destack::language::ArtifactVersion>,
     ) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
@@ -374,14 +399,14 @@ impl DestackArtifactVersionArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ArtifactVersion>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::ArtifactVersion>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -405,7 +430,7 @@ impl DestackArtifactVersionArray {
 impl DestackOptionalArtifactVersion {
     /// Convert one optional bridge value into one C ABI optional value.
     pub(crate) fn from_bridge(
-        value: Option<rust::language::ArtifactVersion>,
+        value: Option<destack::language::ArtifactVersion>,
     ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
@@ -420,7 +445,7 @@ impl DestackOptionalArtifactVersion {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ArtifactVersion>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::ArtifactVersion>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -468,15 +493,15 @@ pub struct DestackOptionalContentId {
 
 impl DestackContentId {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::ContentId) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::ContentId) -> Result<Self, String> {
         Ok(Self {
             id: c_string(value.id)?,
         })
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ContentId, String> {
-        Ok(rust::language::ContentId {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::ContentId, String> {
+        Ok(destack::language::ContentId {
             id: read_string(self.id)?,
         })
     }
@@ -497,7 +522,7 @@ impl DestackContentId {
 
 impl DestackContentIdArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::ContentId>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::ContentId>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackContentId::from_bridge(value)?);
@@ -507,14 +532,14 @@ impl DestackContentIdArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ContentId>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::ContentId>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -537,7 +562,7 @@ impl DestackContentIdArray {
 
 impl DestackOptionalContentId {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::ContentId>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: Option<destack::language::ContentId>) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
@@ -551,7 +576,7 @@ impl DestackOptionalContentId {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ContentId>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::ContentId>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -599,15 +624,15 @@ pub struct DestackOptionalFileId {
 
 impl DestackFileId {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::FileId) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::FileId) -> Result<Self, String> {
         Ok(Self {
             id: c_string(value.id)?,
         })
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::FileId, String> {
-        Ok(rust::language::FileId {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::FileId, String> {
+        Ok(destack::language::FileId {
             id: read_string(self.id)?,
         })
     }
@@ -628,7 +653,7 @@ impl DestackFileId {
 
 impl DestackFileIdArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::FileId>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::FileId>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackFileId::from_bridge(value)?);
@@ -638,14 +663,14 @@ impl DestackFileIdArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::FileId>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::FileId>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -668,7 +693,7 @@ impl DestackFileIdArray {
 
 impl DestackOptionalFileId {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::FileId>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: Option<destack::language::FileId>) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
@@ -682,7 +707,7 @@ impl DestackOptionalFileId {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::FileId>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::FileId>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -743,15 +768,17 @@ pub struct DestackOptionalArtifactDependency {
 
 impl DestackArtifactDependency {
     /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::ArtifactDependency) -> Result<Self, String> {
+    pub(crate) fn from_bridge(
+        value: destack::language::ArtifactDependency,
+    ) -> Result<Self, String> {
         Ok(match value {
-            rust::language::ArtifactDependency::Artifact { version } => Self {
+            destack::language::ArtifactDependency::Artifact { version } => Self {
                 kind: DestackArtifactDependencyKind::Artifact,
                 version: DestackArtifactVersion::from_bridge(version)?,
                 file: DestackFileId::empty(),
                 content: DestackContentId::empty(),
             },
-            rust::language::ArtifactDependency::Source { file, content } => Self {
+            destack::language::ArtifactDependency::Source { file, content } => Self {
                 kind: DestackArtifactDependencyKind::Source,
                 version: DestackArtifactVersion::empty(),
                 file: DestackFileId::from_bridge(file)?,
@@ -761,16 +788,16 @@ impl DestackArtifactDependency {
     }
 
     /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ArtifactDependency, String> {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::ArtifactDependency, String> {
         match self.kind {
             DestackArtifactDependencyKind::Artifact => {
                 let version = self.version.to_bridge()?;
-                Ok(rust::language::ArtifactDependency::Artifact { version })
+                Ok(destack::language::ArtifactDependency::Artifact { version })
             }
             DestackArtifactDependencyKind::Source => {
                 let file = self.file.to_bridge()?;
                 let content = self.content.to_bridge()?;
-                Ok(rust::language::ArtifactDependency::Source { file, content })
+                Ok(destack::language::ArtifactDependency::Source { file, content })
             }
         }
     }
@@ -796,7 +823,7 @@ impl DestackArtifactDependency {
 impl DestackArtifactDependencyArray {
     /// Convert bridge values into one C ABI array.
     pub(crate) fn from_bridge(
-        values: Vec<rust::language::ArtifactDependency>,
+        values: Vec<destack::language::ArtifactDependency>,
     ) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
@@ -807,14 +834,14 @@ impl DestackArtifactDependencyArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ArtifactDependency>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::ArtifactDependency>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -838,7 +865,7 @@ impl DestackArtifactDependencyArray {
 impl DestackOptionalArtifactDependency {
     /// Convert one optional bridge value into one C ABI optional value.
     pub(crate) fn from_bridge(
-        value: Option<rust::language::ArtifactDependency>,
+        value: Option<destack::language::ArtifactDependency>,
     ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
@@ -853,7 +880,9 @@ impl DestackOptionalArtifactDependency {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ArtifactDependency>, String> {
+    pub(crate) fn to_bridge(
+        &self,
+    ) -> Result<Option<destack::language::ArtifactDependency>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -903,7 +932,9 @@ pub struct DestackOptionalArtifactSidecarLabel {
 
 impl DestackArtifactSidecarLabel {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::ArtifactSidecarLabel) -> Result<Self, String> {
+    pub(crate) fn from_bridge(
+        value: destack::language::ArtifactSidecarLabel,
+    ) -> Result<Self, String> {
         Ok(Self {
             key: c_string(value.key)?,
             value: c_string(value.value)?,
@@ -911,8 +942,8 @@ impl DestackArtifactSidecarLabel {
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ArtifactSidecarLabel, String> {
-        Ok(rust::language::ArtifactSidecarLabel {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::ArtifactSidecarLabel, String> {
+        Ok(destack::language::ArtifactSidecarLabel {
             key: read_string(self.key)?,
             value: read_string(self.value)?,
         })
@@ -938,7 +969,7 @@ impl DestackArtifactSidecarLabel {
 impl DestackArtifactSidecarLabelArray {
     /// Convert bridge values into one C ABI array.
     pub(crate) fn from_bridge(
-        values: Vec<rust::language::ArtifactSidecarLabel>,
+        values: Vec<destack::language::ArtifactSidecarLabel>,
     ) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
@@ -949,14 +980,14 @@ impl DestackArtifactSidecarLabelArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ArtifactSidecarLabel>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::ArtifactSidecarLabel>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -980,7 +1011,7 @@ impl DestackArtifactSidecarLabelArray {
 impl DestackOptionalArtifactSidecarLabel {
     /// Convert one optional bridge value into one C ABI optional value.
     pub(crate) fn from_bridge(
-        value: Option<rust::language::ArtifactSidecarLabel>,
+        value: Option<destack::language::ArtifactSidecarLabel>,
     ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
@@ -995,7 +1026,9 @@ impl DestackOptionalArtifactSidecarLabel {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ArtifactSidecarLabel>, String> {
+    pub(crate) fn to_bridge(
+        &self,
+    ) -> Result<Option<destack::language::ArtifactSidecarLabel>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -1055,9 +1088,9 @@ pub struct DestackOptionalContent {
 
 impl DestackContent {
     /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::Content) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::Content) -> Result<Self, String> {
         Ok(match value {
-            rust::language::Content::Text { content } => Self {
+            destack::language::Content::Text { content } => Self {
                 kind: DestackContentKind::Text,
                 text_content: c_string(content)?,
                 binary_content: DestackByteArray {
@@ -1065,7 +1098,7 @@ impl DestackContent {
                     len: 0,
                 },
             },
-            rust::language::Content::Binary { content } => Self {
+            destack::language::Content::Binary { content } => Self {
                 kind: DestackContentKind::Binary,
                 text_content: ptr::null_mut(),
                 binary_content: DestackByteArray::from_vec(content),
@@ -1074,11 +1107,11 @@ impl DestackContent {
     }
 
     /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Content, String> {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::Content, String> {
         match self.kind {
             DestackContentKind::Text => {
                 let text_content = read_string(self.text_content)?;
-                Ok(rust::language::Content::Text {
+                Ok(destack::language::Content::Text {
                     content: text_content,
                 })
             }
@@ -1087,7 +1120,7 @@ impl DestackContent {
                     self.binary_content.ptr.cast_const(),
                     self.binary_content.len,
                 )?;
-                Ok(rust::language::Content::Binary {
+                Ok(destack::language::Content::Binary {
                     content: binary_content,
                 })
             }
@@ -1116,7 +1149,7 @@ impl DestackContent {
 
 impl DestackContentArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Content>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::Content>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackContent::from_bridge(value)?);
@@ -1126,14 +1159,14 @@ impl DestackContentArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Content>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::Content>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -1156,7 +1189,7 @@ impl DestackContentArray {
 
 impl DestackOptionalContent {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Content>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: Option<destack::language::Content>) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
@@ -1170,7 +1203,7 @@ impl DestackOptionalContent {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Content>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::Content>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -1222,7 +1255,7 @@ pub struct DestackOptionalArtifactSidecar {
 
 impl DestackArtifactSidecar {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::ArtifactSidecar) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::ArtifactSidecar) -> Result<Self, String> {
         Ok(Self {
             name: c_string(value.name)?,
             labels: DestackArtifactSidecarLabelArray::from_bridge(value.labels)?,
@@ -1231,8 +1264,8 @@ impl DestackArtifactSidecar {
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ArtifactSidecar, String> {
-        Ok(rust::language::ArtifactSidecar {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::ArtifactSidecar, String> {
+        Ok(destack::language::ArtifactSidecar {
             name: read_string(self.name)?,
             labels: self.labels.to_bridge()?,
             content: self.content.to_bridge()?,
@@ -1263,7 +1296,7 @@ impl DestackArtifactSidecar {
 impl DestackArtifactSidecarArray {
     /// Convert bridge values into one C ABI array.
     pub(crate) fn from_bridge(
-        values: Vec<rust::language::ArtifactSidecar>,
+        values: Vec<destack::language::ArtifactSidecar>,
     ) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
@@ -1274,14 +1307,14 @@ impl DestackArtifactSidecarArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ArtifactSidecar>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::ArtifactSidecar>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -1305,7 +1338,7 @@ impl DestackArtifactSidecarArray {
 impl DestackOptionalArtifactSidecar {
     /// Convert one optional bridge value into one C ABI optional value.
     pub(crate) fn from_bridge(
-        value: Option<rust::language::ArtifactSidecar>,
+        value: Option<destack::language::ArtifactSidecar>,
     ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
@@ -1320,7 +1353,7 @@ impl DestackOptionalArtifactSidecar {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ArtifactSidecar>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::ArtifactSidecar>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -1370,7 +1403,7 @@ pub struct DestackOptionalArtifactString {
 
 impl DestackArtifactString {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::ArtifactString) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::ArtifactString) -> Result<Self, String> {
         Ok(Self {
             id: c_string(value.id)?,
             text: c_string(value.text)?,
@@ -1378,8 +1411,8 @@ impl DestackArtifactString {
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ArtifactString, String> {
-        Ok(rust::language::ArtifactString {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::ArtifactString, String> {
+        Ok(destack::language::ArtifactString {
             id: read_string(self.id)?,
             text: read_string(self.text)?,
         })
@@ -1404,7 +1437,9 @@ impl DestackArtifactString {
 
 impl DestackArtifactStringArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::ArtifactString>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(
+        values: Vec<destack::language::ArtifactString>,
+    ) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackArtifactString::from_bridge(value)?);
@@ -1414,14 +1449,14 @@ impl DestackArtifactStringArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ArtifactString>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::ArtifactString>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -1445,7 +1480,7 @@ impl DestackArtifactStringArray {
 impl DestackOptionalArtifactString {
     /// Convert one optional bridge value into one C ABI optional value.
     pub(crate) fn from_bridge(
-        value: Option<rust::language::ArtifactString>,
+        value: Option<destack::language::ArtifactString>,
     ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
@@ -1460,7 +1495,7 @@ impl DestackOptionalArtifactString {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ArtifactString>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::ArtifactString>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -1508,15 +1543,15 @@ pub struct DestackOptionalDiagnosticHelp {
 
 impl DestackDiagnosticHelp {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::DiagnosticHelp) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::DiagnosticHelp) -> Result<Self, String> {
         Ok(Self {
             message: c_string(value.message)?,
         })
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::DiagnosticHelp, String> {
-        Ok(rust::language::DiagnosticHelp {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::DiagnosticHelp, String> {
+        Ok(destack::language::DiagnosticHelp {
             message: read_string(self.message)?,
         })
     }
@@ -1537,7 +1572,9 @@ impl DestackDiagnosticHelp {
 
 impl DestackDiagnosticHelpArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::DiagnosticHelp>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(
+        values: Vec<destack::language::DiagnosticHelp>,
+    ) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackDiagnosticHelp::from_bridge(value)?);
@@ -1547,14 +1584,14 @@ impl DestackDiagnosticHelpArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::DiagnosticHelp>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::DiagnosticHelp>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -1578,7 +1615,7 @@ impl DestackDiagnosticHelpArray {
 impl DestackOptionalDiagnosticHelp {
     /// Convert one optional bridge value into one C ABI optional value.
     pub(crate) fn from_bridge(
-        value: Option<rust::language::DiagnosticHelp>,
+        value: Option<destack::language::DiagnosticHelp>,
     ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
@@ -1593,7 +1630,7 @@ impl DestackOptionalDiagnosticHelp {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::DiagnosticHelp>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::DiagnosticHelp>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -1645,7 +1682,7 @@ pub struct DestackOptionalSpan {
 
 impl DestackSpan {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::Span) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::Span) -> Result<Self, String> {
         Ok(Self {
             file: DestackFileId::from_bridge(value.file)?,
             start: value.start,
@@ -1654,8 +1691,8 @@ impl DestackSpan {
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Span, String> {
-        Ok(rust::language::Span {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::Span, String> {
+        Ok(destack::language::Span {
             file: self.file.to_bridge()?,
             start: self.start,
             end: self.end,
@@ -1679,7 +1716,7 @@ impl DestackSpan {
 
 impl DestackSpanArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Span>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::Span>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackSpan::from_bridge(value)?);
@@ -1689,14 +1726,14 @@ impl DestackSpanArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Span>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::Span>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -1719,7 +1756,7 @@ impl DestackSpanArray {
 
 impl DestackOptionalSpan {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Span>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: Option<destack::language::Span>) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
@@ -1733,7 +1770,7 @@ impl DestackOptionalSpan {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Span>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::Span>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -1785,7 +1822,7 @@ pub struct DestackOptionalDiagnosticLabel {
 
 impl DestackDiagnosticLabel {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::DiagnosticLabel) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::DiagnosticLabel) -> Result<Self, String> {
         Ok(Self {
             content: DestackContentId::from_bridge(value.content)?,
             span: DestackSpan::from_bridge(value.span)?,
@@ -1794,8 +1831,8 @@ impl DestackDiagnosticLabel {
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::DiagnosticLabel, String> {
-        Ok(rust::language::DiagnosticLabel {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::DiagnosticLabel, String> {
+        Ok(destack::language::DiagnosticLabel {
             content: self.content.to_bridge()?,
             span: self.span.to_bridge()?,
             message: self.message.to_bridge()?,
@@ -1822,7 +1859,7 @@ impl DestackDiagnosticLabel {
 impl DestackDiagnosticLabelArray {
     /// Convert bridge values into one C ABI array.
     pub(crate) fn from_bridge(
-        values: Vec<rust::language::DiagnosticLabel>,
+        values: Vec<destack::language::DiagnosticLabel>,
     ) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
@@ -1833,14 +1870,14 @@ impl DestackDiagnosticLabelArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::DiagnosticLabel>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::DiagnosticLabel>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -1864,7 +1901,7 @@ impl DestackDiagnosticLabelArray {
 impl DestackOptionalDiagnosticLabel {
     /// Convert one optional bridge value into one C ABI optional value.
     pub(crate) fn from_bridge(
-        value: Option<rust::language::DiagnosticLabel>,
+        value: Option<destack::language::DiagnosticLabel>,
     ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
@@ -1879,7 +1916,7 @@ impl DestackOptionalDiagnosticLabel {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::DiagnosticLabel>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::DiagnosticLabel>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -1927,15 +1964,15 @@ pub struct DestackOptionalDiagnosticNote {
 
 impl DestackDiagnosticNote {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::DiagnosticNote) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::DiagnosticNote) -> Result<Self, String> {
         Ok(Self {
             message: c_string(value.message)?,
         })
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::DiagnosticNote, String> {
-        Ok(rust::language::DiagnosticNote {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::DiagnosticNote, String> {
+        Ok(destack::language::DiagnosticNote {
             message: read_string(self.message)?,
         })
     }
@@ -1956,7 +1993,9 @@ impl DestackDiagnosticNote {
 
 impl DestackDiagnosticNoteArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::DiagnosticNote>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(
+        values: Vec<destack::language::DiagnosticNote>,
+    ) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackDiagnosticNote::from_bridge(value)?);
@@ -1966,14 +2005,14 @@ impl DestackDiagnosticNoteArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::DiagnosticNote>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::DiagnosticNote>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -1997,7 +2036,7 @@ impl DestackDiagnosticNoteArray {
 impl DestackOptionalDiagnosticNote {
     /// Convert one optional bridge value into one C ABI optional value.
     pub(crate) fn from_bridge(
-        value: Option<rust::language::DiagnosticNote>,
+        value: Option<destack::language::DiagnosticNote>,
     ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
@@ -2012,7 +2051,7 @@ impl DestackOptionalDiagnosticNote {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::DiagnosticNote>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::DiagnosticNote>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -2064,20 +2103,22 @@ pub struct DestackOptionalDiagnosticSeverity {
 
 impl DestackDiagnosticSeverity {
     /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::DiagnosticSeverity) -> Result<Self, String> {
+    pub(crate) fn from_bridge(
+        value: destack::language::DiagnosticSeverity,
+    ) -> Result<Self, String> {
         Ok(match value {
-            rust::language::DiagnosticSeverity::Note => Self::Note,
-            rust::language::DiagnosticSeverity::Warning => Self::Warning,
-            rust::language::DiagnosticSeverity::Error => Self::Error,
+            destack::language::DiagnosticSeverity::Note => Self::Note,
+            destack::language::DiagnosticSeverity::Warning => Self::Warning,
+            destack::language::DiagnosticSeverity::Error => Self::Error,
         })
     }
 
     /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(self) -> Result<rust::language::DiagnosticSeverity, String> {
+    pub(crate) fn to_bridge(self) -> Result<destack::language::DiagnosticSeverity, String> {
         Ok(match self {
-            Self::Note => rust::language::DiagnosticSeverity::Note,
-            Self::Warning => rust::language::DiagnosticSeverity::Warning,
-            Self::Error => rust::language::DiagnosticSeverity::Error,
+            Self::Note => destack::language::DiagnosticSeverity::Note,
+            Self::Warning => destack::language::DiagnosticSeverity::Warning,
+            Self::Error => destack::language::DiagnosticSeverity::Error,
         })
     }
 
@@ -2092,7 +2133,7 @@ impl DestackDiagnosticSeverity {
 impl DestackDiagnosticSeverityArray {
     /// Convert bridge values into one C ABI array.
     pub(crate) fn from_bridge(
-        values: Vec<rust::language::DiagnosticSeverity>,
+        values: Vec<destack::language::DiagnosticSeverity>,
     ) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
@@ -2103,14 +2144,14 @@ impl DestackDiagnosticSeverityArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::DiagnosticSeverity>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::DiagnosticSeverity>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -2134,7 +2175,7 @@ impl DestackDiagnosticSeverityArray {
 impl DestackOptionalDiagnosticSeverity {
     /// Convert one optional bridge value into one C ABI optional value.
     pub(crate) fn from_bridge(
-        value: Option<rust::language::DiagnosticSeverity>,
+        value: Option<destack::language::DiagnosticSeverity>,
     ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
@@ -2149,7 +2190,9 @@ impl DestackOptionalDiagnosticSeverity {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::DiagnosticSeverity>, String> {
+    pub(crate) fn to_bridge(
+        &self,
+    ) -> Result<Option<destack::language::DiagnosticSeverity>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -2170,19 +2213,19 @@ impl DestackOptionalDiagnosticSeverity {
 /// C ABI bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackReplacement {
+pub struct DestackPatch {
     /// Source span to replace.
     pub(crate) span: DestackSpan,
-    /// Replacement text.
+    /// Patch text.
     pub(crate) new_text: *mut c_char,
 }
 
 /// C ABI bridge value array.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackReplacementArray {
+pub struct DestackPatchArray {
     /// Owned value pointer.
-    pub(crate) ptr: *mut DestackReplacement,
+    pub(crate) ptr: *mut DestackPatch,
     /// Value count.
     pub(crate) len: usize,
 }
@@ -2190,16 +2233,16 @@ pub struct DestackReplacementArray {
 /// C ABI optional bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackOptionalReplacement {
+pub struct DestackOptionalPatch {
     /// Whether the value is present.
     pub(crate) is_some: bool,
     /// Value when present.
-    pub(crate) value: DestackReplacement,
+    pub(crate) value: DestackPatch,
 }
 
-impl DestackReplacement {
+impl DestackPatch {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::Replacement) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::Patch) -> Result<Self, String> {
         Ok(Self {
             span: DestackSpan::from_bridge(value.span)?,
             new_text: c_string(value.new_text)?,
@@ -2207,8 +2250,8 @@ impl DestackReplacement {
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Replacement, String> {
-        Ok(rust::language::Replacement {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::Patch, String> {
+        Ok(destack::language::Patch {
             span: self.span.to_bridge()?,
             new_text: read_string(self.new_text)?,
         })
@@ -2230,26 +2273,26 @@ impl DestackReplacement {
     }
 }
 
-impl DestackReplacementArray {
+impl DestackPatchArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Replacement>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::Patch>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
-            converted.push(DestackReplacement::from_bridge(value)?);
+            converted.push(DestackPatch::from_bridge(value)?);
         }
         let (ptr, len) = owned_array(converted);
         Ok(Self { ptr, len })
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Replacement>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::Patch>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -2270,23 +2313,23 @@ impl DestackReplacementArray {
     }
 }
 
-impl DestackOptionalReplacement {
+impl DestackOptionalPatch {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Replacement>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: Option<destack::language::Patch>) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
-                value: DestackReplacement::empty(),
+                value: DestackPatch::empty(),
             });
         };
         Ok(Self {
             is_some: true,
-            value: DestackReplacement::from_bridge(value)?,
+            value: DestackPatch::from_bridge(value)?,
         })
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Replacement>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::Patch>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -2300,7 +2343,7 @@ impl DestackOptionalReplacement {
             self.value.destroy();
         }
         self.is_some = false;
-        self.value = DestackReplacement::empty();
+        self.value = DestackPatch::empty();
     }
 }
 
@@ -2310,8 +2353,8 @@ impl DestackOptionalReplacement {
 pub struct DestackFilePatch {
     /// Edited file.
     pub(crate) file: DestackFileId,
-    /// Source replacements.
-    pub(crate) replacements: DestackReplacementArray,
+    /// Source patches.
+    pub(crate) patches: DestackPatchArray,
 }
 
 /// C ABI bridge value array.
@@ -2336,32 +2379,32 @@ pub struct DestackOptionalFilePatch {
 
 impl DestackFilePatch {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::FilePatch) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::FilePatch) -> Result<Self, String> {
         Ok(Self {
             file: DestackFileId::from_bridge(value.file)?,
-            replacements: DestackReplacementArray::from_bridge(value.replacements)?,
+            patches: DestackPatchArray::from_bridge(value.patches)?,
         })
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::FilePatch, String> {
-        Ok(rust::language::FilePatch {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::FilePatch, String> {
+        Ok(destack::language::FilePatch {
             file: self.file.to_bridge()?,
-            replacements: self.replacements.to_bridge()?,
+            patches: self.patches.to_bridge()?,
         })
     }
 
     /// Destroy this C ABI value.
     pub(crate) fn destroy(&mut self) {
         self.file.destroy();
-        self.replacements.destroy();
+        self.patches.destroy();
     }
 
     /// Return one empty C ABI value.
     pub(crate) fn empty() -> Self {
         Self {
             file: DestackFileId::empty(),
-            replacements: DestackReplacementArray {
+            patches: DestackPatchArray {
                 ptr: ptr::null_mut(),
                 len: 0,
             },
@@ -2371,7 +2414,7 @@ impl DestackFilePatch {
 
 impl DestackFilePatchArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::FilePatch>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::FilePatch>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackFilePatch::from_bridge(value)?);
@@ -2381,14 +2424,14 @@ impl DestackFilePatchArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::FilePatch>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::FilePatch>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -2411,7 +2454,7 @@ impl DestackFilePatchArray {
 
 impl DestackOptionalFilePatch {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::FilePatch>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: Option<destack::language::FilePatch>) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
@@ -2425,7 +2468,7 @@ impl DestackOptionalFilePatch {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::FilePatch>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::FilePatch>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -2446,17 +2489,17 @@ impl DestackOptionalFilePatch {
 /// C ABI bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackBatchEdit {
-    /// Per-file edits.
+pub struct DestackPatchSet {
+    /// Per-file patches.
     pub(crate) files: DestackFilePatchArray,
 }
 
 /// C ABI bridge value array.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackBatchEditArray {
+pub struct DestackPatchSetArray {
     /// Owned value pointer.
-    pub(crate) ptr: *mut DestackBatchEdit,
+    pub(crate) ptr: *mut DestackPatchSet,
     /// Value count.
     pub(crate) len: usize,
 }
@@ -2464,24 +2507,24 @@ pub struct DestackBatchEditArray {
 /// C ABI optional bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackOptionalBatchEdit {
+pub struct DestackOptionalPatchSet {
     /// Whether the value is present.
     pub(crate) is_some: bool,
     /// Value when present.
-    pub(crate) value: DestackBatchEdit,
+    pub(crate) value: DestackPatchSet,
 }
 
-impl DestackBatchEdit {
+impl DestackPatchSet {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::BatchEdit) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::PatchSet) -> Result<Self, String> {
         Ok(Self {
             files: DestackFilePatchArray::from_bridge(value.files)?,
         })
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::BatchEdit, String> {
-        Ok(rust::language::BatchEdit {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::PatchSet, String> {
+        Ok(destack::language::PatchSet {
             files: self.files.to_bridge()?,
         })
     }
@@ -2502,26 +2545,26 @@ impl DestackBatchEdit {
     }
 }
 
-impl DestackBatchEditArray {
+impl DestackPatchSetArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::BatchEdit>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::PatchSet>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
-            converted.push(DestackBatchEdit::from_bridge(value)?);
+            converted.push(DestackPatchSet::from_bridge(value)?);
         }
         let (ptr, len) = owned_array(converted);
         Ok(Self { ptr, len })
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::BatchEdit>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::PatchSet>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -2542,23 +2585,23 @@ impl DestackBatchEditArray {
     }
 }
 
-impl DestackOptionalBatchEdit {
+impl DestackOptionalPatchSet {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::BatchEdit>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: Option<destack::language::PatchSet>) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
-                value: DestackBatchEdit::empty(),
+                value: DestackPatchSet::empty(),
             });
         };
         Ok(Self {
             is_some: true,
-            value: DestackBatchEdit::from_bridge(value)?,
+            value: DestackPatchSet::from_bridge(value)?,
         })
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::BatchEdit>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::PatchSet>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -2572,7 +2615,7 @@ impl DestackOptionalBatchEdit {
             self.value.destroy();
         }
         self.is_some = false;
-        self.value = DestackBatchEdit::empty();
+        self.value = DestackPatchSet::empty();
     }
 }
 
@@ -2580,8 +2623,8 @@ impl DestackOptionalBatchEdit {
 #[repr(C)]
 #[derive(Debug)]
 pub struct DestackDiagnosticSuggestion {
-    /// Exact source edits for machine application.
-    pub(crate) edits: DestackBatchEdit,
+    /// Exact source patches for machine application.
+    pub(crate) patches: DestackPatchSet,
     /// Source labels to show with the suggestion.
     pub(crate) labels: DestackDiagnosticLabelArray,
     /// Suggestion message.
@@ -2612,9 +2655,11 @@ pub struct DestackOptionalDiagnosticSuggestion {
 
 impl DestackDiagnosticSuggestion {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::DiagnosticSuggestion) -> Result<Self, String> {
+    pub(crate) fn from_bridge(
+        value: destack::language::DiagnosticSuggestion,
+    ) -> Result<Self, String> {
         Ok(Self {
-            edits: DestackBatchEdit::from_bridge(value.edits)?,
+            patches: DestackPatchSet::from_bridge(value.patches)?,
             labels: DestackDiagnosticLabelArray::from_bridge(value.labels)?,
             message: c_string(value.message)?,
             applicability: DestackApplicability::from_bridge(value.applicability)?,
@@ -2622,9 +2667,9 @@ impl DestackDiagnosticSuggestion {
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::DiagnosticSuggestion, String> {
-        Ok(rust::language::DiagnosticSuggestion {
-            edits: self.edits.to_bridge()?,
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::DiagnosticSuggestion, String> {
+        Ok(destack::language::DiagnosticSuggestion {
+            patches: self.patches.to_bridge()?,
             labels: self.labels.to_bridge()?,
             message: read_string(self.message)?,
             applicability: self.applicability.to_bridge()?,
@@ -2633,7 +2678,7 @@ impl DestackDiagnosticSuggestion {
 
     /// Destroy this C ABI value.
     pub(crate) fn destroy(&mut self) {
-        self.edits.destroy();
+        self.patches.destroy();
         self.labels.destroy();
         destroy_string(self.message);
         self.message = ptr::null_mut();
@@ -2643,7 +2688,7 @@ impl DestackDiagnosticSuggestion {
     /// Return one empty C ABI value.
     pub(crate) fn empty() -> Self {
         Self {
-            edits: DestackBatchEdit::empty(),
+            patches: DestackPatchSet::empty(),
             labels: DestackDiagnosticLabelArray {
                 ptr: ptr::null_mut(),
                 len: 0,
@@ -2657,7 +2702,7 @@ impl DestackDiagnosticSuggestion {
 impl DestackDiagnosticSuggestionArray {
     /// Convert bridge values into one C ABI array.
     pub(crate) fn from_bridge(
-        values: Vec<rust::language::DiagnosticSuggestion>,
+        values: Vec<destack::language::DiagnosticSuggestion>,
     ) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
@@ -2668,14 +2713,14 @@ impl DestackDiagnosticSuggestionArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::DiagnosticSuggestion>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::DiagnosticSuggestion>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -2699,7 +2744,7 @@ impl DestackDiagnosticSuggestionArray {
 impl DestackOptionalDiagnosticSuggestion {
     /// Convert one optional bridge value into one C ABI optional value.
     pub(crate) fn from_bridge(
-        value: Option<rust::language::DiagnosticSuggestion>,
+        value: Option<destack::language::DiagnosticSuggestion>,
     ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
@@ -2714,7 +2759,9 @@ impl DestackOptionalDiagnosticSuggestion {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::DiagnosticSuggestion>, String> {
+    pub(crate) fn to_bridge(
+        &self,
+    ) -> Result<Option<destack::language::DiagnosticSuggestion>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -2764,18 +2811,18 @@ pub struct DestackOptionalDiagnosticTag {
 
 impl DestackDiagnosticTag {
     /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::DiagnosticTag) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::DiagnosticTag) -> Result<Self, String> {
         Ok(match value {
-            rust::language::DiagnosticTag::Unnecessary => Self::Unnecessary,
-            rust::language::DiagnosticTag::Deprecated => Self::Deprecated,
+            destack::language::DiagnosticTag::Unnecessary => Self::Unnecessary,
+            destack::language::DiagnosticTag::Deprecated => Self::Deprecated,
         })
     }
 
     /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(self) -> Result<rust::language::DiagnosticTag, String> {
+    pub(crate) fn to_bridge(self) -> Result<destack::language::DiagnosticTag, String> {
         Ok(match self {
-            Self::Unnecessary => rust::language::DiagnosticTag::Unnecessary,
-            Self::Deprecated => rust::language::DiagnosticTag::Deprecated,
+            Self::Unnecessary => destack::language::DiagnosticTag::Unnecessary,
+            Self::Deprecated => destack::language::DiagnosticTag::Deprecated,
         })
     }
 
@@ -2789,7 +2836,9 @@ impl DestackDiagnosticTag {
 
 impl DestackDiagnosticTagArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::DiagnosticTag>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(
+        values: Vec<destack::language::DiagnosticTag>,
+    ) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackDiagnosticTag::from_bridge(value)?);
@@ -2799,14 +2848,14 @@ impl DestackDiagnosticTagArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::DiagnosticTag>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::DiagnosticTag>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -2830,7 +2879,7 @@ impl DestackDiagnosticTagArray {
 impl DestackOptionalDiagnosticTag {
     /// Convert one optional bridge value into one C ABI optional value.
     pub(crate) fn from_bridge(
-        value: Option<rust::language::DiagnosticTag>,
+        value: Option<destack::language::DiagnosticTag>,
     ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
@@ -2845,7 +2894,7 @@ impl DestackOptionalDiagnosticTag {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::DiagnosticTag>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::DiagnosticTag>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -2909,7 +2958,7 @@ pub struct DestackOptionalDiagnostic {
 
 impl DestackDiagnostic {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::Diagnostic) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::Diagnostic) -> Result<Self, String> {
         Ok(Self {
             code: c_string(value.code)?,
             severity: DestackDiagnosticSeverity::from_bridge(value.severity)?,
@@ -2924,8 +2973,8 @@ impl DestackDiagnostic {
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Diagnostic, String> {
-        Ok(rust::language::Diagnostic {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::Diagnostic, String> {
+        Ok(destack::language::Diagnostic {
             code: read_string(self.code)?,
             severity: self.severity.to_bridge()?,
             message: read_string(self.message)?,
@@ -2986,7 +3035,7 @@ impl DestackDiagnostic {
 
 impl DestackDiagnosticArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Diagnostic>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::Diagnostic>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackDiagnostic::from_bridge(value)?);
@@ -2996,14 +3045,14 @@ impl DestackDiagnosticArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Diagnostic>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::Diagnostic>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -3026,7 +3075,9 @@ impl DestackDiagnosticArray {
 
 impl DestackOptionalDiagnostic {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Diagnostic>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(
+        value: Option<destack::language::Diagnostic>,
+    ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
@@ -3040,7 +3091,7 @@ impl DestackOptionalDiagnostic {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Diagnostic>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::Diagnostic>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -3100,7 +3151,7 @@ pub struct DestackOptionalArtifactRecord {
 
 impl DestackArtifactRecord {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::ArtifactRecord) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::ArtifactRecord) -> Result<Self, String> {
         Ok(Self {
             version: DestackArtifactVersion::from_bridge(value.version)?,
             base: DestackOptionalArtifactVersion::from_bridge(value.base)?,
@@ -3113,8 +3164,8 @@ impl DestackArtifactRecord {
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ArtifactRecord, String> {
-        Ok(rust::language::ArtifactRecord {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::ArtifactRecord, String> {
+        Ok(destack::language::ArtifactRecord {
             version: self.version.to_bridge()?,
             base: self.base.to_bridge()?,
             payload: read_bytes(self.payload.ptr.cast_const(), self.payload.len)?,
@@ -3170,7 +3221,9 @@ impl DestackArtifactRecord {
 
 impl DestackArtifactRecordArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::ArtifactRecord>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(
+        values: Vec<destack::language::ArtifactRecord>,
+    ) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackArtifactRecord::from_bridge(value)?);
@@ -3180,14 +3233,14 @@ impl DestackArtifactRecordArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ArtifactRecord>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::ArtifactRecord>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -3211,7 +3264,7 @@ impl DestackArtifactRecordArray {
 impl DestackOptionalArtifactRecord {
     /// Convert one optional bridge value into one C ABI optional value.
     pub(crate) fn from_bridge(
-        value: Option<rust::language::ArtifactRecord>,
+        value: Option<destack::language::ArtifactRecord>,
     ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
@@ -3226,7 +3279,7 @@ impl DestackOptionalArtifactRecord {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ArtifactRecord>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::ArtifactRecord>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -3244,259 +3297,20 @@ impl DestackOptionalArtifactRecord {
     }
 }
 
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackFileType {
-    /// `.ds`.
-    Destack = 0,
-    /// `.d.ds`.
-    DestackDeclaration = 1,
-    /// `.js`.
-    JavaScript = 2,
-    /// `.jsx`.
-    JavaScriptXml = 3,
-    /// `.ts`.
-    TypeScript = 4,
-    /// `.tsx`.
-    TypeScriptXml = 5,
-    /// `.d.ts`.
-    TypeScriptDeclaration = 6,
-    /// Text file.
-    Text = 7,
-    /// TOML file.
-    Toml = 8,
-    /// YAML file.
-    Yaml = 9,
-    /// JSON file.
-    Json = 10,
-    /// Environment file.
-    Env = 11,
-    /// HTML file.
-    Html = 12,
-    /// Markdown file.
-    Markdown = 13,
-    /// CSS file.
-    Css = 14,
-    /// SVG file.
-    Svg = 15,
-    /// WebAssembly payload.
-    Wasm = 16,
-    /// Node native module.
-    Node = 17,
-    /// Source map file.
-    SourceMap = 18,
-    /// Native object file.
-    Object = 19,
-    /// Image asset.
-    Image = 20,
-    /// Font asset.
-    Font = 21,
-    /// Audio asset.
-    Audio = 22,
-    /// Video asset.
-    Video = 23,
-    /// 3D model asset.
-    Model = 24,
-    /// AI model asset.
-    Neural = 25,
-    /// Document asset.
-    Document = 26,
-    /// Unknown binary file.
-    Binary = 27,
-    /// Unknown file type.
-    Unknown = 28,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackFileTypeArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackFileType,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalFileType {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackFileType,
-}
-
-impl DestackFileType {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::FileType) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::FileType::Destack => Self::Destack,
-            rust::language::FileType::DestackDeclaration => Self::DestackDeclaration,
-            rust::language::FileType::JavaScript => Self::JavaScript,
-            rust::language::FileType::JavaScriptXml => Self::JavaScriptXml,
-            rust::language::FileType::TypeScript => Self::TypeScript,
-            rust::language::FileType::TypeScriptXml => Self::TypeScriptXml,
-            rust::language::FileType::TypeScriptDeclaration => Self::TypeScriptDeclaration,
-            rust::language::FileType::Text => Self::Text,
-            rust::language::FileType::Toml => Self::Toml,
-            rust::language::FileType::Yaml => Self::Yaml,
-            rust::language::FileType::Json => Self::Json,
-            rust::language::FileType::Env => Self::Env,
-            rust::language::FileType::Html => Self::Html,
-            rust::language::FileType::Markdown => Self::Markdown,
-            rust::language::FileType::Css => Self::Css,
-            rust::language::FileType::Svg => Self::Svg,
-            rust::language::FileType::Wasm => Self::Wasm,
-            rust::language::FileType::Node => Self::Node,
-            rust::language::FileType::SourceMap => Self::SourceMap,
-            rust::language::FileType::Object => Self::Object,
-            rust::language::FileType::Image => Self::Image,
-            rust::language::FileType::Font => Self::Font,
-            rust::language::FileType::Audio => Self::Audio,
-            rust::language::FileType::Video => Self::Video,
-            rust::language::FileType::Model => Self::Model,
-            rust::language::FileType::Neural => Self::Neural,
-            rust::language::FileType::Document => Self::Document,
-            rust::language::FileType::Binary => Self::Binary,
-            rust::language::FileType::Unknown => Self::Unknown,
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(self) -> Result<rust::language::FileType, String> {
-        Ok(match self {
-            Self::Destack => rust::language::FileType::Destack,
-            Self::DestackDeclaration => rust::language::FileType::DestackDeclaration,
-            Self::JavaScript => rust::language::FileType::JavaScript,
-            Self::JavaScriptXml => rust::language::FileType::JavaScriptXml,
-            Self::TypeScript => rust::language::FileType::TypeScript,
-            Self::TypeScriptXml => rust::language::FileType::TypeScriptXml,
-            Self::TypeScriptDeclaration => rust::language::FileType::TypeScriptDeclaration,
-            Self::Text => rust::language::FileType::Text,
-            Self::Toml => rust::language::FileType::Toml,
-            Self::Yaml => rust::language::FileType::Yaml,
-            Self::Json => rust::language::FileType::Json,
-            Self::Env => rust::language::FileType::Env,
-            Self::Html => rust::language::FileType::Html,
-            Self::Markdown => rust::language::FileType::Markdown,
-            Self::Css => rust::language::FileType::Css,
-            Self::Svg => rust::language::FileType::Svg,
-            Self::Wasm => rust::language::FileType::Wasm,
-            Self::Node => rust::language::FileType::Node,
-            Self::SourceMap => rust::language::FileType::SourceMap,
-            Self::Object => rust::language::FileType::Object,
-            Self::Image => rust::language::FileType::Image,
-            Self::Font => rust::language::FileType::Font,
-            Self::Audio => rust::language::FileType::Audio,
-            Self::Video => rust::language::FileType::Video,
-            Self::Model => rust::language::FileType::Model,
-            Self::Neural => rust::language::FileType::Neural,
-            Self::Document => rust::language::FileType::Document,
-            Self::Binary => rust::language::FileType::Binary,
-            Self::Unknown => rust::language::FileType::Unknown,
-        })
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {}
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self::Destack
-    }
-}
-
-impl DestackFileTypeArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::FileType>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackFileType::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::FileType>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalFileType {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::FileType>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackFileType::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackFileType::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::FileType>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackFileType::empty();
-    }
-}
-
 /// C ABI bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackSourceMapSource {
-    /// The mapped source names.
-    pub(crate) name: *mut c_char,
-    /// The embedded source contents when they exist.
-    pub(crate) content: DestackOptionalString,
+pub struct DestackComponentId {
+    /// Canonical lowercase hex component id.
+    pub(crate) id: *mut c_char,
 }
 
 /// C ABI bridge value array.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackSourceMapSourceArray {
+pub struct DestackComponentIdArray {
     /// Owned value pointer.
-    pub(crate) ptr: *mut DestackSourceMapSource,
+    pub(crate) ptr: *mut DestackComponentId,
     /// Value count.
     pub(crate) len: usize,
 }
@@ -3504,68 +3318,62 @@ pub struct DestackSourceMapSourceArray {
 /// C ABI optional bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackOptionalSourceMapSource {
+pub struct DestackOptionalComponentId {
     /// Whether the value is present.
     pub(crate) is_some: bool,
     /// Value when present.
-    pub(crate) value: DestackSourceMapSource,
+    pub(crate) value: DestackComponentId,
 }
 
-impl DestackSourceMapSource {
+impl DestackComponentId {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::SourceMapSource) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::ComponentId) -> Result<Self, String> {
         Ok(Self {
-            name: c_string(value.name)?,
-            content: DestackOptionalString::from_bridge(value.content)?,
+            id: c_string(value.id)?,
         })
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::SourceMapSource, String> {
-        Ok(rust::language::SourceMapSource {
-            name: read_string(self.name)?,
-            content: self.content.to_bridge()?,
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::ComponentId, String> {
+        Ok(destack::language::ComponentId {
+            id: read_string(self.id)?,
         })
     }
 
     /// Destroy this C ABI value.
     pub(crate) fn destroy(&mut self) {
-        destroy_string(self.name);
-        self.name = ptr::null_mut();
-        self.content.destroy();
+        destroy_string(self.id);
+        self.id = ptr::null_mut();
     }
 
     /// Return one empty C ABI value.
     pub(crate) fn empty() -> Self {
         Self {
-            name: ptr::null_mut(),
-            content: DestackOptionalString::empty(),
+            id: ptr::null_mut(),
         }
     }
 }
 
-impl DestackSourceMapSourceArray {
+impl DestackComponentIdArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(
-        values: Vec<rust::language::SourceMapSource>,
-    ) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::ComponentId>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
-            converted.push(DestackSourceMapSource::from_bridge(value)?);
+            converted.push(DestackComponentId::from_bridge(value)?);
         }
         let (ptr, len) = owned_array(converted);
         Ok(Self { ptr, len })
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::SourceMapSource>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::ComponentId>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -3586,25 +3394,25 @@ impl DestackSourceMapSourceArray {
     }
 }
 
-impl DestackOptionalSourceMapSource {
+impl DestackOptionalComponentId {
     /// Convert one optional bridge value into one C ABI optional value.
     pub(crate) fn from_bridge(
-        value: Option<rust::language::SourceMapSource>,
+        value: Option<destack::language::ComponentId>,
     ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
-                value: DestackSourceMapSource::empty(),
+                value: DestackComponentId::empty(),
             });
         };
         Ok(Self {
             is_some: true,
-            value: DestackSourceMapSource::from_bridge(value)?,
+            value: DestackComponentId::from_bridge(value)?,
         })
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::SourceMapSource>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::ComponentId>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -3618,2003 +3426,7 @@ impl DestackOptionalSourceMapSource {
             self.value.destroy();
         }
         self.is_some = false;
-        self.value = DestackSourceMapSource::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackSourceMap {
-    /// The source map version.
-    pub(crate) version: u32,
-    /// The emitted file name when one exists.
-    pub(crate) file: DestackOptionalString,
-    /// The source root when one exists.
-    pub(crate) source_root: DestackOptionalString,
-    /// The mapped sources.
-    pub(crate) sources: DestackSourceMapSourceArray,
-    /// The recorded symbol names.
-    pub(crate) names: DestackStringArray,
-    /// The VLQ mapping payload.
-    pub(crate) mappings: *mut c_char,
-    /// The debug id when one exists.
-    pub(crate) debug_id: DestackOptionalString,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackSourceMapArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackSourceMap,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalSourceMap {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackSourceMap,
-}
-
-impl DestackSourceMap {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::SourceMap) -> Result<Self, String> {
-        Ok(Self {
-            version: value.version,
-            file: DestackOptionalString::from_bridge(value.file)?,
-            source_root: DestackOptionalString::from_bridge(value.source_root)?,
-            sources: DestackSourceMapSourceArray::from_bridge(value.sources)?,
-            names: DestackStringArray::from_bridge(value.names)?,
-            mappings: c_string(value.mappings)?,
-            debug_id: DestackOptionalString::from_bridge(value.debug_id)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::SourceMap, String> {
-        Ok(rust::language::SourceMap {
-            version: self.version,
-            file: self.file.to_bridge()?,
-            source_root: self.source_root.to_bridge()?,
-            sources: self.sources.to_bridge()?,
-            names: self.names.to_bridge()?,
-            mappings: read_string(self.mappings)?,
-            debug_id: self.debug_id.to_bridge()?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.file.destroy();
-        self.source_root.destroy();
-        self.sources.destroy();
-        self.names.destroy();
-        destroy_string(self.mappings);
-        self.mappings = ptr::null_mut();
-        self.debug_id.destroy();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            version: 0,
-            file: DestackOptionalString::empty(),
-            source_root: DestackOptionalString::empty(),
-            sources: DestackSourceMapSourceArray {
-                ptr: ptr::null_mut(),
-                len: 0,
-            },
-            names: DestackStringArray {
-                ptr: ptr::null_mut(),
-                len: 0,
-            },
-            mappings: ptr::null_mut(),
-            debug_id: DestackOptionalString::empty(),
-        }
-    }
-}
-
-impl DestackSourceMapArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::SourceMap>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackSourceMap::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::SourceMap>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalSourceMap {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::SourceMap>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackSourceMap::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackSourceMap::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::SourceMap>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackSourceMap::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackAsset {
-    /// The asset file type.
-    pub(crate) file_type: DestackFileType,
-    /// The asset content identity.
-    pub(crate) content: DestackContentId,
-    /// The source module URI when one exists.
-    pub(crate) source: DestackOptionalString,
-    /// The source map when one exists.
-    pub(crate) map: DestackOptionalSourceMap,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackAssetArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackAsset,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalAsset {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackAsset,
-}
-
-impl DestackAsset {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::Asset) -> Result<Self, String> {
-        Ok(Self {
-            file_type: DestackFileType::from_bridge(value.file_type)?,
-            content: DestackContentId::from_bridge(value.content)?,
-            source: DestackOptionalString::from_bridge(value.source)?,
-            map: DestackOptionalSourceMap::from_bridge(value.map)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Asset, String> {
-        Ok(rust::language::Asset {
-            file_type: self.file_type.to_bridge()?,
-            content: self.content.to_bridge()?,
-            source: self.source.to_bridge()?,
-            map: self.map.to_bridge()?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.file_type.destroy();
-        self.content.destroy();
-        self.source.destroy();
-        self.map.destroy();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            file_type: DestackFileType::empty(),
-            content: DestackContentId::empty(),
-            source: DestackOptionalString::empty(),
-            map: DestackOptionalSourceMap {
-                is_some: false,
-                value: DestackSourceMap::empty(),
-            },
-        }
-    }
-}
-
-impl DestackAssetArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Asset>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackAsset::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Asset>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalAsset {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Asset>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackAsset::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackAsset::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Asset>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackAsset::empty();
-    }
-}
-
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackBuildLinkage {
-    /// Ship a portable Destack payload consumed by a runtime.
-    Portable = 0,
-    /// Link the build payload into the produced platform binary.
-    Static = 1,
-    /// Ship the build payload as a dynamic library.
-    Dynamic = 2,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackBuildLinkageArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackBuildLinkage,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalBuildLinkage {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackBuildLinkage,
-}
-
-impl DestackBuildLinkage {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::BuildLinkage) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::BuildLinkage::Portable => Self::Portable,
-            rust::language::BuildLinkage::Static => Self::Static,
-            rust::language::BuildLinkage::Dynamic => Self::Dynamic,
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(self) -> Result<rust::language::BuildLinkage, String> {
-        Ok(match self {
-            Self::Portable => rust::language::BuildLinkage::Portable,
-            Self::Static => rust::language::BuildLinkage::Static,
-            Self::Dynamic => rust::language::BuildLinkage::Dynamic,
-        })
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {}
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self::Portable
-    }
-}
-
-impl DestackBuildLinkageArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::BuildLinkage>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackBuildLinkage::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::BuildLinkage>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalBuildLinkage {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::BuildLinkage>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackBuildLinkage::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackBuildLinkage::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::BuildLinkage>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackBuildLinkage::empty();
-    }
-}
-
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackBuildProfile {
-    /// Full Destack build.
-    Full = 0,
-    /// Smaller Destack build with optional services omitted.
-    Minimal = 1,
-    /// Freestanding output without the normal Destack runtime contract.
-    Freestanding = 2,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackBuildProfileArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackBuildProfile,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalBuildProfile {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackBuildProfile,
-}
-
-impl DestackBuildProfile {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::BuildProfile) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::BuildProfile::Full => Self::Full,
-            rust::language::BuildProfile::Minimal => Self::Minimal,
-            rust::language::BuildProfile::Freestanding => Self::Freestanding,
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(self) -> Result<rust::language::BuildProfile, String> {
-        Ok(match self {
-            Self::Full => rust::language::BuildProfile::Full,
-            Self::Minimal => rust::language::BuildProfile::Minimal,
-            Self::Freestanding => rust::language::BuildProfile::Freestanding,
-        })
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {}
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self::Full
-    }
-}
-
-impl DestackBuildProfileArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::BuildProfile>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackBuildProfile::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::BuildProfile>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalBuildProfile {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::BuildProfile>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackBuildProfile::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackBuildProfile::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::BuildProfile>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackBuildProfile::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackBuild {
-    /// The build distribution profile.
-    pub(crate) profile: DestackBuildProfile,
-    /// The build linkage.
-    pub(crate) linkage: DestackBuildLinkage,
-    /// The encoded build content.
-    pub(crate) content: DestackContentId,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackBuildArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackBuild,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalBuild {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackBuild,
-}
-
-impl DestackBuild {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::Build) -> Result<Self, String> {
-        Ok(Self {
-            profile: DestackBuildProfile::from_bridge(value.profile)?,
-            linkage: DestackBuildLinkage::from_bridge(value.linkage)?,
-            content: DestackContentId::from_bridge(value.content)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Build, String> {
-        Ok(rust::language::Build {
-            profile: self.profile.to_bridge()?,
-            linkage: self.linkage.to_bridge()?,
-            content: self.content.to_bridge()?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.profile.destroy();
-        self.linkage.destroy();
-        self.content.destroy();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            profile: DestackBuildProfile::empty(),
-            linkage: DestackBuildLinkage::empty(),
-            content: DestackContentId::empty(),
-        }
-    }
-}
-
-impl DestackBuildArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Build>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackBuild::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Build>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalBuild {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Build>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackBuild::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackBuild::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Build>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackBuild::empty();
-    }
-}
-
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackBundleSection {
-    /// Per-module library output.
-    Module = 0,
-    /// Primary runnable entry output.
-    Entry = 1,
-    /// Declaration or type surface.
-    Declaration = 2,
-    /// Asset collection emitted by this target.
-    Asset = 3,
-    /// Build manifest or output index.
-    Manifest = 4,
-    /// Source maps or debug maps.
-    SourceMap = 5,
-    /// Native object or wasm payload.
-    Native = 6,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackBundleSectionArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackBundleSection,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalBundleSection {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackBundleSection,
-}
-
-impl DestackBundleSection {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::BundleSection) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::BundleSection::Module => Self::Module,
-            rust::language::BundleSection::Entry => Self::Entry,
-            rust::language::BundleSection::Declaration => Self::Declaration,
-            rust::language::BundleSection::Asset => Self::Asset,
-            rust::language::BundleSection::Manifest => Self::Manifest,
-            rust::language::BundleSection::SourceMap => Self::SourceMap,
-            rust::language::BundleSection::Native => Self::Native,
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(self) -> Result<rust::language::BundleSection, String> {
-        Ok(match self {
-            Self::Module => rust::language::BundleSection::Module,
-            Self::Entry => rust::language::BundleSection::Entry,
-            Self::Declaration => rust::language::BundleSection::Declaration,
-            Self::Asset => rust::language::BundleSection::Asset,
-            Self::Manifest => rust::language::BundleSection::Manifest,
-            Self::SourceMap => rust::language::BundleSection::SourceMap,
-            Self::Native => rust::language::BundleSection::Native,
-        })
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {}
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self::Module
-    }
-}
-
-impl DestackBundleSectionArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::BundleSection>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackBundleSection::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::BundleSection>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalBundleSection {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(
-        value: Option<rust::language::BundleSection>,
-    ) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackBundleSection::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackBundleSection::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::BundleSection>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackBundleSection::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackBundleFile {
-    /// The bundle section this file belongs to.
-    pub(crate) section: DestackBundleSection,
-    /// The output URI.
-    pub(crate) uri: *mut c_char,
-    /// The emitted file type.
-    pub(crate) file_type: DestackFileType,
-    /// The output content identity.
-    pub(crate) content: DestackContentId,
-    /// The related source URI when one exists.
-    pub(crate) source: DestackOptionalString,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackBundleFileArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackBundleFile,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalBundleFile {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackBundleFile,
-}
-
-impl DestackBundleFile {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::BundleFile) -> Result<Self, String> {
-        Ok(Self {
-            section: DestackBundleSection::from_bridge(value.section)?,
-            uri: c_string(value.uri)?,
-            file_type: DestackFileType::from_bridge(value.file_type)?,
-            content: DestackContentId::from_bridge(value.content)?,
-            source: DestackOptionalString::from_bridge(value.source)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::BundleFile, String> {
-        Ok(rust::language::BundleFile {
-            section: self.section.to_bridge()?,
-            uri: read_string(self.uri)?,
-            file_type: self.file_type.to_bridge()?,
-            content: self.content.to_bridge()?,
-            source: self.source.to_bridge()?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.section.destroy();
-        destroy_string(self.uri);
-        self.uri = ptr::null_mut();
-        self.file_type.destroy();
-        self.content.destroy();
-        self.source.destroy();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            section: DestackBundleSection::empty(),
-            uri: ptr::null_mut(),
-            file_type: DestackFileType::empty(),
-            content: DestackContentId::empty(),
-            source: DestackOptionalString::empty(),
-        }
-    }
-}
-
-impl DestackBundleFileArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::BundleFile>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackBundleFile::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::BundleFile>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalBundleFile {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::BundleFile>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackBundleFile::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackBundleFile::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::BundleFile>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackBundleFile::empty();
-    }
-}
-
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackBundleMode {
-    /// Per-module assets without target-level assembly.
-    PreserveModules = 0,
-    /// One assembled output file.
-    SingleFile = 1,
-    /// Multiple assembled output files.
-    Chunked = 2,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackBundleModeArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackBundleMode,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalBundleMode {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackBundleMode,
-}
-
-impl DestackBundleMode {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::BundleMode) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::BundleMode::PreserveModules => Self::PreserveModules,
-            rust::language::BundleMode::SingleFile => Self::SingleFile,
-            rust::language::BundleMode::Chunked => Self::Chunked,
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(self) -> Result<rust::language::BundleMode, String> {
-        Ok(match self {
-            Self::PreserveModules => rust::language::BundleMode::PreserveModules,
-            Self::SingleFile => rust::language::BundleMode::SingleFile,
-            Self::Chunked => rust::language::BundleMode::Chunked,
-        })
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {}
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self::PreserveModules
-    }
-}
-
-impl DestackBundleModeArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::BundleMode>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackBundleMode::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::BundleMode>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalBundleMode {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::BundleMode>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackBundleMode::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackBundleMode::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::BundleMode>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackBundleMode::empty();
-    }
-}
-
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackEmitFormat {
-    /// JavaScript output.
-    Js = 0,
-    /// TypeScript output.
-    Ts = 1,
-    /// WebAssembly output.
-    Wasm = 2,
-    /// Native binary output.
-    Native = 3,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackEmitFormatArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackEmitFormat,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalEmitFormat {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackEmitFormat,
-}
-
-impl DestackEmitFormat {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::EmitFormat) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::EmitFormat::Js => Self::Js,
-            rust::language::EmitFormat::Ts => Self::Ts,
-            rust::language::EmitFormat::Wasm => Self::Wasm,
-            rust::language::EmitFormat::Native => Self::Native,
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(self) -> Result<rust::language::EmitFormat, String> {
-        Ok(match self {
-            Self::Js => rust::language::EmitFormat::Js,
-            Self::Ts => rust::language::EmitFormat::Ts,
-            Self::Wasm => rust::language::EmitFormat::Wasm,
-            Self::Native => rust::language::EmitFormat::Native,
-        })
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {}
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self::Js
-    }
-}
-
-impl DestackEmitFormatArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::EmitFormat>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackEmitFormat::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::EmitFormat>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalEmitFormat {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::EmitFormat>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackEmitFormat::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackEmitFormat::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::EmitFormat>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackEmitFormat::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackBundle {
-    /// The emitted artifact family.
-    pub(crate) emit: DestackEmitFormat,
-    /// The target-level assembly mode.
-    pub(crate) mode: DestackBundleMode,
-    /// The files in this bundle.
-    pub(crate) files: DestackBundleFileArray,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackBundleArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackBundle,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalBundle {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackBundle,
-}
-
-impl DestackBundle {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::Bundle) -> Result<Self, String> {
-        Ok(Self {
-            emit: DestackEmitFormat::from_bridge(value.emit)?,
-            mode: DestackBundleMode::from_bridge(value.mode)?,
-            files: DestackBundleFileArray::from_bridge(value.files)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Bundle, String> {
-        Ok(rust::language::Bundle {
-            emit: self.emit.to_bridge()?,
-            mode: self.mode.to_bridge()?,
-            files: self.files.to_bridge()?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.emit.destroy();
-        self.mode.destroy();
-        self.files.destroy();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            emit: DestackEmitFormat::empty(),
-            mode: DestackBundleMode::empty(),
-            files: DestackBundleFileArray {
-                ptr: ptr::null_mut(),
-                len: 0,
-            },
-        }
-    }
-}
-
-impl DestackBundleArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Bundle>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackBundle::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Bundle>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalBundle {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Bundle>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackBundle::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackBundle::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Bundle>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackBundle::empty();
-    }
-}
-
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackObjectFormat {
-    /// Native relocatable object file.
-    Object = 0,
-    /// WebAssembly object or module payload.
-    Wasm = 1,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackObjectFormatArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackObjectFormat,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalObjectFormat {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackObjectFormat,
-}
-
-impl DestackObjectFormat {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::ObjectFormat) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::ObjectFormat::Object => Self::Object,
-            rust::language::ObjectFormat::Wasm => Self::Wasm,
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(self) -> Result<rust::language::ObjectFormat, String> {
-        Ok(match self {
-            Self::Object => rust::language::ObjectFormat::Object,
-            Self::Wasm => rust::language::ObjectFormat::Wasm,
-        })
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {}
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self::Object
-    }
-}
-
-impl DestackObjectFormatArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::ObjectFormat>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackObjectFormat::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ObjectFormat>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalObjectFormat {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::ObjectFormat>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackObjectFormat::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackObjectFormat::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ObjectFormat>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackObjectFormat::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackObject {
-    /// The compiled-code object format.
-    pub(crate) format: DestackObjectFormat,
-    /// The encoded object content identity.
-    pub(crate) content: DestackContentId,
-    /// The source map when one exists.
-    pub(crate) map: DestackOptionalSourceMap,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackObjectArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackObject,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalObject {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackObject,
-}
-
-impl DestackObject {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::Object) -> Result<Self, String> {
-        Ok(Self {
-            format: DestackObjectFormat::from_bridge(value.format)?,
-            content: DestackContentId::from_bridge(value.content)?,
-            map: DestackOptionalSourceMap::from_bridge(value.map)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Object, String> {
-        Ok(rust::language::Object {
-            format: self.format.to_bridge()?,
-            content: self.content.to_bridge()?,
-            map: self.map.to_bridge()?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.format.destroy();
-        self.content.destroy();
-        self.map.destroy();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            format: DestackObjectFormat::empty(),
-            content: DestackContentId::empty(),
-            map: DestackOptionalSourceMap {
-                is_some: false,
-                value: DestackSourceMap::empty(),
-            },
-        }
-    }
-}
-
-impl DestackObjectArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Object>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackObject::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Object>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalObject {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Object>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackObject::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackObject::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Object>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackObject::empty();
-    }
-}
-
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackHost {
-    /// Native host environment.
-    Native = 0,
-    /// Browser host environment.
-    Browser = 1,
-    /// WASI host environment.
-    Wasi = 2,
-    /// Emscripten host environment.
-    Emscripten = 3,
-    /// Freestanding target without host imports.
-    Freestanding = 4,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackHostArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackHost,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalHost {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackHost,
-}
-
-impl DestackHost {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::Host) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::Host::Native => Self::Native,
-            rust::language::Host::Browser => Self::Browser,
-            rust::language::Host::Wasi => Self::Wasi,
-            rust::language::Host::Emscripten => Self::Emscripten,
-            rust::language::Host::Freestanding => Self::Freestanding,
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(self) -> Result<rust::language::Host, String> {
-        Ok(match self {
-            Self::Native => rust::language::Host::Native,
-            Self::Browser => rust::language::Host::Browser,
-            Self::Wasi => rust::language::Host::Wasi,
-            Self::Emscripten => rust::language::Host::Emscripten,
-            Self::Freestanding => rust::language::Host::Freestanding,
-        })
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {}
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self::Native
-    }
-}
-
-impl DestackHostArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Host>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackHost::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Host>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalHost {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Host>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackHost::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackHost::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Host>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackHost::empty();
-    }
-}
-
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackRuntime {
-    /// Destack native runtime.
-    Destack = 0,
-    /// JavaScript host runtime.
-    Js = 1,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackRuntimeArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackRuntime,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalRuntime {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackRuntime,
-}
-
-impl DestackRuntime {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::Runtime) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::Runtime::Destack => Self::Destack,
-            rust::language::Runtime::Js => Self::Js,
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(self) -> Result<rust::language::Runtime, String> {
-        Ok(match self {
-            Self::Destack => rust::language::Runtime::Destack,
-            Self::Js => rust::language::Runtime::Js,
-        })
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {}
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self::Destack
-    }
-}
-
-impl DestackRuntimeArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Runtime>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackRuntime::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Runtime>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalRuntime {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Runtime>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackRuntime::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackRuntime::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Runtime>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackRuntime::empty();
+        self.value = DestackComponentId::empty();
     }
 }
 
@@ -5648,15 +3460,15 @@ pub struct DestackOptionalPackageId {
 
 impl DestackPackageId {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::PackageId) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::PackageId) -> Result<Self, String> {
         Ok(Self {
             id: c_string(value.id)?,
         })
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::PackageId, String> {
-        Ok(rust::language::PackageId {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::PackageId, String> {
+        Ok(destack::language::PackageId {
             id: read_string(self.id)?,
         })
     }
@@ -5677,7 +3489,7 @@ impl DestackPackageId {
 
 impl DestackPackageIdArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::PackageId>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::PackageId>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackPackageId::from_bridge(value)?);
@@ -5687,14 +3499,14 @@ impl DestackPackageIdArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::PackageId>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::PackageId>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -5717,7 +3529,7 @@ impl DestackPackageIdArray {
 
 impl DestackOptionalPackageId {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::PackageId>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: Option<destack::language::PackageId>) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
@@ -5731,7 +3543,7 @@ impl DestackOptionalPackageId {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::PackageId>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::PackageId>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -5746,1557 +3558,6 @@ impl DestackOptionalPackageId {
         }
         self.is_some = false;
         self.value = DestackPackageId::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackTargetId {
-    /// Owning package.
-    pub(crate) package: DestackPackageId,
-    /// Canonical lowercase hex target key within the package.
-    pub(crate) key: *mut c_char,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackTargetIdArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackTargetId,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalTargetId {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackTargetId,
-}
-
-impl DestackTargetId {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::TargetId) -> Result<Self, String> {
-        Ok(Self {
-            package: DestackPackageId::from_bridge(value.package)?,
-            key: c_string(value.key)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::TargetId, String> {
-        Ok(rust::language::TargetId {
-            package: self.package.to_bridge()?,
-            key: read_string(self.key)?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.package.destroy();
-        destroy_string(self.key);
-        self.key = ptr::null_mut();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            package: DestackPackageId::empty(),
-            key: ptr::null_mut(),
-        }
-    }
-}
-
-impl DestackTargetIdArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::TargetId>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackTargetId::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::TargetId>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalTargetId {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::TargetId>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackTargetId::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackTargetId::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::TargetId>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackTargetId::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackProductTarget {
-    /// The configured product target name.
-    pub(crate) name: *mut c_char,
-    /// The repository target assembled into this product.
-    pub(crate) target: DestackTargetId,
-    /// The runtime contract this target expects.
-    pub(crate) runtime: DestackRuntime,
-    /// The host environment this target expects.
-    pub(crate) host: DestackHost,
-    /// The platform this target expects.
-    pub(crate) platform: *mut c_char,
-    /// Whether this product target includes its toolchain build payload.
-    pub(crate) includes_build: bool,
-    /// Whether this product target includes its linked bundle.
-    pub(crate) includes_bundle: bool,
-    /// Whether this product target includes its executable program.
-    pub(crate) includes_program: bool,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackProductTargetArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackProductTarget,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalProductTarget {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackProductTarget,
-}
-
-impl DestackProductTarget {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::ProductTarget) -> Result<Self, String> {
-        Ok(Self {
-            name: c_string(value.name)?,
-            target: DestackTargetId::from_bridge(value.target)?,
-            runtime: DestackRuntime::from_bridge(value.runtime)?,
-            host: DestackHost::from_bridge(value.host)?,
-            platform: c_string(value.platform)?,
-            includes_build: value.includes_build,
-            includes_bundle: value.includes_bundle,
-            includes_program: value.includes_program,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ProductTarget, String> {
-        Ok(rust::language::ProductTarget {
-            name: read_string(self.name)?,
-            target: self.target.to_bridge()?,
-            runtime: self.runtime.to_bridge()?,
-            host: self.host.to_bridge()?,
-            platform: read_string(self.platform)?,
-            includes_build: self.includes_build,
-            includes_bundle: self.includes_bundle,
-            includes_program: self.includes_program,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        destroy_string(self.name);
-        self.name = ptr::null_mut();
-        self.target.destroy();
-        self.runtime.destroy();
-        self.host.destroy();
-        destroy_string(self.platform);
-        self.platform = ptr::null_mut();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            name: ptr::null_mut(),
-            target: DestackTargetId::empty(),
-            runtime: DestackRuntime::empty(),
-            host: DestackHost::empty(),
-            platform: ptr::null_mut(),
-            includes_build: false,
-            includes_bundle: false,
-            includes_program: false,
-        }
-    }
-}
-
-impl DestackProductTargetArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::ProductTarget>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackProductTarget::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ProductTarget>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalProductTarget {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(
-        value: Option<rust::language::ProductTarget>,
-    ) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackProductTarget::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackProductTarget::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ProductTarget>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackProductTarget::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackProduct {
-    /// The configured product name.
-    pub(crate) name: *mut c_char,
-    /// The linked targets in deterministic order.
-    pub(crate) targets: DestackProductTargetArray,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackProductArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackProduct,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalProduct {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackProduct,
-}
-
-impl DestackProduct {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::Product) -> Result<Self, String> {
-        Ok(Self {
-            name: c_string(value.name)?,
-            targets: DestackProductTargetArray::from_bridge(value.targets)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Product, String> {
-        Ok(rust::language::Product {
-            name: read_string(self.name)?,
-            targets: self.targets.to_bridge()?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        destroy_string(self.name);
-        self.name = ptr::null_mut();
-        self.targets.destroy();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            name: ptr::null_mut(),
-            targets: DestackProductTargetArray {
-                ptr: ptr::null_mut(),
-                len: 0,
-            },
-        }
-    }
-}
-
-impl DestackProductArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Product>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackProduct::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Product>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalProduct {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Product>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackProduct::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackProduct::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Product>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackProduct::empty();
-    }
-}
-
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackProgramFormat {
-    /// VM execution.
-    Vm = 0,
-    /// Native execution.
-    Native = 1,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackProgramFormatArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackProgramFormat,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalProgramFormat {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackProgramFormat,
-}
-
-impl DestackProgramFormat {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::ProgramFormat) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::ProgramFormat::Vm => Self::Vm,
-            rust::language::ProgramFormat::Native => Self::Native,
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(self) -> Result<rust::language::ProgramFormat, String> {
-        Ok(match self {
-            Self::Vm => rust::language::ProgramFormat::Vm,
-            Self::Native => rust::language::ProgramFormat::Native,
-        })
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {}
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self::Vm
-    }
-}
-
-impl DestackProgramFormatArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::ProgramFormat>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackProgramFormat::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ProgramFormat>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalProgramFormat {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(
-        value: Option<rust::language::ProgramFormat>,
-    ) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackProgramFormat::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackProgramFormat::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ProgramFormat>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackProgramFormat::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackProgramHeader {
-    /// Pointer byte width required by this program.
-    pub(crate) pointer_bytes: u32,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackProgramHeaderArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackProgramHeader,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalProgramHeader {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackProgramHeader,
-}
-
-impl DestackProgramHeader {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::ProgramHeader) -> Result<Self, String> {
-        Ok(Self {
-            pointer_bytes: value.pointer_bytes,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ProgramHeader, String> {
-        Ok(rust::language::ProgramHeader {
-            pointer_bytes: self.pointer_bytes,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {}
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self { pointer_bytes: 0 }
-    }
-}
-
-impl DestackProgramHeaderArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::ProgramHeader>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackProgramHeader::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ProgramHeader>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalProgramHeader {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(
-        value: Option<rust::language::ProgramHeader>,
-    ) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackProgramHeader::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackProgramHeader::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ProgramHeader>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackProgramHeader::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackProgram {
-    /// The program identity and compatibility header.
-    pub(crate) header: DestackProgramHeader,
-    /// The preferred execution format.
-    pub(crate) format: DestackProgramFormat,
-    /// Content blobs referenced by the executable payload.
-    pub(crate) contents: DestackContentIdArray,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackProgramArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackProgram,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalProgram {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackProgram,
-}
-
-impl DestackProgram {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::Program) -> Result<Self, String> {
-        Ok(Self {
-            header: DestackProgramHeader::from_bridge(value.header)?,
-            format: DestackProgramFormat::from_bridge(value.format)?,
-            contents: DestackContentIdArray::from_bridge(value.contents)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Program, String> {
-        Ok(rust::language::Program {
-            header: self.header.to_bridge()?,
-            format: self.format.to_bridge()?,
-            contents: self.contents.to_bridge()?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.header.destroy();
-        self.format.destroy();
-        self.contents.destroy();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            header: DestackProgramHeader::empty(),
-            format: DestackProgramFormat::empty(),
-            contents: DestackContentIdArray {
-                ptr: ptr::null_mut(),
-                len: 0,
-            },
-        }
-    }
-}
-
-impl DestackProgramArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Program>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackProgram::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Program>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalProgram {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Program>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackProgram::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackProgram::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Program>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackProgram::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackDeclaration {
-    /// The declaration text.
-    pub(crate) text: *mut c_char,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackDeclarationArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackDeclaration,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalDeclaration {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackDeclaration,
-}
-
-impl DestackDeclaration {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::Declaration) -> Result<Self, String> {
-        Ok(Self {
-            text: c_string(value.text)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Declaration, String> {
-        Ok(rust::language::Declaration {
-            text: read_string(self.text)?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        destroy_string(self.text);
-        self.text = ptr::null_mut();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            text: ptr::null_mut(),
-        }
-    }
-}
-
-impl DestackDeclarationArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Declaration>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackDeclaration::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Declaration>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalDeclaration {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Declaration>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackDeclaration::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackDeclaration::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Declaration>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackDeclaration::empty();
-    }
-}
-
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackScriptLanguage {
-    /// JavaScript output.
-    JavaScript = 0,
-    /// TypeScript output.
-    TypeScript = 1,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackScriptLanguageArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackScriptLanguage,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalScriptLanguage {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackScriptLanguage,
-}
-
-impl DestackScriptLanguage {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::ScriptLanguage) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::ScriptLanguage::JavaScript => Self::JavaScript,
-            rust::language::ScriptLanguage::TypeScript => Self::TypeScript,
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(self) -> Result<rust::language::ScriptLanguage, String> {
-        Ok(match self {
-            Self::JavaScript => rust::language::ScriptLanguage::JavaScript,
-            Self::TypeScript => rust::language::ScriptLanguage::TypeScript,
-        })
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {}
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self::JavaScript
-    }
-}
-
-impl DestackScriptLanguageArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::ScriptLanguage>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackScriptLanguage::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ScriptLanguage>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalScriptLanguage {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(
-        value: Option<rust::language::ScriptLanguage>,
-    ) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackScriptLanguage::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackScriptLanguage::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ScriptLanguage>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackScriptLanguage::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackScript {
-    /// The target language of this script.
-    pub(crate) language: DestackScriptLanguage,
-    /// The emitted declaration when one exists.
-    pub(crate) declaration: DestackOptionalDeclaration,
-    /// The source map when one exists.
-    pub(crate) map: DestackOptionalSourceMap,
-    /// Whether this script has top-level side effects.
-    pub(crate) has_top_level_side_effects: bool,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackScriptArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackScript,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalScript {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackScript,
-}
-
-impl DestackScript {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::Script) -> Result<Self, String> {
-        Ok(Self {
-            language: DestackScriptLanguage::from_bridge(value.language)?,
-            declaration: DestackOptionalDeclaration::from_bridge(value.declaration)?,
-            map: DestackOptionalSourceMap::from_bridge(value.map)?,
-            has_top_level_side_effects: value.has_top_level_side_effects,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Script, String> {
-        Ok(rust::language::Script {
-            language: self.language.to_bridge()?,
-            declaration: self.declaration.to_bridge()?,
-            map: self.map.to_bridge()?,
-            has_top_level_side_effects: self.has_top_level_side_effects,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.language.destroy();
-        self.declaration.destroy();
-        self.map.destroy();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            language: DestackScriptLanguage::empty(),
-            declaration: DestackOptionalDeclaration {
-                is_some: false,
-                value: DestackDeclaration::empty(),
-            },
-            map: DestackOptionalSourceMap {
-                is_some: false,
-                value: DestackSourceMap::empty(),
-            },
-            has_top_level_side_effects: false,
-        }
-    }
-}
-
-impl DestackScriptArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Script>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackScript::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Script>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalScript {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Script>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackScript::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackScript::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Script>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackScript::empty();
-    }
-}
-
-/// C ABI bridge enum kind.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackBuildOutputKind {
-    /// Built script artifact.
-    Script = 0,
-    /// Built object artifact.
-    Object = 1,
-    /// Built asset artifact.
-    Asset = 2,
-    /// Built toolchain payload artifact.
-    Build = 3,
-    /// Built bundle artifact.
-    Bundle = 4,
-    /// Built program artifact.
-    Program = 5,
-    /// Built product artifact.
-    Product = 6,
-}
-
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackBuildOutput {
-    /// Active enum variant.
-    pub(crate) kind: DestackBuildOutputKind,
-    pub(crate) version: DestackArtifactVersion,
-    pub(crate) script: DestackScript,
-    pub(crate) object: DestackObject,
-    pub(crate) asset: DestackAsset,
-    pub(crate) build: DestackBuild,
-    pub(crate) bundle: DestackBundle,
-    pub(crate) program: DestackProgram,
-    pub(crate) product: DestackProduct,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackBuildOutputArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackBuildOutput,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalBuildOutput {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackBuildOutput,
-}
-
-impl DestackBuildOutput {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::BuildOutput) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::BuildOutput::Script { version, script } => Self {
-                kind: DestackBuildOutputKind::Script,
-                version: DestackArtifactVersion::from_bridge(version)?,
-                script: DestackScript::from_bridge(script)?,
-                object: DestackObject::empty(),
-                asset: DestackAsset::empty(),
-                build: DestackBuild::empty(),
-                bundle: DestackBundle::empty(),
-                program: DestackProgram::empty(),
-                product: DestackProduct::empty(),
-            },
-            rust::language::BuildOutput::Object { version, object } => Self {
-                kind: DestackBuildOutputKind::Object,
-                version: DestackArtifactVersion::from_bridge(version)?,
-                script: DestackScript::empty(),
-                object: DestackObject::from_bridge(object)?,
-                asset: DestackAsset::empty(),
-                build: DestackBuild::empty(),
-                bundle: DestackBundle::empty(),
-                program: DestackProgram::empty(),
-                product: DestackProduct::empty(),
-            },
-            rust::language::BuildOutput::Asset { version, asset } => Self {
-                kind: DestackBuildOutputKind::Asset,
-                version: DestackArtifactVersion::from_bridge(version)?,
-                script: DestackScript::empty(),
-                object: DestackObject::empty(),
-                asset: DestackAsset::from_bridge(asset)?,
-                build: DestackBuild::empty(),
-                bundle: DestackBundle::empty(),
-                program: DestackProgram::empty(),
-                product: DestackProduct::empty(),
-            },
-            rust::language::BuildOutput::Build { version, build } => Self {
-                kind: DestackBuildOutputKind::Build,
-                version: DestackArtifactVersion::from_bridge(version)?,
-                script: DestackScript::empty(),
-                object: DestackObject::empty(),
-                asset: DestackAsset::empty(),
-                build: DestackBuild::from_bridge(build)?,
-                bundle: DestackBundle::empty(),
-                program: DestackProgram::empty(),
-                product: DestackProduct::empty(),
-            },
-            rust::language::BuildOutput::Bundle { version, bundle } => Self {
-                kind: DestackBuildOutputKind::Bundle,
-                version: DestackArtifactVersion::from_bridge(version)?,
-                script: DestackScript::empty(),
-                object: DestackObject::empty(),
-                asset: DestackAsset::empty(),
-                build: DestackBuild::empty(),
-                bundle: DestackBundle::from_bridge(bundle)?,
-                program: DestackProgram::empty(),
-                product: DestackProduct::empty(),
-            },
-            rust::language::BuildOutput::Program { version, program } => Self {
-                kind: DestackBuildOutputKind::Program,
-                version: DestackArtifactVersion::from_bridge(version)?,
-                script: DestackScript::empty(),
-                object: DestackObject::empty(),
-                asset: DestackAsset::empty(),
-                build: DestackBuild::empty(),
-                bundle: DestackBundle::empty(),
-                program: DestackProgram::from_bridge(program)?,
-                product: DestackProduct::empty(),
-            },
-            rust::language::BuildOutput::Product { version, product } => Self {
-                kind: DestackBuildOutputKind::Product,
-                version: DestackArtifactVersion::from_bridge(version)?,
-                script: DestackScript::empty(),
-                object: DestackObject::empty(),
-                asset: DestackAsset::empty(),
-                build: DestackBuild::empty(),
-                bundle: DestackBundle::empty(),
-                program: DestackProgram::empty(),
-                product: DestackProduct::from_bridge(product)?,
-            },
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::BuildOutput, String> {
-        match self.kind {
-            DestackBuildOutputKind::Script => {
-                let version = self.version.to_bridge()?;
-                let script = self.script.to_bridge()?;
-                Ok(rust::language::BuildOutput::Script { version, script })
-            }
-            DestackBuildOutputKind::Object => {
-                let version = self.version.to_bridge()?;
-                let object = self.object.to_bridge()?;
-                Ok(rust::language::BuildOutput::Object { version, object })
-            }
-            DestackBuildOutputKind::Asset => {
-                let version = self.version.to_bridge()?;
-                let asset = self.asset.to_bridge()?;
-                Ok(rust::language::BuildOutput::Asset { version, asset })
-            }
-            DestackBuildOutputKind::Build => {
-                let version = self.version.to_bridge()?;
-                let build = self.build.to_bridge()?;
-                Ok(rust::language::BuildOutput::Build { version, build })
-            }
-            DestackBuildOutputKind::Bundle => {
-                let version = self.version.to_bridge()?;
-                let bundle = self.bundle.to_bridge()?;
-                Ok(rust::language::BuildOutput::Bundle { version, bundle })
-            }
-            DestackBuildOutputKind::Program => {
-                let version = self.version.to_bridge()?;
-                let program = self.program.to_bridge()?;
-                Ok(rust::language::BuildOutput::Program { version, program })
-            }
-            DestackBuildOutputKind::Product => {
-                let version = self.version.to_bridge()?;
-                let product = self.product.to_bridge()?;
-                Ok(rust::language::BuildOutput::Product { version, product })
-            }
-        }
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {
-        self.version.destroy();
-        self.script.destroy();
-        self.object.destroy();
-        self.asset.destroy();
-        self.build.destroy();
-        self.bundle.destroy();
-        self.program.destroy();
-        self.product.destroy();
-    }
-
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self {
-            kind: DestackBuildOutputKind::Script,
-            version: DestackArtifactVersion::empty(),
-            script: DestackScript::empty(),
-            object: DestackObject::empty(),
-            asset: DestackAsset::empty(),
-            build: DestackBuild::empty(),
-            bundle: DestackBundle::empty(),
-            program: DestackProgram::empty(),
-            product: DestackProduct::empty(),
-        }
-    }
-}
-
-impl DestackBuildOutputArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::BuildOutput>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackBuildOutput::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::BuildOutput>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalBuildOutput {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::BuildOutput>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackBuildOutput::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackBuildOutput::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::BuildOutput>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackBuildOutput::empty();
     }
 }
 
@@ -7332,7 +3593,7 @@ pub struct DestackOptionalModuleId {
 
 impl DestackModuleId {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::ModuleId) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::ModuleId) -> Result<Self, String> {
         Ok(Self {
             package: DestackPackageId::from_bridge(value.package)?,
             key: c_string(value.key)?,
@@ -7340,8 +3601,8 @@ impl DestackModuleId {
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ModuleId, String> {
-        Ok(rust::language::ModuleId {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::ModuleId, String> {
+        Ok(destack::language::ModuleId {
             package: self.package.to_bridge()?,
             key: read_string(self.key)?,
         })
@@ -7365,7 +3626,7 @@ impl DestackModuleId {
 
 impl DestackModuleIdArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::ModuleId>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::ModuleId>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackModuleId::from_bridge(value)?);
@@ -7375,14 +3636,14 @@ impl DestackModuleIdArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ModuleId>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::ModuleId>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -7405,7 +3666,7 @@ impl DestackModuleIdArray {
 
 impl DestackOptionalModuleId {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::ModuleId>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: Option<destack::language::ModuleId>) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
@@ -7419,7 +3680,7 @@ impl DestackOptionalModuleId {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ModuleId>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::ModuleId>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -7434,900 +3695,6 @@ impl DestackOptionalModuleId {
         }
         self.is_some = false;
         self.value = DestackModuleId::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackModule {
-    /// Stable source module id.
-    pub(crate) id: DestackModuleId,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackModuleArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackModule,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalModule {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackModule,
-}
-
-impl DestackModule {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::Module) -> Result<Self, String> {
-        Ok(Self {
-            id: DestackModuleId::from_bridge(value.id)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Module, String> {
-        Ok(rust::language::Module {
-            id: self.id.to_bridge()?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.id.destroy();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            id: DestackModuleId::empty(),
-        }
-    }
-}
-
-impl DestackModuleArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Module>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackModule::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Module>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalModule {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Module>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackModule::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackModule::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Module>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackModule::empty();
-    }
-}
-
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackModuleBuildKind {
-    /// Build the structured script artifact.
-    Script = 0,
-    /// Build the compiled object artifact.
-    Object = 1,
-    /// Build the opaque asset artifact.
-    Asset = 2,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackModuleBuildKindArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackModuleBuildKind,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalModuleBuildKind {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackModuleBuildKind,
-}
-
-impl DestackModuleBuildKind {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::ModuleBuildKind) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::ModuleBuildKind::Script => Self::Script,
-            rust::language::ModuleBuildKind::Object => Self::Object,
-            rust::language::ModuleBuildKind::Asset => Self::Asset,
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(self) -> Result<rust::language::ModuleBuildKind, String> {
-        Ok(match self {
-            Self::Script => rust::language::ModuleBuildKind::Script,
-            Self::Object => rust::language::ModuleBuildKind::Object,
-            Self::Asset => rust::language::ModuleBuildKind::Asset,
-        })
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {}
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self::Script
-    }
-}
-
-impl DestackModuleBuildKindArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(
-        values: Vec<rust::language::ModuleBuildKind>,
-    ) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackModuleBuildKind::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ModuleBuildKind>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalModuleBuildKind {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(
-        value: Option<rust::language::ModuleBuildKind>,
-    ) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackModuleBuildKind::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackModuleBuildKind::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ModuleBuildKind>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackModuleBuildKind::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackProductId {
-    /// Owning package.
-    pub(crate) package: DestackPackageId,
-    /// Canonical lowercase hex product key within the package.
-    pub(crate) key: *mut c_char,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackProductIdArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackProductId,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalProductId {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackProductId,
-}
-
-impl DestackProductId {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::ProductId) -> Result<Self, String> {
-        Ok(Self {
-            package: DestackPackageId::from_bridge(value.package)?,
-            key: c_string(value.key)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ProductId, String> {
-        Ok(rust::language::ProductId {
-            package: self.package.to_bridge()?,
-            key: read_string(self.key)?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.package.destroy();
-        destroy_string(self.key);
-        self.key = ptr::null_mut();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            package: DestackPackageId::empty(),
-            key: ptr::null_mut(),
-        }
-    }
-}
-
-impl DestackProductIdArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::ProductId>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackProductId::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ProductId>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalProductId {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::ProductId>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackProductId::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackProductId::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ProductId>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackProductId::empty();
-    }
-}
-
-/// C ABI bridge enum kind.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackBuildRequestKind {
-    /// Build one module artifact.
-    Module = 0,
-    /// Build one target build payload.
-    Build = 1,
-    /// Build one package target.
-    Target = 2,
-    /// Build one product.
-    Product = 3,
-}
-
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackBuildRequest {
-    /// Active enum variant.
-    pub(crate) kind: DestackBuildRequestKind,
-    pub(crate) module: DestackModule,
-    pub(crate) target: DestackTargetId,
-    pub(crate) output: DestackModuleBuildKind,
-    pub(crate) product: DestackProductId,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackBuildRequestArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackBuildRequest,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalBuildRequest {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackBuildRequest,
-}
-
-impl DestackBuildRequest {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::BuildRequest) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::BuildRequest::Module {
-                module,
-                target,
-                output,
-            } => Self {
-                kind: DestackBuildRequestKind::Module,
-                module: DestackModule::from_bridge(module)?,
-                target: DestackTargetId::from_bridge(target)?,
-                output: DestackModuleBuildKind::from_bridge(output)?,
-                product: DestackProductId::empty(),
-            },
-            rust::language::BuildRequest::Build { target } => Self {
-                kind: DestackBuildRequestKind::Build,
-                module: DestackModule::empty(),
-                target: DestackTargetId::from_bridge(target)?,
-                output: DestackModuleBuildKind::empty(),
-                product: DestackProductId::empty(),
-            },
-            rust::language::BuildRequest::Target { target } => Self {
-                kind: DestackBuildRequestKind::Target,
-                module: DestackModule::empty(),
-                target: DestackTargetId::from_bridge(target)?,
-                output: DestackModuleBuildKind::empty(),
-                product: DestackProductId::empty(),
-            },
-            rust::language::BuildRequest::Product { product } => Self {
-                kind: DestackBuildRequestKind::Product,
-                module: DestackModule::empty(),
-                target: DestackTargetId::empty(),
-                output: DestackModuleBuildKind::empty(),
-                product: DestackProductId::from_bridge(product)?,
-            },
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::BuildRequest, String> {
-        match self.kind {
-            DestackBuildRequestKind::Module => {
-                let module = self.module.to_bridge()?;
-                let target = self.target.to_bridge()?;
-                let output = self.output.to_bridge()?;
-                Ok(rust::language::BuildRequest::Module {
-                    module,
-                    target,
-                    output,
-                })
-            }
-            DestackBuildRequestKind::Build => {
-                let target = self.target.to_bridge()?;
-                Ok(rust::language::BuildRequest::Build { target })
-            }
-            DestackBuildRequestKind::Target => {
-                let target = self.target.to_bridge()?;
-                Ok(rust::language::BuildRequest::Target { target })
-            }
-            DestackBuildRequestKind::Product => {
-                let product = self.product.to_bridge()?;
-                Ok(rust::language::BuildRequest::Product { product })
-            }
-        }
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {
-        self.module.destroy();
-        self.target.destroy();
-        self.output.destroy();
-        self.product.destroy();
-    }
-
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self {
-            kind: DestackBuildRequestKind::Module,
-            module: DestackModule::empty(),
-            target: DestackTargetId::empty(),
-            output: DestackModuleBuildKind::empty(),
-            product: DestackProductId::empty(),
-        }
-    }
-}
-
-impl DestackBuildRequestArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::BuildRequest>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackBuildRequest::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::BuildRequest>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalBuildRequest {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::BuildRequest>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackBuildRequest::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackBuildRequest::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::BuildRequest>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackBuildRequest::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackChange {
-    /// Repository logical path.
-    pub(crate) path: *mut c_char,
-    /// External file URI.
-    pub(crate) uri: *mut c_char,
-    /// Whether the file was removed.
-    pub(crate) is_removed: bool,
-    /// Updated module id when known.
-    pub(crate) module_id: DestackOptionalModuleId,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackChangeArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackChange,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalChange {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackChange,
-}
-
-impl DestackChange {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::Change) -> Result<Self, String> {
-        Ok(Self {
-            path: c_string(value.path)?,
-            uri: c_string(value.uri)?,
-            is_removed: value.is_removed,
-            module_id: DestackOptionalModuleId::from_bridge(value.module_id)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Change, String> {
-        Ok(rust::language::Change {
-            path: read_string(self.path)?,
-            uri: read_string(self.uri)?,
-            is_removed: self.is_removed,
-            module_id: self.module_id.to_bridge()?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        destroy_string(self.path);
-        self.path = ptr::null_mut();
-        destroy_string(self.uri);
-        self.uri = ptr::null_mut();
-        self.module_id.destroy();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            path: ptr::null_mut(),
-            uri: ptr::null_mut(),
-            is_removed: false,
-            module_id: DestackOptionalModuleId {
-                is_some: false,
-                value: DestackModuleId::empty(),
-            },
-        }
-    }
-}
-
-impl DestackChangeArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Change>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackChange::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Change>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalChange {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Change>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackChange::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackChange::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Change>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackChange::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackComponentId {
-    /// Canonical lowercase hex component id.
-    pub(crate) id: *mut c_char,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackComponentIdArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackComponentId,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalComponentId {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackComponentId,
-}
-
-impl DestackComponentId {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::ComponentId) -> Result<Self, String> {
-        Ok(Self {
-            id: c_string(value.id)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ComponentId, String> {
-        Ok(rust::language::ComponentId {
-            id: read_string(self.id)?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        destroy_string(self.id);
-        self.id = ptr::null_mut();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            id: ptr::null_mut(),
-        }
-    }
-}
-
-impl DestackComponentIdArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::ComponentId>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackComponentId::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ComponentId>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalComponentId {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::ComponentId>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackComponentId::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackComponentId::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ComponentId>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackComponentId::empty();
     }
 }
 
@@ -8361,15 +3728,15 @@ pub struct DestackOptionalProfileId {
 
 impl DestackProfileId {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::ProfileId) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::ProfileId) -> Result<Self, String> {
         Ok(Self {
             id: c_string(value.id)?,
         })
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ProfileId, String> {
-        Ok(rust::language::ProfileId {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::ProfileId, String> {
+        Ok(destack::language::ProfileId {
             id: read_string(self.id)?,
         })
     }
@@ -8390,7 +3757,7 @@ impl DestackProfileId {
 
 impl DestackProfileIdArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::ProfileId>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::ProfileId>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackProfileId::from_bridge(value)?);
@@ -8400,14 +3767,14 @@ impl DestackProfileIdArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ProfileId>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::ProfileId>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -8430,7 +3797,7 @@ impl DestackProfileIdArray {
 
 impl DestackOptionalProfileId {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::ProfileId>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: Option<destack::language::ProfileId>) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
@@ -8444,7 +3811,7 @@ impl DestackOptionalProfileId {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ProfileId>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::ProfileId>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -8500,7 +3867,7 @@ pub struct DestackOptionalDirChecked {
 
 impl DestackDirChecked {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::DirChecked) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::DirChecked) -> Result<Self, String> {
         Ok(Self {
             version: DestackArtifactVersion::from_bridge(value.version)?,
             module: DestackModuleId::from_bridge(value.module)?,
@@ -8511,8 +3878,8 @@ impl DestackDirChecked {
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::DirChecked, String> {
-        Ok(rust::language::DirChecked {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::DirChecked, String> {
+        Ok(destack::language::DirChecked {
             version: self.version.to_bridge()?,
             module: self.module.to_bridge()?,
             profile: self.profile.to_bridge()?,
@@ -8544,7 +3911,7 @@ impl DestackDirChecked {
 
 impl DestackDirCheckedArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::DirChecked>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::DirChecked>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackDirChecked::from_bridge(value)?);
@@ -8554,14 +3921,14 @@ impl DestackDirCheckedArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::DirChecked>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::DirChecked>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -8584,7 +3951,9 @@ impl DestackDirCheckedArray {
 
 impl DestackOptionalDirChecked {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::DirChecked>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(
+        value: Option<destack::language::DirChecked>,
+    ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
@@ -8598,7 +3967,7 @@ impl DestackOptionalDirChecked {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::DirChecked>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::DirChecked>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -8613,421 +3982,6 @@ impl DestackOptionalDirChecked {
         }
         self.is_some = false;
         self.value = DestackDirChecked::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackCheckOutput {
-    /// Checked DIR artifact projection.
-    pub(crate) checked: DestackDirChecked,
-    /// Diagnostics emitted by checking.
-    pub(crate) diagnostics: DestackDiagnosticArray,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackCheckOutputArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackCheckOutput,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalCheckOutput {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackCheckOutput,
-}
-
-impl DestackCheckOutput {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::CheckOutput) -> Result<Self, String> {
-        Ok(Self {
-            checked: DestackDirChecked::from_bridge(value.checked)?,
-            diagnostics: DestackDiagnosticArray::from_bridge(value.diagnostics)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::CheckOutput, String> {
-        Ok(rust::language::CheckOutput {
-            checked: self.checked.to_bridge()?,
-            diagnostics: self.diagnostics.to_bridge()?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.checked.destroy();
-        self.diagnostics.destroy();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            checked: DestackDirChecked::empty(),
-            diagnostics: DestackDiagnosticArray {
-                ptr: ptr::null_mut(),
-                len: 0,
-            },
-        }
-    }
-}
-
-impl DestackCheckOutputArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::CheckOutput>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackCheckOutput::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::CheckOutput>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalCheckOutput {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::CheckOutput>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackCheckOutput::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackCheckOutput::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::CheckOutput>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackCheckOutput::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackRevision {
-    /// Displayed repository revision id.
-    pub(crate) id: *mut c_char,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackRevisionArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackRevision,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalRevision {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackRevision,
-}
-
-impl DestackRevision {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::Revision) -> Result<Self, String> {
-        Ok(Self {
-            id: c_string(value.id)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Revision, String> {
-        Ok(rust::language::Revision {
-            id: read_string(self.id)?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        destroy_string(self.id);
-        self.id = ptr::null_mut();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            id: ptr::null_mut(),
-        }
-    }
-}
-
-impl DestackRevisionArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Revision>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackRevision::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Revision>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalRevision {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Revision>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackRevision::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackRevision::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Revision>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackRevision::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackCommit {
-    /// Previous revision.
-    pub(crate) before: DestackRevision,
-    /// Updated revision.
-    pub(crate) after: DestackRevision,
-    /// Changed files.
-    pub(crate) changes: DestackChangeArray,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackCommitArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackCommit,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalCommit {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackCommit,
-}
-
-impl DestackCommit {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::Commit) -> Result<Self, String> {
-        Ok(Self {
-            before: DestackRevision::from_bridge(value.before)?,
-            after: DestackRevision::from_bridge(value.after)?,
-            changes: DestackChangeArray::from_bridge(value.changes)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Commit, String> {
-        Ok(rust::language::Commit {
-            before: self.before.to_bridge()?,
-            after: self.after.to_bridge()?,
-            changes: self.changes.to_bridge()?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.before.destroy();
-        self.after.destroy();
-        self.changes.destroy();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            before: DestackRevision::empty(),
-            after: DestackRevision::empty(),
-            changes: DestackChangeArray {
-                ptr: ptr::null_mut(),
-                len: 0,
-            },
-        }
-    }
-}
-
-impl DestackCommitArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Commit>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackCommit::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Commit>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalCommit {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Commit>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackCommit::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackCommit::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Commit>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackCommit::empty();
     }
 }
 
@@ -9063,7 +4017,7 @@ pub struct DestackOptionalDirParsed {
 
 impl DestackDirParsed {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::DirParsed) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::DirParsed) -> Result<Self, String> {
         Ok(Self {
             version: DestackArtifactVersion::from_bridge(value.version)?,
             module: DestackModuleId::from_bridge(value.module)?,
@@ -9071,8 +4025,8 @@ impl DestackDirParsed {
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::DirParsed, String> {
-        Ok(rust::language::DirParsed {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::DirParsed, String> {
+        Ok(destack::language::DirParsed {
             version: self.version.to_bridge()?,
             module: self.module.to_bridge()?,
         })
@@ -9095,7 +4049,7 @@ impl DestackDirParsed {
 
 impl DestackDirParsedArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::DirParsed>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::DirParsed>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackDirParsed::from_bridge(value)?);
@@ -9105,14 +4059,14 @@ impl DestackDirParsedArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::DirParsed>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::DirParsed>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -9135,7 +4089,7 @@ impl DestackDirParsedArray {
 
 impl DestackOptionalDirParsed {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::DirParsed>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: Option<destack::language::DirParsed>) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
@@ -9149,7 +4103,7 @@ impl DestackOptionalDirParsed {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::DirParsed>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::DirParsed>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -9201,7 +4155,7 @@ pub struct DestackOptionalDirResolved {
 
 impl DestackDirResolved {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::DirResolved) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::DirResolved) -> Result<Self, String> {
         Ok(Self {
             version: DestackArtifactVersion::from_bridge(value.version)?,
             module: DestackModuleId::from_bridge(value.module)?,
@@ -9210,8 +4164,8 @@ impl DestackDirResolved {
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::DirResolved, String> {
-        Ok(rust::language::DirResolved {
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::DirResolved, String> {
+        Ok(destack::language::DirResolved {
             version: self.version.to_bridge()?,
             module: self.module.to_bridge()?,
             profile: self.profile.to_bridge()?,
@@ -9237,7 +4191,7 @@ impl DestackDirResolved {
 
 impl DestackDirResolvedArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::DirResolved>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::DirResolved>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(DestackDirResolved::from_bridge(value)?);
@@ -9247,14 +4201,14 @@ impl DestackDirResolvedArray {
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::DirResolved>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::DirResolved>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -9277,7 +4231,9 @@ impl DestackDirResolvedArray {
 
 impl DestackOptionalDirResolved {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::DirResolved>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(
+        value: Option<destack::language::DirResolved>,
+    ) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
@@ -9291,7 +4247,7 @@ impl DestackOptionalDirResolved {
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::DirResolved>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::DirResolved>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -9309,693 +4265,89 @@ impl DestackOptionalDirResolved {
     }
 }
 
-/// C ABI bridge enum kind.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackDocumentKind {
-    /// Repository module at one immutable revision.
-    Module = 0,
-    /// Ad hoc source text.
-    Text = 1,
-}
-
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackDocument {
-    /// Active enum variant.
-    pub(crate) kind: DestackDocumentKind,
-    pub(crate) module: DestackModule,
-    pub(crate) path: *mut c_char,
-    pub(crate) text: *mut c_char,
-}
-
-/// C ABI bridge enum array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackDocumentArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackDocument,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalDocument {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackDocument,
-}
-
-impl DestackDocument {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::Document) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::Document::Module { module } => Self {
-                kind: DestackDocumentKind::Module,
-                module: DestackModule::from_bridge(module)?,
-                path: ptr::null_mut(),
-                text: ptr::null_mut(),
-            },
-            rust::language::Document::Text { path, text } => Self {
-                kind: DestackDocumentKind::Text,
-                module: DestackModule::empty(),
-                path: c_string(path)?,
-                text: c_string(text)?,
-            },
-        })
-    }
-
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Document, String> {
-        match self.kind {
-            DestackDocumentKind::Module => {
-                let module = self.module.to_bridge()?;
-                Ok(rust::language::Document::Module { module })
-            }
-            DestackDocumentKind::Text => {
-                let path = read_string(self.path)?;
-                let text = read_string(self.text)?;
-                Ok(rust::language::Document::Text { path, text })
-            }
-        }
-    }
-
-    /// Destroy this C ABI enum.
-    pub(crate) fn destroy(&mut self) {
-        self.module.destroy();
-        destroy_string(self.path);
-        self.path = ptr::null_mut();
-        destroy_string(self.text);
-        self.text = ptr::null_mut();
-    }
-
-    /// Return one empty C ABI enum.
-    pub(crate) fn empty() -> Self {
-        Self {
-            kind: DestackDocumentKind::Module,
-            module: DestackModule::empty(),
-            path: ptr::null_mut(),
-            text: ptr::null_mut(),
-        }
-    }
-}
-
-impl DestackDocumentArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Document>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackDocument::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Document>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalDocument {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Document>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackDocument::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackDocument::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Document>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackDocument::empty();
-    }
-}
-
 /// C ABI bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackFormatOutput {
-    /// Formatted source text.
-    pub(crate) text: *mut c_char,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackFormatOutputArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackFormatOutput,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalFormatOutput {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackFormatOutput,
-}
-
-impl DestackFormatOutput {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::FormatOutput) -> Result<Self, String> {
-        Ok(Self {
-            text: c_string(value.text)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::FormatOutput, String> {
-        Ok(rust::language::FormatOutput {
-            text: read_string(self.text)?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        destroy_string(self.text);
-        self.text = ptr::null_mut();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            text: ptr::null_mut(),
-        }
-    }
-}
-
-impl DestackFormatOutputArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::FormatOutput>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackFormatOutput::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::FormatOutput>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalFormatOutput {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::FormatOutput>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackFormatOutput::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackFormatOutput::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::FormatOutput>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackFormatOutput::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackFormatRequest {
-    /// Document to format.
-    pub(crate) document: DestackDocument,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackFormatRequestArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackFormatRequest,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalFormatRequest {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackFormatRequest,
-}
-
-impl DestackFormatRequest {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::FormatRequest) -> Result<Self, String> {
-        Ok(Self {
-            document: DestackDocument::from_bridge(value.document)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::FormatRequest, String> {
-        Ok(rust::language::FormatRequest {
-            document: self.document.to_bridge()?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.document.destroy();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            document: DestackDocument::empty(),
-        }
-    }
-}
-
-impl DestackFormatRequestArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::FormatRequest>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackFormatRequest::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::FormatRequest>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalFormatRequest {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(
-        value: Option<rust::language::FormatRequest>,
-    ) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackFormatRequest::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackFormatRequest::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::FormatRequest>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackFormatRequest::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackLintOutput {
-    /// Diagnostics emitted by lint rules.
-    pub(crate) diagnostics: DestackDiagnosticArray,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackLintOutputArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackLintOutput,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalLintOutput {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackLintOutput,
-}
-
-impl DestackLintOutput {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::LintOutput) -> Result<Self, String> {
-        Ok(Self {
-            diagnostics: DestackDiagnosticArray::from_bridge(value.diagnostics)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::LintOutput, String> {
-        Ok(rust::language::LintOutput {
-            diagnostics: self.diagnostics.to_bridge()?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.diagnostics.destroy();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            diagnostics: DestackDiagnosticArray {
-                ptr: ptr::null_mut(),
-                len: 0,
-            },
-        }
-    }
-}
-
-impl DestackLintOutputArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::LintOutput>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackLintOutput::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::LintOutput>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalLintOutput {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::LintOutput>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackLintOutput::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackLintOutput::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::LintOutput>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackLintOutput::empty();
-    }
-}
-
-/// C ABI bridge enum kind.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackScopeKind {
-    /// One module profile.
-    Module = 0,
-    /// One source package.
-    Package = 1,
-    /// Whole workspace.
-    Workspace = 2,
-}
-
-/// C ABI bridge enum.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackScope {
-    /// Active enum variant.
-    pub(crate) kind: DestackScopeKind,
-    pub(crate) module: DestackModule,
-    pub(crate) profile: DestackProfileId,
+pub struct DestackProductId {
+    /// Owning package.
     pub(crate) package: DestackPackageId,
+    /// Canonical lowercase hex product key within the package.
+    pub(crate) key: *mut c_char,
 }
 
-/// C ABI bridge enum array.
+/// C ABI bridge value array.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackScopeArray {
+pub struct DestackProductIdArray {
     /// Owned value pointer.
-    pub(crate) ptr: *mut DestackScope,
+    pub(crate) ptr: *mut DestackProductId,
     /// Value count.
     pub(crate) len: usize,
 }
 
-/// C ABI optional bridge enum.
+/// C ABI optional bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackOptionalScope {
+pub struct DestackOptionalProductId {
     /// Whether the value is present.
     pub(crate) is_some: bool,
     /// Value when present.
-    pub(crate) value: DestackScope,
+    pub(crate) value: DestackProductId,
 }
 
-impl DestackScope {
-    /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::language::Scope) -> Result<Self, String> {
-        Ok(match value {
-            rust::language::Scope::Module { module, profile } => Self {
-                kind: DestackScopeKind::Module,
-                module: DestackModule::from_bridge(module)?,
-                profile: DestackProfileId::from_bridge(profile)?,
-                package: DestackPackageId::empty(),
-            },
-            rust::language::Scope::Package { package } => Self {
-                kind: DestackScopeKind::Package,
-                module: DestackModule::empty(),
-                profile: DestackProfileId::empty(),
-                package: DestackPackageId::from_bridge(package)?,
-            },
-            rust::language::Scope::Workspace => Self {
-                kind: DestackScopeKind::Workspace,
-                module: DestackModule::empty(),
-                profile: DestackProfileId::empty(),
-                package: DestackPackageId::empty(),
-            },
+impl DestackProductId {
+    /// Convert one bridge value into one C ABI value.
+    pub(crate) fn from_bridge(value: destack::language::ProductId) -> Result<Self, String> {
+        Ok(Self {
+            package: DestackPackageId::from_bridge(value.package)?,
+            key: c_string(value.key)?,
         })
     }
 
-    /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::Scope, String> {
-        match self.kind {
-            DestackScopeKind::Module => {
-                let module = self.module.to_bridge()?;
-                let profile = self.profile.to_bridge()?;
-                Ok(rust::language::Scope::Module { module, profile })
-            }
-            DestackScopeKind::Package => {
-                let package = self.package.to_bridge()?;
-                Ok(rust::language::Scope::Package { package })
-            }
-            DestackScopeKind::Workspace => Ok(rust::language::Scope::Workspace),
-        }
+    /// Convert this C ABI value into one bridge value.
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::ProductId, String> {
+        Ok(destack::language::ProductId {
+            package: self.package.to_bridge()?,
+            key: read_string(self.key)?,
+        })
     }
 
-    /// Destroy this C ABI enum.
+    /// Destroy this C ABI value.
     pub(crate) fn destroy(&mut self) {
-        self.module.destroy();
-        self.profile.destroy();
         self.package.destroy();
+        destroy_string(self.key);
+        self.key = ptr::null_mut();
     }
 
-    /// Return one empty C ABI enum.
+    /// Return one empty C ABI value.
     pub(crate) fn empty() -> Self {
         Self {
-            kind: DestackScopeKind::Module,
-            module: DestackModule::empty(),
-            profile: DestackProfileId::empty(),
             package: DestackPackageId::empty(),
+            key: ptr::null_mut(),
         }
     }
 }
 
-impl DestackScopeArray {
+impl DestackProductIdArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::Scope>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::ProductId>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
-            converted.push(DestackScope::from_bridge(value)?);
+            converted.push(DestackProductId::from_bridge(value)?);
         }
         let (ptr, len) = owned_array(converted);
         Ok(Self { ptr, len })
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::Scope>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::ProductId>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -10016,23 +4368,23 @@ impl DestackScopeArray {
     }
 }
 
-impl DestackOptionalScope {
+impl DestackOptionalProductId {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::Scope>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: Option<destack::language::ProductId>) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
-                value: DestackScope::empty(),
+                value: DestackProductId::empty(),
             });
         };
         Ok(Self {
             is_some: true,
-            value: DestackScope::from_bridge(value)?,
+            value: DestackProductId::from_bridge(value)?,
         })
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::Scope>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::ProductId>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -10046,24 +4398,24 @@ impl DestackOptionalScope {
             self.value.destroy();
         }
         self.is_some = false;
-        self.value = DestackScope::empty();
+        self.value = DestackProductId::empty();
     }
 }
 
 /// C ABI bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackLintRequest {
-    /// Scope to lint.
-    pub(crate) scope: DestackScope,
+pub struct DestackRevision {
+    /// Displayed repository revision id.
+    pub(crate) id: *mut c_char,
 }
 
 /// C ABI bridge value array.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackLintRequestArray {
+pub struct DestackRevisionArray {
     /// Owned value pointer.
-    pub(crate) ptr: *mut DestackLintRequest,
+    pub(crate) ptr: *mut DestackRevision,
     /// Value count.
     pub(crate) len: usize,
 }
@@ -10071,61 +4423,62 @@ pub struct DestackLintRequestArray {
 /// C ABI optional bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackOptionalLintRequest {
+pub struct DestackOptionalRevision {
     /// Whether the value is present.
     pub(crate) is_some: bool,
     /// Value when present.
-    pub(crate) value: DestackLintRequest,
+    pub(crate) value: DestackRevision,
 }
 
-impl DestackLintRequest {
+impl DestackRevision {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::LintRequest) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::Revision) -> Result<Self, String> {
         Ok(Self {
-            scope: DestackScope::from_bridge(value.scope)?,
+            id: c_string(value.id)?,
         })
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::LintRequest, String> {
-        Ok(rust::language::LintRequest {
-            scope: self.scope.to_bridge()?,
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::Revision, String> {
+        Ok(destack::language::Revision {
+            id: read_string(self.id)?,
         })
     }
 
     /// Destroy this C ABI value.
     pub(crate) fn destroy(&mut self) {
-        self.scope.destroy();
+        destroy_string(self.id);
+        self.id = ptr::null_mut();
     }
 
     /// Return one empty C ABI value.
     pub(crate) fn empty() -> Self {
         Self {
-            scope: DestackScope::empty(),
+            id: ptr::null_mut(),
         }
     }
 }
 
-impl DestackLintRequestArray {
+impl DestackRevisionArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::LintRequest>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::Revision>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
-            converted.push(DestackLintRequest::from_bridge(value)?);
+            converted.push(DestackRevision::from_bridge(value)?);
         }
         let (ptr, len) = owned_array(converted);
         Ok(Self { ptr, len })
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::LintRequest>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::Revision>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -10146,23 +4499,23 @@ impl DestackLintRequestArray {
     }
 }
 
-impl DestackOptionalLintRequest {
+impl DestackOptionalRevision {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::LintRequest>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: Option<destack::language::Revision>) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
-                value: DestackLintRequest::empty(),
+                value: DestackRevision::empty(),
             });
         };
         Ok(Self {
             is_some: true,
-            value: DestackLintRequest::from_bridge(value)?,
+            value: DestackRevision::from_bridge(value)?,
         })
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::LintRequest>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::Revision>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -10176,26 +4529,26 @@ impl DestackOptionalLintRequest {
             self.value.destroy();
         }
         self.is_some = false;
-        self.value = DestackLintRequest::empty();
+        self.value = DestackRevision::empty();
     }
 }
 
 /// C ABI bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackParseOutput {
-    /// Parsed DIR artifact projection.
-    pub(crate) parsed: DestackDirParsed,
-    /// Diagnostics emitted by parsing.
-    pub(crate) diagnostics: DestackDiagnosticArray,
+pub struct DestackTargetId {
+    /// Owning package.
+    pub(crate) package: DestackPackageId,
+    /// Canonical lowercase hex target key within the package.
+    pub(crate) key: *mut c_char,
 }
 
 /// C ABI bridge value array.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackParseOutputArray {
+pub struct DestackTargetIdArray {
     /// Owned value pointer.
-    pub(crate) ptr: *mut DestackParseOutput,
+    pub(crate) ptr: *mut DestackTargetId,
     /// Value count.
     pub(crate) len: usize,
 }
@@ -10203,68 +4556,66 @@ pub struct DestackParseOutputArray {
 /// C ABI optional bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackOptionalParseOutput {
+pub struct DestackOptionalTargetId {
     /// Whether the value is present.
     pub(crate) is_some: bool,
     /// Value when present.
-    pub(crate) value: DestackParseOutput,
+    pub(crate) value: DestackTargetId,
 }
 
-impl DestackParseOutput {
+impl DestackTargetId {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::ParseOutput) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: destack::language::TargetId) -> Result<Self, String> {
         Ok(Self {
-            parsed: DestackDirParsed::from_bridge(value.parsed)?,
-            diagnostics: DestackDiagnosticArray::from_bridge(value.diagnostics)?,
+            package: DestackPackageId::from_bridge(value.package)?,
+            key: c_string(value.key)?,
         })
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::ParseOutput, String> {
-        Ok(rust::language::ParseOutput {
-            parsed: self.parsed.to_bridge()?,
-            diagnostics: self.diagnostics.to_bridge()?,
+    pub(crate) fn to_bridge(&self) -> Result<destack::language::TargetId, String> {
+        Ok(destack::language::TargetId {
+            package: self.package.to_bridge()?,
+            key: read_string(self.key)?,
         })
     }
 
     /// Destroy this C ABI value.
     pub(crate) fn destroy(&mut self) {
-        self.parsed.destroy();
-        self.diagnostics.destroy();
+        self.package.destroy();
+        destroy_string(self.key);
+        self.key = ptr::null_mut();
     }
 
     /// Return one empty C ABI value.
     pub(crate) fn empty() -> Self {
         Self {
-            parsed: DestackDirParsed::empty(),
-            diagnostics: DestackDiagnosticArray {
-                ptr: ptr::null_mut(),
-                len: 0,
-            },
+            package: DestackPackageId::empty(),
+            key: ptr::null_mut(),
         }
     }
 }
 
-impl DestackParseOutputArray {
+impl DestackTargetIdArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::ParseOutput>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<destack::language::TargetId>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
-            converted.push(DestackParseOutput::from_bridge(value)?);
+            converted.push(DestackTargetId::from_bridge(value)?);
         }
         let (ptr, len) = owned_array(converted);
         Ok(Self { ptr, len })
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::ParseOutput>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<destack::language::TargetId>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
         if self.ptr.is_null() {
             return Err("array pointer is null".to_string());
         }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let values = unsafe { slice::from_raw_parts(self.ptr, self.len) };
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
             converted.push(value.to_bridge()?);
@@ -10285,23 +4636,23 @@ impl DestackParseOutputArray {
     }
 }
 
-impl DestackOptionalParseOutput {
+impl DestackOptionalTargetId {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::ParseOutput>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: Option<destack::language::TargetId>) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
-                value: DestackParseOutput::empty(),
+                value: DestackTargetId::empty(),
             });
         };
         Ok(Self {
             is_some: true,
-            value: DestackParseOutput::from_bridge(value)?,
+            value: DestackTargetId::from_bridge(value)?,
         })
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::ParseOutput>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<destack::language::TargetId>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -10315,404 +4666,7 @@ impl DestackOptionalParseOutput {
             self.value.destroy();
         }
         self.is_some = false;
-        self.value = DestackParseOutput::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackSessionFile {
-    /// Repository logical path.
-    pub(crate) path: *mut c_char,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackSessionFileArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackSessionFile,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalSessionFile {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackSessionFile,
-}
-
-impl DestackSessionFile {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::SessionFile) -> Result<Self, String> {
-        Ok(Self {
-            path: c_string(value.path)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::SessionFile, String> {
-        Ok(rust::language::SessionFile {
-            path: read_string(self.path)?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        destroy_string(self.path);
-        self.path = ptr::null_mut();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            path: ptr::null_mut(),
-        }
-    }
-}
-
-impl DestackSessionFileArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::SessionFile>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackSessionFile::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::SessionFile>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalSessionFile {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::SessionFile>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackSessionFile::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackSessionFile::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::SessionFile>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackSessionFile::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackTextRange {
-    /// Inclusive start byte offset.
-    pub(crate) start: u32,
-    /// Exclusive end byte offset.
-    pub(crate) end: u32,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackTextRangeArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackTextRange,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalTextRange {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackTextRange,
-}
-
-impl DestackTextRange {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::TextRange) -> Result<Self, String> {
-        Ok(Self {
-            start: value.start,
-            end: value.end,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::TextRange, String> {
-        Ok(rust::language::TextRange {
-            start: self.start,
-            end: self.end,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {}
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self { start: 0, end: 0 }
-    }
-}
-
-impl DestackTextRangeArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::TextRange>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackTextRange::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::TextRange>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalTextRange {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::TextRange>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackTextRange::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackTextRange::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::TextRange>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackTextRange::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackTextEdit {
-    /// Replaced byte range.
-    pub(crate) range: DestackTextRange,
-    /// Replacement text.
-    pub(crate) text: *mut c_char,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackTextEditArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackTextEdit,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalTextEdit {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackTextEdit,
-}
-
-impl DestackTextEdit {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::TextEdit) -> Result<Self, String> {
-        Ok(Self {
-            range: DestackTextRange::from_bridge(value.range)?,
-            text: c_string(value.text)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::TextEdit, String> {
-        Ok(rust::language::TextEdit {
-            range: self.range.to_bridge()?,
-            text: read_string(self.text)?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.range.destroy();
-        destroy_string(self.text);
-        self.text = ptr::null_mut();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            range: DestackTextRange::empty(),
-            text: ptr::null_mut(),
-        }
-    }
-}
-
-impl DestackTextEditArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::TextEdit>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackTextEdit::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::TextEdit>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalTextEdit {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::TextEdit>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackTextEdit::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackTextEdit::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::TextEdit>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackTextEdit::empty();
+        self.value = DestackTargetId::empty();
     }
 }
 
@@ -10725,7 +4679,7 @@ pub unsafe extern "C" fn destack_artifact_key_build(
 ) -> DestackStatus {
     return_status(error, || {
         let target = target.to_bridge()?;
-        let value = rust::language::ArtifactKey::Build { target };
+        let value = destack::language::ArtifactKey::Build { target };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -10740,7 +4694,7 @@ pub unsafe extern "C" fn destack_artifact_key_dir_parsed(
 ) -> DestackStatus {
     return_status(error, || {
         let module = module.to_bridge()?;
-        let value = rust::language::ArtifactKey::DirParsed { module };
+        let value = destack::language::ArtifactKey::DirParsed { module };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -10755,7 +4709,7 @@ pub unsafe extern "C" fn destack_artifact_key_data(
 ) -> DestackStatus {
     return_status(error, || {
         let module = module.to_bridge()?;
-        let value = rust::language::ArtifactKey::Data { module };
+        let value = destack::language::ArtifactKey::Data { module };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -10770,7 +4724,7 @@ pub unsafe extern "C" fn destack_artifact_key_global_environment(
 ) -> DestackStatus {
     return_status(error, || {
         let profile = profile.to_bridge()?;
-        let value = rust::language::ArtifactKey::GlobalEnvironment { profile };
+        let value = destack::language::ArtifactKey::GlobalEnvironment { profile };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -10785,7 +4739,7 @@ pub unsafe extern "C" fn destack_artifact_key_package_index(
 ) -> DestackStatus {
     return_status(error, || {
         let profile = profile.to_bridge()?;
-        let value = rust::language::ArtifactKey::PackageIndex { profile };
+        let value = destack::language::ArtifactKey::PackageIndex { profile };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -10800,7 +4754,7 @@ pub unsafe extern "C" fn destack_artifact_key_component_graph(
 ) -> DestackStatus {
     return_status(error, || {
         let profile = profile.to_bridge()?;
-        let value = rust::language::ArtifactKey::ComponentGraph { profile };
+        let value = destack::language::ArtifactKey::ComponentGraph { profile };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -10817,7 +4771,7 @@ pub unsafe extern "C" fn destack_artifact_key_program_analysis(
     return_status(error, || {
         let profile = profile.to_bridge()?;
         let target = target.to_bridge()?;
-        let value = rust::language::ArtifactKey::ProgramAnalysis { profile, target };
+        let value = destack::language::ArtifactKey::ProgramAnalysis { profile, target };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -10834,7 +4788,7 @@ pub unsafe extern "C" fn destack_artifact_key_dir_bound(
     return_status(error, || {
         let module = module.to_bridge()?;
         let profile = profile.to_bridge()?;
-        let value = rust::language::ArtifactKey::DirBound { module, profile };
+        let value = destack::language::ArtifactKey::DirBound { module, profile };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -10851,7 +4805,7 @@ pub unsafe extern "C" fn destack_artifact_key_dir_imported(
     return_status(error, || {
         let module = module.to_bridge()?;
         let profile = profile.to_bridge()?;
-        let value = rust::language::ArtifactKey::DirImported { module, profile };
+        let value = destack::language::ArtifactKey::DirImported { module, profile };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -10868,7 +4822,7 @@ pub unsafe extern "C" fn destack_artifact_key_dir_expanded(
     return_status(error, || {
         let module = module.to_bridge()?;
         let profile = profile.to_bridge()?;
-        let value = rust::language::ArtifactKey::DirExpanded { module, profile };
+        let value = destack::language::ArtifactKey::DirExpanded { module, profile };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -10885,7 +4839,7 @@ pub unsafe extern "C" fn destack_artifact_key_dir_exported(
     return_status(error, || {
         let module = module.to_bridge()?;
         let profile = profile.to_bridge()?;
-        let value = rust::language::ArtifactKey::DirExported { module, profile };
+        let value = destack::language::ArtifactKey::DirExported { module, profile };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -10902,7 +4856,7 @@ pub unsafe extern "C" fn destack_artifact_key_dir_resolved(
     return_status(error, || {
         let module = module.to_bridge()?;
         let profile = profile.to_bridge()?;
-        let value = rust::language::ArtifactKey::DirResolved { module, profile };
+        let value = destack::language::ArtifactKey::DirResolved { module, profile };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -10921,7 +4875,7 @@ pub unsafe extern "C" fn destack_artifact_key_dir_checked_component(
         let entry = entry.to_bridge()?;
         let component = component.to_bridge()?;
         let profile = profile.to_bridge()?;
-        let value = rust::language::ArtifactKey::DirCheckedComponent {
+        let value = destack::language::ArtifactKey::DirCheckedComponent {
             entry,
             component,
             profile,
@@ -10942,7 +4896,7 @@ pub unsafe extern "C" fn destack_artifact_key_dir_checked(
     return_status(error, || {
         let module = module.to_bridge()?;
         let profile = profile.to_bridge()?;
-        let value = rust::language::ArtifactKey::DirChecked { module, profile };
+        let value = destack::language::ArtifactKey::DirChecked { module, profile };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -10959,7 +4913,7 @@ pub unsafe extern "C" fn destack_artifact_key_dir_materialized(
     return_status(error, || {
         let module = module.to_bridge()?;
         let profile = profile.to_bridge()?;
-        let value = rust::language::ArtifactKey::DirMaterialized { module, profile };
+        let value = destack::language::ArtifactKey::DirMaterialized { module, profile };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -10976,7 +4930,7 @@ pub unsafe extern "C" fn destack_artifact_key_dir_elaborated(
     return_status(error, || {
         let module = module.to_bridge()?;
         let profile = profile.to_bridge()?;
-        let value = rust::language::ArtifactKey::DirElaborated { module, profile };
+        let value = destack::language::ArtifactKey::DirElaborated { module, profile };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -10995,7 +4949,7 @@ pub unsafe extern "C" fn destack_artifact_key_mir_lowered(
         let module = module.to_bridge()?;
         let profile = profile.to_bridge()?;
         let target = target.to_bridge()?;
-        let value = rust::language::ArtifactKey::MirLowered {
+        let value = destack::language::ArtifactKey::MirLowered {
             module,
             profile,
             target,
@@ -11018,7 +4972,7 @@ pub unsafe extern "C" fn destack_artifact_key_mir_verified(
         let module = module.to_bridge()?;
         let profile = profile.to_bridge()?;
         let target = target.to_bridge()?;
-        let value = rust::language::ArtifactKey::MirVerified {
+        let value = destack::language::ArtifactKey::MirVerified {
             module,
             profile,
             target,
@@ -11041,7 +4995,7 @@ pub unsafe extern "C" fn destack_artifact_key_mir_analyzed(
         let module = module.to_bridge()?;
         let profile = profile.to_bridge()?;
         let target = target.to_bridge()?;
-        let value = rust::language::ArtifactKey::MirAnalyzed {
+        let value = destack::language::ArtifactKey::MirAnalyzed {
             module,
             profile,
             target,
@@ -11064,7 +5018,7 @@ pub unsafe extern "C" fn destack_artifact_key_mir_optimized(
         let module = module.to_bridge()?;
         let profile = profile.to_bridge()?;
         let target = target.to_bridge()?;
-        let value = rust::language::ArtifactKey::MirOptimized {
+        let value = destack::language::ArtifactKey::MirOptimized {
             module,
             profile,
             target,
@@ -11085,7 +5039,7 @@ pub unsafe extern "C" fn destack_artifact_key_module_query_index(
     return_status(error, || {
         let module = module.to_bridge()?;
         let profile = profile.to_bridge()?;
-        let value = rust::language::ArtifactKey::ModuleQueryIndex { module, profile };
+        let value = destack::language::ArtifactKey::ModuleQueryIndex { module, profile };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -11100,7 +5054,7 @@ pub unsafe extern "C" fn destack_artifact_key_workspace_query_index(
 ) -> DestackStatus {
     return_status(error, || {
         let profile = profile.to_bridge()?;
-        let value = rust::language::ArtifactKey::WorkspaceQueryIndex { profile };
+        let value = destack::language::ArtifactKey::WorkspaceQueryIndex { profile };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -11117,7 +5071,7 @@ pub unsafe extern "C" fn destack_artifact_key_script(
     return_status(error, || {
         let module = module.to_bridge()?;
         let target = target.to_bridge()?;
-        let value = rust::language::ArtifactKey::Script { module, target };
+        let value = destack::language::ArtifactKey::Script { module, target };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -11134,7 +5088,7 @@ pub unsafe extern "C" fn destack_artifact_key_object(
     return_status(error, || {
         let module = module.to_bridge()?;
         let target = target.to_bridge()?;
-        let value = rust::language::ArtifactKey::Object { module, target };
+        let value = destack::language::ArtifactKey::Object { module, target };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -11151,7 +5105,7 @@ pub unsafe extern "C" fn destack_artifact_key_asset(
     return_status(error, || {
         let module = module.to_bridge()?;
         let target = target.to_bridge()?;
-        let value = rust::language::ArtifactKey::Asset { module, target };
+        let value = destack::language::ArtifactKey::Asset { module, target };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -11168,7 +5122,7 @@ pub unsafe extern "C" fn destack_artifact_key_bundle(
     return_status(error, || {
         let package = package.to_bridge()?;
         let target = target.to_bridge()?;
-        let value = rust::language::ArtifactKey::Bundle { package, target };
+        let value = destack::language::ArtifactKey::Bundle { package, target };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -11185,7 +5139,7 @@ pub unsafe extern "C" fn destack_artifact_key_program(
     return_status(error, || {
         let package = package.to_bridge()?;
         let target = target.to_bridge()?;
-        let value = rust::language::ArtifactKey::Program { package, target };
+        let value = destack::language::ArtifactKey::Program { package, target };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -11202,7 +5156,7 @@ pub unsafe extern "C" fn destack_artifact_key_product(
     return_status(error, || {
         let package = package.to_bridge()?;
         let product = product.to_bridge()?;
-        let value = rust::language::ArtifactKey::Product { package, product };
+        let value = destack::language::ArtifactKey::Product { package, product };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -11219,7 +5173,7 @@ pub unsafe extern "C" fn destack_artifact_key_module_linted(
     return_status(error, || {
         let module = module.to_bridge()?;
         let profile = profile.to_bridge()?;
-        let value = rust::language::ArtifactKey::ModuleLinted { module, profile };
+        let value = destack::language::ArtifactKey::ModuleLinted { module, profile };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -11234,7 +5188,7 @@ pub unsafe extern "C" fn destack_artifact_key_package_linted(
 ) -> DestackStatus {
     return_status(error, || {
         let package = package.to_bridge()?;
-        let value = rust::language::ArtifactKey::PackageLinted { package };
+        let value = destack::language::ArtifactKey::PackageLinted { package };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -11247,7 +5201,7 @@ pub unsafe extern "C" fn destack_artifact_key_workspace_linted(
     error: *mut *mut DestackError,
 ) -> DestackStatus {
     return_status(error, || {
-        let value = rust::language::ArtifactKey::WorkspaceLinted;
+        let value = destack::language::ArtifactKey::WorkspaceLinted;
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })
@@ -11502,7 +5456,7 @@ pub unsafe extern "C" fn destack_diagnostic_severity_array_destroy(
 
 /// Destroy one C ABI bridge value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_replacement_destroy(value: *mut DestackReplacement) {
+pub unsafe extern "C" fn destack_patch_destroy(value: *mut DestackPatch) {
     if let Some(value) = unsafe { value.as_mut() } {
         value.destroy();
     }
@@ -11510,7 +5464,7 @@ pub unsafe extern "C" fn destack_replacement_destroy(value: *mut DestackReplacem
 
 /// Destroy one C ABI bridge value array.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_replacement_array_destroy(mut array: DestackReplacementArray) {
+pub unsafe extern "C" fn destack_patch_array_destroy(mut array: DestackPatchArray) {
     array.destroy();
 }
 
@@ -11530,7 +5484,7 @@ pub unsafe extern "C" fn destack_file_patch_array_destroy(mut array: DestackFile
 
 /// Destroy one C ABI bridge value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_batch_edit_destroy(value: *mut DestackBatchEdit) {
+pub unsafe extern "C" fn destack_patch_set_destroy(value: *mut DestackPatchSet) {
     if let Some(value) = unsafe { value.as_mut() } {
         value.destroy();
     }
@@ -11538,7 +5492,7 @@ pub unsafe extern "C" fn destack_batch_edit_destroy(value: *mut DestackBatchEdit
 
 /// Destroy one C ABI bridge value array.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_batch_edit_array_destroy(mut array: DestackBatchEditArray) {
+pub unsafe extern "C" fn destack_patch_set_array_destroy(mut array: DestackPatchSetArray) {
     array.destroy();
 }
 
@@ -11608,7 +5562,7 @@ pub unsafe extern "C" fn destack_artifact_record_array_destroy(
 
 /// Destroy one C ABI bridge value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_file_type_destroy(value: *mut DestackFileType) {
+pub unsafe extern "C" fn destack_component_id_destroy(value: *mut DestackComponentId) {
     if let Some(value) = unsafe { value.as_mut() } {
         value.destroy();
     }
@@ -11616,221 +5570,7 @@ pub unsafe extern "C" fn destack_file_type_destroy(value: *mut DestackFileType) 
 
 /// Destroy one C ABI bridge value array.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_file_type_array_destroy(mut array: DestackFileTypeArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_source_map_source_destroy(value: *mut DestackSourceMapSource) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_source_map_source_array_destroy(
-    mut array: DestackSourceMapSourceArray,
-) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_source_map_destroy(value: *mut DestackSourceMap) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_source_map_array_destroy(mut array: DestackSourceMapArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_asset_destroy(value: *mut DestackAsset) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_asset_array_destroy(mut array: DestackAssetArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_build_linkage_destroy(value: *mut DestackBuildLinkage) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_build_linkage_array_destroy(mut array: DestackBuildLinkageArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_build_profile_destroy(value: *mut DestackBuildProfile) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_build_profile_array_destroy(mut array: DestackBuildProfileArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_build_destroy(value: *mut DestackBuild) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_build_array_destroy(mut array: DestackBuildArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_bundle_section_destroy(value: *mut DestackBundleSection) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_bundle_section_array_destroy(
-    mut array: DestackBundleSectionArray,
-) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_bundle_file_destroy(value: *mut DestackBundleFile) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_bundle_file_array_destroy(mut array: DestackBundleFileArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_bundle_mode_destroy(value: *mut DestackBundleMode) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_bundle_mode_array_destroy(mut array: DestackBundleModeArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_emit_format_destroy(value: *mut DestackEmitFormat) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_emit_format_array_destroy(mut array: DestackEmitFormatArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_bundle_destroy(value: *mut DestackBundle) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_bundle_array_destroy(mut array: DestackBundleArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_object_format_destroy(value: *mut DestackObjectFormat) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_object_format_array_destroy(mut array: DestackObjectFormatArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_object_destroy(value: *mut DestackObject) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_object_array_destroy(mut array: DestackObjectArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_destroy(value: *mut DestackHost) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_array_destroy(mut array: DestackHostArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_runtime_destroy(value: *mut DestackRuntime) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_runtime_array_destroy(mut array: DestackRuntimeArray) {
+pub unsafe extern "C" fn destack_component_id_array_destroy(mut array: DestackComponentIdArray) {
     array.destroy();
 }
 
@@ -11850,154 +5590,6 @@ pub unsafe extern "C" fn destack_package_id_array_destroy(mut array: DestackPack
 
 /// Destroy one C ABI bridge value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_target_id_destroy(value: *mut DestackTargetId) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_target_id_array_destroy(mut array: DestackTargetIdArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_product_target_destroy(value: *mut DestackProductTarget) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_product_target_array_destroy(
-    mut array: DestackProductTargetArray,
-) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_product_destroy(value: *mut DestackProduct) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_product_array_destroy(mut array: DestackProductArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_program_format_destroy(value: *mut DestackProgramFormat) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_program_format_array_destroy(
-    mut array: DestackProgramFormatArray,
-) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_program_header_destroy(value: *mut DestackProgramHeader) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_program_header_array_destroy(
-    mut array: DestackProgramHeaderArray,
-) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_program_destroy(value: *mut DestackProgram) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_program_array_destroy(mut array: DestackProgramArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_declaration_destroy(value: *mut DestackDeclaration) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_declaration_array_destroy(mut array: DestackDeclarationArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_script_language_destroy(value: *mut DestackScriptLanguage) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_script_language_array_destroy(
-    mut array: DestackScriptLanguageArray,
-) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_script_destroy(value: *mut DestackScript) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_script_array_destroy(mut array: DestackScriptArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_build_output_destroy(value: *mut DestackBuildOutput) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_build_output_array_destroy(mut array: DestackBuildOutputArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_module_id_destroy(value: *mut DestackModuleId) {
     if let Some(value) = unsafe { value.as_mut() } {
         value.destroy();
@@ -12007,92 +5599,6 @@ pub unsafe extern "C" fn destack_module_id_destroy(value: *mut DestackModuleId) 
 /// Destroy one C ABI bridge value array.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_module_id_array_destroy(mut array: DestackModuleIdArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_module_destroy(value: *mut DestackModule) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_module_array_destroy(mut array: DestackModuleArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_module_build_kind_destroy(value: *mut DestackModuleBuildKind) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_module_build_kind_array_destroy(
-    mut array: DestackModuleBuildKindArray,
-) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_product_id_destroy(value: *mut DestackProductId) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_product_id_array_destroy(mut array: DestackProductIdArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_build_request_destroy(value: *mut DestackBuildRequest) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_build_request_array_destroy(mut array: DestackBuildRequestArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_change_destroy(value: *mut DestackChange) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_change_array_destroy(mut array: DestackChangeArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_component_id_destroy(value: *mut DestackComponentId) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_component_id_array_destroy(mut array: DestackComponentIdArray) {
     array.destroy();
 }
 
@@ -12126,48 +5632,6 @@ pub unsafe extern "C" fn destack_dir_checked_array_destroy(mut array: DestackDir
 
 /// Destroy one C ABI bridge value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_check_output_destroy(value: *mut DestackCheckOutput) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_check_output_array_destroy(mut array: DestackCheckOutputArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_revision_destroy(value: *mut DestackRevision) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_revision_array_destroy(mut array: DestackRevisionArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_commit_destroy(value: *mut DestackCommit) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_commit_array_destroy(mut array: DestackCommitArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_dir_parsed_destroy(value: *mut DestackDirParsed) {
     if let Some(value) = unsafe { value.as_mut() } {
         value.destroy();
@@ -12196,7 +5660,7 @@ pub unsafe extern "C" fn destack_dir_resolved_array_destroy(mut array: DestackDi
 
 /// Destroy one C ABI bridge value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_document_destroy(value: *mut DestackDocument) {
+pub unsafe extern "C" fn destack_product_id_destroy(value: *mut DestackProductId) {
     if let Some(value) = unsafe { value.as_mut() } {
         value.destroy();
     }
@@ -12204,13 +5668,13 @@ pub unsafe extern "C" fn destack_document_destroy(value: *mut DestackDocument) {
 
 /// Destroy one C ABI bridge value array.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_document_array_destroy(mut array: DestackDocumentArray) {
+pub unsafe extern "C" fn destack_product_id_array_destroy(mut array: DestackProductIdArray) {
     array.destroy();
 }
 
 /// Destroy one C ABI bridge value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_format_output_destroy(value: *mut DestackFormatOutput) {
+pub unsafe extern "C" fn destack_revision_destroy(value: *mut DestackRevision) {
     if let Some(value) = unsafe { value.as_mut() } {
         value.destroy();
     }
@@ -12218,13 +5682,13 @@ pub unsafe extern "C" fn destack_format_output_destroy(value: *mut DestackFormat
 
 /// Destroy one C ABI bridge value array.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_format_output_array_destroy(mut array: DestackFormatOutputArray) {
+pub unsafe extern "C" fn destack_revision_array_destroy(mut array: DestackRevisionArray) {
     array.destroy();
 }
 
 /// Destroy one C ABI bridge value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_format_request_destroy(value: *mut DestackFormatRequest) {
+pub unsafe extern "C" fn destack_target_id_destroy(value: *mut DestackTargetId) {
     if let Some(value) = unsafe { value.as_mut() } {
         value.destroy();
     }
@@ -12232,106 +5696,6 @@ pub unsafe extern "C" fn destack_format_request_destroy(value: *mut DestackForma
 
 /// Destroy one C ABI bridge value array.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_format_request_array_destroy(
-    mut array: DestackFormatRequestArray,
-) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_lint_output_destroy(value: *mut DestackLintOutput) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_lint_output_array_destroy(mut array: DestackLintOutputArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_scope_destroy(value: *mut DestackScope) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_scope_array_destroy(mut array: DestackScopeArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_lint_request_destroy(value: *mut DestackLintRequest) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_lint_request_array_destroy(mut array: DestackLintRequestArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_parse_output_destroy(value: *mut DestackParseOutput) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_parse_output_array_destroy(mut array: DestackParseOutputArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_session_file_destroy(value: *mut DestackSessionFile) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_session_file_array_destroy(mut array: DestackSessionFileArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_text_range_destroy(value: *mut DestackTextRange) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_text_range_array_destroy(mut array: DestackTextRangeArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_text_edit_destroy(value: *mut DestackTextEdit) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_text_edit_array_destroy(mut array: DestackTextEditArray) {
+pub unsafe extern "C" fn destack_target_id_array_destroy(mut array: DestackTargetIdArray) {
     array.destroy();
 }

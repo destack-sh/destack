@@ -1,8 +1,4 @@
-use destack_artifact as artifact;
-use destack_program as program;
-use destack_source as source;
-
-use crate::{ArtifactVersion, ContentId, Module, ProductId, TargetId, bridge};
+use crate::{ContentId, TargetId, bridge};
 
 /// Build distribution profile crossing bridge boundaries.
 #[bridge]
@@ -364,201 +360,78 @@ pub struct Product {
     pub targets: Vec<ProductTarget>,
 }
 
-/// Module build output family.
-#[bridge]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ModuleBuildKind {
-    /// Build the structured script artifact.
-    Script,
-    /// Build the compiled object artifact.
-    Object,
-    /// Build the opaque asset artifact.
-    Asset,
-}
-
-/// One language build request.
-#[bridge]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BuildRequest {
-    /// Build one module artifact.
-    Module {
-        /// Source module.
-        module: Module,
-        /// Build target.
-        target: TargetId,
-        /// Requested module artifact family.
-        output: ModuleBuildKind,
-    },
-    /// Build one target build payload.
-    Build {
-        /// Build target.
-        target: TargetId,
-    },
-    /// Build one package target.
-    Target {
-        /// Build target.
-        target: TargetId,
-    },
-    /// Build one product.
-    Product {
-        /// Product id.
-        product: ProductId,
-    },
-}
-
-/// One language build output.
-#[bridge]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BuildOutput {
-    /// Built script artifact.
-    Script {
-        /// Exact artifact version.
-        version: ArtifactVersion,
-        /// Script payload.
-        script: Script,
-    },
-    /// Built object artifact.
-    Object {
-        /// Exact artifact version.
-        version: ArtifactVersion,
-        /// Object payload.
-        object: Object,
-    },
-    /// Built asset artifact.
-    Asset {
-        /// Exact artifact version.
-        version: ArtifactVersion,
-        /// Asset payload.
-        asset: Asset,
-    },
-    /// Built toolchain payload artifact.
-    Build {
-        /// Exact artifact version.
-        version: ArtifactVersion,
-        /// Build payload.
-        build: Build,
-    },
-    /// Built bundle artifact.
-    Bundle {
-        /// Exact artifact version.
-        version: ArtifactVersion,
-        /// Bundle payload.
-        bundle: Bundle,
-    },
-    /// Built program artifact.
-    Program {
-        /// Exact artifact version.
-        version: ArtifactVersion,
-        /// Program payload.
-        program: Program,
-    },
-    /// Built product artifact.
-    Product {
-        /// Exact artifact version.
-        version: ArtifactVersion,
-        /// Product payload.
-        product: Product,
-    },
-}
-
-impl BuildRequest {
-    /// Build one module artifact.
-    pub fn module(module: Module, target: TargetId, output: ModuleBuildKind) -> Self {
-        Self::Module {
-            module,
-            target,
-            output,
-        }
-    }
-
-    /// Build one target build payload.
-    pub fn build(target: TargetId) -> Self {
-        Self::Build { target }
-    }
-
-    /// Build one package target.
-    pub fn target(target: TargetId) -> Self {
-        Self::Target { target }
-    }
-
-    /// Build one product.
-    pub fn product(product: ProductId) -> Self {
-        Self::Product { product }
-    }
-}
-
-impl From<artifact::BuildProfile> for BuildProfile {
+impl From<destack_artifact::BuildProfile> for BuildProfile {
     /// Convert one artifact build profile into one bridge build profile.
-    fn from(profile: artifact::BuildProfile) -> Self {
+    fn from(profile: destack_artifact::BuildProfile) -> Self {
         match profile {
-            artifact::BuildProfile::Full => Self::Full,
-            artifact::BuildProfile::Minimal => Self::Minimal,
-            artifact::BuildProfile::Freestanding => Self::Freestanding,
+            destack_artifact::BuildProfile::Full => Self::Full,
+            destack_artifact::BuildProfile::Minimal => Self::Minimal,
+            destack_artifact::BuildProfile::Freestanding => Self::Freestanding,
         }
     }
 }
 
-impl From<artifact::BuildLinkage> for BuildLinkage {
+impl From<destack_artifact::BuildLinkage> for BuildLinkage {
     /// Convert one artifact build linkage into one bridge build linkage.
-    fn from(linkage: artifact::BuildLinkage) -> Self {
+    fn from(linkage: destack_artifact::BuildLinkage) -> Self {
         match linkage {
-            artifact::BuildLinkage::Portable => Self::Portable,
-            artifact::BuildLinkage::Static => Self::Static,
-            artifact::BuildLinkage::Dynamic => Self::Dynamic,
+            destack_artifact::BuildLinkage::Portable => Self::Portable,
+            destack_artifact::BuildLinkage::Static => Self::Static,
+            destack_artifact::BuildLinkage::Dynamic => Self::Dynamic,
         }
     }
 }
 
-impl From<artifact::EmitFormat> for EmitFormat {
+impl From<destack_artifact::EmitFormat> for EmitFormat {
     /// Convert one artifact emit format into one bridge emit format.
-    fn from(format: artifact::EmitFormat) -> Self {
+    fn from(format: destack_artifact::EmitFormat) -> Self {
         match format {
-            artifact::EmitFormat::Js => Self::Js,
-            artifact::EmitFormat::Ts => Self::Ts,
-            artifact::EmitFormat::Wasm => Self::Wasm,
-            artifact::EmitFormat::Native => Self::Native,
+            destack_artifact::EmitFormat::Js => Self::Js,
+            destack_artifact::EmitFormat::Ts => Self::Ts,
+            destack_artifact::EmitFormat::Wasm => Self::Wasm,
+            destack_artifact::EmitFormat::Native => Self::Native,
         }
     }
 }
 
-impl From<source::FileType> for FileType {
+impl From<destack_source::FileType> for FileType {
     /// Convert one source file type into one bridge file type.
-    fn from(file_type: source::FileType) -> Self {
+    fn from(file_type: destack_source::FileType) -> Self {
         match file_type {
-            source::FileType::Destack => Self::Destack,
-            source::FileType::DestackDeclaration => Self::DestackDeclaration,
-            source::FileType::JavaScript => Self::JavaScript,
-            source::FileType::JavaScriptXml => Self::JavaScriptXml,
-            source::FileType::TypeScript => Self::TypeScript,
-            source::FileType::TypeScriptXml => Self::TypeScriptXml,
-            source::FileType::TypeScriptDeclaration => Self::TypeScriptDeclaration,
-            source::FileType::Text => Self::Text,
-            source::FileType::Toml => Self::Toml,
-            source::FileType::Yaml => Self::Yaml,
-            source::FileType::Json => Self::Json,
-            source::FileType::Env => Self::Env,
-            source::FileType::Html => Self::Html,
-            source::FileType::Markdown => Self::Markdown,
-            source::FileType::Css => Self::Css,
-            source::FileType::Svg => Self::Svg,
-            source::FileType::Wasm => Self::Wasm,
-            source::FileType::Node => Self::Node,
-            source::FileType::SourceMap => Self::SourceMap,
-            source::FileType::Object => Self::Object,
-            source::FileType::Image => Self::Image,
-            source::FileType::Font => Self::Font,
-            source::FileType::Audio => Self::Audio,
-            source::FileType::Video => Self::Video,
-            source::FileType::Model => Self::Model,
-            source::FileType::Neural => Self::Neural,
-            source::FileType::Document => Self::Document,
-            source::FileType::Binary => Self::Binary,
-            source::FileType::Unknown => Self::Unknown,
+            destack_source::FileType::Destack => Self::Destack,
+            destack_source::FileType::DestackDeclaration => Self::DestackDeclaration,
+            destack_source::FileType::JavaScript => Self::JavaScript,
+            destack_source::FileType::JavaScriptXml => Self::JavaScriptXml,
+            destack_source::FileType::TypeScript => Self::TypeScript,
+            destack_source::FileType::TypeScriptXml => Self::TypeScriptXml,
+            destack_source::FileType::TypeScriptDeclaration => Self::TypeScriptDeclaration,
+            destack_source::FileType::Text => Self::Text,
+            destack_source::FileType::Toml => Self::Toml,
+            destack_source::FileType::Yaml => Self::Yaml,
+            destack_source::FileType::Json => Self::Json,
+            destack_source::FileType::Env => Self::Env,
+            destack_source::FileType::Html => Self::Html,
+            destack_source::FileType::Markdown => Self::Markdown,
+            destack_source::FileType::Css => Self::Css,
+            destack_source::FileType::Svg => Self::Svg,
+            destack_source::FileType::Wasm => Self::Wasm,
+            destack_source::FileType::Node => Self::Node,
+            destack_source::FileType::SourceMap => Self::SourceMap,
+            destack_source::FileType::Object => Self::Object,
+            destack_source::FileType::Image => Self::Image,
+            destack_source::FileType::Font => Self::Font,
+            destack_source::FileType::Audio => Self::Audio,
+            destack_source::FileType::Video => Self::Video,
+            destack_source::FileType::Model => Self::Model,
+            destack_source::FileType::Neural => Self::Neural,
+            destack_source::FileType::Document => Self::Document,
+            destack_source::FileType::Binary => Self::Binary,
+            destack_source::FileType::Unknown => Self::Unknown,
         }
     }
 }
 
-impl From<FileType> for source::FileType {
+impl From<FileType> for destack_source::FileType {
     /// Convert one bridge file type into one source file type.
     fn from(file_type: FileType) -> Self {
         match file_type {
@@ -595,9 +468,9 @@ impl From<FileType> for source::FileType {
     }
 }
 
-impl From<artifact::SourceMap> for SourceMap {
+impl From<destack_artifact::SourceMap> for SourceMap {
     /// Convert one artifact source map into one bridge source map.
-    fn from(map: artifact::SourceMap) -> Self {
+    fn from(map: destack_artifact::SourceMap) -> Self {
         let mut source_contents = map.sources_content.unwrap_or_default();
         let sources = map
             .sources
@@ -621,28 +494,28 @@ impl From<artifact::SourceMap> for SourceMap {
     }
 }
 
-impl From<artifact::Declaration> for Declaration {
+impl From<destack_artifact::Declaration> for Declaration {
     /// Convert one artifact declaration into one bridge declaration.
-    fn from(declaration: artifact::Declaration) -> Self {
+    fn from(declaration: destack_artifact::Declaration) -> Self {
         Self {
             text: declaration.text,
         }
     }
 }
 
-impl From<artifact::ScriptLanguage> for ScriptLanguage {
+impl From<destack_artifact::ScriptLanguage> for ScriptLanguage {
     /// Convert one artifact script language into one bridge script language.
-    fn from(language: artifact::ScriptLanguage) -> Self {
+    fn from(language: destack_artifact::ScriptLanguage) -> Self {
         match language {
-            artifact::ScriptLanguage::JavaScript => Self::JavaScript,
-            artifact::ScriptLanguage::TypeScript => Self::TypeScript,
+            destack_artifact::ScriptLanguage::JavaScript => Self::JavaScript,
+            destack_artifact::ScriptLanguage::TypeScript => Self::TypeScript,
         }
     }
 }
 
-impl From<&artifact::Script> for Script {
+impl From<&destack_artifact::Script> for Script {
     /// Convert one artifact script into one bridge script.
-    fn from(script: &artifact::Script) -> Self {
+    fn from(script: &destack_artifact::Script) -> Self {
         Self {
             language: script.language.into(),
             declaration: script.declaration.clone().map(Into::into),
@@ -652,19 +525,19 @@ impl From<&artifact::Script> for Script {
     }
 }
 
-impl From<artifact::ObjectFormat> for ObjectFormat {
+impl From<destack_artifact::ObjectFormat> for ObjectFormat {
     /// Convert one artifact object format into one bridge object format.
-    fn from(format: artifact::ObjectFormat) -> Self {
+    fn from(format: destack_artifact::ObjectFormat) -> Self {
         match format {
-            artifact::ObjectFormat::Object => Self::Object,
-            artifact::ObjectFormat::Wasm => Self::Wasm,
+            destack_artifact::ObjectFormat::Object => Self::Object,
+            destack_artifact::ObjectFormat::Wasm => Self::Wasm,
         }
     }
 }
 
-impl From<&artifact::Object> for Object {
+impl From<&destack_artifact::Object> for Object {
     /// Convert one artifact object into one bridge object.
-    fn from(object: &artifact::Object) -> Self {
+    fn from(object: &destack_artifact::Object) -> Self {
         Self {
             format: object.format.into(),
             content: object.content.into(),
@@ -673,9 +546,9 @@ impl From<&artifact::Object> for Object {
     }
 }
 
-impl From<&artifact::Asset> for Asset {
+impl From<&destack_artifact::Asset> for Asset {
     /// Convert one artifact asset into one bridge asset.
-    fn from(asset: &artifact::Asset) -> Self {
+    fn from(asset: &destack_artifact::Asset) -> Self {
         Self {
             file_type: asset.file_type.into(),
             content: asset.content.into(),
@@ -685,9 +558,9 @@ impl From<&artifact::Asset> for Asset {
     }
 }
 
-impl From<&artifact::Build> for Build {
+impl From<&destack_artifact::Build> for Build {
     /// Convert one artifact build payload into one bridge build payload.
-    fn from(build: &artifact::Build) -> Self {
+    fn from(build: &destack_artifact::Build) -> Self {
         Self {
             profile: build.profile.into(),
             linkage: build.linkage.into(),
@@ -696,35 +569,35 @@ impl From<&artifact::Build> for Build {
     }
 }
 
-impl From<artifact::BundleSection> for BundleSection {
+impl From<destack_artifact::BundleSection> for BundleSection {
     /// Convert one artifact bundle section into one bridge bundle section.
-    fn from(section: artifact::BundleSection) -> Self {
+    fn from(section: destack_artifact::BundleSection) -> Self {
         match section {
-            artifact::BundleSection::Module => Self::Module,
-            artifact::BundleSection::Entry => Self::Entry,
-            artifact::BundleSection::Declaration => Self::Declaration,
-            artifact::BundleSection::Asset => Self::Asset,
-            artifact::BundleSection::Manifest => Self::Manifest,
-            artifact::BundleSection::SourceMap => Self::SourceMap,
-            artifact::BundleSection::Native => Self::Native,
+            destack_artifact::BundleSection::Module => Self::Module,
+            destack_artifact::BundleSection::Entry => Self::Entry,
+            destack_artifact::BundleSection::Declaration => Self::Declaration,
+            destack_artifact::BundleSection::Asset => Self::Asset,
+            destack_artifact::BundleSection::Manifest => Self::Manifest,
+            destack_artifact::BundleSection::SourceMap => Self::SourceMap,
+            destack_artifact::BundleSection::Native => Self::Native,
         }
     }
 }
 
-impl From<artifact::BundleMode> for BundleMode {
+impl From<destack_artifact::BundleMode> for BundleMode {
     /// Convert one artifact bundle mode into one bridge bundle mode.
-    fn from(mode: artifact::BundleMode) -> Self {
+    fn from(mode: destack_artifact::BundleMode) -> Self {
         match mode {
-            artifact::BundleMode::PreserveModules => Self::PreserveModules,
-            artifact::BundleMode::SingleFile => Self::SingleFile,
-            artifact::BundleMode::Chunked => Self::Chunked,
+            destack_artifact::BundleMode::PreserveModules => Self::PreserveModules,
+            destack_artifact::BundleMode::SingleFile => Self::SingleFile,
+            destack_artifact::BundleMode::Chunked => Self::Chunked,
         }
     }
 }
 
-impl From<&artifact::BundleFile> for BundleFile {
+impl From<&destack_artifact::BundleFile> for BundleFile {
     /// Convert one artifact bundle file into one bridge bundle file.
-    fn from(file: &artifact::BundleFile) -> Self {
+    fn from(file: &destack_artifact::BundleFile) -> Self {
         Self {
             section: file.section.into(),
             uri: file.uri.to_string(),
@@ -735,9 +608,9 @@ impl From<&artifact::BundleFile> for BundleFile {
     }
 }
 
-impl From<&artifact::Bundle> for Bundle {
+impl From<&destack_artifact::Bundle> for Bundle {
     /// Convert one artifact bundle into one bridge bundle.
-    fn from(bundle: &artifact::Bundle) -> Self {
+    fn from(bundle: &destack_artifact::Bundle) -> Self {
         Self {
             emit: bundle.emit.into(),
             mode: bundle.assembly.into(),
@@ -746,18 +619,18 @@ impl From<&artifact::Bundle> for Bundle {
     }
 }
 
-impl From<&program::ProgramHeader> for ProgramHeader {
+impl From<&destack_program::ProgramHeader> for ProgramHeader {
     /// Convert one program header into one bridge program header.
-    fn from(header: &program::ProgramHeader) -> Self {
+    fn from(header: &destack_program::ProgramHeader) -> Self {
         Self {
             pointer_bytes: u32::from(header.pointer_bytes),
         }
     }
 }
 
-impl From<&program::Program> for Program {
+impl From<&destack_program::Program> for Program {
     /// Convert one program into one bridge program.
-    fn from(program: &program::Program) -> Self {
+    fn from(program: &destack_program::Program) -> Self {
         let format = if program.native.is_some() {
             ProgramFormat::Native
         } else {
@@ -772,32 +645,32 @@ impl From<&program::Program> for Program {
     }
 }
 
-impl From<artifact::Runtime> for Runtime {
+impl From<destack_artifact::Runtime> for Runtime {
     /// Convert one artifact runtime into one bridge runtime.
-    fn from(runtime: artifact::Runtime) -> Self {
+    fn from(runtime: destack_artifact::Runtime) -> Self {
         match runtime {
-            artifact::Runtime::Destack => Self::Destack,
-            artifact::Runtime::Js => Self::Js,
+            destack_artifact::Runtime::Destack => Self::Destack,
+            destack_artifact::Runtime::Js => Self::Js,
         }
     }
 }
 
-impl From<artifact::Host> for Host {
+impl From<destack_artifact::Host> for Host {
     /// Convert one artifact host into one bridge host.
-    fn from(host: artifact::Host) -> Self {
+    fn from(host: destack_artifact::Host) -> Self {
         match host {
-            artifact::Host::Native => Self::Native,
-            artifact::Host::Browser => Self::Browser,
-            artifact::Host::Wasi => Self::Wasi,
-            artifact::Host::Emscripten => Self::Emscripten,
-            artifact::Host::Freestanding => Self::Freestanding,
+            destack_artifact::Host::Native => Self::Native,
+            destack_artifact::Host::Browser => Self::Browser,
+            destack_artifact::Host::Wasi => Self::Wasi,
+            destack_artifact::Host::Emscripten => Self::Emscripten,
+            destack_artifact::Host::Freestanding => Self::Freestanding,
         }
     }
 }
 
-impl From<&artifact::ProductTarget> for ProductTarget {
+impl From<&destack_artifact::ProductTarget> for ProductTarget {
     /// Convert one artifact product target into one bridge product target.
-    fn from(target: &artifact::ProductTarget) -> Self {
+    fn from(target: &destack_artifact::ProductTarget) -> Self {
         Self {
             name: target.name.clone(),
             target: target.target.into(),
@@ -811,9 +684,9 @@ impl From<&artifact::ProductTarget> for ProductTarget {
     }
 }
 
-impl From<&artifact::Product> for Product {
+impl From<&destack_artifact::Product> for Product {
     /// Convert one artifact product into one bridge product.
-    fn from(product: &artifact::Product) -> Self {
+    fn from(product: &destack_artifact::Product) -> Self {
         let targets = product.targets.values().map(Into::into).collect();
 
         Self {

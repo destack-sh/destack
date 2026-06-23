@@ -1,7 +1,5 @@
 use std::fmt::{self, Display, Formatter};
 
-use destack_artifact as artifact;
-
 use crate::{
     ComponentId, ModuleId, PackageId, ProductId, ProfileId, SourceIdParseError, TargetId, bridge,
 };
@@ -220,51 +218,55 @@ pub enum ArtifactKey {
 
 impl ArtifactKey {
     /// Convert one artifact key into one bridge artifact key.
-    pub fn from_artifact(key: artifact::ArtifactKey) -> Self {
+    pub fn from_artifact(key: destack_artifact::ArtifactKey) -> Self {
         match key {
-            artifact::ArtifactKey::Build { target } => Self::Build {
+            destack_artifact::ArtifactKey::Build { target } => Self::Build {
                 target: target.into(),
             },
-            artifact::ArtifactKey::DirParsed { module } => Self::DirParsed {
+            destack_artifact::ArtifactKey::DirParsed { module } => Self::DirParsed {
                 module: module.into(),
             },
-            artifact::ArtifactKey::Data { module } => Self::Data {
+            destack_artifact::ArtifactKey::Data { module } => Self::Data {
                 module: module.into(),
             },
-            artifact::ArtifactKey::GlobalEnvironment { profile } => Self::GlobalEnvironment {
+            destack_artifact::ArtifactKey::GlobalEnvironment { profile } => {
+                Self::GlobalEnvironment {
+                    profile: profile.into(),
+                }
+            }
+            destack_artifact::ArtifactKey::PackageIndex { profile } => Self::PackageIndex {
                 profile: profile.into(),
             },
-            artifact::ArtifactKey::PackageIndex { profile } => Self::PackageIndex {
+            destack_artifact::ArtifactKey::ComponentGraph { profile } => Self::ComponentGraph {
                 profile: profile.into(),
             },
-            artifact::ArtifactKey::ComponentGraph { profile } => Self::ComponentGraph {
-                profile: profile.into(),
-            },
-            artifact::ArtifactKey::ProgramAnalysis { profile, target } => Self::ProgramAnalysis {
-                profile: profile.into(),
-                target: target.into(),
-            },
-            artifact::ArtifactKey::DirBound { module, profile } => Self::DirBound {
-                module: module.into(),
-                profile: profile.into(),
-            },
-            artifact::ArtifactKey::DirImported { module, profile } => Self::DirImported {
-                module: module.into(),
-                profile: profile.into(),
-            },
-            artifact::ArtifactKey::DirExpanded { module, profile } => Self::DirExpanded {
+            destack_artifact::ArtifactKey::ProgramAnalysis { profile, target } => {
+                Self::ProgramAnalysis {
+                    profile: profile.into(),
+                    target: target.into(),
+                }
+            }
+            destack_artifact::ArtifactKey::DirBound { module, profile } => Self::DirBound {
                 module: module.into(),
                 profile: profile.into(),
             },
-            artifact::ArtifactKey::DirExported { module, profile } => Self::DirExported {
+            destack_artifact::ArtifactKey::DirImported { module, profile } => Self::DirImported {
                 module: module.into(),
                 profile: profile.into(),
             },
-            artifact::ArtifactKey::DirResolved { module, profile } => Self::DirResolved {
+            destack_artifact::ArtifactKey::DirExpanded { module, profile } => Self::DirExpanded {
                 module: module.into(),
                 profile: profile.into(),
             },
-            artifact::ArtifactKey::DirCheckedComponent {
+            destack_artifact::ArtifactKey::DirExported { module, profile } => Self::DirExported {
+                module: module.into(),
+                profile: profile.into(),
+            },
+            destack_artifact::ArtifactKey::DirResolved { module, profile } => Self::DirResolved {
+                module: module.into(),
+                profile: profile.into(),
+            },
+            destack_artifact::ArtifactKey::DirCheckedComponent {
                 entry,
                 component,
                 profile,
@@ -273,19 +275,23 @@ impl ArtifactKey {
                 component: component.into(),
                 profile: profile.into(),
             },
-            artifact::ArtifactKey::DirChecked { module, profile } => Self::DirChecked {
+            destack_artifact::ArtifactKey::DirChecked { module, profile } => Self::DirChecked {
                 module: module.into(),
                 profile: profile.into(),
             },
-            artifact::ArtifactKey::DirMaterialized { module, profile } => Self::DirMaterialized {
-                module: module.into(),
-                profile: profile.into(),
-            },
-            artifact::ArtifactKey::DirElaborated { module, profile } => Self::DirElaborated {
-                module: module.into(),
-                profile: profile.into(),
-            },
-            artifact::ArtifactKey::MirLowered {
+            destack_artifact::ArtifactKey::DirMaterialized { module, profile } => {
+                Self::DirMaterialized {
+                    module: module.into(),
+                    profile: profile.into(),
+                }
+            }
+            destack_artifact::ArtifactKey::DirElaborated { module, profile } => {
+                Self::DirElaborated {
+                    module: module.into(),
+                    profile: profile.into(),
+                }
+            }
+            destack_artifact::ArtifactKey::MirLowered {
                 module,
                 profile,
                 target,
@@ -294,7 +300,7 @@ impl ArtifactKey {
                 profile: profile.into(),
                 target: target.into(),
             },
-            artifact::ArtifactKey::MirVerified {
+            destack_artifact::ArtifactKey::MirVerified {
                 module,
                 profile,
                 target,
@@ -303,7 +309,7 @@ impl ArtifactKey {
                 profile: profile.into(),
                 target: target.into(),
             },
-            artifact::ArtifactKey::MirAnalyzed {
+            destack_artifact::ArtifactKey::MirAnalyzed {
                 module,
                 profile,
                 target,
@@ -312,7 +318,7 @@ impl ArtifactKey {
                 profile: profile.into(),
                 target: target.into(),
             },
-            artifact::ArtifactKey::MirOptimized {
+            destack_artifact::ArtifactKey::MirOptimized {
                 module,
                 profile,
                 target,
@@ -321,123 +327,139 @@ impl ArtifactKey {
                 profile: profile.into(),
                 target: target.into(),
             },
-            artifact::ArtifactKey::ModuleQueryIndex { module, profile } => Self::ModuleQueryIndex {
-                module: module.into(),
-                profile: profile.into(),
-            },
-            artifact::ArtifactKey::WorkspaceQueryIndex { profile } => Self::WorkspaceQueryIndex {
-                profile: profile.into(),
-            },
-            artifact::ArtifactKey::Script { module, target } => Self::Script {
-                module: module.into(),
-                target: target.into(),
-            },
-            artifact::ArtifactKey::Object { module, target } => Self::Object {
-                module: module.into(),
-                target: target.into(),
-            },
-            artifact::ArtifactKey::Asset { module, target } => Self::Asset {
+            destack_artifact::ArtifactKey::ModuleQueryIndex { module, profile } => {
+                Self::ModuleQueryIndex {
+                    module: module.into(),
+                    profile: profile.into(),
+                }
+            }
+            destack_artifact::ArtifactKey::WorkspaceQueryIndex { profile } => {
+                Self::WorkspaceQueryIndex {
+                    profile: profile.into(),
+                }
+            }
+            destack_artifact::ArtifactKey::Script { module, target } => Self::Script {
                 module: module.into(),
                 target: target.into(),
             },
-            artifact::ArtifactKey::Bundle { package, target } => Self::Bundle {
+            destack_artifact::ArtifactKey::Object { module, target } => Self::Object {
+                module: module.into(),
+                target: target.into(),
+            },
+            destack_artifact::ArtifactKey::Asset { module, target } => Self::Asset {
+                module: module.into(),
+                target: target.into(),
+            },
+            destack_artifact::ArtifactKey::Bundle { package, target } => Self::Bundle {
                 package: package.into(),
                 target: target.into(),
             },
-            artifact::ArtifactKey::Program { package, target } => Self::Program {
+            destack_artifact::ArtifactKey::Program { package, target } => Self::Program {
                 package: package.into(),
                 target: target.into(),
             },
-            artifact::ArtifactKey::Product { package, product } => Self::Product {
+            destack_artifact::ArtifactKey::Product { package, product } => Self::Product {
                 package: package.into(),
                 product: product.into(),
             },
-            artifact::ArtifactKey::ModuleLinted { module, profile } => Self::ModuleLinted {
+            destack_artifact::ArtifactKey::ModuleLinted { module, profile } => Self::ModuleLinted {
                 module: module.into(),
                 profile: profile.into(),
             },
-            artifact::ArtifactKey::PackageLinted { package } => Self::PackageLinted {
+            destack_artifact::ArtifactKey::PackageLinted { package } => Self::PackageLinted {
                 package: package.into(),
             },
-            artifact::ArtifactKey::WorkspaceLinted => Self::WorkspaceLinted,
+            destack_artifact::ArtifactKey::WorkspaceLinted => Self::WorkspaceLinted,
         }
     }
 
     /// Convert this bridge artifact key into one artifact key.
-    pub fn into_artifact(self) -> Result<artifact::ArtifactKey, ArtifactBridgeError> {
+    pub fn into_artifact(self) -> Result<destack_artifact::ArtifactKey, ArtifactBridgeError> {
         match self {
-            Self::Build { target } => Ok(artifact::ArtifactKey::Build {
+            Self::Build { target } => Ok(destack_artifact::ArtifactKey::Build {
                 target: target.into_source()?,
             }),
-            Self::DirParsed { module } => Ok(artifact::ArtifactKey::DirParsed {
+            Self::DirParsed { module } => Ok(destack_artifact::ArtifactKey::DirParsed {
                 module: module.into_source()?,
             }),
-            Self::Data { module } => Ok(artifact::ArtifactKey::Data {
+            Self::Data { module } => Ok(destack_artifact::ArtifactKey::Data {
                 module: module.into_source()?,
             }),
-            Self::GlobalEnvironment { profile } => Ok(artifact::ArtifactKey::GlobalEnvironment {
+            Self::GlobalEnvironment { profile } => {
+                Ok(destack_artifact::ArtifactKey::GlobalEnvironment {
+                    profile: profile.into_source()?,
+                })
+            }
+            Self::PackageIndex { profile } => Ok(destack_artifact::ArtifactKey::PackageIndex {
                 profile: profile.into_source()?,
             }),
-            Self::PackageIndex { profile } => Ok(artifact::ArtifactKey::PackageIndex {
-                profile: profile.into_source()?,
-            }),
-            Self::ComponentGraph { profile } => Ok(artifact::ArtifactKey::ComponentGraph {
+            Self::ComponentGraph { profile } => Ok(destack_artifact::ArtifactKey::ComponentGraph {
                 profile: profile.into_source()?,
             }),
             Self::ProgramAnalysis { profile, target } => {
-                Ok(artifact::ArtifactKey::ProgramAnalysis {
+                Ok(destack_artifact::ArtifactKey::ProgramAnalysis {
                     profile: profile.into_source()?,
                     target: target.into_source()?,
                 })
             }
-            Self::DirBound { module, profile } => Ok(artifact::ArtifactKey::DirBound {
+            Self::DirBound { module, profile } => Ok(destack_artifact::ArtifactKey::DirBound {
                 module: module.into_source()?,
                 profile: profile.into_source()?,
             }),
-            Self::DirImported { module, profile } => Ok(artifact::ArtifactKey::DirImported {
-                module: module.into_source()?,
-                profile: profile.into_source()?,
-            }),
-            Self::DirExpanded { module, profile } => Ok(artifact::ArtifactKey::DirExpanded {
-                module: module.into_source()?,
-                profile: profile.into_source()?,
-            }),
-            Self::DirExported { module, profile } => Ok(artifact::ArtifactKey::DirExported {
-                module: module.into_source()?,
-                profile: profile.into_source()?,
-            }),
-            Self::DirResolved { module, profile } => Ok(artifact::ArtifactKey::DirResolved {
-                module: module.into_source()?,
-                profile: profile.into_source()?,
-            }),
-            Self::DirCheckedComponent {
-                entry,
-                component,
-                profile,
-            } => Ok(artifact::ArtifactKey::DirCheckedComponent {
-                entry: entry.into_source()?,
-                component: component.into_source()?,
-                profile: profile.into_source()?,
-            }),
-            Self::DirChecked { module, profile } => Ok(artifact::ArtifactKey::DirChecked {
-                module: module.into_source()?,
-                profile: profile.into_source()?,
-            }),
-            Self::DirMaterialized { module, profile } => {
-                Ok(artifact::ArtifactKey::DirMaterialized {
+            Self::DirImported { module, profile } => {
+                Ok(destack_artifact::ArtifactKey::DirImported {
                     module: module.into_source()?,
                     profile: profile.into_source()?,
                 })
             }
-            Self::DirElaborated { module, profile } => Ok(artifact::ArtifactKey::DirElaborated {
+            Self::DirExpanded { module, profile } => {
+                Ok(destack_artifact::ArtifactKey::DirExpanded {
+                    module: module.into_source()?,
+                    profile: profile.into_source()?,
+                })
+            }
+            Self::DirExported { module, profile } => {
+                Ok(destack_artifact::ArtifactKey::DirExported {
+                    module: module.into_source()?,
+                    profile: profile.into_source()?,
+                })
+            }
+            Self::DirResolved { module, profile } => {
+                Ok(destack_artifact::ArtifactKey::DirResolved {
+                    module: module.into_source()?,
+                    profile: profile.into_source()?,
+                })
+            }
+            Self::DirCheckedComponent {
+                entry,
+                component,
+                profile,
+            } => Ok(destack_artifact::ArtifactKey::DirCheckedComponent {
+                entry: entry.into_source()?,
+                component: component.into_source()?,
+                profile: profile.into_source()?,
+            }),
+            Self::DirChecked { module, profile } => Ok(destack_artifact::ArtifactKey::DirChecked {
                 module: module.into_source()?,
                 profile: profile.into_source()?,
             }),
+            Self::DirMaterialized { module, profile } => {
+                Ok(destack_artifact::ArtifactKey::DirMaterialized {
+                    module: module.into_source()?,
+                    profile: profile.into_source()?,
+                })
+            }
+            Self::DirElaborated { module, profile } => {
+                Ok(destack_artifact::ArtifactKey::DirElaborated {
+                    module: module.into_source()?,
+                    profile: profile.into_source()?,
+                })
+            }
             Self::MirLowered {
                 module,
                 profile,
                 target,
-            } => Ok(artifact::ArtifactKey::MirLowered {
+            } => Ok(destack_artifact::ArtifactKey::MirLowered {
                 module: module.into_source()?,
                 profile: profile.into_source()?,
                 target: target.into_source()?,
@@ -446,7 +468,7 @@ impl ArtifactKey {
                 module,
                 profile,
                 target,
-            } => Ok(artifact::ArtifactKey::MirVerified {
+            } => Ok(destack_artifact::ArtifactKey::MirVerified {
                 module: module.into_source()?,
                 profile: profile.into_source()?,
                 target: target.into_source()?,
@@ -455,7 +477,7 @@ impl ArtifactKey {
                 module,
                 profile,
                 target,
-            } => Ok(artifact::ArtifactKey::MirAnalyzed {
+            } => Ok(destack_artifact::ArtifactKey::MirAnalyzed {
                 module: module.into_source()?,
                 profile: profile.into_source()?,
                 target: target.into_source()?,
@@ -464,66 +486,68 @@ impl ArtifactKey {
                 module,
                 profile,
                 target,
-            } => Ok(artifact::ArtifactKey::MirOptimized {
+            } => Ok(destack_artifact::ArtifactKey::MirOptimized {
                 module: module.into_source()?,
                 profile: profile.into_source()?,
                 target: target.into_source()?,
             }),
             Self::ModuleQueryIndex { module, profile } => {
-                Ok(artifact::ArtifactKey::ModuleQueryIndex {
+                Ok(destack_artifact::ArtifactKey::ModuleQueryIndex {
                     module: module.into_source()?,
                     profile: profile.into_source()?,
                 })
             }
             Self::WorkspaceQueryIndex { profile } => {
-                Ok(artifact::ArtifactKey::WorkspaceQueryIndex {
+                Ok(destack_artifact::ArtifactKey::WorkspaceQueryIndex {
                     profile: profile.into_source()?,
                 })
             }
-            Self::Script { module, target } => Ok(artifact::ArtifactKey::Script {
+            Self::Script { module, target } => Ok(destack_artifact::ArtifactKey::Script {
                 module: module.into_source()?,
                 target: target.into_source()?,
             }),
-            Self::Object { module, target } => Ok(artifact::ArtifactKey::Object {
+            Self::Object { module, target } => Ok(destack_artifact::ArtifactKey::Object {
                 module: module.into_source()?,
                 target: target.into_source()?,
             }),
-            Self::Asset { module, target } => Ok(artifact::ArtifactKey::Asset {
+            Self::Asset { module, target } => Ok(destack_artifact::ArtifactKey::Asset {
                 module: module.into_source()?,
                 target: target.into_source()?,
             }),
-            Self::Bundle { package, target } => Ok(artifact::ArtifactKey::Bundle {
+            Self::Bundle { package, target } => Ok(destack_artifact::ArtifactKey::Bundle {
                 package: package.into_source()?,
                 target: target.into_source()?,
             }),
-            Self::Program { package, target } => Ok(artifact::ArtifactKey::Program {
+            Self::Program { package, target } => Ok(destack_artifact::ArtifactKey::Program {
                 package: package.into_source()?,
                 target: target.into_source()?,
             }),
-            Self::Product { package, product } => Ok(artifact::ArtifactKey::Product {
+            Self::Product { package, product } => Ok(destack_artifact::ArtifactKey::Product {
                 package: package.into_source()?,
                 product: product.into_source()?,
             }),
-            Self::ModuleLinted { module, profile } => Ok(artifact::ArtifactKey::ModuleLinted {
-                module: module.into_source()?,
-                profile: profile.into_source()?,
-            }),
-            Self::PackageLinted { package } => Ok(artifact::ArtifactKey::PackageLinted {
+            Self::ModuleLinted { module, profile } => {
+                Ok(destack_artifact::ArtifactKey::ModuleLinted {
+                    module: module.into_source()?,
+                    profile: profile.into_source()?,
+                })
+            }
+            Self::PackageLinted { package } => Ok(destack_artifact::ArtifactKey::PackageLinted {
                 package: package.into_source()?,
             }),
-            Self::WorkspaceLinted => Ok(artifact::ArtifactKey::WorkspaceLinted),
+            Self::WorkspaceLinted => Ok(destack_artifact::ArtifactKey::WorkspaceLinted),
         }
     }
 }
 
-impl From<artifact::ArtifactKey> for ArtifactKey {
+impl From<destack_artifact::ArtifactKey> for ArtifactKey {
     /// Convert one artifact key into one bridge artifact key.
-    fn from(key: artifact::ArtifactKey) -> Self {
+    fn from(key: destack_artifact::ArtifactKey) -> Self {
         Self::from_artifact(key)
     }
 }
 
-impl TryFrom<ArtifactKey> for artifact::ArtifactKey {
+impl TryFrom<ArtifactKey> for destack_artifact::ArtifactKey {
     type Error = ArtifactBridgeError;
 
     /// Convert one bridge artifact key into one artifact key.

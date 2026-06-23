@@ -1,10 +1,9 @@
 mod capi;
-mod command;
 mod core;
-mod format;
-mod napi;
+mod main;
 mod python;
+mod rust;
+mod schema;
 mod typescript;
-mod wasm;
 
-pub(crate) use command::run;
+pub(crate) use main::run;

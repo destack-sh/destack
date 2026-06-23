@@ -1,5 +1,3 @@
-use destack_artifact as artifact;
-
 use crate::{Content, bridge};
 
 /// One stable sidecar label crossing bridge boundaries.
@@ -26,7 +24,7 @@ pub struct ArtifactSidecar {
 
 impl ArtifactSidecar {
     /// Convert one artifact sidecar into one bridge sidecar.
-    pub fn from_artifact(sidecar: artifact::ArtifactSidecar) -> Self {
+    pub fn from_artifact(sidecar: destack_artifact::ArtifactSidecar) -> Self {
         let labels = sidecar
             .labels
             .into_iter()
@@ -41,9 +39,9 @@ impl ArtifactSidecar {
     }
 }
 
-impl From<artifact::ArtifactSidecar> for ArtifactSidecar {
+impl From<destack_artifact::ArtifactSidecar> for ArtifactSidecar {
     /// Convert one artifact sidecar into one bridge sidecar.
-    fn from(sidecar: artifact::ArtifactSidecar) -> Self {
+    fn from(sidecar: destack_artifact::ArtifactSidecar) -> Self {
         Self::from_artifact(sidecar)
     }
 }

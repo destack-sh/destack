@@ -1,7 +1,5 @@
 use std::fmt::{self, Display, Formatter};
 
-use destack_source as source;
-
 use crate::bridge;
 
 /// External package id crossing bridge boundaries.
@@ -14,28 +12,28 @@ pub struct PackageId {
 
 impl PackageId {
     /// Convert one source package id into one bridge package id.
-    pub fn from_source(id: source::PackageId) -> Self {
+    pub fn from_source(id: destack_source::PackageId) -> Self {
         Self {
             id: format!("{:032x}", id.raw()),
         }
     }
 
     /// Convert this bridge package id into one source package id.
-    pub fn into_source(self) -> Result<source::PackageId, SourceIdParseError> {
+    pub fn into_source(self) -> Result<destack_source::PackageId, SourceIdParseError> {
         let id = parse_u128("package", &self.id)?;
 
-        Ok(source::PackageId::new(id))
+        Ok(destack_source::PackageId::new(id))
     }
 }
 
-impl From<source::PackageId> for PackageId {
+impl From<destack_source::PackageId> for PackageId {
     /// Convert one source package id into one bridge package id.
-    fn from(id: source::PackageId) -> Self {
+    fn from(id: destack_source::PackageId) -> Self {
         Self::from_source(id)
     }
 }
 
-impl TryFrom<PackageId> for source::PackageId {
+impl TryFrom<PackageId> for destack_source::PackageId {
     type Error = SourceIdParseError;
 
     /// Convert one bridge package id into one source package id.

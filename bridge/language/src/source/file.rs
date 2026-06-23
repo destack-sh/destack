@@ -1,6 +1,4 @@
-use destack_source as source;
-
-use crate::source::parse_u128;
+use super::parse_u128;
 use crate::{SourceIdParseError, bridge};
 
 /// External file id crossing bridge boundaries.
@@ -37,62 +35,62 @@ pub enum Content {
 
 impl FileId {
     /// Convert one source file id into one bridge file id.
-    pub fn from_source(id: source::FileId) -> Self {
+    pub fn from_source(id: destack_source::FileId) -> Self {
         Self {
             id: format!("{:032x}", id.0),
         }
     }
 
     /// Convert this bridge file id into one source file id.
-    pub fn into_source(self) -> Result<source::FileId, SourceIdParseError> {
+    pub fn into_source(self) -> Result<destack_source::FileId, SourceIdParseError> {
         let id = parse_u128("file", &self.id)?;
 
-        Ok(source::FileId::new(id))
+        Ok(destack_source::FileId::new(id))
     }
 }
 
 impl ContentId {
     /// Convert one source content id into one bridge content id.
-    pub fn from_source(id: source::ContentId) -> Self {
+    pub fn from_source(id: destack_source::ContentId) -> Self {
         Self {
             id: format!("{:032x}", id.0),
         }
     }
 
     /// Convert this bridge content id into one source content id.
-    pub fn into_source(self) -> Result<source::ContentId, SourceIdParseError> {
+    pub fn into_source(self) -> Result<destack_source::ContentId, SourceIdParseError> {
         let id = parse_u128("content", &self.id)?;
 
-        Ok(source::ContentId::new(id))
+        Ok(destack_source::ContentId::new(id))
     }
 }
 
 impl Content {
     /// Convert one source content into one bridge content.
-    pub fn from_source(content: source::Content) -> Self {
+    pub fn from_source(content: destack_source::Content) -> Self {
         match content {
-            source::Content::Text { content } => Self::Text { content },
-            source::Content::Binary { content } => Self::Binary { content },
+            destack_source::Content::Text { content } => Self::Text { content },
+            destack_source::Content::Binary { content } => Self::Binary { content },
         }
     }
 
     /// Convert this bridge content into one source content.
-    pub fn into_source(self) -> source::Content {
+    pub fn into_source(self) -> destack_source::Content {
         match self {
-            Self::Text { content } => source::Content::Text { content },
-            Self::Binary { content } => source::Content::Binary { content },
+            Self::Text { content } => destack_source::Content::Text { content },
+            Self::Binary { content } => destack_source::Content::Binary { content },
         }
     }
 }
 
-impl From<source::FileId> for FileId {
+impl From<destack_source::FileId> for FileId {
     /// Convert one source file id into one bridge file id.
-    fn from(id: source::FileId) -> Self {
+    fn from(id: destack_source::FileId) -> Self {
         Self::from_source(id)
     }
 }
 
-impl TryFrom<FileId> for source::FileId {
+impl TryFrom<FileId> for destack_source::FileId {
     type Error = SourceIdParseError;
 
     /// Convert one bridge file id into one source file id.
@@ -101,14 +99,14 @@ impl TryFrom<FileId> for source::FileId {
     }
 }
 
-impl From<source::ContentId> for ContentId {
+impl From<destack_source::ContentId> for ContentId {
     /// Convert one source content id into one bridge content id.
-    fn from(id: source::ContentId) -> Self {
+    fn from(id: destack_source::ContentId) -> Self {
         Self::from_source(id)
     }
 }
 
-impl TryFrom<ContentId> for source::ContentId {
+impl TryFrom<ContentId> for destack_source::ContentId {
     type Error = SourceIdParseError;
 
     /// Convert one bridge content id into one source content id.
@@ -117,14 +115,14 @@ impl TryFrom<ContentId> for source::ContentId {
     }
 }
 
-impl From<source::Content> for Content {
+impl From<destack_source::Content> for Content {
     /// Convert one source content into one bridge content.
-    fn from(content: source::Content) -> Self {
+    fn from(content: destack_source::Content) -> Self {
         Self::from_source(content)
     }
 }
 
-impl From<Content> for source::Content {
+impl From<Content> for destack_source::Content {
     /// Convert one bridge content into one source content.
     fn from(content: Content) -> Self {
         content.into_source()

@@ -42,57 +42,47 @@
             "import": "./dist/wasm.js",
             "default": "./dist/wasm.js"
         },
-        "./repository": {
-            "types": "./dist/repository/repository.d.ts",
-            "import": "./dist/repository/repository.js",
-            "default": "./dist/repository/repository.js"
-        },
-        "./session": {
-            "types": "./dist/session/session.d.ts",
-            "import": "./dist/session/session.js",
-            "default": "./dist/session/session.js"
-        },
         "./workspace": {
             "types": "./dist/workspace/workspace.d.ts",
             "import": "./dist/workspace/workspace.js",
             "default": "./dist/workspace/workspace.js"
         },
-        "./artifact/*": {
-            "types": "./dist/artifact/*.generated.d.ts",
-            "import": "./dist/artifact/*.generated.js",
-            "default": "./dist/artifact/*.generated.js"
+        "./protocol/codec": {
+            "types": "./dist/protocol/codec.d.ts",
+            "import": "./dist/protocol/codec.js",
+            "default": "./dist/protocol/codec.js"
         },
-        "./diagnostic/*": {
-            "types": "./dist/diagnostic/*.generated.d.ts",
-            "import": "./dist/diagnostic/*.generated.js",
-            "default": "./dist/diagnostic/*.generated.js"
+        "./protocol/defaults": {
+            "types": "./dist/generated/protocol/defaults.d.ts",
+            "import": "./dist/generated/protocol/defaults.js",
+            "default": "./dist/generated/protocol/defaults.js"
         },
-        "./dir/*": {
-            "types": "./dist/dir/*.generated.d.ts",
-            "import": "./dist/dir/*.generated.js",
-            "default": "./dist/dir/*.generated.js"
+        "./protocol/serde": {
+            "types": "./dist/protocol/serde.d.ts",
+            "import": "./dist/protocol/serde.js",
+            "default": "./dist/protocol/serde.js"
         },
-        "./repository/*": {
-            "types": "./dist/repository/*.generated.d.ts",
-            "import": "./dist/repository/*.generated.js",
-            "default": "./dist/repository/*.generated.js"
+        "./protocol/connection": {
+            "types": "./dist/protocol/connection/index.d.ts",
+            "import": "./dist/protocol/connection/index.js",
+            "default": "./dist/protocol/connection/index.js"
         },
-        "./session/*": {
-            "types": "./dist/session/*.generated.d.ts",
-            "import": "./dist/session/*.generated.js",
-            "default": "./dist/session/*.generated.js"
+        "./protocol/workspace": {
+            "types": "./dist/protocol/workspace.d.ts",
+            "import": "./dist/protocol/workspace.js",
+            "default": "./dist/protocol/workspace.js"
         },
-        "./source/*": {
-            "types": "./dist/source/*.generated.d.ts",
-            "import": "./dist/source/*.generated.js",
-            "default": "./dist/source/*.generated.js"
+        "./generated/*": {
+            "types": "./dist/generated/*.d.ts",
+            "import": "./dist/generated/*.js",
+            "default": "./dist/generated/*.js"
         }
     },
     "sideEffects": false,
     "scripts": {
         "generate": "cargo run -p destack_bridge_generate",
         "build": "bun run generate && rm -rf dist && bun x tsc -p tsconfig.json",
-        "test": "bun run generate && bun x tsc --noEmit -p tsconfig.json && bun run build && node --test test/open.mjs test/edit.mjs test/parse.mjs test/check.mjs test/lint.mjs test/build.mjs test/format.mjs test/content.mjs",
+        "test": "bun run generate && bun x tsc --noEmit -p tsconfig.json && bun run build && node --test test/protocol.mjs",
         "prepublishOnly": "bun run build",
         "publish:dry": "npm publish --dry-run --access public",
         "publish:live": "npm publish --access public"

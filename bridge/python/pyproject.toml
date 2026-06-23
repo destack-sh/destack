@@ -37,6 +37,7 @@ python-source = "src"
 
 [tool.pytest.ini_options]
 python_files = ["*.py"]
+testpaths = ["tests"]
 
 [dependency-groups]
 dev = [

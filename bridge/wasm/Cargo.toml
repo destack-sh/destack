@@ -19,8 +19,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-destack.workspace = true
-destack_bridge_language.workspace = true
+destack = { workspace = true, default-features = false }
 js-sys = "0.3.81"
 wasm-bindgen = { workspace = true }
 

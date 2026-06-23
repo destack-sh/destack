@@ -1,7 +1,7 @@
 # @destack/language
 
 Destack language bridge for TypeScript and JavaScript.
-This package opens language sessions across Node-API and WebAssembly environments.
+This package opens language workspaces across Node-API and WebAssembly environments.
 
 ## Installation
 
@@ -12,27 +12,23 @@ npm install @destack/language
 ## API
 
 ```ts
-import { Edit, Source, openSession } from "@destack/language";
+import { openWorkspace } from "@destack/language";
 
-const session = await openSession(
-    Source.memory("/workspace", [
-        Edit.setText("destack.json", "{\"name\":\"@test/app\"}"),
-        Edit.setText("src/index.ds", "export const value = 1;"),
-    ]),
-);
+const workspace = await openWorkspace({
+    workspace: "/workspace",
+});
 
-console.log(session.files());
+console.log(await workspace.revision());
 ```
 
 ## Explicit Backends
 
 ```ts
-import { openNapiSession } from "@destack/language/napi";
-import { openWasmSession } from "@destack/language/wasm";
-import { Source } from "@destack/language";
+import { openNapiWorkspace } from "@destack/language/napi";
+import { openWasmWorkspace } from "@destack/language/wasm";
 
-const nativeSession = await openNapiSession(Source.fileSystem("."));
-const webSession = await openWasmSession(Source.memory("/workspace", []));
+const nativeWorkspace = await openNapiWorkspace({ workspace: "." });
+const webWorkspace = await openWasmWorkspace({ workspace: "/workspace" });
 ```
 
 ## Testing

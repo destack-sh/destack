@@ -20,7 +20,6 @@ doctest = false
 
 [dependencies]
 destack = { workspace = true, features = ["native"] }
-destack_bridge_language.workspace = true
 napi = { version = "3", features = ["napi8"] }
 napi-derive = "3"
 

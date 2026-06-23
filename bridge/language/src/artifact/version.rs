@@ -1,5 +1,3 @@
-use destack_artifact as artifact;
-
 use crate::{ArtifactKey, bridge};
 
 /// External artifact version crossing bridge boundaries.
@@ -14,7 +12,7 @@ pub struct ArtifactVersion {
 
 impl ArtifactVersion {
     /// Convert one artifact version into one bridge artifact version.
-    pub fn from_artifact(version: artifact::ArtifactVersion) -> Self {
+    pub fn from_artifact(version: destack_artifact::ArtifactVersion) -> Self {
         Self {
             key: ArtifactKey::from_artifact(version.key),
             fingerprint: version.fingerprint.to_string(),
@@ -22,9 +20,9 @@ impl ArtifactVersion {
     }
 }
 
-impl From<artifact::ArtifactVersion> for ArtifactVersion {
+impl From<destack_artifact::ArtifactVersion> for ArtifactVersion {
     /// Convert one artifact version into one bridge artifact version.
-    fn from(version: artifact::ArtifactVersion) -> Self {
+    fn from(version: destack_artifact::ArtifactVersion) -> Self {
         Self::from_artifact(version)
     }
 }

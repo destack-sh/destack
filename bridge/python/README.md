@@ -12,9 +12,10 @@ pip install destack
 ## API
 
 ```python
-from destack import Session, Source
+from destack import open_workspace
 
-session = Session.open(Source.file_system("."))
+workspace = open_workspace(workspace=".")
+print(workspace.root())
 ```
 
 ## Testing

@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from .revision import (
+from .._generated.repository.revision import (
     Revision,
 )
-from .trace import (
+from .._generated.repository.trace import (
+    TraceArtifact,
+    TraceCounter,
     TraceReport,
+    TraceSpan,
     TraceStage,
     TraceTime,
-    TraceArtifact,
-    TraceSpan,
-    TraceCounter,
 )

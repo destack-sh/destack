@@ -1,7 +1,7 @@
 # @destack/vscode
 
 VS Code extension for the Destack language, library and platform.
-The extension launches `destack lsp`, which is the editor adapter for the shared language daemon.
+The extension launches `destack lsp`, which is the editor adapter for a Destack workspace.
 
 ## Local Development
 
