@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactPayload, ArtifactReference};
 use destack_repository::Revision;
-use destack_session as session;
 use destack_source::{Content, ContentId};
 use parking_lot::Mutex;
 
@@ -14,7 +13,7 @@ use super::{
 };
 use crate::connection::Client;
 use crate::diagnostic::{DiagnosticView, Error};
-use crate::file::{Commit, FileOperation};
+use crate::file::{Commit, FileOperation, SourceUpdate};
 use crate::protocol::{self, RequestOptions, RootId, RootOpenOptions};
 use crate::{
     BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
@@ -284,7 +283,7 @@ impl Workspace for RemoteWorkspace {
         self.open_files.lock().contains(path)
     }
 
-    fn edit(&self, root: &Path, update: session::Update) -> Result<Commit, Error> {
+    fn edit(&self, root: &Path, update: SourceUpdate) -> Result<Commit, Error> {
         let handle = self.handle_for_root(root)?;
         let response = self
             .client

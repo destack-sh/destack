@@ -1,4 +1,3 @@
-use destack_query as query;
 use destack_repository::Revision;
 
 use crate::tests::harness::TestWorkspace;
@@ -22,7 +21,7 @@ fn test_query_requires_matching_revision() {
         .workspace
         .query(
             &path,
-            query::QueryRequest::RenameFiles(query::RenameFilesRequest {
+            destack_query::QueryRequest::RenameFiles(destack_query::RenameFilesRequest {
                 profile_ids: Vec::new(),
                 renames: Vec::new(),
             }),
@@ -36,7 +35,7 @@ fn test_query_requires_matching_revision() {
         .workspace
         .query(
             &path,
-            query::QueryRequest::RenameFiles(query::RenameFilesRequest {
+            destack_query::QueryRequest::RenameFiles(destack_query::RenameFilesRequest {
                 profile_ids: Vec::new(),
                 renames: Vec::new(),
             }),

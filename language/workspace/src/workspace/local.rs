@@ -5,7 +5,7 @@ use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
 
 use crate::diagnostic::{DiagnosticView, Error};
-use crate::file::{Commit, FileOperation, OpenFile};
+use crate::file::{Commit, FileOperation, OpenFile, SourceUpdate};
 use crate::protocol::WatchPolicy;
 use crate::watch::{Watch, WatchUpdate};
 use crate::{
@@ -27,8 +27,10 @@ use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
 use destack_repository::{Ref, Repository, Revision};
-use destack_session::{self as session, Session, SessionEvent, SessionEventHandler};
-use destack_source::{Content, ContentId, DiagnosticCollection, FileWatcher, OverlayFileSystem};
+use destack_session::{Session, SessionEvent, SessionEventHandler};
+use destack_source::{
+    Content, ContentId, DiagnosticCollection, Edit, FileWatcher, OverlayFileSystem,
+};
 use parking_lot::Mutex;
 
 use super::{
@@ -347,7 +349,7 @@ impl Workspace for LocalWorkspace {
         LocalWorkspace::has_open_file(self, path)
     }
 
-    fn edit(&self, root: &Path, update: session::Update) -> Result<Commit, Error> {
+    fn edit(&self, root: &Path, update: SourceUpdate) -> Result<Commit, Error> {
         if let Some(base) = update.base {
             LocalWorkspace::apply_source_edits_if_current(self, root, base, update.edits)
         } else {
@@ -952,7 +954,7 @@ impl LocalWorkspace {
             } => self.open_file(
                 uri,
                 version,
-                session::Edit::SetText {
+                Edit::SetText {
                     path,
                     text: content,
                 },
@@ -965,7 +967,7 @@ impl LocalWorkspace {
             } => self.open_file(
                 uri,
                 version,
-                session::Edit::SetBytes {
+                Edit::SetBytes {
                     path,
                     bytes: content,
                 },
@@ -978,7 +980,7 @@ impl LocalWorkspace {
             } => self.change_file(
                 uri,
                 version,
-                session::Edit::SetText {
+                Edit::SetText {
                     path,
                     text: content,
                 },
@@ -991,7 +993,7 @@ impl LocalWorkspace {
             } => self.change_file(
                 uri,
                 version,
-                session::Edit::SetBytes {
+                Edit::SetBytes {
                     path,
                     bytes: content,
                 },
@@ -1005,18 +1007,16 @@ impl LocalWorkspace {
             FileOperation::SaveText { path, content } => self.save_text_file(&path, content),
             FileOperation::SaveBytes { path, content } => self.save_bytes_file(&path, content),
             FileOperation::Close { path } => self.close_file(&path),
-            FileOperation::WriteText { path, content } => self.write_file(session::Edit::SetText {
+            FileOperation::WriteText { path, content } => self.write_file(Edit::SetText {
                 path,
                 text: content,
             }),
-            FileOperation::WriteBytes { path, content } => {
-                self.write_file(session::Edit::SetBytes {
-                    path,
-                    bytes: content,
-                })
-            }
-            FileOperation::Remove { path } => self.write_file(session::Edit::Remove { path }),
-            FileOperation::Move { from, to } => self.write_file(session::Edit::Move { from, to }),
+            FileOperation::WriteBytes { path, content } => self.write_file(Edit::SetBytes {
+                path,
+                bytes: content,
+            }),
+            FileOperation::Remove { path } => self.write_file(Edit::Remove { path }),
+            FileOperation::Move { from, to } => self.write_file(Edit::Move { from, to }),
         }
     }
 }

@@ -1,7 +1,6 @@
 use std::path::Path;
 
 use destack_artifact::ArtifactKey;
-use destack_query as query;
 use destack_repository::{Repository, Revision};
 use destack_serde::Schema;
 use destack_session::Session;
@@ -18,7 +17,7 @@ pub struct QueryResult {
     /// The revision used for query execution.
     pub revision: Revision,
     /// The query response payload.
-    pub response: query::QueryResponse,
+    pub response: destack_query::QueryResponse,
 }
 
 /// Request to run one semantic query.
@@ -27,7 +26,7 @@ pub struct QueryRequest {
     /// Expected revision for this query.
     pub expected_revision: Option<Revision>,
     /// Query request payload.
-    pub request: query::QueryRequest,
+    pub request: destack_query::QueryRequest,
 }
 
 /// Revision selection policy for one query.
@@ -46,7 +45,7 @@ impl LocalWorkspace {
     pub fn query(
         &self,
         path: &Path,
-        request: query::QueryRequest,
+        request: destack_query::QueryRequest,
         revision: RevisionPolicy,
     ) -> Result<QueryResult, Error> {
         let root = self.root_at(path)?;
@@ -58,7 +57,7 @@ impl LocalWorkspace {
     pub fn query_root(
         &self,
         root: &Path,
-        request: query::QueryRequest,
+        request: destack_query::QueryRequest,
         revision: RevisionPolicy,
     ) -> Result<QueryResult, Error> {
         let session = self.query_snapshot(root, revision)?;
@@ -105,11 +104,11 @@ impl LocalWorkspace {
         session: &Session,
         repository: &Repository,
         revision: Revision,
-        request: query::QueryRequest,
-    ) -> Result<query::QueryResponse, Error> {
+        request: destack_query::QueryRequest,
+    ) -> Result<destack_query::QueryResponse, Error> {
         // dispatch by query request variant
         let response = match request {
-            query::QueryRequest::Completion(params) => {
+            destack_query::QueryRequest::Completion(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
@@ -129,12 +128,12 @@ impl LocalWorkspace {
                     items.retain(|item| item.additional_text_edits.is_empty());
                 }
 
-                query::QueryResponse::Completion(query::CompletionResponse {
+                destack_query::QueryResponse::Completion(destack_query::CompletionResponse {
                     items,
                     is_incomplete: false,
                 })
             }
-            query::QueryRequest::Hover(params) => {
+            destack_query::QueryRequest::Hover(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
@@ -143,9 +142,9 @@ impl LocalWorkspace {
                 )?;
                 let hover = context.hover(params.position.offset);
 
-                query::QueryResponse::Hover(query::HoverResponse { hover })
+                destack_query::QueryResponse::Hover(destack_query::HoverResponse { hover })
             }
-            query::QueryRequest::SignatureHelp(params) => {
+            destack_query::QueryRequest::SignatureHelp(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
@@ -154,16 +153,20 @@ impl LocalWorkspace {
                 )?;
                 let help = context.signature_help(params.position.offset);
 
-                query::QueryResponse::SignatureHelp(query::SignatureHelpResponse { help })
+                destack_query::QueryResponse::SignatureHelp(destack_query::SignatureHelpResponse {
+                    help,
+                })
             }
-            query::QueryRequest::InlayHints(params) => {
+            destack_query::QueryRequest::InlayHints(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.range.module)?;
                 let hints = context.inlay_hints(params.range.span);
 
-                query::QueryResponse::InlayHints(query::InlayHintsResponse { hints })
+                destack_query::QueryResponse::InlayHints(destack_query::InlayHintsResponse {
+                    hints,
+                })
             }
-            query::QueryRequest::CodeLenses(params) => {
+            destack_query::QueryRequest::CodeLenses(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.module)?;
                 let workspace = self.workspace_query_context(
@@ -174,41 +177,53 @@ impl LocalWorkspace {
                 )?;
                 let lenses = context.code_lenses(&workspace);
 
-                query::QueryResponse::CodeLenses(query::CodeLensesResponse { lenses })
+                destack_query::QueryResponse::CodeLenses(destack_query::CodeLensesResponse {
+                    lenses,
+                })
             }
-            query::QueryRequest::ResolveCodeLens(params) => {
-                let lens = query::resolve_code_lens(&params.lens);
-                query::QueryResponse::ResolveCodeLens(query::ResolveCodeLensResponse { lens })
+            destack_query::QueryRequest::ResolveCodeLens(params) => {
+                let lens = destack_query::resolve_code_lens(&params.lens);
+                destack_query::QueryResponse::ResolveCodeLens(
+                    destack_query::ResolveCodeLensResponse { lens },
+                )
             }
-            query::QueryRequest::FoldingRanges(params) => {
+            destack_query::QueryRequest::FoldingRanges(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.module)?;
                 let ranges = context.folding_ranges();
 
-                query::QueryResponse::FoldingRanges(query::FoldingRangesResponse { ranges })
+                destack_query::QueryResponse::FoldingRanges(destack_query::FoldingRangesResponse {
+                    ranges,
+                })
             }
-            query::QueryRequest::SemanticTokens(params) => {
+            destack_query::QueryRequest::SemanticTokens(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.module)?;
                 let tokens = context.semantic_tokens();
 
-                query::QueryResponse::SemanticTokens(query::SemanticTokensResponse { tokens })
+                destack_query::QueryResponse::SemanticTokens(
+                    destack_query::SemanticTokensResponse { tokens },
+                )
             }
-            query::QueryRequest::SemanticTokensRange(params) => {
+            destack_query::QueryRequest::SemanticTokensRange(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.range.module)?;
                 let tokens = context.semantic_tokens_range(params.range.span);
 
-                query::QueryResponse::SemanticTokensRange(query::SemanticTokensResponse { tokens })
+                destack_query::QueryResponse::SemanticTokensRange(
+                    destack_query::SemanticTokensResponse { tokens },
+                )
             }
-            query::QueryRequest::DocumentSymbols(params) => {
+            destack_query::QueryRequest::DocumentSymbols(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.module)?;
                 let symbols = context.document_symbols();
 
-                query::QueryResponse::DocumentSymbols(query::DocumentSymbolsResponse { symbols })
+                destack_query::QueryResponse::DocumentSymbols(
+                    destack_query::DocumentSymbolsResponse { symbols },
+                )
             }
-            query::QueryRequest::WorkspaceSymbols(params) => {
+            destack_query::QueryRequest::WorkspaceSymbols(params) => {
                 let context = self.workspace_query_context(
                     session,
                     repository,
@@ -216,16 +231,20 @@ impl LocalWorkspace {
                     &params.profile_ids,
                 )?;
                 let symbols = context.workspace_symbols(&params.query, params.max_results as usize);
-                query::QueryResponse::WorkspaceSymbols(query::WorkspaceSymbolsResponse { symbols })
+                destack_query::QueryResponse::WorkspaceSymbols(
+                    destack_query::WorkspaceSymbolsResponse { symbols },
+                )
             }
-            query::QueryRequest::DocumentLinks(params) => {
+            destack_query::QueryRequest::DocumentLinks(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.module)?;
                 let links = context.document_links();
 
-                query::QueryResponse::DocumentLinks(query::DocumentLinksResponse { links })
+                destack_query::QueryResponse::DocumentLinks(destack_query::DocumentLinksResponse {
+                    links,
+                })
             }
-            query::QueryRequest::DocumentHighlight(params) => {
+            destack_query::QueryRequest::DocumentHighlight(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
@@ -234,18 +253,20 @@ impl LocalWorkspace {
                 )?;
                 let highlights = context.document_highlights(params.position.offset);
 
-                query::QueryResponse::DocumentHighlight(query::DocumentHighlightResponse {
-                    highlights,
-                })
+                destack_query::QueryResponse::DocumentHighlight(
+                    destack_query::DocumentHighlightResponse { highlights },
+                )
             }
-            query::QueryRequest::SelectionRanges(params) => {
+            destack_query::QueryRequest::SelectionRanges(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.module)?;
                 let ranges = context.selection_ranges(&params.offsets);
 
-                query::QueryResponse::SelectionRanges(query::SelectionRangesResponse { ranges })
+                destack_query::QueryResponse::SelectionRanges(
+                    destack_query::SelectionRangesResponse { ranges },
+                )
             }
-            query::QueryRequest::GotoDefinition(params) => {
+            destack_query::QueryRequest::GotoDefinition(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
@@ -254,9 +275,11 @@ impl LocalWorkspace {
                 )?;
                 let targets = context.goto_definition(params.position.offset);
 
-                query::QueryResponse::GotoDefinition(query::GotoDefinitionResponse { targets })
+                destack_query::QueryResponse::GotoDefinition(
+                    destack_query::GotoDefinitionResponse { targets },
+                )
             }
-            query::QueryRequest::GotoDeclaration(params) => {
+            destack_query::QueryRequest::GotoDeclaration(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
@@ -265,9 +288,11 @@ impl LocalWorkspace {
                 )?;
                 let targets = context.goto_declaration(params.position.offset);
 
-                query::QueryResponse::GotoDeclaration(query::GotoDeclarationResponse { targets })
+                destack_query::QueryResponse::GotoDeclaration(
+                    destack_query::GotoDeclarationResponse { targets },
+                )
             }
-            query::QueryRequest::GotoTypeDefinition(params) => {
+            destack_query::QueryRequest::GotoTypeDefinition(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
@@ -276,11 +301,11 @@ impl LocalWorkspace {
                 )?;
                 let targets = context.goto_type_definition(params.position.offset);
 
-                query::QueryResponse::GotoTypeDefinition(query::GotoTypeDefinitionResponse {
-                    targets,
-                })
+                destack_query::QueryResponse::GotoTypeDefinition(
+                    destack_query::GotoTypeDefinitionResponse { targets },
+                )
             }
-            query::QueryRequest::GotoImplementation(params) => {
+            destack_query::QueryRequest::GotoImplementation(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
@@ -295,11 +320,11 @@ impl LocalWorkspace {
                 )?;
                 let targets = context.goto_implementation(&workspace, params.position.offset);
 
-                query::QueryResponse::GotoImplementation(query::GotoImplementationResponse {
-                    targets,
-                })
+                destack_query::QueryResponse::GotoImplementation(
+                    destack_query::GotoImplementationResponse { targets },
+                )
             }
-            query::QueryRequest::FindReferences(params) => {
+            destack_query::QueryRequest::FindReferences(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
@@ -318,9 +343,11 @@ impl LocalWorkspace {
                     params.include_declaration,
                 );
 
-                query::QueryResponse::FindReferences(query::FindReferencesResponse { references })
+                destack_query::QueryResponse::FindReferences(
+                    destack_query::FindReferencesResponse { references },
+                )
             }
-            query::QueryRequest::CallHierarchyItem(params) => {
+            destack_query::QueryRequest::CallHierarchyItem(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
@@ -329,9 +356,11 @@ impl LocalWorkspace {
                 )?;
                 let item = context.call_hierarchy_item(params.position.offset);
 
-                query::QueryResponse::CallHierarchyItem(query::CallHierarchyItemResponse { item })
+                destack_query::QueryResponse::CallHierarchyItem(
+                    destack_query::CallHierarchyItemResponse { item },
+                )
             }
-            query::QueryRequest::CallHierarchyIncoming(params) => {
+            destack_query::QueryRequest::CallHierarchyIncoming(params) => {
                 let context = self.workspace_query_context(
                     session,
                     repository,
@@ -339,11 +368,11 @@ impl LocalWorkspace {
                     &[params.item.target.module.profile_id],
                 )?;
                 let calls = context.incoming_calls(&params.item);
-                query::QueryResponse::CallHierarchyIncoming(query::CallHierarchyIncomingResponse {
-                    calls,
-                })
+                destack_query::QueryResponse::CallHierarchyIncoming(
+                    destack_query::CallHierarchyIncomingResponse { calls },
+                )
             }
-            query::QueryRequest::CallHierarchyOutgoing(params) => {
+            destack_query::QueryRequest::CallHierarchyOutgoing(params) => {
                 let context = self.workspace_query_context(
                     session,
                     repository,
@@ -351,11 +380,11 @@ impl LocalWorkspace {
                     &[params.item.target.module.profile_id],
                 )?;
                 let calls = context.outgoing_calls(&params.item);
-                query::QueryResponse::CallHierarchyOutgoing(query::CallHierarchyOutgoingResponse {
-                    calls,
-                })
+                destack_query::QueryResponse::CallHierarchyOutgoing(
+                    destack_query::CallHierarchyOutgoingResponse { calls },
+                )
             }
-            query::QueryRequest::TypeHierarchyItem(params) => {
+            destack_query::QueryRequest::TypeHierarchyItem(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
@@ -364,9 +393,11 @@ impl LocalWorkspace {
                 )?;
                 let item = context.type_hierarchy_item(params.position.offset);
 
-                query::QueryResponse::TypeHierarchyItem(query::TypeHierarchyItemResponse { item })
+                destack_query::QueryResponse::TypeHierarchyItem(
+                    destack_query::TypeHierarchyItemResponse { item },
+                )
             }
-            query::QueryRequest::TypeHierarchySupertypes(params) => {
+            destack_query::QueryRequest::TypeHierarchySupertypes(params) => {
                 let context = self.workspace_query_context(
                     session,
                     repository,
@@ -374,11 +405,11 @@ impl LocalWorkspace {
                     &[params.item.target.module.profile_id],
                 )?;
                 let items = context.supertypes(&params.item);
-                query::QueryResponse::TypeHierarchySupertypes(
-                    query::TypeHierarchySupertypesResponse { items },
+                destack_query::QueryResponse::TypeHierarchySupertypes(
+                    destack_query::TypeHierarchySupertypesResponse { items },
                 )
             }
-            query::QueryRequest::TypeHierarchySubtypes(params) => {
+            destack_query::QueryRequest::TypeHierarchySubtypes(params) => {
                 let context = self.workspace_query_context(
                     session,
                     repository,
@@ -386,11 +417,11 @@ impl LocalWorkspace {
                     &[params.item.target.module.profile_id],
                 )?;
                 let items = context.subtypes(&params.item);
-                query::QueryResponse::TypeHierarchySubtypes(query::TypeHierarchySubtypesResponse {
-                    items,
-                })
+                destack_query::QueryResponse::TypeHierarchySubtypes(
+                    destack_query::TypeHierarchySubtypesResponse { items },
+                )
             }
-            query::QueryRequest::RenameTarget(params) => {
+            destack_query::QueryRequest::RenameTarget(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
@@ -399,9 +430,11 @@ impl LocalWorkspace {
                 )?;
                 let result = context.rename_target(params.position.offset);
 
-                query::QueryResponse::RenameTarget(query::RenameTargetResponse { result })
+                destack_query::QueryResponse::RenameTarget(destack_query::RenameTargetResponse {
+                    result,
+                })
             }
-            query::QueryRequest::Rename(params) => {
+            destack_query::QueryRequest::Rename(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
@@ -416,9 +449,9 @@ impl LocalWorkspace {
                 )?;
                 let edit = context.rename(&workspace, params.position.offset, &params.new_name);
 
-                query::QueryResponse::Rename(query::RenameResponse { edit })
+                destack_query::QueryResponse::Rename(destack_query::RenameResponse { edit })
             }
-            query::QueryRequest::RenameFiles(params) => {
+            destack_query::QueryRequest::RenameFiles(params) => {
                 let context = self.workspace_query_context(
                     session,
                     repository,
@@ -426,23 +459,29 @@ impl LocalWorkspace {
                     &params.profile_ids,
                 )?;
                 let edit = context.rename_files(&params.renames);
-                query::QueryResponse::RenameFiles(query::RenameFilesResponse { edit })
+                destack_query::QueryResponse::RenameFiles(destack_query::RenameFilesResponse {
+                    edit,
+                })
             }
-            query::QueryRequest::ExtractFunction(params) => {
+            destack_query::QueryRequest::ExtractFunction(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.range.module)?;
                 let edit = context.extract_function(params.range.span, &params.new_name);
 
-                query::QueryResponse::ExtractFunction(query::ExtractFunctionResponse { edit })
+                destack_query::QueryResponse::ExtractFunction(
+                    destack_query::ExtractFunctionResponse { edit },
+                )
             }
-            query::QueryRequest::ExtractVariable(params) => {
+            destack_query::QueryRequest::ExtractVariable(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.range.module)?;
                 let edit = context.extract_variable(params.range.span, &params.new_name);
 
-                query::QueryResponse::ExtractVariable(query::ExtractVariableResponse { edit })
+                destack_query::QueryResponse::ExtractVariable(
+                    destack_query::ExtractVariableResponse { edit },
+                )
             }
-            query::QueryRequest::Inline(params) => {
+            destack_query::QueryRequest::Inline(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
@@ -457,9 +496,9 @@ impl LocalWorkspace {
                 )?;
                 let edit = context.inline_symbol(&workspace, params.position.offset);
 
-                query::QueryResponse::Inline(query::InlineResponse { edit })
+                destack_query::QueryResponse::Inline(destack_query::InlineResponse { edit })
             }
-            query::QueryRequest::ChangeSignature(params) => {
+            destack_query::QueryRequest::ChangeSignature(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
@@ -479,9 +518,11 @@ impl LocalWorkspace {
                     &params.new_arguments,
                 );
 
-                query::QueryResponse::ChangeSignature(query::ChangeSignatureResponse { edit })
+                destack_query::QueryResponse::ChangeSignature(
+                    destack_query::ChangeSignatureResponse { edit },
+                )
             }
-            query::QueryRequest::CodeActions(params) => {
+            destack_query::QueryRequest::CodeActions(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.range.module)?;
                 let workspace = self.workspace_query_context(
@@ -500,18 +541,24 @@ impl LocalWorkspace {
                     &params.context,
                 );
 
-                query::QueryResponse::CodeActions(query::CodeActionsResponse { actions })
+                destack_query::QueryResponse::CodeActions(destack_query::CodeActionsResponse {
+                    actions,
+                })
             }
-            query::QueryRequest::Annotations(params) => {
+            destack_query::QueryRequest::Annotations(params) => {
                 let profile_ids = match &params.scope {
-                    query::AnnotationScope::Module(module) => vec![module.profile_id],
-                    query::AnnotationScope::Workspace { profile_ids } => profile_ids.clone(),
+                    destack_query::AnnotationScope::Module(module) => vec![module.profile_id],
+                    destack_query::AnnotationScope::Workspace { profile_ids } => {
+                        profile_ids.clone()
+                    }
                 };
                 let context =
                     self.workspace_query_context(session, repository, revision, &profile_ids)?;
                 let annotations = context.annotations(&params.scope, params.name.as_deref());
 
-                query::QueryResponse::Annotations(query::AnnotationsResponse { annotations })
+                destack_query::QueryResponse::Annotations(destack_query::AnnotationsResponse {
+                    annotations,
+                })
             }
         };
 
@@ -524,8 +571,8 @@ impl LocalWorkspace {
         session: &Session,
         repository: &'a Repository,
         revision: Revision,
-        module: query::QueryModule,
-    ) -> Result<query::ModuleQueryContext<'a>, Error> {
+        module: destack_query::QueryModule,
+    ) -> Result<destack_query::ModuleQueryContext<'a>, Error> {
         let key = ArtifactKey::dir_checked(module.module_id, module.profile_id);
         let checked_version = session
             .require(revision, key)
@@ -546,7 +593,7 @@ impl LocalWorkspace {
                     ),
                 })?;
 
-        query::module_query_context_from_checked(
+        destack_query::module_query_context_from_checked(
             repository,
             revision,
             module.module_id,
@@ -566,7 +613,7 @@ impl LocalWorkspace {
         repository: &'a Repository,
         revision: Revision,
         profile_ids: &[ProfileId],
-    ) -> Result<query::WorkspaceQueryContext<'a>, Error> {
+    ) -> Result<destack_query::WorkspaceQueryContext<'a>, Error> {
         let mut indexes = Vec::with_capacity(profile_ids.len());
 
         for profile_id in profile_ids {
@@ -591,7 +638,7 @@ impl LocalWorkspace {
             indexes.push((*profile_id, index));
         }
 
-        query::workspace_query_context(repository, revision, indexes).ok_or_else(|| {
+        destack_query::workspace_query_context(repository, revision, indexes).ok_or_else(|| {
             Error::Internal {
                 detail: "workspace query index references missing module indexes".to_string(),
             }

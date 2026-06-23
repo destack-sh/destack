@@ -6,8 +6,8 @@ use destack_artifact::ArtifactKey;
 use destack_repository::{Revision, TraceSnapshot, TraceView};
 use destack_serde::Schema;
 use destack_source::{
-    Applicability, BatchEdit, DiagnosticCollection, DiffOptions, File, FileId, ModuleId,
-    apply_batch_edit, format_diff,
+    Applicability, DiagnosticCollection, DiffOptions, File, FileId, ModuleId, PatchSet,
+    apply_patch_set, format_diff,
 };
 use serde::{Deserialize, Serialize};
 
@@ -273,7 +273,7 @@ impl CommandContext<'_> {
 
         // apply edits against the exact checked file revision
         let files = self.files_for_edits(revision, &edits)?;
-        let updates = apply_batch_edit(&edits, |file_id| files.get(&file_id).map(Arc::as_ref))
+        let updates = apply_patch_set(&edits, |file_id| files.get(&file_id).map(Arc::as_ref))
             .map_err(|error| error.to_string())?;
 
         // print or persist the edited text
@@ -282,17 +282,17 @@ impl CommandContext<'_> {
         } else {
             self.write_fixed_files(&files, &updates)?;
             self.output
-                .push_stderr(format!("Fixed {} problem(s)\n", edits.total_edits()).into_bytes());
+                .push_stderr(format!("Fixed {} problem(s)\n", edits.total_patches()).into_bytes());
         }
 
-        Ok(edits.total_edits())
+        Ok(edits.total_patches())
     }
 
     /// Return source files required by one edit batch.
     fn files_for_edits(
         &self,
         revision: Revision,
-        edits: &BatchEdit,
+        edits: &PatchSet,
     ) -> CommandResult<HashMap<FileId, Arc<File>>> {
         let mut files = HashMap::new();
 
@@ -377,8 +377,8 @@ impl CommandContext<'_> {
         &self,
         diagnostics: &DiagnosticCollection,
         include_unsafe: bool,
-    ) -> BatchEdit {
-        let mut batch = BatchEdit::new();
+    ) -> PatchSet {
+        let mut batch = PatchSet::new();
 
         for diagnostic in diagnostics.iter() {
             for suggestion in &diagnostic.suggestions {
@@ -390,7 +390,7 @@ impl CommandContext<'_> {
                 }
 
                 // merge all edits into one batch
-                for edit in suggestion.edits.iter().cloned() {
+                for edit in suggestion.patches.iter().cloned() {
                     batch.add(edit);
                 }
             }

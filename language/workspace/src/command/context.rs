@@ -9,12 +9,11 @@ use destack_query::Query;
 #[cfg(not(target_arch = "wasm32"))]
 use destack_repository::OptimizeLevel;
 use destack_repository::{
-    DestackFile, Edit, Ref, Repository, Revision, Target, TargetRoot, TraceSnapshot, TraceView,
+    DestackFile, Ref, Repository, Revision, Target, TargetRoot, TraceSnapshot, TraceView,
     apply_manifest_overrides_to_json, parse_jsonc_text,
 };
-use destack_session as session;
 use destack_session::{Session, SessionEventHandler};
-use destack_source::{FileType, ModuleId, ProfileId, TargetId, glob};
+use destack_source::{Edit, FileType, ModuleId, ProfileId, TargetId, glob};
 use serde_json::{Map, Value};
 
 use crate::LocalWorkspace;
@@ -188,7 +187,7 @@ impl<'a> CommandContext<'a> {
             let content = format!("{content}\n");
             let logical_path = repository.logical_path(&path);
 
-            edits.push(Edit::set_text(logical_path, content));
+            edits.push(destack_repository::Edit::set_text(logical_path, content));
         }
 
         // publish the overridden private revision
@@ -349,7 +348,7 @@ impl<'a> CommandContext<'a> {
         self.session
             .edit(
                 self.session.head(),
-                vec![session::Edit::SetText {
+                vec![Edit::SetText {
                     path: path.clone(),
                     text: content.to_string(),
                 }],

@@ -4,7 +4,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 
 use base64::Engine;
-use base64::engine::general_purpose::URL_SAFE_NO_PAD as BASE64_URL;
+use base64::engine::general_purpose;
 use fs2::FileExt;
 
 use crate::protocol::PROTOCOL_VERSION;
@@ -170,7 +170,7 @@ impl WorkspaceEndpoint {
         let mut bytes = [0u8; 32];
         getrandom::fill(&mut bytes).map_err(WorkspaceEndpointError::Random)?;
 
-        Ok(BASE64_URL.encode(bytes))
+        Ok(general_purpose::URL_SAFE_NO_PAD.encode(bytes))
     }
 
     /// Return the authenticated WebSocket URL for one token.

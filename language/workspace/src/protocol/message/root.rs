@@ -1,11 +1,10 @@
 use destack_serde::Schema;
 use std::path::PathBuf;
 
-use destack_session as session;
 use serde::{Deserialize, Serialize};
 
 use super::DiagnosticBatch;
-use crate::{Commit, FileOperation, Message, ReloadReason, UpdateBatch};
+use crate::{Commit, FileOperation, Message, ReloadReason, SourceUpdate, UpdateBatch};
 
 /// Unique identifier for an opened root.
 #[repr(transparent)]
@@ -113,7 +112,7 @@ pub struct SourceUpdateRequest {
     /// Root handle.
     pub handle: RootId,
     /// Source update payload.
-    pub update: session::Update,
+    pub update: SourceUpdate,
 }
 
 /// Response to a source update.

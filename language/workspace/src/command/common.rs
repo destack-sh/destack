@@ -3,7 +3,6 @@ use std::time::Duration;
 
 use destack_serde::Schema;
 
-use destack_repository as repository;
 use destack_repository::{Revision, Target};
 use destack_source::{FileType, TargetId};
 use serde::{Deserialize, Serialize};
@@ -92,17 +91,17 @@ pub struct ManifestOverride {
 
 impl ManifestOverride {
     /// Convert this override into a repository manifest override.
-    pub fn to_repository(&self) -> Result<repository::ManifestOverride, JsonValueError> {
-        Ok(repository::ManifestOverride {
+    pub fn to_repository(&self) -> Result<destack_repository::ManifestOverride, JsonValueError> {
+        Ok(destack_repository::ManifestOverride {
             path: self.path.clone(),
             value: self.value.clone().into_json()?,
         })
     }
 }
 
-impl From<repository::ManifestOverride> for ManifestOverride {
+impl From<destack_repository::ManifestOverride> for ManifestOverride {
     /// Convert a repository manifest override into a command manifest override.
-    fn from(value: repository::ManifestOverride) -> Self {
+    fn from(value: destack_repository::ManifestOverride) -> Self {
         Self {
             path: value.path,
             value: JsonValue::from_json(value.value),

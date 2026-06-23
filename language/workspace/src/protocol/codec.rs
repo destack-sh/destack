@@ -90,10 +90,11 @@ impl Default for ProtocolCodec {
 #[cfg(test)]
 mod tests {
     use destack_repository::TraceView;
-    use destack_session as session;
-    use destack_source::Uri;
+    use destack_source::{ByteRange, Edit, TextPatch, Uri};
 
-    use crate::{BuildInput, BuildOutputs, CommandInput, CommandRevision, FileOperation};
+    use crate::{
+        BuildInput, BuildOutputs, CommandInput, CommandRevision, FileOperation, SourceUpdate,
+    };
 
     use crate::protocol::{
         FileOperationRequest, FrameCodec, ProtocolCodec, ProtocolLimits, ProtocolMessage,
@@ -209,17 +210,17 @@ mod tests {
             options: RequestOptions::default(),
             payload: WorkspaceRequest::ApplySourceUpdate(SourceUpdateRequest {
                 handle: RootId::new(1),
-                update: session::Update {
+                update: SourceUpdate {
                     base: None,
                     edits: vec![
-                        session::Edit::SetText {
+                        Edit::SetText {
                             path: "/root/app.ds".into(),
                             text: "let x = 1".to_string(),
                         },
-                        session::Edit::EditText {
+                        Edit::EditText {
                             path: "/root/app.ds".into(),
-                            edits: vec![session::TextEdit {
-                                range: session::TextRange { start: 4, end: 5 },
+                            patches: vec![TextPatch {
+                                range: ByteRange { start: 4, end: 5 },
                                 text: "y".to_string(),
                             }],
                         },

@@ -2,10 +2,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_repository::{DestackLayoutOverride, Environment, Settings};
-use destack_session as session;
 use destack_session::open_repository_from_fs;
 use destack_source::{
-    FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri,
+    Edit, FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri,
 };
 
 use crate::{LocalWorkspace, UpdateBatch};
@@ -96,7 +95,7 @@ impl TestWorkspace {
     /// Apply a text source update for a path.
     pub(super) fn apply_text(&self, path: &Path, source: &str) -> UpdateBatch {
         self.workspace
-            .apply_file(session::Edit::SetText {
+            .apply_file(Edit::SetText {
                 path: path.to_path_buf(),
                 text: source.to_string(),
             })

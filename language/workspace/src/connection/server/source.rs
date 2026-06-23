@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use destack_session as session;
+use destack_source::Edit;
 
 use crate::{FileOperation, Workspace};
 
@@ -61,14 +61,14 @@ impl Server {
         &self,
         workspace: &dyn Workspace,
         root: &Path,
-        edits: &[session::Edit],
+        edits: &[Edit],
     ) -> Result<(), ProtocolError> {
         for edit in edits {
             match edit {
-                session::Edit::SetText { path, .. }
-                | session::Edit::EditText { path, .. }
-                | session::Edit::SetBytes { path, .. }
-                | session::Edit::Remove { path } => {
+                Edit::SetText { path, .. }
+                | Edit::EditText { path, .. }
+                | Edit::SetBytes { path, .. }
+                | Edit::Remove { path } => {
                     if !self.path_within_root(workspace, path, root) {
                         return Err(self.protocol_error(
                             ProtocolErrorCode::Forbidden,
@@ -76,7 +76,7 @@ impl Server {
                         ));
                     }
                 }
-                session::Edit::Move { from, to } => {
+                Edit::Move { from, to } => {
                     if !self.path_within_root(workspace, from, root)
                         || !self.path_within_root(workspace, to, root)
                     {
