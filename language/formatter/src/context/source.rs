@@ -262,6 +262,46 @@ fn is_single_line_whitespace(current: char) -> bool {
     current.is_whitespace() && !is_line_terminator(current)
 }
 
+impl<'a> DestackFormatContext<'a> {
+    /// Return the source text wrapper for this file.
+    pub fn source_text(&self) -> SourceText<'a> {
+        SourceText::new(self.file.text())
+    }
+
+    /// Return byte offsets of all newline characters in the source file.
+    #[inline]
+    pub(crate) fn newline_offsets(&self) -> &[u32] {
+        self.source_index.newline_offsets()
+    }
+
+    /// Return whether file text contains ignore directive markers.
+    pub fn has_ignore_directive_markers(&self) -> bool {
+        self.source_index.has_ignore_directive_markers()
+    }
+
+    /// Get the source slice backing one span.
+    #[inline]
+    pub fn span_str(&self, span: Span) -> &'a str {
+        self.file.span_str(span)
+    }
+
+    /// Get the source slice backing one token span.
+    #[inline]
+    pub fn token_str(&self, token: TokenSpan) -> &'a str {
+        self.span_str(token.span)
+    }
+
+    /// Return whether one node span contains a newline.
+    #[inline]
+    pub fn node_has_newline<T>(&self, node_id: LocalNodeId<T>) -> bool
+    where
+        T: Node,
+        Tree: TreeStore<T>,
+    {
+        self.has_newline(self.span(node_id))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -349,45 +389,5 @@ const z = 3;
 
         assert_eq!(source_text.lines_after(span_x.end), 2);
         assert_eq!(source_text.lines_after(span_y.end), 2);
-    }
-}
-
-impl<'a> DestackFormatContext<'a> {
-    /// Return the source text wrapper for this file.
-    pub fn source_text(&self) -> SourceText<'a> {
-        SourceText::new(self.file.text())
-    }
-
-    /// Return byte offsets of all newline characters in the source file.
-    #[inline]
-    pub(crate) fn newline_offsets(&self) -> &[u32] {
-        self.source_index.newline_offsets()
-    }
-
-    /// Return whether file text contains ignore directive markers.
-    pub fn has_ignore_directive_markers(&self) -> bool {
-        self.source_index.has_ignore_directive_markers()
-    }
-
-    /// Get the source slice backing one span.
-    #[inline]
-    pub fn span_str(&self, span: Span) -> &'a str {
-        self.file.span_str(span)
-    }
-
-    /// Get the source slice backing one token span.
-    #[inline]
-    pub fn token_str(&self, token: TokenSpan) -> &'a str {
-        self.span_str(token.span)
-    }
-
-    /// Return whether one node span contains a newline.
-    #[inline]
-    pub fn node_has_newline<T>(&self, node_id: LocalNodeId<T>) -> bool
-    where
-        T: Node,
-        Tree: TreeStore<T>,
-    {
-        self.has_newline(self.span(node_id))
     }
 }
