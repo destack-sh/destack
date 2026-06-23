@@ -387,8 +387,8 @@ pub struct InstanceOfPredicate {
     pub value_type: GlobalTypeId,
     /// The selected right-hand-side declaration.
     pub target: GlobalSymbolId,
-    /// The generic arguments of the target symbol, empty when not statically applied.
-    pub arguments: Vec<GlobalTypeId>,
+    /// The selected instance type tested at runtime.
+    pub target_type: GlobalTypeId,
 }
 
 /// Runtime `in` predicate selected during checking.
