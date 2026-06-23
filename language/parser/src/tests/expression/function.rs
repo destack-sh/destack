@@ -36,9 +36,9 @@ fn test_parse_lambda_function_type() {
 
     assert_node!(parser.tree, type_expression_id, TypeExpression::Function(function) => {
         // a: int32
-        assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type, .. } => {
+        assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
             assert_string!(parser, *name, "a");
-            assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
+            assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
                 assert_eq!(
                     *value,
                     TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
@@ -501,9 +501,9 @@ fn test_parse_lambda_return_type_tuple_with_nested_lambda_type() {
                 assert_node!(parser.tree, elements[1], TupleElement::Element { value, .. } => {
                     assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
                         assert_eq!(function.parameters.len(), 1);
-                        assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
+                        assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                             assert_string!(parser, *name, "action");
-                            assert_expression_path!(parser, parser.tree.get(*declared_type), "N");
+                            assert_expression_path!(parser, parser.tree.get(*ty), "N");
                         });
                         assert_node!(parser.tree, function.return_type.expect("expected nested return type"), TypeExpression::Literal { value } => {
                             assert_eq!(*value, TypeLiteral::Void);
@@ -546,9 +546,9 @@ fn test_parse_generic_arrow_with_function_type_return_annotation() {
             // (value: T) => T
             assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Function(function) => {
                 assert_eq!(function.parameters.len(), 1);
-                assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
+                assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                     assert_string!(parser, *name, "value");
-                    assert_expression_path!(parser, parser.tree.get(*declared_type), "T");
+                    assert_expression_path!(parser, parser.tree.get(*ty), "T");
                 });
                 assert_expression_path!(parser, parser.tree.get(function.return_type.expect("expected nested return type")), "T");
             });

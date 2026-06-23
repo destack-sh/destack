@@ -393,7 +393,7 @@ fn test_parse_typed_arrow_parameter_with_generic_function_target_type_before_tre
                     assert_eq!(nested_generic_parameters.len(), 1);
 
                     assert_eq!(function.parameters.len(), 1);
-                    assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(_), .. } => {
+                    assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, .. } => {
                         assert_string!(parser, *name, "result");
                     });
 

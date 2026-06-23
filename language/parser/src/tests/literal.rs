@@ -965,9 +965,9 @@ fn test_parse_generic_arguments_with_shift_left_generic_arrow() {
                 assert!(default.is_none());
             });
             assert_eq!(function.parameters.len(), 1);
-            assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type, .. } => {
+            assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                 assert_string!(parser, *name, "v");
-                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Reference { path, .. } => {
+                assert_node!(parser.tree, *ty, TypeExpression::Reference { path, .. } => {
                     assert_path!(parser, *path, "T");
                 });
             });

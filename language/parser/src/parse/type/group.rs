@@ -251,10 +251,15 @@ impl Parser {
         false
     }
 
-    /// Skip the first token shape of a function type parameter.
+    /// Skip the first token shape of a signature parameter.
     fn skip_type_function_parameter_start(&mut self) -> bool {
         if self.language.is_destack() && self.skip_type_function_receiver_start() {
             return true;
+        }
+
+        if self.language.is_destack() && self.is_keyword(Keyword::Comptime) {
+            self.bump();
+            return self.skip_type_function_parameter_start();
         }
 
         if self.current_keyword() == Some(Keyword::This) || self.peek_is(TokenType::Identifier) {
