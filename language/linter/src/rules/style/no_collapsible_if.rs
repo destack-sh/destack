@@ -118,8 +118,8 @@ impl LintRule for NoCollapsibleIf {
                 let edits = ctx
                     .edit_builder()
                     .replace(outer_span, replacement)
-                    .into_edits();
-                let fix = LintFix::safe("Merge nested if statements").with_edits(edits);
+                    .into_patches();
+                let fix = LintFix::safe("Merge nested if statements").with_patches(edits);
                 diagnostic = diagnostic.fix(fix);
             }
 

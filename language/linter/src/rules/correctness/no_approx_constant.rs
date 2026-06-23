@@ -81,9 +81,9 @@ impl LintRule for NoApproxConstant {
                 // attach canonical replacement fix when enabled
                 if ctx.compute_fixes {
                     let replacement = format!("Math.{name}");
-                    let edits = ctx.edit_builder().replace(span, replacement).into_edits();
+                    let edits = ctx.edit_builder().replace(span, replacement).into_patches();
                     let fix = LintFix::r#unsafe("Replace approximation with Math constant")
-                        .with_edits(edits);
+                        .with_patches(edits);
                     diagnostic = diagnostic.fix(fix);
                 }
 

@@ -449,10 +449,10 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
         let statement_span = self.ctx.get_span(statement_id);
         let statement_span = expand_span_to_statement_terminator(source, statement_span);
         edit_builder = edit_builder.replace(statement_span, "");
-        let edits = edit_builder.into_edits();
+        let edits = edit_builder.into_patches();
         Some(
             LintFix::r#unsafe("Rewrite forEach conditional push loop as filter assignment")
-                .with_edits(edits),
+                .with_patches(edits),
         )
     }
 

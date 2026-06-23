@@ -5,12 +5,12 @@ use std::sync::Arc;
 
 use destack_repository::{Dependency, DestackFile, Repository, RepositoryError, Revision};
 use destack_source::{
-    Content, ContentId, File, FileId, FileMetadata, FileSystem, FileType, Uri,
+    Content, ContentId, Edit, File, FileId, FileMetadata, FileSystem, FileType, Uri,
     matches as glob_matches,
 };
 
 use super::SourceError;
-use crate::{Edit, SessionError};
+use crate::SessionError;
 
 /// Filesystem-backed source.
 pub(crate) struct FileSystemSource<'a> {

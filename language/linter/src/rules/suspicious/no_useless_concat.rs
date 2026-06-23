@@ -194,8 +194,8 @@ fn no_useless_concat_fix(
     let edits = ctx
         .edit_builder()
         .replace(expression_span, combined)
-        .into_edits();
-    Some(LintFix::safe("Combine string literals").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Combine string literals").with_patches(edits))
 }
 
 #[cfg(test)]

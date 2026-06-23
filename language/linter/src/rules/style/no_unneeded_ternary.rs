@@ -79,8 +79,8 @@ impl LintRule for NoUnneededTernary {
                     let edits = ctx
                         .edit_builder()
                         .replace(expression_span, condition_text)
-                        .into_edits();
-                    let fix = LintFix::safe("Simplify to condition").with_edits(edits);
+                        .into_patches();
+                    let fix = LintFix::safe("Simplify to condition").with_patches(edits);
                     diagnostic = diagnostic.fix(fix);
                 }
 
@@ -109,8 +109,8 @@ impl LintRule for NoUnneededTernary {
                     let edits = ctx
                         .edit_builder()
                         .replace(expression_span, replacement)
-                        .into_edits();
-                    let fix = LintFix::safe("Simplify to negated condition").with_edits(edits);
+                        .into_patches();
+                    let fix = LintFix::safe("Simplify to negated condition").with_patches(edits);
                     diagnostic = diagnostic.fix(fix);
                 }
 
@@ -142,8 +142,8 @@ impl LintRule for NoUnneededTernary {
                     let edits = ctx
                         .edit_builder()
                         .replace(expression_span, replacement)
-                        .into_edits();
-                    let fix = LintFix::safe("Simplify to default assignment").with_edits(edits);
+                        .into_patches();
+                    let fix = LintFix::safe("Simplify to default assignment").with_patches(edits);
                     diagnostic = diagnostic.fix(fix);
                 }
 

@@ -134,9 +134,9 @@ fn build_for_direction_fix(
     let edits = ctx
         .edit_builder()
         .replace(ctx.dir.get_span(increment_id), replacement)
-        .into_edits();
+        .into_patches();
 
-    Some(LintFix::r#unsafe("Flip loop update direction").with_edits(edits))
+    Some(LintFix::r#unsafe("Flip loop update direction").with_patches(edits))
 }
 
 /// Render one increment expression with the expected direction.

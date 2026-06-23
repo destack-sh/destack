@@ -4,7 +4,7 @@ use destack_serde::Schema;
 use std::collections::HashSet;
 
 use destack_source::{
-    Applicability, BatchEdit, Diagnostic, DiagnosticLabel, Edit, FileEdit, FileId, Span,
+    Applicability, Diagnostic, DiagnosticLabel, FileId, FilePatch, Patch, PatchSet, Span,
 };
 use serde::{Deserialize, Serialize};
 
@@ -44,7 +44,7 @@ pub struct CodeAction {
     /// The kind of action.
     pub kind: CodeActionKind,
     /// Edits to apply.
-    pub edits: BatchEdit,
+    pub patches: PatchSet,
     /// Whether this is the preferred action for its diagnostics.
     pub is_preferred: bool,
     /// Whether this action is disabled (with reason).
@@ -55,12 +55,12 @@ pub struct CodeAction {
 
 impl CodeAction {
     /// Create a quick fix.
-    pub fn quick_fix(title: impl Into<String>, edits: BatchEdit) -> Self {
+    pub fn quick_fix(title: impl Into<String>, patches: PatchSet) -> Self {
         // build a quick fix action
         Self {
             title: title.into(),
             kind: CodeActionKind::QuickFix,
-            edits,
+            patches,
             is_preferred: false,
             disabled_reason: None,
             diagnostic_code: None,
@@ -68,12 +68,12 @@ impl CodeAction {
     }
 
     /// Create a refactoring.
-    pub fn refactor(title: impl Into<String>, kind: CodeActionKind, edits: BatchEdit) -> Self {
+    pub fn refactor(title: impl Into<String>, kind: CodeActionKind, patches: PatchSet) -> Self {
         // build a refactor action
         Self {
             title: title.into(),
             kind,
-            edits,
+            patches,
             is_preferred: false,
             disabled_reason: None,
             diagnostic_code: None,
@@ -154,13 +154,13 @@ fn collect_diagnostic_fixes(
                 continue;
             }
 
-            // skip empty edits
-            if suggestion.edits.is_empty() {
+            // skip empty patches
+            if suggestion.patches.is_empty() {
                 continue;
             }
 
             // build a preferred quick fix
-            let action = CodeAction::quick_fix(&suggestion.message, suggestion.edits.clone())
+            let action = CodeAction::quick_fix(&suggestion.message, suggestion.patches.clone())
                 .with_diagnostic_code(&diagnostic.code)
                 .preferred();
 
@@ -181,14 +181,14 @@ fn code_action_key(action: &CodeAction) -> (u8, u8, String, String, String) {
     let diagnostic_code = action.diagnostic_code.clone().unwrap_or_default();
 
     // fold the edit shape into the key to make ordering and deduplication stable
-    let edit_key = batch_edit_key(&action.edits);
+    let patch_key = patch_set_key(&action.patches);
 
     (
         kind_rank,
         preferred_rank,
         action.title.clone(),
         diagnostic_code,
-        edit_key,
+        patch_key,
     )
 }
 
@@ -207,15 +207,15 @@ fn code_action_kind_rank(kind: CodeActionKind) -> u8 {
 }
 
 /// Build a stable key for a batch edit.
-fn batch_edit_key(edit: &BatchEdit) -> String {
-    // clone and sort file edits by file id
+fn patch_set_key(edit: &PatchSet) -> String {
+    // clone and sort file patches by file id
     let mut files = edit.files.clone();
     files.sort_by_key(|file_edit| file_edit.file.0);
 
-    // serialize edits in a deterministic order
+    // serialize patches in a deterministic order
     let mut parts = Vec::new();
     for file_edit in files {
-        let file_key = file_edit_key(&file_edit);
+        let file_key = file_patch_key(&file_edit);
         parts.push(file_key);
     }
 
@@ -223,16 +223,16 @@ fn batch_edit_key(edit: &BatchEdit) -> String {
 }
 
 /// Build a stable key for a file edit.
-fn file_edit_key(file_edit: &FileEdit) -> String {
-    // clone and sort edits by span and text
-    let mut edits = file_edit.edits.clone();
-    edits.sort_by_key(edit_key);
+fn file_patch_key(file_edit: &FilePatch) -> String {
+    // clone and sort patches by span and text
+    let mut patches = file_edit.patches.clone();
+    patches.sort_by_key(patch_key);
 
-    // serialize all edits for this file
+    // serialize all patches for this file
     let mut parts = Vec::new();
     parts.push(format!("file={}", file_edit.file.0));
-    for edit in edits {
-        let (start, end, span_file, text) = edit_key(&edit);
+    for edit in patches {
+        let (start, end, span_file, text) = patch_key(&edit);
         parts.push(format!("{span_file}:{start}-{end}=>{text}"));
     }
 
@@ -240,7 +240,7 @@ fn file_edit_key(file_edit: &FileEdit) -> String {
 }
 
 /// Build a stable key for a single edit.
-fn edit_key(edit: &Edit) -> (u32, u32, u128, String) {
+fn patch_key(edit: &Patch) -> (u32, u32, u128, String) {
     // extract span coordinates and replacement text
     let span_file = edit.span.file.0;
     let start = edit.span.start;
@@ -476,24 +476,24 @@ impl ModuleQueryContext<'_> {
         for (_, export, display_path) in ranked_candidates {
             let import_form = ImportEditSpace::for_auto_import(space_filter, export.space);
 
-            // build import edits and skip already imported symbols
+            // build import patches and skip already imported symbols
             let import_edits = ctx.build_import_edits(symbol_name, &display_path, import_form);
             if import_edits.is_empty() {
                 continue;
             }
 
-            // collect edits into a batch edit
-            let mut file_edit = FileEdit::new(file);
+            // collect patches into a batch edit
+            let mut file_edit = FilePatch::new(file);
             for edit in import_edits {
                 file_edit.push(edit);
             }
 
-            // skip empty edits
+            // skip empty patches
             if file_edit.is_empty() {
                 continue;
             }
 
-            let mut batch_edit = BatchEdit::new();
+            let mut batch_edit = PatchSet::new();
             batch_edit.files.push(file_edit);
 
             // build the code action entry

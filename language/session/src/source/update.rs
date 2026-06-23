@@ -1,103 +1,10 @@
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
-
 use destack_repository::{Ref, Revision};
-use destack_serde::Schema;
-use destack_source::{Content, FileId, Span, Uri, apply_file_edit};
-use serde::{Deserialize, Serialize};
+use destack_source::{
+    Content, Edit, FileId, FilePatch, Patch, Span, TextPatch, Uri, apply_file_patch,
+};
+use std::collections::HashSet;
 
 use crate::{Change, Session, SessionError};
-
-/// One text range in byte offsets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
-pub struct TextRange {
-    /// Inclusive start byte offset.
-    pub start: u32,
-    /// Exclusive end byte offset.
-    pub end: u32,
-}
-
-/// One text replacement.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
-pub struct TextEdit {
-    /// Replaced byte range.
-    pub range: TextRange,
-    /// Replacement text.
-    pub text: String,
-}
-
-/// One edit accepted by a session update.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
-pub enum Edit {
-    /// Replace or create one text file.
-    SetText {
-        /// Repository or session relative path.
-        path: PathBuf,
-        /// Full text content.
-        text: String,
-    },
-    /// Apply text replacements to one tracked text file.
-    EditText {
-        /// Repository or session relative path.
-        path: PathBuf,
-        /// Text replacements.
-        edits: Vec<TextEdit>,
-    },
-    /// Replace or create one binary file.
-    SetBytes {
-        /// Repository or session relative path.
-        path: PathBuf,
-        /// Full binary content.
-        bytes: Vec<u8>,
-    },
-    /// Remove one file.
-    Remove {
-        /// Repository or session relative path.
-        path: PathBuf,
-    },
-    /// Move one file.
-    Move {
-        /// Repository or session relative path.
-        from: PathBuf,
-        /// Destination repository or session relative path.
-        to: PathBuf,
-    },
-}
-
-/// One atomic session update.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
-pub struct Update {
-    /// Expected base revision.
-    pub base: Option<Revision>,
-    /// Edits in this atomic update.
-    pub edits: Vec<Edit>,
-}
-
-impl Edit {
-    /// Return the single file path affected by this edit.
-    pub fn path(&self) -> Option<&Path> {
-        match self {
-            Self::SetText { path, .. }
-            | Self::EditText { path, .. }
-            | Self::SetBytes { path, .. }
-            | Self::Remove { path } => Some(path.as_path()),
-            Self::Move { .. } => None,
-        }
-    }
-
-    /// Return whether this edit removes its target file.
-    pub fn is_remove(&self) -> bool {
-        matches!(self, Self::Remove { .. })
-    }
-
-    /// Return full text content when this edit sets text directly.
-    pub fn text(&self) -> Option<&str> {
-        match self {
-            Self::SetText { text, .. } => Some(text),
-            _ => None,
-        }
-    }
-}
 
 /// One committed edit batch.
 #[derive(Debug, Clone)]
@@ -111,14 +18,14 @@ pub struct Commit {
 }
 
 impl Session {
-    /// Edit files through one ref.
+    /// Patch files through one ref.
     pub fn edit(&self, reference: &Ref, edits: Vec<Edit>) -> Result<Commit, SessionError> {
         let before = self.revision(reference)?;
 
         self.edit_if_current(reference, before, edits)
     }
 
-    /// Edit files when one ref still points at one revision.
+    /// Patch files when one ref still points at one revision.
     pub fn edit_if_current(
         &self,
         reference: &Ref,
@@ -193,9 +100,9 @@ impl Session {
                 let path = self.repository_path(&path);
                 repository_edits.push(destack_repository::Edit::set_text(path, text));
             }
-            Edit::EditText { path, edits } => {
+            Edit::EditText { path, patches } => {
                 let path = self.repository_path(&path);
-                let text = self.apply_text_edits(revision, &path, edits)?;
+                let text = self.apply_text_patches(revision, &path, patches)?;
                 repository_edits.push(destack_repository::Edit::set_text(path, text));
             }
             Edit::SetBytes { path, bytes } => {
@@ -219,12 +126,12 @@ impl Session {
         Ok(())
     }
 
-    /// Apply text edits to one tracked file.
-    fn apply_text_edits(
+    /// Apply text patches to one tracked file.
+    fn apply_text_patches(
         &self,
         revision: Revision,
         path: &str,
-        edits: Vec<TextEdit>,
+        patches: Vec<TextPatch>,
     ) -> Result<String, SessionError> {
         let file_id = FileId::from_logical_str(path);
 
@@ -234,20 +141,20 @@ impl Session {
             .file(revision, file_id)?
             .ok_or(SessionError::FileNotTracked { file_id })?;
 
-        // lower session edits into source text edits
-        let edits = edits
+        // lower file text patches into source patches
+        let patches = patches
             .into_iter()
-            .map(|edit| {
-                destack_source::Edit::replace(
-                    Span::new(file_id, edit.range.start, edit.range.end),
-                    edit.text,
+            .map(|patch| {
+                Patch::replace(
+                    Span::new(file_id, patch.range.start, patch.range.end),
+                    patch.text,
                 )
             })
             .collect();
 
         // materialize the updated text
-        let file_edit = destack_source::FileEdit::with_edits(file_id, edits);
-        let text = apply_file_edit(file.as_ref(), &file_edit)?;
+        let file_patch = FilePatch::with_patches(file_id, patches);
+        let text = apply_file_patch(file.as_ref(), &file_patch)?;
 
         Ok(text)
     }

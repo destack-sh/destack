@@ -106,8 +106,8 @@ fn duplicate_match_arm_fix(
         return None;
     }
 
-    let edits = ctx.edit_builder().delete(case_span).into_edits();
-    Some(LintFix::r#unsafe("Remove duplicate match arm").with_edits(edits))
+    let edits = ctx.edit_builder().delete(case_span).into_patches();
+    Some(LintFix::r#unsafe("Remove duplicate match arm").with_patches(edits))
 }
 
 #[cfg(test)]

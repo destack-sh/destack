@@ -230,8 +230,8 @@ fn explicit_function_return_type_fix(
     let edits = ctx
         .edit_builder()
         .insert(body_span.start, ": void ")
-        .into_edits();
-    Some(LintFix::safe("Add explicit `void` return type").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Add explicit `void` return type").with_patches(edits))
 }
 
 /// Return true when an expression contains a return in this function body.

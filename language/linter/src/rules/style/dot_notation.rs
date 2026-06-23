@@ -101,8 +101,8 @@ impl LintRule for DotNotation {
                 let edits = ctx
                     .edit_builder()
                     .replace(bracket_span, replacement)
-                    .into_edits();
-                let fix = LintFix::safe("Convert to dot notation").with_edits(edits);
+                    .into_patches();
+                let fix = LintFix::safe("Convert to dot notation").with_patches(edits);
                 diagnostic = diagnostic.fix(fix);
             }
 

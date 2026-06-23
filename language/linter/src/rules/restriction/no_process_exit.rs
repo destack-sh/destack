@@ -237,8 +237,8 @@ fn no_process_exit_fix(
 ) -> Option<LintFix> {
     let statement_id = statement_expression_ancestor(ctx.dir.tree(), call_id)?;
     let statement_span = ctx.get_span(statement_id);
-    let edits = ctx.edit_builder().delete(statement_span).into_edits();
-    Some(LintFix::r#unsafe("Remove process.exit statement").with_edits(edits))
+    let edits = ctx.edit_builder().delete(statement_span).into_patches();
+    Some(LintFix::r#unsafe("Remove process.exit statement").with_patches(edits))
 }
 
 impl NodeVisitor for NoProcessExitVisitor<'_, '_> {

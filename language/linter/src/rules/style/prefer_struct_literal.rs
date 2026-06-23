@@ -165,8 +165,8 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(expression_span, replacement)
-            .into_edits();
-        Some(LintFix::safe("Rewrite constructor to struct literal").with_edits(edits))
+            .into_patches();
+        Some(LintFix::safe("Rewrite constructor to struct literal").with_patches(edits))
     }
 
     /// Check one `new` expression for struct constructor style.

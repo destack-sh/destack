@@ -175,8 +175,8 @@ fn overlapping_match_arm_fix(
     case_id: dir::LocalNodeId<dir::MatchCase>,
 ) -> Option<LintFix> {
     let case_span = ctx.get_span(case_id);
-    let edits = ctx.edit_builder().replace(case_span, "").into_edits();
-    Some(LintFix::r#unsafe("Remove subsumed match arm").with_edits(edits))
+    let edits = ctx.edit_builder().replace(case_span, "").into_patches();
+    Some(LintFix::r#unsafe("Remove subsumed match arm").with_patches(edits))
 }
 
 #[cfg(test)]

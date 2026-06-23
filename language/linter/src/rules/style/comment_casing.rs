@@ -228,8 +228,8 @@ fn comment_casing_fix(
     let edits = ctx
         .edit_builder()
         .replace(replacement_span, replacement)
-        .into_edits();
-    Some(LintFix::safe("Fix comment casing").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Fix comment casing").with_patches(edits))
 }
 
 /// Return the first alphabetic character offset and value.

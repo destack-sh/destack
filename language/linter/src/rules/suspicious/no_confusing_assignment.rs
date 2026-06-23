@@ -63,9 +63,9 @@ impl LintRule for NoConfusingAssignment {
                 let edits = ctx
                     .edit_builder()
                     .replace(condition_span, replacement)
-                    .into_edits();
+                    .into_patches();
                 let fix = LintFix::safe("Wrap assignment in explicit extra parentheses")
-                    .with_edits(edits);
+                    .with_patches(edits);
 
                 ctx.report(
                     LintReport::new(

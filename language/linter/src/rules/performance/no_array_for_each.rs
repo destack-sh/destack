@@ -207,8 +207,8 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(self.ctx.get_span(statement_id), replacement)
-            .into_edits();
-        Some(LintFix::r#unsafe("Rewrite forEach callback as for-of loop").with_edits(edits))
+            .into_patches();
+        Some(LintFix::r#unsafe("Rewrite forEach callback as for-of loop").with_patches(edits))
     }
 
     /// Choose one loop binding name that stays valid after callback flattening.

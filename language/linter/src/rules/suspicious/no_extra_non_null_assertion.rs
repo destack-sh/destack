@@ -75,8 +75,8 @@ impl LintRule for NoExtraNonNullAssertion {
                 let edits = ctx
                     .edit_builder()
                     .replace(outer_span, inner_text)
-                    .into_edits();
-                let fix = LintFix::safe("Remove extra `!`").with_edits(edits);
+                    .into_patches();
+                let fix = LintFix::safe("Remove extra `!`").with_patches(edits);
                 diagnostic = diagnostic.fix(fix);
             }
 

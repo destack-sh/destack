@@ -4,7 +4,7 @@ use destack_artifact::{DirExpanded, DirParsed};
 use destack_dir as dir;
 use destack_dir::{LanguageItem, StringId, StringPool};
 use destack_repository::{LintSeverity, LinterOptions, Module, Profile};
-use destack_source::{EditBuilder, File, FileId, ModuleId, Span};
+use destack_source::{File, FileId, ModuleId, PatchBuilder, Span};
 
 use crate::linter::library::is_library_module;
 use crate::rules::common::expression_path_segments;
@@ -656,9 +656,9 @@ impl<'a> LintModuleContext<'a> {
         &self.file.text()[span.start as usize..span.end as usize]
     }
 
-    /// Create an EditBuilder with source text for text-aware operations.
-    pub fn edit_builder(&self) -> EditBuilder<'_> {
-        EditBuilder::from_file(self.module.file_id, self.file.text())
+    /// Create a PatchBuilder with source text for text-aware operations.
+    pub fn edit_builder(&self) -> PatchBuilder<'_> {
+        PatchBuilder::from_file(self.module.file_id, self.file.text())
     }
 
     /// Return a constant value if the expression can be evaluated.

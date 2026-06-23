@@ -157,8 +157,9 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
                 .ctx
                 .edit_builder()
                 .replace(span, value_text)
-                .into_edits();
-            let fix = LintFix::safe("Remove unnecessary template interpolation").with_edits(edits);
+                .into_patches();
+            let fix =
+                LintFix::safe("Remove unnecessary template interpolation").with_patches(edits);
             diagnostic = diagnostic.fix(fix);
         }
 

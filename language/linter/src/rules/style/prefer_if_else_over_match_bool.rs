@@ -178,8 +178,8 @@ fn prefer_if_else_over_match_bool_fix(
         }
     }
 
-    let edits = edit_builder.into_edits();
-    Some(LintFix::safe("Rewrite boolean match to if/else").with_edits(edits))
+    let edits = edit_builder.into_patches();
+    Some(LintFix::safe("Rewrite boolean match to if/else").with_patches(edits))
 }
 
 /// Return `(bool_value, body_expression)` for one simple boolean expression case.

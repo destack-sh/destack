@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_source::{BatchEdit, Edit, FileEdit, FileId, ModuleId, Span};
+use destack_source::{FileId, FilePatch, ModuleId, Patch, PatchSet, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::core::{ModuleQueryContext, QueryPosition, WorkspaceQueryContext};
@@ -21,7 +21,7 @@ pub struct InlineRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct InlineResponse {
     /// Inline edit, if available.
-    pub edit: Option<BatchEdit>,
+    pub edit: Option<PatchSet>,
 }
 
 /// Replacement strategy for an inline reference.
@@ -452,7 +452,7 @@ impl ModuleQueryContext<'_> {
         &self,
         workspace: &WorkspaceQueryContext<'_>,
         offset: u32,
-    ) -> Option<BatchEdit> {
+    ) -> Option<PatchSet> {
         let ctx = self;
         let repository = ctx.repository();
         let revision = ctx.revision();
@@ -520,7 +520,7 @@ impl ModuleQueryContext<'_> {
             return None;
         }
 
-        let mut edits_by_file: HashMap<FileId, Vec<Edit>> = HashMap::new();
+        let mut edits_by_file: HashMap<FileId, Vec<Patch>> = HashMap::new();
         let reference_name = ctx.symbol_name(canonical_id);
         let reference_entries =
             ctx.collect_inline_reference_entries(canonical_id, file, reference_name);
@@ -579,7 +579,7 @@ impl ModuleQueryContext<'_> {
             edits_by_file
                 .entry(entry.span.file)
                 .or_default()
-                .push(Edit::replace(entry.span, replacement_text));
+                .push(Patch::replace(entry.span, replacement_text));
         }
 
         // remove the declaration statement or declarator
@@ -593,12 +593,12 @@ impl ModuleQueryContext<'_> {
         edits_by_file
             .entry(file)
             .or_default()
-            .push(Edit::replace(removal_span, String::new()));
+            .push(Patch::replace(removal_span, String::new()));
 
         // build batch edits
-        let mut batch_edit = BatchEdit::new();
+        let mut batch_edit = PatchSet::new();
         for (file_id, edits) in edits_by_file {
-            let mut file_edit = FileEdit::with_edits(file_id, edits);
+            let mut file_edit = FilePatch::with_patches(file_id, edits);
             file_edit.sort();
             batch_edit.push(file_edit);
         }

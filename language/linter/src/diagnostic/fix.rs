@@ -1,13 +1,13 @@
 use destack_artifact::{DiagnosticAnchor, DiagnosticContext, DiagnosticError};
-use destack_source::{Applicability, BatchEdit, DiagnosticSuggestion, Edit, FileId, Span};
+use destack_source::{Applicability, DiagnosticSuggestion, FileId, Patch, PatchSet, Span};
 
 /// A suggested fix for a lint.
 #[derive(Debug, Clone)]
 pub struct LintFix {
     /// Description of the fix.
     pub description: String,
-    /// Edits to apply.
-    pub edits: Vec<Edit>,
+    /// Patches to apply.
+    pub patches: Vec<Patch>,
     /// How safe the fix is to apply automatically.
     pub applicability: Fixability,
 }
@@ -17,7 +17,7 @@ impl LintFix {
     pub fn new(description: impl Into<String>, applicability: Fixability) -> Self {
         Self {
             description: description.into(),
-            edits: Vec::new(),
+            patches: Vec::new(),
             applicability,
         }
     }
@@ -37,33 +37,33 @@ impl LintFix {
         Self::new(description, Fixability::Suggestion)
     }
 
-    /// Add an edit.
-    pub fn with_edit(mut self, edit: Edit) -> Self {
-        self.edits.push(edit);
+    /// Add one patch.
+    pub fn with_patch(mut self, patch: Patch) -> Self {
+        self.patches.push(patch);
         self
     }
 
-    /// Add multiple edits.
-    pub fn with_edits(mut self, edits: impl IntoIterator<Item = Edit>) -> Self {
-        self.edits.extend(edits);
+    /// Add multiple patches.
+    pub fn with_patches(mut self, patches: impl IntoIterator<Item = Patch>) -> Self {
+        self.patches.extend(patches);
         self
     }
 
-    /// Add a replacement edit.
+    /// Add a replacement patch.
     pub fn replace(mut self, span: Span, new_text: impl Into<String>) -> Self {
-        self.edits.push(Edit::replace(span, new_text));
+        self.patches.push(Patch::replace(span, new_text));
         self
     }
 
-    /// Add a deletion edit.
+    /// Add a deletion patch.
     pub fn delete(mut self, span: Span) -> Self {
-        self.edits.push(Edit::delete(span));
+        self.patches.push(Patch::delete(span));
         self
     }
 
-    /// Add an insertion edit at a position in a file.
+    /// Add an insertion patch at a position in a file.
     pub fn insert(mut self, file: FileId, position: u32, text: impl Into<String>) -> Self {
-        self.edits.push(Edit::insert(file, position, text));
+        self.patches.push(Patch::insert(file, position, text));
         self
     }
 
@@ -72,26 +72,26 @@ impl LintFix {
         &self,
         context: &dyn DiagnosticContext,
     ) -> Result<DiagnosticSuggestion, DiagnosticError> {
-        let edits = self
-            .edits
+        let patches = self
+            .patches
             .iter()
             .cloned()
-            .fold(BatchEdit::new(), |mut batch, edit| {
-                batch.add(edit);
+            .fold(PatchSet::new(), |mut batch, patch| {
+                batch.add(patch);
                 batch
             });
         let labels = self
-            .edits
+            .patches
             .iter()
             .enumerate()
-            .map(|(index, edit)| {
+            .map(|(index, patch)| {
                 if index == 0 {
                     context.label(
-                        &DiagnosticAnchor::Span(edit.span),
+                        &DiagnosticAnchor::Span(patch.span),
                         Some(self.description.clone()),
                     )
                 } else {
-                    context.label(&DiagnosticAnchor::Span(edit.span), None)
+                    context.label(&DiagnosticAnchor::Span(patch.span), None)
                 }
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -102,7 +102,7 @@ impl LintFix {
             Fixability::Suggestion => Applicability::Dangerous,
         };
         let mut suggestion =
-            DiagnosticSuggestion::new(self.description.clone(), edits, applicability);
+            DiagnosticSuggestion::new(self.description.clone(), patches, applicability);
         suggestion.labels = labels;
 
         Ok(suggestion)

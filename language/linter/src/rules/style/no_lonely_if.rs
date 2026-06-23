@@ -101,8 +101,8 @@ impl LintRule for NoLonelyIf {
                     let edits = ctx
                         .edit_builder()
                         .replace(else_span, lonely_text)
-                        .into_edits();
-                    let fix = LintFix::safe("Convert to `else if`").with_edits(edits);
+                        .into_patches();
+                    let fix = LintFix::safe("Convert to `else if`").with_patches(edits);
                     diagnostic = diagnostic.fix(fix);
                 }
 

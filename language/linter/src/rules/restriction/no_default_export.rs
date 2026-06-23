@@ -180,8 +180,10 @@ fn default_export_declaration_fix(
     let edits = ctx
         .edit_builder()
         .replace(declaration_span, replacement)
-        .into_edits();
-    Some(LintFix::r#unsafe("Rewrite default declaration export to named export").with_edits(edits))
+        .into_patches();
+    Some(
+        LintFix::r#unsafe("Rewrite default declaration export to named export").with_patches(edits),
+    )
 }
 
 #[cfg(test)]

@@ -300,9 +300,9 @@ fn prefer_expression_fix(
         .edit_builder()
         .replace(ctx.dir.get_span(candidate.let_expression_id), replacement)
         .replace(ctx.dir.get_span(candidate.if_expression_id), "")
-        .into_edits();
+        .into_patches();
 
-    Some(LintFix::safe("Rewrite adjacent let-if assignment to expression form").with_edits(edits))
+    Some(LintFix::safe("Rewrite adjacent let-if assignment to expression form").with_patches(edits))
 }
 
 /// Return the simple binding name from one pattern.

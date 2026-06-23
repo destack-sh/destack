@@ -75,8 +75,8 @@ impl LintRule for NoUselessComputedKey {
                 let edits = ctx
                     .edit_builder()
                     .replace(key_span, replacement_text)
-                    .into_edits();
-                let fix = LintFix::safe("Convert to static key").with_edits(edits);
+                    .into_patches();
+                let fix = LintFix::safe("Convert to static key").with_patches(edits);
                 diagnostic = diagnostic.fix(fix);
             }
 

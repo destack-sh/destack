@@ -3,7 +3,7 @@ use destack_serde::Schema;
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::NodeVisitor;
-use destack_source::{BatchEdit, Edit, FileEdit, ModuleId, Span};
+use destack_source::{FilePatch, ModuleId, Patch, PatchSet, Span};
 use serde::{Deserialize, Serialize};
 
 use super::extract::{expression_text_for_insert, line_start_and_indent};
@@ -24,7 +24,7 @@ pub struct ExtractFunctionRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
 pub struct ExtractFunctionResponse {
     /// Extract function edit, if available.
-    pub edit: Option<BatchEdit>,
+    pub edit: Option<PatchSet>,
 }
 
 /// Selection metadata for extracting statements.
@@ -349,7 +349,7 @@ impl dir::NodeVisitor for ReferenceCollector<'_> {
 
 impl ModuleQueryContext<'_> {
     /// Extract a selection into a new function.
-    pub fn extract_function(&self, selection: Span, new_name: &str) -> Option<BatchEdit> {
+    pub fn extract_function(&self, selection: Span, new_name: &str) -> Option<PatchSet> {
         let ctx = self;
         // validate the function name
         if !is_simple_identifier(new_name) {
@@ -386,7 +386,7 @@ impl ModuleQueryContext<'_> {
         expr_id: dir::LocalNodeId<dir::Expression>,
         expr_span: Span,
         new_name: &str,
-    ) -> Option<BatchEdit> {
+    ) -> Option<PatchSet> {
         let ctx = self;
         // resolve source text for edits
         let expr_text = source_file.span_str(expr_span);
@@ -436,8 +436,8 @@ impl ModuleQueryContext<'_> {
         );
 
         // insert the function definition before the statement
-        let mut file_edit = FileEdit::new(ctx.file_id());
-        file_edit.push(Edit::insert(ctx.file_id(), line_start, function_text));
+        let mut file_edit = FilePatch::new(ctx.file_id());
+        file_edit.push(Patch::insert(ctx.file_id(), line_start, function_text));
 
         // replace the selection with a function call
         let call_text = if call_arguments.is_empty() {
@@ -450,12 +450,12 @@ impl ModuleQueryContext<'_> {
         } else {
             call_text
         };
-        file_edit.push(Edit::replace(expr_span, call_text));
+        file_edit.push(Patch::replace(expr_span, call_text));
 
         // sort edits for deterministic application
         file_edit.sort();
 
-        let mut batch_edit = BatchEdit::new();
+        let mut batch_edit = PatchSet::new();
         batch_edit.push(file_edit);
 
         Some(batch_edit)
@@ -468,7 +468,7 @@ impl ModuleQueryContext<'_> {
         source: &str,
         selection: &StatementSelection,
         new_name: &str,
-    ) -> Option<BatchEdit> {
+    ) -> Option<PatchSet> {
         let ctx = self;
         // resolve source text for edits
         let selection_text = source_file.span_str(selection.extraction_span);
@@ -515,8 +515,8 @@ impl ModuleQueryContext<'_> {
         );
 
         // insert the function definition before the statement block
-        let mut file_edit = FileEdit::new(ctx.file_id());
-        file_edit.push(Edit::insert(ctx.file_id(), line_start, function_text));
+        let mut file_edit = FilePatch::new(ctx.file_id());
+        file_edit.push(Patch::insert(ctx.file_id(), line_start, function_text));
 
         // replace the selection with a function call (and output bindings when needed)
         let call_text = if call_arguments.is_empty() {
@@ -546,12 +546,12 @@ impl ModuleQueryContext<'_> {
                 format!("{keyword} ({names}) = {call_text};")
             }
         };
-        file_edit.push(Edit::replace(selection.extraction_span, replacement));
+        file_edit.push(Patch::replace(selection.extraction_span, replacement));
 
         // sort edits for deterministic application
         file_edit.sort();
 
-        let mut batch_edit = BatchEdit::new();
+        let mut batch_edit = PatchSet::new();
         batch_edit.push(file_edit);
 
         Some(batch_edit)

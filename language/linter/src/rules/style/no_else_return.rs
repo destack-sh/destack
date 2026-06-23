@@ -137,9 +137,9 @@ fn no_else_return_fix(
     let edits = ctx
         .edit_builder()
         .replace(if_span, replacement)
-        .into_edits();
+        .into_patches();
 
-    Some(LintFix::safe("Remove unnecessary else").with_edits(edits))
+    Some(LintFix::safe("Remove unnecessary else").with_patches(edits))
 }
 
 /// Return true when one block contains binding declarations at top level.

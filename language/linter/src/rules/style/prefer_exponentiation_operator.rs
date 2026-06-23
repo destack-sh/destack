@@ -165,9 +165,9 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(expression_span, replacement)
-            .into_edits();
+            .into_patches();
 
-        Some(LintFix::safe("Replace Math.pow() with **").with_edits(edits))
+        Some(LintFix::safe("Replace Math.pow() with **").with_patches(edits))
     }
 
     /// Return true when the expression is Math.pow.

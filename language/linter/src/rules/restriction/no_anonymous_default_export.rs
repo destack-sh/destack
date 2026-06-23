@@ -173,8 +173,8 @@ fn anonymous_default_declaration_fix(
     let edits = ctx
         .edit_builder()
         .replace(declaration_span, replacement)
-        .into_edits();
-    Some(LintFix::r#unsafe("Add explicit name to anonymous default export").with_edits(edits))
+        .into_patches();
+    Some(LintFix::r#unsafe("Add explicit name to anonymous default export").with_patches(edits))
 }
 
 /// The declaration kind for anonymous default export rewrites.

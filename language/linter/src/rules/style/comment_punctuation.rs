@@ -160,8 +160,8 @@ fn inline_comment_trailing_period_fix(
         comment_span.start + offset as u32,
         comment_span.start + offset as u32 + 1,
     );
-    let edits = ctx.edit_builder().delete(period_span).into_edits();
-    Some(LintFix::safe("Remove trailing comment period").with_edits(edits))
+    let edits = ctx.edit_builder().delete(period_span).into_patches();
+    Some(LintFix::safe("Remove trailing comment period").with_patches(edits))
 }
 
 #[cfg(test)]

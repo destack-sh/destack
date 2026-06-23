@@ -88,8 +88,8 @@ impl LintRule for PreferFragmentShorthand {
             let edits = ctx
                 .edit_builder()
                 .replace(expression_span, replacement)
-                .into_edits();
-            let fix = LintFix::safe("Convert to fragment shorthand").with_edits(edits);
+                .into_patches();
+            let fix = LintFix::safe("Convert to fragment shorthand").with_patches(edits);
 
             ctx.report(
                 LintReport::new(

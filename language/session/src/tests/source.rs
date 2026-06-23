@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use destack_repository::{DestackLayoutOverride, Environment, Ref, Settings};
-use destack_source::FileId;
+use destack_source::{ByteRange, Edit, FileId, TextPatch};
 
 use super::TestSession;
-use crate::{Edit, TextEdit, TextRange, open_repository_from_memory};
+use crate::open_repository_from_memory;
 
 #[test]
 fn test_open_imports_root_package_sources() {
@@ -103,8 +103,8 @@ fn test_open_memory_applies_ordered_edits() {
             },
             Edit::EditText {
                 path: PathBuf::from("src/index.ds"),
-                edits: vec![TextEdit {
-                    range: TextRange { start, end },
+                patches: vec![TextPatch {
+                    range: ByteRange { start, end },
                     text: "2".to_string(),
                 }],
             },
@@ -460,8 +460,8 @@ fn test_edit_materializes_text_edits() {
 
     let commit = test.edit(vec![Edit::EditText {
         path: "src/index.ds".into(),
-        edits: vec![TextEdit {
-            range: TextRange { start: 21, end: 22 },
+        patches: vec![TextPatch {
+            range: ByteRange { start: 21, end: 22 },
             text: "2".to_string(),
         }],
     }]);

@@ -181,8 +181,8 @@ fn report_longform_property_if_needed(
             let edits = ctx
                 .edit_builder()
                 .replace(property_span, property_name.clone())
-                .into_edits();
-            let fix = LintFix::safe("Use property shorthand").with_edits(edits);
+                .into_patches();
+            let fix = LintFix::safe("Use property shorthand").with_patches(edits);
             diagnostic = diagnostic.fix(fix);
         }
 
@@ -247,8 +247,8 @@ fn report_shorthand_property_if_needed(
         let edits = ctx
             .edit_builder()
             .replace(property_span, replacement)
-            .into_edits();
-        let fix = LintFix::safe("Use longform property form").with_edits(edits);
+            .into_patches();
+        let fix = LintFix::safe("Use longform property form").with_patches(edits);
         diagnostic = diagnostic.fix(fix);
     }
 

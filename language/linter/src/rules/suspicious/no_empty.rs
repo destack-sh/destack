@@ -83,8 +83,8 @@ impl LintRule for NoEmpty {
                 let edits = ctx
                     .edit_builder()
                     .replace(span, "{\n    // intentionally empty\n}")
-                    .into_edits();
-                let fix = LintFix::safe("Add intentional empty block comment").with_edits(edits);
+                    .into_patches();
+                let fix = LintFix::safe("Add intentional empty block comment").with_patches(edits);
                 diagnostic = diagnostic.fix(fix);
             }
 

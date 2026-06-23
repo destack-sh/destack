@@ -104,8 +104,8 @@ fn no_sequences_fix(
     let edits = ctx
         .edit_builder()
         .replace(ctx.dir.get_span(statement_expression_id), replacement_text)
-        .into_edits();
-    Some(LintFix::safe("Split sequence into separate statements").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Split sequence into separate statements").with_patches(edits))
 }
 
 /// Return true when one sequence expression appears in for init or increment.

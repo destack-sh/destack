@@ -115,9 +115,9 @@ fn no_constructor_return_fix(
     let edits = ctx
         .edit_builder()
         .replace(ctx.get_span(return_expression_id), replacement)
-        .into_edits();
+        .into_patches();
 
-    Some(LintFix::r#unsafe("Drop constructor return value").with_edits(edits))
+    Some(LintFix::r#unsafe("Drop constructor return value").with_patches(edits))
 }
 
 /// Return statement-safe text for one constructor return value expression.

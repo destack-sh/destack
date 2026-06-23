@@ -72,9 +72,9 @@ impl LintRule for NoEmptyStaticBlock {
                 let edits = ctx
                     .edit_builder()
                     .replace(block_span, "{\n        // intentionally empty\n    }")
-                    .into_edits();
+                    .into_patches();
                 let fix = LintFix::suggestion("Add intentional empty static block comment")
-                    .with_edits(edits);
+                    .with_patches(edits);
                 diagnostic = diagnostic.fix(fix);
             }
 

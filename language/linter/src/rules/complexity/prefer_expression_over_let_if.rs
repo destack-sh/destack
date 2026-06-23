@@ -229,10 +229,10 @@ fn prefer_expression_over_let_if_fix(
     let edits = ctx
         .edit_builder()
         .replace(span, replacement_text)
-        .into_edits();
+        .into_patches();
     Some(
         LintFix::suggestion("Rewrite let-if chain as direct if-expression initialization")
-            .with_edits(edits),
+            .with_patches(edits),
     )
 }
 

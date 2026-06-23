@@ -286,8 +286,8 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(span, replacement)
-            .into_edits();
-        Some(LintFix::r#unsafe("Replace filter().length check with every()").with_edits(edits))
+            .into_patches();
+        Some(LintFix::r#unsafe("Replace filter().length check with every()").with_patches(edits))
     }
 
     /// Extract the array receiver text from a `receiver.length` expression.

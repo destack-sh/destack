@@ -374,8 +374,8 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(self.ctx.get_span(expression_id), replacement)
-            .into_edits();
-        Some(LintFix::r#unsafe("Rewrite index loop as for-of loop").with_edits(edits))
+            .into_patches();
+        Some(LintFix::r#unsafe("Rewrite index loop as for-of loop").with_patches(edits))
     }
 }
 

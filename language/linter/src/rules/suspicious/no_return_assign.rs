@@ -145,9 +145,9 @@ fn no_return_assign_fix(
     let edits = ctx
         .edit_builder()
         .replace(return_span, replacement)
-        .into_edits();
+        .into_patches();
 
-    Some(LintFix::r#unsafe("Move assignment out of return").with_edits(edits))
+    Some(LintFix::r#unsafe("Move assignment out of return").with_patches(edits))
 }
 
 /// Build a unique binding name not mentioned in the rewritten assignment subtree.

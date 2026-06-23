@@ -126,9 +126,9 @@ fn split_declarator_fix(
     let edits = ctx
         .edit_builder()
         .replace(statement_span, replacement)
-        .into_edits();
+        .into_patches();
 
-    Some(LintFix::safe("Split declarators into separate statements").with_edits(edits))
+    Some(LintFix::safe("Split declarators into separate statements").with_patches(edits))
 }
 
 /// Return true when one expression is the initializer of a for loop.

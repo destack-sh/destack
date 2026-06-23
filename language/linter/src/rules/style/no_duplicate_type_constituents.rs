@@ -149,9 +149,9 @@ fn report_duplicate_constituents(
             let edits = ctx
                 .edit_builder()
                 .replace(chain_span, replacement_text)
-                .into_edits();
+                .into_patches();
             let fix = LintFix::safe("Remove duplicate type constituents and keep unique members")
-                .with_edits(edits);
+                .with_patches(edits);
             diagnostic = diagnostic.fix(fix);
         }
 

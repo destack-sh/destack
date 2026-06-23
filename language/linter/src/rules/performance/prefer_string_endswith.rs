@@ -376,9 +376,9 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(expression_span, replacement)
-            .into_edits();
+            .into_patches();
 
-        Some(LintFix::safe("Replace slice() suffix check with endsWith()").with_edits(edits))
+        Some(LintFix::safe("Replace slice() suffix check with endsWith()").with_patches(edits))
     }
 
     /// Return one simple suffix string from a regex literal expression.
@@ -417,8 +417,8 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(expression_span, replacement)
-            .into_edits();
-        Some(LintFix::safe("Replace regex test() suffix check with endsWith()").with_edits(edits))
+            .into_patches();
+        Some(LintFix::safe("Replace regex test() suffix check with endsWith()").with_patches(edits))
     }
 
     /// Return true when the argument is `-suffix.length`.

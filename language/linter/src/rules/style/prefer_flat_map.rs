@@ -275,9 +275,9 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
             .ctx
             .edit_builder()
             .replace(expression_span, replacement)
-            .into_edits();
+            .into_patches();
 
-        Some(LintFix::safe("Replace map().flat() with flatMap()").with_edits(edits))
+        Some(LintFix::safe("Replace map().flat() with flatMap()").with_patches(edits))
     }
 }
 

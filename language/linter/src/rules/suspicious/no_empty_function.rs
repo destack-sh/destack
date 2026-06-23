@@ -192,8 +192,8 @@ fn no_empty_function_fix(
     let edits = ctx
         .edit_builder()
         .replace(block_span, "{\n    // intentionally empty\n}")
-        .into_edits();
-    Some(LintFix::safe("Add intentional empty function comment").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Add intentional empty function comment").with_patches(edits))
 }
 
 #[cfg(test)]

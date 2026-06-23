@@ -116,8 +116,8 @@ fn no_constant_condition_fix(
             let edits = ctx
                 .edit_builder()
                 .replace(ctx.dir.get_span(expression_id), replacement)
-                .into_edits();
-            return Some(LintFix::safe("Inline always-true condition branch").with_edits(edits));
+                .into_patches();
+            return Some(LintFix::safe("Inline always-true condition branch").with_patches(edits));
         }
 
         // use else branch when present
@@ -126,8 +126,8 @@ fn no_constant_condition_fix(
             let edits = ctx
                 .edit_builder()
                 .replace(ctx.dir.get_span(expression_id), replacement)
-                .into_edits();
-            return Some(LintFix::safe("Inline always-false else branch").with_edits(edits));
+                .into_patches();
+            return Some(LintFix::safe("Inline always-false else branch").with_patches(edits));
         }
 
         return None;

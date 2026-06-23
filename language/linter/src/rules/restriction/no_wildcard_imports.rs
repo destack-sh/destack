@@ -95,8 +95,8 @@ fn no_wildcard_imports_fix(
     }
 
     // build fix edits
-    let edits = ctx.edit_builder().delete(remove_span).into_edits();
-    Some(LintFix::r#unsafe("Remove wildcard import").with_edits(edits))
+    let edits = ctx.edit_builder().delete(remove_span).into_patches();
+    Some(LintFix::r#unsafe("Remove wildcard import").with_patches(edits))
 }
 
 /// Return a span that safely removes one import item from an import expression.

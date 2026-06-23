@@ -149,8 +149,8 @@ fn prefer_if_let_fix(
         }
     }
 
-    let edits = edit_builder.into_edits();
-    Some(LintFix::safe("Rewrite to if-let").with_edits(edits))
+    let edits = edit_builder.into_patches();
+    Some(LintFix::safe("Rewrite to if-let").with_patches(edits))
 }
 
 /// Render one expression case body for use as an if branch body.

@@ -49,8 +49,8 @@ impl LintRule for PreferPreciseNumeric {
             }
 
             let span = ctx.dir.get_span(node_id);
-            let edits = ctx.edit_builder().replace(span, "float64").into_edits();
-            let fix = LintFix::safe("Replace `number` with `float64`").with_edits(edits);
+            let edits = ctx.edit_builder().replace(span, "float64").into_patches();
+            let fix = LintFix::safe("Replace `number` with `float64`").with_patches(edits);
 
             ctx.report(
                 LintReport::new(

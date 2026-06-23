@@ -89,8 +89,8 @@ fn report_trailing_bare_return(
         && !span_has_comment(ctx.dir.tree(), return_span)
         && !return_has_trailing_comment(ctx, return_span)
     {
-        let edits = ctx.edit_builder().delete(return_span).into_edits();
-        let fix = LintFix::safe("Remove useless return").with_edits(edits);
+        let edits = ctx.edit_builder().delete(return_span).into_patches();
+        let fix = LintFix::safe("Remove useless return").with_patches(edits);
         diagnostic = diagnostic.fix(fix);
     }
 

@@ -290,8 +290,8 @@ fn promise_executor_return_fix(
         return None;
     }
 
-    let edits = builder.into_edits();
-    Some(LintFix::r#unsafe("Drop Promise executor return value").with_edits(edits))
+    let edits = builder.into_patches();
+    Some(LintFix::r#unsafe("Drop Promise executor return value").with_patches(edits))
 }
 
 #[cfg(test)]

@@ -110,9 +110,9 @@ impl LintRule for NoNegationInEqualityCheck {
                     let edits = ctx
                         .edit_builder()
                         .replace(expression_span, replacement)
-                        .into_edits();
+                        .into_patches();
                     let fix = LintFix::suggestion("Invert equality and remove leading negation")
-                        .with_edits(edits);
+                        .with_patches(edits);
                     diagnostic = diagnostic.fix(fix);
                 }
             }

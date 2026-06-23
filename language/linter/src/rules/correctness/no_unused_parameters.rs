@@ -231,8 +231,11 @@ fn unused_named_parameter_fix(
 
     // insert one leading underscore at the parameter name position
     let insert_position = parameter_span.start + insert_offset as u32;
-    let edits = ctx.edit_builder().insert(insert_position, "_").into_edits();
-    Some(LintFix::r#unsafe("Prefix unused parameter with `_`").with_edits(edits))
+    let edits = ctx
+        .edit_builder()
+        .insert(insert_position, "_")
+        .into_patches();
+    Some(LintFix::r#unsafe("Prefix unused parameter with `_`").with_patches(edits))
 }
 
 /// Return true when this symbol is a value space binding.

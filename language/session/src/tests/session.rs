@@ -9,9 +9,9 @@ use destack_repository::{
     DestackLayoutOverride, Environment, Execution, Host, Ref, Repository, Revision, Settings,
     TraceSnapshot, TraceView,
 };
-use destack_source::{FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
+use destack_source::{Edit, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 
-use crate::{Change, Commit, Edit, Session, SessionError, open_repository};
+use crate::{Change, Commit, Session, SessionError, open_repository};
 
 const DEFAULT_ROOT: &str = "/workspace";
 

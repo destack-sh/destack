@@ -573,7 +573,7 @@ fn current_workspace_revision(repository: &Repository) -> Revision {
 mod tests {
     use std::collections::HashMap;
 
-    use destack_query::{CompletionTrigger, completions};
+    use destack_query::CompletionTrigger;
 
     use super::QueryTestSession;
     use crate::core::SharedMemoryWorkspace;
@@ -641,7 +641,7 @@ function main() {
         // request completions at the member access cursor
         let context = session.primary_module_context();
         let workspace = session.workspace_context();
-        let completions = completions(&context, &workspace, cursor, CompletionTrigger::Invoked);
+        let completions = context.completions(&workspace, cursor, CompletionTrigger::Invoked);
         let labels: Vec<_> = completions
             .iter()
             .map(|completion| completion.label.clone())
@@ -674,7 +674,7 @@ $0
         // request completions at the statement cursor
         let context = session.primary_module_context();
         let workspace = session.workspace_context();
-        let completions = completions(&context, &workspace, cursor, CompletionTrigger::Invoked);
+        let completions = context.completions(&workspace, cursor, CompletionTrigger::Invoked);
         let labels: Vec<_> = completions
             .iter()
             .map(|completion| completion.label.clone())
@@ -731,7 +731,7 @@ $0
         // request completions through the shared-session path
         let context = session.primary_module_context();
         let workspace = session.workspace_context();
-        let completions = completions(&context, &workspace, cursor, CompletionTrigger::Invoked);
+        let completions = context.completions(&workspace, cursor, CompletionTrigger::Invoked);
         let labels: Vec<_> = completions
             .iter()
             .map(|completion| completion.label.clone())

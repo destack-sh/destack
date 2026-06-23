@@ -393,8 +393,8 @@ fn build_no_extra_boolean_cast_fix(
     let edits = ctx
         .edit_builder()
         .replace(span, replacement_text)
-        .into_edits();
-    Some(LintFix::safe("Remove redundant boolean cast").with_edits(edits))
+        .into_patches();
+    Some(LintFix::safe("Remove redundant boolean cast").with_patches(edits))
 }
 
 /// Return true when one replacement expression needs protective parentheses.

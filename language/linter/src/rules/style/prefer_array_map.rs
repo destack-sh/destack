@@ -370,8 +370,8 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         let statement_span = self.ctx.get_span(statement_id);
         let statement_span = expand_span_to_statement_terminator(source, statement_span);
         edit_builder = edit_builder.replace(statement_span, "");
-        let edits = edit_builder.into_edits();
-        Some(LintFix::r#unsafe("Rewrite forEach push loop as map assignment").with_edits(edits))
+        let edits = edit_builder.into_patches();
+        Some(LintFix::r#unsafe("Rewrite forEach push loop as map assignment").with_patches(edits))
     }
 
     /// Return true when the receiver expression is an array type.
