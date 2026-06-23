@@ -32,7 +32,6 @@ global {
         NonNullable,
         Omit,
         OmitThisParameter,
-        Option,
         Parameters,
         Partial,
         Pick,
@@ -250,7 +249,15 @@ global {
     } from "destack:async";
 
     // destack:iter
-    export { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
+    export {
+        Extend,
+        FromIterator,
+        Iterable,
+        Iterator,
+        IteratorResult,
+        IteratorReturn,
+        IteratorYield,
+    } from "destack:iter";
 
     // destack:collections
     export {

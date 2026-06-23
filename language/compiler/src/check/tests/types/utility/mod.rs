@@ -8,7 +8,6 @@ mod mutable;
 mod noinfer;
 mod nonnullable;
 mod omit;
-mod option;
 mod parameter;
 mod partial;
 mod pick;

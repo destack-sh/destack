@@ -784,8 +784,9 @@ All statically known types and constants share the same static evaluation logic,
 ```ds
 newtype interface Iterator {
     type Item;
+    type Return = void;
 
-    next(): Option<this.Item>;
+    next(): IteratorResult<this.Item, this.Return>;
 }
 
 function collect<I: Iterator>(iter: I): I.Item[] {}
@@ -841,7 +842,7 @@ interface Matrix<Row> {
 Associated members (both types and constants) can be refined explicitly at application sites whenever an erased or constrained value needs a concrete associated surface with `type Name = T` for types and `comptime Name = value` for constants.
 
 ```ds
-declare function read<I: Iterator<type Item = uint8>>(iter: I): Option<uint8>;
+declare function read<I: Iterator<type Item = uint8>>(iter: I): IteratorResult<uint8>;
 declare function readBlock<T: RegisterBlock<comptime Width = 16>>(block: T): [uint8; 16];
 ```
 
@@ -1340,8 +1341,8 @@ match (point) {
     _ => "neither" // required fallback
 }
 
-declare const maybe: Option<int32>;
-let value! = maybe else {
+declare const result: Result<int32, string>;
+let Result.Ok(value)! = result else {
     return Result.err("missing value");
 };
 ```

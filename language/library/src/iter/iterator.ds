@@ -1,13 +1,38 @@
 import { Access, WithAccess } from "destack:memory";
-import { Option } from "destack:types";
+
+/// The union of iterator yield and completion results.
+@languageItem("iter.IteratorResult")
+@derive(Tagged)
+export newtype IteratorResult<Y, R = void> = IteratorYield<Y> | IteratorReturn<R>;
+
+/// A yielded iterator value.
+@languageItem("iter.IteratorYield")
+export struct IteratorYield<Y> {
+    /// The result tag.
+    kind: "yield" = "yield";
+
+    /// The yielded value.
+    value: Y;
+}
+
+/// A completed iterator value.
+@languageItem("iter.IteratorReturn")
+export struct IteratorReturn<R = void> {
+    /// The result tag.
+    kind: "return" = "return";
+
+    /// The return value.
+    value: R;
+}
 
 /// A protocol for producing a sequence of values.
 @languageItem("iter.Iterator")
 export newtype interface Iterator {
     type Item;
+    type Return = void;
 
-    /// Advance and return the next item, or `null` when exhausted.
-    next(): Option<this.Item>;
+    /// Advance and return the next yield or completion.
+    next(): IteratorResult<this.Item, this.Return>;
 }
 
 /// A value that can produce an iterator.

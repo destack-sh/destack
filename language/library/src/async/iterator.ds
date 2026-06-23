@@ -1,4 +1,4 @@
-import { Option } from "destack:types";
+import { IteratorResult } from "destack:iter";
 
 import { Promise } from "./promise.ds";
 
@@ -6,9 +6,10 @@ import { Promise } from "./promise.ds";
 @languageItem("async.AsyncIterator")
 export newtype interface AsyncIterator {
     type Item;
+    type Return = void;
 
-    /// Advance and return the next item, or `null` when exhausted.
-    next(): Promise<Option<this.Item>>;
+    /// Advance and return the next yield or completion.
+    next(): Promise<IteratorResult<this.Item, this.Return>>;
 }
 
 /// Value that can produce an async iterator.
