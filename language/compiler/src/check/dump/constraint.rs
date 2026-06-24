@@ -10,7 +10,7 @@ impl Constraint {
         finished: bool,
         context: &DumpContext<'_, '_>,
     ) -> ArtifactEvent {
-        ArtifactEvent::new("relation.check")
+        ArtifactEvent::new("relation.checked")
             .debug()
             .text("id", context.constraint_label(id))
             .text("relation", context.relation_label(self.relation))

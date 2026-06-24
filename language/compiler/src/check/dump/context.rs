@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
 use crate::check::{
-    CheckState, ConstraintCause, ConstraintId, Dependency, ObligationId, Origin, Relation, Task,
+    CheckState, ConstraintCause, ConstraintId, Dependency, ObligationId, Origin, Relation,
 };
 
 /// Rendering context for check trace values.
@@ -100,29 +100,6 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         dependencies
             .iter()
             .map(|dependency| self.dependency_label(*dependency))
-            .collect::<Vec<_>>()
-            .join(", ")
-    }
-
-    /// Return a compact task label.
-    pub(in crate::check) fn task_label(&self, task: Task) -> String {
-        match task {
-            Task::Relate(constraint) => format!("relate {}", self.constraint_label(constraint)),
-            Task::Select(node) => format!("select {}", self.node_label(node)),
-            Task::Solve(variable) => format!("solve {}", self.variable_label(variable)),
-            Task::Oblige(obligation) => format!("oblige {}", self.obligation_label(obligation)),
-        }
-    }
-
-    /// Return a compact task list label.
-    pub(in crate::check) fn task_list_label(&self, tasks: &[Task]) -> String {
-        if tasks.is_empty() {
-            return "none".to_string();
-        }
-
-        tasks
-            .iter()
-            .map(|task| self.task_label(*task))
             .collect::<Vec<_>>()
             .join(", ")
     }

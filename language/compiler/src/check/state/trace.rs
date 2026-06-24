@@ -23,6 +23,17 @@ pub(in crate::check) struct CheckStats {
     pub(in crate::check) decisions: usize,
 }
 
+/// The bounds visible when one variable event was recorded.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(in crate::check) struct VariableBounds {
+    /// Types that must be assignable to the variable.
+    pub(in crate::check) lower: SmallVec<[dir::GlobalTypeId; 2]>,
+    /// Types the variable must be assignable to.
+    pub(in crate::check) upper: SmallVec<[dir::GlobalTypeId; 2]>,
+    /// The default solution applied when no bounds arrive.
+    pub(in crate::check) default: Option<dir::GlobalTypeId>,
+}
+
 /// One event emitted by check.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::check) enum CheckEvent {
@@ -79,6 +90,8 @@ pub(in crate::check) enum CheckEvent {
     VariableBlocked {
         /// The blocked variable.
         variable: dir::TypeVariableId,
+        /// The bounds present when the solve blocked.
+        bounds: VariableBounds,
         /// The dependencies blocking the solve.
         blockers: SmallVec<[Dependency; 2]>,
     },
@@ -86,6 +99,8 @@ pub(in crate::check) enum CheckEvent {
     VariableUnsolved {
         /// The unsolved variable.
         variable: dir::TypeVariableId,
+        /// The bounds present when the solve stayed open.
+        bounds: VariableBounds,
     },
     /// Two open variables were aliased.
     VariableAliased {
