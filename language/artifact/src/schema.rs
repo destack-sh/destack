@@ -2,10 +2,10 @@ use destack_serde::SchemaRegistry;
 
 use crate::{
     ArtifactDependency, ArtifactEventLog, ArtifactKey, ArtifactPayload, ArtifactRecord,
-    ArtifactSidecar, ArtifactVersion, Asset, Build, BuildLinkage, BuildManifest, BuildProfile,
-    Bundle, BundleFile, BundleMode, BundleSection, ComponentGraph, Data, Declaration, DirBound,
-    DirChecked, DirCheckedComponent, DirElaborated, DirExpanded, DirExported, DirImported,
-    DirMaterialized, DirParsed, DirResolved, EmitFormat, GlobalEnvironment, Host,
+    ArtifactReference, ArtifactSidecar, ArtifactVersion, Asset, Build, BuildLinkage, BuildManifest,
+    BuildProfile, Bundle, BundleFile, BundleMode, BundleSection, ComponentGraph, Data, Declaration,
+    DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded, DirExported,
+    DirImported, DirMaterialized, DirParsed, DirResolved, EmitFormat, GlobalEnvironment, Host,
     LanguageEnvironment, LanguageIntrinsics, MirAnalyzed, MirLowered, MirOptimized, MirVerified,
     ModuleLinted, ModuleQueryIndex, Object, ObjectFormat, PackageIndex, PackageLinted, Platform,
     Product, ProductTarget, ProgramAnalysis, Runtime, Script, ScriptBody, ScriptLanguage,
@@ -20,6 +20,7 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<ArtifactSidecar>();
     registry.register::<ArtifactRecord>();
     registry.register::<ArtifactPayload>();
+    registry.register::<ArtifactReference>();
 
     registry.register::<BuildProfile>();
     registry.register::<BuildLinkage>();

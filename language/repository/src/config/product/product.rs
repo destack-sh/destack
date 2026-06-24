@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{Policy, Stage};
@@ -7,7 +8,7 @@ use crate::{Policy, Stage};
 use super::App;
 
 /// Product assembled from one or more build targets.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]

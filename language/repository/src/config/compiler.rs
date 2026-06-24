@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::config::target::{EsTarget, JsModuleFormat};
@@ -8,7 +9,7 @@ use crate::config::target::{EsTarget, JsModuleFormat};
 ///
 /// `.ds` semantics are always strict; these options only describe project,
 /// build, interop, and compile-time policy.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -61,7 +62,9 @@ pub struct CompilerOptions {
 }
 
 /// Well-known compiler-owned derive provider.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "PascalCase")]
 pub enum Derive {
@@ -138,7 +141,7 @@ impl CompilerOptions {
 }
 
 /// Static semantic restrictions enforced by the compiler.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -200,7 +203,7 @@ impl CompilerRestrictions {
 }
 
 /// Diagnostic policy for allow/warn/deny enforcement.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum DiagnosticPolicy {

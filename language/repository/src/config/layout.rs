@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -14,7 +15,7 @@ const UNIX_DESTACK_HOME_DIRECTORY: &str = ".destack";
 const WINDOWS_DESTACK_HOME_DIRECTORY: &str = "Destack";
 
 /// Resolved Destack storage layout for one invocation.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct DestackLayout {
@@ -77,7 +78,7 @@ impl DestackLayout {
 }
 
 /// Invocation-level layout overrides.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
