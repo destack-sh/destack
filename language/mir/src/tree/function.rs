@@ -126,6 +126,39 @@ impl Node for Function {
 }
 
 impl Function {
+    /// Return the dense value table capacity for this function.
+    pub fn value_capacity(&self) -> usize {
+        self.next_value_id as usize
+    }
+
+    /// Return the dense local table capacity for this function.
+    pub fn local_capacity(&self) -> usize {
+        self.locals
+            .iter()
+            .map(|local| local.id as usize + 1)
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// Return the dense block table capacity for this function.
+    pub fn block_capacity(&self) -> usize {
+        self.blocks
+            .iter()
+            .map(|block| block.id as usize + 1)
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// Return the dense instruction table capacity for this function.
+    pub fn instruction_capacity(&self, tree: &Tree) -> usize {
+        self.blocks
+            .iter()
+            .flat_map(|block| tree.get(*block).instructions.iter())
+            .map(|instruction| instruction.id as usize + 1)
+            .max()
+            .unwrap_or(0)
+    }
+
     /// Build parameter-derived SSA tables.
     pub(crate) fn parameter_state(
         parameters: &[FunctionParameter],

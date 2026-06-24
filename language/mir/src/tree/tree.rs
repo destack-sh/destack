@@ -11,11 +11,12 @@ use crate::{
     Access, Attribute, Block, BorrowedPath, CommentSpan, DynamicShape, DynamicTable, ExtentSlice,
     Field, FieldSpan, FlagSlice, FloatType, Function, FunctionHeaderSpans, Global, IndexSlice,
     Instruction, Layout, LayoutId, Lifetime, LifetimeParameter, LifetimeTerm, Local, LocalNodeId,
-    Metadata, Node, NodeType, Nullability, Origin, OriginTable, Path, Projection, ReferenceKind,
-    Space, SwitchCase, SwitchCaseSlice, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
-    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorImmediate, TensorImmediateId,
-    TensorScatterDimensionNumbers, Terminator, Type, TypeAlias, TypeDeclarationSpans, TypeId,
-    TypeLineage, TypeMetadata, TypedValueSpan, Value, ValueSlice, Vtable,
+    MemoryAccessKind, Metadata, Node, NodeType, Nullability, Origin, OriginTable, Path, Projection,
+    ReferenceKind, Space, SwitchCase, SwitchCaseSlice, TensorConvolutionDimensionNumbers,
+    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
+    TensorImmediate, TensorImmediateId, TensorScatterDimensionNumbers, Terminator, Type, TypeAlias,
+    TypeDeclarationSpans, TypeId, TypeLineage, TypeMetadata, TypedValueSpan, Value, ValueSlice,
+    Vtable,
 };
 
 #[inline]
@@ -227,6 +228,62 @@ impl Tree {
             tensor_immediates: Vec::new(),
             metadata: Metadata::default(),
         }
+    }
+
+    /// Return whether an instruction has ordered memory access metadata.
+    pub fn instruction_has_atomic_ordering(&self, instruction: LocalNodeId<Instruction>) -> bool {
+        // atomic instructions carry ordering on the instruction
+        if matches!(
+            self.get(instruction),
+            Instruction::AtomicLoad { .. }
+                | Instruction::AtomicStore { .. }
+                | Instruction::AtomicCompareExchange { .. }
+                | Instruction::AtomicRmw { .. }
+                | Instruction::AtomicFence { .. }
+        ) {
+            return true;
+        }
+
+        // read access metadata for this instruction
+        let Some(accesses) = self.metadata.memory.memory_accesses(instruction) else {
+            return false;
+        };
+
+        // check for ordered or fenced accesses
+        accesses.iter().any(|access| {
+            access.ordering.is_some()
+                || access.flags.is_some()
+                || matches!(access.kind, MemoryAccessKind::Fence)
+        })
+    }
+
+    /// Return whether an instruction requires exact memory access behavior.
+    pub fn instruction_requires_exact_access(&self, instruction: LocalNodeId<Instruction>) -> bool {
+        // ordered instructions must preserve exact access behavior
+        if matches!(
+            self.get(instruction),
+            Instruction::AtomicLoad { .. }
+                | Instruction::AtomicStore { .. }
+                | Instruction::AtomicCompareExchange { .. }
+                | Instruction::AtomicRmw { .. }
+                | Instruction::AtomicFence { .. }
+                | Instruction::BarrierWrite { .. }
+        ) {
+            return true;
+        }
+
+        // read memory access metadata for the instruction
+        let Some(accesses) = self.metadata.memory.memory_accesses(instruction) else {
+            return false;
+        };
+
+        // require exact behavior for volatile, ordered, or fenced operations
+        accesses.iter().any(|access| {
+            access.is_volatile
+                || access.ordering.is_some()
+                || access.flags.is_some()
+                || matches!(access.kind, MemoryAccessKind::Fence)
+        })
     }
 
     /// Create a new tree with parsed source data.
@@ -704,7 +761,7 @@ impl Tree {
 
     /// Replace a type node and update the primitive type cache.
     pub fn set_type(&mut self, type_id: LocalNodeId<Type>, ty: Type) -> Type {
-        let local_id = self.local_id_for_node_id(type_id.id);
+        let local_id = self.node_local_id(type_id.id);
         let old = std::mem::replace(self.types.get_mut(local_id), ty);
 
         // remove stale primitive entries for overwritten placeholders
@@ -856,12 +913,12 @@ impl Tree {
     }
 
     /// Return the vtable metadata for a type when present.
-    pub fn vtable_for_type(&self, ty: LocalNodeId<Type>) -> Option<&Vtable> {
+    pub fn type_vtable(&self, ty: LocalNodeId<Type>) -> Option<&Vtable> {
         self.metadata.dispatch.vtable(ty)
     }
 
     /// Return the dynamic table for a concrete type and constraint when present.
-    pub fn dynamic_table_for_type(
+    pub fn type_dynamic_table(
         &self,
         concrete: LocalNodeId<Type>,
         constraint: LocalNodeId<Type>,
@@ -1053,7 +1110,7 @@ impl Tree {
         T: Node,
         Self: TreeImpl<T>,
     {
-        let local_id = self.local_id_for_node_id(id.id);
+        let local_id = self.node_local_id(id.id);
         <Self as TreeImpl<T>>::get(self, local_id)
     }
 
@@ -1073,7 +1130,7 @@ impl Tree {
         T: Node,
         Self: TreeImpl<T>,
     {
-        let local_id = self.local_id_for_node_id(id.id);
+        let local_id = self.node_local_id(id.id);
         <Self as TreeImpl<T>>::get_mut(self, local_id)
     }
 
@@ -1105,7 +1162,7 @@ impl Tree {
 
     /// Return the local arena id for one untyped node id.
     #[inline]
-    pub(crate) fn local_id_for_node_id(&self, id: u32) -> u32 {
+    pub(crate) fn node_local_id(&self, id: u32) -> u32 {
         self.node_index_by_node_id[self.node_index(id)].local_id()
     }
 

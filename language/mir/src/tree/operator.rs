@@ -162,6 +162,44 @@ impl BinaryOperator {
         )
     }
 
+    /// Return whether this operator is commutative.
+    pub fn is_commutative(&self) -> bool {
+        matches!(
+            self,
+            BinaryOperator::Add
+                | BinaryOperator::Multiply
+                | BinaryOperator::FloatAdd
+                | BinaryOperator::FloatMultiply
+                | BinaryOperator::And
+                | BinaryOperator::Or
+                | BinaryOperator::Xor
+                | BinaryOperator::Equal
+                | BinaryOperator::NotEqual
+                | BinaryOperator::FloatEqual
+                | BinaryOperator::FloatNotEqual
+        )
+    }
+
+    /// Return the comparison operator for swapped operands.
+    pub fn swap_operands(self) -> Option<Self> {
+        match self {
+            BinaryOperator::Equal | BinaryOperator::NotEqual => Some(self),
+            BinaryOperator::SignedLessThan => Some(BinaryOperator::SignedGreaterThan),
+            BinaryOperator::SignedLessEqual => Some(BinaryOperator::SignedGreaterEqual),
+            BinaryOperator::SignedGreaterThan => Some(BinaryOperator::SignedLessThan),
+            BinaryOperator::SignedGreaterEqual => Some(BinaryOperator::SignedLessEqual),
+            BinaryOperator::UnsignedLessThan => Some(BinaryOperator::UnsignedGreaterThan),
+            BinaryOperator::UnsignedLessEqual => Some(BinaryOperator::UnsignedGreaterEqual),
+            BinaryOperator::UnsignedGreaterThan => Some(BinaryOperator::UnsignedLessThan),
+            BinaryOperator::UnsignedGreaterEqual => Some(BinaryOperator::UnsignedLessEqual),
+            BinaryOperator::FloatLessThan => Some(BinaryOperator::FloatGreaterThan),
+            BinaryOperator::FloatLessEqual => Some(BinaryOperator::FloatGreaterEqual),
+            BinaryOperator::FloatGreaterThan => Some(BinaryOperator::FloatLessThan),
+            BinaryOperator::FloatGreaterEqual => Some(BinaryOperator::FloatLessEqual),
+            _ => None,
+        }
+    }
+
     /// Whether this is a floating point operator.
     pub fn is_float(&self) -> bool {
         matches!(

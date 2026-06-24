@@ -54,6 +54,11 @@ impl SpaceSet {
     pub fn is_disjoint(self, other: Self) -> bool {
         self.0 & other.0 == 0
     }
+
+    /// Return whether two memory space sets may alias.
+    pub fn may_alias(self, other: Self) -> bool {
+        !self.is_disjoint(other)
+    }
 }
 
 impl Default for SpaceSet {
