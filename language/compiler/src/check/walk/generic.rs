@@ -178,7 +178,7 @@ impl WalkState<'_, '_> {
             .allocate_variable(self.module, origin, Widening::Preserve);
         let induced = self.check.push_variable_type(variable, source)?;
         let induction = GenericInductionParameter {
-            prefix: "T",
+            name_prefix: "T",
             constraint: Some(ty),
             is_comptime: false,
             induction: position.induction(),
@@ -196,7 +196,13 @@ impl WalkState<'_, '_> {
         position: GenericInductionPosition,
     ) -> CompilerResult<bool> {
         let symbol = match self.check.ty(ty)? {
-            dir::Type::Reference(instance) => instance.symbol,
+            dir::Type::Reference(instance) => {
+                if self.check.is_transparent_intrinsic_alias(instance.symbol) {
+                    return Ok(false);
+                }
+
+                instance.symbol
+            }
             _ => return Ok(false),
         };
         let kind = self.check.symbol_kind(symbol);
@@ -263,7 +269,7 @@ impl CheckState<'_> {
             self.set_solution(variable, solution)?;
         }
 
-        // tie type declarations to their own applied references
+        // write declaration symbols as their own applied references
         for module in modules {
             self.declare_module_reference_types(*module)?;
         }
@@ -317,12 +323,13 @@ impl CheckState<'_> {
         )?;
 
         // bind or equate the declaration's recorded type
-        if let Some(existing) = self.symbol_type(symbol) {
+        if let Some(existing) = self.component_symbol_type_maybe(symbol) {
             self.push_constraint(Constraint {
                 relation: Relation::Equal,
                 left: existing,
                 right: reference,
                 origin,
+                coercion_site: None,
                 condition: Condition::Always,
                 cause: ConstraintCause::General,
             });

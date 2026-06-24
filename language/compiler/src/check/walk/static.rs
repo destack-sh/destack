@@ -3,7 +3,7 @@ use std::ptr::NonNull;
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Condition, FlowState, StaticIfCondition, WalkState};
+use crate::check::{Condition, Decision, FlowState, StaticIfCondition, WalkState};
 use crate::r#static::{StaticContext, StaticError};
 
 /// One active static guard scope.
@@ -202,7 +202,7 @@ impl WalkState<'_, '_> {
             }
             // turn open conditions into predicate types for the solver
             Err(StaticError::NotStatic(_)) => {
-                let predicate = self.static_expression_type(condition)?;
+                let predicate = self.walk_static_term(condition)?;
 
                 Ok(GuardOutcome::Present(Condition::When(smallvec::smallvec![
                     predicate
@@ -211,13 +211,15 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Return one static expression as a type-level term.
+    /// Walk one expression in static term position.
+    ///
+    /// Returns the type level term produced by the expression.
     ///
     /// Example:
     /// ```ds
     /// Mode == "inline"
     /// ```
-    pub(in crate::check) fn static_expression_type(
+    pub(in crate::check) fn walk_static_term(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -245,9 +247,7 @@ impl WalkState<'_, '_> {
 
         match self.tree.get(expression) {
             // (C)
-            dir::Expression::Parenthesized { expression } => {
-                self.static_expression_type(*expression)
-            }
+            dir::Expression::Parenthesized { expression } => self.walk_static_term(*expression),
             // type
             dir::Expression::Type { value } => {
                 if let dir::TypeExpression::Infer {
@@ -266,7 +266,7 @@ impl WalkState<'_, '_> {
             }
             // this
             dir::Expression::This => self.push_type(dir::Type::This, source),
-            // names reference comptime parameters and static constants
+            // resolve names to comptime parameters and static constants
             dir::Expression::Identifier { .. } => {
                 let reference = self
                     .check
@@ -297,6 +297,14 @@ impl WalkState<'_, '_> {
                     );
                 };
 
+                // record the name edge for checked output
+                let global_source = expression.into_global_any(self.module);
+                self.capture_symbol_reference(symbol);
+                self.check.record_decision(
+                    global_source,
+                    Decision::Name(dir::NameResolution::new(symbol)),
+                )?;
+
                 // comptime parameters write their parameter type so
                 // instantiation substitution reaches the predicate
                 if let Some(parameter) = self.check.generics.parameter_by_symbol(symbol) {
@@ -324,8 +332,8 @@ impl WalkState<'_, '_> {
                         source,
                     );
                 };
-                let left = self.static_expression_type(*left)?;
-                let right = self.static_expression_type(*right)?;
+                let left = self.walk_static_term(*left)?;
+                let right = self.walk_static_term(*right)?;
                 let operation = dir::TypeOperation::StaticBinary(dir::StaticBinaryType {
                     operator,
                     left,
@@ -344,7 +352,7 @@ impl WalkState<'_, '_> {
                         source,
                     );
                 };
-                let target = self.static_expression_type(*right)?;
+                let target = self.walk_static_term(*right)?;
                 let operation =
                     dir::TypeOperation::StaticUnary(dir::StaticUnaryType { operator, target });
 
@@ -355,7 +363,7 @@ impl WalkState<'_, '_> {
                 left,
                 name: Some(name),
             } => {
-                let owner = self.static_expression_type(*left)?;
+                let owner = self.walk_static_term(*left)?;
                 let member = dir::Type::Member(dir::MemberType {
                     owner,
                     key: dir::StaticKey::Name(*name),
