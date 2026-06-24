@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{FlowPath, NameLookup, WalkState};
+use crate::check::{FlowPath, Origin, WalkState, Widening};
 
 /// Runtime flow predicate used to narrow one stable path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -11,7 +11,7 @@ pub(in crate::check) enum NarrowPredicate {
     /// Keep values not assignable to the target type.
     IsNot(dir::GlobalTypeId),
     /// Keep objects with a known member key.
-    HasKey(dir::StaticKey),
+    Has(dir::StaticKey),
 }
 
 impl WalkState<'_, '_> {
@@ -22,14 +22,25 @@ impl WalkState<'_, '_> {
     ) -> Option<FlowPath> {
         match self.tree.get(id) {
             // value
-            dir::Expression::Identifier { name } => {
-                // resolve the stable root binding, ambiguity has no path
-                let lookup =
-                    self.check
-                        .lookup_name(self.module, id.into_any(), *name, dir::SymbolSpace::Value);
-                let symbol = match lookup {
-                    NameLookup::Found(candidate) => candidate.symbol()?,
-                    NameLookup::Missing | NameLookup::Ambiguous(_) => return None,
+            dir::Expression::Identifier { .. } => {
+                let reference = self
+                    .check
+                    .module(self.module)
+                    .resolved
+                    .references
+                    .get(id.into_global_any(self.module))?;
+                let symbol = match reference {
+                    dir::Reference::Bound(symbols) => {
+                        let symbols = self.check.available_symbols(symbols);
+                        match symbols.as_slice() {
+                            [symbol] => *symbol,
+                            _ => return None,
+                        }
+                    }
+                    dir::Reference::Missing
+                    | dir::Reference::Namespace(_)
+                    | dir::Reference::Projected { .. }
+                    | dir::Reference::Ambiguous(_) => return None,
                 };
 
                 Some(FlowPath::symbol(symbol))
@@ -99,46 +110,58 @@ impl WalkState<'_, '_> {
         source_node: dir::LocalNodeIdAny,
         predicate: NarrowPredicate,
     ) -> CompilerResult<()> {
-        match predicate {
-            // keep matching values: source extends target ? source : never
+        let narrowed = match predicate {
+            // keep matching values
             NarrowPredicate::Is(target) => {
-                let never = self.push_type(dir::Type::Never, source_node)?;
-                let operation = dir::TypeOperation::Conditional(dir::ConditionalType {
-                    left: source,
-                    right: target,
-                    then_type: source,
-                    else_type: never,
-                    is_distributive: true,
+                let operation = dir::TypeOperation::Narrow(dir::NarrowType {
+                    source,
+                    target,
+                    is_positive: true,
                 });
-                let narrowed = self.push_type(dir::Type::Operation(operation), source_node)?;
 
-                self.narrow_flow_path(path, narrowed);
+                self.push_type(dir::Type::Operation(operation), source_node)?
             }
 
-            // keep non-matching values: source extends target ? never : source
+            // keep non-matching values
             NarrowPredicate::IsNot(target) => {
-                let never = self.push_type(dir::Type::Never, source_node)?;
-                let operation = dir::TypeOperation::Conditional(dir::ConditionalType {
-                    left: source,
-                    right: target,
-                    then_type: never,
-                    else_type: source,
-                    is_distributive: true,
+                let operation = dir::TypeOperation::Narrow(dir::NarrowType {
+                    source,
+                    target,
+                    is_positive: false,
                 });
-                let narrowed = self.push_type(dir::Type::Operation(operation), source_node)?;
 
-                self.narrow_flow_path(path, narrowed);
+                self.push_type(dir::Type::Operation(operation), source_node)?
             }
 
             // keep objects with the requested key
-            NarrowPredicate::HasKey(key) => {
+            NarrowPredicate::Has(key) => {
                 let unknown = self.push_type(dir::Type::Unknown, source_node)?;
                 let target = self.member_shape_type(key, unknown, source_node)?;
                 let predicate = NarrowPredicate::Is(target);
 
-                self.narrow_flow_path_by(path, source, source_node, predicate)?;
+                return self.narrow_flow_path_by(path, source, source_node, predicate);
             }
-        }
+        };
+        self.narrow_flow_path_to(path, source_node, narrowed)?;
+
+        Ok(())
+    }
+
+    /// Narrow one flow path to a solver-owned type.
+    fn narrow_flow_path_to(
+        &mut self,
+        path: FlowPath,
+        source_node: dir::LocalNodeIdAny,
+        narrowed: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let origin = Origin::Node(source_node.into_global(self.module));
+        let variable = self
+            .check
+            .allocate_variable(self.module, origin, Widening::Preserve);
+        let ty = self.check.push_variable_type(variable, source_node)?;
+
+        self.check.push_lower_bound(variable, narrowed)?;
+        self.narrow_flow_path(path, ty);
 
         Ok(())
     }
@@ -168,7 +191,7 @@ impl WalkState<'_, '_> {
             }
 
             // keep parent values with a member that has the nested key
-            NarrowPredicate::HasKey(member_key) => {
+            NarrowPredicate::Has(member_key) => {
                 let unknown = self.push_type(dir::Type::Unknown, source_node)?;
                 let member = self.member_shape_type(member_key, unknown, source_node)?;
                 let target = self.member_shape_type(key, member, source_node)?;

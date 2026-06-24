@@ -127,7 +127,7 @@ impl WalkState<'_, '_> {
         else if let (Some(value), Some(delegate_return_target), Some(resume_target)) =
             (value, delegate_return_target, resume_target)
         {
-            // build expected iterable protocol
+            // create expected iterable protocol
             let item = match asynchrony {
                 dir::Asynchrony::Sync => dir::LanguageItem::Iterable,
                 dir::Asynchrony::Async => dir::LanguageItem::AsyncIterable,
