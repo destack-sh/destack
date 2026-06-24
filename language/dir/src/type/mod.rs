@@ -1,4 +1,3 @@
-mod extension;
 mod generic;
 mod predicate;
 mod primitive;
@@ -6,7 +5,6 @@ mod projection;
 mod resolution;
 mod r#type;
 
-pub use extension::*;
 pub use generic::*;
 pub use predicate::*;
 pub use primitive::*;
