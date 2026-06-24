@@ -284,7 +284,7 @@ impl ModuleLowerer<'_> {
         }
 
         match self.types.get_type(type_id) {
-            dir::Type::Reference(reference) => {
+            dir::Type::Instance(reference) => {
                 if reference.symbol == platform_error_symbol {
                     return true;
                 }

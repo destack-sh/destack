@@ -49,7 +49,7 @@ impl ModuleLowerer<'_> {
 
         // walk nested type references
         match self.types.get_type(type_id) {
-            dir::Type::Reference(reference) => {
+            dir::Type::Instance(reference) => {
                 if matches!(
                     self.symbol_kind(reference.symbol),
                     Some(dir::SymbolKind::Struct | dir::SymbolKind::Class)
@@ -178,6 +178,9 @@ impl ModuleLowerer<'_> {
                 }
             }
             dir::TypeOperation::KeyOf(unary) => {
+                self.declare_nominal_layouts_for_type(unary.target, visited)?;
+            }
+            dir::TypeOperation::NoInfer(unary) => {
                 self.declare_nominal_layouts_for_type(unary.target, visited)?;
             }
         }

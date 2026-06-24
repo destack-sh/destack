@@ -584,7 +584,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
         }
 
         self.ctx.with_global_type(type_id, |ty, type_ctx| match ty {
-            dir::Type::Reference(reference) => {
+            dir::Type::Instance(reference) => {
                 let symbol = reference.symbol;
                 let Some(canonical_symbol) = self.canonical_symbol(symbol) else {
                     return;

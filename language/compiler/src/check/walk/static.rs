@@ -311,7 +311,7 @@ impl WalkState<'_, '_> {
                     return self.push_type(dir::Type::Parameter(parameter), source);
                 }
 
-                let reference = dir::Type::Reference(dir::GenericInstance {
+                let reference = dir::Type::Instance(dir::GenericInstance {
                     symbol,
                     arguments: Vec::new(),
                 });

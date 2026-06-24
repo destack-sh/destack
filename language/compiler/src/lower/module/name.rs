@@ -94,7 +94,7 @@ impl ModuleLowerer<'_> {
         }
 
         // use nominal naming when the type resolves to a symbol
-        if let dir::Type::Reference(reference) = dir_type
+        if let dir::Type::Instance(reference) = dir_type
             && matches!(
                 self.symbol_kind(reference.symbol),
                 Some(
@@ -473,7 +473,7 @@ impl ModuleLowerer<'_> {
     /// Resolve a metadata name for named reference types.
     fn reference_metadata_name(&self, dir_type: &dir::Type) -> Option<String> {
         // only handle reference nodes
-        let dir::Type::Reference(reference) = dir_type else {
+        let dir::Type::Instance(reference) = dir_type else {
             return None;
         };
 
@@ -513,7 +513,7 @@ impl ModuleLowerer<'_> {
         }
 
         // use nominal names without suffix adjustments
-        if let dir::Type::Reference(reference) = dir_type {
+        if let dir::Type::Instance(reference) = dir_type {
             return self.qualified_symbol_name(reference.symbol).or_else(|| {
                 let dir = self.dir_bound_if_present(reference.symbol.module_id)?;
                 let bindings = dir.binding_table();

@@ -309,7 +309,7 @@ impl ModuleQueryContext<'_> {
     ) -> Option<dir::GlobalSymbolId> {
         let ctx = self;
         ctx.with_global_type(type_id, |ty, _| match ty {
-            dir::Type::Reference(reference) => Some(reference.symbol),
+            dir::Type::Instance(reference) => Some(reference.symbol),
             dir::Type::Form(value) => ctx.resolve_nominal_type_symbol(value.value),
             dir::Type::Dynamic(dynamic) => ctx.resolve_nominal_type_symbol(dynamic.constraint),
             dir::Type::Operation(operation) => {
@@ -346,6 +346,7 @@ impl ModuleQueryContext<'_> {
         let ctx = self;
         match operation {
             dir::TypeOperation::KeyOf(unary) => ctx.resolve_nominal_type_symbol(unary.target),
+            dir::TypeOperation::NoInfer(unary) => ctx.resolve_nominal_type_symbol(unary.target),
             dir::TypeOperation::Conditional(conditional) => ctx
                 .resolve_nominal_type_symbol(conditional.left)
                 .or_else(|| ctx.resolve_nominal_type_symbol(conditional.right))

@@ -660,7 +660,7 @@ impl FunctionLowerer<'_> {
         for index in 0..type_count {
             let type_id = dir::LocalTypeId::new(index);
             let dir_type = self.context.types.get_type(type_id);
-            if let dir::Type::Reference(reference) = dir_type
+            if let dir::Type::Instance(reference) = dir_type
                 && reference.symbol == symbol
             {
                 return Some(type_id);

@@ -27,7 +27,7 @@ impl CheckState<'_> {
 
         for predicate in predicates {
             // normalize negated guards onto their targets
-            let mut predicate = self.resolve_shallow(*predicate)?;
+            let mut predicate = self.settled_root(*predicate)?;
             let mut holds = true;
             while let dir::Type::Operation(dir::TypeOperation::StaticUnary(unary)) =
                 self.ty(predicate)?
@@ -35,7 +35,7 @@ impl CheckState<'_> {
                 if unary.operator != dir::StaticUnaryOperator::Not {
                     break;
                 }
-                predicate = self.resolve_shallow(unary.target)?;
+                predicate = self.settled_root(unary.target)?;
                 holds = !holds;
             }
 
@@ -60,9 +60,9 @@ impl CheckState<'_> {
             dir::Type::Operation(dir::TypeOperation::StaticUnary(unary))
                 if unary.operator == dir::StaticUnaryOperator::Not =>
             {
-                (self.resolve_shallow(unary.target)?, true)
+                (self.settled_root(unary.target)?, true)
             }
-            dir::Type::Operation(_) | dir::Type::Reference(_) | dir::Type::Member(_) => (id, false),
+            dir::Type::Operation(_) | dir::Type::Instance(_) | dir::Type::Member(_) => (id, false),
             _ => return Ok(None),
         };
 
@@ -82,8 +82,8 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let left = self.resolve_shallow(left)?;
-        let right = self.resolve_shallow(right)?;
+        let left = self.settled_root(left)?;
+        let right = self.settled_root(right)?;
         if left == right {
             return Ok(true);
         }
@@ -93,7 +93,7 @@ impl CheckState<'_> {
             (dir::Type::Parameter(left), dir::Type::Parameter(right)) => Ok(left == right),
             (dir::Type::This, dir::Type::This) => Ok(true),
             (dir::Type::Static(left), dir::Type::Static(right)) => Ok(left == right),
-            (dir::Type::Reference(left), dir::Type::Reference(right)) => {
+            (dir::Type::Instance(left), dir::Type::Instance(right)) => {
                 if left.symbol != right.symbol || left.arguments.len() != right.arguments.len() {
                     return Ok(false);
                 }

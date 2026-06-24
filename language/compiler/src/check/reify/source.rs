@@ -455,11 +455,11 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         };
 
         // look through function values to their signature
-        let mut signature = self.check.resolve_shallow(ty)?;
+        let mut signature = self.check.settled_root(ty)?;
         loop {
             match self.check.ty(signature)? {
                 dir::Type::Function(function) => {
-                    signature = self.check.resolve_shallow(function.signature)?;
+                    signature = self.check.settled_root(function.signature)?;
                 }
                 dir::Type::FunctionSignature(_) => break,
                 _ => return Ok(None),

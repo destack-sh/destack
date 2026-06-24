@@ -591,7 +591,7 @@ impl Compiler {
     ) -> Option<CastOperator> {
         // read one enum backing type when present
         let backing_for_type = |ty: &Type| -> Option<EnumBackingType> {
-            let Type::Reference(reference) = ty else {
+            let Type::Instance(reference) = ty else {
                 return None;
             };
 

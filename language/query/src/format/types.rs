@@ -44,8 +44,9 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
         dir::Type::Operation(operation) => format_type_operation(operation, ctx),
         dir::Type::Parameter(parameter) => format_parameter_type(parameter, ctx),
         dir::Type::This => "this".to_string(),
-        dir::Type::Reference(reference) => {
-            format_type_reference(reference.symbol, &reference.arguments, ctx)
+        dir::Type::Reference(reference) => format_type_reference(reference.symbol, &[], ctx),
+        dir::Type::Instance(instance) => {
+            format_type_reference(instance.symbol, &instance.arguments, ctx)
         }
         dir::Type::Variable(variable) => format!("?{}", variable.index),
         dir::Type::Memory(memory) => format_memory_literal(memory, ctx),
@@ -370,6 +371,10 @@ pub fn format_type_operation(
         dir::TypeOperation::KeyOf(unary) => {
             let target_type = format_global_type(unary.target, ctx);
             format!("keyof {target_type}")
+        }
+        dir::TypeOperation::NoInfer(unary) => {
+            let target_type = format_global_type(unary.target, ctx);
+            format!("NoInfer<{target_type}>")
         }
         dir::TypeOperation::TryOutput { value } => {
             let value = format_global_type(*value, ctx);

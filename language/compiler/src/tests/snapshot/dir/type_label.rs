@@ -30,7 +30,8 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Literal(literal) => self.scalar_literal_label(literal),
             dir::Type::Intrinsic => "intrinsic".to_string(),
             dir::Type::Parameter(parameter) => self.parameter_type_label(parameter),
-            dir::Type::Reference(named) => self.reference_type_label(types, named),
+            dir::Type::Reference(reference) => self.reference_symbol_label(reference.symbol),
+            dir::Type::Instance(instance) => self.instance_type_label(types, instance),
             dir::Type::This => "this".to_string(),
             dir::Type::Member(member) => self.member_type_label(types, member),
             dir::Type::Form(form) => self.form_type_label(types, form),
@@ -154,24 +155,23 @@ impl DirSnapshotBuilder<'_> {
         }
     }
 
-    /// Return one reference type label.
-    fn reference_type_label(
+    /// Return one instance type label.
+    fn instance_type_label(
         &self,
         types: &dir::TypeTable<'_>,
-        reference: &dir::GenericInstance,
+        instance: &dir::GenericInstance,
     ) -> String {
-        if reference.arguments.is_empty() {
-            return self.reference_symbol_label(reference.symbol);
+        if instance.arguments.is_empty() {
+            return self.reference_symbol_label(instance.symbol);
         }
 
-        if let Some(label) =
-            self.collection_type_label(types, reference.symbol, &reference.arguments)
+        if let Some(label) = self.collection_type_label(types, instance.symbol, &instance.arguments)
         {
             return label;
         }
 
-        let arguments = self.type_id_list_label(types, &reference.arguments, ", ");
-        let symbol = self.reference_symbol_label(reference.symbol);
+        let arguments = self.type_id_list_label(types, &instance.arguments, ", ");
+        let symbol = self.reference_symbol_label(instance.symbol);
 
         format!("{symbol}<{arguments}>")
     }
@@ -311,6 +311,11 @@ impl DirSnapshotBuilder<'_> {
                 let target = self.type_id_label(types, unary.target);
 
                 format!("keyof {target}")
+            }
+            dir::TypeOperation::NoInfer(unary) => {
+                let target = self.type_id_label(types, unary.target);
+
+                format!("NoInfer<{target}>")
             }
             dir::TypeOperation::TryOutput { value } => {
                 let value = self.type_id_label(types, *value);

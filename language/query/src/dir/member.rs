@@ -525,7 +525,7 @@ impl ModuleQueryContext<'_> {
 
         let members = match ty {
             // resolve declaration and extension members
-            dir::Type::Reference(reference) => {
+            dir::Type::Instance(reference) => {
                 ctx.resolve_reference_members(workspace, reference.symbol)
             }
 
@@ -622,7 +622,7 @@ impl ModuleQueryContext<'_> {
                         };
 
                         ctx.with_global_type(value.value, |inner, _| {
-                            let dir::Type::Reference(reference) = inner else {
+                            let dir::Type::Instance(reference) = inner else {
                                 return false;
                             };
 

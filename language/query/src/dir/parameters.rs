@@ -309,7 +309,7 @@ impl ModuleQueryContext<'_> {
 
         ctx.with_global_type(type_id, |ty, type_ctx| {
             // direct nominal references
-            if let dir::Type::Reference(reference) = ty {
+            if let dir::Type::Instance(reference) = ty {
                 let symbol = reference.symbol;
                 let canonical_symbol = ctx.canonical_symbol(symbol);
                 if seen_symbols.insert(canonical_symbol) {
