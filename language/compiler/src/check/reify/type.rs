@@ -1,6 +1,6 @@
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_source::{FileId, Span};
+use destack_source::{FileId, NodeSpanRegion, NodeSpanType, Span};
 
 use crate::CompilerResult;
 use crate::check::CheckState;
@@ -8,10 +8,10 @@ use crate::check::CheckState;
 /// Nesting depth bound guarding reified annotation spellings.
 const REIFY_DEPTH: usize = 32;
 
-/// Reifies solved working types into synthesized type expressions.
+/// Synthesizes type and static expression nodes from solved check types.
 /// Every reified node lands in the amended output tree; types without
 /// a faithful source spelling leave their annotation slot empty.
-pub(in crate::check) struct Reifier<'a, 'b> {
+pub(in crate::check) struct TypeReifier<'a, 'b> {
     /// The solved component state read for type structure.
     check: &'a CheckState<'b>,
     /// The amended output tree receiving synthesized nodes.
@@ -22,8 +22,8 @@ pub(in crate::check) struct Reifier<'a, 'b> {
     span: Span,
 }
 
-impl<'a, 'b> Reifier<'a, 'b> {
-    /// Create one reifier amending one cloned module tree.
+impl<'a, 'b> TypeReifier<'a, 'b> {
+    /// Create a type reifier for one cloned module tree.
     pub(in crate::check) fn new(
         check: &'a CheckState<'b>,
         tree: dir::Tree,
@@ -42,6 +42,11 @@ impl<'a, 'b> Reifier<'a, 'b> {
         self.span = Span::new(span.file, span.end, span.end);
     }
 
+    /// Return the current synthesized-node span.
+    pub(in crate::check) fn span(&self) -> Span {
+        self.span
+    }
+
     /// Reify one solved type into a synthesized type expression.
     /// Returns None when the type has no faithful source spelling.
     pub(in crate::check) fn reify(
@@ -49,6 +54,167 @@ impl<'a, 'b> Reifier<'a, 'b> {
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::LocalNodeId<dir::TypeExpression>>> {
         self.reify_depth(id, REIFY_DEPTH)
+    }
+
+    /// Reify one parameter type, omitting undefined when `?` already carries it.
+    pub(in crate::check) fn reify_parameter_type(
+        &mut self,
+        id: dir::GlobalTypeId,
+        is_optional: bool,
+    ) -> CompilerResult<Option<dir::LocalNodeId<dir::TypeExpression>>> {
+        self.reify_parameter_type_depth(id, is_optional, REIFY_DEPTH)
+    }
+
+    /// Reify selected generic argument bindings into synthesized generic arguments.
+    pub(in crate::check) fn reify_generic_argument_bindings(
+        &mut self,
+        bindings: &[dir::GenericArgumentBinding],
+    ) -> CompilerResult<Option<Vec<dir::LocalNodeId<dir::GenericArgument>>>> {
+        self.reify_generic_argument_bindings_depth(bindings, REIFY_DEPTH)
+    }
+
+    /// Fill selected generic arguments on one reified type reference.
+    pub(super) fn fill_type_arguments(
+        &mut self,
+        ty: dir::LocalNodeId<dir::TypeExpression>,
+        bindings: &[dir::GenericArgumentBinding],
+    ) -> CompilerResult<()> {
+        match self.tree.get(ty) {
+            dir::TypeExpression::Reference {
+                generic_arguments, ..
+            }
+            | dir::TypeExpression::Member {
+                generic_arguments, ..
+            } if generic_arguments.is_empty() => {}
+            _ => return Ok(()),
+        }
+
+        let Some(generic_arguments) = self.reify_generic_argument_bindings(bindings)? else {
+            return Ok(());
+        };
+
+        match self.tree.get_mut(ty) {
+            dir::TypeExpression::Reference {
+                generic_arguments: target,
+                ..
+            }
+            | dir::TypeExpression::Member {
+                generic_arguments: target,
+                ..
+            } => {
+                *target = generic_arguments;
+            }
+            _ => unreachable!("generic type arguments are filtered above"),
+        }
+
+        Ok(())
+    }
+
+    /// Reify one generic parameter binding into a synthesized parameter node.
+    pub(super) fn reify_generic_parameter(
+        &mut self,
+        binding: &dir::GenericParameterBinding,
+    ) -> CompilerResult<Option<dir::LocalNodeId<dir::GenericParameter>>> {
+        let Some(name) = self.generic_parameter_name(binding) else {
+            return Ok(None);
+        };
+        let parameter = if binding.is_comptime {
+            self.reify_value_parameter(binding, name)?
+        } else {
+            self.reify_type_parameter(binding, name)?
+        };
+        let parameter = self.insert(parameter);
+        if binding.constraint.is_some() {
+            self.tree.set_side_span(
+                parameter,
+                NodeSpanType::Region(NodeSpanRegion::Type),
+                self.span(),
+            );
+        }
+
+        Ok(Some(parameter))
+    }
+
+    /// Reify one value generic parameter binding.
+    fn reify_value_parameter(
+        &mut self,
+        binding: &dir::GenericParameterBinding,
+        name: dir::StringId,
+    ) -> CompilerResult<dir::GenericParameter> {
+        let declared_type = binding
+            .constraint
+            .map(|constraint| self.reify(constraint))
+            .transpose()?
+            .flatten();
+        let default = binding
+            .default
+            .map(|default| self.reify_static(default))
+            .transpose()?
+            .flatten();
+
+        let parameter = if binding.is_variadic {
+            dir::GenericParameter::VariadicValue {
+                name,
+                declared_type,
+                default,
+                is_comptime: true,
+            }
+        } else {
+            dir::GenericParameter::Value {
+                name,
+                declared_type,
+                default,
+                is_comptime: true,
+            }
+        };
+
+        Ok(parameter)
+    }
+
+    /// Reify one type generic parameter binding.
+    fn reify_type_parameter(
+        &mut self,
+        binding: &dir::GenericParameterBinding,
+        name: dir::StringId,
+    ) -> CompilerResult<dir::GenericParameter> {
+        let constraint = binding
+            .constraint
+            .map(|constraint| self.reify(constraint))
+            .transpose()?
+            .flatten();
+        let default = binding
+            .default
+            .map(|default| self.reify(default))
+            .transpose()?
+            .flatten();
+
+        let parameter = if binding.is_variadic {
+            dir::GenericParameter::VariadicType {
+                name,
+                variance: binding.variance,
+                constraint,
+                default,
+                is_const: binding.is_const,
+            }
+        } else {
+            dir::GenericParameter::Type {
+                name,
+                variance: binding.variance,
+                constraint,
+                default,
+                is_const: binding.is_const,
+            }
+        };
+
+        Ok(parameter)
+    }
+
+    /// Reify one solved static singleton into a synthesized expression.
+    pub(in crate::check) fn reify_static(
+        &mut self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::LocalNodeId<dir::Expression>>> {
+        self.reify_static_depth(id, REIFY_DEPTH)
     }
 
     /// Reify one solved type up to a nesting depth.
@@ -110,20 +276,8 @@ impl<'a, 'b> Reifier<'a, 'b> {
             }
 
             dir::Type::Parameter(parameter) => {
-                let Some(binding) = self.check.generic_parameter(*parameter) else {
+                let Some(name) = self.generic_parameter_name_by_id(*parameter) else {
                     return Ok(None);
-                };
-                let name = match binding.key {
-                    dir::GenericParameterKey::Symbol(symbol) => {
-                        let Some(name) = self.symbol_name(symbol) else {
-                            return Ok(None);
-                        };
-
-                        name
-                    }
-                    dir::GenericParameterKey::Generated(name) => {
-                        self.strings.intern(&self.check_text(name))
-                    }
                 };
 
                 Self::reference(name)
@@ -132,7 +286,10 @@ impl<'a, 'b> Reifier<'a, 'b> {
                 let Some(name) = self.symbol_name(instance.symbol) else {
                     return Ok(None);
                 };
-                let Some(arguments) = self.reify_arguments(&instance.arguments, next)? else {
+                let template = self.check.symbol_template(instance.symbol);
+                let Some(arguments) =
+                    self.reify_template_arguments_depth(template, &instance.arguments, next)?
+                else {
                     return Ok(None);
                 };
 
@@ -150,6 +307,8 @@ impl<'a, 'b> Reifier<'a, 'b> {
                 let Some(left) = self.reify_depth(member.owner, next)? else {
                     return Ok(None);
                 };
+                // member types do not carry the selected declaration symbol,
+                // so their generic arguments keep the type-argument form
                 let Some(arguments) = self.reify_arguments(&member.arguments, next)? else {
                     return Ok(None);
                 };
@@ -303,22 +462,24 @@ impl<'a, 'b> Reifier<'a, 'b> {
                         target_type,
                     },
                     dir::Form::Readonly => dir::TypeExpression::Readonly { target_type },
-                    dir::Form::Borrowed { access, .. } => {
-                        let mutability =
-                            match self.check.ty(self.check.resolve_shallow(*access)?)? {
-                                dir::Type::Memory(dir::MemoryLiteral::Access(
-                                    dir::Access::Readonly,
-                                )) => Some(dir::Mutability::Immutable),
-                                dir::Type::Memory(dir::MemoryLiteral::Access(
-                                    dir::Access::Exclusive,
-                                )) => Some(dir::Mutability::Exclusive),
-                                _ => None,
-                            };
+                    dir::Form::Borrowed { lifetime, access } => {
+                        let Some(lifetime) = self.reify_static_depth(*lifetime, next)? else {
+                            return Ok(None);
+                        };
+                        let Some(access) = self.reify_static_depth(*access, next)? else {
+                            return Ok(None);
+                        };
+                        let target_type =
+                            self.insert(dir::GenericArgument::Type { value: target_type });
+                        let lifetime = self.insert(dir::GenericArgument::Value { value: lifetime });
+                        let access = self.insert(dir::GenericArgument::Value { value: access });
+                        let name = self.language_item_name(dir::LanguageItem::Borrowed);
 
-                        dir::TypeExpression::BorrowedOf {
-                            mutability,
-                            variance: None,
-                            target_type,
+                        dir::TypeExpression::Reference {
+                            path: dir::Path {
+                                segments: [name].into_iter().collect(),
+                            },
+                            generic_arguments: vec![target_type, lifetime, access],
                         }
                     }
                     dir::Form::Placed { place } => {
@@ -363,6 +524,56 @@ impl<'a, 'b> Reifier<'a, 'b> {
         Ok(Some(self.insert(expression)))
     }
 
+    /// Reify one parameter type up to a nesting depth.
+    fn reify_parameter_type_depth(
+        &mut self,
+        id: dir::GlobalTypeId,
+        is_optional: bool,
+        depth: usize,
+    ) -> CompilerResult<Option<dir::LocalNodeId<dir::TypeExpression>>> {
+        if !is_optional {
+            return self.reify_depth(id, depth);
+        }
+        if depth == 0 {
+            return Ok(None);
+        }
+
+        let id = self.check.resolve_shallow(id)?;
+        let dir::Type::Union(union) = self.check.ty(id)? else {
+            return self.reify_depth(id, depth);
+        };
+
+        let mut elements = Vec::new();
+        for element in &union.elements {
+            let element = self.check.resolve_shallow(*element)?;
+            if self.type_is_undefined(element)? {
+                continue;
+            }
+            let Some(element) = self.reify_depth(element, depth - 1)? else {
+                return Ok(None);
+            };
+
+            elements.push(element);
+        }
+
+        match elements.as_slice() {
+            [] => self.reify_depth(id, depth),
+            [single] => Ok(Some(*single)),
+            _ => Ok(Some(self.insert(dir::TypeExpression::Union { elements }))),
+        }
+    }
+
+    /// Return whether one type is the undefined singleton.
+    fn type_is_undefined(&self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let id = self.check.resolve_shallow(id)?;
+        let is_undefined = matches!(
+            self.check.ty(id)?,
+            dir::Type::Undefined | dir::Type::Literal(dir::ScalarLiteral::Undefined)
+        );
+
+        Ok(is_undefined)
+    }
+
     /// Reify one preserved type operation.
     fn reify_operation(
         &mut self,
@@ -398,6 +609,21 @@ impl<'a, 'b> Reifier<'a, 'b> {
 
                 dir::TypeExpression::KeyOf { target_type }
             }
+            dir::TypeOperation::NoInfer(unary) => {
+                let Some(target) = self.reify_depth(unary.target, depth)? else {
+                    return Ok(None);
+                };
+                let argument = self.insert(dir::GenericArgument::Type { value: target });
+
+                dir::TypeExpression::Reference {
+                    path: dir::Path {
+                        segments: [self.language_item_name(dir::LanguageItem::NoInfer)]
+                            .into_iter()
+                            .collect(),
+                    },
+                    generic_arguments: vec![argument],
+                }
+            }
             dir::TypeOperation::Index(index) => {
                 let Some(left) = self.reify_depth(index.left, depth)? else {
                     return Ok(None);
@@ -417,6 +643,7 @@ impl<'a, 'b> Reifier<'a, 'b> {
             },
             // the remaining operations have no faithful annotation spelling
             dir::TypeOperation::StringMapping { .. }
+            | dir::TypeOperation::Narrow(_)
             | dir::TypeOperation::Mapped(_)
             | dir::TypeOperation::TemplateLiteral(_)
             | dir::TypeOperation::TryOutput { .. }
@@ -434,7 +661,7 @@ impl<'a, 'b> Reifier<'a, 'b> {
         function: &dir::FunctionSignatureType,
         depth: usize,
     ) -> CompilerResult<Option<dir::FunctionTypeExpression>> {
-        // async, generator, and generic contracts have no annotation spelling
+        // async, generator, and generic signatures have no annotation spelling
         if function.asynchrony != dir::Asynchrony::Sync
             || function.is_generator
             || !function.generic_parameters.is_empty()
@@ -462,15 +689,24 @@ impl<'a, 'b> Reifier<'a, 'b> {
 
         let mut parameters = Vec::with_capacity(function.parameters.len());
         for (index, parameter) in function.parameters.iter().enumerate() {
-            let Some(declared_type) = self.reify_depth(parameter.ty, depth)? else {
+            let Some(declared_type) =
+                self.reify_parameter_type_depth(parameter.ty, parameter.is_optional, depth)?
+            else {
                 return Ok(None);
             };
-            let name = self.strings.intern(&format!("p{index}"));
+            let name = match parameter.static_parameter {
+                Some(parameter) => match self.generic_parameter_name_by_id(parameter) {
+                    Some(name) => name,
+                    None => return Ok(None),
+                },
+                None => self.strings.intern(&format!("arg{index}")),
+            };
+            let is_comptime = parameter.static_parameter.is_some();
             let parameter = if parameter.is_rest {
                 dir::Parameter::VariadicNamed {
                     name,
                     declared_type: Some(declared_type),
-                    is_comptime: false,
+                    is_comptime,
                 }
             } else {
                 dir::Parameter::Named {
@@ -478,7 +714,7 @@ impl<'a, 'b> Reifier<'a, 'b> {
                     declared_type: Some(declared_type),
                     default: None,
                     is_optional: parameter.is_optional,
-                    is_comptime: false,
+                    is_comptime,
                 }
             };
 
@@ -546,7 +782,9 @@ impl<'a, 'b> Reifier<'a, 'b> {
     ) -> CompilerResult<Option<dir::LocalNodeId<dir::TypeExpression>>> {
         let mut elements = Vec::with_capacity(parameters.len());
         for parameter in parameters {
-            let Some(value) = self.reify_depth(parameter.ty, depth)? else {
+            let Some(value) =
+                self.reify_parameter_type_depth(parameter.ty, parameter.is_optional, depth)?
+            else {
                 return Ok(None);
             };
             let element = if parameter.is_rest {
@@ -587,6 +825,105 @@ impl<'a, 'b> Reifier<'a, 'b> {
         Ok(Some(arguments))
     }
 
+    /// Reify solved arguments against their declaration parameter forms.
+    fn reify_template_arguments_depth(
+        &mut self,
+        template: Option<dir::GlobalGenericTemplateId>,
+        ids: &[dir::GlobalTypeId],
+        depth: usize,
+    ) -> CompilerResult<Option<Vec<dir::LocalNodeId<dir::GenericArgument>>>> {
+        let parameters = template
+            .map(|template| self.check.generic_template_parameters(template))
+            .unwrap_or_default();
+        let mut arguments = Vec::with_capacity(ids.len());
+        for (index, id) in ids.iter().copied().enumerate() {
+            let parameter = parameters
+                .get(index)
+                .and_then(|parameter| self.check.generic_parameter(*parameter));
+            let argument = if parameter.is_some_and(|parameter| parameter.is_comptime) {
+                let Some(value) = self.reify_static_depth(id, depth)? else {
+                    return Ok(None);
+                };
+
+                dir::GenericArgument::Value { value }
+            } else {
+                let Some(value) = self.reify_depth(id, depth)? else {
+                    return Ok(None);
+                };
+
+                dir::GenericArgument::Type { value }
+            };
+
+            arguments.push(self.insert(argument));
+        }
+
+        Ok(Some(arguments))
+    }
+
+    /// Reify selected generic argument bindings up to a nesting depth.
+    fn reify_generic_argument_bindings_depth(
+        &mut self,
+        bindings: &[dir::GenericArgumentBinding],
+        depth: usize,
+    ) -> CompilerResult<Option<Vec<dir::LocalNodeId<dir::GenericArgument>>>> {
+        let mut arguments = Vec::with_capacity(bindings.len());
+        for binding in bindings {
+            let Some(parameter) = self.check.generic_parameter(binding.parameter) else {
+                return Ok(None);
+            };
+            let argument = if parameter.is_comptime {
+                let Some(value) = self.reify_static_depth(binding.argument, depth)? else {
+                    return Ok(None);
+                };
+
+                dir::GenericArgument::Value { value }
+            } else {
+                let Some(value) = self.reify_depth(binding.argument, depth)? else {
+                    return Ok(None);
+                };
+
+                dir::GenericArgument::Type { value }
+            };
+
+            arguments.push(self.insert(argument));
+        }
+
+        Ok(Some(arguments))
+    }
+
+    /// Reify one static singleton into a synthesized expression.
+    fn reify_static_depth(
+        &mut self,
+        id: dir::GlobalTypeId,
+        depth: usize,
+    ) -> CompilerResult<Option<dir::LocalNodeId<dir::Expression>>> {
+        if depth == 0 {
+            return Ok(None);
+        }
+        let id = self.check.resolve_shallow(id)?;
+
+        let expression = match self.check.ty(id)? {
+            dir::Type::Literal(value) => dir::Expression::ScalarLiteral(*value),
+            dir::Type::Memory(literal) => dir::Expression::ScalarLiteral(
+                dir::ScalarLiteral::String(self.strings.intern(literal.text())),
+            ),
+            dir::Type::Static(value) => match self.check.r#static(*value) {
+                dir::StaticTerm::ScalarLiteral { value } => dir::Expression::ScalarLiteral(*value),
+                _ => return Ok(None),
+            },
+            dir::Type::Parameter(parameter) => {
+                let Some(name) = self.generic_parameter_name_by_id(*parameter) else {
+                    return Ok(None);
+                };
+
+                dir::Expression::Identifier { name }
+            }
+            _ => return Ok(None),
+        };
+
+        Ok(Some(self.insert(expression)))
+    }
+
     /// Reify one type element list.
     fn reify_elements(
         &mut self,
@@ -605,6 +942,21 @@ impl<'a, 'b> Reifier<'a, 'b> {
         Ok(Some(elements))
     }
 
+    /// Return the source name of one generic parameter.
+    fn generic_parameter_name_by_id(
+        &self,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> Option<dir::StringId> {
+        let binding = self.check.generic_parameter(parameter)?;
+
+        match binding.key {
+            dir::GenericParameterKey::Symbol(symbol) => self.symbol_name(symbol),
+            dir::GenericParameterKey::Generated(name) => {
+                Some(self.strings.intern(&self.check_text(name)))
+            }
+        }
+    }
+
     /// Allocate one keyword type literal at the anchor span.
     pub(super) fn insert_keyword(
         &mut self,
@@ -613,8 +965,21 @@ impl<'a, 'b> Reifier<'a, 'b> {
         self.insert(Self::literal(keyword))
     }
 
+    /// Return the source name of one generic parameter binding.
+    pub(super) fn generic_parameter_name(
+        &self,
+        binding: &dir::GenericParameterBinding,
+    ) -> Option<dir::StringId> {
+        match binding.key {
+            dir::GenericParameterKey::Symbol(symbol) => self.symbol_name(symbol),
+            dir::GenericParameterKey::Generated(name) => {
+                Some(self.strings.intern(&self.check_text(name)))
+            }
+        }
+    }
+
     /// Allocate one synthesized node at the anchor span.
-    fn insert<T>(&mut self, node: T) -> dir::LocalNodeId<T>
+    pub(in crate::check) fn insert<T>(&mut self, node: T) -> dir::LocalNodeId<T>
     where
         T: dir::Node,
         dir::Tree: dir::TreeStore<T>,
@@ -624,6 +989,10 @@ impl<'a, 'b> Reifier<'a, 'b> {
 
     /// Spell one symbol name into the render pool.
     fn symbol_name(&self, symbol: dir::GlobalSymbolId) -> Option<dir::StringId> {
+        if let Some(item) = self.check.environment.language.item(symbol) {
+            return Some(self.language_item_name(item));
+        }
+
         let name = self.check.format_symbol(symbol);
         if name == "<anonymous>" || name == "[symbol]" {
             return None;
@@ -632,17 +1001,22 @@ impl<'a, 'b> Reifier<'a, 'b> {
         Some(self.strings.intern(&name))
     }
 
+    /// Spell one language item by its source export name.
+    fn language_item_name(&self, item: dir::LanguageItem) -> dir::StringId {
+        self.strings.intern(item.export_name())
+    }
+
     /// Resolve one interned string through the component pools.
     fn check_text(&self, id: dir::StringId) -> String {
         self.check.format_static_key(&dir::StaticKey::Name(id))
     }
 
-    /// Build one keyword type literal expression.
+    /// Return one keyword type literal expression.
     fn literal(literal: dir::TypeLiteral) -> dir::TypeExpression {
         dir::TypeExpression::Literal { value: literal }
     }
 
-    /// Build one bare type reference expression.
+    /// Return one bare type reference expression.
     fn reference(name: dir::StringId) -> dir::TypeExpression {
         dir::TypeExpression::Reference {
             path: dir::Path {

@@ -211,6 +211,20 @@ pub struct GenericParameterBinding {
     pub is_comptime: bool,
 }
 
+impl GenericParameterBinding {
+    /// Return whether this hidden parameter should print in annotated generic headers.
+    pub fn is_induced_header_parameter(&self) -> bool {
+        matches!(
+            self.origin,
+            GenericParameterOrigin::Induced(
+                GenericParameterInduction::ParameterConstraint
+                    | GenericParameterInduction::StorageConstraint
+                    | GenericParameterInduction::Form
+            )
+        )
+    }
+}
+
 /// One selected generic argument bound to its declaration parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct GenericArgumentBinding {

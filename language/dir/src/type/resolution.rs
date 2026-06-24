@@ -573,6 +573,15 @@ impl ConstructTarget {
             Self::Variant(candidate) => candidate.variant,
         }
     }
+
+    /// Return the selected generic argument bindings.
+    pub fn generic_arguments(&self) -> &[GenericArgumentBinding] {
+        match self {
+            Self::Class(candidate) => &candidate.generic_arguments,
+            Self::Newtype(candidate) => &candidate.generic_arguments,
+            Self::Variant(candidate) => &candidate.generic_arguments,
+        }
+    }
 }
 
 /// One class construction candidate after overload selection.

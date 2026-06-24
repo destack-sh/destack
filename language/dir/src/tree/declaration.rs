@@ -357,6 +357,21 @@ impl Declaration {
             Declaration::Global(_) | Declaration::Module(_) => None,
         }
     }
+
+    /// Return the mutable generic parameters of the declaration.
+    #[inline]
+    pub fn generic_parameters_mut(&mut self) -> Option<&mut Vec<LocalNodeId<GenericParameter>>> {
+        match self {
+            Declaration::Type(declaration) => Some(&mut declaration.generic_parameters),
+            Declaration::Struct(declaration) => Some(&mut declaration.generic_parameters),
+            Declaration::Class(declaration) => Some(&mut declaration.generic_parameters),
+            Declaration::Enum(declaration) => Some(&mut declaration.generic_parameters),
+            Declaration::Interface(declaration) => Some(&mut declaration.generic_parameters),
+            Declaration::Extension(declaration) => Some(&mut declaration.generic_parameters),
+            Declaration::Function(declaration) => Some(&mut declaration.signature.generic_parameters),
+            Declaration::Global(_) | Declaration::Module(_) => None,
+        }
+    }
 }
 
 /// An enum field.
