@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, ConstantPropagation, DominatorTree, Loop, LoopAnalysis, MemoryAccess,
-    MemoryAccessId, MemoryAccessLocation, MemorySSA, Mutation, RangeAnalysis, ValueRange,
+    MemoryAccessId, MemoryEffectTarget, MemorySSA, Mutation, RangeAnalysis, ValueRange,
     build_instruction_block_map, instruction_allows_read_only_motion,
     instruction_is_read_only_access, instruction_is_speculatable,
 };
@@ -101,7 +101,7 @@ impl FunctionPass for Licm {
 
         // report what this pass changed
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -554,7 +554,7 @@ fn load_is_hoistable(
     instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // read memory ssa access for the load
-    let Some(accesses) = memory_ssa.accesses_for_instruction(load_id) else {
+    let Some(accesses) = memory_ssa.instruction_accesses(load_id) else {
         return false;
     };
 
@@ -580,7 +580,7 @@ fn load_is_hoistable(
         return false;
     }
 
-    if matches!(use_access.effect.location, MemoryAccessLocation::Unknown) {
+    if matches!(use_access.effect.location, MemoryEffectTarget::Any { .. }) {
         return false;
     }
 
@@ -590,7 +590,7 @@ fn load_is_hoistable(
     }
 
     // resolve the clobbering access before the load
-    let clobber = memory_ssa.clobbering_access_for_use(load_access, alias);
+    let clobber = memory_ssa.clobbering_use(load_access, alias);
     match memory_ssa.access(clobber) {
         MemoryAccess::LiveOnEntry => true,
         MemoryAccess::Def(def_access) => {
@@ -622,7 +622,7 @@ fn loop_clobbers_access(
                 continue;
             }
 
-            let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
+            let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
                 continue;
             };
 
@@ -647,7 +647,7 @@ fn read_only_access_is_hoistable(
     instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // read memory ssa access for the instruction
-    let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
+    let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
         return false;
     };
 
@@ -659,7 +659,7 @@ fn read_only_access_is_hoistable(
                 if use_access.effect.is_volatile || use_access.effect.is_barrier {
                     return false;
                 }
-                if matches!(use_access.effect.location, MemoryAccessLocation::Unknown) {
+                if matches!(use_access.effect.location, MemoryEffectTarget::Any { .. }) {
                     return false;
                 }
                 use_accesses.push(*access_id);
@@ -686,7 +686,7 @@ fn read_only_access_is_hoistable(
             return false;
         }
 
-        let clobber = memory_ssa.clobbering_access_for_use(*use_access, alias);
+        let clobber = memory_ssa.clobbering_use(*use_access, alias);
         match memory_ssa.access(clobber) {
             MemoryAccess::LiveOnEntry => {}
             MemoryAccess::Def(def_access) => {

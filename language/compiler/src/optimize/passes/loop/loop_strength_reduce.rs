@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, Mutation, RangeAnalysis, ScalarEvolution,
-    Scev, TypeContext, ValueRange, ValueTypeMap, clone_instruction_metadata, constant_is_zero,
+    Scev, TargetLayout, ValueRange, ValueTypeMap, clone_instruction_metadata, constant_is_zero,
     instruction_is_speculatable, instruction_map, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
@@ -97,11 +97,11 @@ impl FunctionPass for LoopStrengthReduce {
             scev: &scev,
             value_types: &value_types,
             ranges: &ranges,
-            type_context: ctx.type_context(),
+            target_layout: ctx.target_layout(),
         };
         let changed = run_loop_strength_reduce(function, tree, &context);
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -293,7 +293,7 @@ struct StrengthReduceContext<'a> {
     /// Range analysis for loop invariants.
     ranges: &'a RangeAnalysis,
     /// Type context for layout sensitive operations.
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 }
 
 /// Shared context for collecting strength reduction candidates.
@@ -317,7 +317,7 @@ struct CandidateContext<'a> {
     /// Range analysis for safety checks.
     ranges: &'a RangeAnalysis,
     /// Type context for layout sensitive operations.
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 }
 
 impl<'a> CandidateContext<'a> {
@@ -391,7 +391,7 @@ impl<'a> CandidateContext<'a> {
                             block_id,
                             self.ranges,
                             self.value_types,
-                            self.type_context.pointer_width_bits,
+                            self.target_layout.pointer_width_bits,
                             self.tree,
                         )
                     {
@@ -400,15 +400,16 @@ impl<'a> CandidateContext<'a> {
 
                     // require an integer type for the value
                     let value_type = self.value_types.require_value_type(destination);
-                    if !type_is_integer(value_type, self.type_context.pointer_width_bits, self.tree)
-                    {
+                    if !type_is_integer(
+                        value_type,
+                        self.target_layout.pointer_width_bits,
+                        self.tree,
+                    ) {
                         continue;
                     }
 
                     // require a loop recurrence
-                    let Some(scev_value) =
-                        self.scev.scev_for_value_in_loop(loop_index, destination)
-                    else {
+                    let Some(scev_value) = self.scev.value_scev(loop_index, destination) else {
                         continue;
                     };
                     let scev_value = scev_value.clone();
@@ -496,7 +497,7 @@ fn run_loop_strength_reduce(
         definitions: &definitions,
         uses: &uses,
         ranges: context.ranges,
-        type_context: context.type_context,
+        target_layout: context.target_layout,
     };
     let candidates = candidates_context.collect_candidates();
 
@@ -540,7 +541,7 @@ fn run_loop_strength_reduce(
             context.value_types,
             context.ranges,
             context.domtree,
-            context.type_context,
+            context.target_layout,
         );
 
         // merge substitutions into the global map
@@ -604,7 +605,7 @@ fn apply_candidates_for_loop(
     value_types: &ValueTypeMap,
     ranges: &RangeAnalysis,
     domtree: &DominatorTree,
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 ) -> Vec<(mir::Value, mir::Value)> {
     // skip empty candidate lists
     if candidates.is_empty() {
@@ -626,7 +627,7 @@ fn apply_candidates_for_loop(
         value_types,
         ranges,
         domtree,
-        type_context,
+        target_layout,
     );
 
     // build plan items
@@ -671,7 +672,7 @@ fn apply_candidates_for_loop(
     // collect latch arguments in header parameter order
     let latch_args: Vec<_> = plan_items.iter().map(|item| item.next_value).collect();
     let Some(latch_terminator) =
-        append_arguments_for_successor(tree, &latch_current_terminator, header, &latch_args)
+        append_successor_arguments(tree, &latch_current_terminator, header, &latch_args)
     else {
         return Vec::new();
     };
@@ -682,12 +683,9 @@ fn apply_candidates_for_loop(
 
     // collect preheader arguments in header parameter order
     let preheader_args: Vec<_> = plan_items.iter().map(|item| item.start_value).collect();
-    let Some(preheader_terminator) = append_arguments_for_successor(
-        tree,
-        &preheader_current_terminator,
-        header,
-        &preheader_args,
-    ) else {
+    let Some(preheader_terminator) =
+        append_successor_arguments(tree, &preheader_current_terminator, header, &preheader_args)
+    else {
         return Vec::new();
     };
 
@@ -1030,7 +1028,7 @@ fn terminator_has_successor(
 }
 
 /// Append arguments for a successor edge.
-fn append_arguments_for_successor(
+fn append_successor_arguments(
     tree: &mut mir::Tree,
     terminator: &mir::Terminator,
     successor: mir::LocalNodeId<mir::Block>,
@@ -1238,7 +1236,7 @@ struct ScevMaterializer<'a> {
     /// Cached integer types by width and signedness.
     type_cache: HashMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
     /// Type context for layout sensitive operations.
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1252,7 +1250,7 @@ impl<'a> ScevMaterializer<'a> {
         value_types: &'a ValueTypeMap,
         ranges: &'a RangeAnalysis,
         domtree: &'a DominatorTree,
-        type_context: TypeContext,
+        target_layout: TargetLayout,
     ) -> Self {
         // collect constants already in the preheader
         let mut constant_cache = Vec::new();
@@ -1283,7 +1281,7 @@ impl<'a> ScevMaterializer<'a> {
             value_cache: HashMap::new(),
             value_in_progress: HashSet::new(),
             type_cache: HashMap::new(),
-            type_context,
+            target_layout,
         }
     }
 
@@ -1737,7 +1735,7 @@ impl<'a> ScevMaterializer<'a> {
         // read the argument type
         let ty_id = self.value_types.require_value_type(argument);
         let ty = self.tree.get(ty_id);
-        let (_, signed) = ty.int_info_with_pointer_width(self.type_context.pointer_width_bits)?;
+        let (_, signed) = ty.int_info_with_pointer_width(self.target_layout.pointer_width_bits)?;
         Some(signed)
     }
 

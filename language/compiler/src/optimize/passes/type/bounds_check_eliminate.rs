@@ -6,8 +6,7 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, ConstantPropagation, ControlFlowGraph, DominatorTree, Mutation,
-    RangeAnalysis, RangeMap, ValueRange, constraint_truth_value, evaluate_integer_range_comparison,
-    fold_binary,
+    RangeAnalysis, RangeMap, ValueRange, fold_binary,
 };
 
 declare_pass! {
@@ -107,7 +106,7 @@ impl FunctionPass for BoundsCheckEliminate {
             let constraint_truth = candidate
                 .constraint
                 .as_ref()
-                .and_then(|constraint| constraint_truth_value(constraint, block_ranges));
+                .and_then(|constraint| block_ranges.truth_value(constraint));
             let check_truth = constraint_truth.or(condition_truth);
 
             // replace checks when the outcome is constant
@@ -177,7 +176,7 @@ impl FunctionPass for BoundsCheckEliminate {
 
         // report what this pass changed
         if changed {
-            Mutation::CONTROL_FLOW
+            Mutation::CONTROL
         } else {
             Mutation::NONE
         }
@@ -1117,9 +1116,7 @@ fn evaluate_comparison(
         | mir::BinaryOperator::UnsignedGreaterThan
         | mir::BinaryOperator::UnsignedGreaterEqual
         | mir::BinaryOperator::Equal
-        | mir::BinaryOperator::NotEqual => {
-            evaluate_integer_range_comparison(operator, left_range, right_range)
-        }
+        | mir::BinaryOperator::NotEqual => left_range.compare_integer(operator, right_range),
         _ => None,
     }
 }

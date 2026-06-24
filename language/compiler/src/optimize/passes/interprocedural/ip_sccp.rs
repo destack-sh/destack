@@ -7,8 +7,7 @@ use crate::optimize::passes::scalar::{SimplifyCfg, SparseConditionalConstantProp
 use crate::optimize::{ModulePass, PipelineContext, run_function_passes};
 use destack_mir::{
     ConstantPropagation, Mutation, SignatureKey, apply_constant_parameters,
-    constant_arguments_for_parameters, constant_matches_type, constant_propagation_with_params,
-    constant_type_of,
+    constant_arguments_for_parameters, constant_matches_type, constant_type_of,
 };
 
 declare_pass! {
@@ -62,7 +61,7 @@ impl ModulePass for InterproceduralSccp {
         // report what this pass changed
         if changed {
             ctx.strings.intern("ip-sccp");
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -152,7 +151,7 @@ fn run_interprocedural_sccp(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> 
     // reach a fixed point for parameter and return constants
     loop {
         // build constant propagation for each function using current parameter constants
-        let constants_by_function = build_constant_maps(tree, &states, ctx.type_context());
+        let constants_by_function = build_constant_maps(tree, &states, ctx.target_layout());
 
         // update parameter lattice values
         let mut state_changed = update_parameter_states(
@@ -161,7 +160,7 @@ fn run_interprocedural_sccp(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> 
             &call_data,
             &constants_by_function,
             &mut states,
-            ctx.type_context(),
+            ctx.target_layout(),
         );
 
         // update return lattice values
@@ -170,7 +169,7 @@ fn run_interprocedural_sccp(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> 
             &function_ids,
             &constants_by_function,
             &mut states,
-            ctx.type_context(),
+            ctx.target_layout(),
         );
 
         // stop once the lattice is stable
@@ -197,7 +196,7 @@ fn run_interprocedural_sccp(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> 
     }
 
     // replace pure constant calls with literals
-    if replace_constant_calls(tree, &call_data, &states, ctx.type_context()) {
+    if replace_constant_calls(tree, &call_data, &states, ctx.target_layout()) {
         for callsite in &call_data.callsites {
             cleanup_functions.insert(callsite.caller);
         }
@@ -266,7 +265,7 @@ fn update_parameter_states(
     call_data: &CallData,
     constants_by_function: &HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation>,
     states: &mut HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
-    type_context: mir::TypeContext,
+    target_layout: mir::TargetLayout,
 ) -> bool {
     // track whether any state changed
     let mut changed = false;
@@ -312,7 +311,7 @@ fn update_parameter_states(
                     &callsite.arguments,
                     &function.parameters,
                     block_constants,
-                    type_context.pointer_width_bits,
+                    target_layout.pointer_width_bits,
                     tree,
                 ) else {
                     continue;
@@ -368,7 +367,7 @@ fn update_return_states(
     function_ids: &[(mir::LocalNodeId<mir::Function>, mir::Linkage)],
     constants_by_function: &HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation>,
     states: &mut HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
-    type_context: mir::TypeContext,
+    target_layout: mir::TargetLayout,
 ) -> bool {
     // track whether any state changed
     let mut changed = false;
@@ -384,7 +383,7 @@ fn update_return_states(
         let function = tree.get(*function_id);
 
         // compute the merged return lattice state
-        let next_state = return_state_for_function(function, constants, tree, type_context);
+        let next_state = return_state_for_function(function, constants, tree, target_layout);
 
         // skip missing lattice state entries
         let Some(state) = states.get_mut(function_id) else {
@@ -405,7 +404,7 @@ fn return_state_for_function(
     function: &mir::Function,
     constants: &ConstantPropagation,
     tree: &mir::Tree,
-    type_context: mir::TypeContext,
+    target_layout: mir::TargetLayout,
 ) -> LatticeConstant {
     // require a concrete return type
     let return_type = function.return_type;
@@ -442,7 +441,7 @@ fn return_state_for_function(
         if !constant_matches_type(
             constant_type,
             return_type,
-            type_context.pointer_width_bits,
+            target_layout.pointer_width_bits,
             tree,
         ) {
             return LatticeConstant::Overdefined;
@@ -469,7 +468,7 @@ fn return_state_for_function(
 fn build_constant_maps(
     tree: &mir::Tree,
     states: &HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
-    type_context: mir::TypeContext,
+    target_layout: mir::TargetLayout,
 ) -> HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation> {
     // prepare the result map
     let mut maps = HashMap::new();
@@ -478,8 +477,12 @@ fn build_constant_maps(
     for (function_id, state) in states {
         let function = tree.get(*function_id);
         let param_constants = param_constants_for_function(function, state);
-        let constants =
-            constant_propagation_with_params(function, tree, type_context, &param_constants);
+        let constants = ConstantPropagation::with_parameter_constants(
+            function,
+            tree,
+            target_layout,
+            &param_constants,
+        );
         maps.insert(*function_id, constants);
     }
 
@@ -521,7 +524,7 @@ fn replace_constant_calls(
     tree: &mut mir::Tree,
     call_data: &CallData,
     states: &HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
-    type_context: mir::TypeContext,
+    target_layout: mir::TargetLayout,
 ) -> bool {
     // track whether any calls were replaced
     let mut changed = false;
@@ -567,7 +570,7 @@ fn replace_constant_calls(
         if !constant_matches_type(
             constant_type,
             return_type,
-            type_context.pointer_width_bits,
+            target_layout.pointer_width_bits,
             tree,
         ) {
             continue;

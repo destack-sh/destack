@@ -17,7 +17,7 @@ use super::{
     OptimizationLevel, OptimizeState, Pipeline, PipelineContext, PipelineOptions, default_pipeline,
 };
 use crate::CompilerError;
-use destack_mir::TypeContext;
+use destack_mir::TargetLayout;
 
 impl Compiler {
     /// Collect inputs for optimized MIR of one module and target.
@@ -184,8 +184,7 @@ impl Compiler {
             OptimizationLevel::O2 | OptimizationLevel::O3 | OptimizationLevel::O4
         );
         PipelineOptions {
-            strict_borrow_mode: true,
-            type_context: TypeContext { pointer_width_bits },
+            target_layout: TargetLayout { pointer_width_bits },
             unroll_threshold,
             inline_budget_scale_percent,
             require_optimized_metadata,

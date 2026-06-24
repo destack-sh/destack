@@ -6,9 +6,8 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, DominatorTree, MemoryAccess, MemoryAccessEffect, MemoryAccessId,
-    MemoryAccessLocation, MemorySSA, Mutation, TypeContext, ValueTypeMap,
-    apply_substitutions_in_function, can_substitute_value, effect_is_trackable,
-    memory_locations_compatible, resolve_substitution_chains, spaces_may_alias,
+    MemoryEffectTarget, MemorySSA, Mutation, TargetLayout, ValueTypeMap,
+    apply_substitutions_in_function, resolve_substitution_chains,
 };
 
 declare_pass! {
@@ -61,11 +60,9 @@ struct MemoryEntry {
     /// The clobbering access id for the memory state.
     clobber: MemoryAccessId,
     /// The accessed memory location.
-    location: MemoryAccessLocation,
+    location: MemoryEffectTarget,
     /// The available value.
     value: mir::Value,
-    /// The backing memory spaces for the access.
-    space_set: mir::SpaceSet,
 }
 
 impl FunctionPass for LoadStoreForward {
@@ -102,12 +99,12 @@ impl FunctionPass for LoadStoreForward {
             memory_ssa.as_ref(),
             &dom_children,
             &value_types,
-            ctx.type_context(),
+            ctx.target_layout(),
         );
 
         // report what this pass changed
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -132,7 +129,7 @@ fn run_load_store_forward(
     memory_ssa: &MemorySSA,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     value_types: &ValueTypeMap,
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 ) -> bool {
     // run forwarding using dominator tree traversal
     let (substitutions, to_remove) = find_forwardable_loads(
@@ -142,7 +139,7 @@ fn run_load_store_forward(
         memory_ssa,
         dom_children,
         value_types,
-        type_context,
+        target_layout,
     );
 
     // nothing to do if no forwarding found
@@ -220,7 +217,7 @@ impl AvailableMemory {
         aa: &AliasAnalysis,
     ) -> Option<mir::Value> {
         // skip untrackable effects
-        if !effect_is_trackable(use_effect) {
+        if !use_effect.is_trackable() {
             return None;
         }
 
@@ -235,20 +232,27 @@ impl AvailableMemory {
                     continue;
                 }
 
-                if !spaces_may_alias(entry.space_set, use_effect.space_set) {
+                if !entry
+                    .location
+                    .spaces()
+                    .may_alias(use_effect.location.spaces())
+                {
                     continue;
                 }
 
                 // compare matching locations
                 match (&entry.location, location) {
-                    (MemoryAccessLocation::Local(a), MemoryAccessLocation::Local(b)) => {
+                    (MemoryEffectTarget::Local(a), MemoryEffectTarget::Local(b)) => {
                         if a == b {
                             return Some(entry.value);
                         }
                     }
-                    (MemoryAccessLocation::Pointer(a), MemoryAccessLocation::Pointer(b)) => {
-                        if a.ptr == b.ptr {
-                            if memory_locations_compatible(a, b) {
+                    (
+                        MemoryEffectTarget::Reference { location: a, .. },
+                        MemoryEffectTarget::Reference { location: b, .. },
+                    ) => {
+                        if a.reference == b.reference {
+                            if a.is_compatible_with(b) {
                                 return Some(entry.value);
                             }
 
@@ -261,7 +265,7 @@ impl AvailableMemory {
                             continue;
                         }
                         if alias_result.is_must_alias() {
-                            if memory_locations_compatible(a, b) {
+                            if a.is_compatible_with(b) {
                                 return Some(entry.value);
                             }
 
@@ -303,7 +307,7 @@ fn find_forwardable_loads(
     memory_ssa: &MemorySSA,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     value_types: &ValueTypeMap,
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 ) -> (
     HashMap<mir::Value, mir::Value>,
     HashSet<mir::LocalNodeId<mir::Instruction>>,
@@ -334,7 +338,7 @@ fn find_forwardable_loads(
                     aa,
                     memory_ssa,
                     value_types,
-                    type_context,
+                    target_layout,
                     &mut available,
                     &mut substitutions,
                     &mut to_remove,
@@ -367,7 +371,7 @@ fn process_block(
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     value_types: &ValueTypeMap,
-    _type_context: TypeContext,
+    _target_layout: TargetLayout,
     available: &mut AvailableMemory,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
     to_remove: &mut HashSet<mir::LocalNodeId<mir::Instruction>>,
@@ -396,7 +400,7 @@ fn process_block(
                 };
 
                 // skip untrackable accesses
-                if !effect_is_trackable(&def_access.effect) {
+                if !def_access.effect.is_trackable() {
                     continue;
                 }
 
@@ -405,7 +409,6 @@ fn process_block(
                     clobber: def_access_id,
                     location: def_access.effect.location.clone(),
                     value,
-                    space_set: def_access.effect.space_set,
                 });
             }
 
@@ -423,19 +426,19 @@ fn process_block(
                 };
 
                 // skip untrackable reads
-                if !effect_is_trackable(&use_access.effect) {
+                if !use_access.effect.is_trackable() {
                     continue;
                 }
 
                 // compute the clobbering access for this read
-                let clobber = memory_ssa.clobbering_access_for_use(use_access_id, aa);
+                let clobber = memory_ssa.clobbering_use(use_access_id, aa);
                 let Some(clobber) = resolve_trivial_clobber(memory_ssa, clobber) else {
                     continue;
                 };
 
                 // forward from an existing value when possible
                 if let Some(existing) = available.get(clobber, &use_access.effect, aa)
-                    && can_substitute_value(destination, existing, value_types, tree)
+                    && value_types.can_substitute(destination, existing, tree)
                 {
                     substitutions.insert(destination, existing);
                     to_remove.insert(instruction_id);
@@ -444,7 +447,6 @@ fn process_block(
                         clobber,
                         location: use_access.effect.location.clone(),
                         value: destination,
-                        space_set: use_access.effect.space_set,
                     });
                 }
             }
@@ -463,19 +465,19 @@ fn process_block(
                 };
 
                 // skip untrackable reads
-                if !effect_is_trackable(&use_access.effect) {
+                if !use_access.effect.is_trackable() {
                     continue;
                 }
 
                 // compute the clobbering access for this read
-                let clobber = memory_ssa.clobbering_access_for_use(use_access_id, aa);
+                let clobber = memory_ssa.clobbering_use(use_access_id, aa);
                 let Some(clobber) = resolve_trivial_clobber(memory_ssa, clobber) else {
                     continue;
                 };
 
                 // forward from an existing value when possible
                 if let Some(existing) = available.get(clobber, &use_access.effect, aa)
-                    && can_substitute_value(destination, existing, value_types, tree)
+                    && value_types.can_substitute(destination, existing, tree)
                 {
                     substitutions.insert(destination, existing);
                     to_remove.insert(instruction_id);
@@ -484,7 +486,6 @@ fn process_block(
                         clobber,
                         location: use_access.effect.location.clone(),
                         value: destination,
-                        space_set: use_access.effect.space_set,
                     });
                 }
             }
@@ -516,7 +517,7 @@ fn def_access_id(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
 ) -> Option<MemoryAccessId> {
     // find the first def access for the instruction
-    let accesses = memory_ssa.accesses_for_instruction(instruction_id)?;
+    let accesses = memory_ssa.instruction_accesses(instruction_id)?;
     for &access_id in accesses {
         if matches!(memory_ssa.access(access_id), MemoryAccess::Def(_)) {
             return Some(access_id);
@@ -531,7 +532,7 @@ fn use_access_id(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
 ) -> Option<MemoryAccessId> {
     // find the first use access for the instruction
-    let accesses = memory_ssa.accesses_for_instruction(instruction_id)?;
+    let accesses = memory_ssa.instruction_accesses(instruction_id)?;
     for &access_id in accesses {
         if matches!(memory_ssa.access(access_id), MemoryAccess::Use(_)) {
             return Some(access_id);
@@ -574,7 +575,7 @@ mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
 
-    /// Store then load from same pointer forwards the stored value.
+    /// Store then load from same reference forwards the stored value.
     #[test]
     fn test_forward_simple_store_load() {
         let input = r#"
@@ -655,7 +656,7 @@ entry:
         test.assert_output(expected);
     }
 
-    /// Multiple loads from same pointer all forward to stored value.
+    /// Multiple loads from same reference all forward to stored value.
     #[test]
     fn test_forward_multiple_loads() {
         let input = r#"

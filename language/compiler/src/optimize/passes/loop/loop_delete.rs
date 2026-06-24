@@ -75,7 +75,7 @@ impl FunctionPass for LoopDelete {
         // run loop deletion
         let changed = run_loop_delete(function, tree, &loops, &domtree, &constants);
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }

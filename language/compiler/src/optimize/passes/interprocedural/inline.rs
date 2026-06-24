@@ -5,10 +5,10 @@ use destack_mir as mir;
 
 use crate::optimize::{ModulePass, PipelineContext};
 use destack_mir::{
-    CallGraphScc, CallsiteHotness, Mutation, ValueTypeMap, block_hotness_from_counts,
-    build_value_definition_map, clone_instruction_metadata, constant_for_value,
-    instruction_map_with_locals, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, terminator_remap, terminator_substitute_uses,
+    CallGraphScc, CallsiteHotness, Mutation, ValueDefinitions, ValueTypeMap,
+    clone_instruction_metadata, constant_for_value, instruction_map_with_locals,
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses, terminator_remap,
+    terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -59,7 +59,7 @@ impl ModulePass for Inline {
 
         // report what this pass changed
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -193,7 +193,7 @@ fn run_inline(
         let mut scc_budget = scc_id
             .and_then(|id| scc_budgets.get(&id).copied())
             .unwrap_or(INLINE_SCC_BUDGET_BASE);
-        let block_counts = mir::profile_block_counts(
+        let block_counts = mir::BlockFrequency::profile_block_counts(
             &function,
             tree,
             ctx.profile(),
@@ -213,7 +213,7 @@ fn run_inline(
             }
 
             // build value definitions for constant argument detection
-            let value_definitions = build_value_definition_map(&function, tree);
+            let value_definitions = ValueDefinitions::build(&function, tree).instruction_map();
             let available_budget = inline_budget.min(module_budget).min(scc_budget);
 
             // find the next candidate callsite
@@ -440,7 +440,7 @@ fn inline_score(
 
     // hotness comes from the callsite block's frequency relative to entry
     let hotness = if profile.is_some() {
-        match block_hotness_from_counts(block_count, entry_count) {
+        match CallsiteHotness::from_counts(block_count, entry_count) {
             CallsiteHotness::Unknown => CallsiteHotness::Cold,
             hotness => hotness,
         }
@@ -1563,7 +1563,7 @@ b2(v5: int32):
         test.assert_output(expected);
     }
 
-    /// Inlined memory access metadata remaps pointer targets.
+    /// Inlined memory access metadata remaps reference targets.
     #[test]
     fn test_inline_remaps_memory_access_metadata() {
         let input = r#"
@@ -1642,7 +1642,7 @@ entry:
             .expect("missing inlined access metadata");
         assert_eq!(accesses.len(), 1);
         match accesses[0].target {
-            mir::MemoryAccessTarget::Pointer(value) => {
+            mir::MemoryAccessTarget::Reference(value) => {
                 assert_eq!(value, inlined_pointer);
             }
             _ => panic!("unexpected access target"),
@@ -1855,8 +1855,8 @@ entry0:
     /// Block profiles can classify hotness for missing callsite data.
     #[test]
     fn test_inline_hotness_from_block_count() {
-        let hot = block_hotness_from_counts(100, 100);
-        let cold = block_hotness_from_counts(1, 100);
+        let hot = CallsiteHotness::from_counts(100, 100);
+        let cold = CallsiteHotness::from_counts(1, 100);
 
         assert_eq!(hot, CallsiteHotness::Hot);
         assert_eq!(cold, CallsiteHotness::Cold);

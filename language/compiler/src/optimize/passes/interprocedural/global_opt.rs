@@ -4,7 +4,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{ModulePass, PipelineContext};
-use destack_mir::{Mutation, build_value_definition_map};
+use destack_mir::{Mutation, ValueDefinitions};
 
 declare_pass! {
     /// Mark private globals readonly when no write can reach them.
@@ -48,7 +48,7 @@ impl ModulePass for GlobalOpt {
         // report what this pass changed
         if changed {
             ctx.strings.intern("global-opt");
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -140,7 +140,7 @@ struct GlobalAddrEntry {
 struct GlobalAddrInfo {
     /// Map from global id to its address instructions.
     by_global: HashMap<mir::LocalNodeId<mir::Global>, Vec<GlobalAddrEntry>>,
-    /// Map from pointer value to global id.
+    /// Map from reference value to global id.
     by_value: HashMap<mir::Value, mir::LocalNodeId<mir::Global>>,
 }
 
@@ -260,7 +260,7 @@ fn collect_written_globals(
             continue;
         }
 
-        let definitions = build_value_definition_map(function, tree);
+        let definitions = ValueDefinitions::build(function, tree).instruction_map();
 
         for &block_id in &function.blocks {
             let block = tree.get(block_id);
@@ -422,7 +422,7 @@ fn global_addr_base(
     addr_info: &GlobalAddrInfo,
     tree: &mir::Tree,
 ) -> Option<mir::LocalNodeId<mir::Global>> {
-    // walk pointer definitions to find the base address
+    // walk reference definitions to find the base address
     let mut current = value;
     let mut visited = HashSet::new();
 

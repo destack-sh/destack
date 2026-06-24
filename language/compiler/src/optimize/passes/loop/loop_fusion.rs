@@ -6,11 +6,10 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, BlockParamForwarding, ConstantPropagation, ControlFlowGraph, DominatorTree,
-    LoopAnalysis, LoopEffectPolicy, MemoryAccessEffect, MemorySSA, Mutation, ValueEquivalence,
-    block_is_speculatable_no_reads, build_instruction_block_map, build_value_definition_map,
+    LoopAnalysis, LoopEffectPolicy, MemoryAccessEffect, MemorySSA, Mutation, ValueDefinitions,
+    ValueEquivalence, block_is_speculatable_no_reads, build_instruction_block_map,
     clone_instruction_metadata, collect_loop_effects, control_instructions_for_latch,
-    effects_may_alias, instruction_is_speculatable, instruction_map, loop_guard_branch,
-    loop_preheader,
+    instruction_is_speculatable, instruction_map, loop_guard_branch, loop_preheader,
 };
 
 declare_pass! {
@@ -112,7 +111,7 @@ impl FunctionPass for LoopFusion {
 
         // report what this pass changed
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -184,7 +183,7 @@ fn run_loop_fusion(
     constants: &ConstantPropagation,
 ) -> bool {
     // build definition maps
-    let definitions = build_value_definition_map(function, tree);
+    let definitions = ValueDefinitions::build(function, tree).instruction_map();
     let instruction_blocks = build_instruction_block_map(function, tree);
     let forwarding = BlockParamForwarding::build(function, tree, cfg);
 
@@ -644,7 +643,7 @@ fn effects_are_independent(
                 continue;
             }
 
-            if effects_may_alias(alias, effect, other) {
+            if effect.may_alias(alias, other) {
                 return false;
             }
         }

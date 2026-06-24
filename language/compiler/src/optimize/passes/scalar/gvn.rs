@@ -6,10 +6,9 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, ConstantPropagation, DominatorTree, ExpressionKey, MemoryAccess,
-    MemoryAccessEffect, MemoryAccessId, MemoryAccessLocation, MemorySSA, Mutation, TypeContext,
-    ValueTypeMap, apply_substitutions_in_function, can_substitute_value,
-    expression_key_from_instruction, expression_key_substitute, instruction_has_side_effects,
-    memory_locations_compatible, resolve_substitution_chains, spaces_may_alias,
+    MemoryAccessEffect, MemoryAccessId, MemoryEffectTarget, MemorySSA, Mutation, TargetLayout,
+    ValueTypeMap, apply_substitutions_in_function, instruction_has_side_effects,
+    resolve_substitution_chains,
 };
 
 declare_pass! {
@@ -86,12 +85,12 @@ impl FunctionPass for GlobalValueNumbering {
             memory_ssa.as_ref(),
             constants.as_ref(),
             &value_types,
-            ctx.type_context(),
+            ctx.target_layout(),
         );
 
         // report what this pass changed
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -117,7 +116,7 @@ fn run_gvn(
     memory_ssa: &MemorySSA,
     constants: &ConstantPropagation,
     value_types: &ValueTypeMap,
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 ) -> bool {
     // run GVN using dominator tree traversal
     let (substitutions, to_remove) = find_redundant_expressions(
@@ -128,7 +127,7 @@ fn run_gvn(
         memory_ssa,
         constants,
         value_types,
-        type_context,
+        target_layout,
     );
 
     // nothing to do if no redundancies found
@@ -187,11 +186,9 @@ struct MemoryEntry {
     /// Clobbering access id for the memory state.
     clobber: MemoryAccessId,
     /// Memory location accessed by the load.
-    location: MemoryAccessLocation,
+    location: MemoryEffectTarget,
     /// Value produced by the load.
     value: mir::Value,
-    /// The backing memory spaces for the access.
-    space_set: mir::SpaceSet,
 }
 
 impl ScopedValueTable {
@@ -292,8 +289,8 @@ impl ScopedValueTable {
     ) -> Option<mir::Value> {
         let location = &use_effect.location;
 
-        // skip unknown locations
-        if matches!(location, MemoryAccessLocation::Unknown) {
+        // skip imprecise targets
+        if matches!(location, MemoryEffectTarget::Any { .. }) {
             return None;
         }
 
@@ -306,20 +303,27 @@ impl ScopedValueTable {
                     continue;
                 }
 
-                if !spaces_may_alias(entry.space_set, use_effect.space_set) {
+                if !entry
+                    .location
+                    .spaces()
+                    .may_alias(use_effect.location.spaces())
+                {
                     continue;
                 }
 
                 // compare matching locations
                 match (&entry.location, location) {
-                    (MemoryAccessLocation::Local(a), MemoryAccessLocation::Local(b)) => {
+                    (MemoryEffectTarget::Local(a), MemoryEffectTarget::Local(b)) => {
                         if a == b {
                             return Some(entry.value);
                         }
                     }
-                    (MemoryAccessLocation::Pointer(a), MemoryAccessLocation::Pointer(b)) => {
-                        if a.ptr == b.ptr {
-                            if memory_locations_compatible(a, b) {
+                    (
+                        MemoryEffectTarget::Reference { location: a, .. },
+                        MemoryEffectTarget::Reference { location: b, .. },
+                    ) => {
+                        if a.reference == b.reference {
+                            if a.is_compatible_with(b) {
                                 return Some(entry.value);
                             }
 
@@ -332,7 +336,7 @@ impl ScopedValueTable {
                             continue;
                         }
                         if result.is_must_alias() {
-                            if memory_locations_compatible(a, b) {
+                            if a.is_compatible_with(b) {
                                 return Some(entry.value);
                             }
 
@@ -370,7 +374,7 @@ fn find_redundant_expressions(
     memory_ssa: &MemorySSA,
     constants: &ConstantPropagation,
     value_types: &ValueTypeMap,
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 ) -> (
     HashMap<mir::Value, mir::Value>,
     HashSet<mir::LocalNodeId<mir::Instruction>>,
@@ -403,7 +407,7 @@ fn find_redundant_expressions(
                     memory_ssa,
                     constants,
                     value_types,
-                    type_context,
+                    target_layout,
                     &mut value_table,
                     &mut substitutions,
                     &mut to_remove,
@@ -440,7 +444,7 @@ fn process_block(
     memory_ssa: &MemorySSA,
     _constants: &ConstantPropagation,
     value_types: &ValueTypeMap,
-    _type_context: TypeContext,
+    _target_layout: TargetLayout,
     value_table: &mut ScopedValueTable,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
     to_remove: &mut HashSet<mir::LocalNodeId<mir::Instruction>>,
@@ -510,7 +514,7 @@ fn process_block(
 
         // apply aggregate forwarding when available
         if let Some((dest, replacement, inst_id)) = aggregate_simplification {
-            if can_substitute_value(dest, replacement, value_types, tree) {
+            if value_types.can_substitute(dest, replacement, tree) {
                 substitutions.insert(dest, replacement);
                 to_remove.insert(inst_id);
             }
@@ -523,7 +527,7 @@ fn process_block(
             let local = *local;
 
             if let Some(existing) = value_table.get_local(local)
-                && can_substitute_value(destination, existing, value_types, tree)
+                && value_types.can_substitute(destination, existing, tree)
             {
                 substitutions.insert(destination, existing);
                 to_remove.insert(instruction_id);
@@ -560,20 +564,20 @@ fn process_block(
                 continue;
             }
 
-            // skip unknown locations
-            if matches!(use_access.effect.location, MemoryAccessLocation::Unknown) {
+            // skip imprecise targets
+            if matches!(use_access.effect.location, MemoryEffectTarget::Any { .. }) {
                 continue;
             }
 
             // compute the clobbering access for the load
-            let clobber = memory_ssa.clobbering_access_for_use(use_access_id, alias);
+            let clobber = memory_ssa.clobbering_use(use_access_id, alias);
             if matches!(memory_ssa.access(clobber), MemoryAccess::Phi(_)) {
                 continue;
             }
 
             // forward from an existing load when possible
             if let Some(existing) = value_table.get_memory(clobber, &use_access.effect, alias)
-                && can_substitute_value(destination, existing, value_types, tree)
+                && value_types.can_substitute(destination, existing, tree)
             {
                 substitutions.insert(destination, existing);
                 to_remove.insert(instruction_id);
@@ -582,7 +586,6 @@ fn process_block(
                     clobber,
                     location: use_access.effect.location.clone(),
                     value: destination,
-                    space_set: use_access.effect.space_set,
                 });
             }
             continue;
@@ -594,7 +597,7 @@ fn process_block(
         }
 
         // try to get an expression key
-        let Some(key) = expression_key_from_instruction(instruction, tree) else {
+        let Some(key) = ExpressionKey::from_instruction(instruction, tree) else {
             continue;
         };
 
@@ -604,12 +607,12 @@ fn process_block(
         };
 
         // apply existing substitutions to the key
-        let key = expression_key_substitute(key, substitutions);
+        let key = key.substitute(substitutions);
 
         // check if we've seen this expression in any dominating scope
         if let Some(existing_value) = value_table.get(&key) {
             // found a match: mark for substitution and removal
-            if can_substitute_value(destination, existing_value, value_types, tree) {
+            if value_types.can_substitute(destination, existing_value, tree) {
                 substitutions.insert(destination, existing_value);
                 to_remove.insert(instruction_id);
             }

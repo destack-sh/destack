@@ -59,7 +59,7 @@ impl FunctionPass for LoopSimplify {
         // run loop simplification
         let changed = run_loop_simplify(entry, function, tree, &loops, &cfg);
         if changed {
-            Mutation::CONTROL_FLOW
+            Mutation::CONTROL
         } else {
             Mutation::NONE
         }

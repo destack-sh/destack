@@ -7,7 +7,6 @@ use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     ConstantPropagation, ControlFlowGraph, DominatorTree, Mutation, ValueRange,
     apply_substitutions_in_dominated_blocks, build_use_def_maps, build_value_instruction_map,
-    swap_comparison_operator,
 };
 
 declare_pass! {
@@ -80,7 +79,7 @@ impl FunctionPass for CorrelatedValueProp {
 
         // report what this pass changed
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -419,9 +418,9 @@ fn integer_range_constraints(
     // resolve full type bounds
     let (full_min, full_max) = integer_full_bounds(width, is_signed)?;
 
-    // flip operator when constant is on the left
+    // swap the operator when the constant is on the left
     let operator = if is_swapped {
-        swap_comparison_operator(operator)?
+        operator.swap_operands()?
     } else {
         operator
     };
@@ -616,7 +615,7 @@ fn comparison_from_range(
     let operator = if is_left {
         operator
     } else {
-        swap_comparison_operator(operator)?
+        operator.swap_operands()?
     };
 
     // evaluate comparison outcome

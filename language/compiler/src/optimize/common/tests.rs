@@ -371,7 +371,7 @@ impl TestProgram {
         // build the access metadata
         let access = mir::MemoryAccessMetadata {
             kind,
-            target: mir::MemoryAccessTarget::Pointer(pointer),
+            target: mir::MemoryAccessTarget::Reference(pointer),
             size,
             alignment: None,
             is_volatile,
@@ -421,7 +421,7 @@ impl TestProgram {
         (call_inst, *callee)
     }
 
-    /// Insert a function pointer type for a callee signature.
+    /// Insert a function reference type for a callee signature.
     pub(crate) fn call_signature_for_callee(
         &mut self,
         callee: mir::LocalNodeId<mir::Function>,
@@ -435,7 +435,7 @@ impl TestProgram {
             .collect::<Vec<_>>();
         let return_ty = callee_function.return_type;
 
-        // insert the function pointer type
+        // insert the function reference type
         self.tree.insert_type(mir::Type::FunctionSignature {
             lifetimes: Vec::new(),
             parameters: param_tys,
@@ -601,7 +601,7 @@ impl TestProgram {
 
         // record each structural successor edge
         let terminator = self.tree.get(self.tree.get(block).terminator);
-        let targets = mir::terminator_targets(&self.tree, block, terminator);
+        let targets = terminator.targets(&self.tree, block);
         assert_eq!(
             targets.len(),
             weights.len(),
@@ -885,7 +885,7 @@ mod tests {
     impl Analysis for TestAnalysisA {
         const ID: AnalysisId = AnalysisId("test-a");
         // survives value-only changes so partial preservation is observable
-        const INVALIDATED_BY: Mutation = Mutation::CONTROL_FLOW;
+        const INVALIDATED_BY: Mutation = Mutation::CONTROL;
     }
 
     impl FunctionAnalysis for TestAnalysisA {
@@ -1117,7 +1117,7 @@ entry:
 
         // a value-only change preserves the control-flow graph and invalidates the
         // value-dependent analysis
-        analyses.apply(Mutation::VALUES);
+        analyses.apply(Mutation::VALUE);
 
         assert!(analyses.is_cached::<mir::ControlFlowGraph>());
         assert!(!analyses.is_cached::<mir::ConstantPropagation>());
@@ -1136,13 +1136,13 @@ entry:
         assert!(!Mutation::NONE.intersects(Mutation::ALL));
 
         // a union carries both kinds
-        let both = Mutation::CONTROL_FLOW | Mutation::VALUES;
-        assert_eq!(both, Mutation::ALL);
-        assert!(both.intersects(Mutation::CONTROL_FLOW));
-        assert!(both.intersects(Mutation::VALUES));
+        let both = Mutation::CONTROL | Mutation::VALUE;
+        assert!(both.intersects(Mutation::CONTROL));
+        assert!(both.intersects(Mutation::VALUE));
+        assert!(!both.intersects(Mutation::MEMORY));
 
         // distinct kinds do not intersect
-        assert!(!Mutation::CONTROL_FLOW.intersects(Mutation::VALUES));
+        assert!(!Mutation::CONTROL.intersects(Mutation::VALUE));
     }
 
     declare_pass! {

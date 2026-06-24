@@ -6,9 +6,8 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     CallsiteHotness, ControlFlowGraph, DominatorTree, EdgeArguments, Loop, LoopAnalysis, Mutation,
-    RangeAnalysis, block_hotness_from_counts, bool_from_range, build_value_definition_map,
-    clone_instruction_metadata, clone_loop_blocks, instruction_is_speculatable,
-    instruction_map_with_locals, terminator_remap,
+    RangeAnalysis, ValueDefinitions, clone_instruction_metadata, clone_loop_blocks,
+    instruction_is_speculatable, instruction_map_with_locals, terminator_remap,
 };
 
 declare_pass! {
@@ -88,7 +87,7 @@ impl FunctionPass for LoopUnswitch {
 
         // report what this pass changed
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -262,7 +261,8 @@ impl UnswitchHeuristics {
         analyses: &mir::FunctionAnalyses,
     ) -> Self {
         // compute block counts from profile data
-        let block_counts = mir::profile_block_counts(function, tree, profile, analyses);
+        let block_counts =
+            mir::BlockFrequency::profile_block_counts(function, tree, profile, analyses);
         let entry_count = function
             .entry
             .and_then(|entry| block_counts.get(&entry).copied())
@@ -285,7 +285,7 @@ impl UnswitchHeuristics {
             return CallsiteHotness::Unknown;
         };
 
-        block_hotness_from_counts(count, self.entry_count)
+        CallsiteHotness::from_counts(count, self.entry_count)
     }
 
     /// Return the loop size limit for a header block.
@@ -367,7 +367,7 @@ fn find_unswitchable_loop(
         preheader_values.insert(*arg);
     }
 
-    let value_definitions = build_value_definition_map(function, tree);
+    let value_definitions = ValueDefinitions::build(function, tree).instruction_map();
 
     // scan all loop blocks for an invariant branch (prefer header first for stability)
     let mut sorted_blocks: Vec<_> = lp.blocks.iter().copied().collect();
@@ -418,7 +418,12 @@ fn find_unswitchable_loop(
         if !preheader_values.contains(&condition_value) && hoisted_condition.is_none() {
             continue;
         }
-        if bool_from_range(ranges.entry(block_id).get(condition_value)).is_some() {
+        if ranges
+            .entry(block_id)
+            .get(condition_value)
+            .and_then(mir::ValueRange::as_boolean_constant)
+            .is_some()
+        {
             continue;
         }
         // both targets must be different (otherwise branch is effectively a jump)

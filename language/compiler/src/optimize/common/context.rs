@@ -11,7 +11,4 @@ pub trait DiagnosticEmitter {
 
     /// Emit an optimization warning.
     fn emit_warning(&self, warning: impl Into<DiagnosticBuilder<OptimizeWarning>>);
-
-    /// Mark that aliasing violations were found (code is not strict-safe).
-    fn mark_aliasing_violation(&self);
 }

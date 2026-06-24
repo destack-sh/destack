@@ -6,9 +6,8 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, AliasResult, ConstantPropagation, MemoryAccess, MemoryAccessEffect,
-    MemoryAccessId, MemoryAccessLocation, MemoryDef, MemorySSA, Mutation, ValueEquivalence,
-    build_instruction_block_map, build_value_definition_map, effect_is_trackable,
-    effects_match_location, instruction_has_atomic_ordering, spaces_may_alias,
+    MemoryAccessId, MemoryDef, MemoryEffectTarget, MemorySSA, Mutation, ValueDefinitions,
+    ValueEquivalence, build_instruction_block_map,
 };
 
 declare_pass! {
@@ -80,7 +79,7 @@ impl FunctionPass for MemCse {
 
         // report what this pass changed
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -117,14 +116,14 @@ enum DefKind {
     },
     /// Memcpy of a source pointer and size.
     Memcpy {
-        /// The source pointer value.
+        /// The source reference value.
         source: mir::Value,
         /// The size of the copy in bytes.
         size: mir::Value,
     },
     /// Memmove of a source pointer and size.
     Memmove {
-        /// The source pointer value.
+        /// The source reference value.
         source: mir::Value,
         /// The size of the move in bytes.
         size: mir::Value,
@@ -170,7 +169,7 @@ fn run_mem_cse(
     }
 
     // build definition map for value equivalence checks
-    let definitions = build_value_definition_map(function, tree);
+    let definitions = ValueDefinitions::build(function, tree).instruction_map();
 
     // build instruction block map for constant lookups
     let instruction_blocks = build_instruction_block_map(function, tree);
@@ -222,7 +221,7 @@ fn collect_candidates(
                 continue;
             };
 
-            let Some(access_id) = def_access_for_instruction(memory_ssa, instruction_id) else {
+            let Some(access_id) = instruction_def_access(memory_ssa, instruction_id) else {
                 continue;
             };
 
@@ -231,7 +230,7 @@ fn collect_candidates(
             };
 
             // require trackable effects
-            if !effect_is_trackable(&def_access.effect) {
+            if !def_access.effect.is_trackable() {
                 continue;
             }
 
@@ -287,12 +286,12 @@ fn def_kind_for_instruction(tree: &mir::Tree, instruction: &mir::Instruction) ->
 }
 
 /// Find the single memory def access for an instruction.
-fn def_access_for_instruction(
+fn instruction_def_access(
     memory_ssa: &MemorySSA,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
 ) -> Option<MemoryAccessId> {
     // locate the single memory def access for this instruction
-    let accesses = memory_ssa.accesses_for_instruction(instruction_id)?;
+    let accesses = memory_ssa.instruction_accesses(instruction_id)?;
     let mut def_access = None;
 
     for access_id in accesses {
@@ -316,17 +315,17 @@ fn candidate_is_redundant(
     equivalence: &mut ValueEquivalence<'_>,
 ) -> bool {
     // skip untrackable candidates
-    if !effect_is_trackable(&candidate.effect) {
+    if !candidate.effect.is_trackable() {
         return false;
     }
 
     // skip atomically ordered candidates
-    if instruction_has_atomic_ordering(tree, candidate.instruction) {
+    if tree.instruction_has_atomic_ordering(candidate.instruction) {
         return false;
     }
 
     // resolve the clobbering access for this definition
-    let clobber = memory_ssa.clobbering_access_for_def(candidate.access, alias);
+    let clobber = memory_ssa.clobbering_def(candidate.access, alias);
     let Some(clobber_defs) = clobber_def_accesses(memory_ssa, clobber) else {
         return false;
     };
@@ -334,12 +333,15 @@ fn candidate_is_redundant(
     // check redundancy against every incoming clobber
     for clobber_def in clobber_defs {
         // skip untrackable clobbers
-        if !effect_is_trackable(&clobber_def.effect) {
+        if !clobber_def.effect.is_trackable() {
             return false;
         }
 
         // confirm both defs touch the same location
-        if !effects_match_location(alias, &candidate.effect, &clobber_def.effect) {
+        if !candidate
+            .effect
+            .matches_location(alias, &clobber_def.effect)
+        {
             return false;
         }
 
@@ -478,7 +480,7 @@ fn memop_source_access(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
 ) -> Option<SourceAccess> {
     // collect access ids for the instruction
-    let accesses = memory_ssa.accesses_for_instruction(instruction_id)?;
+    let accesses = memory_ssa.instruction_accesses(instruction_id)?;
     let mut source_access = None;
 
     // locate the single read access
@@ -487,7 +489,10 @@ fn memop_source_access(
             continue;
         };
 
-        if matches!(use_access.effect.location, MemoryAccessLocation::Pointer(_)) {
+        if matches!(
+            use_access.effect.location,
+            MemoryEffectTarget::Reference { .. }
+        ) {
             if source_access.is_some() {
                 return None;
             }
@@ -510,8 +515,8 @@ fn memop_source_is_stable(
     alias: &AliasAnalysis,
 ) -> bool {
     // compare clobbering accesses for the source
-    let candidate_clobber = memory_ssa.clobbering_access_for_use(candidate.access, alias);
-    let clobber_clobber = memory_ssa.clobbering_access_for_use(clobber.access, alias);
+    let candidate_clobber = memory_ssa.clobbering_use(candidate.access, alias);
+    let clobber_clobber = memory_ssa.clobbering_use(clobber.access, alias);
 
     candidate_clobber == clobber_clobber
 }
@@ -533,15 +538,22 @@ fn memop_alias_result(
     alias: &AliasAnalysis,
 ) -> AliasResult {
     // apply location sets
-    if !spaces_may_alias(dest_effect.space_set, source_effect.space_set) {
+    if !dest_effect
+        .location
+        .spaces()
+        .may_alias(source_effect.location.spaces())
+    {
         return AliasResult::NoAlias;
     }
 
-    // ask alias analysis for pointer locations
+    // ask alias analysis for reference locations
     match (&dest_effect.location, &source_effect.location) {
-        (MemoryAccessLocation::Pointer(dest), MemoryAccessLocation::Pointer(source)) => {
-            alias.alias(dest, source)
-        }
+        (
+            MemoryEffectTarget::Reference { location: dest, .. },
+            MemoryEffectTarget::Reference {
+                location: source, ..
+            },
+        ) => alias.alias(dest, source),
         _ => AliasResult::MayAlias,
     }
 }

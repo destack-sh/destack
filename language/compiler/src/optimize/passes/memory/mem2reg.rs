@@ -72,7 +72,7 @@ impl FunctionPass for Mem2Reg {
 
         // report what this pass changed
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }

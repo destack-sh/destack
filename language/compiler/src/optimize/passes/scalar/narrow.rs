@@ -4,9 +4,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
-use destack_mir::{
-    Mutation, RangeAnalysis, RangeMap, ValueRange, ValueTypeMap, is_comparison_operator,
-};
+use destack_mir::{Mutation, RangeAnalysis, RangeMap, ValueRange, ValueTypeMap};
 
 /// Integer widths supported by the textual MIR primitive type grammar.
 const SUPPORTED_INTEGER_WIDTHS: [u16; 6] = [8, 16, 32, 64, 128, 256];
@@ -60,7 +58,7 @@ impl FunctionPass for Narrow {
         // apply narrowing
         let changed = run_narrow(function, tree, &ranges, &value_types);
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -128,7 +126,7 @@ fn run_narrow(
                 left,
                 right,
             } = instruction
-                && is_comparison_operator(operator)
+                && operator.is_comparison()
                 && let Some((new_left, new_right)) = narrow_pair(
                     left,
                     right,

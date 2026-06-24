@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{ModulePass, PipelineContext};
 use destack_mir::{
-    Mutation, SignatureKey, apply_constant_parameters, build_value_definition_map,
-    constant_for_value, constant_matches_type, constant_type_of,
+    Mutation, SignatureKey, ValueDefinitions, apply_constant_parameters, constant_for_value,
+    constant_matches_type, constant_type_of,
 };
 
 declare_pass! {
@@ -59,13 +59,13 @@ impl ModulePass for InterproceduralConstantPropagation {
         ctx: &PipelineContext<'_>,
         _analyses: &mir::ModuleAnalyses,
     ) -> Mutation {
-        let pointer_width_bits = ctx.options.type_context().pointer_width_bits;
+        let pointer_width_bits = ctx.options.target_layout().pointer_width_bits;
         let changed = run_interprocedural_constant_prop(tree, pointer_width_bits);
 
         // report what this pass changed
         if changed {
             ctx.strings.intern("ip-constant-prop");
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -265,7 +265,10 @@ fn build_definition_cache(
             continue;
         }
 
-        cache.insert(function_id, build_value_definition_map(function, tree));
+        cache.insert(
+            function_id,
+            ValueDefinitions::build(function, tree).instruction_map(),
+        );
     }
 
     cache

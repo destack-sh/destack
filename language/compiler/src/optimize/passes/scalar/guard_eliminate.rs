@@ -2,7 +2,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
-use destack_mir::{Mutation, RangeAnalysis, constraint_truth_value};
+use destack_mir::{Mutation, RangeAnalysis};
 
 declare_pass! {
     /// Eliminate redundant guard checks when conditions are proven.
@@ -79,19 +79,19 @@ impl FunctionPass for GuardEliminate {
             };
 
             let block_ranges = ranges.exit(block_id);
-            let check_outcome = constraint_truth_value(&constraint, block_ranges);
+            let check_outcome = block_ranges.truth_value(&constraint);
 
             // rewrite the terminator when the outcome is known
             if let Some(is_true) = check_outcome {
-                let target = if is_true { &success } else { &failure };
-                replace_check_with_jump(tree, block_id, target.clone());
+                let target = if is_true { success } else { failure };
+                replace_check_with_jump(tree, block_id, target);
                 changed = true;
             }
         }
 
         // report what this pass changed
         if changed {
-            Mutation::CONTROL_FLOW
+            Mutation::CONTROL
         } else {
             Mutation::NONE
         }

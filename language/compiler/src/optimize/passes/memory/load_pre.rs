@@ -7,10 +7,9 @@ use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, MemoryAccess, MemoryAccessId,
     MemorySSA, Mutation, append_edge_arguments, apply_substitutions_in_function,
-    build_use_def_maps, effect_is_trackable, ensure_edge_block,
-    instruction_allows_read_only_motion, instruction_has_side_effects,
-    instruction_is_read_only_access, instruction_is_speculatable, resolve_edge_value,
-    value_available_in_block,
+    build_use_def_maps, ensure_edge_block, instruction_allows_read_only_motion,
+    instruction_has_side_effects, instruction_is_read_only_access, instruction_is_speculatable,
+    resolve_edge_value, value_available_in_block,
 };
 
 declare_pass! {
@@ -72,7 +71,7 @@ impl FunctionPass for LoadPre {
 
         // report what this pass changed
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -96,7 +95,7 @@ struct LoadCandidate {
     load_id: mir::LocalNodeId<mir::Instruction>,
     /// Load destination value.
     destination: mir::Value,
-    /// Load pointer value.
+    /// Load reference value.
     pointer: mir::Value,
     /// Load result type.
     result_type: mir::LocalNodeId<mir::Type>,
@@ -299,17 +298,17 @@ fn load_access_info(
     let use_access_id = memory_ssa.first_use_access(load.load_id)?;
 
     // require a memory phi at the block entry
-    let phi_access = memory_ssa.phi_for_block(load.block)?;
+    let phi_access = memory_ssa.block_phi(load.block)?;
     if memory_ssa.defining_access(use_access_id) != Some(phi_access) {
         return None;
     }
 
-    // require a known pointer location
+    // require a known reference location
     let MemoryAccess::Use(use_access) = memory_ssa.access(use_access_id) else {
         return None;
     };
     // require a trackable effect
-    if !effect_is_trackable(&use_access.effect) {
+    if !use_access.effect.is_trackable() {
         return None;
     }
 
@@ -426,7 +425,7 @@ fn collect_edge_insertions(
             param_indices,
         )?;
 
-        // ensure the pointer value is available on this edge
+        // ensure the reference value is available on this edge
         if !value_available_in_block(pointer, predecessor, def_blocks, function_params, domtree) {
             return None;
         }
@@ -495,12 +494,12 @@ fn reusable_predecessor_load(
         };
 
         // skip untrackable effects
-        if !effect_is_trackable(&use_access.effect) {
+        if !use_access.effect.is_trackable() {
             continue;
         }
 
         // require the same incoming memory state
-        let load_clobber = memory_ssa.clobbering_access_for_use(use_access_id, alias);
+        let load_clobber = memory_ssa.clobbering_use(use_access_id, alias);
         if load_clobber == incoming_access {
             reusable = Some(*destination);
         }
@@ -521,12 +520,12 @@ fn clone_load_metadata(
         return;
     };
 
-    // update pointer targets for cloned metadata
+    // update reference targets for cloned metadata
     let mut cloned = Vec::with_capacity(accesses.len());
     for access in accesses {
         let mut updated = access.clone();
-        if matches!(updated.target, mir::MemoryAccessTarget::Pointer(_)) {
-            updated.target = mir::MemoryAccessTarget::Pointer(pointer);
+        if matches!(updated.target, mir::MemoryAccessTarget::Reference(_)) {
+            updated.target = mir::MemoryAccessTarget::Reference(pointer);
         }
         cloned.push(updated);
     }

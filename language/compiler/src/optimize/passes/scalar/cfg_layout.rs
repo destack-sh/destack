@@ -6,10 +6,9 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     CallsiteHotness, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, Mutation,
-    block_hotness_from_counts, block_parameters_used_outside_block,
-    block_uses_available_in_predecessor, build_use_def_maps, clone_instruction_metadata,
-    collect_reachable_blocks, ensure_edge_block, instruction_is_speculatable, instruction_map,
-    terminator_edges, terminator_substitute_uses,
+    block_parameters_used_outside_block, block_uses_available_in_predecessor, build_use_def_maps,
+    clone_instruction_metadata, collect_reachable_blocks, ensure_edge_block,
+    instruction_is_speculatable, instruction_map, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -73,7 +72,7 @@ impl FunctionPass for CfgLayout {
 
         // report what this pass changed
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -120,7 +119,8 @@ fn run_cfg_layout(
     analyses: &mir::FunctionAnalyses,
 ) -> bool {
     // derive block counts and hotness
-    let mut block_counts = mir::profile_block_counts(function, tree, Some(profile), analyses);
+    let mut block_counts =
+        mir::BlockFrequency::profile_block_counts(function, tree, Some(profile), analyses);
     if block_counts.is_empty() {
         return false;
     }
@@ -242,7 +242,7 @@ fn classify_cold_blocks(
     for (&block, &count) in block_counts {
         // record blocks below cold thresholds
         if matches!(
-            block_hotness_from_counts(count, entry_count),
+            CallsiteHotness::from_counts(count, entry_count),
             CallsiteHotness::Cold
         ) {
             cold.insert(block);
@@ -319,7 +319,7 @@ fn duplicate_hot_edges(
     // build definition metadata
     let use_def = build_use_def_maps(function, tree);
     let value_def_blocks = &use_def.def_block;
-    let edge_counts = mir::edge_counts(function, tree, Some(profile), block_counts);
+    let edge_counts = mir::BlockFrequency::edge_counts(function, tree, Some(profile), block_counts);
 
     // collect edge predecessors keyed by target
     let mut predecessors: HashMap<mir::LocalNodeId<mir::Block>, Vec<EdgePredecessor>> =
@@ -771,14 +771,14 @@ fn compute_edge_weights(
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> HashMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>), u64> {
     let mut weights = HashMap::new();
-    let edge_counts = mir::edge_counts(function, tree, Some(profile), block_counts);
+    let edge_counts = mir::BlockFrequency::edge_counts(function, tree, Some(profile), block_counts);
 
     // compute a weight per edge using profile data when possible
     for &block_id in &function.blocks {
         // read terminator edge list
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
-        for (edge, target) in terminator_edges(tree, block_id, terminator) {
+        for (edge, target) in terminator.edges(tree, block_id) {
             // prefer explicit edge profiles, falling back to the target block count
             let edge_weight = edge_counts
                 .get(&edge)

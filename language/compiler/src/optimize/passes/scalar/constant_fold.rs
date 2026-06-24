@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    ConstantPropagation, Mutation, TypeContext, fold_binary, fold_cast, fold_intrinsic, fold_unary,
-    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    ConstantPropagation, Mutation, TargetLayout, fold_binary, fold_cast, fold_intrinsic,
+    fold_unary, instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
     resolve_substitution_chains, terminator_substitute_uses,
 };
 
@@ -51,11 +51,11 @@ impl FunctionPass for ConstantFold {
         let constants = { analyses.get::<ConstantPropagation>(function, tree).clone() };
 
         // run constant folding
-        let changed = run_constant_fold(function, tree, &constants, ctx.type_context());
+        let changed = run_constant_fold(function, tree, &constants, ctx.target_layout());
 
         // report what this pass changed
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -75,7 +75,7 @@ fn run_constant_fold(
     function: &mir::Function,
     tree: &mut mir::Tree,
     constants: &ConstantPropagation,
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 ) -> bool {
     // track pass state and pending rewrites
     let mut changed = false;
@@ -207,7 +207,7 @@ fn run_constant_fold(
                             *operator,
                             arg_const.clone(),
                             to_type,
-                            type_context.pointer_width_bits,
+                            target_layout.pointer_width_bits,
                             tree,
                         )
                     {

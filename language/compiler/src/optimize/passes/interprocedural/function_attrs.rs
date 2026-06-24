@@ -40,7 +40,7 @@ impl ModulePass for FunctionAttrs {
 
         // report what this pass changed
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -756,7 +756,7 @@ fn memory_effect_for_access(access: &mir::MemoryAccessMetadata) -> mir::MemoryEf
 
     // apply space annotations
     if let Some(space) = access.space.clone() {
-        effect.spaces = space_set_for_space(space);
+        effect.spaces = space.space_set();
     }
     // refine space sets for locals and globals
     match access.target {
@@ -827,19 +827,9 @@ fn space_set_for_type(tree: &mir::Tree, ty: &mir::TypeId) -> mir::SpaceSet {
     match tree.get(*ty) {
         mir::Type::Uninit { value } => space_set_for_type(tree, value),
         mir::Type::Reference { space, .. } | mir::Type::TensorView { space, .. } => {
-            space_set_for_space(space.clone())
+            space.space_set()
         }
         _ => mir::SpaceSet::ANY,
-    }
-}
-
-/// Resolve the backing space for one space.
-fn space_set_for_space(space: mir::Space) -> mir::SpaceSet {
-    match space {
-        mir::Space::Local => mir::SpaceSet::LOCAL,
-        mir::Space::Shared => mir::SpaceSet::SHARED,
-        mir::Space::Static => mir::SpaceSet::STATIC,
-        mir::Space::Frame => mir::SpaceSet::FRAME,
     }
 }
 

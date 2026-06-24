@@ -5,9 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ExpressionKey, MemoryLocation, Mutation, expression_key_from_instruction,
-    expression_key_substitute, instruction_has_side_effects, instruction_may_affect_memory,
-    instruction_requires_exact_access, instruction_substitute_uses_in_tree,
+    AliasAnalysis, ExpressionKey, MemoryLocation, Mutation, instruction_has_side_effects,
+    instruction_may_affect_memory, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
 
@@ -59,7 +58,7 @@ impl FunctionPass for LocalCse {
 
         // report what this pass changed
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -122,7 +121,7 @@ fn eliminate_common_subexpressions_in_block(
         let instruction = tree.get(instruction_id);
 
         // treat exact accesses as barriers for load forwarding
-        if instruction_requires_exact_access(tree, instruction_id) {
+        if tree.instruction_requires_exact_access(instruction_id) {
             load_table.clear();
             continue;
         }
@@ -159,7 +158,7 @@ fn eliminate_common_subexpressions_in_block(
             let destination = *destination;
             let pointer = *pointer;
 
-            let location = MemoryLocation::from_ptr(pointer);
+            let location = MemoryLocation::from_reference(pointer);
             if let Some(existing) = find_load_redundancy(&load_table, &location, alias) {
                 substitutions.insert(destination, existing);
                 to_remove.insert(instruction_id);
@@ -183,7 +182,7 @@ fn eliminate_common_subexpressions_in_block(
         }
 
         // try to get an expression key for this instruction
-        let Some(key) = expression_key_from_instruction(instruction, tree) else {
+        let Some(key) = ExpressionKey::from_instruction(instruction, tree) else {
             continue;
         };
 
@@ -193,7 +192,7 @@ fn eliminate_common_subexpressions_in_block(
         };
 
         // apply existing substitutions to the key (transitively)
-        let key = expression_key_substitute(key, &substitutions);
+        let key = key.substitute(&substitutions);
 
         // check if we've seen this expression before
         if let Some(&existing_value) = expression_table.get(&key) {
@@ -265,7 +264,7 @@ fn find_load_redundancy(
     // scan load table from most recent to oldest
     for entry in load_table.iter().rev() {
         // treat identical pointers as a must alias
-        if entry.location.ptr == location.ptr {
+        if entry.location.reference == location.reference {
             return Some(entry.value);
         }
 

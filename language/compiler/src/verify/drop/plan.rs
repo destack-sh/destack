@@ -223,8 +223,8 @@ impl<'a> DropPlan<'a> {
     ) -> DropState {
         let predecessor = self.tree.get(predecessor);
         let terminator = self.tree.get(predecessor.terminator);
-        let arguments = terminator.arguments_for_successor(self.tree, successor);
-        let parameters = terminator.argument_parameters_for_successor(self.tree, successor);
+        let arguments = terminator.successor_arguments(self.tree, successor);
+        let parameters = terminator.successor_parameters(self.tree, successor);
 
         // transfer ownership to matching successor parameters
         for (parameter, argument) in parameters.iter().zip(arguments) {
@@ -416,8 +416,8 @@ impl<'a> DropPlan<'a> {
 
         // keep edge argument ownership alive in successor parameters
         for successor in terminator.successors(self.tree) {
-            let arguments = terminator.arguments_for_successor(self.tree, successor);
-            let parameters = terminator.argument_parameters_for_successor(self.tree, successor);
+            let arguments = terminator.successor_arguments(self.tree, successor);
+            let parameters = terminator.successor_parameters(self.tree, successor);
 
             // keep each carried value alive in successor parameters
             for (_, argument) in parameters.iter().zip(arguments) {

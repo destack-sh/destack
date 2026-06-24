@@ -188,8 +188,8 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         let predecessor_id = predecessor;
         let predecessor = self.tree.get(predecessor_id);
         let terminator = self.tree.get(predecessor.terminator);
-        let arguments = terminator.arguments_for_successor(self.tree, successor);
-        let parameters = terminator.argument_parameters_for_successor(self.tree, successor);
+        let arguments = terminator.successor_arguments(self.tree, successor);
+        let parameters = terminator.successor_parameters(self.tree, successor);
 
         // bind edge arguments to successor block parameters
         for (parameter, argument) in parameters.iter().zip(arguments.iter().copied()) {

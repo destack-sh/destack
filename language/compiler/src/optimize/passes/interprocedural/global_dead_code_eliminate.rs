@@ -46,7 +46,7 @@ impl ModulePass for GlobalDeadCodeEliminate {
         // report what this pass changed
         if changed {
             ctx.strings.intern("global-dead-code-eliminate");
-            Mutation::CONTROL_FLOW
+            Mutation::CONTROL
         } else {
             Mutation::NONE
         }

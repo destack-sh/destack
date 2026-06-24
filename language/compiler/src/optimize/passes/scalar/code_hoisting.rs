@@ -7,8 +7,7 @@ use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     ControlFlowGraph, DominatorTree, ExpressionKey, Mutation,
     apply_substitutions_in_dominated_blocks, build_use_def_maps, clone_instruction_metadata,
-    expression_key_from_instruction, instruction_is_speculatable, instruction_map,
-    instruction_substitute_uses_in_tree,
+    instruction_is_speculatable, instruction_map, instruction_substitute_uses_in_tree,
 };
 
 declare_pass! {
@@ -84,7 +83,7 @@ impl FunctionPass for CodeHoisting {
 
         // report what this pass changed
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -465,7 +464,7 @@ fn build_expression_index(
         let normalized = instruction_substitute_uses_in_tree(&instruction, value_rewrites, tree);
 
         // skip instructions without a stable key
-        let Some(key) = expression_key_from_instruction(&normalized, tree) else {
+        let Some(key) = ExpressionKey::from_instruction(&normalized, tree) else {
             continue;
         };
 
