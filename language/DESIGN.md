@@ -1381,8 +1381,9 @@ Dynamic computed keys are still valid against indexed sources, because those are
 
 Guards are boolean expressions that can refine types, like `"name" in value`, `instanceof`, and `value is T` checks:
  - `"name" in value` for object-shaped values.
+ - `key in value` through `Has<K>` for custom containers.
  - `instanceof` for classes.
- - `value is T` for primitive tags, union cases, exact runtime type ids, and registered nominal runtime relations.
+ - `value is T` for primitive tags, union cases, exact runtime types.
 
 Destack does not support the vague `typeof` check, and instead supports an additional precise `value is T` to check whether the current runtime representation of `value` carries the case, type identity, or registered relation for `T`:
 
