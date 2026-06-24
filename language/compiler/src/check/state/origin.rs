@@ -21,4 +21,16 @@ impl Origin {
             Self::Type(ty) => ty.module_id,
         }
     }
+
+    /// Return the value-expression node that can receive an implicit coercion.
+    pub(in crate::check) fn coercion_site(self) -> Option<dir::GlobalNodeIdAny> {
+        let Self::Node(node) = self else {
+            return None;
+        };
+        if node.local_id.ty == dir::NodeType::Expression {
+            Some(node)
+        } else {
+            None
+        }
+    }
 }

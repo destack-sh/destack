@@ -8,8 +8,8 @@ use crate::check::{
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Drop pending dependencies that died with an unwound probe.
-    pub(in crate::check) fn surviving_blockers(
+    /// Return blockers whose referenced state survived probe rollback.
+    pub(in crate::check) fn live_blockers(
         &self,
         blockers: SmallVec<[Dependency; 2]>,
     ) -> SmallVec<[Dependency; 2]> {
@@ -22,10 +22,10 @@ impl CheckState<'_> {
             .collect()
     }
 
-    /// Close leftover unsolved hypothesis variables to unknown.
+    /// Close unresolved substitution variables to unknown.
     ///
     /// Committed types must never reference variables the probe unwinds.
-    pub(in crate::check) fn close_hypotheses(
+    pub(in crate::check) fn close_unsolved_substitution_variables(
         &mut self,
         module: destack_source::ModuleId,
         source: dir::LocalNodeIdAny,
@@ -36,7 +36,7 @@ impl CheckState<'_> {
                 continue;
             };
 
-            // close uninferable hypotheses to unknown
+            // close uninferable variables to unknown
             if self.variables.solution(variable)?.is_none() {
                 let unknown = self.push_type(module, dir::Type::Unknown, source)?;
                 self.set_solution(variable, unknown)?;
@@ -48,9 +48,9 @@ impl CheckState<'_> {
 
     /// Run solve tasks queued above one floor to quiescence inside one probe.
     ///
-    /// Returns whether every solved hypothesis met its upper bounds. The floor keeps the drain
+    /// Returns whether every solved probe variable met its upper bounds. The floor keeps the drain
     /// probe-scoped: solve tasks the outer loop queued before the probe stay untouched.
-    pub(in crate::check) fn drain_probe_tasks(
+    pub(in crate::check) fn drain_probe_solve_tasks(
         &mut self,
         floor: usize,
     ) -> CompilerResult<Answer<bool>> {
@@ -88,12 +88,8 @@ impl CheckState<'_> {
             });
         }
 
-        let pending = self.active_probe_blockers(pending)?;
-        if pending.is_empty() {
-            Ok(Answer::Ready(is_consistent))
-        } else {
-            Ok(Answer::Pending(pending))
-        }
+        let pending = self.open_probe_blockers(pending)?;
+        Ok(Answer::ready_unless_blocked(is_consistent, pending))
     }
 
     /// Return the open variable behind one node input.
@@ -108,8 +104,8 @@ impl CheckState<'_> {
         self.root_variable(input)
     }
 
-    /// Drop dependencies that no longer block probe progress.
-    fn active_probe_blockers(
+    /// Return blockers that still wait on unsolved probe state.
+    fn open_probe_blockers(
         &self,
         blockers: SmallVec<[Dependency; 2]>,
     ) -> CompilerResult<SmallVec<[Dependency; 2]>> {
@@ -127,7 +123,7 @@ impl CheckState<'_> {
         Ok(active)
     }
 
-    /// Solve one hypothesized variable from its bounds inside a probe.
+    /// Solve one probe variable from its bounds.
     ///
     /// Returns whether the solution met the variable's upper bounds.
     fn solve_probe_variable(

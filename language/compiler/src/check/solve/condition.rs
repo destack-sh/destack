@@ -63,10 +63,6 @@ impl CheckState<'_> {
             }
         }
 
-        if blockers.is_empty() {
-            Ok(Answer::Ready(true))
-        } else {
-            Ok(Answer::pending(blockers))
-        }
+        Ok(Answer::ready_unless_blocked(true, blockers))
     }
 }

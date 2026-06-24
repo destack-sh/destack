@@ -1,11 +1,10 @@
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckEvent, CheckState, Condition, Constraint, ConstraintId, Dependency, Mutation, Task,
+    Answer, CheckEvent, CheckState, Condition, Constraint, ConstraintId, Dependency, Mutation,
+    Task, answer,
 };
 use crate::{CompilerError, CompilerResult};
-
-const SOLVER_MAX_STEPS: usize = 50_000; // (this is really an internal error)
 
 impl CheckState<'_> {
     /// Solve collected component constraints to a fixed point.
@@ -17,23 +16,13 @@ impl CheckState<'_> {
             });
         }
 
-        self.record_event(CheckEvent::SolveStart {
+        self.record_event(CheckEvent::SolveStarted {
             tasks: self.queue.len(),
             variables: self.variables.count(),
         });
 
         let mut steps = 0usize;
         while let Some(task) = self.pop_task() {
-            // a diverging queue is a solver bug; fail loudly with the task
-            if steps > SOLVER_MAX_STEPS {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "solve diverged after {steps} steps on {task:?}, {} tasks queued",
-                        self.queue.len()
-                    ),
-                });
-            }
-
             let answer = self.run_task(task)?;
 
             // park pending tasks on their blockers
@@ -41,11 +30,11 @@ impl CheckState<'_> {
                 self.park_task(task, &blockers)?;
             }
 
-            self.record_event(CheckEvent::SolveStep { step: steps, task });
+            self.record_event(CheckEvent::TaskRan { step: steps, task });
             steps += 1;
         }
 
-        self.record_event(CheckEvent::SolveFinish {
+        self.record_event(CheckEvent::SolveFinished {
             iterations: steps,
             variables: self.variables.count(),
         });
@@ -57,9 +46,8 @@ impl CheckState<'_> {
     fn run_task(&mut self, task: Task) -> CompilerResult<Answer<()>> {
         match task {
             Task::Relate(constraint) => self.run_relate(constraint),
-            Task::Select(node) => self.run_select(node),
+            Task::Decide(node) => self.run_decide(node),
             Task::Solve(variable) => self.run_solve(variable),
-            Task::Oblige(obligation) => self.run_obligation(obligation),
         }
     }
 
@@ -69,8 +57,8 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(()));
         }
 
-        // copy the constraint's identity and its condition predicates
-        let (relation, cause, left, right, origin, predicates) = {
+        // copy the relation before solver calls can mutate state
+        let (relation, cause, left, right, origin, coercion_site, predicates) = {
             let constraint = self.constraints.get(id)?;
             let predicates = match &constraint.condition {
                 Condition::Always => SmallVec::new(),
@@ -83,35 +71,43 @@ impl CheckState<'_> {
                 constraint.left,
                 constraint.right,
                 constraint.origin,
+                constraint.coercion_site,
                 predicates,
             )
         };
 
-        // gate conditional constraints on their predicates
-        if !predicates.is_empty() {
-            match self.decide_condition(&predicates)? {
-                // skip constraints whose condition failed
-                Answer::Ready(false) => {
-                    self.complete_constraint(id);
+        // skip conditional constraints whose predicates failed
+        let is_active = if predicates.is_empty() {
+            true
+        } else {
+            answer!(self.decide_condition(&predicates)?)
+        };
+        if !is_active {
+            self.complete_constraint(id);
 
-                    return Ok(Answer::Ready(()));
-                }
-                Answer::Ready(true) => {}
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-            }
+            return Ok(Answer::Ready(()));
         }
 
-        // solve the gated relation under its own guard assumptions
+        // solve active relations under their guard assumptions
         let mark = self.assume(&predicates)?;
         let answer = self.relate(origin, relation, cause, left, right);
         self.release_assumptions(mark);
 
         match answer? {
             Answer::Ready(()) => {
+                answer!(self.insert_implicit_coercion(
+                    origin,
+                    relation,
+                    left,
+                    right,
+                    coercion_site,
+                    &predicates,
+                )?);
+
                 self.complete_constraint(id);
-                self.record_event(CheckEvent::RelationCheck {
+                self.record_event(CheckEvent::RelationChecked {
                     constraint: id,
-                    finished: true,
+                    is_finished: true,
                 });
 
                 Ok(Answer::Ready(()))
@@ -120,9 +116,9 @@ impl CheckState<'_> {
                 message: format!("check constraint {id:?} is pending without dependencies"),
             }),
             Answer::Pending(blockers) => {
-                self.record_event(CheckEvent::RelationCheck {
+                self.record_event(CheckEvent::RelationChecked {
                     constraint: id,
-                    finished: false,
+                    is_finished: false,
                 });
 
                 Ok(Answer::Pending(blockers))
@@ -157,7 +153,11 @@ impl CheckState<'_> {
     }
 
     /// Park one task on its blocking dependencies.
-    fn park_task(&mut self, task: Task, blockers: &[Dependency]) -> CompilerResult<()> {
+    pub(in crate::check) fn park_task(
+        &mut self,
+        task: Task,
+        blockers: &[Dependency],
+    ) -> CompilerResult<()> {
         for blocker in blockers {
             match *blocker {
                 // park on the variable representative

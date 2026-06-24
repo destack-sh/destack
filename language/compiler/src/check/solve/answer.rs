@@ -31,6 +31,26 @@ impl<T> Answer<T> {
 
         Self::Pending(pending)
     }
+
+    /// Return a ready value unless dependencies still block it.
+    pub(in crate::check) fn ready_unless_blocked(
+        value: T,
+        dependencies: impl IntoIterator<Item = Dependency>,
+    ) -> Self {
+        let mut pending = SmallVec::new();
+
+        for dependency in dependencies {
+            if !pending.contains(&dependency) {
+                pending.push(dependency);
+            }
+        }
+
+        if pending.is_empty() {
+            Self::Ready(value)
+        } else {
+            Self::Pending(pending)
+        }
+    }
 }
 
 impl Answer<bool> {

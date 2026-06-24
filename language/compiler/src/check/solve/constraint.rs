@@ -31,6 +31,8 @@ pub(in crate::check) struct Constraint {
     pub(in crate::check) right: dir::GlobalTypeId,
     /// The source that produced the constraint.
     pub(in crate::check) origin: Origin,
+    /// The value expression that receives an implicit coercion.
+    pub(in crate::check) coercion_site: Option<dir::GlobalNodeIdAny>,
     /// The condition gating the constraint.
     pub(in crate::check) condition: Condition,
     /// The source context that failures report under.

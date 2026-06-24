@@ -9,19 +9,11 @@ impl CheckState<'_> {
     pub(in crate::check) fn finish(
         mut self,
     ) -> CompilerResult<(Vec<DirCheckedComponentEntry>, DiagnosticCollection)> {
-        // read every module's final rows
+        // finish modules before collecting diagnostics they may emit
         let modules = self.modules.keys().copied().collect::<Vec<_>>();
-        let mut module_rows = Vec::with_capacity(modules.len());
+        let mut entries = Vec::with_capacity(modules.len());
         for module in modules {
-            module_rows.push(self.module_rows(module)?);
-        }
-        let diagnostics = self.collect_diagnostics()?;
-
-        // move segments and apply the resolved rows
-        let mut entries = Vec::with_capacity(module_rows.len());
-        for rows in module_rows {
-            let module = rows.module();
-            let checked = DirCheckedModule::from(self.finish_module(rows)?);
+            let checked = DirCheckedModule::from(self.finish_module(module)?);
             let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&checked)
                 .map_err(|error| CompilerError::Internal {
                     message: format!(
@@ -35,6 +27,7 @@ impl CheckState<'_> {
                 checked,
             });
         }
+        let diagnostics = self.collect_diagnostics()?;
 
         Ok((entries, diagnostics))
     }

@@ -359,12 +359,13 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         let types = &mut self.module_mut(symbol.module_id).types;
-        if types
-            .get_symbol_type_id(symbol)
-            .is_some_and(|previous| previous != ty)
+        if let Some(previous) = types.get_symbol_type_id(symbol)
+            && previous != ty
         {
             return Err(CompilerError::Internal {
-                message: format!("check symbol {symbol:?} received two types"),
+                message: format!(
+                    "check symbol {symbol:?} already has type {previous:?}, got {ty:?}"
+                ),
             });
         }
         types.set_symbol_type(symbol, ty);

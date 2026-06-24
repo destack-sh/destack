@@ -142,8 +142,8 @@ impl Journal {
         probe
     }
 
-    /// Keep one probe's mutations and close it.
-    fn keep(&mut self, probe: Probe) -> CompilerResult<()> {
+    /// Commit one probe's mutations and close it.
+    fn commit(&mut self, probe: Probe) -> CompilerResult<()> {
         self.expect_innermost(probe)?;
         self.depth -= 1;
 
@@ -181,9 +181,9 @@ impl CheckState<'_> {
         self.journal.begin()
     }
 
-    /// Keep one probe's mutations and close it.
-    pub(in crate::check) fn keep_probe(&mut self, probe: Probe) -> CompilerResult<()> {
-        self.journal.keep(probe)
+    /// Commit one probe's mutations and close it.
+    pub(in crate::check) fn commit_probe(&mut self, probe: Probe) -> CompilerResult<()> {
+        self.journal.commit(probe)
     }
 
     /// Roll back one probe's mutations and close it.
@@ -201,8 +201,11 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Keep one probe's local allocations and roll back shared solver mutations.
-    pub(in crate::check) fn keep_probe_allocations(&mut self, probe: Probe) -> CompilerResult<()> {
+    /// Preserve one probe's local allocations and roll back shared solver mutations.
+    pub(in crate::check) fn preserve_probe_allocations(
+        &mut self,
+        probe: Probe,
+    ) -> CompilerResult<()> {
         let mutations = self.journal.unwind(probe)?;
 
         // collect variables allocated inside the probe
