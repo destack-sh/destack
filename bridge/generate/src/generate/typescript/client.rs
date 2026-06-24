@@ -5,7 +5,7 @@ use anyhow::Result;
 use crate::generate::core::write_text;
 use crate::generate::schema::Schema;
 
-use super::codec::property_key;
+use super::codec::property_access;
 use super::operation::{WorkspaceQueryOperation, WorkspaceRequestOperation};
 use super::text::{GENERATED_HEADER, Text};
 
@@ -14,7 +14,7 @@ pub(super) fn generate_protocol_workspace_client(root: &Path, schema: &Schema) -
 
     write_text(
         root,
-        "bridge/typescript/src/generated/protocol/workspace/client.ts",
+        "bridge/typescript/src/_generated/protocol/workspace/client.ts",
         content,
     )
 }
@@ -25,17 +25,16 @@ fn render_protocol_workspace_client(schema: &Schema) -> String {
     text.line(GENERATED_HEADER);
     text.blank();
     text.line("import type { ProtocolError } from \"../error.js\";");
-    text.line("import type { WorkspaceQuery as WorkspaceQueryType, WorkspaceQueryResponse } from \"../query.js\";");
+    text.line("import type { WorkspaceQueryResponse } from \"../query.js\";");
     text.line("import { WorkspaceQuery } from \"../query.js\";");
-    text.line("import type { WorkspaceRequest as WorkspaceRequestType } from \"../request.js\";");
     text.line("import { WorkspaceRequest } from \"../request.js\";");
     text.line("import type { WorkspaceResponse } from \"../response.js\";");
     text.line("import type { RootId } from \"../root.js\";");
     text.line("import type { Connection } from \"../../../protocol/connection/index.js\";");
     text.blank();
-    text.line("type Request<K extends WorkspaceRequestType[\"kind\"]> = Extract<WorkspaceRequestType, { readonly kind: K }>;");
+    text.line("type Request<K extends WorkspaceRequest[\"kind\"]> = Extract<WorkspaceRequest, { readonly kind: K }>;");
     text.line("type Response<K extends WorkspaceResponse[\"kind\"]> = Extract<WorkspaceResponse, { readonly kind: K }>;");
-    text.line("type Query<K extends WorkspaceQueryType[\"kind\"]> = Extract<WorkspaceQueryType, { readonly kind: K }>;");
+    text.line("type Query<K extends WorkspaceQuery[\"kind\"]> = Extract<WorkspaceQuery, { readonly kind: K }>;");
     text.line("type QueryResponse<K extends WorkspaceQueryResponse[\"kind\"]> = Extract<WorkspaceQueryResponse, { readonly kind: K }>;");
     text.blank();
 
@@ -108,11 +107,10 @@ fn render_workspace_request_method(text: &mut Text, operation: &WorkspaceRequest
         operation.request
     ));
     text.blank();
-    text.line(format!(
-        "        return expectResponse(response, {:?})[{}];",
-        operation.response_kind,
-        property_key(&operation.response_field)
-    ));
+    let response = format!("expectResponse(response, {:?})", operation.response_kind);
+    let value = property_access(&response, &operation.response_field);
+
+    text.line(format!("        return {value};"));
     text.line("    }");
     text.blank();
 }
@@ -147,11 +145,10 @@ fn render_workspace_query_method(text: &mut Text, operation: &WorkspaceQueryOper
         operation.constructor
     ));
     text.blank();
-    text.line(format!(
-        "        return expectQuery(response, {:?})[{}];",
-        operation.response_kind,
-        property_key(&operation.response_field)
-    ));
+    let response = format!("expectQuery(response, {:?})", operation.response_kind);
+    let value = property_access(&response, &operation.response_field);
+
+    text.line(format!("        return {value};"));
     text.line("    }");
     text.blank();
 }

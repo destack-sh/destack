@@ -42,8 +42,10 @@ pub(super) fn generate_protocol_defaults(root: &Path) -> Result<()> {
 
     text.doc("Default protocol limits for TypeScript clients.", "");
     text.line("export const protocolLimits: ProtocolLimits = {");
-    text.line(format!("    maxFrameBytes: {DEFAULT_MAX_FRAME_BYTES},"));
-    text.line(format!("    maxPayloadBytes: {DEFAULT_MAX_PAYLOAD_BYTES},"));
+    text.line(format!("    maxFrameBytes: {DEFAULT_MAX_FRAME_BYTES}n,"));
+    text.line(format!(
+        "    maxPayloadBytes: {DEFAULT_MAX_PAYLOAD_BYTES}n,"
+    ));
     text.line("};");
     text.blank();
 
@@ -58,7 +60,7 @@ pub(super) fn generate_protocol_defaults(root: &Path) -> Result<()> {
 
     write_text(
         root,
-        "bridge/typescript/src/generated/protocol/defaults.ts",
+        "bridge/typescript/src/_generated/protocol/defaults.ts",
         text.finish(),
     )
 }

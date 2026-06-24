@@ -13,8 +13,17 @@ export class SerdeError extends Error {
     }
 }
 
+/** JSON value supported by reflected Destack values. */
+export type Json =
+    | null
+    | boolean
+    | number
+    | string
+    | readonly Json[]
+    | { readonly [key: string]: Json };
+
 /** Writer for canonical Destack binary serde bytes. */
-export class Writer {
+export class BinaryWriter {
     readonly #bytes: number[] = [];
 
     /** Return the written bytes. */
@@ -142,7 +151,7 @@ export class Writer {
 }
 
 /** Reader for canonical Destack binary serde bytes. */
-export class Reader {
+export class BinaryReader {
     readonly #bytes: Uint8Array;
     #offset = 0;
 
@@ -315,8 +324,8 @@ export class Reader {
 }
 
 /** Encode one value into nested bytes. */
-export function nestedBytes(encode: (writer: Writer) => void): Uint8Array {
-    const writer = new Writer();
+export function nestedBytes(encode: (writer: BinaryWriter) => void): Uint8Array {
+    const writer = new BinaryWriter();
     encode(writer);
 
     return writer.bytes();
@@ -337,20 +346,161 @@ export function compareBytes(left: Uint8Array, right: Uint8Array): number {
 }
 
 /** Encode one complete value. */
-export function encodeValue(encode: (writer: Writer) => void): Uint8Array {
+export function encodeValue(encode: (writer: BinaryWriter) => void): Uint8Array {
     return nestedBytes(encode);
 }
 
 /** Decode one complete value. */
 export function decodeValue<T>(
     bytes: Uint8Array | readonly number[],
-    decode: (reader: Reader) => T,
+    decode: (reader: BinaryReader) => T,
 ): T {
-    const reader = new Reader(bytes);
+    const reader = new BinaryReader(bytes);
     const value = decode(reader);
     reader.finish();
 
     return value;
+}
+
+/** Return one JSON object value. */
+export function jsonObject(value: Json): { readonly [key: string]: Json } {
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+        return value as { readonly [key: string]: Json };
+    }
+
+    throw new SerdeError("expected JSON object");
+}
+
+/** Return one JSON array value. */
+export function jsonArray(value: Json): readonly Json[] {
+    if (Array.isArray(value)) {
+        return value;
+    }
+
+    throw new SerdeError("expected JSON array");
+}
+
+/** Return one JSON object field. */
+export function jsonField(
+    value: { readonly [key: string]: Json },
+    name: string,
+): Json {
+    if (Object.hasOwn(value, name)) {
+        return value[name];
+    }
+
+    throw new SerdeError(`missing JSON field: ${name}`);
+}
+
+/** Return one optional JSON object field. */
+export function jsonOptional<T>(
+    value: { readonly [key: string]: Json },
+    name: string,
+    decode: (value: Json) => T,
+): T | undefined {
+    if (Object.hasOwn(value, name)) {
+        return decode(value[name]);
+    }
+
+    return undefined;
+}
+
+/** Return one JSON string value. */
+export function jsonString(value: Json): string {
+    if (typeof value === "string") {
+        return value;
+    }
+
+    throw new SerdeError("expected JSON string");
+}
+
+/** Return one JSON boolean value. */
+export function jsonBool(value: Json): boolean {
+    if (typeof value === "boolean") {
+        return value;
+    }
+
+    throw new SerdeError("expected JSON boolean");
+}
+
+/** Return one JSON number value. */
+export function jsonNumber(value: Json): number {
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+    }
+
+    throw new SerdeError("expected JSON number");
+}
+
+/** Return one JSON integer number value. */
+export function jsonInteger(value: Json): number {
+    const number = jsonNumber(value);
+    if (Number.isSafeInteger(number)) {
+        return number;
+    }
+
+    throw new SerdeError(`expected safe JSON integer: ${value}`);
+}
+
+/** Return one JSON bigint string value. */
+export function jsonBigint(value: Json): bigint {
+    const text = jsonString(value);
+
+    try {
+        return BigInt(text);
+    } catch (error) {
+        throw new SerdeError(`expected JSON bigint string: ${text}`);
+    }
+}
+
+/** Return one base64 JSON string for bytes. */
+export function bytesToJson(value: Uint8Array | readonly number[]): Json {
+    const bytes = value instanceof Uint8Array ? value : new Uint8Array(value);
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let text = "";
+
+    for (let index = 0; index < bytes.length; index += 3) {
+        const first = bytes[index];
+        const second = bytes[index + 1] ?? 0;
+        const third = bytes[index + 2] ?? 0;
+        const packed = (first << 16) | (second << 8) | third;
+
+        text += alphabet[(packed >> 18) & 0x3f];
+        text += alphabet[(packed >> 12) & 0x3f];
+        text += index + 1 < bytes.length ? alphabet[(packed >> 6) & 0x3f] : "=";
+        text += index + 2 < bytes.length ? alphabet[packed & 0x3f] : "=";
+    }
+
+    return text;
+}
+
+/** Return bytes decoded from one base64 JSON string. */
+export function bytesFromJson(value: Json): Uint8Array {
+    const text = jsonString(value);
+    if (text.length % 4 !== 0) {
+        throw new SerdeError("invalid base64 length");
+    }
+
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const bytes: number[] = [];
+
+    for (let index = 0; index < text.length; index += 4) {
+        const first = base64Value(alphabet, text[index]);
+        const second = base64Value(alphabet, text[index + 1]);
+        const third = text[index + 2] === "=" ? 0 : base64Value(alphabet, text[index + 2]);
+        const fourth = text[index + 3] === "=" ? 0 : base64Value(alphabet, text[index + 3]);
+        const packed = (first << 18) | (second << 12) | (third << 6) | fourth;
+
+        bytes.push((packed >> 16) & 0xff);
+        if (text[index + 2] !== "=") {
+            bytes.push((packed >> 8) & 0xff);
+        }
+        if (text[index + 3] !== "=") {
+            bytes.push(packed & 0xff);
+        }
+    }
+
+    return new Uint8Array(bytes);
 }
 
 function unsignedBigint(value: number | bigint): bigint {
@@ -360,6 +510,15 @@ function unsignedBigint(value: number | bigint): bigint {
     }
 
     return bigint;
+}
+
+function base64Value(alphabet: string, value: string): number {
+    const index = alphabet.indexOf(value);
+    if (index >= 0) {
+        return index;
+    }
+
+    throw new SerdeError(`invalid base64 character: ${value}`);
 }
 
 function signedBigint(value: number | bigint): bigint {

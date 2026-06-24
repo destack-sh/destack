@@ -39,12 +39,42 @@ impl Text {
     /// Write one Python stub documentation line.
     pub(super) fn doc(&mut self, doc: &str, indent: &str) {
         if !doc.is_empty() {
+            let doc = doc.replace('\\', "\\\\").replace("\"\"\"", "\\\"\\\"\\\"");
+
             self.line(format!("{indent}\"\"\"{doc}\"\"\""));
+        }
+    }
+
+    /// Write one Python field documentation comment.
+    pub(super) fn field_doc(&mut self, doc: &str, indent: &str) {
+        if !doc.is_empty() {
+            let doc = doc.trim_end_matches('.');
+            let doc = python_comment(doc);
+
+            self.line(format!("{indent}# {doc}"));
         }
     }
 
     /// Return the generated source.
     pub(super) fn finish(self) -> String {
         self.source
+    }
+}
+
+/// Return one Python comment body from Rust documentation text.
+fn python_comment(doc: &str) -> String {
+    let mut chars = doc.chars();
+    let Some(first) = chars.next() else {
+        return String::new();
+    };
+    let second = chars.clone().next();
+
+    if first.is_ascii_uppercase() && !second.is_some_and(|char| char.is_ascii_uppercase()) {
+        let mut output = first.to_ascii_lowercase().to_string();
+        output.extend(chars);
+
+        output
+    } else {
+        doc.to_string()
     }
 }

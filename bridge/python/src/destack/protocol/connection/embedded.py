@@ -12,7 +12,7 @@ from .transport import TransportError
 class EmbeddedServer(Protocol):
     """Server that can dispatch one workspace protocol payload."""
 
-    def dispatch(self, data: bytes) -> Sequence[bytes]:
+    def dispatch(self, payload: bytes) -> Sequence[bytes]:
         """Dispatch one encoded protocol message payload."""
 
 

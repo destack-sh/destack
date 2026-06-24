@@ -3,23 +3,23 @@ import {
     clientDescriptor,
     protocolLimits,
     protocolRange,
-} from "../../generated/protocol/defaults.js";
+} from "../../_generated/protocol/defaults.js";
 import type {
     ClientDescriptor,
     HandshakeResponse,
     ProtocolLimits,
-} from "../../generated/protocol/handshake.js";
+} from "../../_generated/protocol/handshake.js";
 import type {
     ProtocolMessage,
     ProtocolNotification,
     RequestOptions,
     ProtocolResponse,
-} from "../../generated/protocol/envelope.js";
-import type { PayloadChunkNotification } from "../../generated/protocol/payload.js";
-import type { WorkspaceRequest } from "../../generated/protocol/request.js";
-import { WorkspaceRequest as WorkspaceRequestPayload } from "../../generated/protocol/request.js";
-import type { WorkspaceResponse } from "../../generated/protocol/response.js";
-import type { ProtocolRange } from "../../generated/protocol/version.js";
+} from "../../_generated/protocol/envelope.js";
+import type { PayloadChunkNotification } from "../../_generated/protocol/payload.js";
+import { WorkspaceRequest } from "../../_generated/protocol/request.js";
+import type { WorkspaceResponse } from "../../_generated/protocol/response.js";
+import type { ProtocolRange } from "../../_generated/protocol/version.js";
+import { checkedNumber } from "./integer.js";
 import { PayloadReceiver } from "./payload/receiver.js";
 import type { Transport } from "./transport.js";
 import { WebSocketTransport } from "./transport.js";
@@ -96,7 +96,7 @@ export class Connection {
             return this.#handshake;
         }
 
-        const response = await this.request(WorkspaceRequestPayload.handshake({
+        const response = await this.request(WorkspaceRequest.handshake({
             protocol: options.protocol ?? protocolRange,
             client: {
                 ...clientDescriptor,
@@ -153,7 +153,7 @@ export class Connection {
         const message: ProtocolMessage = {
             kind: "request",
             request: {
-                id: { 0: id },
+                id: BigInt(id),
                 options,
                 payload,
             },
@@ -207,7 +207,7 @@ export class Connection {
     }
 
     #receiveResponse(response: ProtocolResponse): void {
-        const id = response.id[0];
+        const id = checkedNumber(response.id, "response id");
         const pending = this.#pending.get(id);
         if (pending === undefined) {
             throw new Error(`workspace connection received unknown response id: ${id}`);

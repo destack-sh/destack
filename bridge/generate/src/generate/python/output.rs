@@ -7,7 +7,7 @@ use anyhow::{Context, Result, bail};
 use crate::generate::schema::{Schema, SchemaModule};
 
 use super::package::PythonPackage;
-use super::path::protocol_python_segments;
+use super::path::python_segments;
 
 const GENERATED_HEADER: &str = "# generated bridge target, do not edit";
 const FORMATTER: &str = "ruff==0.15.18";
@@ -123,19 +123,17 @@ fn prune_file(root: &Path, path: &str) -> Result<()> {
 }
 
 /// Return one generated Python facade path.
-pub(super) fn module_facade_path(module: &SchemaModule) -> String {
-    format!(
-        "bridge/python/src/destack/_generated/{}.py",
-        module.path.slash_path()
-    )
+pub(super) fn module_facade_path(schema: &Schema, module: &SchemaModule) -> String {
+    let path = python_segments(schema, &module.path).join("/");
+
+    format!("bridge/python/src/destack/_generated/{path}.py")
 }
 
 /// Return one generated Python facade stub path.
-pub(super) fn module_stub_path(module: &SchemaModule) -> String {
-    format!(
-        "bridge/python/src/destack/_generated/{}.pyi",
-        module.path.slash_path()
-    )
+pub(super) fn module_stub_path(schema: &Schema, module: &SchemaModule) -> String {
+    let path = python_segments(schema, &module.path).join("/");
+
+    format!("bridge/python/src/destack/_generated/{path}.pyi")
 }
 
 /// Return one old generated Python facade path.
@@ -150,7 +148,7 @@ fn old_module_stub_path(module: &SchemaModule) -> String {
 
 /// Return one generated Python protocol facade path.
 pub(super) fn protocol_module_facade_path(schema: &Schema, module: &SchemaModule) -> String {
-    let path = protocol_python_segments(schema, module).join("/");
+    let path = python_segments(schema, &module.path).join("/");
 
     format!("bridge/python/src/destack/_generated/{path}.py")
 }

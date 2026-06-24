@@ -1,27 +1,23 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use crate::generate::schema::{ModulePath, Schema, SchemaModule, Shape};
 
-use super::codec::{decode_name, encode_name};
+use super::codec::{decode_name, encode_name, from_json_name, to_json_name};
 use super::item::protocol_variant_name;
+use super::name::python_segment_name;
 use super::text::Text;
 
-/// Render Python imports referenced by one generated protocol module.
-pub(super) fn render_protocol_imports(schema: &Schema, module: &SchemaModule) -> String {
-    let mut imports = BTreeMap::<String, BTreeSet<String>>::new();
+/// Render Python imports referenced by one generated module.
+pub(super) fn render_imports(schema: &Schema, module: &SchemaModule) -> String {
     let mut runtime_imports = BTreeSet::<String>::new();
 
-    for item in schema.referenced_types(&module.names) {
-        let path = schema.module_path(&item.name);
+    for item in schema.referenced_types(&module.keys) {
+        let path = schema.module_path(&item.key);
         if path == &module.path {
             continue;
         }
 
-        let module_path = protocol_absolute_module_path(schema, path);
-        imports
-            .entry(module_path.clone())
-            .or_default()
-            .insert(item.name.clone());
+        let module_path = absolute_module_path(schema, path);
         runtime_imports.insert(module_path);
     }
 
@@ -34,41 +30,28 @@ pub(super) fn render_protocol_imports(schema: &Schema, module: &SchemaModule) ->
         text.blank();
     }
 
-    if !imports.is_empty() {
-        text.line("if TYPE_CHECKING:");
-    }
-
-    for (path, names) in imports {
-        text.line(format!("    from {path} import ("));
-
-        for name in names {
-            text.line(format!("        {name},"));
-        }
-
-        text.line("    )");
-        text.blank();
-    }
-
     text.finish()
 }
 
-/// Return all Python names emitted by one protocol module.
-pub(super) fn protocol_module_names(schema: &Schema, module: &SchemaModule) -> Vec<String> {
+/// Return all Python names emitted by one module.
+pub(super) fn module_names(schema: &Schema, module: &SchemaModule) -> Vec<String> {
     let mut names = Vec::new();
 
-    for name in &module.names {
-        let item = schema.item(name);
-        names.push(name.clone());
-        names.push(encode_name(name));
-        names.push(decode_name(name));
+    for key in &module.keys {
+        let item = schema.item(key);
+        names.push(item.name.clone());
+        names.push(encode_name(&item.name));
+        names.push(decode_name(&item.name));
+        names.push(to_json_name(&item.name));
+        names.push(from_json_name(&item.name));
 
         if let Shape::Enum(variants) = &item.shape
-            && !schema.is_unit_enum(&item.name)
+            && !schema.is_unit_enum(&item.key)
         {
             names.extend(
                 variants
                     .iter()
-                    .map(|variant| protocol_variant_name(item, variant)),
+                    .map(|variant| protocol_variant_name(schema, item, variant)),
             );
         }
     }
@@ -76,18 +59,22 @@ pub(super) fn protocol_module_names(schema: &Schema, module: &SchemaModule) -> V
     names
 }
 
-/// Return generated Python protocol module path segments.
-pub(super) fn protocol_python_segments(schema: &Schema, module: &SchemaModule) -> Vec<String> {
-    let mut segments = module.path.segments().to_vec();
-    if protocol_module_path_collides(schema, module.path.segments()) {
+/// Return generated Python module path segments.
+pub(super) fn python_segments(schema: &Schema, path: &ModulePath) -> Vec<String> {
+    let mut segments = path
+        .segments()
+        .iter()
+        .map(|segment| python_segment_name(segment))
+        .collect::<Vec<_>>();
+    if module_path_collides(schema, path.segments()) {
         segments.push("model".to_string());
     }
 
     segments
 }
 
-/// Return whether one generated Python protocol module path is also a package path.
-pub(super) fn protocol_module_path_collides(schema: &Schema, segments: &[String]) -> bool {
+/// Return whether one generated Python module path is also a package path.
+pub(super) fn module_path_collides(schema: &Schema, segments: &[String]) -> bool {
     schema.modules.iter().any(|module| {
         let other = module.path.segments();
 
@@ -95,12 +82,9 @@ pub(super) fn protocol_module_path_collides(schema: &Schema, segments: &[String]
     })
 }
 
-/// Return one absolute Python module path for a protocol schema path.
-pub(super) fn protocol_absolute_module_path(schema: &Schema, path: &ModulePath) -> String {
-    let mut segments = path.segments().to_vec();
-    if protocol_module_path_collides(schema, path.segments()) {
-        segments.push("model".to_string());
-    }
+/// Return one absolute Python module path for a schema path.
+pub(super) fn absolute_module_path(schema: &Schema, path: &ModulePath) -> String {
+    let segments = python_segments(schema, path);
 
     format!("destack._generated.{}", segments.join("."))
 }

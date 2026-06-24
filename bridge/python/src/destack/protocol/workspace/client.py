@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Protocol, TypeVar
+from typing import Any, Protocol, TypeVar, cast
 
-from destack._generated.protocol.artifact.reference import ArtifactReference
+from destack._generated.artifact.reference import ArtifactReference
 from ..connection import Connection, connect_endpoint
-from destack._generated.protocol.query.model import (
+from destack._generated.protocol.query import (
     DiagnosticSnapshot,
     FileImagesRequest,
     FileSnapshot,
@@ -15,7 +15,7 @@ from destack._generated.protocol.query.model import (
     WorkspaceQueryResponse,
 )
 from destack._generated.protocol.notification import DiagnosticBatch
-from destack._generated.protocol.repository.revision import Revision
+from destack._generated.repository.revision import Revision
 from destack._generated.protocol.request import (
     WorkspaceRequestOpenRoot,
 )
@@ -31,7 +31,7 @@ from destack._generated.protocol.root import (
     SourceUpdateResponse,
 )
 from destack._generated.protocol.workspace.file.update import SourceUpdate
-from destack._generated.protocol.source.file.model.file import (
+from destack._generated.source.file.model.file import (
     Content,
     ContentBinary,
     ContentId,
@@ -41,7 +41,12 @@ from destack._generated.protocol.workspace.command.bench import BenchInput
 from destack._generated.protocol.workspace.command.build import BuildInput, BuildOutputs
 from destack._generated.protocol.workspace.command.cache import CacheInput
 from destack._generated.protocol.workspace.command.check import CheckInput, LintInput
+from destack._generated.protocol.workspace.command.clean import CleanInput
 from destack._generated.protocol.workspace.command.common import (
+    CommandInput,
+    CommandInputFile,
+    CommandInputInline,
+    CommandInputStdin,
     CommandRevisionCurrent,
 )
 from destack._generated.protocol.workspace.command.doc import DocInput
@@ -93,7 +98,7 @@ from destack._generated.protocol.watch import (
 
 DEFAULT_WATCH_COALESCE_WINDOW_MS = 50
 DEFAULT_WATCH_BATCH_SIZE = 1024
-CommandInit = Mapping[str, object]
+CommandInit = Mapping[str, Any]
 T = TypeVar("T")
 
 
@@ -364,7 +369,7 @@ class RemoteWorkspace:
     def test(self, request: TestInput | CommandInit | None = None) -> TestOutput:
         """Run workspace tests."""
 
-        return self._client.test(command_test_input(request))
+        return self._client.test(test_input(request))
 
     def doc(self, request: DocInput | CommandInit | None = None) -> DocOutput:
         """Generate documentation."""
@@ -502,14 +507,15 @@ def remote_connection(
     raise ValueError("remote workspace requires either connection or url")
 
 
-def command_fields(input: CommandInit | None) -> dict[str, object]:
+def command_fields(input: CommandInit | None) -> dict[str, Any]:
     """Return exact shared command fields from sparse command input."""
 
     input = input or {}
+    inputs = [command_input(value) for value in input.get("inputs", [])]
 
     return {
         "revision": input.get("revision", CommandRevisionCurrent()),
-        "inputs": input.get("inputs", []),
+        "inputs": inputs,
         "config_inputs": input.get("config_inputs", True),
         "cwd": input.get("cwd"),
         "manifest": input.get("manifest"),
@@ -521,6 +527,34 @@ def command_fields(input: CommandInit | None) -> dict[str, object]:
         "watch": input.get("watch", False),
         "dry_run": input.get("dry_run", False),
     }
+
+
+def command_input(value: CommandInput | Mapping[str, Any] | str) -> CommandInput:
+    """Return one exact command input from an idiomatic input value."""
+
+    if isinstance(value, str):
+        return CommandInputFile(path=value)
+
+    if isinstance(value, (CommandInputFile, CommandInputInline, CommandInputStdin)):
+        return value
+
+    kind = value["kind"]
+    if kind == "file":
+        return CommandInputFile(path=value["path"])
+    elif kind == "inline":
+        return CommandInputInline(
+            name=value["name"],
+            content=value["content"],
+            file_type=value["file_type"],
+        )
+    elif kind == "stdin":
+        return CommandInputStdin(
+            name=value["name"],
+            content=value["content"],
+            file_type=value["file_type"],
+        )
+    else:
+        raise ValueError(f"unsupported command input kind: {kind}")
 
 
 def check_input(input: CheckInput | CommandInit | None) -> CheckInput:
@@ -585,25 +619,54 @@ def format_source(source: object) -> FormatSource:
         return FormatSourceFiles(files=[source])
 
     if isinstance(source, Sequence) and not isinstance(source, (bytes, bytearray)):
-        return FormatSourceFiles(files=list(source))
+        files = list(source)
+        if not all(isinstance(file, str) for file in files):
+            raise TypeError("format source files must be strings")
+
+        files = cast(list[str], files)
+
+        return FormatSourceFiles(files=files)
 
     if isinstance(
         source, (FormatSourceFiles, FormatSourceOpenFile, FormatSourceContent)
     ):
         return source
 
-    if isinstance(source, Mapping) and "files" in source:
-        return FormatSourceFiles(files=source["files"])
+    if isinstance(source, Mapping):
+        source = cast(Mapping[str, Any], source)
 
-    if isinstance(source, Mapping) and "open_file" in source:
-        return FormatSourceOpenFile(open_file=source["open_file"])
+        if "files" in source:
+            files = source["files"]
+            if not isinstance(files, Sequence) or isinstance(files, (bytes, bytearray)):
+                raise TypeError("format source files must be a string sequence")
+            if not all(isinstance(file, str) for file in files):
+                raise TypeError("format source files must be strings")
 
-    if isinstance(source, Mapping) and "content" in source:
-        return FormatSourceContent(
-            name=source.get("name", "<content>"),
-            file_type=source.get("file_type", "destack"),
-            content=source["content"],
-        )
+            files = cast(Sequence[str], files)
+
+            return FormatSourceFiles(files=list(files))
+
+        if "open_file" in source:
+            open_file = source["open_file"]
+            if not isinstance(open_file, str):
+                raise TypeError("format source open_file must be a string")
+
+            return FormatSourceOpenFile(open_file=open_file)
+
+        if "content" in source:
+            name = source.get("name", "<content>")
+            file_type = source.get("file_type", "destack")
+            content = source["content"]
+            if not isinstance(name, str):
+                raise TypeError("format source name must be a string")
+            if not isinstance(content, ContentId):
+                raise TypeError("format source content must be a ContentId")
+
+            return FormatSourceContent(
+                name=name,
+                file_type=file_type,
+                content=content,
+            )
 
     raise TypeError("unsupported format source")
 
@@ -645,7 +708,7 @@ def run_input(input: RunInput | CommandInit | None) -> RunInput:
     )
 
 
-def command_test_input(input: TestInput | CommandInit | None) -> TestInput:
+def test_input(input: TestInput | CommandInit | None) -> TestInput:
     """Return exact test input from sparse test input."""
 
     if isinstance(input, TestInput):

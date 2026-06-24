@@ -2,59 +2,102 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, TypeAlias
+import typing
 
-from destack.protocol.serde import Reader, SerdeError, Writer, nested_bytes
+from destack.protocol.serde import (
+    BinaryReader,
+    BinaryWriter,
+    Json,
+    SerdeError,
+    json_array,
+    json_bool,
+    json_field,
+    json_int,
+    json_object,
+    json_optional,
+    json_string,
+)
 
 import destack._generated.protocol.root
 import destack._generated.protocol.workspace.message
 import destack._generated.protocol.workspace.root
-
-if TYPE_CHECKING:
-    from destack._generated.protocol.root import (
-        RootId,
-    )
-
-    from destack._generated.protocol.workspace.message import (
-        UpdateBatch,
-    )
-
-    from destack._generated.protocol.workspace.root import (
-        ReloadReason,
-    )
 
 
 @dataclass(frozen=True, slots=True)
 class WatchStartRequest:
     """Request to start watching roots through a handle."""
 
-    """Root handle."""
-    handle: RootId
-    """Roots watched through this handle."""
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # roots watched through this handle
     roots: Sequence[str]
-    """Watch start options."""
+    # watch start options
     options: WatchStartOptions
 
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_watch_start_request(writer, self)
 
-def encode_watch_start_request(writer: Writer, value: WatchStartRequest) -> None:
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> WatchStartRequest:
+        """Decode one WatchStartRequest."""
+        return decode_watch_start_request(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_watch_start_request(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> WatchStartRequest:
+        """Return one WatchStartRequest from one JSON value."""
+        return from_json_watch_start_request(value)
+
+
+def encode_watch_start_request(writer: BinaryWriter, value: WatchStartRequest) -> None:
+    """Encode one WatchStartRequest."""
     destack._generated.protocol.root.encode_root_id(writer, value.handle)
     writer.write_unsigned(len(value.roots))
-    for item_0 in value.roots:
-        writer.write_string(item_0)
+    for item_value_roots_0 in value.roots:
+        writer.write_string(item_value_roots_0)
     encode_watch_start_options(writer, value.options)
 
 
-def decode_watch_start_request(reader: Reader) -> WatchStartRequest:
-    field_0 = destack._generated.protocol.root.decode_root_id(reader)
-    field_1 = [reader.read_string() for _ in range(reader.read_number())]
-    field_2 = decode_watch_start_options(reader)
+def decode_watch_start_request(reader: BinaryReader) -> WatchStartRequest:
+    """Decode one WatchStartRequest."""
+    handle = destack._generated.protocol.root.decode_root_id(reader)
+    roots = [reader.read_string() for _ in range(reader.read_number())]
+    options = decode_watch_start_options(reader)
 
     return WatchStartRequest(
-        handle=field_0,
-        roots=field_1,
-        options=field_2,
+        handle=handle,
+        roots=roots,
+        options=options,
+    )
+
+
+def to_json_watch_start_request(value: WatchStartRequest) -> Json:
+    """Return one JSON value for one WatchStartRequest."""
+    return {
+        "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+        "roots": [item_0 for item_0 in value.roots],
+        "options": to_json_watch_start_options(value.options),
+    }
+
+
+def from_json_watch_start_request(value: Json) -> WatchStartRequest:
+    """Return one WatchStartRequest from one JSON value."""
+    object_ = json_object(value)
+
+    return WatchStartRequest(
+        handle=destack._generated.protocol.root.from_json_root_id(
+            json_field(object_, "handle")
+        ),
+        roots=[
+            json_string(item_0) for item_0 in json_array(json_field(object_, "roots"))
+        ],
+        options=from_json_watch_start_options(json_field(object_, "options")),
     )
 
 
@@ -62,24 +105,62 @@ def decode_watch_start_request(reader: Reader) -> WatchStartRequest:
 class WatchStartOptions:
     """Options for starting a workspace watch."""
 
-    """Maximum time to coalesce events in milliseconds."""
+    # maximum time to coalesce events in milliseconds
     coalesce_window_ms: int
-    """Maximum event and status count per batch."""
+    # maximum event and status count per batch
     max_batch_size: int
 
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_watch_start_options(writer, self)
 
-def encode_watch_start_options(writer: Writer, value: WatchStartOptions) -> None:
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> WatchStartOptions:
+        """Decode one WatchStartOptions."""
+        return decode_watch_start_options(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_watch_start_options(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> WatchStartOptions:
+        """Return one WatchStartOptions from one JSON value."""
+        return from_json_watch_start_options(value)
+
+
+def encode_watch_start_options(writer: BinaryWriter, value: WatchStartOptions) -> None:
+    """Encode one WatchStartOptions."""
     writer.write_unsigned(value.coalesce_window_ms)
     writer.write_unsigned(value.max_batch_size)
 
 
-def decode_watch_start_options(reader: Reader) -> WatchStartOptions:
-    field_0 = reader.read_number()
-    field_1 = reader.read_number()
+def decode_watch_start_options(reader: BinaryReader) -> WatchStartOptions:
+    """Decode one WatchStartOptions."""
+    coalesce_window_ms = reader.read_number()
+    max_batch_size = reader.read_number()
 
     return WatchStartOptions(
-        coalesce_window_ms=field_0,
-        max_batch_size=field_1,
+        coalesce_window_ms=coalesce_window_ms,
+        max_batch_size=max_batch_size,
+    )
+
+
+def to_json_watch_start_options(value: WatchStartOptions) -> Json:
+    """Return one JSON value for one WatchStartOptions."""
+    return {
+        "coalesceWindowMs": value.coalesce_window_ms,
+        "maxBatchSize": value.max_batch_size,
+    }
+
+
+def from_json_watch_start_options(value: Json) -> WatchStartOptions:
+    """Return one WatchStartOptions from one JSON value."""
+    object_ = json_object(value)
+
+    return WatchStartOptions(
+        coalesce_window_ms=json_int(json_field(object_, "coalesceWindowMs")),
+        max_batch_size=json_int(json_field(object_, "maxBatchSize")),
     )
 
 
@@ -87,19 +168,57 @@ def decode_watch_start_options(reader: Reader) -> WatchStartOptions:
 class WatchNextRequest:
     """Request to receive and apply the next watch batch."""
 
-    """Root handle."""
-    handle: RootId
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_watch_next_request(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> WatchNextRequest:
+        """Decode one WatchNextRequest."""
+        return decode_watch_next_request(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_watch_next_request(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> WatchNextRequest:
+        """Return one WatchNextRequest from one JSON value."""
+        return from_json_watch_next_request(value)
 
 
-def encode_watch_next_request(writer: Writer, value: WatchNextRequest) -> None:
+def encode_watch_next_request(writer: BinaryWriter, value: WatchNextRequest) -> None:
+    """Encode one WatchNextRequest."""
     destack._generated.protocol.root.encode_root_id(writer, value.handle)
 
 
-def decode_watch_next_request(reader: Reader) -> WatchNextRequest:
-    field_0 = destack._generated.protocol.root.decode_root_id(reader)
+def decode_watch_next_request(reader: BinaryReader) -> WatchNextRequest:
+    """Decode one WatchNextRequest."""
+    handle = destack._generated.protocol.root.decode_root_id(reader)
 
     return WatchNextRequest(
-        handle=field_0,
+        handle=handle,
+    )
+
+
+def to_json_watch_next_request(value: WatchNextRequest) -> Json:
+    """Return one JSON value for one WatchNextRequest."""
+    return {
+        "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+    }
+
+
+def from_json_watch_next_request(value: Json) -> WatchNextRequest:
+    """Return one WatchNextRequest from one JSON value."""
+    object_ = json_object(value)
+
+    return WatchNextRequest(
+        handle=destack._generated.protocol.root.from_json_root_id(
+            json_field(object_, "handle")
+        ),
     )
 
 
@@ -107,19 +226,57 @@ def decode_watch_next_request(reader: Reader) -> WatchNextRequest:
 class WatchStopRequest:
     """Request to stop watching roots through a handle."""
 
-    """Root handle."""
-    handle: RootId
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_watch_stop_request(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> WatchStopRequest:
+        """Decode one WatchStopRequest."""
+        return decode_watch_stop_request(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_watch_stop_request(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> WatchStopRequest:
+        """Return one WatchStopRequest from one JSON value."""
+        return from_json_watch_stop_request(value)
 
 
-def encode_watch_stop_request(writer: Writer, value: WatchStopRequest) -> None:
+def encode_watch_stop_request(writer: BinaryWriter, value: WatchStopRequest) -> None:
+    """Encode one WatchStopRequest."""
     destack._generated.protocol.root.encode_root_id(writer, value.handle)
 
 
-def decode_watch_stop_request(reader: Reader) -> WatchStopRequest:
-    field_0 = destack._generated.protocol.root.decode_root_id(reader)
+def decode_watch_stop_request(reader: BinaryReader) -> WatchStopRequest:
+    """Decode one WatchStopRequest."""
+    handle = destack._generated.protocol.root.decode_root_id(reader)
 
     return WatchStopRequest(
-        handle=field_0,
+        handle=handle,
+    )
+
+
+def to_json_watch_stop_request(value: WatchStopRequest) -> Json:
+    """Return one JSON value for one WatchStopRequest."""
+    return {
+        "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+    }
+
+
+def from_json_watch_stop_request(value: Json) -> WatchStopRequest:
+    """Return one WatchStopRequest from one JSON value."""
+    object_ = json_object(value)
+
+    return WatchStopRequest(
+        handle=destack._generated.protocol.root.from_json_root_id(
+            json_field(object_, "handle")
+        ),
     )
 
 
@@ -127,19 +284,59 @@ def decode_watch_stop_request(reader: Reader) -> WatchStopRequest:
 class WatchStartedResponse:
     """Response for watch start requests."""
 
-    """Root handle."""
-    handle: RootId
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_watch_started_response(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> WatchStartedResponse:
+        """Decode one WatchStartedResponse."""
+        return decode_watch_started_response(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_watch_started_response(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> WatchStartedResponse:
+        """Return one WatchStartedResponse from one JSON value."""
+        return from_json_watch_started_response(value)
 
 
-def encode_watch_started_response(writer: Writer, value: WatchStartedResponse) -> None:
+def encode_watch_started_response(
+    writer: BinaryWriter, value: WatchStartedResponse
+) -> None:
+    """Encode one WatchStartedResponse."""
     destack._generated.protocol.root.encode_root_id(writer, value.handle)
 
 
-def decode_watch_started_response(reader: Reader) -> WatchStartedResponse:
-    field_0 = destack._generated.protocol.root.decode_root_id(reader)
+def decode_watch_started_response(reader: BinaryReader) -> WatchStartedResponse:
+    """Decode one WatchStartedResponse."""
+    handle = destack._generated.protocol.root.decode_root_id(reader)
 
     return WatchStartedResponse(
-        handle=field_0,
+        handle=handle,
+    )
+
+
+def to_json_watch_started_response(value: WatchStartedResponse) -> Json:
+    """Return one JSON value for one WatchStartedResponse."""
+    return {
+        "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+    }
+
+
+def from_json_watch_started_response(value: Json) -> WatchStartedResponse:
+    """Return one WatchStartedResponse from one JSON value."""
+    object_ = json_object(value)
+
+    return WatchStartedResponse(
+        handle=destack._generated.protocol.root.from_json_root_id(
+            json_field(object_, "handle")
+        ),
     )
 
 
@@ -147,15 +344,36 @@ def decode_watch_started_response(reader: Reader) -> WatchStartedResponse:
 class WatchBatchResponse:
     """Response for watch batch processing."""
 
-    """Root handle."""
-    handle: RootId
-    """Watch batch received from the workspace watcher."""
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # watch batch received from the workspace watcher
     batch: WatchBatch | None
-    """Updates produced by the batch."""
-    updates: UpdateBatch
+    # updates produced by the batch
+    updates: destack._generated.protocol.workspace.message.UpdateBatch
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_watch_batch_response(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> WatchBatchResponse:
+        """Decode one WatchBatchResponse."""
+        return decode_watch_batch_response(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_watch_batch_response(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> WatchBatchResponse:
+        """Return one WatchBatchResponse from one JSON value."""
+        return from_json_watch_batch_response(value)
 
 
-def encode_watch_batch_response(writer: Writer, value: WatchBatchResponse) -> None:
+def encode_watch_batch_response(
+    writer: BinaryWriter, value: WatchBatchResponse
+) -> None:
+    """Encode one WatchBatchResponse."""
     destack._generated.protocol.root.encode_root_id(writer, value.handle)
     if value.batch is None:
         writer.write_byte(0)
@@ -167,15 +385,44 @@ def encode_watch_batch_response(writer: Writer, value: WatchBatchResponse) -> No
     )
 
 
-def decode_watch_batch_response(reader: Reader) -> WatchBatchResponse:
-    field_0 = destack._generated.protocol.root.decode_root_id(reader)
-    field_1 = reader.read_option(lambda: decode_watch_batch(reader))
-    field_2 = destack._generated.protocol.workspace.message.decode_update_batch(reader)
+def decode_watch_batch_response(reader: BinaryReader) -> WatchBatchResponse:
+    """Decode one WatchBatchResponse."""
+    handle = destack._generated.protocol.root.decode_root_id(reader)
+    batch = reader.read_option(lambda: decode_watch_batch(reader))
+    updates = destack._generated.protocol.workspace.message.decode_update_batch(reader)
 
     return WatchBatchResponse(
-        handle=field_0,
-        batch=field_1,
-        updates=field_2,
+        handle=handle,
+        batch=batch,
+        updates=updates,
+    )
+
+
+def to_json_watch_batch_response(value: WatchBatchResponse) -> Json:
+    """Return one JSON value for one WatchBatchResponse."""
+    return {
+        "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+        **({} if value.batch is None else {"batch": to_json_watch_batch(value.batch)}),
+        "updates": destack._generated.protocol.workspace.message.to_json_update_batch(
+            value.updates
+        ),
+    }
+
+
+def from_json_watch_batch_response(value: Json) -> WatchBatchResponse:
+    """Return one WatchBatchResponse from one JSON value."""
+    object_ = json_object(value)
+
+    return WatchBatchResponse(
+        handle=destack._generated.protocol.root.from_json_root_id(
+            json_field(object_, "handle")
+        ),
+        batch=json_optional(
+            object_, "batch", lambda value: from_json_watch_batch(value)
+        ),
+        updates=destack._generated.protocol.workspace.message.from_json_update_batch(
+            json_field(object_, "updates")
+        ),
     )
 
 
@@ -183,43 +430,93 @@ def decode_watch_batch_response(reader: Reader) -> WatchBatchResponse:
 class WatchBatch:
     """Watch batch payload used in the protocol."""
 
-    """List of file events in the batch."""
+    # list of file events in the batch
     events: Sequence[WatchEvent]
-    """Status updates emitted by the watcher."""
+    # status updates emitted by the watcher
     status: Sequence[WatchStatus]
-    """Whether overflow occurred."""
+    # whether overflow occurred
     overflowed: bool
-    """Batch start timestamp in relative nanoseconds."""
+    # batch start timestamp in relative nanoseconds
     started_at_ns: int
-    """Batch end timestamp in relative nanoseconds."""
+    # batch end timestamp in relative nanoseconds
     ended_at_ns: int
 
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_watch_batch(writer, self)
 
-def encode_watch_batch(writer: Writer, value: WatchBatch) -> None:
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> WatchBatch:
+        """Decode one WatchBatch."""
+        return decode_watch_batch(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_watch_batch(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> WatchBatch:
+        """Return one WatchBatch from one JSON value."""
+        return from_json_watch_batch(value)
+
+
+def encode_watch_batch(writer: BinaryWriter, value: WatchBatch) -> None:
+    """Encode one WatchBatch."""
     writer.write_unsigned(len(value.events))
-    for item_0 in value.events:
-        encode_watch_event(writer, item_0)
+    for item_value_events_0 in value.events:
+        encode_watch_event(writer, item_value_events_0)
     writer.write_unsigned(len(value.status))
-    for item_0 in value.status:
-        encode_watch_status(writer, item_0)
+    for item_value_status_0 in value.status:
+        encode_watch_status(writer, item_value_status_0)
     writer.write_bool(value.overflowed)
     writer.write_unsigned(value.started_at_ns)
     writer.write_unsigned(value.ended_at_ns)
 
 
-def decode_watch_batch(reader: Reader) -> WatchBatch:
-    field_0 = [decode_watch_event(reader) for _ in range(reader.read_number())]
-    field_1 = [decode_watch_status(reader) for _ in range(reader.read_number())]
-    field_2 = reader.read_bool()
-    field_3 = reader.read_number()
-    field_4 = reader.read_number()
+def decode_watch_batch(reader: BinaryReader) -> WatchBatch:
+    """Decode one WatchBatch."""
+    events = [decode_watch_event(reader) for _ in range(reader.read_number())]
+    status = [decode_watch_status(reader) for _ in range(reader.read_number())]
+    overflowed = reader.read_bool()
+    started_at_ns = reader.read_number()
+    ended_at_ns = reader.read_number()
 
     return WatchBatch(
-        events=field_0,
-        status=field_1,
-        overflowed=field_2,
-        started_at_ns=field_3,
-        ended_at_ns=field_4,
+        events=events,
+        status=status,
+        overflowed=overflowed,
+        started_at_ns=started_at_ns,
+        ended_at_ns=ended_at_ns,
+    )
+
+
+def to_json_watch_batch(value: WatchBatch) -> Json:
+    """Return one JSON value for one WatchBatch."""
+    return {
+        "events": [to_json_watch_event(item_0) for item_0 in value.events],
+        "status": [to_json_watch_status(item_0) for item_0 in value.status],
+        "overflowed": value.overflowed,
+        "startedAtNs": value.started_at_ns,
+        "endedAtNs": value.ended_at_ns,
+    }
+
+
+def from_json_watch_batch(value: Json) -> WatchBatch:
+    """Return one WatchBatch from one JSON value."""
+    object_ = json_object(value)
+
+    return WatchBatch(
+        events=[
+            from_json_watch_event(item_0)
+            for item_0 in json_array(json_field(object_, "events"))
+        ],
+        status=[
+            from_json_watch_status(item_0)
+            for item_0 in json_array(json_field(object_, "status"))
+        ],
+        overflowed=json_bool(json_field(object_, "overflowed")),
+        started_at_ns=json_int(json_field(object_, "startedAtNs")),
+        ended_at_ns=json_int(json_field(object_, "endedAtNs")),
     )
 
 
@@ -227,15 +524,34 @@ def decode_watch_batch(reader: Reader) -> WatchBatch:
 class WatchEvent:
     """Watch event payload."""
 
-    """Event path."""
+    # event path
     path: str
-    """Optional previous path for renames."""
+    # optional previous path for renames
     previous_path: str | None
-    """Event kind."""
+    # event kind
     kind: WatchEventKind
 
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_watch_event(writer, self)
 
-def encode_watch_event(writer: Writer, value: WatchEvent) -> None:
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> WatchEvent:
+        """Decode one WatchEvent."""
+        return decode_watch_event(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_watch_event(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> WatchEvent:
+        """Return one WatchEvent from one JSON value."""
+        return from_json_watch_event(value)
+
+
+def encode_watch_event(writer: BinaryWriter, value: WatchEvent) -> None:
+    """Encode one WatchEvent."""
     writer.write_string(value.path)
     if value.previous_path is None:
         writer.write_byte(0)
@@ -245,29 +561,55 @@ def encode_watch_event(writer: Writer, value: WatchEvent) -> None:
     encode_watch_event_kind(writer, value.kind)
 
 
-def decode_watch_event(reader: Reader) -> WatchEvent:
-    field_0 = reader.read_string()
-    field_1 = reader.read_option(lambda: reader.read_string())
-    field_2 = decode_watch_event_kind(reader)
+def decode_watch_event(reader: BinaryReader) -> WatchEvent:
+    """Decode one WatchEvent."""
+    path = reader.read_string()
+    previous_path = reader.read_option(lambda: reader.read_string())
+    kind = decode_watch_event_kind(reader)
 
     return WatchEvent(
-        path=field_0,
-        previous_path=field_1,
-        kind=field_2,
+        path=path,
+        previous_path=previous_path,
+        kind=kind,
+    )
+
+
+def to_json_watch_event(value: WatchEvent) -> Json:
+    """Return one JSON value for one WatchEvent."""
+    return {
+        "path": value.path,
+        **(
+            {} if value.previous_path is None else {"previousPath": value.previous_path}
+        ),
+        "kind": to_json_watch_event_kind(value.kind),
+    }
+
+
+def from_json_watch_event(value: Json) -> WatchEvent:
+    """Return one WatchEvent from one JSON value."""
+    object_ = json_object(value)
+
+    return WatchEvent(
+        path=json_string(json_field(object_, "path")),
+        previous_path=json_optional(
+            object_, "previousPath", lambda value: json_string(value)
+        ),
+        kind=from_json_watch_event_kind(json_field(object_, "kind")),
     )
 
 
 """Watch event kind."""
-WatchEventKind: TypeAlias = (
-    Literal["created"]
-    | Literal["modified"]
-    | Literal["deleted"]
-    | Literal["renamed"]
-    | Literal["overflow"]
+WatchEventKind: typing.TypeAlias = (
+    typing.Literal["created"]
+    | typing.Literal["modified"]
+    | typing.Literal["deleted"]
+    | typing.Literal["renamed"]
+    | typing.Literal["overflow"]
 )
 
 
-def encode_watch_event_kind(writer: Writer, value: WatchEventKind) -> None:
+def encode_watch_event_kind(writer: BinaryWriter, value: WatchEventKind) -> None:
+    """Encode one WatchEventKind."""
     if value == "created":
         writer.write_unsigned(0)
     elif value == "modified":
@@ -282,7 +624,8 @@ def encode_watch_event_kind(writer: Writer, value: WatchEventKind) -> None:
         raise SerdeError("unknown enum variant")
 
 
-def decode_watch_event_kind(reader: Reader) -> WatchEventKind:
+def decode_watch_event_kind(reader: BinaryReader) -> WatchEventKind:
+    """Decode one WatchEventKind."""
     variant = reader.read_number()
 
     if variant == 0:
@@ -299,23 +642,62 @@ def decode_watch_event_kind(reader: Reader) -> WatchEventKind:
         raise SerdeError(f"unknown enum variant index: {variant}")
 
 
+def to_json_watch_event_kind(value: WatchEventKind) -> Json:
+    """Return one JSON value for one WatchEventKind."""
+    return value
+
+
+def from_json_watch_event_kind(value: Json) -> WatchEventKind:
+    """Return one WatchEventKind from one JSON value."""
+    variant = json_string(value)
+
+    if variant == "created":
+        return "created"
+    elif variant == "modified":
+        return "modified"
+    elif variant == "deleted":
+        return "deleted"
+    elif variant == "renamed":
+        return "renamed"
+    elif variant == "overflow":
+        return "overflow"
+    else:
+        raise SerdeError(f"unknown enum variant: {variant}")
+
+
 @dataclass(frozen=True, slots=True)
 class WatchStatusReady:
     """Watcher is ready."""
 
     roots: Sequence[str]
-    kind: Literal["ready"] = "ready"
+    kind: typing.Literal["ready"] = "ready"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_watch_status(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_watch_status(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WatchStatusReloadRequested:
     """Watcher requests a filesystem reload."""
 
-    """Watch roots for the reload."""
+    # watch roots for the reload
     roots: Sequence[str]
-    """Reload reason."""
-    reason: ReloadReason
-    kind: Literal["reloadRequested"] = "reloadRequested"
+    # reload reason
+    reason: destack._generated.protocol.workspace.root.ReloadReason
+    kind: typing.Literal["reloadRequested"] = "reloadRequested"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_watch_status(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_watch_status(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -323,18 +705,34 @@ class WatchStatusError:
     """Watcher encountered an error."""
 
     message: str
-    kind: Literal["error"] = "error"
+    kind: typing.Literal["error"] = "error"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_watch_status(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_watch_status(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WatchStatusStopped:
     """Watcher stopped."""
 
-    kind: Literal["stopped"] = "stopped"
+    kind: typing.Literal["stopped"] = "stopped"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_watch_status(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_watch_status(self)
 
 
 """Watch status update."""
-WatchStatus: TypeAlias = (
+WatchStatus: typing.TypeAlias = (
     WatchStatusReady
     | WatchStatusReloadRequested
     | WatchStatusError
@@ -342,17 +740,18 @@ WatchStatus: TypeAlias = (
 )
 
 
-def encode_watch_status(writer: Writer, value: WatchStatus) -> None:
+def encode_watch_status(writer: BinaryWriter, value: WatchStatus) -> None:
+    """Encode one WatchStatus."""
     if value.kind == "ready":
         writer.write_unsigned(0)
         writer.write_unsigned(len(value.roots))
-        for item_0 in value.roots:
-            writer.write_string(item_0)
+        for item_value_roots_0 in value.roots:
+            writer.write_string(item_value_roots_0)
     elif value.kind == "reloadRequested":
         writer.write_unsigned(1)
         writer.write_unsigned(len(value.roots))
-        for item_0 in value.roots:
-            writer.write_string(item_0)
+        for item_value_roots_0 in value.roots:
+            writer.write_string(item_value_roots_0)
         destack._generated.protocol.workspace.root.encode_reload_reason(
             writer, value.reason
         )
@@ -365,30 +764,29 @@ def encode_watch_status(writer: Writer, value: WatchStatus) -> None:
         raise SerdeError("unknown enum variant")
 
 
-def decode_watch_status(reader: Reader) -> WatchStatus:
+def decode_watch_status(reader: BinaryReader) -> WatchStatus:
+    """Decode one WatchStatus."""
     variant = reader.read_number()
 
     if variant == 0:
-        field_0 = [reader.read_string() for _ in range(reader.read_number())]
+        roots = [reader.read_string() for _ in range(reader.read_number())]
 
         return WatchStatusReady(
-            roots=field_0,
+            roots=roots,
         )
     elif variant == 1:
-        field_0 = [reader.read_string() for _ in range(reader.read_number())]
-        field_1 = destack._generated.protocol.workspace.root.decode_reload_reason(
-            reader
-        )
+        roots = [reader.read_string() for _ in range(reader.read_number())]
+        reason = destack._generated.protocol.workspace.root.decode_reload_reason(reader)
 
         return WatchStatusReloadRequested(
-            roots=field_0,
-            reason=field_1,
+            roots=roots,
+            reason=reason,
         )
     elif variant == 2:
-        field_0 = reader.read_string()
+        message = reader.read_string()
 
         return WatchStatusError(
-            message=field_0,
+            message=message,
         )
     elif variant == 3:
         return WatchStatusStopped()
@@ -396,23 +794,123 @@ def decode_watch_status(reader: Reader) -> WatchStatus:
         raise SerdeError(f"unknown enum variant index: {variant}")
 
 
+def to_json_watch_status(value: WatchStatus) -> Json:
+    """Return one JSON value for one WatchStatus."""
+    if value.kind == "ready":
+        return {
+            "kind": "ready",
+            "roots": [item_0 for item_0 in value.roots],
+        }
+    elif value.kind == "reloadRequested":
+        return {
+            "kind": "reloadRequested",
+            "roots": [item_0 for item_0 in value.roots],
+            "reason": destack._generated.protocol.workspace.root.to_json_reload_reason(
+                value.reason
+            ),
+        }
+    elif value.kind == "error":
+        return {
+            "kind": "error",
+            "message": value.message,
+        }
+    elif value.kind == "stopped":
+        return {
+            "kind": "stopped",
+        }
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def from_json_watch_status(value: Json) -> WatchStatus:
+    """Return one WatchStatus from one JSON value."""
+    object_ = json_object(value)
+    kind = json_string(json_field(object_, "kind"))
+
+    if kind == "ready":
+        return WatchStatusReady(
+            roots=[
+                json_string(item_0)
+                for item_0 in json_array(json_field(object_, "roots"))
+            ],
+        )
+    elif kind == "reloadRequested":
+        return WatchStatusReloadRequested(
+            roots=[
+                json_string(item_0)
+                for item_0 in json_array(json_field(object_, "roots"))
+            ],
+            reason=destack._generated.protocol.workspace.root.from_json_reload_reason(
+                json_field(object_, "reason")
+            ),
+        )
+    elif kind == "error":
+        return WatchStatusError(
+            message=json_string(json_field(object_, "message")),
+        )
+    elif kind == "stopped":
+        return WatchStatusStopped()
+    else:
+        raise SerdeError(f"unknown enum variant: {kind}")
+
+
 @dataclass(frozen=True, slots=True)
 class WatchStoppedResponse:
     """Response for watch stop requests."""
 
-    """Root handle."""
-    handle: RootId
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_watch_stopped_response(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> WatchStoppedResponse:
+        """Decode one WatchStoppedResponse."""
+        return decode_watch_stopped_response(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_watch_stopped_response(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> WatchStoppedResponse:
+        """Return one WatchStoppedResponse from one JSON value."""
+        return from_json_watch_stopped_response(value)
 
 
-def encode_watch_stopped_response(writer: Writer, value: WatchStoppedResponse) -> None:
+def encode_watch_stopped_response(
+    writer: BinaryWriter, value: WatchStoppedResponse
+) -> None:
+    """Encode one WatchStoppedResponse."""
     destack._generated.protocol.root.encode_root_id(writer, value.handle)
 
 
-def decode_watch_stopped_response(reader: Reader) -> WatchStoppedResponse:
-    field_0 = destack._generated.protocol.root.decode_root_id(reader)
+def decode_watch_stopped_response(reader: BinaryReader) -> WatchStoppedResponse:
+    """Decode one WatchStoppedResponse."""
+    handle = destack._generated.protocol.root.decode_root_id(reader)
 
     return WatchStoppedResponse(
-        handle=field_0,
+        handle=handle,
+    )
+
+
+def to_json_watch_stopped_response(value: WatchStoppedResponse) -> Json:
+    """Return one JSON value for one WatchStoppedResponse."""
+    return {
+        "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+    }
+
+
+def from_json_watch_stopped_response(value: Json) -> WatchStoppedResponse:
+    """Return one WatchStoppedResponse from one JSON value."""
+    object_ = json_object(value)
+
+    return WatchStoppedResponse(
+        handle=destack._generated.protocol.root.from_json_root_id(
+            json_field(object_, "handle")
+        ),
     )
 
 
@@ -420,33 +918,53 @@ __all__ = [
     "WatchStartRequest",
     "encode_watch_start_request",
     "decode_watch_start_request",
+    "to_json_watch_start_request",
+    "from_json_watch_start_request",
     "WatchStartOptions",
     "encode_watch_start_options",
     "decode_watch_start_options",
+    "to_json_watch_start_options",
+    "from_json_watch_start_options",
     "WatchNextRequest",
     "encode_watch_next_request",
     "decode_watch_next_request",
+    "to_json_watch_next_request",
+    "from_json_watch_next_request",
     "WatchStopRequest",
     "encode_watch_stop_request",
     "decode_watch_stop_request",
+    "to_json_watch_stop_request",
+    "from_json_watch_stop_request",
     "WatchStartedResponse",
     "encode_watch_started_response",
     "decode_watch_started_response",
+    "to_json_watch_started_response",
+    "from_json_watch_started_response",
     "WatchBatchResponse",
     "encode_watch_batch_response",
     "decode_watch_batch_response",
+    "to_json_watch_batch_response",
+    "from_json_watch_batch_response",
     "WatchBatch",
     "encode_watch_batch",
     "decode_watch_batch",
+    "to_json_watch_batch",
+    "from_json_watch_batch",
     "WatchEvent",
     "encode_watch_event",
     "decode_watch_event",
+    "to_json_watch_event",
+    "from_json_watch_event",
     "WatchEventKind",
     "encode_watch_event_kind",
     "decode_watch_event_kind",
+    "to_json_watch_event_kind",
+    "from_json_watch_event_kind",
     "WatchStatus",
     "encode_watch_status",
     "decode_watch_status",
+    "to_json_watch_status",
+    "from_json_watch_status",
     "WatchStatusReady",
     "WatchStatusReloadRequested",
     "WatchStatusError",
@@ -454,4 +972,6 @@ __all__ = [
     "WatchStoppedResponse",
     "encode_watch_stopped_response",
     "decode_watch_stopped_response",
+    "to_json_watch_stopped_response",
+    "from_json_watch_stopped_response",
 ]

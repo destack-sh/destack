@@ -2,30 +2,59 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, TypeAlias
+import typing
 
-from destack.protocol.serde import Reader, SerdeError, Writer, nested_bytes
+from destack.protocol.serde import (
+    BinaryReader,
+    BinaryWriter,
+    Json,
+    SerdeError,
+    json_bool,
+    json_field,
+    json_int,
+    json_object,
+    json_optional,
+    json_string,
+)
 
 
 @dataclass(frozen=True, slots=True)
 class ProtocolError:
     """Protocol errors returned in responses."""
 
-    """Error code classification."""
+    # error code classification
     code: ProtocolErrorCode
-    """Human readable error message."""
+    # human readable error message
     message: str
-    """Optional structured detail string."""
+    # optional structured detail string
     detail: str | None
-    """Whether the request can be retried safely."""
+    # whether the request can be retried safely
     retryable: bool
-    """Optional retry delay in milliseconds."""
+    # optional retry delay in milliseconds
     retry_after_ms: int | None
 
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_protocol_error(writer, self)
 
-def encode_protocol_error(writer: Writer, value: ProtocolError) -> None:
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> ProtocolError:
+        """Decode one ProtocolError."""
+        return decode_protocol_error(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_protocol_error(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> ProtocolError:
+        """Return one ProtocolError from one JSON value."""
+        return from_json_protocol_error(value)
+
+
+def encode_protocol_error(writer: BinaryWriter, value: ProtocolError) -> None:
+    """Encode one ProtocolError."""
     encode_protocol_error_code(writer, value.code)
     writer.write_string(value.message)
     if value.detail is None:
@@ -41,41 +70,73 @@ def encode_protocol_error(writer: Writer, value: ProtocolError) -> None:
         writer.write_unsigned(value.retry_after_ms)
 
 
-def decode_protocol_error(reader: Reader) -> ProtocolError:
-    field_0 = decode_protocol_error_code(reader)
-    field_1 = reader.read_string()
-    field_2 = reader.read_option(lambda: reader.read_string())
-    field_3 = reader.read_bool()
-    field_4 = reader.read_option(lambda: reader.read_number())
+def decode_protocol_error(reader: BinaryReader) -> ProtocolError:
+    """Decode one ProtocolError."""
+    code = decode_protocol_error_code(reader)
+    message = reader.read_string()
+    detail = reader.read_option(lambda: reader.read_string())
+    retryable = reader.read_bool()
+    retry_after_ms = reader.read_option(lambda: reader.read_number())
 
     return ProtocolError(
-        code=field_0,
-        message=field_1,
-        detail=field_2,
-        retryable=field_3,
-        retry_after_ms=field_4,
+        code=code,
+        message=message,
+        detail=detail,
+        retryable=retryable,
+        retry_after_ms=retry_after_ms,
+    )
+
+
+def to_json_protocol_error(value: ProtocolError) -> Json:
+    """Return one JSON value for one ProtocolError."""
+    return {
+        "code": to_json_protocol_error_code(value.code),
+        "message": value.message,
+        **({} if value.detail is None else {"detail": value.detail}),
+        "retryable": value.retryable,
+        **(
+            {}
+            if value.retry_after_ms is None
+            else {"retryAfterMs": value.retry_after_ms}
+        ),
+    }
+
+
+def from_json_protocol_error(value: Json) -> ProtocolError:
+    """Return one ProtocolError from one JSON value."""
+    object_ = json_object(value)
+
+    return ProtocolError(
+        code=from_json_protocol_error_code(json_field(object_, "code")),
+        message=json_string(json_field(object_, "message")),
+        detail=json_optional(object_, "detail", lambda value: json_string(value)),
+        retryable=json_bool(json_field(object_, "retryable")),
+        retry_after_ms=json_optional(
+            object_, "retryAfterMs", lambda value: json_int(value)
+        ),
     )
 
 
 """Error code classification for protocol errors."""
-ProtocolErrorCode: TypeAlias = (
-    Literal["invalidRequest"]
-    | Literal["invalidPayload"]
-    | Literal["unsupportedVersion"]
-    | Literal["notFound"]
-    | Literal["conflict"]
-    | Literal["busy"]
-    | Literal["notReady"]
-    | Literal["timeout"]
-    | Literal["canceled"]
-    | Literal["tooLarge"]
-    | Literal["unauthorized"]
-    | Literal["forbidden"]
-    | Literal["internal"]
+ProtocolErrorCode: typing.TypeAlias = (
+    typing.Literal["invalidRequest"]
+    | typing.Literal["invalidPayload"]
+    | typing.Literal["unsupportedVersion"]
+    | typing.Literal["notFound"]
+    | typing.Literal["conflict"]
+    | typing.Literal["busy"]
+    | typing.Literal["notReady"]
+    | typing.Literal["timeout"]
+    | typing.Literal["canceled"]
+    | typing.Literal["tooLarge"]
+    | typing.Literal["unauthorized"]
+    | typing.Literal["forbidden"]
+    | typing.Literal["internal"]
 )
 
 
-def encode_protocol_error_code(writer: Writer, value: ProtocolErrorCode) -> None:
+def encode_protocol_error_code(writer: BinaryWriter, value: ProtocolErrorCode) -> None:
+    """Encode one ProtocolErrorCode."""
     if value == "invalidRequest":
         writer.write_unsigned(0)
     elif value == "invalidPayload":
@@ -106,7 +167,8 @@ def encode_protocol_error_code(writer: Writer, value: ProtocolErrorCode) -> None
         raise SerdeError("unknown enum variant")
 
 
-def decode_protocol_error_code(reader: Reader) -> ProtocolErrorCode:
+def decode_protocol_error_code(reader: BinaryReader) -> ProtocolErrorCode:
+    """Decode one ProtocolErrorCode."""
     variant = reader.read_number()
 
     if variant == 0:
@@ -139,11 +201,54 @@ def decode_protocol_error_code(reader: Reader) -> ProtocolErrorCode:
         raise SerdeError(f"unknown enum variant index: {variant}")
 
 
+def to_json_protocol_error_code(value: ProtocolErrorCode) -> Json:
+    """Return one JSON value for one ProtocolErrorCode."""
+    return value
+
+
+def from_json_protocol_error_code(value: Json) -> ProtocolErrorCode:
+    """Return one ProtocolErrorCode from one JSON value."""
+    variant = json_string(value)
+
+    if variant == "invalidRequest":
+        return "invalidRequest"
+    elif variant == "invalidPayload":
+        return "invalidPayload"
+    elif variant == "unsupportedVersion":
+        return "unsupportedVersion"
+    elif variant == "notFound":
+        return "notFound"
+    elif variant == "conflict":
+        return "conflict"
+    elif variant == "busy":
+        return "busy"
+    elif variant == "notReady":
+        return "notReady"
+    elif variant == "timeout":
+        return "timeout"
+    elif variant == "canceled":
+        return "canceled"
+    elif variant == "tooLarge":
+        return "tooLarge"
+    elif variant == "unauthorized":
+        return "unauthorized"
+    elif variant == "forbidden":
+        return "forbidden"
+    elif variant == "internal":
+        return "internal"
+    else:
+        raise SerdeError(f"unknown enum variant: {variant}")
+
+
 __all__ = [
     "ProtocolError",
     "encode_protocol_error",
     "decode_protocol_error",
+    "to_json_protocol_error",
+    "from_json_protocol_error",
     "ProtocolErrorCode",
     "encode_protocol_error_code",
     "decode_protocol_error_code",
+    "to_json_protocol_error_code",
+    "from_json_protocol_error_code",
 ]

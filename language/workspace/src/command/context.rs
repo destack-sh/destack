@@ -362,8 +362,7 @@ impl<'a> CommandContext<'a> {
         content: &str,
         file_type: FileType,
     ) -> CommandResult<ModuleId> {
-        let logical_path = command_input_logical_path(kind, name, file_type);
-        let path = self.root.join(&logical_path);
+        let path = PathBuf::from(command_input_logical_path(kind, name, file_type));
 
         // publish the new command scoped file text
         self.session

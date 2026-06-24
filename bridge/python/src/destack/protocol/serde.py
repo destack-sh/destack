@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import builtins
+import base64
 import json
 import math
 import struct
-from collections.abc import Callable, Sequence
-from typing import Any, TypeVar
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any, TypeAlias, TypeVar
 
 U128_VARINT_MAX_BYTES = 19
 U128_VARINT_LAST_BYTE_MAX = 0x03
@@ -13,19 +15,20 @@ I128_MIN = -(1 << 127)
 I128_MAX = (1 << 127) - 1
 
 T = TypeVar("T")
+Json: TypeAlias = Any
 
 
 class SerdeError(Exception):
     """Error thrown while encoding or decoding Destack binary serde bytes."""
 
 
-class Writer:
+class BinaryWriter:
     """Writer for canonical Destack binary serde bytes."""
 
     def __init__(self) -> None:
         self._bytes = bytearray()
 
-    def bytes(self) -> bytes:
+    def bytes(self) -> builtins.bytes:
         """Return the written bytes."""
 
         return bytes(self._bytes)
@@ -38,7 +41,7 @@ class Writer:
 
         self._bytes.append(value)
 
-    def write_bytes(self, value: bytes | bytearray | Sequence[int]) -> None:
+    def write_bytes(self, value: builtins.bytes | bytearray | Sequence[int]) -> None:
         """Write raw bytes."""
 
         for byte in value:
@@ -110,17 +113,19 @@ class Writer:
         text = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
         self.write_string(text)
 
-    def write_byte_slice(self, value: bytes | bytearray | Sequence[int]) -> None:
+    def write_byte_slice(
+        self, value: builtins.bytes | bytearray | Sequence[int]
+    ) -> None:
         """Write one length-prefixed byte slice."""
 
         self.write_unsigned(len(value))
         self.write_bytes(value)
 
 
-class Reader:
+class BinaryReader:
     """Reader for canonical Destack binary serde bytes."""
 
-    def __init__(self, data: bytes | bytearray | Sequence[int]) -> None:
+    def __init__(self, data: builtins.bytes | bytearray | Sequence[int]) -> None:
         self._bytes = bytes(data)
         self._offset = 0
 
@@ -268,31 +273,132 @@ class Reader:
         raise SerdeError(f"invalid option tag: {tag}")
 
 
-def encode_value(encode: Callable[[Writer], None]) -> bytes:
+def encode_value(encode: Callable[[BinaryWriter], None]) -> bytes:
     """Encode one value to canonical bytes."""
 
-    writer = Writer()
+    writer = BinaryWriter()
     encode(writer)
 
     return writer.bytes()
 
 
 def decode_value(
-    data: bytes | bytearray | Sequence[int], decode: Callable[[Reader], T]
+    data: bytes | bytearray | Sequence[int], decode: Callable[[BinaryReader], T]
 ) -> T:
     """Decode one value from canonical bytes."""
 
-    reader = Reader(data)
+    reader = BinaryReader(data)
     value = decode(reader)
     reader.finish()
 
     return value
 
 
-def nested_bytes(encode: Callable[[Writer], None]) -> bytes:
+def nested_bytes(encode: Callable[[BinaryWriter], None]) -> bytes:
     """Return nested canonical bytes for sorting map keys."""
 
     return encode_value(encode)
+
+
+def json_object(value: Json) -> Mapping[str, Json]:
+    """Return one JSON object value."""
+
+    if isinstance(value, dict):
+        return value
+
+    raise SerdeError("expected JSON object")
+
+
+def json_array(value: Json) -> Sequence[Json]:
+    """Return one JSON array value."""
+
+    if isinstance(value, list):
+        return value
+
+    raise SerdeError("expected JSON array")
+
+
+def json_array_length(value: Json, length: int) -> Sequence[Json]:
+    """Return one JSON array value with one exact length."""
+
+    array = json_array(value)
+    if len(array) == length:
+        return array
+
+    raise SerdeError(f"expected JSON array length {length}: {len(array)}")
+
+
+def json_field(value: Mapping[str, Json], name: str) -> Json:
+    """Return one JSON object field."""
+
+    if name in value:
+        return value[name]
+
+    raise SerdeError(f"missing JSON field: {name}")
+
+
+def json_optional(
+    value: Mapping[str, Json], name: str, decode: Callable[[Json], T]
+) -> T | None:
+    """Return one optional JSON object field."""
+
+    if name in value:
+        return decode(value[name])
+
+    return None
+
+
+def json_string(value: Json) -> str:
+    """Return one JSON string value."""
+
+    if isinstance(value, str):
+        return value
+
+    raise SerdeError("expected JSON string")
+
+
+def json_bool(value: Json) -> bool:
+    """Return one JSON boolean value."""
+
+    if isinstance(value, bool):
+        return value
+
+    raise SerdeError("expected JSON boolean")
+
+
+def json_number(value: Json) -> float:
+    """Return one JSON number value."""
+
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        number = float(value)
+        if math.isfinite(number):
+            return number
+
+    raise SerdeError("expected JSON number")
+
+
+def json_int(value: Json) -> int:
+    """Return one JSON integer value."""
+
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+
+    raise SerdeError("expected JSON integer")
+
+
+def bytes_to_json(value: bytes | bytearray | Sequence[int]) -> Json:
+    """Return one base64 JSON string for bytes."""
+
+    return base64.b64encode(bytes(value)).decode("ascii")
+
+
+def bytes_from_json(value: Json) -> bytes:
+    """Return bytes decoded from one base64 JSON string."""
+
+    try:
+        return base64.b64decode(json_string(value), validate=True)
+    except ValueError as error:
+        raise SerdeError(str(error)) from error
 
 
 def unsigned_int(value: int) -> int:

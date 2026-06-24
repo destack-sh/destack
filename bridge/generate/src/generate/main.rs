@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use super::core::workspace_root;
 use super::schema::Schema;
-use super::{capi, python, rust, typescript};
+use super::{python, rust, typescript};
 
 /// Generate bridge target bindings.
 pub(crate) fn run() -> Result<()> {
@@ -12,7 +12,6 @@ pub(crate) fn run() -> Result<()> {
 
     schema.validate()?;
     protocol_schema.validate()?;
-    capi::generate(&root, &schema)?;
     python::generate(&root, &schema)?;
     python::generate_protocol(&root, &protocol_schema)?;
     typescript::generate(&root, &schema)?;

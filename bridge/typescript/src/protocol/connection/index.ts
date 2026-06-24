@@ -6,6 +6,7 @@ export {
   type ConnectionOptions,
 } from "./connection.js";
 export { EmbeddedTransport, type EmbeddedServer } from "./embedded.js";
+export { checkedNumber } from "./integer.js";
 export {
   TransportError,
   WebSocketTransport,

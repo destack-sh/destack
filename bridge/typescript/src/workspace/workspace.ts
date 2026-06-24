@@ -9,6 +9,12 @@ import {
 import { EmbeddedTransport } from "../protocol/connection/index.js";
 import type { NapiWorkspaceOptions } from "../napi.js";
 import type { WasmWorkspaceOptions } from "../wasm.js";
+import type {
+  MemoryContent,
+  MemoryFile,
+  MemoryWorkspace,
+  MemoryWorkspaceOptions,
+} from "./memory.js";
 
 /** Options for opening a local workspace. */
 export type LocalWorkspaceOptions = NapiWorkspaceOptions | WasmWorkspaceOptions;
@@ -21,6 +27,10 @@ export {
   RemoteWorkspace,
   openRemoteWorkspace,
   type WatchOptionsInit,
+  type MemoryContent,
+  type MemoryFile,
+  type MemoryWorkspace,
+  type MemoryWorkspaceOptions,
   type Workspace,
 };
 

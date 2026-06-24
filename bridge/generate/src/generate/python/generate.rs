@@ -13,7 +13,7 @@ use super::facade::{
     render_root_facade, render_root_stub, render_workspace_facade, render_workspace_module_stub,
     render_workspace_package_facade, render_workspace_package_stub,
 };
-use super::module::{render_protocol_module, render_protocol_module_stub};
+use super::module::{render_module, render_module_stub};
 use super::output::{
     generated_package_facade_path, generated_package_stub_path, module_facade_path,
     module_stub_path, package_facade_path, package_stub_path, protocol_module_facade_path,
@@ -26,11 +26,11 @@ pub(in crate::generate) fn generate(root: &Path, schema: &Schema) -> Result<()> 
     prune_outputs(root, schema)?;
 
     for module in &schema.modules {
-        let facade = render_protocol_module(schema, module);
-        write_text(root, &module_facade_path(module), facade)?;
+        let facade = render_module(schema, module);
+        write_text(root, &module_facade_path(schema, module), facade)?;
 
-        let stub = render_protocol_module_stub(schema, module);
-        write_text(root, &module_stub_path(module), stub)?;
+        let stub = render_module_stub(schema, module);
+        write_text(root, &module_stub_path(schema, module), stub)?;
     }
 
     for package in PythonPackage::all(schema).values() {
@@ -39,7 +39,9 @@ pub(in crate::generate) fn generate(root: &Path, schema: &Schema) -> Result<()> 
 
         let stub = package.render_generated_stub();
         write_text(root, &generated_package_stub_path(package), stub)?;
+    }
 
+    for package in PythonPackage::public(schema).values() {
         let facade = package.render_public_facade();
         write_text(root, &package_facade_path(package), facade)?;
 
@@ -117,7 +119,7 @@ pub(in crate::generate) fn generate_protocol(root: &Path, schema: &Schema) -> Re
     generate_protocol_workspace_client(root, schema)?;
 
     for module in &schema.modules {
-        let facade = render_protocol_module(schema, module);
+        let facade = render_module(schema, module);
         write_text(root, &protocol_module_facade_path(schema, module), facade)?;
     }
 

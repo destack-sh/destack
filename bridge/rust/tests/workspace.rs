@@ -11,18 +11,50 @@ use destack_workspace::{
 
 static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
 
+/// Temporary repository root for one bridge test.
+#[derive(Debug)]
+struct TestRoot {
+    /// Root directory path.
+    path: PathBuf,
+}
+
+impl TestRoot {
+    /// Create one unique test root.
+    fn create(prefix: &str) -> Self {
+        let index = NEXT_ROOT.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "destack-bridge-rust-{prefix}-{}-{index}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&path).expect("create rust bridge test root");
+
+        Self { path }
+    }
+
+    /// Return this root path.
+    fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for TestRoot {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.path);
+    }
+}
+
 /// Transport that dispatches frames through a local workspace server.
 #[derive(Debug)]
 struct EmbeddedTransport {
     /// Local server under test.
-    server: destack::LocalWorkspaceServer,
+    server: destack::workspace::Server,
     /// Frames ready for the client to receive.
     queue: Mutex<VecDeque<Vec<u8>>>,
 }
 
 impl EmbeddedTransport {
     /// Create a transport for one embedded server.
-    fn new(server: destack::LocalWorkspaceServer) -> Self {
+    fn new(server: destack::workspace::Server) -> Self {
         Self {
             server,
             queue: Mutex::new(VecDeque::new()),
@@ -35,7 +67,7 @@ impl Transport for EmbeddedTransport {
         let responses = self
             .server
             .dispatch(payload)
-            .map_err(|error| TransportError::Io(std::io::Error::other(error)))?;
+            .map_err(|error| TransportError::Io(std::io::Error::other(error.to_string())))?;
         let mut queue = self.queue.lock();
         queue.extend(responses);
 
@@ -51,53 +83,34 @@ impl Transport for EmbeddedTransport {
     }
 }
 
-/// Drive a local workspace server through the workspace protocol.
+/// Check one local workspace through an embedded server.
 #[test]
-fn test_dispatch_runs_workspace_protocol() -> destack::Result<()> {
-    let root = create_root("workspace_protocol");
-    write_text(&root.join("destack.json"), r#"{"name":"@test/app"}"#);
-    write_text(&root.join("src/index.ds"), "export const value = 1;");
+fn test_check_local_workspace_through_embedded_server() -> Result<(), Box<dyn std::error::Error>> {
+    let root = TestRoot::create("check_local_workspace");
+    write_text(&root.path().join("destack.json"), r#"{"name":"@test/app"}"#);
+    write_text(&root.path().join("src/index.ds"), "export const value = 1;");
 
-    // open an embedded server and protocol client
-    let server = destack::LocalWorkspaceServer::open(&root)?;
+    // open an embedded server and client
+    let server = destack::workspace::Server::open(root.path())?;
     let transport = Arc::new(EmbeddedTransport::new(server));
     let client = Client::new(transport);
-    client
-        .handshake(ClientOptions::default())
-        .map_err(destack::Error::new)?;
+    client.handshake(ClientOptions::default())?;
 
-    // open the project root through the protocol
-    let opened = client
-        .open_root(root.clone(), RootOpenOptions::default())
-        .map_err(destack::Error::new)?;
+    // open the project root through the client
+    let opened = client.open_root(root.path().to_path_buf(), RootOpenOptions::default())?;
 
-    // check the project through the protocol client
-    let output = client
-        .check(
-            opened.handle,
-            CheckInput::default(),
-            Default::default(),
-            &mut |_event| {},
-        )
-        .map_err(destack::Error::new)?;
+    // check the project through the embedded server
+    let output = client.check(
+        opened.handle,
+        CheckInput::default(),
+        Default::default(),
+        &mut |_event| {},
+    )?;
 
     assert_eq!(output.diagnostics, []);
 
     Ok(())
 }
-
-/// Create one unique test root.
-fn create_root(prefix: &str) -> PathBuf {
-    let index = NEXT_ROOT.fetch_add(1, Ordering::Relaxed);
-    let root = std::env::temp_dir().join(format!(
-        "destack-bridge-rust-{prefix}-{}-{index}",
-        std::process::id()
-    ));
-    std::fs::create_dir_all(&root).expect("create rust bridge test root");
-
-    root
-}
-
 /// Write one text file.
 fn write_text(path: &Path, text: &str) {
     let parent = path.parent().expect("test path should have a parent");

@@ -215,17 +215,18 @@ impl Session {
     ) -> Result<ModuleId, SessionError> {
         let repository = self.repository();
         let revision = self.revision(reference)?;
+        let repository_path = self.repository_path(path);
+        let logical_path = Path::new(&repository_path);
 
         // reuse already tracked modules
-        let module_id = repository.module_id_for_path(revision, path)?;
+        let module_id = repository.module_id_for_path(revision, logical_path)?;
         if let Some(module_id) = module_id {
             return Ok(module_id);
         }
 
         // read the requested filesystem source file
-        let repository_path = self.repository_path(path);
         let source = FileSystemSource::new(repository.as_ref(), self.root(), revision);
-        let Some(edits) = source.repository_edits_for_path(Path::new(&repository_path))? else {
+        let Some(edits) = source.repository_edits_for_path(logical_path)? else {
             return Err(SessionError::ModulePathNotLoadable {
                 path: path.to_path_buf(),
                 detail: "source file is not loadable".to_string(),
@@ -237,7 +238,7 @@ impl Session {
         let _next_revision_pin = repository.pin(next_revision)?;
 
         // require the applied file to produce a module
-        let module_id = repository.module_id_for_path(next_revision, path)?;
+        let module_id = repository.module_id_for_path(next_revision, logical_path)?;
         let Some(module_id) = module_id else {
             return Err(SessionError::ModulePathNotLoadable {
                 path: path.to_path_buf(),
@@ -249,7 +250,7 @@ impl Session {
         let was_published = repository.advance_ref(reference, revision, next_revision)?;
         if !was_published {
             let current = self.revision(reference)?;
-            if let Some(module_id) = repository.module_id_for_path(current, path)? {
+            if let Some(module_id) = repository.module_id_for_path(current, logical_path)? {
                 return Ok(module_id);
             }
 

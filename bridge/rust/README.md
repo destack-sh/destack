@@ -13,10 +13,9 @@ destack = "0.55.4"
 ## API
 
 ```rust
-let server = destack::LocalWorkspaceServer::open(".")?;
+let server = destack::workspace::Server::open(".")?;
 
 drop(server);
-assert_eq!(destack::version(), "0.55.4");
 ```
 
 ## Testing
