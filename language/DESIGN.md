@@ -92,7 +92,7 @@ struct ErasedEvent {
 }
 ```
 
-For genuinely heterogeneous storage, `Dynamic<unknown>` serves as the explicit erased universal value: a fat pointer carrying the value and its runtime type, introspectable via [reflection](#reflection) and narrowable via `is`.
+For genuinely heterogeneous storage, `Dynamic<unknown>` serves as the explicit erased universal value: a fat pointer carrying the value and its runtime descriptor, introspectable via [reflection](#reflection) and narrowable (for runtime-discernible forms) via `is`.
 
 ### String
 
@@ -1026,7 +1026,7 @@ struct LoggerFor {
 }
 ```
 
-For a type `T` to become concrete (as required by `Dynamic<T>`), it must have a surface we can actually erase into a runtime witness: we call this `DynamicSafe`.
+For a type `T` to become concrete (as required by `Dynamic<T>`), it must have a shape we can actually erase into a value at runtime (the "runtime witness": we call this property `DynamicSafe`.
 Basically, the `T` in `Dynamic<T>` implies `DynamicSafe`, which is very similar to Rust's "object-safe" requirements for `dyn T`:
  - no generic members that introduce new generic parameters
  - no index signatures
@@ -1295,13 +1295,13 @@ TypeScript has pattern based destructuring for arguments and assignment-like exp
 | Literal | `"ok"`, `0`, `true` | match one literal value |
 | Range | `0..10`, `..=255` | match an integer, `bigint`, or `char` interval |
 | Tuple | `(x, y)` | destructure a tuple value |
-| Array, slice, fixed array | `[head, ...tail]` | destructure indexed elements |
+| Sequence | `[head, ...tail]` | destructure finite ordered elements |
 | Object | `{ kind: "ok", value }` | destructure a structural object |
 | Nominal object | `Point { x, y }`, `User { name }` | match a nominal object-shaped value and destructure stored fields |
 | Nominal tuple | `UserId(value)`, `Config({ debug })`, `Shape.Circle({ radius })` | match a nominal tuple-shaped head, then resolve it as a newtype or tagged variant |
 | Enum | `State.Ready` | match a nominal enum variant without payload |
 | Union | `0 | 1 | 2` | accept any listed pattern |
-| Rest | `...tail` | collect the remaining elements or fields |
+| Rest | `...tail` | bind the remaining sequence view or object fields |
 | Default | `name = "guest"` | bind a fallback when the selected value is `undefined` |
 | Must | `value!` | bind the non-nullish value |
 | Borrow binding | `&readonly value`, `&value`, `&exclusive value` | bind the selected place through a borrow |
@@ -1380,11 +1380,11 @@ Dynamic computed keys are still valid against indexed sources, because those are
 ### Guards
 
 Guards are boolean expressions that can refine types, like `"name" in value`, `instanceof`, and `value is T` checks:
- - `"name" in value` for object types, and it is quite imprecise.
+ - `"name" in value` for object-shaped values.
  - `instanceof` for classes.
- - `value is T` for primitive, nominal, and class cases.
+ - `value is T` for primitive tags, union cases, exact runtime type ids, and registered nominal runtime relations.
 
-Destack does not need (or support) the vague `typeof` check, but supports an additional precise `value is T` to check whether the current runtime representation of `value` carries the case or identity for `T`:
+Destack does not support the vague `typeof` check, and instead supports an additional precise `value is T` to check whether the current runtime representation of `value` carries the case, type identity, or registered relation for `T`:
 
 ```ds
 struct User {
@@ -1402,9 +1402,8 @@ function label(value: User | string): string {
 
 Like other guards, `value is T` returns `boolean` and narrows the branch:
  - When `true`: narrows to the part of its current type that can be `T`.
- - When `false`: narrows away the covered part when that can be represented.
-
-For union values, the test checks the union representation:
+ - When `false`: narrows away the covered part (when that can be represented).
+For union values, the guard test sees "through" the union payload:
 
 ```ds
 const value: string | int32 = 1;
@@ -1435,10 +1434,7 @@ let status = outer: loop {
 status satisfies "done";
 ```
 
-The `break` operand still follows TypeScript's label rule, of course: a lone identifier is still a label.
-
-`for-in` enumerates string property names from object-shaped values: structural objects, structs, and classes.
-Symbol keys are not included, and dense collections use `for-of` instead.
+The `break` operand works like TypeScript labels by default, the break only get s a value when it is unambiguous via either `label: <expr>` or just `break <expr>` (where the `<expr>` cannot be identifier shaped).
 
 ### Using
 
@@ -1495,6 +1491,7 @@ Compound assignment operators like `+=` are desugared into their component opera
 | `>>>` | `a >>> b` | `ShiftRightUnsigned<T>` |
 | `==`, `!=` | `a == b` | `PartialEqual<T>` |
 | `<`, `<=`, `>`, `>=` | `a < b` | `Compare<T>` or `PartialCompare<T>` |
+| `in` | `key in value` | `Has<K>` for custom containers |
 | `[]` | `a[i]` | `Index<I>` |
 | `[] =` | `a[i] = v` | `IndexSet<I, V>` |
 | `*` | `*a` | `Dereference<"readonly">` |
@@ -1505,7 +1502,7 @@ Equality `==` / `!=` follows Rust's split between "partial" and "total" equality
 - `Equal<T>` is a stronger _marker_ interface based on `PartialEqual<T>`
 
 The distinction between `Equal` and `PartialEqual` exists mainly to deal with the oddities of floating point numbers (since e.g. `NaN` does not equal itself, definitionally).
-Comparison operators `<` / `>` follow the same pattern and support `PartialCompare<T>` when ordering may be undefined (e.g., floats), and `Compare<T>` when ordering is total (e.g., integers).
+Comparison operators `<` / `>` follow the same pattern and support `PartialCompare<T>` where ordering may be undefined (e.g., floats), and `Compare<T>` when ordering is total (e.g., integers).
 Strict identity `===` still keeps its TypeScript meaning: by value for primitives (including `string` and `char` contents, and `NaN === NaN` is still `false`), and by reference identity for managed objects.
 
 Dereference operators are a little different from the main "value-shaped" operators, because `Dereference<A>` transparently _dereferences_ (projects) access forms on use.
@@ -1707,11 +1704,12 @@ function read<T>(bag: Bag<T>, key: string): T | undefined {
 
 read(counts, "apples") satisfies int32 | undefined;
 
-// mutable indexed container
+// custom indexed containers use operator interfaces instead
 const dynamicCounts = new Map<string, int32>();
 dynamicCounts.set("apples", 3);
 dynamicCounts.has("apples") satisfies boolean;
-dynamicCounts satisfies { [key: string]: int32 };
+dynamicCounts satisfies Index<string, int32>;
+dynamicCounts satisfies Has<string>;
 ```
 
 #### Unions
