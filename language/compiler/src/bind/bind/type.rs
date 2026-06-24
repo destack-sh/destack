@@ -16,11 +16,11 @@ impl Compiler {
     ) {
         match type_expression {
             dir::TypeExpression::Function(function) => {
-                // bind callable type surface
+                // bind callable type
                 self.bind_function_type(state, tree, id, function)
             }
             dir::TypeExpression::Constructor(function) => {
-                // bind constructor type surface
+                // bind constructor type
                 self.bind_constructor_type(state, tree, id, function)
             }
             dir::TypeExpression::Conditional {
@@ -59,8 +59,8 @@ impl Compiler {
         }
     }
 
-    /// Bind function type shared parts.
-    pub(in crate::bind) fn bind_function_type_parts(
+    /// Bind one callable type signature.
+    pub(in crate::bind) fn bind_callable_type_signature(
         &self,
         state: &mut BindState<'_>,
         tree: &dir::Tree,
@@ -70,24 +70,83 @@ impl Compiler {
         parameters: &[dir::LocalNodeId<dir::Parameter>],
         return_type: Option<dir::LocalNodeId<dir::TypeExpression>>,
     ) {
-        // bind static parameter surface
+        // bind generic header
         self.bind_generic_parameters(state, tree, generic_parameters);
         self.bind_where_clauses(state, tree, where_clauses);
 
-        // bind runtime parameter surface
+        // bind explicit receiver
         if let Some(this_parameter) = this_parameter {
             let parameter = tree.get(this_parameter);
             state.visit_parameter(tree, this_parameter, parameter);
         }
+
+        // bind callable type parameters
         for parameter_id in parameters {
             let parameter = tree.get(*parameter_id);
-            state.visit_parameter(tree, *parameter_id, parameter);
+            self.bind_callable_type_comptime_parameter(state, tree, *parameter_id, parameter);
         }
 
         // bind return type
         if let Some(return_type) = return_type {
             let return_type_node = tree.get(return_type);
             state.visit_type_expression(tree, return_type, return_type_node);
+        }
+    }
+
+    /// Bind one comptime parameter in a callable type signature.
+    fn bind_callable_type_comptime_parameter(
+        &self,
+        state: &mut BindState<'_>,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Parameter>,
+        parameter: &dir::Parameter,
+    ) {
+        state.bind_node(id.into_any());
+
+        // visit the annotation and default without declaring value bindings
+        match parameter {
+            dir::Parameter::Named {
+                declared_type,
+                default,
+                ..
+            }
+            | dir::Parameter::Pattern {
+                declared_type,
+                default,
+                ..
+            } => {
+                if let Some(declared_type) = declared_type {
+                    let declared_type_node = tree.get(*declared_type);
+                    state.visit_type_expression(tree, *declared_type, declared_type_node);
+                }
+                if let Some(default) = default {
+                    let default_node = tree.get(*default);
+                    state.visit_expression(tree, *default, default_node);
+                }
+            }
+            dir::Parameter::VariadicNamed { declared_type, .. }
+            | dir::Parameter::VariadicPattern { declared_type, .. } => {
+                if let Some(declared_type) = declared_type {
+                    let declared_type_node = tree.get(*declared_type);
+                    state.visit_type_expression(tree, *declared_type, declared_type_node);
+                }
+            }
+            dir::Parameter::Error => {}
+        }
+
+        // bind static value parameters
+        if parameter.is_comptime()
+            && let Some(key) = parameter.symbol_key()
+        {
+            let symbol_id = state.insert_symbol(
+                dir::SymbolRole::Local,
+                dir::SymbolKind::GenericValueParameter,
+                Some(key),
+                None,
+                dir::SymbolVisibility::Forward,
+            );
+
+            state.declare_symbol(symbol_id, id);
         }
     }
 
@@ -106,7 +165,7 @@ impl Compiler {
 
         // visit callable type body
         state.push_scope(scope_id);
-        self.bind_function_type_parts(
+        self.bind_callable_type_signature(
             state,
             tree,
             &function.generic_parameters,
@@ -133,7 +192,7 @@ impl Compiler {
 
         // visit constructor type body
         state.push_scope(scope_id);
-        self.bind_function_type_parts(
+        self.bind_callable_type_signature(
             state,
             tree,
             &function.generic_parameters,
@@ -387,7 +446,7 @@ impl Compiler {
             }
             dir::TypeMember::CallSignature { signature } => {
                 // visit call signature
-                self.bind_function_type_parts(
+                self.bind_callable_type_signature(
                     state,
                     tree,
                     &signature.generic_parameters,
@@ -399,7 +458,7 @@ impl Compiler {
             }
             dir::TypeMember::ConstructSignature { signature } => {
                 // visit constructor signature
-                self.bind_function_type_parts(
+                self.bind_callable_type_signature(
                     state,
                     tree,
                     &signature.generic_parameters,
