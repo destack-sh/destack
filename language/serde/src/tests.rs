@@ -32,14 +32,14 @@ enum ExampleVariant {
 }
 
 /// Child schema item used by schema registry tests.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, crate::Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, crate::Reflect)]
 struct SchemaChild {
     /// Child value.
     value: String,
 }
 
 /// Parent schema item used by schema registry tests.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, crate::Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, crate::Reflect)]
 struct SchemaParent {
     /// Child field.
     child: SchemaChild,
@@ -49,8 +49,8 @@ struct SchemaParent {
     index: BTreeMap<String, u32>,
 }
 
-/// Schema item with an omitted internal field.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, crate::Schema)]
+/// Reflect item with an omitted internal field.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, crate::Reflect)]
 struct SchemaSkippedField {
     /// Serialized field.
     visible: String,
@@ -60,7 +60,7 @@ struct SchemaSkippedField {
 }
 
 /// Enum schema item used by schema registry tests.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, crate::Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, crate::Reflect)]
 enum SchemaChoice {
     /// Empty choice.
     Empty,
@@ -126,8 +126,8 @@ fn test_decode_rejects_internally_tagged_enum() {
 #[test]
 fn test_build_schema_from_derive() {
     let mut registry = SchemaRegistry::default();
-    registry.include::<SchemaParent>();
-    registry.include::<SchemaChoice>();
+    registry.register::<SchemaParent>();
+    registry.register::<SchemaChoice>();
 
     let parent = SchemaName::new(module_path!(), "SchemaParent");
     let parent = registry.items.get(&parent).expect("parent schema item");
@@ -164,7 +164,7 @@ fn test_build_schema_from_derive() {
 #[test]
 fn test_build_schema_omits_skipped_fields() {
     let mut registry = SchemaRegistry::default();
-    registry.include::<SchemaSkippedField>();
+    registry.register::<SchemaSkippedField>();
 
     let item = SchemaName::new(module_path!(), "SchemaSkippedField");
     let item = registry
@@ -183,8 +183,8 @@ fn test_build_schema_omits_skipped_fields() {
 #[test]
 fn test_include_moves_explicit_schema_to_module_end() {
     let mut registry = SchemaRegistry::default();
-    registry.include::<SchemaParent>();
-    registry.include::<SchemaChild>();
+    registry.register::<SchemaParent>();
+    registry.register::<SchemaChild>();
 
     let module = SchemaName::new(module_path!(), "SchemaParent").module;
     let names = registry.modules.get(&module).expect("schema module");
@@ -199,7 +199,7 @@ fn test_include_moves_explicit_schema_to_module_end() {
 #[test]
 fn test_build_enum_schema_from_derive() {
     let mut registry = SchemaRegistry::default();
-    registry.include::<SchemaChoice>();
+    registry.register::<SchemaChoice>();
 
     let choice = SchemaName::new(module_path!(), "SchemaChoice");
     let choice = registry.items.get(&choice).expect("choice schema item");

@@ -1,11 +1,11 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// The number of bits in one bitmap word.
 const BITMAP_WORD_BITS: usize = u64::BITS as usize;
 
 /// One bitmap for span-sized metadata.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Bitmap {
     /// The logical bit capacity.
     capacity: usize,

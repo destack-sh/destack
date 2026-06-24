@@ -16,7 +16,7 @@ use destack_repository::{
 use destack_runtime::runtime::World;
 #[cfg(not(target_arch = "wasm32"))]
 use destack_runtime::runtime::machine::{Entry, Execution, Value};
-use destack_serde::Schema;
+use destack_serde::Reflect;
 #[cfg(target_arch = "wasm32")]
 use destack_source::DiagnosticCollection;
 #[cfg(not(target_arch = "wasm32"))]
@@ -38,7 +38,7 @@ use super::outcome::CommandOutcome;
 use super::output::OutputBuffer;
 
 /// Run mode for the run command.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, Default)]
 pub enum RunMode {
     /// Execute an entry module.
     #[default]
@@ -48,7 +48,7 @@ pub enum RunMode {
 }
 
 /// Options for the run command.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
 pub struct RunOptions {
     /// Optional run entry function name.
     pub entry: Option<String>,
@@ -59,7 +59,7 @@ pub struct RunOptions {
 }
 
 /// Request to run a workspace target.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RunInput {
     /// Revision selected for this run.
     pub revision: CommandRevision,
@@ -100,7 +100,7 @@ impl_command_input_options!(RunInput {
 });
 
 /// Payload for run command output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RunPayload {
     /// Run completed successfully with a return value.

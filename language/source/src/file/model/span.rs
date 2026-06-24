@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::ops::Range;
 
 use serde::{Deserialize, Serialize};
@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::FileId;
 
 /// A source range in bytes (in some File).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct Span {
     /// The file that the Span belongs to.
     pub file: FileId,
@@ -153,7 +153,7 @@ impl Span {
 }
 
 /// A MultiSpan is a collection of Spans, sorted for fast containment queries.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct MultiSpan {
     /// The Spans, sorted by start position for binary search.
     pub spans: Vec<Span>,
@@ -187,7 +187,7 @@ impl MultiSpan {
 }
 
 /// A Span with a message.
-#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize, Reflect)]
 pub struct LabeledSpan {
     /// The span of the labeled span.
     pub span: Span,

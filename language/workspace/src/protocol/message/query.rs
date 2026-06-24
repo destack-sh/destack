@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ use super::{BinaryPayload, BinaryPayloadDecodeError, DiagnosticBatch, RootId};
 use crate::{DiagnosticView, FileImage};
 
 /// Query context for one root handle.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RootSnapshot {
     /// Current semantic revision for the root.
     pub revision: Revision,
@@ -20,7 +20,7 @@ pub struct RootSnapshot {
 }
 
 /// Request for one source file snapshot.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FileSnapshotRequest {
     /// Path to the source file.
     pub path: PathBuf,
@@ -29,7 +29,7 @@ pub struct FileSnapshotRequest {
 }
 
 /// Source file snapshot for editor adapters.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FileSnapshot {
     /// Current semantic revision for the file root.
     pub revision: Revision,
@@ -44,7 +44,7 @@ pub struct FileSnapshot {
 }
 
 /// Request for source file images in one revision.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FileImagesRequest {
     /// Revision containing the requested files.
     pub revision: Revision,
@@ -53,7 +53,7 @@ pub struct FileImagesRequest {
 }
 
 /// Diagnostics and file image for one source file.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct DiagnosticSnapshot {
     /// Revision containing the diagnostics.
     pub revision: Revision,
@@ -81,7 +81,7 @@ impl DiagnosticSnapshot {
 }
 
 /// Request payload for one query.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct QueryRequestBody {
     /// Expected workspace semantic revision.
     pub expected_revision: Option<Revision>,
@@ -90,7 +90,7 @@ pub struct QueryRequestBody {
 }
 
 /// Response payload for one query.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct QueryResponseBody {
     /// Workspace semantic revision after request execution.
     pub revision: Revision,
@@ -99,7 +99,7 @@ pub struct QueryResponseBody {
 }
 
 /// Encoded query request payload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct QueryRequestPayload {
     /// Encoded request payload.
     pub payload: BinaryPayload,
@@ -139,7 +139,7 @@ impl QueryRequestPayload {
 }
 
 /// Encoded query response payload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct QueryResponsePayload {
     /// Encoded response payload.
     pub payload: BinaryPayload,
@@ -208,7 +208,7 @@ impl std::error::Error for QueryPayloadCodecError {
 }
 
 /// Query request payloads.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum WorkspaceQuery {
     /// Request diagnostics snapshot.
     Diagnostics { handle: RootId },
@@ -268,7 +268,7 @@ pub enum WorkspaceQuery {
 }
 
 /// Query response payloads.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum WorkspaceQueryResponse {
     /// Diagnostics snapshot.
     Diagnostics(Vec<DiagnosticBatch>),

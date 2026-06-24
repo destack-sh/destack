@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
@@ -11,7 +11,7 @@ use crate::Access;
 
 /// The type of a node.
 #[derive(
-    Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub enum NodeType {
     Expression,
@@ -74,7 +74,7 @@ impl NodeType {
 }
 
 /// Unique identifier for nodes with dynamic type in a local arena.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect)]
 pub struct LocalNodeIdAny {
     pub id: u32,
     pub ty: NodeType,
@@ -186,7 +186,7 @@ impl<T: Node> TryFrom<LocalNodeIdAny> for LocalNodeId<T> {
 
 /// Unique identifier for nodes in a local arena, parameterized by node type.
 #[repr(transparent)]
-#[derive(Serialize, Deserialize, Schema)]
+#[derive(Serialize, Deserialize, Reflect)]
 #[serde(bound = "")]
 pub struct LocalNodeId<T: Node> {
     pub id: u32,
@@ -280,7 +280,7 @@ impl<T: Node> LocalNodeId<T> {
 }
 
 /// Global node id across modules.
-#[derive(Serialize, Deserialize, Schema)]
+#[derive(Serialize, Deserialize, Reflect)]
 #[serde(bound = "")]
 pub struct GlobalNodeId<T: Node> {
     /// The module id of the global node.
@@ -361,7 +361,7 @@ impl<T: Node> From<GlobalNodeId<T>> for LocalNodeId<T> {
 }
 
 /// Global node id across modules.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect)]
 pub struct GlobalNodeIdAny {
     /// The module id of the global node.
     pub module_id: ModuleId,
@@ -485,7 +485,7 @@ impl From<GlobalNodeIdAny> for LocalNodeIdAny {
 ///
 /// Base DIR nodes have no profile.
 /// Profile-scoped patch nodes carry the profile that produced them.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct AnchoredGlobalNodeId {
     /// The global node id.
     pub node_id: GlobalNodeIdAny,
@@ -558,7 +558,7 @@ pub trait Node: Sized {
 }
 
 /// A Visibility is the visibility of an item.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Visibility {
     /// Public to everything.
     Public,
@@ -569,7 +569,7 @@ pub enum Visibility {
 }
 
 /// The asynchrony of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Asynchrony {
     /// Synchronous function.
     Sync,
@@ -578,7 +578,7 @@ pub enum Asynchrony {
 }
 
 /// A Mutability is a const, mutable, or exclusive access qualifier.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Mutability {
     /// Cannot be modified (incl. inner even if they are mutable).
     Immutable,

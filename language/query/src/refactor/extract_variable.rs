@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::{FilePatch, Patch, PatchSet, Span};
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +7,7 @@ use crate::core::{ModuleQueryContext, QueryRange};
 use crate::source::is_simple_identifier;
 
 /// Request payload for extract variable queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ExtractVariableRequest {
     /// The selected source range.
     pub range: QueryRange,
@@ -16,7 +16,7 @@ pub struct ExtractVariableRequest {
 }
 
 /// Response payload for extract variable queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ExtractVariableResponse {
     /// Extract variable edit, if available.
     pub edit: Option<PatchSet>,

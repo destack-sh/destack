@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::collections::HashMap;
 
 use destack_dir as dir;
@@ -9,7 +9,7 @@ use crate::core::{ModuleQueryContext, QueryPosition, QueryTarget, WorkspaceQuery
 use crate::source::sort_and_dedup_spans;
 
 /// An item in the call hierarchy.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallHierarchyItem {
     /// The name of the item (function/method name).
     pub name: String,
@@ -22,7 +22,7 @@ pub struct CallHierarchyItem {
 }
 
 /// Kind of call hierarchy item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum CallHierarchyKind {
     /// A function.
     Function,
@@ -33,7 +33,7 @@ pub enum CallHierarchyKind {
 }
 
 /// An incoming call (who calls this function).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallHierarchyIncomingCall {
     /// The item that contains the call sites.
     pub from: CallHierarchyItem,
@@ -42,7 +42,7 @@ pub struct CallHierarchyIncomingCall {
 }
 
 /// An outgoing call (what does this function call).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallHierarchyOutgoingCall {
     /// The item being called.
     pub to: CallHierarchyItem,
@@ -51,42 +51,42 @@ pub struct CallHierarchyOutgoingCall {
 }
 
 /// Request the call hierarchy item at a cursor position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallHierarchyItemRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
 /// Response payload for call hierarchy item queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallHierarchyItemResponse {
     /// Call hierarchy item, if available.
     pub item: Option<CallHierarchyItem>,
 }
 
 /// Request incoming call hierarchy edges.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallHierarchyIncomingRequest {
     /// The call hierarchy item to expand.
     pub item: CallHierarchyItem,
 }
 
 /// Response payload for call hierarchy incoming queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallHierarchyIncomingResponse {
     /// Incoming calls.
     pub calls: Vec<CallHierarchyIncomingCall>,
 }
 
 /// Request outgoing call hierarchy edges.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallHierarchyOutgoingRequest {
     /// The call hierarchy item to expand.
     pub item: CallHierarchyItem,
 }
 
 /// Response payload for call hierarchy outgoing queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallHierarchyOutgoingResponse {
     /// Outgoing calls.
     pub calls: Vec<CallHierarchyOutgoingCall>,

@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// How an extension declaration relates to its target type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ExtensionForm {
     /// Inherent extension defined in same module as target type.
     /// Automatically visible wherever the type is used.
@@ -43,7 +43,7 @@ pub enum ExtensionForm {
 /// ```ds
 /// extension<T> of Array<T> implements Iterable<T> { ... }
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Extension {
     /// The extension declaration's symbol.
     pub symbol: GlobalSymbolId,
@@ -108,7 +108,7 @@ impl Extension {
 }
 
 /// Extension lookup target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ExtensionTarget {
     /// Extension whose receiver type has a nominal root.
     ///
@@ -162,7 +162,7 @@ impl ExtensionTarget {
 /// ```ds
 /// extension<T> of Array<T> where T: Comparable { sort(): void { ... } }
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ExtensionWhereClause {
     /// The source where clause node.
     pub source: GlobalNodeIdAny,

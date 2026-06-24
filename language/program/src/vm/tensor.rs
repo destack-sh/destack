@@ -1,5 +1,5 @@
 use destack_mir as mir;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::vm::error::{Error, Result};
@@ -7,7 +7,7 @@ use crate::vm::error::{Error, Result};
 use super::{AddressSpace, Projection, ScalarLayout};
 
 /// Tensor view backing memory selected by lowering.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum TensorAddress {
     /// Local heap memory.
     Heap,
@@ -38,7 +38,7 @@ impl TensorAddress {
 }
 
 /// Flattened tensor layout compiled for VM execution.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TensorLayout {
     /// The tensor payload byte width.
     pub byte_len: usize,

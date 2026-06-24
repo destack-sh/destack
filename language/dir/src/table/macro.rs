@@ -1,11 +1,11 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{Decorator, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, StaticTerm};
 
 /// Macro expansion state for one DIR module.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MacroTable {
     /// The module id of the macro table.
     pub module_id: ModuleId,
@@ -39,7 +39,7 @@ impl MacroTable {
 }
 
 /// One macro invocation completed during fixed-point expansion.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct MacroInvocation {
     /// The decorated target node.
     pub target_node: GlobalNodeIdAny,
@@ -54,7 +54,7 @@ pub struct MacroInvocation {
 }
 
 /// What caused one macro invocation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum MacroTrigger {
     /// A decorator on the target node.
     Decorator(GlobalNodeId<Decorator>),

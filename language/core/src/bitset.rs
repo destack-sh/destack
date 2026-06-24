@@ -1,11 +1,11 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Number of bits stored per backing word.
 const WORD_BITS: usize = u64::BITS as usize;
 
 /// A fixed-length set of bits packed into 64-bit words.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct BitSet {
     /// Backing words, each holding 64 bits from low to high.
     words: Vec<u64>,

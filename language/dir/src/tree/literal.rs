@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::hash::{Hash, Hasher};
 
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// One scalar type family.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ScalarDomain {
     /// Numeric scalar values.
     Numeric,
@@ -46,7 +46,7 @@ pub enum ScalarDomain {
 /// /abc/
 /// /abc/g
 /// ```
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Reflect)]
 pub enum ScalarLiteral {
     /// Null value.
     Null,
@@ -288,7 +288,7 @@ fn float_literal_key(value: f64) -> u64 {
 /// sql`${stmt}`
 /// sql.expr`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum TemplateLiteral {
     /// Template string value.
     String { string: StringId },
@@ -315,7 +315,7 @@ pub enum TemplateLiteral {
 /// symbol
 /// unique symbol
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum TypeLiteral {
     /// Never type `never`.
     Never,

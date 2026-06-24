@@ -1,5 +1,5 @@
 use destack_mir as mir;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use destack_heap::{HeapReference, SharedHeapReference};
@@ -36,7 +36,7 @@ const fn truncate_signed_bits(value: i64, width: u8) -> i64 {
 ///
 /// The type is supplied by MIR metadata, frame maps, and lowered instructions.
 #[derive(
-    Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize, Schema,
+    Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize, Reflect,
 )]
 #[repr(transparent)]
 pub struct Cell(u64);

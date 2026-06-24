@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{File, FileId, Span};
@@ -87,7 +87,7 @@ impl Error for PatchApplyError {}
 ///
 /// This is the atomic unit of source modification.
 /// An empty `new_text` represents deletion; an empty span represents insertion.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct Patch {
     /// The span to replace.
     pub span: Span,
@@ -143,7 +143,7 @@ impl Patch {
 ///
 /// Groups multiple patches together for efficient application.
 /// Patches should be non-overlapping and are typically sorted by position.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct FilePatch {
     /// The file to patch.
     pub file: FileId,
@@ -207,7 +207,7 @@ impl FilePatch {
 /// Patches across multiple files.
 ///
 /// Used for refactoring operations that touch multiple files (like rename).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub struct PatchSet {
     /// Per-file patches.
     pub files: Vec<FilePatch>,

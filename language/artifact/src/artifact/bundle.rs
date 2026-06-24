@@ -1,10 +1,11 @@
+use destack_serde::Reflect;
 use destack_source::{ContentId, FileType, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::EmitFormat;
 
 /// One section of a linked bundle.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum BundleSection {
@@ -40,7 +41,7 @@ impl BundleSection {
 }
 
 /// The assembly mode for one bundle.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum BundleMode {
     /// Per-module assets without target-level assembly.
     #[default]
@@ -63,7 +64,7 @@ impl BundleMode {
 }
 
 /// One derived output file.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct BundleFile {
     /// The bundle section this file belongs to.
     pub section: BundleSection,
@@ -97,7 +98,7 @@ impl BundleFile {
 }
 
 /// One linked file graph for one target.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct Bundle {
     /// The emitted artifact family.
     pub emit: EmitFormat,

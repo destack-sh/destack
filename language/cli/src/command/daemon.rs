@@ -3,9 +3,9 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 
-use destack_daemon::{WorkspaceServer, WorkspaceServerOptions};
+use destack_daemon::{DaemonServer, DaemonServerOptions};
 use destack_workspace::{
-    WorkspaceConnectOptions, WorkspaceEndpoint, WorkspaceLaunch, WorkspaceServerCommand,
+    ConnectOptions, Service, Launch, LaunchCommand,
 };
 
 use crate::common::program::ProgramArgs;
@@ -71,20 +71,20 @@ fn run_serve(args: &DaemonServeArgs) -> i32 {
         }
     };
 
-    // resolve daemon endpoint metadata
-    let mut endpoint = WorkspaceEndpoint::new(repository.layout().home.clone());
+    // resolve daemon service metadata
+    let mut service = Service::new(repository.layout().home.clone());
 
     // override the socket path when requested
     if let Some(socket) = args.socket.as_ref() {
-        endpoint.socket_path = socket.clone();
+        service.socket_path = socket.clone();
     }
 
     // build server options
-    let server_options = WorkspaceServerOptions {
+    let server_options = DaemonServerOptions {
         worker_limit: args.program.workers as usize,
         ..Default::default()
     };
-    let server = match WorkspaceServer::with_options(repository, endpoint, server_options) {
+    let server = match DaemonServer::with_options(repository, service, server_options) {
         Ok(server) => server,
         Err(error) => {
             console::error(&format!("failed to start daemon: {error}"));
@@ -111,17 +111,17 @@ fn run_start(args: &DaemonLifecycleArgs) -> i32 {
             return 1;
         }
     };
-    let endpoint = WorkspaceEndpoint::new(repository.layout().home.clone());
+    let service = Service::new(repository.layout().home.clone());
     let launch =
-        match workspace_server_launch(&args.program, &endpoint, repository.path().to_path_buf()) {
+        match daemon_server_launch(&args.program, &service, repository.path().to_path_buf()) {
             Ok(launch) => launch,
             Err(error) => {
                 console::error(&format!("failed to start daemon: {error}"));
                 return 1;
             }
         };
-    let options = WorkspaceConnectOptions::default();
-    let result = endpoint.start(options, launch);
+    let options = ConnectOptions::default();
+    let result = service.start(options, launch);
 
     // report connectivity status
     match result {
@@ -146,10 +146,10 @@ fn run_stop(args: &DaemonLifecycleArgs) -> i32 {
             return 1;
         }
     };
-    let endpoint = WorkspaceEndpoint::new(repository.layout().home.clone());
-    let options = WorkspaceConnectOptions::default();
+    let service = Service::new(repository.layout().home.clone());
+    let options = ConnectOptions::default();
     // request shutdown and report the result
-    match endpoint.stop(options) {
+    match service.stop(options) {
         Ok(()) => {
             console::info("daemon shutdown requested");
             0
@@ -171,14 +171,14 @@ fn run_status(args: &DaemonLifecycleArgs) -> i32 {
             return 1;
         }
     };
-    let endpoint = WorkspaceEndpoint::new(repository.layout().home.clone());
-    let options = WorkspaceConnectOptions::default();
+    let service = Service::new(repository.layout().home.clone());
+    let options = ConnectOptions::default();
 
     // probe daemon connectivity
-    match endpoint.ping(options) {
+    match service.ping(options) {
         Ok(()) => {
             console::info("daemon is running");
-            if let Ok(Some(metadata)) = endpoint.read_metadata() {
+            if let Ok(Some(metadata)) = service.read_metadata() {
                 console::info(&format!("websocket: {}", metadata.websocket_url));
             }
             0
@@ -190,21 +190,21 @@ fn run_status(args: &DaemonLifecycleArgs) -> i32 {
     }
 }
 
-/// Build a workspace server launch from CLI program settings.
-fn workspace_server_launch(
+/// Build a daemon server launch from CLI program settings.
+fn daemon_server_launch(
     program: &ProgramArgs,
-    endpoint: &WorkspaceEndpoint,
+    service: &Service,
     root: PathBuf,
-) -> Result<WorkspaceLaunch, std::io::Error> {
-    let command = workspace_server_command(program)?;
+) -> Result<Launch, std::io::Error> {
+    let command = daemon_server_command(program)?;
 
-    Ok(command.launch(endpoint, root))
+    Ok(command.launch(service, root))
 }
 
-/// Build a workspace server command from CLI program settings.
-fn workspace_server_command(
+/// Build a daemon server command from CLI program settings.
+fn daemon_server_command(
     program: &ProgramArgs,
-) -> Result<WorkspaceServerCommand, std::io::Error> {
+) -> Result<LaunchCommand, std::io::Error> {
     let cwd = program
         .cwd
         .clone()
@@ -217,9 +217,9 @@ fn workspace_server_command(
             cwd.join(cache_dir)
         }
     });
-    let mut command = WorkspaceServerCommand::current_executable(workspace_server_arguments())?;
+    let mut command = LaunchCommand::current_executable(daemon_server_arguments())?;
 
-    // pass layout and cwd settings through to the workspace server
+    // pass layout and cwd settings through to the daemon server
     command.home = program.home.clone();
     command.package_dir = program.package_dir.clone();
     command.cache_dir = cache_dir;
@@ -229,7 +229,7 @@ fn workspace_server_command(
     Ok(command)
 }
 
-/// Return the CLI arguments that start a workspace server.
-fn workspace_server_arguments() -> Vec<OsString> {
+/// Return the CLI arguments that start a daemon server.
+fn daemon_server_arguments() -> Vec<OsString> {
     vec![OsString::from("daemon"), OsString::from("serve")]
 }

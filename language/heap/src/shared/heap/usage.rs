@@ -1,8 +1,8 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Exact shared-heap usage for one live shared heap.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
 pub struct SharedHeapUsage {
     /// The number of live shared heap blocks.
     pub allocation_count: usize,

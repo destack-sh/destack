@@ -1,5 +1,5 @@
 use destack_core::StringId;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
 /// Memory allocation restrictions for a function.
 ///
 /// This allows marking functions as managed-allocation-free or heap-free.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum AllocationMode {
     /// No restrictions on allocation.
     #[default]
@@ -35,7 +35,7 @@ impl AllocationMode {
 }
 
 /// The suspension kind for one function.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum SuspensionKind {
     /// Generator function (`function*`).
     /// Yields values to the caller, who controls resumption via `.next()`.
@@ -81,7 +81,7 @@ impl SuspensionKind {
 /// - Parameters as SSA values
 /// - Local variables as stack slots
 /// - Basic blocks forming a control flow graph
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Function {
     /// The function's name (for linking and debugging).
     pub name: StringId,

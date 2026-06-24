@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
 
@@ -12,11 +12,11 @@ use super::common::{
 use super::context::CommandContext;
 use super::outcome::CommandOutcome;
 /// Options for the cache command.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
 pub struct CacheOptions;
 
 /// Cache entry payload for cache command output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct CacheEntry {
     /// Cache directory path.
     pub directory: String,
@@ -25,14 +25,14 @@ pub struct CacheEntry {
 }
 
 /// Cache payload for cache command output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct CachePayload {
     /// Cache entries for the workspace.
     pub caches: Vec<CacheEntry>,
 }
 
 /// Request to return cache locations.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CacheInput {
     /// Revision selected for this cache request.
     pub revision: CommandRevision,

@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Emitted artifact family for a build target.
@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
     Default,
     Serialize,
     Deserialize,
-    Schema,
+    Reflect,
 )]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]

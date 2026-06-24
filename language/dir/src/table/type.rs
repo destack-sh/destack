@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::sync::Arc;
 
 use destack_source::ModuleId;
@@ -213,7 +213,7 @@ impl<'a> TypeTable<'a> {
 }
 
 /// Type slots added by one DIR phase.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TypeSegment {
     /// The module id of the type segment.
     pub module_id: ModuleId,

@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::mem;
 
 use serde::{Deserialize, Serialize};
@@ -304,7 +304,7 @@ impl YoungSpace {
 }
 
 /// One live fixed-size span in young space.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub(crate) struct YoungSpan {
     /// The first byte offset inside young space.
     pub(crate) first_offset: usize,
@@ -436,7 +436,7 @@ impl YoungCursor {
 }
 
 /// One live byte range in young space.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub(crate) struct YoungRange {
     /// The first byte offset inside young space.
     pub(crate) first_offset: usize,
@@ -445,7 +445,7 @@ pub(crate) struct YoungRange {
 }
 
 /// One young range with its range index.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub(crate) struct IndexedYoungRange {
     /// The young range index.
     pub(crate) index: usize,
@@ -454,7 +454,7 @@ pub(crate) struct IndexedYoungRange {
 }
 
 /// Mark bits for one fixed-size young span.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub(crate) struct YoungSpanBits {
     /// The live slots retired before the next young reset.
     pub(crate) freed: Bitmap,
@@ -463,7 +463,7 @@ pub(crate) struct YoungSpanBits {
 }
 
 /// One frozen young space image.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub(crate) struct YoungImage {
     /// The configured byte capacity for the young space.
     capacity_bytes: usize,

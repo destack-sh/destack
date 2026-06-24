@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
@@ -7,7 +7,7 @@ use std::num::NonZeroU32;
 use destack_core::StringId;
 
 /// How one derived tree node came to be.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Origin {
     /// The transform that created the node, a dotted name like `optimize.inline`.
     pub derivation: StringId,
@@ -41,7 +41,7 @@ impl Origin {
 }
 
 /// Origin records for derived nodes: dense per-node slots into a packed arena.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct OriginTable {
     /// The arena slot for each node index, present for derived nodes.
     slot_by_index: Vec<Option<NonZeroU32>>,

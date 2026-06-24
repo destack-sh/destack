@@ -6,7 +6,7 @@ use destack_formatter::format_source;
 use destack_json::{JsonFormatOptions, format_json};
 use destack_parser::{colorize_source, source_colorizer};
 use destack_repository::{FormatterOptions, Repository, Revision};
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::{
     Content, ContentId, DiagnosticCollection, DiagnosticSeverity, File, FileId, FileSystem,
     FileType, IgnoreSet, PrintOptions, Uri, print_diagnostics,
@@ -35,7 +35,7 @@ const FORMATTABLE_TYPES: &[FileType] = &[
 ];
 
 /// Payload for format command output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct FormatPayload {
     /// The number of files inspected.
     pub files: usize,
@@ -56,7 +56,7 @@ pub struct FormatPayload {
 }
 
 /// Request to format source files or content.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FormatInput {
     /// Revision selected for this format request.
     pub revision: CommandRevision,
@@ -94,7 +94,7 @@ impl_command_input_options!(FormatInput {
 });
 
 /// Formatting source.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum FormatSource {
     /// Format files or directories.
     Files(Vec<PathBuf>),
@@ -112,7 +112,7 @@ pub enum FormatSource {
 }
 
 /// Formatting mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum FormatMode {
     /// Return formatted output without mutating source state.
     Preview,

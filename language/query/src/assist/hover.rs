@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +11,7 @@ use crate::format::{
 };
 
 /// Hover payload for a source position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Hover {
     /// The type/signature in code format.
     pub signature: String,
@@ -88,14 +88,14 @@ impl Hover {
 }
 
 /// Request hover information at a cursor position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct HoverRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
 /// Response payload for hover queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct HoverResponse {
     /// Hover information, if available.
     pub hover: Option<Hover>,

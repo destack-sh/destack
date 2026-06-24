@@ -7,20 +7,18 @@ use destack_repository::{
 };
 use destack_session::SessionEventHandler;
 use destack_source::{FileSystem, FileWatcher};
-use destack_workspace::LocalWorkspace;
+use destack_workspace::{LocalWorkspace, RootLease};
 use parking_lot::Mutex;
 
 use crate::DaemonError;
-
-use super::RootLeaseTable;
 
 /// One workspace opened inside a daemon process.
 #[derive(Debug)]
 pub struct OpenedWorkspace {
     /// Live workspace facade.
     pub(super) workspace: Arc<LocalWorkspace>,
-    /// Root leases held by protocol clients.
-    root_lease_table: RootLeaseTable,
+    /// Root handle counter shared by protocol clients.
+    root_lease: Arc<RootLease>,
 }
 
 impl OpenedWorkspace {
@@ -43,7 +41,7 @@ impl OpenedWorkspace {
 
         Ok(Self {
             workspace: Arc::new(workspace),
-            root_lease_table: RootLeaseTable::default(),
+            root_lease: Arc::new(RootLease::default()),
         })
     }
 
@@ -52,25 +50,9 @@ impl OpenedWorkspace {
         self.workspace.clone()
     }
 
-    /// Acquire a root lease.
-    pub fn acquire_root(&self, root: &Path) -> Result<(), DaemonError> {
-        self.workspace.open_root(root.to_path_buf())?;
-
-        self.root_lease_table.acquire(root);
-
-        Ok(())
-    }
-
-    /// Release a root lease and close when the last lease is dropped.
-    pub fn release_root(&self, root: &Path) -> Result<bool, DaemonError> {
-        let should_close = self.root_lease_table.release(root);
-
-        if should_close {
-            self.workspace.close_root(root)?;
-            return Ok(true);
-        }
-
-        Ok(false)
+    /// Return the shared root handle counter.
+    pub fn root_lease(&self) -> Arc<RootLease> {
+        self.root_lease.clone()
     }
 }
 

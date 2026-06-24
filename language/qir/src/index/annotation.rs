@@ -1,10 +1,10 @@
 use destack_dir::GlobalNodeIdAny;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 /// Searchable annotation and decorator index.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct AnnotationIndex {
     /// The annotation entries in stable order.
     entries: Vec<AnnotationEntry>,
@@ -42,7 +42,7 @@ impl AnnotationIndex {
 }
 
 /// Searchable annotation or decorator entry.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct AnnotationEntry {
     /// The annotation name when syntactically known.
     pub name: Option<String>,

@@ -1,12 +1,12 @@
 use destack_core::{StringId, StringPool};
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{DependencyItem, LocalNodeId, LocalSymbolId, Name, StaticKey};
 
 /// The exported name in one module record.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ExportKey {
     /// The ECMAScript default export name.
     Default,
@@ -55,7 +55,7 @@ impl ExportKey {
 }
 
 /// One local export from a symbol declared in the current module.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct LocalExportEntry {
     /// The exported name.
     pub key: ExportKey,
@@ -66,7 +66,7 @@ pub struct LocalExportEntry {
 }
 
 /// Which binding a re-export selects from the target module.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ExportSelector {
     /// A named target export.
     Named(StaticKey),
@@ -89,7 +89,7 @@ impl ExportSelector {
 }
 
 /// One named re-export from another module.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct IndirectExportEntry {
     /// The exported name in the current module.
     pub key: ExportKey,
@@ -102,7 +102,7 @@ pub struct IndirectExportEntry {
 }
 
 /// One named export entry.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ExportEntry {
     /// A local export.
     Local(LocalExportEntry),
@@ -122,7 +122,7 @@ impl ExportEntry {
 }
 
 /// One `export * from` edge.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct StarExportEntry {
     /// The dependency item that declared the star export.
     pub item: LocalNodeId<DependencyItem>,

@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::sync::Arc;
 
 use destack_source::ModuleId;
@@ -129,7 +129,7 @@ impl<'a> LayoutTable<'a> {
 }
 
 /// Layouts added by one DIR phase.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct LayoutSegment {
     /// The module id of the layout segment.
     pub module_id: ModuleId,
@@ -231,7 +231,7 @@ impl LayoutSegment {
 /// Unique identifier for a concrete layout.
 #[repr(transparent)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub struct LocalLayoutId(pub u32);
 
@@ -243,7 +243,7 @@ impl LocalLayoutId {
 }
 
 /// Concrete memory layout for a checked type.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Layout {
     /// The layout shape.
     pub shape: LayoutShape,
@@ -260,7 +260,7 @@ pub struct Layout {
 /// The niched scalar stores only values inside `start..=end`, leaving
 /// every other bit pattern of its width free for enclosing layouts to
 /// encode variant tags without extra storage.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Niche {
     /// The byte offset of the niched scalar.
     pub offset: u32,
@@ -365,7 +365,7 @@ impl Niche {
 }
 
 /// Concrete memory layout shape.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum LayoutShape {
     /// No runtime storage.
     None,
@@ -400,21 +400,21 @@ pub enum LayoutShape {
 }
 
 /// Concrete layout for a struct.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct StructLayout {
     /// The fields in layout order.
     pub fields: Vec<LayoutField>,
 }
 
 /// Concrete layout for a tuple.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TupleLayout {
     /// The tuple elements in layout order.
     pub elements: Vec<LayoutField>,
 }
 
 /// Layout for inline indexed element storage.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ElementLayout {
     /// The stored element type.
     pub element: GlobalTypeId,
@@ -425,7 +425,7 @@ pub struct ElementLayout {
 }
 
 /// Concrete layout for a tensor handle.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TensorLayout {
     /// The tensor element type.
     pub element: GlobalTypeId,
@@ -438,7 +438,7 @@ pub struct TensorLayout {
 }
 
 /// Concrete layout for a tensor view descriptor.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TensorViewLayout {
     /// The viewed element type.
     pub element: GlobalTypeId,
@@ -451,7 +451,7 @@ pub struct TensorViewLayout {
 }
 
 /// Dimension order for dense tensor storage.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TensorDimensionOrder {
     /// Last dimension is contiguous.
     RowMajor,
@@ -471,7 +471,7 @@ impl TensorDimensionOrder {
 }
 
 /// Format for an owning tensor value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TensorFormat {
     /// Dense contiguous format.
     Dense {
@@ -490,7 +490,7 @@ impl TensorFormat {
 }
 
 /// Format descriptor for a tensor view.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TensorViewFormat {
     /// Dense contiguous view.
     Dense {
@@ -528,7 +528,7 @@ impl From<TensorFormat> for TensorViewFormat {
 }
 
 /// Placement descriptor for tensor storage.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TensorSharding {
     /// Tensor storage is not partitioned across a mesh.
     Unsharded,
@@ -547,7 +547,7 @@ impl TensorSharding {
 }
 
 /// Per-axis placement descriptor for a sharded tensor.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TensorShardingAxis {
     /// Split one tensor axis across one mesh axis.
     Shard {
@@ -564,7 +564,7 @@ pub enum TensorShardingAxis {
 }
 
 /// Reduction used when partial tensor shards are combined.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TensorReduction {
     /// Add partial values.
     Add,
@@ -596,7 +596,7 @@ impl TensorReduction {
 }
 
 /// Concrete layout for a variant value.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct VariantLayout {
     /// The tag layout.
     pub tag: VariantTagLayout,
@@ -607,7 +607,7 @@ pub struct VariantLayout {
 }
 
 /// Concrete layout for a variant tag.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct VariantTagLayout {
     /// The tag type when it has been materialized.
     pub ty: Option<GlobalTypeId>,
@@ -618,14 +618,14 @@ pub struct VariantTagLayout {
 }
 
 /// Concrete layout for an object.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ObjectLayout {
     /// The fields in layout order.
     pub fields: Vec<LayoutField>,
 }
 
 /// Concrete layout for a nominal newtype.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct NewtypeLayout {
     /// The backing type.
     pub backing_type: GlobalTypeId,
@@ -634,14 +634,14 @@ pub struct NewtypeLayout {
 }
 
 /// Concrete layout for a pointer storage slot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct PointerLayout {
     /// The pointed-to value type.
     pub pointee: GlobalTypeId,
 }
 
 /// Concrete field or tuple-element layout.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct LayoutField {
     /// The field key.
     pub key: Option<StaticKey>,
@@ -658,7 +658,7 @@ pub struct LayoutField {
 }
 
 /// Concrete layout for one variant case.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct VariantCaseLayout {
     /// The logical case type.
     pub ty: GlobalTypeId,

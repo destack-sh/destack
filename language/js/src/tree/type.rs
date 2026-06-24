@@ -1,3 +1,4 @@
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -6,7 +7,7 @@ use crate::{
 };
 
 /// A PrimitiveType is a primitive type node.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum PrimitiveType {
     /// Boolean type.
     Boolean,
@@ -23,7 +24,7 @@ pub enum PrimitiveType {
 }
 
 /// A TypeLiteral is a scalar type.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum TypeLiteral {
     /// Never type `never`.
     Never,
@@ -46,7 +47,7 @@ pub enum TypeLiteral {
 }
 
 /// One mapped type modifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum MappedTypeModifier {
     /// Emit the plain modifier without an explicit sign.
     Present,
@@ -59,7 +60,7 @@ pub enum MappedTypeModifier {
 }
 
 /// One mapped type modifier set.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TypeMappedModifiers {
     /// The readonly modifier.
     pub readonly: MappedTypeModifier,
@@ -68,7 +69,7 @@ pub struct TypeMappedModifiers {
 }
 
 /// One mapped type parameter.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeMappedParameter {
     /// The parameter name.
     pub name: StringId,
@@ -79,7 +80,7 @@ pub struct TypeMappedParameter {
 }
 
 /// One type template literal.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeTemplateLiteral {
     /// The raw template strings.
     pub strings: Vec<StringId>,
@@ -88,7 +89,7 @@ pub struct TypeTemplateLiteral {
 }
 
 /// One function type declaration in type space.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FunctionTypeDeclaration {
     /// The generic parameters of the function type.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
@@ -101,7 +102,7 @@ pub struct FunctionTypeDeclaration {
 }
 
 /// One constructor type declaration in type space.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ConstructorTypeDeclaration {
     /// Whether the constructor type is abstract.
     pub is_abstract: bool,
@@ -114,7 +115,7 @@ pub struct ConstructorTypeDeclaration {
 }
 
 /// A TypeExpression is a TypeScript type expression.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum TypeExpression {
     /// Scalar type literal.
     Scalar(TypeLiteral),
@@ -216,7 +217,7 @@ impl Node for TypeExpression {
 }
 
 /// One tuple type element.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TupleElement {
     /// The optional element label.
     pub label: Option<StringId>,
@@ -235,7 +236,7 @@ impl Node for TupleElement {
 }
 
 /// The type of an attribute (like a property or field).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum TypeMember {
     /// Named field (like `a: T`).
     Field {

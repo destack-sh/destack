@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ use crate::StringId;
 /// foobar
 /// foo.bar.baz.qux
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Path {
     /// The path segments.
     pub segments: SmallVec<[StringId; 1]>,

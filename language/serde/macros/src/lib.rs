@@ -1,9 +1,9 @@
 use proc_macro::TokenStream;
 
-mod schema;
+mod reflect;
 
-/// Derive a Destack serialization schema.
-#[proc_macro_derive(Schema)]
-pub fn derive_schema(input: TokenStream) -> TokenStream {
-    schema::expand(input)
+/// Derive Destack reflection metadata.
+#[proc_macro_derive(Reflect)]
+pub fn derive_reflect(input: TokenStream) -> TokenStream {
+    reflect::expand(input)
 }

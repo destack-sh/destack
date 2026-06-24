@@ -2,12 +2,13 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use destack_serde::Reflect;
 use destack_source::{ComponentId, ModuleId, ProfileId};
 
 use crate::{ArtifactProjectionFingerprint, ComponentGraphProjection};
 
 /// Strongly connected component partition of one profile's module graph.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct ComponentGraph {
     /// The profile this partition belongs to.
     pub profile: ProfileId,

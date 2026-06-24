@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::sync::Arc;
 
 use destack_source::ModuleId;
@@ -96,7 +96,7 @@ impl<'a> CoercionTable<'a> {
 }
 
 /// One type coercion attached to a value node.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Coercion {
     /// The source type before coercion.
     pub source: GlobalTypeId,
@@ -118,7 +118,7 @@ impl Coercion {
 }
 
 /// Coercions added by one DIR phase.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct CoercionSegment {
     /// The module id of the coercion segment.
     pub module_id: ModuleId,

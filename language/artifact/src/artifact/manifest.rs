@@ -1,7 +1,8 @@
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// One public build manifest for one linked target.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildManifest {
     /// The primary entry path when one exists.
@@ -12,7 +13,7 @@ pub struct BuildManifest {
 }
 
 /// One public build manifest file record.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildManifestFile {
     /// The emitted output path, relative to the output root when possible.
@@ -45,7 +46,7 @@ pub struct BuildManifestFile {
 }
 
 /// One public build manifest file kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 #[serde(rename_all = "lowercase")]
 pub enum BuildManifestFileType {
     /// One emitted JS chunk.
@@ -57,7 +58,7 @@ pub enum BuildManifestFileType {
 }
 
 /// One public build manifest loader name.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 #[serde(rename_all = "lowercase")]
 pub enum BuildManifestLoader {
     /// JavaScript output.

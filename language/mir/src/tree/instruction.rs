@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::fmt;
 use std::str::FromStr;
 
@@ -14,7 +14,7 @@ use crate::{
 };
 
 /// Dispatch kind for a call instruction.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum CallDispatchKind {
     /// Direct function call.
     Direct,
@@ -33,7 +33,7 @@ pub enum CallDispatchKind {
 }
 
 /// Instructions produce SSA values and perform "operations".
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Instruction {
     /// Recovered invalid instruction syntax.
     Error,
@@ -1347,7 +1347,7 @@ impl Instruction {
 }
 
 /// Kind of type cast.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum CastOperator {
     /// Bitcast (reinterpret bits, same size).
     Bitcast,

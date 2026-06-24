@@ -1,3 +1,4 @@
+use destack_serde::Reflect;
 use destack_source::{ContentId, TargetId};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -5,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{ArtifactKey, Host, Platform, Runtime};
 
 /// One linked product assembled from one or more target artifacts.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct Product {
     /// The configured product name.
     pub name: String,
@@ -26,7 +27,7 @@ impl Product {
 }
 
 /// One linked target assembled into a product.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct ProductTarget {
     /// The configured product target name.
     pub name: String,

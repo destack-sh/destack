@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// Table of memory metadata entries.
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Schema)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
 pub struct MemoryMetadata {
     /// Memory access metadata keyed by instruction id.
     pub memory_accesses_by_instruction_id:
@@ -60,7 +60,7 @@ impl MemoryMetadata {
 }
 
 /// Metadata describing a single memory access in an instruction.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct MemoryAccessMetadata {
     /// The kind of access performed.
     pub kind: MemoryAccessKind,
@@ -87,7 +87,7 @@ pub struct MemoryAccessMetadata {
 }
 
 /// The kind of memory access represented by metadata.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum MemoryAccessKind {
     /// Reads memory.
     Read,
@@ -106,7 +106,7 @@ pub enum MemoryAccessKind {
 }
 
 /// Target of a memory access.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum MemoryAccessTarget {
     /// Access through a pointer value.
     Pointer(Value),
@@ -119,7 +119,7 @@ pub enum MemoryAccessTarget {
 }
 
 /// Memory behavior for one call argument.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
 pub struct CallArgumentEffect {
     /// Access mode for this argument.
     pub access: ArgumentAccess,
@@ -128,7 +128,7 @@ pub struct CallArgumentEffect {
 }
 
 /// Access mode for a pointer argument.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum ArgumentAccess {
     /// The argument is not accessed.
     None,
@@ -142,7 +142,7 @@ pub enum ArgumentAccess {
 }
 
 /// Escape behavior for a call argument.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum ArgumentEscape {
     /// The argument does not escape the callee.
     None,
@@ -154,7 +154,7 @@ pub enum ArgumentEscape {
 }
 
 /// Allocation size information for functions returning newly allocated memory.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct AllocationSize {
     /// The parameter index containing the element size in bytes.
     pub stride_index: u32,

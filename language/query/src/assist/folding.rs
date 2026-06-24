@@ -1,12 +1,12 @@
 use crate::core::QueryModule;
 use destack_dir as dir;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::core::ModuleQueryContext;
 
 /// Kind of folding range.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum FoldingRangeKind {
     /// A comment block.
     Comment,
@@ -17,7 +17,7 @@ pub enum FoldingRangeKind {
 }
 
 /// A foldable range in source code.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FoldingRange {
     /// Start line (0-indexed).
     pub start_line: u32,
@@ -60,14 +60,14 @@ impl FoldingRange {
 }
 
 /// Request folding ranges for a document.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FoldingRangesRequest {
     /// The queried module.
     pub module: QueryModule,
 }
 
 /// Response payload for folding ranges queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FoldingRangesResponse {
     /// Folding ranges.
     pub ranges: Vec<FoldingRange>,

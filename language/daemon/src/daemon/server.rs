@@ -6,17 +6,16 @@ use std::time::Duration;
 use destack_repository::Repository;
 use destack_session::{Session, SessionEventHandler};
 use destack_workspace::{
-    Server, ServerActivity, ServerLifecycle, ServerOptions, WorkspaceEndpoint,
-    WorkspaceEndpointError, WorkspaceIpcError, WorkspaceIpcListener, WorkspaceServerMetadata,
-    WorkspaceWebSocketError, WorkspaceWebSocketListener,
+    IpcError, IpcListener, Metadata, Server, ServerActivity, ServerLifecycle, ServerOptions,
+    Service, ServiceError, WebSocketError, WebSocketListener,
 };
 
 use super::constants::{DEFAULT_IDLE_SHUTDOWN_MS, IDLE_SHUTDOWN_POLL_MS};
-use crate::{Daemon, DaemonError};
+use crate::{Daemon, DaemonError, OpenedWorkspace};
 
-/// Options for the workspace server.
+/// Options for the daemon server.
 #[derive(Clone)]
-pub struct WorkspaceServerOptions {
+pub struct DaemonServerOptions {
     /// Number of workers for each opened session.
     pub worker_limit: usize,
     /// Optional session event handler for daemon progress.
@@ -27,11 +26,11 @@ pub struct WorkspaceServerOptions {
     pub idle_shutdown: Option<Duration>,
 }
 
-impl std::fmt::Debug for WorkspaceServerOptions {
-    /// Format the visible workspace server options.
+impl std::fmt::Debug for DaemonServerOptions {
+    /// Format the visible daemon server options.
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("WorkspaceServerOptions")
+            .debug_struct("DaemonServerOptions")
             .field("worker_limit", &self.worker_limit)
             .field(
                 "session_event_handler",
@@ -45,100 +44,95 @@ impl std::fmt::Debug for WorkspaceServerOptions {
 
 /// Running process bound to workspace connection transports.
 #[derive(Debug)]
-pub struct WorkspaceServer {
-    /// Workspace endpoint metadata.
-    endpoint: WorkspaceEndpoint,
-    /// The daemon backing this server.
-    daemon: Arc<Daemon>,
-    /// Server options in use.
-    options: WorkspaceServerOptions,
+pub struct DaemonServer {
+    /// Workspace service metadata.
+    service: Service,
+    /// Workspace exposed by this daemon service.
+    workspace: Arc<OpenedWorkspace>,
+    /// Daemon server options in use.
+    options: DaemonServerOptions,
     /// Shutdown flag shared across connections.
     shutdown: Arc<AtomicBool>,
 }
 
-impl WorkspaceServer {
-    /// Create a new workspace server for a repository and endpoint.
-    pub fn new(
-        repository: Arc<Repository>,
-        endpoint: WorkspaceEndpoint,
-    ) -> Result<Self, WorkspaceServerError> {
+impl DaemonServer {
+    /// Create a new daemon server for a repository and service.
+    pub fn new(repository: Arc<Repository>, service: Service) -> Result<Self, DaemonServerError> {
         // use server defaults
-        let options = WorkspaceServerOptions::default();
+        let options = DaemonServerOptions::default();
 
         // build the server state
-        Self::with_options(repository, endpoint, options)
+        Self::with_options(repository, service, options)
     }
 
-    /// Create a workspace server with explicit options.
+    /// Create a daemon server with explicit options.
     pub fn with_options(
         repository: Arc<Repository>,
-        endpoint: WorkspaceEndpoint,
-        options: WorkspaceServerOptions,
-    ) -> Result<Self, WorkspaceServerError> {
+        service: Service,
+        options: DaemonServerOptions,
+    ) -> Result<Self, DaemonServerError> {
         // build the daemon state
+        let workspace_root = repository.path().to_path_buf();
         let daemon = Arc::new(Daemon::new(
             repository,
             options.worker_limit,
             options.session_event_handler.clone(),
         )?);
+        let workspace = daemon.open(&workspace_root)?;
 
         // return the server state
         Ok(Self {
-            endpoint,
-            daemon,
+            service,
+            workspace,
             options,
             shutdown: Arc::new(AtomicBool::new(false)),
         })
     }
 
     /// Serve workspace requests until shutdown.
-    pub fn serve(&self) -> Result<(), WorkspaceServerError> {
-        // lock the workspace endpoint
-        let _lock = self
-            .endpoint
-            .lock()
-            .map_err(WorkspaceServerError::Endpoint)?;
+    pub fn serve(&self) -> Result<(), DaemonServerError> {
+        // lock the workspace service
+        let _lock = self.service.lock().map_err(DaemonServerError::Service)?;
 
         // clear any stale socket path
-        self.endpoint
+        self.service
             .clear_socket_path()
-            .map_err(WorkspaceServerError::Endpoint)?;
+            .map_err(DaemonServerError::Service)?;
 
         // create browser connection token
         let websocket_token = self
-            .endpoint
+            .service
             .create_websocket_token()
-            .map_err(WorkspaceServerError::Endpoint)?;
+            .map_err(DaemonServerError::Service)?;
 
         // bind the ipc and websocket listeners
         let max_frame_bytes = self.options.protocol.limits.max_frame_bytes as usize;
-        let ipc_listener = WorkspaceIpcListener::bind(&self.endpoint.socket_path, max_frame_bytes)
-            .map_err(WorkspaceServerError::Transport)?;
-        let websocket_listener = WorkspaceWebSocketListener::bind(
-            self.endpoint.websocket_addr,
+        let ipc_listener = IpcListener::bind(&self.service.socket_path, max_frame_bytes)
+            .map_err(DaemonServerError::Transport)?;
+        let websocket_listener = WebSocketListener::bind(
+            self.service.websocket_addr,
             max_frame_bytes,
-            self.endpoint.websocket_path.clone(),
+            self.service.websocket_path.clone(),
             websocket_token.clone(),
         )
-        .map_err(WorkspaceServerError::WebSocket)?;
+        .map_err(DaemonServerError::WebSocket)?;
         let websocket_addr = websocket_listener
             .local_addr()
-            .map_err(WorkspaceServerError::WebSocket)?;
+            .map_err(DaemonServerError::WebSocket)?;
 
-        // write workspace server metadata
-        let metadata =
-            WorkspaceServerMetadata::new(&self.endpoint, websocket_addr, &websocket_token)
-                .map_err(WorkspaceServerError::Endpoint)?;
-        self.endpoint
+        // write daemon server metadata
+        let metadata = Metadata::new(&self.service, websocket_addr, &websocket_token)
+            .map_err(DaemonServerError::Service)?;
+        self.service
             .write_metadata(&metadata)
-            .map_err(WorkspaceServerError::Endpoint)?;
+            .map_err(DaemonServerError::Service)?;
 
         // serve incoming connections
         let result = self.serve_listeners(ipc_listener, websocket_listener);
 
         // clean up workspace metadata and socket path
-        let _ = self.endpoint.remove_metadata();
-        let _ = self.endpoint.clear_socket_path();
+        let _ = self.service.remove_metadata();
+        let _ = self.service.clear_socket_path();
 
         // return the serve result
         result
@@ -147,9 +141,9 @@ impl WorkspaceServer {
     /// Serve workspace connections from listeners.
     fn serve_listeners(
         &self,
-        ipc_listener: WorkspaceIpcListener,
-        websocket_listener: WorkspaceWebSocketListener,
-    ) -> Result<(), WorkspaceServerError> {
+        ipc_listener: IpcListener,
+        websocket_listener: WebSocketListener,
+    ) -> Result<(), DaemonServerError> {
         // initialize connection state
         let mut handles: Vec<JoinHandle<()>> = Vec::new();
         let activity = Arc::new(ServerActivity::new(self.options.idle_shutdown));
@@ -166,21 +160,22 @@ impl WorkspaceServer {
             // accept the next ready transports
             let ipc_transport = ipc_listener
                 .try_accept()
-                .map_err(WorkspaceServerError::Transport)?;
+                .map_err(DaemonServerError::Transport)?;
             let websocket_transport = websocket_listener
                 .try_accept()
-                .map_err(WorkspaceServerError::WebSocket)?;
+                .map_err(DaemonServerError::WebSocket)?;
 
             // spawn connection handlers for accepted transports
             let mut accepted_any = false;
             let accepted = ipc_transport.into_iter().chain(websocket_transport);
             for transport in accepted {
                 accepted_any = true;
-                let daemon = self.daemon.clone();
+                let workspace = self.workspace.workspace();
+                let root_lease = self.workspace.root_lease();
                 let options = self.options.protocol.clone();
                 let lifecycle = lifecycle.clone();
                 let handle = std::thread::spawn(move || {
-                    let server = Server::with_lifecycle(daemon, options, lifecycle);
+                    let server = Server::with_root_lease(workspace, root_lease, options, lifecycle);
                     let _ = server.serve(transport.as_ref());
                 });
                 handles.push(handle);
@@ -223,7 +218,7 @@ impl WorkspaceServer {
                     break;
                 }
 
-                // shut down when the workspace server is idle
+                // shut down when the daemon server is idle
                 if lifecycle.should_shutdown() {
                     lifecycle.request_shutdown();
                     break;
@@ -236,71 +231,71 @@ impl WorkspaceServer {
     }
 }
 
-/// Errors returned by workspace servers.
+/// Errors returned by daemon servers.
 #[derive(Debug)]
-pub enum WorkspaceServerError {
-    /// Endpoint error.
-    Endpoint(WorkspaceEndpointError),
+pub enum DaemonServerError {
+    /// Workspace service error.
+    Service(ServiceError),
     /// Transport error.
-    Transport(WorkspaceIpcError),
+    Transport(IpcError),
     /// WebSocket transport error.
-    WebSocket(WorkspaceWebSocketError),
+    WebSocket(WebSocketError),
     /// Daemon state error.
     Daemon(DaemonError),
 }
 
-impl std::fmt::Display for WorkspaceServerError {
-    /// Format the workspace server error.
+impl std::fmt::Display for DaemonServerError {
+    /// Format the daemon server error.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            WorkspaceServerError::Endpoint(error) => {
-                write!(f, "workspace server endpoint error: {error}")
+            DaemonServerError::Service(error) => {
+                write!(f, "daemon server service error: {error}")
             }
-            WorkspaceServerError::Transport(error) => {
-                write!(f, "workspace server transport error: {error}")
+            DaemonServerError::Transport(error) => {
+                write!(f, "daemon server transport error: {error}")
             }
-            WorkspaceServerError::WebSocket(error) => {
-                write!(f, "workspace server websocket error: {error}")
+            DaemonServerError::WebSocket(error) => {
+                write!(f, "daemon server websocket error: {error}")
             }
-            WorkspaceServerError::Daemon(error) => {
-                write!(f, "workspace server state error: {error}")
+            DaemonServerError::Daemon(error) => {
+                write!(f, "daemon server state error: {error}")
             }
         }
     }
 }
 
-impl std::error::Error for WorkspaceServerError {}
+impl std::error::Error for DaemonServerError {}
 
-impl From<WorkspaceEndpointError> for WorkspaceServerError {
-    /// Convert an endpoint error into a server error.
-    fn from(error: WorkspaceEndpointError) -> Self {
-        WorkspaceServerError::Endpoint(error)
+impl From<ServiceError> for DaemonServerError {
+    /// Convert a service error into a server error.
+    fn from(error: ServiceError) -> Self {
+        DaemonServerError::Service(error)
     }
 }
 
-impl From<WorkspaceIpcError> for WorkspaceServerError {
+impl From<IpcError> for DaemonServerError {
     /// Convert an ipc transport error into a server error.
-    fn from(error: WorkspaceIpcError) -> Self {
-        WorkspaceServerError::Transport(error)
+    fn from(error: IpcError) -> Self {
+        DaemonServerError::Transport(error)
     }
 }
 
-impl From<WorkspaceWebSocketError> for WorkspaceServerError {
+impl From<WebSocketError> for DaemonServerError {
     /// Convert a WebSocket error into a server error.
-    fn from(error: WorkspaceWebSocketError) -> Self {
-        WorkspaceServerError::WebSocket(error)
+    fn from(error: WebSocketError) -> Self {
+        DaemonServerError::WebSocket(error)
     }
 }
 
-impl From<DaemonError> for WorkspaceServerError {
+impl From<DaemonError> for DaemonServerError {
     /// Convert a daemon error into a server error.
     fn from(error: DaemonError) -> Self {
-        WorkspaceServerError::Daemon(error)
+        DaemonServerError::Daemon(error)
     }
 }
 
-impl Default for WorkspaceServerOptions {
-    /// Create default workspace server options.
+impl Default for DaemonServerOptions {
+    /// Create default daemon server options.
     fn default() -> Self {
         Self {
             worker_limit: Session::default_worker_count(),

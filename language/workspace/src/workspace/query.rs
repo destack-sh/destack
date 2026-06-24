@@ -2,7 +2,7 @@ use std::path::Path;
 
 use destack_artifact::ArtifactKey;
 use destack_repository::{Repository, Revision};
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_session::Session;
 use destack_source::ProfileId;
 use serde::{Deserialize, Serialize};
@@ -21,7 +21,7 @@ pub struct QueryResult {
 }
 
 /// Request to run one semantic query.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct QueryRequest {
     /// Expected revision for this query.
     pub expected_revision: Option<Revision>,

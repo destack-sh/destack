@@ -182,7 +182,6 @@ fn test_fmt_payload_includes_changed_and_error_files() {
     let request = FormatInput {
         source: FormatSource::Files(vec![good_path.clone(), bad_path.clone()]),
         mode: FormatMode::Write,
-        selection: None,
         ..(CommandRevision::Current, common).into()
     };
 

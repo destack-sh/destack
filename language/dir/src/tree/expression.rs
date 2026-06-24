@@ -1,5 +1,5 @@
 use destack_core::StringId;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// A catch branch.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Catch {
     /// The optional catch pattern.
     pub pattern: Option<LocalNodeId<Pattern>>,
@@ -26,7 +26,7 @@ impl Node for Catch {
 
 /// An Expression is a generic container for all constructs.
 /// Unlike most languages, we don't differentiate "statements" and "expressions" up-front.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Expression {
     /// Declaration (with a name or anonymous).
     Declaration(LocalNodeId<Declaration>),
@@ -986,7 +986,7 @@ impl Expression {
 }
 
 /// The position of a postfix expression.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum PostfixPosition {
     // Regular postfix (just `x?`)
     Direct,
@@ -995,7 +995,7 @@ pub enum PostfixPosition {
 }
 
 /// A TypeKind determines nominal vs. structural typing.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum TypeKind {
     /// Structural typing (like `type T = { a: int32, b: boolean }`).
     Structural,
@@ -1004,7 +1004,7 @@ pub enum TypeKind {
 }
 
 /// A TypeBound is a type bound for a reference operation.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum VarianceBound {
     /// Implements a type (such that X implements Y, i.e. X implements Y).
     Implements,
@@ -1026,7 +1026,7 @@ impl VarianceBound {
 }
 
 /// The kind of a let or const binding.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum LetKind {
     /// `let` binding.
     Let,
@@ -1035,7 +1035,7 @@ pub enum LetKind {
 }
 
 /// The style of if expression.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum IfForm {
     /// Regular if expression (like `if <condition> <then_expr> else <else_expr>`)
     If,
@@ -1044,7 +1044,7 @@ pub enum IfForm {
 }
 
 /// A left-to-right condition.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Condition {
     /// The operands joined by short-circuiting `&&`.
     pub operands: Vec<ConditionOperand>,
@@ -1104,7 +1104,7 @@ impl Condition {
 }
 
 /// One operand in a condition.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ConditionOperand {
     /// A regular condition expression.
     Expression { condition: LocalNodeId<Expression> },
@@ -1120,7 +1120,7 @@ pub enum ConditionOperand {
 }
 
 /// The kind of a while expression.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum WhileForm {
     /// Regular while expression (like `while <condition> <body>`)
     While,
@@ -1129,7 +1129,7 @@ pub enum WhileForm {
 }
 
 /// The kind of a for each expression.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ForEachOperator {
     /// Of expression.
     Of,
@@ -1138,7 +1138,7 @@ pub enum ForEachOperator {
 }
 
 /// The declaration keyword used by a for each pattern binding.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum BindingKeyword {
     /// `let` declaration keyword.
     Let,
@@ -1147,7 +1147,7 @@ pub enum BindingKeyword {
 }
 
 /// The binding in a for each expression.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ForEachBinding {
     /// Regular pattern binding.
     Pattern {
@@ -1162,7 +1162,7 @@ pub enum ForEachBinding {
 }
 
 /// The cardinality of a yield expression.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum YieldCardinality {
     /// Single value.
     Scalar,
@@ -1180,7 +1180,7 @@ pub enum YieldCardinality {
 /// Self: geom.Mesh<T>
 /// BaseOf<T>: Copy
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct WhereClause {
     /// The target type to constrain (like `T` in `T: int32`).
     pub left: LocalNodeId<TypeExpression>,

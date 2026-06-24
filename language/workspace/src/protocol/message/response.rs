@@ -1,5 +1,5 @@
 use destack_artifact::ArtifactVersion;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::{Content, ContentId};
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +17,7 @@ use crate::{
 
 /// Responses emitted by the workspace protocol.
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub enum WorkspaceResponse {
     /// Successful handshake response.
     Handshake(HandshakeResponse),
@@ -88,7 +88,7 @@ pub enum WorkspaceResponse {
 }
 
 /// Serialized artifact payload returned by the workspace protocol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ArtifactBlob {
     /// Exact artifact version.
     pub version: ArtifactVersion,

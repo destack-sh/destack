@@ -7,7 +7,7 @@ use serde_json::Value;
 use crate::common::format::DiagnosticOutputJson;
 use crate::console;
 
-/// Schema version for command reports.
+/// Reflect version for command reports.
 pub const REPORT_SCHEMA_VERSION: u32 = 4;
 
 /// Output format for command reports.
@@ -360,6 +360,6 @@ pub fn print_json_payload_report<T: Serialize>(
 }
 
 #[cfg(feature = "schema")]
-fn schema_any(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+fn schema_any(_gen: &mut schemars::SchemaGenerator) -> schemars::Reflect {
     true.into()
 }

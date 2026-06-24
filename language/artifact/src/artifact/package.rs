@@ -1,12 +1,13 @@
 use std::borrow::Cow;
 use std::path::PathBuf;
 
+use destack_serde::Reflect;
 use destack_source::{PackageId, ProfileId};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 /// Active package dependency and export index for one profile.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct PackageIndex {
     /// The profile this index belongs to.
     pub profile: ProfileId,
@@ -22,7 +23,7 @@ impl PackageIndex {
 }
 
 /// Active import index for one package.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct PackageImportIndex {
     /// The package this index belongs to.
     pub package: PackageId,
@@ -42,7 +43,7 @@ impl PackageImportIndex {
 }
 
 /// Active package exports indexed for module import resolution.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct ExportIndex {
     /// The package this export index belongs to.
     pub package: PackageId,
@@ -81,7 +82,7 @@ impl ExportIndex {
 }
 
 /// Active package export target.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct ExportTarget {
     /// Package relative export path.
     pub path: String,
@@ -90,7 +91,7 @@ pub struct ExportTarget {
 }
 
 /// Active pattern export target.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct ExportPattern {
     /// Export key prefix before `*`.
     pub prefix: String,

@@ -1,9 +1,9 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Version identifier for the workspace protocol.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub struct ProtocolVersion {
     /// Major version for breaking changes.
@@ -31,7 +31,7 @@ impl ProtocolVersion {
 }
 
 /// Protocol version range used for negotiation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ProtocolRange {
     /// Minimum supported version.
     pub min: ProtocolVersion,

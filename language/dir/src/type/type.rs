@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +17,7 @@ use super::{FloatType, PrimitiveType};
 /// Uppercase<"id">      // "ID"
 /// Capitalize<"name">   // "Name"
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum StringMapping {
     /// Uppercase string mapping, like `Uppercase<"id">` reducing to `"ID"`.
     Uppercase,
@@ -75,7 +75,7 @@ impl TryFrom<&str> for StringMapping {
 /// { [K in keyof T]?: T[K] }              // optional: Present
 /// { -readonly [K in keyof T]-?: T[K] }   // readonly and optional: Remove
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct MappedTypeModifiers {
     /// The readonly modifier.
     pub readonly: MappedTypeModifier,
@@ -90,7 +90,7 @@ pub struct MappedTypeModifiers {
 /// [K in keyof T]
 /// [K in "name" | "age" as Uppercase<K>]
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct MappedTypeParameter {
     /// The parameter name like `K`.
     pub name: StringId,
@@ -110,7 +110,7 @@ pub struct MappedTypeParameter {
 /// User                  // no arguments
 /// Map<string, User>     // two positional arguments
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GenericInstance {
     /// The referenced declaration symbol.
     pub symbol: GlobalSymbolId,
@@ -125,7 +125,7 @@ pub struct GenericInstance {
 /// T.Output              // the associated type selected on T
 /// Ordering.Less         // the enum member selected on Ordering
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct MemberType {
     /// The owner type.
     pub owner: GlobalTypeId,
@@ -141,7 +141,7 @@ pub struct MemberType {
 /// ```ds
 /// Dynamic<Printable>    // a boxed value known to satisfy Printable
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct DynamicType {
     /// The `Dynamic<T>` constraint.
     pub constraint: GlobalTypeId,
@@ -150,7 +150,7 @@ pub struct DynamicType {
 /// Canonical memory or access form.
 /// Surface sigils spell these forms: `^User` is `Owned<User>`,
 /// `&exclusive User` is `Borrowed<User, L, "exclusive">`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FormType {
     /// The form constructor.
     pub form: Form,
@@ -159,7 +159,7 @@ pub struct FormType {
 }
 
 /// Canonical memory or access form constructor.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum Form {
     /// Automatically managed runtime value, the unqualified `User`.
     Managed,
@@ -187,7 +187,7 @@ pub enum Form {
 /// Literal spellings at language-item-typed positions normalize here:
 /// the `"exclusive"` in `Borrowed<User, L, "exclusive">` commits as
 /// `MemoryLiteral::Access(Access::Exclusive)`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum MemoryLiteral {
     /// Memory access singleton, like `"readonly"` or `"exclusive"`.
     Access(Access),
@@ -218,7 +218,7 @@ impl MemoryLiteral {
 }
 
 /// Normalized memory access value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum Access {
     /// Shared readonly access.
     Readonly,
@@ -229,7 +229,7 @@ pub enum Access {
 }
 
 /// Normalized storage space value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum Space {
     /// Local storage.
     Local,
@@ -242,7 +242,7 @@ pub enum Space {
 }
 
 /// Normalized place value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum Place {
     /// Ambient placement.
     Ambient,
@@ -251,7 +251,7 @@ pub enum Place {
 }
 
 /// Normalized lifetime value.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum Lifetime {
     /// Static lifetime.
     Static,
@@ -267,7 +267,7 @@ pub enum Lifetime {
 /// ```ds
 /// { [key: string]: int32 }
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TypeIndexSignature {
     /// The parameter name like `K`.
     pub name: StringId,
@@ -287,7 +287,7 @@ pub struct TypeIndexSignature {
 /// ```ds
 /// T extends string ? Text : Raw
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ConditionalType {
     /// The left operand.
     pub left: GlobalTypeId,
@@ -307,7 +307,7 @@ pub struct ConditionalType {
 /// ```ds
 /// { [K in keyof T]: T[K] }
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct MappedType {
     /// The mapped parameter.
     pub parameter: MappedTypeParameter,
@@ -324,7 +324,7 @@ pub struct MappedType {
 /// User["name"]
 /// Pair[0]
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct IndexType {
     /// The indexed type.
     pub left: GlobalTypeId,
@@ -338,7 +338,7 @@ pub struct IndexType {
 /// ```ds
 /// `get${Name}`
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TemplateLiteralType {
     /// The literal string segments.
     pub strings: Vec<StringId>,
@@ -352,7 +352,7 @@ pub struct TemplateLiteralType {
 /// ```ds
 /// T extends Array<infer E> ? E : never
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct InferType {
     /// The inferred binding name.
     pub name: Option<StringId>,
@@ -366,7 +366,7 @@ pub struct InferType {
 /// ```ds
 /// keyof User
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct UnaryType {
     /// The target type.
     pub target: GlobalTypeId,
@@ -379,7 +379,7 @@ pub struct UnaryType {
 /// int32[]
 /// Array<int32>
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ArrayType {
     /// The element type.
     pub element: GlobalTypeId,
@@ -392,7 +392,7 @@ pub struct ArrayType {
 /// [uint8; 4]
 /// FixedArray<uint8, 4>
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FixedArrayType {
     /// The element type.
     pub element: GlobalTypeId,
@@ -407,7 +407,7 @@ pub struct FixedArrayType {
 /// 0..10
 /// 0..=255
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RangeType {
     /// The inclusive lower bound.
     pub start: Option<ScalarLiteral>,
@@ -620,7 +620,7 @@ impl RangeType {
 /// [uint8]
 /// Slice<uint8>
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SliceType {
     /// The element type.
     pub element: GlobalTypeId,
@@ -633,7 +633,7 @@ pub struct SliceType {
 /// (string, int32)
 /// ["id", 42]
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TupleType {
     /// The tuple source form.
     pub form: TupleForm,
@@ -642,7 +642,7 @@ pub struct TupleType {
 }
 
 /// The source form of a tuple type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TupleForm {
     /// Parenthesized tuple form, like `(string, int32)`.
     Tuple,
@@ -656,7 +656,7 @@ pub enum TupleForm {
 /// ```ds
 /// { name: string; age?: int32 }
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ShapeType {
     /// The shape fields.
     pub fields: Vec<TypeField>,
@@ -675,7 +675,7 @@ pub struct ShapeType {
 /// (value: int32) => string
 /// async <T>(input: T) => Promise<T>
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FunctionSignatureType {
     /// The function asynchrony.
     pub asynchrony: Asynchrony,
@@ -697,7 +697,7 @@ pub struct FunctionSignatureType {
 /// ```ds
 /// (value?: int32, ...rest: string[]) => void
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FunctionParameterType {
     /// The parameter type.
     pub ty: GlobalTypeId,
@@ -710,7 +710,7 @@ pub struct FunctionParameterType {
 }
 
 /// A fat callable value with a function signature and captured environment.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FunctionType {
     /// The function signature.
     pub signature: GlobalTypeId,
@@ -719,7 +719,7 @@ pub struct FunctionType {
 }
 
 /// A thin callable value with no captured environment.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FunctionPointerType {
     /// The function signature.
     pub signature: GlobalTypeId,
@@ -731,7 +731,7 @@ pub struct FunctionPointerType {
 /// ```ds
 /// string | int32
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct UnionType {
     /// The union elements.
     pub elements: Vec<GlobalTypeId>,
@@ -743,7 +743,7 @@ pub struct UnionType {
 /// ```ds
 /// Named & Aged
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct IntersectionType {
     /// The intersection elements.
     pub elements: Vec<GlobalTypeId>,
@@ -756,7 +756,7 @@ pub struct IntersectionType {
 /// N * 2
 /// Mode == "inline"
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct StaticBinaryType {
     /// The applied operator.
     pub operator: StaticBinaryOperator,
@@ -767,7 +767,7 @@ pub struct StaticBinaryType {
 }
 
 /// One static binary operator.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum StaticBinaryOperator {
     /// `left + right`.
     Add,
@@ -1016,7 +1016,7 @@ impl TryFrom<BinaryOperator> for StaticBinaryOperator {
 /// !Wide
 /// -Offset
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct StaticUnaryType {
     /// The applied operator.
     pub operator: StaticUnaryOperator,
@@ -1025,7 +1025,7 @@ pub struct StaticUnaryType {
 }
 
 /// One static unary operator.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum StaticUnaryOperator {
     /// `!target`.
     Not,
@@ -1052,7 +1052,7 @@ impl TryFrom<UnaryOperator> for StaticUnaryOperator {
 }
 
 /// Type-level operation preserved by check.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum TypeOperation {
     /// Compiler-known string mapping type, like `Uppercase<S>`.
     StringMapping {
@@ -1090,7 +1090,7 @@ pub enum TypeOperation {
 }
 
 /// A canonical solved type.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Type {
     /// One open inference variable.
     /// Only present in working types during check, never in committed tables.
@@ -1573,7 +1573,7 @@ impl Type {
 
 /// A field in an object-like type.
 /// Methods are represented as fields whose `ty` is a `Type::FunctionSignature`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TypeField {
     /// The key of the field.
     pub key: StaticKey,
@@ -1586,7 +1586,7 @@ pub struct TypeField {
 }
 
 /// An element in a tuple type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TypeElement {
     /// The optional label for the element.
     pub label: Option<StringId>,
@@ -1615,7 +1615,7 @@ impl TypeElement {
 
 /// Identifier for one open inference variable inside a checked component.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
 pub struct TypeVariableId {
     /// The module that allocated the variable.
@@ -1634,7 +1634,7 @@ impl TypeVariableId {
 /// Unique identifier for a local type.
 #[repr(transparent)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub struct LocalTypeId(pub u32);
 
@@ -1655,7 +1655,7 @@ impl LocalTypeId {
 
 /// Global type id across modules.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
 pub struct GlobalTypeId {
     /// The module id of the global type.

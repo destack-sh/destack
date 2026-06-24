@@ -1,11 +1,12 @@
 use destack_core::StringId;
 use destack_dir::{GlobalSymbolId, ImportTarget, LanguageItem, StaticKey};
+use destack_serde::Reflect;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 /// Compiler-known language environment for one profile.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct LanguageEnvironment {
     /// Language item symbols by item id.
     pub symbol_by_item: IndexMap<LanguageItem, GlobalSymbolId>,
@@ -33,7 +34,7 @@ impl LanguageEnvironment {
 }
 
 /// Explicit global environment selected for one profile.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct GlobalEnvironment {
     /// Compiler-known language environment.
     pub language: LanguageEnvironment,
@@ -44,7 +45,7 @@ pub struct GlobalEnvironment {
 }
 
 /// Resolved compiler-known intrinsic bindings for a profile.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct LanguageIntrinsics {
     /// Intrinsic names keyed by symbol id.
     pub names_by_symbol: IndexMap<GlobalSymbolId, String>,

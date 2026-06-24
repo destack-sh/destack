@@ -39,7 +39,7 @@ pub enum ExportKind {
     /// Template material.
     Template,
     /// Reflect-derived schema material.
-    Schema,
+    Reflect,
     /// Simulation scenario or model material.
     Simulation,
     /// Service definition material.

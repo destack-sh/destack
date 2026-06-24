@@ -1,5 +1,5 @@
 use destack_mir as mir;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -17,11 +17,11 @@ use super::{
 };
 
 /// Identifier for one pooled check constraint.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct CheckId(pub u32);
 
 /// One lowered runtime check.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Check {
     /// Bounds check over signed index and signed length cells.
     BoundsIntInt(BoundsCheck),
@@ -76,7 +76,7 @@ pub enum Check {
 }
 
 /// Bounds check over index and length cells.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct BoundsCheck {
     /// The index cell offset.
     pub index: u32,
@@ -85,7 +85,7 @@ pub struct BoundsCheck {
 }
 
 /// Shift amount range check over one cell.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ShiftRangeCheck {
     /// The shift amount cell offset.
     pub value: u32,
@@ -94,7 +94,7 @@ pub struct ShiftRangeCheck {
 }
 
 /// Integer narrowing check over one cell.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct NarrowCheck {
     /// The value cell offset.
     pub value: u32,
@@ -103,7 +103,7 @@ pub struct NarrowCheck {
 }
 
 /// Variant tag check over one cell.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VariantCheck {
     /// The tag cell offset.
     pub value: u32,
@@ -112,7 +112,7 @@ pub struct VariantCheck {
 }
 
 /// Two cell inputs for one overflow check.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct OverflowCheck {
     /// The left input cell offset.
     pub left: u32,
@@ -123,19 +123,19 @@ pub struct OverflowCheck {
 }
 
 /// Identifier for one pooled switch case table.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SwitchCasesId(pub u32);
 
 /// Identifier for one pooled dense switch table.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SwitchTableId(pub u32);
 
 /// Identifier for one pooled control edge.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct EdgeId(pub u32);
 
 /// One lowered control-flow edge.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Edge {
     /// The target block.
     pub target: u32,
@@ -144,7 +144,7 @@ pub struct Edge {
 }
 
 /// One pooled dense switch table.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SwitchTable {
     /// The smallest value covered by the table.
     pub min: i128,
@@ -153,51 +153,51 @@ pub struct SwitchTable {
 }
 
 /// Identifier for one pooled allocation site.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct AllocationSiteId(pub u32);
 
 /// Identifier for one pooled small allocation site.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SmallAllocationSiteId(pub u32);
 
 /// Identifier for one pooled constant value.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ConstValueId(pub u32);
 
 /// Identifier for one pooled address projection.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ProjectionId(pub u32);
 
 /// Identifier for one pooled slice projection.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SliceProjectionId(pub u32);
 
 /// Identifier for one pooled u32 slice.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct U32RangeId(pub u32);
 
 /// Identifier for one pooled tensor dot descriptor.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TensorDotId(pub u32);
 
 /// Identifier for one pooled tensor convolution dimension descriptor.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TensorConvolutionId(pub u32);
 
 /// Identifier for one pooled tensor convolution window descriptor.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TensorWindowId(pub u32);
 
 /// Identifier for one pooled tensor gather descriptor.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TensorGatherId(pub u32);
 
 /// Identifier for one pooled tensor scatter descriptor.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TensorScatterId(pub u32);
 
 /// Identifier for one pooled tensor layout.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TensorLayoutId(pub u32);
 
 /// Record stored outside the fixed instruction cells.
@@ -212,7 +212,7 @@ pub trait SideRecord: Copy {
 macro_rules! side_record_table {
     ($( $field:ident : $ty:ty ),+ $(,)?) => {
         /// Immutable side records referenced by instruction ids.
-        #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Schema)]
+        #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Reflect)]
         struct SideRecordTable {
             $(
                 $field: Box<[$ty]>,
@@ -220,7 +220,7 @@ macro_rules! side_record_table {
         }
 
         /// Mutable side record table used while lowering.
-        #[derive(Debug, Default, Serialize, Deserialize, Schema)]
+        #[derive(Debug, Default, Serialize, Deserialize, Reflect)]
         struct SideRecordTableBuilder {
             $(
                 $field: Vec<$ty>,
@@ -313,7 +313,7 @@ side_record_table! {
 }
 
 /// Immutable side table referenced by compact side records.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SideTable {
     /// Pooled side records.
     record: Box<SideRecordTable>,
@@ -352,7 +352,7 @@ pub struct SideTable {
 }
 
 /// Mutable side table used while lowering one program.
-#[derive(Debug, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Default, Serialize, Deserialize, Reflect)]
 pub struct SideTableBuilder {
     /// Pooled side records.
     record: SideRecordTableBuilder,

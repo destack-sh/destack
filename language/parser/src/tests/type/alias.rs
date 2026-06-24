@@ -160,7 +160,7 @@ fn test_parse_type_alias_with_empty_generic_parameters() {
 #[test]
 fn test_parse_type_alias_parenthesized_multiline_union_with_comment() {
     let mut test = TestParser::new_with_language(
-        r#"type Schema = (
+        r#"type Reflect = (
   | // leading separator comment
   {
   anyOf: readonly string[]
@@ -176,7 +176,7 @@ fn test_parse_type_alias_parenthesized_multiline_union_with_comment() {
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
-            assert_string!(parser, name.string(), "Schema");
+            assert_string!(parser, name.string(), "Reflect");
             assert_node!(parser.tree, *value, TypeExpression::Parenthesized { expression } => {
                 assert_node!(parser.tree, *expression, TypeExpression::Union { elements } => {
                     assert_eq!(elements.len(), 2);

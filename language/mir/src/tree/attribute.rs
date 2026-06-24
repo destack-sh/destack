@@ -1,11 +1,11 @@
 use destack_core::StringId;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::TypeId;
 
 /// One identifier inside attribute syntax.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum AttributeIdentifier {
     /// One concrete identifier.
     Identifier(StringId),
@@ -23,7 +23,7 @@ impl AttributeIdentifier {
 }
 
 /// A metadata attribute attached to a MIR node.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct Attribute {
     /// The attribute name.
     pub name: AttributeIdentifier,
@@ -32,7 +32,7 @@ pub struct Attribute {
 }
 
 /// Arguments for a MIR attribute.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum AttributeArgs {
     /// No arguments were provided.
     None,
@@ -45,7 +45,7 @@ pub enum AttributeArgs {
 }
 
 /// A key-value pair within an attribute argument list.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct AttributeKeyValue {
     /// The argument name.
     pub key: AttributeIdentifier,
@@ -54,7 +54,7 @@ pub struct AttributeKeyValue {
 }
 
 /// A floating point literal stored by bit pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct FloatValue {
     /// The IEEE-754 bits for the value.
     pub bits: u64,
@@ -75,7 +75,7 @@ impl FloatValue {
 }
 
 /// A value inside an attribute argument list.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum AttributeValue {
     /// An identifier value.
     Identifier(AttributeIdentifier),

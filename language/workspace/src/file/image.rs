@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::path::{Path, PathBuf};
 
 use destack_session::Change;
@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::Error;
 
 /// In-memory image for one updated file.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FileImage {
     /// File id in the registry.
     pub id: FileId,
@@ -64,7 +64,7 @@ impl FileImage {
 }
 
 /// One coarse kind for a workspace file update.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum UpdateKind {
     /// One ordinary source change.
     Source,
@@ -91,7 +91,7 @@ impl UpdateKind {
 }
 
 /// File update emitted by the workspace.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FileUpdate {
     /// Updated module id when known.
     pub module_id: Option<ModuleId>,
@@ -165,7 +165,7 @@ impl From<Change> for FileUpdate {
 }
 
 /// File operation applied through a workspace.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum FileOperation {
     /// Open editor text content.
     OpenText {

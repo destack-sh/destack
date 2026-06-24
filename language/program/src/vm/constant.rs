@@ -1,8 +1,8 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Constant value stored in lowered instructions.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ConstValue {
     /// Constant payload for an aggregate value.
     Aggregate(Box<[u8]>),

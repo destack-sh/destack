@@ -1,10 +1,10 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::FunctionId;
 
 /// Native entry table keyed by program ids.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct EntryTable {
     /// Native function entries keyed by program function id.
     pub(super) function: Vec<Option<Entry>>,
@@ -42,7 +42,7 @@ impl EntryTable {
 }
 
 /// Native function entry resolved by symbol name.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Entry {
     /// The function implemented by this entry.
     pub function: FunctionId,
@@ -58,7 +58,7 @@ impl Entry {
 }
 
 /// Native continuation resume entry resolved by symbol name.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Resume {
     /// The frame state resumed by this entry.
     pub frame_state: destack_mir::FrameStateId,

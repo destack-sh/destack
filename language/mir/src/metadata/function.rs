@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// Function and call metadata derived from semantic MIR.
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Schema)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
 pub struct FunctionMetadataTable {
     /// Metadata keyed by function id.
     pub functions: HashMap<LocalNodeId<Function>, FunctionMetadata>,
@@ -45,7 +45,7 @@ impl FunctionMetadataTable {
 }
 
 /// Metadata for one function body or declaration.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FunctionMetadata {
     /// Memory touched by this function.
     pub memory: MemoryEffect,
@@ -56,7 +56,7 @@ pub struct FunctionMetadata {
 }
 
 /// Metadata for one callsite.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct CallMetadata {
     /// Memory touched by this call.
     pub memory: MemoryEffect,
@@ -71,7 +71,7 @@ pub struct CallMetadata {
 }
 
 /// Stable identifier for one callsite inside a function body.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum CallSite {
     /// Callsite stored as an instruction.
     Instruction(LocalNodeId<Instruction>),

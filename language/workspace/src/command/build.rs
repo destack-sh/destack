@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use destack_artifact::{ArtifactKey, ArtifactReference};
 use destack_repository::{Revision, TraceSnapshot, TraceView};
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::{ModuleId, PackageId, ProductId};
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +15,7 @@ use super::common::{
 use super::context::{CommandContext, SelectedTarget};
 use super::outcome::CommandOutcome;
 /// Options for the build command.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
 pub struct BuildOptions {
     /// Trace detail returned in the response.
     #[serde(default)]
@@ -23,7 +23,7 @@ pub struct BuildOptions {
 }
 
 /// Request to build target artifacts.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct BuildInput {
     /// Revision selected for this build.
     pub revision: CommandRevision,
@@ -65,7 +65,7 @@ impl_command_input_options!(BuildInput {
 });
 
 /// Build output families requested by a caller.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct BuildOutputs {
     /// Return product artifact refs.
     pub products: bool,
@@ -90,7 +90,7 @@ impl Default for BuildOutputs {
 }
 
 /// Payload for build command output.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct BuildPayload {
     /// Product artifacts produced by this build.
     pub products: Vec<ArtifactReference>,

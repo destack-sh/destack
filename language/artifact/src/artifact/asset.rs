@@ -1,10 +1,11 @@
+use destack_serde::Reflect;
 use destack_source::{ContentId, FileType, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::SourceMap;
 
 /// One opaque linker input for a target.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct Asset {
     /// The asset file type.
     pub file_type: FileType,

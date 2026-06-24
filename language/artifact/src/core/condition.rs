@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::hash::{Hash, Hasher};
 
 use indexmap::IndexSet;
@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{Host, Platform, Runtime};
 
 /// Active source graph and runtime selection conditions.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]

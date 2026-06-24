@@ -1,9 +1,9 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 /// One lexical MIR token.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct Token {
     /// The token type.
     pub ty: TokenType,
@@ -41,7 +41,7 @@ impl Token {
 }
 
 /// MIR token type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TokenType {
     /// Identifier text.
     Identifier,

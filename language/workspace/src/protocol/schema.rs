@@ -10,20 +10,20 @@ pub fn schema() -> SchemaRegistry {
     let mut schema = SchemaRegistry::default();
 
     // frame and message roots
-    schema.include::<FrameHeader>();
-    schema.include::<ProtocolMessage>();
+    schema.register::<FrameHeader>();
+    schema.register::<ProtocolMessage>();
 
     // inline and deferred payload roots
-    schema.include::<BinaryPayload>();
-    schema.include::<PayloadBody>();
-    schema.include::<PayloadId>();
-    schema.include::<PayloadChunkNotification>();
+    schema.register::<BinaryPayload>();
+    schema.register::<PayloadBody>();
+    schema.register::<PayloadId>();
+    schema.register::<PayloadChunkNotification>();
 
     // query payload bodies encoded inside BinaryPayload
-    schema.include::<QueryRequestBody>();
-    schema.include::<QueryRequestPayload>();
-    schema.include::<QueryResponseBody>();
-    schema.include::<QueryResponsePayload>();
+    schema.register::<QueryRequestBody>();
+    schema.register::<QueryRequestPayload>();
+    schema.register::<QueryResponseBody>();
+    schema.register::<QueryResponsePayload>();
 
     schema
 }

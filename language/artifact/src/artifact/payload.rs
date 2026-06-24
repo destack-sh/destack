@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use destack_program::Program;
+use destack_serde::Reflect;
 use destack_source::ContentId;
 
 use crate::{
@@ -14,7 +15,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 /// One typed artifact payload.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub enum ArtifactPayload {
     /// Parsed module DIR.
     DirParsed(Arc<DirParsed>),

@@ -1,11 +1,11 @@
-use destack_serde::{Codec, Schema};
+use destack_serde::{Codec, Reflect};
 use std::error::Error;
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
 /// Binary payload wrapper for protocol message bodies.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct BinaryPayload {
     /// Payload body.
     pub body: PayloadBody,
@@ -60,7 +60,7 @@ impl Error for BinaryPayloadDecodeError {
 }
 
 /// Payload body representation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum PayloadBody {
     /// Inline bytes.
     Inline { bytes: Vec<u8> },
@@ -70,7 +70,7 @@ pub enum PayloadBody {
 
 /// Unique identifier for payload transfers.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct PayloadId(pub u64);
 
 impl PayloadId {
@@ -81,7 +81,7 @@ impl PayloadId {
 }
 
 /// Notification for chunked payload data.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct PayloadChunkNotification {
     /// Payload id for the chunk stream.
     pub id: PayloadId,

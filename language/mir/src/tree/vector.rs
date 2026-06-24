@@ -1,8 +1,8 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Reduction operators for vector reductions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum VectorReduceOperator {
     /// Add all lanes.
     Add,
@@ -70,7 +70,7 @@ impl TryFrom<&str> for VectorReduceOperator {
 }
 
 /// Conversion modes for vector element conversions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum VectorConvertMode {
     /// Require exact conversion with no rounding or saturation.
     Exact,

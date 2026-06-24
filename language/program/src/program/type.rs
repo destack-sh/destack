@@ -1,5 +1,5 @@
 use destack_mir as mir;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -10,7 +10,7 @@ use crate::vm::{
 };
 
 /// Durable runtime type id inside one program.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct TypeId(pub u32);
 
 impl TypeId {
@@ -35,7 +35,7 @@ impl From<TypeId> for u32 {
 }
 
 /// Runtime type metadata carried by one durable program.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeTable {
     /// Dense runtime type records keyed by program type id.
     types: Vec<Option<mir::Type>>,

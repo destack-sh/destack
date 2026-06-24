@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::path::{Path, PathBuf};
 
 use destack_repository::RegistryAuthentication;
@@ -13,11 +13,11 @@ use super::common::{
 use super::context::CommandContext;
 use super::outcome::CommandOutcome;
 /// Options for the settings command.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
 pub struct SettingsOptions;
 
 /// Request to return resolved settings.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SettingsInput {
     /// Revision selected for this settings request.
     pub revision: CommandRevision,
@@ -48,7 +48,7 @@ pub struct SettingsInput {
 impl_command_input_options!(SettingsInput {});
 
 /// Payload for settings command output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct SettingsPayload {
     /// Machine-local Destack home.
     pub home: String,
@@ -71,7 +71,7 @@ pub struct SettingsPayload {
 }
 
 /// Registry settings for command output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct SettingsRegistry {
     /// Registry name.
     pub name: String,
@@ -82,7 +82,7 @@ pub struct SettingsRegistry {
 }
 
 /// Redacted registry authentication shape.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 #[serde(tag = "kind")]
 #[serde(rename_all = "camelCase")]
 pub enum SettingsRegistryAuthentication {
@@ -103,7 +103,7 @@ pub enum SettingsRegistryAuthentication {
 }
 
 /// Network settings for command output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 #[serde(rename_all = "camelCase")]
 pub struct SettingsNetwork {
     /// Whether network access should be disabled by default.

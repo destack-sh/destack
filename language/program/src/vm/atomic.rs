@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::Ordering;
 
@@ -14,7 +14,7 @@ const OPERATOR_SHIFT: u32 = 14;
 
 /// Memory address representation selected by atomic lowering.
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum AtomicAddress {
     /// Local heap reference.
     Heap = 0,
@@ -52,7 +52,7 @@ impl AtomicAddress {
 }
 
 /// Atomic memory ordering selected by lowering.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum AtomicOrder {
     /// Relaxed ordering.
     Relaxed,
@@ -167,7 +167,7 @@ impl AtomicOrder {
 
 /// Atomic payload width selected by lowering.
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum AtomicWidth {
     /// 8-bit payload.
     Width8 = 0,
@@ -211,7 +211,7 @@ impl AtomicWidth {
 }
 
 /// Address, width, and ordering for one atomic memory operation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct AtomicShape {
     /// The addressed memory space.
     pub address: AtomicAddress,
@@ -268,7 +268,7 @@ impl AtomicShape {
 
 /// Atomic read-modify-write operation selected by lowering.
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum AtomicReadModifyWriteOperator {
     /// Add the operand and return the old value.
     Add = 0,
@@ -325,7 +325,7 @@ impl AtomicReadModifyWriteOperator {
 }
 
 /// Shape for one atomic read-modify-write instruction.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct AtomicReadModifyWriteShape {
     /// The atomic memory shape.
     pub shape: AtomicShape,

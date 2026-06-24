@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::collections::HashSet;
 use std::fmt;
 use std::path::PathBuf;
@@ -18,7 +18,7 @@ pub struct ContentStore<'a> {
 }
 
 /// One serialized content blob.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 struct ContentBlob {
     /// The exact content identity.
     id: ContentId,

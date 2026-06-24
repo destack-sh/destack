@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
@@ -7,7 +7,7 @@ use crate::core::{
 };
 
 /// An item in the type hierarchy.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeHierarchyItem {
     /// The name of the type.
     pub name: String,
@@ -20,7 +20,7 @@ pub struct TypeHierarchyItem {
 }
 
 /// Kind of type hierarchy item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TypeHierarchyKind {
     /// Class type.
     Class,
@@ -51,42 +51,42 @@ impl TypeHierarchyKind {
 }
 
 /// Request the type hierarchy item at a cursor position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeHierarchyItemRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
 /// Response payload for type hierarchy item queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeHierarchyItemResponse {
     /// Type hierarchy item, if available.
     pub item: Option<TypeHierarchyItem>,
 }
 
 /// Request type hierarchy supertypes.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeHierarchySupertypesRequest {
     /// The type hierarchy item to expand.
     pub item: TypeHierarchyItem,
 }
 
 /// Response payload for type hierarchy supertypes queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeHierarchySupertypesResponse {
     /// Type hierarchy items.
     pub items: Vec<TypeHierarchyItem>,
 }
 
 /// Request type hierarchy subtypes.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeHierarchySubtypesRequest {
     /// The type hierarchy item to expand.
     pub item: TypeHierarchyItem,
 }
 
 /// Response payload for type hierarchy subtypes queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeHierarchySubtypesResponse {
     /// Type hierarchy items.
     pub items: Vec<TypeHierarchyItem>,

@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ const MODULE_LOADER_DEFAULT: &[u8] = b"default";
 
 /// Stable key for one module within a package.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 #[serde(transparent)]
 pub struct ModuleKey(pub u128);
 
@@ -43,7 +43,7 @@ impl ModuleKey {
 ///
 /// ModuleId is hierarchical: it includes the PackageId and a local identifier.
 /// This makes ModuleIds stable across compiler runs (for better cross-package caching).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 pub struct ModuleId {
     /// The package this module belongs to.
     pub package_id: PackageId,

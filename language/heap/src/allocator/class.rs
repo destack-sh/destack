@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// One policy for generating size classes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct SizeClassPolicy {
     /// The smallest generated size class in bytes.
     pub min_bytes: usize,
@@ -128,7 +128,7 @@ impl SizeClassPolicy {
 }
 
 /// One fixed-size small block class.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct SizeClass {
     /// The slot payload size in bytes.
     pub bytes: usize,
@@ -168,7 +168,7 @@ impl SizeClass {
 }
 
 /// One canonical size-class table used by the heap.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct SizeClassTable {
     /// The ordered size classes in bytes.
     pub classes: Arc<[SizeClass]>,

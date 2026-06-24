@@ -1,4 +1,4 @@
-use destack_serde::{Schema, SchemaRef, SchemaRegistry};
+use destack_serde::{Reflect, SchemaRef, SchemaRegistry};
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -9,7 +9,7 @@ use crate::{StableHasher, stable_hash_text_128};
 
 /// Stable content identity for one interned string.
 #[repr(transparent)]
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize, Schema)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize, Reflect)]
 pub struct StringId(pub u128);
 
 impl Debug for StringId {
@@ -42,7 +42,7 @@ impl StringId {
 pub type StringRef<'a> = &'a str;
 
 /// Serialized string pool representation.
-#[derive(Serialize, Deserialize, Schema)]
+#[derive(Serialize, Deserialize, Reflect)]
 struct StringPoolData {
     /// Stored strings sorted by stable id.
     strings: Vec<(StringId, String)>,
@@ -312,10 +312,10 @@ impl<'de> Deserialize<'de> for StringPool {
     }
 }
 
-impl Schema for StringPool {
+impl Reflect for StringPool {
     /// Register the serialized string pool shape.
-    fn schema(registry: &mut SchemaRegistry) -> SchemaRef {
-        StringPoolData::schema(registry)
+    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
+        StringPoolData::reflect(registry)
     }
 }
 

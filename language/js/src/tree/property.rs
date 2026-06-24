@@ -1,3 +1,4 @@
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -6,7 +7,7 @@ use crate::{
 };
 
 /// A Property is a property of an object literal (may be a field, method, or spread).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Property {
     /// Named field (like `x: int32`).
     Field {
@@ -34,7 +35,7 @@ impl Node for Property {
 }
 
 /// A Member is a member of a object-like declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Member {
     /// Named field (like `x: int32`).
     Field {

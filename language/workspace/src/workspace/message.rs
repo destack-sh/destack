@@ -1,9 +1,9 @@
 use crate::FileUpdate;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Message severity for one workspace operation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum MessageKind {
     /// Informational message.
     Info,
@@ -14,7 +14,7 @@ pub enum MessageKind {
 }
 
 /// Message payload emitted by one workspace operation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Message {
     /// Message severity.
     pub kind: MessageKind,
@@ -54,7 +54,7 @@ impl Message {
 }
 
 /// Result of applying local workspace updates.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct UpdateBatch {
     /// Update records produced by the operation.
     pub updates: Vec<FileUpdate>,

@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -6,7 +6,7 @@ use smallvec::SmallVec;
 use crate::{ExportKind, GlobalNodeIdAny, LocalScope, Mutability, NodeType, StaticKey, StringId};
 
 /// A bindable item or local in a scope.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Symbol {
     /// The scope lookup role of the symbol.
     pub role: SymbolRole,
@@ -79,7 +79,7 @@ impl SymbolLookup {
 
 /// The space of a symbol.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub enum SymbolSpace {
     /// The type space.
@@ -106,7 +106,7 @@ impl SymbolSpace {
 
 /// The scope lookup role of a symbol.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub enum SymbolRole {
     /// Namespace symbol with an owned scope.
@@ -130,7 +130,7 @@ pub enum SymbolRole {
     Ord,
     Serialize,
     Deserialize,
-    Schema,
+    Reflect,
 )]
 pub enum SymbolOrigin {
     /// Declaration in module scope.
@@ -161,7 +161,7 @@ impl SymbolOrigin {
     Ord,
     Serialize,
     Deserialize,
-    Schema,
+    Reflect,
 )]
 pub enum SymbolKind {
     /// Plain variable-like value symbol without a more specific kind.
@@ -315,7 +315,7 @@ impl SymbolKind {
 
 /// Unique identifier for Symbols.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub struct LocalSymbolId {
     /// The numeric id.
@@ -339,7 +339,7 @@ impl LocalSymbolId {
 
 /// Global symbol id across modules.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
 pub struct GlobalSymbolId {
     /// The module id of the global symbol.

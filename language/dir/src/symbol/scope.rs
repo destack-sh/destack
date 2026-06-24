@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::fmt::Display;
 
 use destack_source::ModuleId;
@@ -11,7 +11,7 @@ use crate::{LocalSymbolId, StaticKey};
 const SMALL_SCOPE_LOOKUP_KEYS: usize = 8;
 
 /// A lexical container for symbols.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Scope {
     /// The kind of the scope.
     pub kind: ScopeKind,
@@ -127,7 +127,7 @@ impl Scope {
 }
 
 /// A compact name index for one lexical scope.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ScopeIndex {
     /// No named bindings.
     #[default]
@@ -221,7 +221,7 @@ impl ScopeIndex {
 }
 
 /// Binding indices for one key in a small scope lookup.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ScopeIndexEntry {
     /// The binding key.
     pub key: StaticKey,
@@ -241,7 +241,7 @@ impl ScopeIndexEntry {
 
 /// The kind of a scope.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub enum ScopeKind {
     /// Module root.
@@ -265,7 +265,7 @@ pub enum ScopeKind {
 /// Unique identifier for local scopes.
 #[repr(transparent)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub struct LocalScopeId(pub u32);
 
@@ -302,7 +302,7 @@ impl Display for LocalScopeMark {
 
 /// Global scope id across modules.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
 pub struct GlobalScopeId {
     /// The module id of the global scope.
@@ -335,14 +335,14 @@ impl From<GlobalScopeId> for LocalScopeId {
 
 /// Mark a position in a scope.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 #[repr(transparent)]
 pub struct LocalScopeMark(pub u32);
 
 /// Local scope id and mark pair used for node and symbol insertion.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub struct LocalScope {
     /// The scope id.
@@ -367,7 +367,7 @@ impl LocalScopeMark {
 }
 
 /// One binding entry in lexical order.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ScopeBinding {
     /// The binding key.
     pub key: Option<StaticKey>,

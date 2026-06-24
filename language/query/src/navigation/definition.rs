@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +7,7 @@ use crate::core::{ModuleQueryContext, QueryPosition, QueryTarget};
 use crate::dir::SymbolAtOffset;
 
 /// Relationship between a navigation origin and target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum NavigationRelation {
     /// Declaration target.
     Declaration,
@@ -20,7 +20,7 @@ pub enum NavigationRelation {
 }
 
 /// One navigation target.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct NavigationTarget {
     /// The target location and resolved identity.
     pub target: QueryTarget,
@@ -45,42 +45,42 @@ impl NavigationTarget {
 }
 
 /// Request goto definition at a cursor position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoDefinitionRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
 /// Response payload for goto definition queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoDefinitionResponse {
     /// Definition targets.
     pub targets: Vec<NavigationTarget>,
 }
 
 /// Request goto declaration at a cursor position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoDeclarationRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
 /// Response payload for goto declaration queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoDeclarationResponse {
     /// Declaration targets.
     pub targets: Vec<NavigationTarget>,
 }
 
 /// Request goto type definition at a cursor position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoTypeDefinitionRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
 /// Response payload for goto type definition queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoTypeDefinitionResponse {
     /// Type definition targets.
     pub targets: Vec<NavigationTarget>,

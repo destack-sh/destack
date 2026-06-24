@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::error::Error;
 use std::fmt;
 
@@ -7,7 +7,7 @@ use destack_heap::{HeapReference, SharedHeapReference};
 use serde::{Deserialize, Serialize};
 
 /// One program value type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ValueType {
     /// The void type.
     Void,
@@ -36,7 +36,7 @@ pub enum ValueType {
 }
 
 /// Program value type mismatch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ValueTypeMismatch {
     /// The expected value type.
     pub expected: ValueType,
@@ -64,7 +64,7 @@ impl fmt::Display for ValueTypeMismatch {
 impl Error for ValueTypeMismatch {}
 
 /// One signed integer value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SignedInt {
     /// The integer payload.
     pub value: i128,
@@ -73,7 +73,7 @@ pub struct SignedInt {
 }
 
 /// One unsigned integer value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct UnsignedInt {
     /// The integer payload.
     pub value: u128,
@@ -82,7 +82,7 @@ pub struct UnsignedInt {
 }
 
 /// One program value.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum Value {
     /// The void value.
     Void,

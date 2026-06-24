@@ -1,10 +1,10 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{ContentId, LabeledSpan, Span};
 
 /// One concrete source label in a diagnostic.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct DiagnosticLabel {
     /// The exact content containing the span.
     pub content: ContentId,
@@ -42,7 +42,7 @@ impl DiagnosticLabel {
 }
 
 /// Extra context for understanding a diagnostic.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct DiagnosticNote {
     /// The note message.
     pub message: String,
@@ -72,7 +72,7 @@ impl From<&str> for DiagnosticNote {
 }
 
 /// Guidance for fixing or avoiding a diagnostic.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct DiagnosticHelp {
     /// The help message.
     pub message: String,

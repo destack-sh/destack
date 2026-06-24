@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -336,7 +336,7 @@ impl<'a> BindingTable<'a> {
 }
 
 /// Lexical scopes and symbols added by one DIR phase.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct BindingSegment {
     /// The module id of the binding segment.
     pub module_id: ModuleId,

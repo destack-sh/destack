@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::hash::Hash;
 
 use serde::{Deserialize, Serialize};
@@ -13,9 +13,9 @@ use crate::{
 /// Deterministic identity of one artifact's complete semantic dependencies.
 #[repr(transparent)]
 #[derive(
-    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize, Schema,
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize, Reflect,
 )]
-pub struct ArtifactFingerprint(u128);
+pub struct ArtifactFingerprint(pub u128);
 
 impl std::fmt::Debug for ArtifactFingerprint {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

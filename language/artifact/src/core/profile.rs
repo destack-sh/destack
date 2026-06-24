@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::hash::Hash;
 
 use destack_core::StableHasher;
@@ -9,7 +9,7 @@ use crate::{ConditionSet, EmitFormat, EnvironmentKey, TargetAbi, TargetArch, Tar
 const PROFILE_ID_DOMAIN: &[u8] = b"profile";
 
 /// Canonical profile key for semantic identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct ProfileKey {
     /// Emit format for the profile.
     pub emit: EmitFormat,

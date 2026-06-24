@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{Lifetime, TypeId, TypedValue, Value};
@@ -19,7 +19,7 @@ pub trait TypedParameter {
 }
 
 /// Borrow source proof required by a callable parameter.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum BorrowObligation {
     /// Borrow source must be stable across suspension.
     SuspensionStable {
@@ -29,7 +29,7 @@ pub enum BorrowObligation {
 }
 
 /// One function entry parameter.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FunctionParameter {
     /// The SSA value.
     pub value: Value,
@@ -88,7 +88,7 @@ impl TypedParameter for FunctionParameter {
 }
 
 /// One block parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct BlockParameter {
     /// The SSA value.
     pub value: Value,
@@ -117,7 +117,7 @@ impl TypedParameter for BlockParameter {
 }
 
 /// One callable signature parameter.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct SignatureParameter {
     /// The parameter type.
     pub ty: TypeId,

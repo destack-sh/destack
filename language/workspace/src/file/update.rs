@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
@@ -15,7 +15,7 @@ use crate::protocol::{WatchBatch, WatchEventKind, WatchStatus};
 use crate::workspace::{LocalWorkspace, Message, ReloadReason, UpdateBatch};
 
 /// One requested source mutation batch.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SourceUpdate {
     /// Optional expected base revision.
     pub base: Option<Revision>,
@@ -24,7 +24,7 @@ pub struct SourceUpdate {
 }
 
 /// Workspace projection of one committed edit batch.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Commit {
     /// Previous repository revision.
     pub before: Revision,

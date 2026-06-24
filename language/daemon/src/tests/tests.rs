@@ -60,7 +60,7 @@ pub struct TestProtocolHarness {
     pub client: Client,
     /// Captured server error, if any.
     server_error: Arc<Mutex<Option<String>>>,
-    /// Server thread handle.
+    /// Protocol server thread handle.
     server_handle: Option<JoinHandle<Result<(), ServerError>>>,
 }
 
@@ -132,7 +132,7 @@ impl TestDaemon {
     /// Return the primary daemon workspace.
     pub fn workspace(&self) -> Arc<OpenedWorkspace> {
         self.daemon
-            .workspace(self.repository.path())
+            .open(self.repository.path())
             .expect("test workspace should be opened")
     }
 
@@ -409,7 +409,11 @@ impl TestProtocolHarness {
         let error_handle = server_error.clone();
 
         // start the protocol server
-        let server = Server::with_options(daemon, options);
+        let workspace = daemon
+            .open(test.repository.path())
+            .expect("test workspace should open")
+            .workspace();
+        let server = Server::with_options(workspace, options);
         let server_handle = thread::spawn(move || {
             // run the server loop
             let result = server.serve(&server_transport);
@@ -470,7 +474,6 @@ impl TestProtocolHarness {
     /// Open one explicit root and return the handle id.
     pub fn open_root_path(&self, root: PathBuf) -> RootId {
         let open = OpenRootRequest {
-            workspace: self.test.repository.path().to_path_buf(),
             root,
             options: RootOpenOptions::default(),
         };

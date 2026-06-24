@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use destack_artifact::{ArtifactKey, ArtifactStage};
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::TargetId;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -312,7 +312,7 @@ impl Trace {
 }
 
 /// Serializable snapshot of one trace.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct TraceSnapshot {
     /// The wall time of the traced operation in microseconds.
     pub total_micros: u64,
@@ -333,7 +333,7 @@ pub struct TraceSnapshot {
 }
 
 /// Trace detail returned to a caller.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum TraceView {
     /// Return aggregate trace data.
     #[default]
@@ -359,7 +359,7 @@ impl TraceView {
 }
 
 /// Artifact attempt outcome counts in one trace.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct TraceStats {
     /// Attempts that produced an artifact.
     pub built: u64,
@@ -387,7 +387,7 @@ impl TraceStats {
 }
 
 /// Busy time of one toolchain stage.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TraceStageSnapshot {
     /// The stage display name.
     pub name: String,
@@ -396,7 +396,7 @@ pub struct TraceStageSnapshot {
 }
 
 /// Summed time of one named trace span.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TraceTimeSnapshot {
     /// The span name.
     pub name: String,
@@ -419,7 +419,7 @@ impl TraceTimeSnapshot {
 }
 
 /// One span in a trace snapshot.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TraceSpanSnapshot {
     /// The span name.
     pub name: String,
@@ -441,7 +441,7 @@ impl TraceSpanSnapshot {
 }
 
 /// One counter in a trace snapshot.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TraceCounterSnapshot {
     /// The counter name.
     pub name: String,
@@ -460,7 +460,7 @@ impl TraceCounterSnapshot {
 }
 
 /// One artifact attempt in a detailed trace snapshot.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct ArtifactAttemptSnapshot {
     /// The artifact kind name.
     pub name: String,

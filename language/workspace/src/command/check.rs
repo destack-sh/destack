@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
 use destack_repository::{Revision, TraceSnapshot, TraceView};
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::{
     Applicability, DiagnosticCollection, DiffOptions, File, FileId, ModuleId, PatchSet,
     apply_patch_set, format_diff,
@@ -19,18 +19,18 @@ use super::common::{
 use super::context::CommandContext;
 use super::outcome::CommandOutcome;
 /// Payload for check command output.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct CheckPayload {
     /// Trace payload for this check.
     pub trace: TraceSnapshot,
 }
 
 /// Payload for lint command output.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct LintPayload {}
 
 /// Lint/fix options for commands.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
 pub struct LintOptions {
     /// Apply fixes.
     pub fix: bool,
@@ -41,7 +41,7 @@ pub struct LintOptions {
 }
 
 /// Options for the check command.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
 pub struct CheckOptions {
     /// Whether linting should run when supported.
     pub lint: bool,
@@ -53,7 +53,7 @@ pub struct CheckOptions {
 }
 
 /// Request to check source state.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CheckInput {
     /// Revision selected for this check.
     pub revision: CommandRevision,
@@ -93,7 +93,7 @@ pub struct CheckInput {
 }
 
 /// Request to lint source state.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct LintInput {
     /// Revision selected for this lint run.
     pub revision: CommandRevision,

@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +7,7 @@ use crate::core::{ModuleQueryContext, QueryModule};
 use crate::source::string_literal_span_in_enclosing;
 
 /// A clickable link in a document.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct DocumentLink {
     /// The range of the link in the document.
     pub range: Span,
@@ -18,7 +18,7 @@ pub struct DocumentLink {
 }
 
 /// The target of a document link.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum DocumentLinkTarget {
     /// Link to a file (resolved import).
     File {
@@ -68,14 +68,14 @@ impl DocumentLink {
 }
 
 /// Request document links for a document.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct DocumentLinksRequest {
     /// The queried module.
     pub module: QueryModule,
 }
 
 /// Response payload for document links queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct DocumentLinksResponse {
     /// Document links.
     pub links: Vec<DocumentLink>,

@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use destack_source::{ModuleId, PackageId, ProfileId};
@@ -7,7 +7,7 @@ use crate::{ArtifactDependency, ArtifactFingerprint, ArtifactKey};
 
 /// One exact live artifact version.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub struct ArtifactVersion {
     /// The semantic artifact slot.

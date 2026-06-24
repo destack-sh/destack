@@ -1,5 +1,5 @@
 use destack_mir as mir;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -11,7 +11,7 @@ use super::{
 const INTRINSIC_ARGUMENT_CAPACITY: usize = 16;
 
 /// Aggregate select operation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct AggregateSelect {
     /// The destination frame offset.
     pub destination_offset: u32,
@@ -26,7 +26,7 @@ pub struct AggregateSelect {
 }
 
 /// Atomic compare exchange over one scalar value.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct AtomicCompareExchange {
     /// The aggregate destination value.
     pub destination: mir::Value,
@@ -45,7 +45,7 @@ pub struct AtomicCompareExchange {
 }
 
 /// Vector splat operation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VectorSplat {
     /// The destination frame offset.
     pub dest_offset: u32,
@@ -58,7 +58,7 @@ pub struct VectorSplat {
 }
 
 /// Vector extract operation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VectorExtract {
     /// The destination cell offset.
     pub dest_offset: u32,
@@ -73,7 +73,7 @@ pub struct VectorExtract {
 }
 
 /// Elementwise vector binary operation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VectorBinary {
     /// The destination frame offset.
     pub dest_offset: u32,
@@ -96,7 +96,7 @@ pub struct VectorBinary {
 }
 
 /// Elementwise vector unary operation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VectorUnary {
     /// The destination frame offset.
     pub dest_offset: u32,
@@ -115,7 +115,7 @@ pub struct VectorUnary {
 }
 
 /// Vector insert operation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VectorInsert {
     /// The destination frame offset.
     pub dest_offset: u32,
@@ -134,7 +134,7 @@ pub struct VectorInsert {
 }
 
 /// Vector shuffle operation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VectorShuffle {
     /// The destination frame offset.
     pub dest_offset: u32,
@@ -157,7 +157,7 @@ pub struct VectorShuffle {
 }
 
 /// Vector select operation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VectorSelect {
     /// The destination frame offset.
     pub dest_offset: u32,
@@ -180,7 +180,7 @@ pub struct VectorSelect {
 }
 
 /// Vector reduction operation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VectorReduce {
     /// The destination cell offset.
     pub dest_offset: u32,
@@ -197,7 +197,7 @@ pub struct VectorReduce {
 }
 
 /// Vector conversion operation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VectorConvert {
     /// The destination frame offset.
     pub dest_offset: u32,
@@ -218,14 +218,14 @@ pub struct VectorConvert {
 }
 
 /// Function bind operation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FunctionBind {
     /// The environment cell layout.
     pub environment: CellLayout,
 }
 
 /// Direct function call.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Call {
     /// The callee function index.
     pub function: u32,
@@ -238,7 +238,7 @@ pub struct Call {
 }
 
 /// Function call terminator with an explicit continuation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallBranch {
     /// The callee function index.
     pub function: u32,
@@ -251,7 +251,7 @@ pub struct CallBranch {
 }
 
 /// Class method call.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallVirtual {
     /// The receiver cell offset.
     pub receiver_offset: u32,
@@ -264,7 +264,7 @@ pub struct CallVirtual {
 }
 
 /// Class method call terminator with an explicit continuation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallVirtualBranch {
     /// The receiver cell offset.
     pub receiver_offset: u32,
@@ -279,7 +279,7 @@ pub struct CallVirtualBranch {
 }
 
 /// Dynamic method call.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallDynamic {
     /// The receiver cell offset.
     pub receiver_offset: u32,
@@ -292,7 +292,7 @@ pub struct CallDynamic {
 }
 
 /// Dynamic method call terminator with an explicit continuation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallDynamicBranch {
     /// The receiver cell offset.
     pub receiver_offset: u32,
@@ -307,7 +307,7 @@ pub struct CallDynamicBranch {
 }
 
 /// Indirect function call.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct IndirectCall {
     /// The callee cell offset.
     pub callee_offset: u32,
@@ -318,7 +318,7 @@ pub struct IndirectCall {
 }
 
 /// Indirect call terminator with an explicit continuation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct IndirectCallBranch {
     /// The callee cell offset.
     pub callee_offset: u32,
@@ -331,7 +331,7 @@ pub struct IndirectCallBranch {
 }
 
 /// Load a tensor element from a view.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorLoad {
     /// The destination scalar.
     pub dest_offset: u32,
@@ -348,7 +348,7 @@ pub struct TensorLoad {
 }
 
 /// Extract a tensor element from a tensor value.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorExtract {
     /// The destination scalar frame offset.
     pub dest_offset: u32,
@@ -361,7 +361,7 @@ pub struct TensorExtract {
 }
 
 /// Elementwise tensor binary operation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorBinary {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -382,7 +382,7 @@ pub struct TensorBinary {
 }
 
 /// Elementwise scalar binary kernel.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ElementBinaryKernel {
     /// Boolean and over one-byte boolean elements.
     AndBool,
@@ -503,7 +503,7 @@ pub enum ElementBinaryKernel {
 }
 
 /// Contiguous elementwise tensor binary operation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorContiguousBinary {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -520,7 +520,7 @@ pub struct TensorContiguousBinary {
 }
 
 /// Elementwise tensor unary operation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorUnary {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -537,7 +537,7 @@ pub struct TensorUnary {
 }
 
 /// Elementwise scalar unary kernel.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ElementUnaryKernel {
     /// Boolean not over one-byte boolean elements.
     NotBool,
@@ -554,7 +554,7 @@ pub enum ElementUnaryKernel {
 }
 
 /// Contiguous elementwise tensor unary operation.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorContiguousUnary {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -569,7 +569,7 @@ pub struct TensorContiguousUnary {
 }
 
 /// Store a tensor element into a view.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorStore {
     /// The destination tensor view.
     pub view_offset: u32,
@@ -586,7 +586,7 @@ pub struct TensorStore {
 }
 
 /// Fill a tensor reference with a scalar value.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorFill {
     /// The filled tensor view.
     pub view_offset: u32,
@@ -601,7 +601,7 @@ pub struct TensorFill {
 }
 
 /// Copy elements between tensor references.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorCopy {
     /// The target tensor view.
     pub target_offset: u32,
@@ -622,7 +622,7 @@ pub struct TensorCopy {
 }
 
 /// Cast a dense pointer into a tensor view descriptor.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorViewCast {
     /// The destination tensor view.
     pub dest_offset: u32,
@@ -633,7 +633,7 @@ pub struct TensorViewCast {
 }
 
 /// Reshape a tensor into a new shape.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorReshape {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -648,7 +648,7 @@ pub struct TensorReshape {
 }
 
 /// Broadcast a tensor into a larger shape.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorBroadcast {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -663,7 +663,7 @@ pub struct TensorBroadcast {
 }
 
 /// Permute tensor dimensions.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorTranspose {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -678,7 +678,7 @@ pub struct TensorTranspose {
 }
 
 /// Slice a tensor by offsets, sizes, and strides.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorSlice {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -699,7 +699,7 @@ pub struct TensorSlice {
 }
 
 /// Pad a tensor with low, high, and interior padding.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorPad {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -722,7 +722,7 @@ pub struct TensorPad {
 }
 
 /// Concatenate tensors along a dimension.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorConcat {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -737,7 +737,7 @@ pub struct TensorConcat {
 }
 
 /// Reduce a tensor along axes.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorReduce {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -756,7 +756,7 @@ pub struct TensorReduce {
 }
 
 /// Reduce a tensor along one axis and return selected source indices.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorIndexReduce {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -775,7 +775,7 @@ pub struct TensorIndexReduce {
 }
 
 /// Dot product of two tensors.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorDot {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -796,7 +796,7 @@ pub struct TensorDot {
 }
 
 /// Convolution between an input tensor and a kernel tensor.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorConvolution {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -823,7 +823,7 @@ pub struct TensorConvolution {
 }
 
 /// Gather slices from a tensor based on indices.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorGather {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -844,7 +844,7 @@ pub struct TensorGather {
 }
 
 /// Scatter updates into a tensor based on indices.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorScatter {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -871,7 +871,7 @@ pub struct TensorScatter {
 }
 
 /// Select tensor elements based on a boolean mask.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorSelect {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -892,7 +892,7 @@ pub struct TensorSelect {
 }
 
 /// Convert a tensor element type.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorConvert {
     /// The destination tensor frame offset.
     pub dest_offset: u32,
@@ -911,7 +911,7 @@ pub struct TensorConvert {
 }
 
 /// Create a view into a tensor reference.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorView {
     /// The destination tensor view.
     pub dest_offset: u32,
@@ -936,7 +936,7 @@ pub struct TensorView {
 }
 
 /// Intrinsic destination.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum IntrinsicDest {
     /// No destination.
     None,
@@ -947,7 +947,7 @@ pub enum IntrinsicDest {
 }
 
 /// Intrinsic call.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Intrinsic {
     /// The intrinsic kernel.
     pub kernel: mir::Intrinsic,
@@ -992,7 +992,7 @@ impl Intrinsic {
 }
 
 /// Tail call to a function.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TailCall {
     /// The callee function index.
     pub function: u32,
@@ -1003,7 +1003,7 @@ pub struct TailCall {
 }
 
 /// Class tail call.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TailCallVirtual {
     /// The receiver cell offset.
     pub receiver_offset: u32,
@@ -1016,7 +1016,7 @@ pub struct TailCallVirtual {
 }
 
 /// Dynamic tail call.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TailCallDynamic {
     /// The receiver cell offset.
     pub receiver_offset: u32,
@@ -1029,7 +1029,7 @@ pub struct TailCallDynamic {
 }
 
 /// Indirect tail call.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct IndirectTailCall {
     /// The callee cell offset.
     pub callee_offset: u32,

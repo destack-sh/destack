@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::mem::size_of;
 
-use destack_serde::{Schema, SchemaRef, SchemaRegistry};
+use destack_serde::{Reflect, SchemaRef, SchemaRegistry};
 use serde::{Deserialize, Serialize};
 
 /// Arena for storing elements and element like things.
@@ -26,9 +26,9 @@ impl<T> Default for Arena<T> {
     }
 }
 
-impl<T: Schema> Schema for Arena<T> {
-    fn schema(registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Sequence(Box::new(T::schema(registry)))
+impl<T: Reflect> Reflect for Arena<T> {
+    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
+        SchemaRef::Sequence(Box::new(T::reflect(registry)))
     }
 }
 

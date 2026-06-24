@@ -7,6 +7,7 @@ mod format;
 mod metadata;
 pub mod parse;
 mod rewrite;
+mod schema;
 pub mod source;
 mod tree;
 
@@ -15,5 +16,6 @@ pub use build::*;
 pub use format::*;
 pub use metadata::*;
 pub use rewrite::*;
+pub use schema::*;
 pub use source::*;
 pub use tree::*;
