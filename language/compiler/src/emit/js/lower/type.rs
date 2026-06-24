@@ -241,7 +241,17 @@ impl ModuleLowerer<'_> {
             dir::StringMapping::Capitalize => "Capitalize",
             dir::StringMapping::Uncapitalize => "Uncapitalize",
         };
-        let segment = self.strings.intern(mapping_name);
+        self.lower_type_function(source_id, mapping_name, target)
+    }
+
+    /// Lower one unary type function into a JS path type.
+    fn lower_type_function(
+        &mut self,
+        source_id: dir::LocalNodeIdAny,
+        name: &str,
+        target: dir::GlobalTypeId,
+    ) -> Result<js::LocalNodeId<js::TypeExpression>, EmitError> {
+        let segment = self.strings.intern(name);
         let path = js::Path {
             segments: smallvec::smallvec![segment],
         };
@@ -807,6 +817,9 @@ impl ModuleLowerer<'_> {
                     self.tree
                         .insert_from_source_any(ty, self.module.id, source_id)
                 }
+                dir::TypeOperation::NoInfer(unary) => {
+                    self.lower_type_function(source_id, "NoInfer", unary.target)?
+                }
                 // narrowing and static operations close before lowering
                 dir::TypeOperation::Narrow(_)
                 | dir::TypeOperation::TryOutput { .. }
@@ -826,7 +839,7 @@ impl ModuleLowerer<'_> {
                 self.module.id,
                 source_id,
             ),
-            dir::Type::Reference(reference) => {
+            dir::Type::Instance(reference) => {
                 let type_id = self
                     .try_lower_reference_type_from_source(source_id)?
                     .map_or_else(

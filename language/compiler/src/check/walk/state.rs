@@ -392,7 +392,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         arguments: Vec<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let symbol = self.check.language_symbol(item);
-        let reference = dir::Type::Reference(dir::GenericInstance { symbol, arguments });
+        let reference = dir::Type::Instance(dir::GenericInstance { symbol, arguments });
 
         self.push_type(reference, source)
     }

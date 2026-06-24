@@ -1254,7 +1254,7 @@ impl WalkState<'_, '_> {
             arguments.push(self.push_type(dir::Type::Parameter(parameter), source)?);
         }
         let ty = self.push_type(
-            dir::Type::Reference(dir::GenericInstance { symbol, arguments }),
+            dir::Type::Instance(dir::GenericInstance { symbol, arguments }),
             source,
         )?;
 
@@ -1272,7 +1272,7 @@ impl WalkState<'_, '_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<(dir::GlobalNodeIdAny, dir::GenericInstance)>> {
         let global_source = source.into_global_any(self.module);
-        let dir::Type::Reference(instance) = self.check.ty(ty)? else {
+        let dir::Type::Instance(instance) = self.check.ty(ty)? else {
             return Ok(None);
         };
 
@@ -1298,7 +1298,7 @@ impl WalkState<'_, '_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::ExtensionTarget> {
         // nominal roots anchor member lookup
-        if let dir::Type::Reference(instance) = self.check.ty(ty)? {
+        if let dir::Type::Instance(instance) = self.check.ty(ty)? {
             return Ok(dir::ExtensionTarget::Nominal {
                 root: instance.symbol,
                 ty,

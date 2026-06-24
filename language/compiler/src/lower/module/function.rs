@@ -174,7 +174,7 @@ impl<'a> AddressTakenCollector<'a> {
         let ty = self.types.get_type(type_id);
         match ty {
             dir::Type::Form(form) => self.type_is_reference_like(form.value, visited),
-            dir::Type::Reference(reference) => {
+            dir::Type::Instance(reference) => {
                 match self.symbols.get_symbol(reference.symbol.local_id).kind {
                     dir::SymbolKind::Class | dir::SymbolKind::Interface => true,
                     dir::SymbolKind::TypeAlias => self

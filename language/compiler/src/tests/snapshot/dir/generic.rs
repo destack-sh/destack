@@ -214,7 +214,7 @@ impl DirSnapshotBuilder<'_> {
             return;
         };
 
-        if let dir::Type::Reference(instance) = &ty {
+        if let dir::Type::Instance(instance) = &ty {
             self.add_generic_instance(
                 anchor,
                 source.map(str::to_string),

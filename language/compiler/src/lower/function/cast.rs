@@ -81,7 +81,7 @@ impl FunctionLowerer<'_> {
         {
             if matches!(
                 self.context.types.get_type(source_type_id),
-                dir::Type::Reference(source_reference)
+                dir::Type::Instance(source_reference)
                     if source_reference.symbol == constraint_symbol
             ) {
                 return Ok((value, source_mir_type));
@@ -1031,7 +1031,7 @@ impl FunctionLowerer<'_> {
         let Some(concrete_symbol) = concrete_symbol else {
             if matches!(
                 source_dir_type,
-                dir::Type::Reference(reference)
+                dir::Type::Instance(reference)
                     if self
                         .context
                         .symbol_kind_matches(reference.symbol, dir::SymbolKind::Interface)
@@ -1222,7 +1222,7 @@ impl FunctionLowerer<'_> {
     fn concrete_symbol_for_type(&self, type_id: dir::LocalTypeId) -> Option<dir::GlobalSymbolId> {
         // walk the type tree to find a nominal class or struct
         match self.context.types.get_type(type_id) {
-            dir::Type::Reference(reference)
+            dir::Type::Instance(reference)
                 if matches!(
                     self.context.symbol_kind(reference.symbol),
                     Some(dir::SymbolKind::Class | dir::SymbolKind::Struct)

@@ -196,7 +196,7 @@ impl WalkState<'_, '_> {
         position: GenericInductionPosition,
     ) -> CompilerResult<bool> {
         let symbol = match self.check.ty(ty)? {
-            dir::Type::Reference(instance) => {
+            dir::Type::Instance(instance) => {
                 if self.check.is_transparent_intrinsic_alias(instance.symbol) {
                     return Ok(false);
                 }
@@ -269,7 +269,7 @@ impl CheckState<'_> {
             self.set_solution(variable, solution)?;
         }
 
-        // write declaration symbols as their own applied references
+        // write declaration symbols as declaration references
         for module in modules {
             self.declare_module_reference_types(*module)?;
         }
@@ -277,7 +277,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Tie each type declaration symbol to its own applied reference.
+    /// Tie each type declaration symbol to its declaration reference.
     fn declare_module_reference_types(&mut self, module: ModuleId) -> CompilerResult<()> {
         let binding_table = self.module(module).binding_table();
         let symbols = binding_table
@@ -291,34 +291,19 @@ impl CheckState<'_> {
             .collect::<Vec<_>>();
 
         for symbol in symbols {
-            self.declare_symbol_reference_type(symbol)?;
+            self.declare_symbol_reference(symbol)?;
         }
 
         Ok(())
     }
 
-    /// Tie one declaration symbol to its own applied reference type.
-    fn declare_symbol_reference_type(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<()> {
+    /// Tie one declaration symbol to its declaration reference.
+    fn declare_symbol_reference(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<()> {
         let origin = Origin::Symbol(symbol);
         let source = self.origin_source_node(origin)?;
-
-        // apply the declaration's own parameters as arguments
-        let parameters = self
-            .generics
-            .template_by_symbol(symbol)
-            .map(|template| self.generic_template_parameters(template))
-            .unwrap_or_default();
-        let mut arguments = Vec::with_capacity(parameters.len());
-        for parameter in parameters {
-            arguments.push(self.push_type(
-                symbol.module_id,
-                dir::Type::Parameter(parameter),
-                source,
-            )?);
-        }
         let reference = self.push_type(
             symbol.module_id,
-            dir::Type::Reference(dir::GenericInstance { symbol, arguments }),
+            dir::Type::Reference(dir::TypeReference { symbol }),
             source,
         )?;
 

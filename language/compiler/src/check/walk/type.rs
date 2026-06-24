@@ -278,7 +278,7 @@ impl WalkState<'_, '_> {
                         .symbol(dir::LanguageItem::Lifetime)
                     {
                         Some(symbol) => Some(self.push_type(
-                            dir::Type::Reference(dir::GenericInstance {
+                            dir::Type::Instance(dir::GenericInstance {
                                 symbol,
                                 arguments: Vec::new(),
                             }),
@@ -618,7 +618,7 @@ impl WalkState<'_, '_> {
             }
 
             return self.push_type(
-                dir::Type::Reference(dir::GenericInstance {
+                dir::Type::Instance(dir::GenericInstance {
                     symbol,
                     arguments: Vec::new(),
                 }),
@@ -682,7 +682,7 @@ impl WalkState<'_, '_> {
         self.constrain_applied_symbol_arguments(source, &parameters, &arguments, &sources)?;
 
         self.push_type(
-            dir::Type::Reference(dir::GenericInstance {
+            dir::Type::Instance(dir::GenericInstance {
                 symbol,
                 arguments: arguments.into_vec(),
             }),

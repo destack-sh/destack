@@ -122,6 +122,7 @@ fn type_is_reducible_operation(ty: &dir::Type) -> bool {
                 | dir::TypeOperation::TemplateLiteral(_)
                 | dir::TypeOperation::Infer(_)
                 | dir::TypeOperation::KeyOf(_)
+                | dir::TypeOperation::NoInfer(_)
         )
     )
 }
@@ -305,7 +306,7 @@ fn evaluate_boolean_type_query_inner(
         evaluate_boolean_type_query_inner(ctx, statics, next_type_id, query, state)
     } else if let Some(signature_type_id) = callable_signature_type_id(&ty) {
         evaluate_boolean_type_query_inner(ctx, statics, signature_type_id, query, state)
-    } else if let dir::Type::Reference(reference) = ty {
+    } else if let dir::Type::Instance(reference) = ty {
         evaluate_reference_boolean_type_query(
             ctx,
             statics,
@@ -662,6 +663,7 @@ fn evaluate_terminal_boolean_type_query(
             | dir::Type::Variable(_)
             | dir::Type::Static(_)
             | dir::Type::Reference(_)
+            | dir::Type::Instance(_)
             | dir::Type::Member(_)
             | dir::Type::This
             | dir::Type::Intrinsic
@@ -774,7 +776,7 @@ pub fn tuple_type_arity(ctx: &LintModuleContext<'_>, type_id: dir::GlobalTypeId)
             dir::Type::Form(value) => {
                 current_type_id = value.value;
             }
-            dir::Type::Reference(reference) => {
+            dir::Type::Instance(reference) => {
                 current_type_id = reference_symbol_type_id(ctx, reference.symbol)?;
             }
             _ => return None,
@@ -816,7 +818,7 @@ fn is_string_array_type_inner(
             .elements
             .iter()
             .all(|element| is_string_type(ctx, element.ty, string_symbol)),
-        dir::Type::Reference(reference) => {
+        dir::Type::Instance(reference) => {
             if array_symbol.is_none_or(|array_symbol| reference.symbol != array_symbol) {
                 false
             } else {
@@ -1030,7 +1032,7 @@ fn has_non_void_this_parameter_type_inner(
         dir::Type::Form(value) => {
             has_non_void_this_parameter_type_inner(ctx, value.value, visited_type_ids)
         }
-        dir::Type::Reference(reference) => reference_symbol_type_id(ctx, reference.symbol)
+        dir::Type::Instance(reference) => reference_symbol_type_id(ctx, reference.symbol)
             .is_some_and(|target_type_id| {
                 has_non_void_this_parameter_type_inner(ctx, target_type_id, visited_type_ids)
             }),
@@ -1327,7 +1329,7 @@ fn type_truthiness_inner(
         .unwrap_or(dir::Type::Error);
     let truthiness = if let Some(next_type_id) = value_like_type_id(&ty) {
         type_truthiness_inner(ctx, strings, next_type_id, state)
-    } else if let dir::Type::Reference(reference) = ty {
+    } else if let dir::Type::Instance(reference) = ty {
         if let Some(next_type_id) = reference_symbol_type_id(ctx, reference.symbol) {
             type_truthiness_inner(ctx, strings, next_type_id, state)
         } else {
@@ -1407,10 +1409,11 @@ fn type_truthiness_inner(
             dir::Type::Parameter(_)
             | dir::Type::This
             | dir::Type::Intrinsic
+            | dir::Type::Reference(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Range(_)
             | dir::Type::Error => TypeTruthiness::Unknown,
-            dir::Type::Reference(_)
+            dir::Type::Instance(_)
             | dir::Type::Member(_)
             | dir::Type::Form(_)
             | dir::Type::Union(_)
@@ -1443,7 +1446,7 @@ fn type_nullishness_inner(
         .unwrap_or(dir::Type::Error);
     let nullishness = if let Some(next_type_id) = value_like_type_id(&ty) {
         type_nullishness_inner(ctx, next_type_id, state)
-    } else if let dir::Type::Reference(reference) = ty {
+    } else if let dir::Type::Instance(reference) = ty {
         if let Some(next_type_id) = reference_symbol_type_id(ctx, reference.symbol) {
             type_nullishness_inner(ctx, next_type_id, state)
         } else {
@@ -1476,10 +1479,11 @@ fn type_nullishness_inner(
             dir::Type::Parameter(_)
             | dir::Type::This
             | dir::Type::Intrinsic
+            | dir::Type::Reference(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Operation(_)
             | dir::Type::Error => TypeNullishness::Maybe,
-            dir::Type::Reference(_)
+            dir::Type::Instance(_)
             | dir::Type::Member(_)
             | dir::Type::Form(_)
             | dir::Type::Union(_)
@@ -1604,7 +1608,7 @@ fn type_may_be_nominal_symbol_inner(
     // inspect the type node
     let ty = ctx.checked_type(type_id).unwrap_or(dir::Type::Error);
     let result = match ty {
-        dir::Type::Reference(reference) => {
+        dir::Type::Instance(reference) => {
             if reference.symbol == symbol
                 || symbol_matches_relation_target(ctx, reference.symbol, symbol)
             {
@@ -1673,7 +1677,7 @@ fn function_parameter_type_at_inner(
             dir::Type::Form(value) => {
                 function_parameter_type_at_inner(ctx, value.value, index, state)
             }
-            dir::Type::Reference(reference) => {
+            dir::Type::Instance(reference) => {
                 if let Some(next_type_id) = reference_symbol_type_id(ctx, reference.symbol) {
                     function_parameter_type_at_inner(ctx, next_type_id, index, state)
                 } else {
@@ -1732,7 +1736,7 @@ fn function_parameter_types_at_inner(
             dir::Type::Form(value) => {
                 function_parameter_types_at_inner(ctx, value.value, index, state, results);
             }
-            dir::Type::Reference(reference) => {
+            dir::Type::Instance(reference) => {
                 for_each_reference_symbol_type_id(ctx, reference.symbol, |next_type_id| {
                     function_parameter_types_at_inner(ctx, next_type_id, index, state, results);
                 });
@@ -1772,7 +1776,7 @@ fn function_return_type_inner(
                     })
             }
             dir::Type::Form(value) => function_return_type_inner(ctx, value.value, state),
-            dir::Type::Reference(reference) => {
+            dir::Type::Instance(reference) => {
                 if let Some(next_type_id) = reference_symbol_type_id(ctx, reference.symbol) {
                     function_return_type_inner(ctx, next_type_id, state)
                 } else {

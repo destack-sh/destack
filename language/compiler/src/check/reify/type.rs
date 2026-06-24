@@ -226,7 +226,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         if depth == 0 {
             return Ok(None);
         }
-        let id = self.check.resolve_shallow(id)?;
+        let id = self.check.settled_root(id)?;
         let ty = self.check.ty(id)?.clone();
         let next = depth - 1;
 
@@ -282,7 +282,14 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 Self::reference(name)
             }
-            dir::Type::Reference(instance) => {
+            dir::Type::Reference(reference) => {
+                let Some(name) = self.symbol_name(reference.symbol) else {
+                    return Ok(None);
+                };
+
+                Self::reference(name)
+            }
+            dir::Type::Instance(instance) => {
                 let Some(name) = self.symbol_name(instance.symbol) else {
                     return Ok(None);
                 };
@@ -338,7 +345,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 let Some(element) = self.reify_depth(array.element, next)? else {
                     return Ok(None);
                 };
-                let count = self.check.resolve_shallow(array.count)?;
+                let count = self.check.settled_root(array.count)?;
                 let dir::Type::Literal(value) = self.check.ty(count)? else {
                     return Ok(None);
                 };
@@ -483,7 +490,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                         }
                     }
                     dir::Form::Placed { place } => {
-                        let place = match self.check.ty(self.check.resolve_shallow(*place)?)? {
+                        let place = match self.check.ty(self.check.settled_root(*place)?)? {
                             dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(
                                 space,
                             ))) => *space,
@@ -538,14 +545,14 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             return Ok(None);
         }
 
-        let id = self.check.resolve_shallow(id)?;
+        let id = self.check.settled_root(id)?;
         let dir::Type::Union(union) = self.check.ty(id)? else {
             return self.reify_depth(id, depth);
         };
 
         let mut elements = Vec::new();
         for element in &union.elements {
-            let element = self.check.resolve_shallow(*element)?;
+            let element = self.check.settled_root(*element)?;
             if self.type_is_undefined(element)? {
                 continue;
             }
@@ -565,7 +572,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
     /// Return whether one type is the undefined singleton.
     fn type_is_undefined(&self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
-        let id = self.check.resolve_shallow(id)?;
+        let id = self.check.settled_root(id)?;
         let is_undefined = matches!(
             self.check.ty(id)?,
             dir::Type::Undefined | dir::Type::Literal(dir::ScalarLiteral::Undefined)
@@ -745,7 +752,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         function: &dir::FunctionPointerType,
         depth: usize,
     ) -> CompilerResult<Option<dir::TypeExpression>> {
-        let signature = self.check.resolve_shallow(function.signature)?;
+        let signature = self.check.settled_root(function.signature)?;
         let dir::Type::FunctionSignature(signature) = self.check.ty(signature)?.clone() else {
             return Ok(None);
         };
@@ -900,7 +907,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         if depth == 0 {
             return Ok(None);
         }
-        let id = self.check.resolve_shallow(id)?;
+        let id = self.check.settled_root(id)?;
 
         let expression = match self.check.ty(id)? {
             dir::Type::Literal(value) => dir::Expression::ScalarLiteral(*value),

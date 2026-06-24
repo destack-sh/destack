@@ -118,6 +118,19 @@ pub struct GenericInstance {
     pub arguments: Vec<GlobalTypeId>,
 }
 
+/// One written reference to a type declaration before application.
+///
+/// Examples:
+/// ```ds
+/// Box                 // static declaration receiver in `Box.empty`
+/// Box.Output          // owner of a static associated type projection
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub struct TypeReference {
+    /// The referenced declaration symbol.
+    pub symbol: GlobalSymbolId,
+}
+
 /// Member type selected from an owner type.
 ///
 /// Examples:
@@ -1184,8 +1197,10 @@ pub enum Type {
 
     /// Generic parameter, like the `T` in `class Box<T>`.
     Parameter(GlobalGenericParameterId),
-    /// Type declaration reference, like `User` or `Map<string, User>`.
-    Reference(GenericInstance),
+    /// Type declaration reference before application, like `Box` in `Box.empty`.
+    Reference(TypeReference),
+    /// Applied type declaration, like `User` or `Map<string, User>`.
+    Instance(GenericInstance),
     /// This type in a method signature, like `this` in `clone(): this`.
     This,
     /// Member type selected from an owner type, like `T.Output`.
@@ -1319,8 +1334,9 @@ impl Type {
             | Self::This
             | Self::Range(_) => {}
 
-            // declaration applications
-            Self::Reference(instance) => {
+            // declaration references
+            Self::Reference(_) => {}
+            Self::Instance(instance) => {
                 for child in instance.arguments.iter().copied() {
                     visit(child);
                 }
@@ -1479,8 +1495,9 @@ impl Type {
             | Self::This
             | Self::Range(_) => {}
 
-            // declaration applications
-            Self::Reference(instance) => {
+            // declaration references
+            Self::Reference(_) => {}
+            Self::Instance(instance) => {
                 for argument in &mut instance.arguments {
                     *argument = map(*argument);
                 }
@@ -1636,6 +1653,7 @@ impl Type {
     pub fn symbol(&self) -> Option<GlobalSymbolId> {
         match self {
             Self::Reference(reference) => Some(reference.symbol),
+            Self::Instance(instance) => Some(instance.symbol),
             _ => None,
         }
     }

@@ -29,7 +29,7 @@ impl ModuleQueryContext<'_> {
         &self,
         workspace: &WorkspaceQueryContext<'_>,
         target_symbol: dir::GlobalSymbolId,
-        mut visit: impl FnMut(DirQueryContext<'_>, &dir::Extension) -> bool,
+        mut visit: impl FnMut(DirQueryContext<'_>, &dir::ExtensionDefinition) -> bool,
     ) {
         // normalize the target symbol across imports and re exports
         let canonical_target = self.canonical_symbol(target_symbol);
