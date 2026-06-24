@@ -302,7 +302,7 @@ pub struct ConditionalType {
 }
 
 /// A runtime guard narrowing applied to one source type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct NarrowType {
     /// The source type being narrowed.
     pub source: GlobalTypeId,

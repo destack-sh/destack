@@ -266,6 +266,12 @@ define_language_items! {
             /// Slice type.
             Slice => (Newtype, "collections/slice", "Slice"),
         }
+
+        /// `destack:collections/sequence`.
+        sequence {
+            /// Finite ordered indexed collection protocol.
+            Sequence => (NewtypeInterface, "collections/sequence", "Sequence"),
+        }
     }
 
     /// Compute types.
@@ -1151,6 +1157,9 @@ define_language_items! {
 
         /// `destack:ops/subscript`.
         subscript {
+            /// Membership protocol.
+            Has => (NewtypeInterface, "ops/subscript", "Has"),
+
             /// Index access protocol.
             Index => (NewtypeInterface, "ops/subscript", "Index"),
 
