@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::SymbolKind;
+use crate::{StringMapping, SymbolKind};
 
 /// The declaration kind expected for one language item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -103,6 +103,17 @@ macro_rules! define_language_items {
             pub fn export_name(&self) -> &'static str {
                 match self {
                     $($($(Self::$name => $export,)*)*)*
+                }
+            }
+
+            /// Return the string mapping declared by this item.
+            pub fn string_mapping(&self) -> Option<StringMapping> {
+                match self {
+                    Self::Uppercase => Some(StringMapping::Uppercase),
+                    Self::Lowercase => Some(StringMapping::Lowercase),
+                    Self::Capitalize => Some(StringMapping::Capitalize),
+                    Self::Uncapitalize => Some(StringMapping::Uncapitalize),
+                    _ => None,
                 }
             }
 
