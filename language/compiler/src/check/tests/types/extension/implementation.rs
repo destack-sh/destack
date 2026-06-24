@@ -358,3 +358,87 @@ extension of User implements Alias {
 "#,
     );
 }
+
+#[test]
+fn test_extension_implements_rejects_union_interface() {
+    let session = TestSession::single(
+        r#"
+struct User {}
+interface Show {
+    show(): string;
+}
+interface Debug {
+    debug(): string;
+}
+
+extension of User implements Show | Debug {
+    show(): string {
+        return "";
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct User {}
+interface Show {
+    show(): string;
+}
+interface Debug {
+    debug(): string;
+}
+
+extension of User implements Show | Debug {
+    show(): string {
+        return "";
+    }
+}
+
+=== checked ===
+struct User {}
+/// @type.symbol symbol=User source="struct User {}" type=User
+/// @definition.struct symbol=User source="struct User {}"
+
+interface Show {
+/// @type.symbol symbol=Show type=Show
+/// @definition.interface symbol=Show
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: Show) => string
+
+    show(): string;
+    /// @type.symbol symbol=Show.show source="show(): string" type=(this: Show) => string
+
+}
+interface Debug {
+/// @type.symbol symbol=Debug type=Debug
+/// @definition.interface symbol=Debug
+/// @definition.method symbol=Debug.debug source="debug(): string" slot=debug type=(this: Debug) => string
+
+    debug(): string;
+    /// @type.symbol symbol=Debug.debug source="debug(): string" type=(this: Debug) => string
+
+}
+
+extension of User implements Show | Debug {
+/// @definition.extension symbol=<module>#2 form=inherent target=User
+/// @definition.method symbol=show slot=show type=(this: User) => string
+/// @resolution.name source=User target=User
+/// @resolution.name source=Show target=Show
+/// @resolution.name source=Debug target=Debug
+
+    show(): string {
+    /// @type.symbol symbol=show type=(this: User) => string
+
+        return "";
+    }
+}
+"#,
+        r#"
+/// @diagnostic.error code=EC616 message="type 'User' can only implement interfaces, not 'Show | Debug'"
+/// @diagnostic.label line=10 column=35 span="|" line_source="extension of User implements Show | Debug {"
+"#,
+    );
+}
