@@ -3,7 +3,7 @@ use destack_source::DiagnosticCollection;
 use indexmap::IndexSet;
 
 use crate::CompilerResult;
-use crate::check::{CheckError, CheckState, CheckWarning, Origin};
+use crate::check::{CheckError, CheckState, CheckWarning};
 
 impl CheckState<'_> {
     /// Collect final diagnostics for one checked component.
@@ -27,13 +27,6 @@ impl CheckState<'_> {
 
             unresolved_origins.push(constraint.origin);
         }
-
-        // unfinished obligations never saw their inputs solve
-        unresolved_origins.extend(
-            self.obligations
-                .unfinished()
-                .map(|obligation| Origin::Node(obligation.source())),
-        );
 
         // report each unsolved anchor once
         let mut reported = IndexSet::new();

@@ -3,57 +3,48 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckError, CheckState, Dependency, Origin, Relation, Substitution};
+use crate::check::{
+    Answer, CheckError, CheckState, Dependency, MemberForm, Origin, Relation, Substitution, answer,
+};
 
-/// How one class member participates in override assignability.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum MemberForm {
-    /// Field members use regular assignability.
-    Field,
-    /// Method members ignore receiver assignability.
-    Method,
-}
-
-/// One instance member inherited from a base, closest base first.
-struct BaseMember {
+/// One class instance member that participates in heritage checks.
+struct ClassMember {
     /// The member key.
     key: dir::StaticKey,
     /// The member type folded into the subclass's view.
-    ty: dir::GlobalTypeId,
-    /// How the member participates in override assignability.
-    form: MemberForm,
-    /// Whether subclasses may override the member.
-    overridable: bool,
-    /// Whether subclasses must provide the member.
-    is_abstract: bool,
-}
-
-/// One member declared on the checked class itself.
-struct DeclaredMember {
-    /// The member key.
-    key: dir::StaticKey,
-    /// The member type.
     ty: dir::GlobalTypeId,
     /// The member declaration node.
     source: dir::GlobalNodeIdAny,
     /// How the member participates in override assignability.
     form: MemberForm,
+    /// Whether subclasses may override the member.
+    is_overridable: bool,
     /// Whether the member declares an override.
     is_override: bool,
     /// Whether the member is abstract.
     is_abstract: bool,
 }
 
-impl BaseMember {
-    /// Return the inherited class member represented by one definition member.
+/// One class's inherited member view.
+struct ClassHeritage {
+    /// Inherited members, closest base first.
+    members: Vec<ClassMember>,
+    /// The direct final base class, when extension is forbidden.
+    final_base: Option<dir::GlobalSymbolId>,
+}
+
+impl ClassMember {
+    /// Return the class member represented by one definition member.
     fn from_definition(member: &dir::DefinitionMember) -> Option<Self> {
         match member {
             dir::DefinitionMember::Field(field) if field.space == dir::MemberSpace::Instance => {
                 Some(Self {
                     key: field.key,
                     ty: field.ty,
+                    source: field.source,
                     form: MemberForm::Field,
-                    overridable: field.is_abstract,
+                    is_overridable: field.is_abstract,
+                    is_override: field.is_override,
                     is_abstract: field.is_abstract,
                 })
             }
@@ -63,47 +54,16 @@ impl BaseMember {
                 };
                 let is_abstract = method.abstraction == dir::MethodAbstraction::Abstract;
                 let is_virtual = method.abstraction == dir::MethodAbstraction::Virtual;
-                let overridable = is_abstract || is_virtual;
-
-                Some(Self {
-                    key,
-                    ty: method.ty,
-                    form: MemberForm::Method,
-                    overridable,
-                    is_abstract,
-                })
-            }
-            _ => None,
-        }
-    }
-}
-
-impl DeclaredMember {
-    /// Return the declared class member represented by one definition member.
-    fn from_definition(member: &dir::DefinitionMember) -> Option<Self> {
-        match member {
-            dir::DefinitionMember::Field(field) if field.space == dir::MemberSpace::Instance => {
-                Some(Self {
-                    key: field.key,
-                    ty: field.ty,
-                    source: field.source,
-                    form: MemberForm::Field,
-                    is_override: field.is_override,
-                    is_abstract: field.is_abstract,
-                })
-            }
-            dir::DefinitionMember::Method(method) if method.space == dir::MemberSpace::Instance => {
-                let dir::MemberSlot::Key(key) = method.slot else {
-                    return None;
-                };
+                let is_overridable = is_abstract || is_virtual;
 
                 Some(Self {
                     key,
                     ty: method.ty,
                     source: method.source,
                     form: MemberForm::Method,
+                    is_overridable,
                     is_override: method.is_override,
-                    is_abstract: method.abstraction == dir::MethodAbstraction::Abstract,
+                    is_abstract,
                 })
             }
             _ => None,
@@ -113,17 +73,14 @@ impl DeclaredMember {
 
 impl CheckState<'_> {
     /// Check one declaration against its heritage rules.
-    pub(in crate::check) fn check_heritage(
+    pub(in crate::check) fn check_declaration_heritage(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let origin = Origin::Node(source);
         let instance = self.declaration_instance(source, symbol)?;
-        let closure = match self.heritage_closure(origin, &instance)? {
-            Answer::Ready(closure) => closure,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let closure = answer!(self.heritage_closure(origin, &instance)?);
 
         // report graph errors before class member rules
         let mut errors = Vec::<DiagnosticBuilder<CheckError>>::new();
@@ -174,18 +131,19 @@ impl CheckState<'_> {
         let own = class
             .members
             .iter()
-            .filter_map(DeclaredMember::from_definition)
+            .filter_map(ClassMember::from_definition)
             .collect::<Vec<_>>();
 
         // collect inherited members walking up the extends chain
-        let (inherited, final_base) = self.class_base_members(origin, extends)?;
+        let heritage = self.class_heritage(origin, extends)?;
 
         // decide every rule before reporting anything
         // (so pending re-runs never duplicate diagnostics)
         let mut errors = Vec::<DiagnosticBuilder<CheckError>>::new();
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for member in &own {
-            let base = inherited
+            let base = heritage
+                .members
                 .iter()
                 .find(|inherited| inherited.key == member.key);
             let name = self.format_static_key(&member.key);
@@ -205,7 +163,7 @@ impl CheckState<'_> {
                 }
                 (true, Some(base)) => {
                     // overrides need virtual or abstract inherited members
-                    if !base.overridable {
+                    if !base.is_overridable {
                         errors.push(
                             CheckError::OverrideNotVirtual {
                                 anchor,
@@ -272,7 +230,7 @@ impl CheckState<'_> {
         // concrete classes must provide every inherited abstract member
         if !is_abstract {
             let mut required = Vec::new();
-            for member in &inherited {
+            for member in &heritage.members {
                 if required.iter().any(|(key, _)| *key == member.key) {
                     continue;
                 }
@@ -302,7 +260,7 @@ impl CheckState<'_> {
         }
 
         // final base classes reject the extension
-        if let Some(base) = final_base {
+        if let Some(base) = heritage.final_base {
             let (class_module, anchor) = self.source_anchor(source);
             errors.push(
                 CheckError::FinalClassExtended {
@@ -322,15 +280,15 @@ impl CheckState<'_> {
         Ok(Answer::Ready(self.report_heritage_errors(source, errors)))
     }
 
-    /// Return inherited class members and the direct final base, if present.
-    fn class_base_members(
+    /// Return the inherited class member view.
+    fn class_heritage(
         &mut self,
         origin: Origin,
         extends: Option<dir::NominalHeritage>,
-    ) -> CompilerResult<(Vec<BaseMember>, Option<dir::GlobalSymbolId>)> {
+    ) -> CompilerResult<ClassHeritage> {
         let module = origin.module();
         let source = self.origin_source_node(origin)?;
-        let mut inherited = Vec::<BaseMember>::new();
+        let mut members = Vec::<ClassMember>::new();
         let mut final_base = None;
         let mut substitution = Substitution::default();
         let mut extends = extends;
@@ -355,10 +313,10 @@ impl CheckState<'_> {
             let Some(dir::Definition::Class(base)) = self.definition(instance.symbol) else {
                 break;
             };
-            let members = base
+            let base_members = base
                 .members
                 .iter()
-                .filter_map(BaseMember::from_definition)
+                .filter_map(ClassMember::from_definition)
                 .collect::<Vec<_>>();
             extends = base.extends.clone();
 
@@ -369,16 +327,19 @@ impl CheckState<'_> {
 
             // apply this base's parameters to its inherited member types
             substitution = self.parameter_substitution(&instance)?;
-            for mut member in members {
+            for mut member in base_members {
                 if !substitution.is_empty() {
                     member.ty =
                         self.fold_type(module, source, member.ty, substitution.rewrite())?;
                 }
-                inherited.push(member);
+                members.push(member);
             }
         }
 
-        Ok((inherited, final_base))
+        Ok(ClassHeritage {
+            members,
+            final_base,
+        })
     }
 
     /// Return one declaration's own generic application.
@@ -388,8 +349,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GenericInstance> {
         let parameters = self
-            .generics
-            .template_by_symbol(symbol)
+            .symbol_template(symbol)
             .map(|template| self.generic_template_parameters(template))
             .unwrap_or_default();
         let mut arguments = Vec::with_capacity(parameters.len());

@@ -63,6 +63,8 @@ pub(in crate::check) enum OperatorMethod {
     Compare,
     /// Partial comparison method.
     PartialCompare,
+    /// Membership method.
+    Has,
 }
 
 impl OperatorMethod {
@@ -93,6 +95,7 @@ impl OperatorMethod {
             Self::Equal => "equal",
             Self::Compare => "compare",
             Self::PartialCompare => "partialCompare",
+            Self::Has => "has",
         }
     }
 }
@@ -281,4 +284,13 @@ pub(in crate::check) fn binary_operator_protocols(
         | dir::BinaryOperator::Coalesce
         | dir::BinaryOperator::In => SmallVec::new(),
     }
+}
+
+/// Return the membership protocol candidate for `key in value`.
+pub(in crate::check) fn membership_operator_protocol() -> OperatorProtocol {
+    OperatorProtocol::new(
+        dir::LanguageItem::Has,
+        OperatorMethod::Has,
+        OperatorExpressionResult::MethodReturn,
+    )
 }

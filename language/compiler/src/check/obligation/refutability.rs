@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckError, CheckState, MemberLookup, Origin, Relation};
+use crate::check::{Answer, CheckError, CheckState, MemberLookup, Origin, Relation, answer};
 use crate::{CompilerResult, DiagnosticAnchor};
 
 impl CheckState<'_> {
@@ -17,17 +17,15 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let origin = Origin::Node(source);
         let decision = self.decide_pattern_covers(origin, pattern, value)?;
-        let diagnostic = match decision {
-            Answer::Ready(true) => None,
-            Answer::Ready(false) => {
-                let missing = self.uncovered_witness(origin, &[pattern], value)?;
-                let (module, anchor) = self.source_anchor(source);
+        let diagnostic = if answer!(decision) {
+            None
+        } else {
+            let missing = self.uncovered_witness(origin, &[pattern], value)?;
+            let (module, anchor) = self.source_anchor(source);
 
-                let error = diagnostic(anchor, module, missing);
+            let error = diagnostic(anchor, module, missing);
 
-                Some(error)
-            }
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            Some(error)
         };
 
         Ok(Answer::Ready(diagnostic))
@@ -45,7 +43,7 @@ impl CheckState<'_> {
         // accept any covering pattern alternative
         for pattern in patterns {
             decision = decision.or(self.decide_pattern_covers(origin, *pattern, value)?);
-            if decision == Answer::Ready(true) {
+            if decision.is_ready_true() {
                 return Ok(decision);
             }
         }
@@ -70,7 +68,10 @@ impl CheckState<'_> {
         if let dir::Type::Union(union) = self.ty(value)? {
             let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
             for element in elements {
-                if self.decide_patterns_cover(origin, patterns, element)? == Answer::Ready(false) {
+                if self
+                    .decide_patterns_cover(origin, patterns, element)?
+                    .is_ready_false()
+                {
                     return self.uncovered_witness(origin, patterns, element);
                 }
             }
@@ -84,7 +85,10 @@ impl CheckState<'_> {
             for literal in domain {
                 let element =
                     self.push_type(origin.module(), dir::Type::Literal(literal), source)?;
-                if self.decide_patterns_cover(origin, patterns, element)? == Answer::Ready(false) {
+                if self
+                    .decide_patterns_cover(origin, patterns, element)?
+                    .is_ready_false()
+                {
                     return Ok(self.format_type(element));
                 }
             }
@@ -101,10 +105,7 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         // close the matched value first
-        let value = match self.evaluate_root(origin, value)? {
-            Answer::Ready(value) => value,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let value = answer!(self.evaluate_root(origin, value)?);
 
         // cover unions element-wise
         if let dir::Type::Union(union) = self.ty(value)? {
@@ -112,7 +113,7 @@ impl CheckState<'_> {
             let mut decision = Answer::Ready(true);
             for element in elements {
                 decision = decision.and(self.decide_pattern_covers(origin, pattern, element)?);
-                if decision == Answer::Ready(false) {
+                if decision.is_ready_false() {
                     return Ok(decision);
                 }
             }
@@ -128,7 +129,7 @@ impl CheckState<'_> {
                 let element =
                     self.push_type(origin.module(), dir::Type::Literal(literal), source)?;
                 decision = decision.and(self.decide_pattern_covers(origin, pattern, element)?);
-                if decision == Answer::Ready(false) {
+                if decision.is_ready_false() {
                     return Ok(decision);
                 }
             }
@@ -154,7 +155,7 @@ impl CheckState<'_> {
             dir::Pattern::Wildcard | dir::Pattern::Binding { pattern: None, .. } => {
                 Ok(Answer::Ready(true))
             }
-            // wrappers cover through their inner pattern
+            // pattern forms cover through their contained pattern
             dir::Pattern::Binding {
                 pattern: Some(inner),
                 ..
@@ -171,9 +172,7 @@ impl CheckState<'_> {
             // expression patterns cover values their type absorbs
             dir::Pattern::Expression { value: expression } => {
                 let expression = *expression;
-                let Some(expected) = self.node_type(expression.into_global_any(module)) else {
-                    return Ok(Answer::Ready(false));
-                };
+                let expected = self.node_type(expression.into_global_any(module))?;
 
                 self.decide_relation(origin, Relation::Assignable, value, expected)
             }
@@ -200,20 +199,15 @@ impl CheckState<'_> {
             | dir::Pattern::NominalObject { ty, fields } => {
                 let ty = *ty;
                 let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
-                let Some(tag) = self.node_type(ty.into_global_any(module)) else {
-                    return Ok(Answer::Ready(false));
-                };
+                let tag = self.node_type(ty.into_global_any(module))?;
                 let tag_decision =
                     self.decide_relation(origin, Relation::Assignable, value, tag)?;
-                if tag_decision != Answer::Ready(true) {
+                if !tag_decision.is_ready_true() {
                     return Ok(tag_decision);
                 }
 
                 // project the newtype payload behind the tag when present
-                let payload = match self.newtype_payload(origin, value)? {
-                    Answer::Ready(payload) => payload,
-                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-                };
+                let payload = answer!(self.newtype_payload(origin, value)?);
 
                 self.decide_fields_cover(origin, module, &fields, payload)
             }
@@ -285,7 +279,7 @@ impl CheckState<'_> {
             };
 
             decision = decision.and(field_decision);
-            if decision == Answer::Ready(false) {
+            if decision.is_ready_false() {
                 return Ok(decision);
             }
         }
@@ -310,14 +304,8 @@ impl CheckState<'_> {
         let literal = *literal;
 
         // read solved literal bounds
-        let start = match self.range_bound_literal(origin, module, start)? {
-            Answer::Ready(start) => start,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
-        let end = match self.range_bound_literal(origin, module, end)? {
-            Answer::Ready(end) => end,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let start = answer!(self.range_bound_literal(origin, module, start)?);
+        let end = answer!(self.range_bound_literal(origin, module, end)?);
 
         let range = dir::RangeType::new(start, end, end_kind);
         let covered = range.contains_literal(literal);
@@ -335,14 +323,9 @@ impl CheckState<'_> {
         let Some(bound) = bound else {
             return Ok(Answer::Ready(None));
         };
-        let Some(ty) = self.node_type(bound.into_global_any(module)) else {
-            return Ok(Answer::Ready(None));
-        };
+        let ty = self.node_type(bound.into_global_any(module))?;
 
-        let reduced = match self.evaluate_root(origin, ty)? {
-            Answer::Ready(reduced) => reduced,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let reduced = answer!(self.evaluate_root(origin, ty)?);
         match self.ty(reduced)? {
             dir::Type::Literal(literal) => Ok(Answer::Ready(Some(*literal))),
             _ => Ok(Answer::Ready(None)),
@@ -357,7 +340,7 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let instance = match self.ty(value)? {
-            dir::Type::Reference(instance) => instance.clone(),
+            dir::Type::Instance(instance) => instance.clone(),
             _ => return Ok(Answer::Ready(value)),
         };
         let backing = match self.definition(instance.symbol) {
@@ -376,10 +359,6 @@ impl CheckState<'_> {
         };
 
         self.evaluate_root(origin, backing)
-            .map(|answer| match answer {
-                Answer::Ready(backing) => Answer::Ready(backing),
-                Answer::Pending(blockers) => Answer::Pending(blockers),
-            })
     }
 
     /// Return the finite scalar domain of one closed type when it has one.
