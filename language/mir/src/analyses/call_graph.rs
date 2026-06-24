@@ -184,6 +184,81 @@ pub struct CallGraphScc {
 }
 
 impl CallGraphScc {
+    /// Build strongly connected components for one call graph.
+    fn build(tree: &mir::Tree, callgraph: &CallGraph) -> Self {
+        // size the dense graph from the function arena ids
+        let function_count = tree
+            .iter_nodes::<mir::Function>()
+            .map(|(id, _)| id.get())
+            .max()
+            .map_or(0, |last| last + 1);
+
+        // count direct call edges per function
+        let mut edge_offsets = vec![0u32; function_count + 1];
+        for (function_id, _) in tree.iter_nodes::<mir::Function>() {
+            let source = function_id.get();
+            let count = callgraph
+                .outgoing(function_id)
+                .iter()
+                .filter(|edge| edge.is_direct())
+                .count();
+            edge_offsets[source + 1] = count as u32;
+        }
+
+        // prefix sum edge counts into CSR offsets
+        for source in 0..function_count {
+            edge_offsets[source + 1] += edge_offsets[source];
+        }
+
+        // copy direct call targets into dense edge storage
+        let mut edge_targets = Vec::with_capacity(edge_offsets[function_count] as usize);
+        for source in 0..function_count {
+            let function_id = mir::LocalNodeId::<mir::Function>::new(source as u32);
+            for edge in callgraph.outgoing(function_id) {
+                if edge.is_direct() {
+                    edge_targets.push(edge.callee.get() as u32);
+                }
+            }
+        }
+
+        // partition the direct call graph
+        let graph = DenseGraph::new(&edge_offsets, &edge_targets);
+        let partition = graph.strongly_connected_components();
+
+        // count component sizes to identify multi-function cycles
+        let component_count = partition.component_count() as usize;
+        let mut component_sizes = vec![0usize; component_count];
+        for component in partition.components() {
+            component_sizes[*component as usize] += 1;
+        }
+
+        // map each function to its component
+        let mut scc_map = CallGraphScc {
+            function_scc: vec![0; function_count],
+            recursive_sccs: BitSet::new(component_count),
+        };
+        for (function_id, _) in tree.iter_nodes::<mir::Function>() {
+            let component = partition.component(function_id.get()) as usize;
+            scc_map.function_scc[function_id.get()] = component as u32;
+        }
+
+        // mark recursive components from cycles or direct self-calls
+        for (function_id, _) in tree.iter_nodes::<mir::Function>() {
+            let component = partition.component(function_id.get()) as usize;
+            let is_cycle = component_sizes[component] > 1;
+            let is_self_call = callgraph
+                .outgoing(function_id)
+                .iter()
+                .any(|edge| edge.is_direct() && edge.callee == function_id);
+
+            if is_cycle || is_self_call {
+                scc_map.recursive_sccs.insert(component);
+            }
+        }
+
+        scc_map
+    }
+
     /// Return the SCC id for a function.
     pub fn scc_id(&self, function_id: mir::LocalNodeId<mir::Function>) -> Option<usize> {
         self.function_scc
@@ -214,83 +289,8 @@ impl ModuleAnalysis for CallGraphScc {
     /// Compute the SCCs for the module call graph.
     fn compute(tree: &mir::Tree, analyses: &ModuleAnalyses) -> Self {
         let callgraph = analyses.get::<CallGraph>(tree);
-        compute_callgraph_scc(tree, &callgraph)
+        Self::build(tree, &callgraph)
     }
-}
-
-/// Compute SCCs for the module call graph.
-fn compute_callgraph_scc(tree: &mir::Tree, callgraph: &CallGraph) -> CallGraphScc {
-    // size the dense graph from the function arena ids
-    let function_count = tree
-        .iter_nodes::<mir::Function>()
-        .map(|(id, _)| id.get())
-        .max()
-        .map_or(0, |last| last + 1);
-
-    // count direct call edges per function
-    let mut edge_offsets = vec![0u32; function_count + 1];
-    for (function_id, _) in tree.iter_nodes::<mir::Function>() {
-        let source = function_id.get();
-        let count = callgraph
-            .outgoing(function_id)
-            .iter()
-            .filter(|edge| edge.is_direct())
-            .count();
-        edge_offsets[source + 1] = count as u32;
-    }
-
-    // prefix sum edge counts into CSR offsets
-    for source in 0..function_count {
-        edge_offsets[source + 1] += edge_offsets[source];
-    }
-
-    // copy direct call targets into dense edge storage
-    let mut edge_targets = Vec::with_capacity(edge_offsets[function_count] as usize);
-    for source in 0..function_count {
-        let function_id = mir::LocalNodeId::<mir::Function>::new(source as u32);
-        for edge in callgraph.outgoing(function_id) {
-            if edge.is_direct() {
-                edge_targets.push(edge.callee.get() as u32);
-            }
-        }
-    }
-
-    // partition the direct call graph
-    let graph = DenseGraph::new(&edge_offsets, &edge_targets);
-    let partition = graph.strongly_connected_components();
-
-    // count component sizes to identify multi-function cycles
-    let component_count = partition.component_count() as usize;
-    let mut component_sizes = vec![0usize; component_count];
-    for component in partition.components() {
-        component_sizes[*component as usize] += 1;
-    }
-
-    // map each function to its component
-    let mut scc_map = CallGraphScc {
-        function_scc: vec![0; function_count],
-        recursive_sccs: BitSet::new(component_count),
-    };
-    for (function_id, _) in tree.iter_nodes::<mir::Function>() {
-        let component = partition.component(function_id.get()) as usize;
-        scc_map.function_scc[function_id.get()] = component as u32;
-    }
-
-    // mark recursive components from cycles or direct self-calls
-    for (function_id, _) in tree.iter_nodes::<mir::Function>() {
-        let component = partition.component(function_id.get()) as usize;
-        let is_cycle = component_sizes[component] > 1;
-        let is_self_call = callgraph
-            .outgoing(function_id)
-            .iter()
-            .any(|edge| edge.is_direct() && edge.callee == function_id);
-
-        if is_cycle || is_self_call {
-            scc_map.recursive_sccs.insert(component);
-        }
-    }
-
-    scc_map
 }
 
 /// Resolved callsite data for call graph construction.
@@ -307,34 +307,6 @@ struct CallSite {
     is_precise: bool,
 }
 
-/// Return the resolved function target for an instruction callsite.
-pub fn instruction_resolved_target(
-    instruction_id: mir::LocalNodeId<mir::Instruction>,
-    instruction: &mir::Instruction,
-    tree: &mir::Tree,
-) -> Option<mir::LocalNodeId<mir::Function>> {
-    instruction.call_direct_target().or_else(|| {
-        tree.metadata
-            .functions
-            .call(mir::CallSite::Instruction(instruction_id))
-            .and_then(|metadata| metadata.target)
-    })
-}
-
-/// Return the resolved function target for a terminator callsite.
-pub fn terminator_resolved_target(
-    block_id: mir::LocalNodeId<mir::Block>,
-    terminator: &mir::Terminator,
-    tree: &mir::Tree,
-) -> Option<mir::LocalNodeId<mir::Function>> {
-    terminator.call_direct_target().or_else(|| {
-        tree.metadata
-            .functions
-            .call(mir::CallSite::Terminator(block_id))
-            .and_then(|metadata| metadata.target)
-    })
-}
-
 impl CallSite {
     /// Build a callsite from an instruction when it represents a call.
     fn from_instruction(
@@ -344,7 +316,7 @@ impl CallSite {
         tree: &mir::Tree,
     ) -> Option<Self> {
         let dispatch = instruction.call_dispatch_kind()?;
-        let callee = instruction_resolved_target(instruction_id, instruction, tree);
+        let callee = Self::instruction_target(instruction_id, instruction, tree);
         let is_precise = matches!(dispatch, mir::CallDispatchKind::Direct);
 
         Some(Self {
@@ -384,14 +356,14 @@ impl CallSite {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Virtual { slot: *slot },
-                callee: terminator_resolved_target(block_id, terminator, tree),
+                callee: Self::terminator_target(block_id, terminator, tree),
                 is_precise: false,
             }),
             mir::Terminator::CallDynamic { slot, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Dynamic { slot: *slot },
-                callee: terminator_resolved_target(block_id, terminator, tree),
+                callee: Self::terminator_target(block_id, terminator, tree),
                 is_precise: false,
             }),
             mir::Terminator::TailCall { function, .. } => Some(Self {
@@ -412,18 +384,46 @@ impl CallSite {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Virtual { slot: *slot },
-                callee: terminator_resolved_target(block_id, terminator, tree),
+                callee: Self::terminator_target(block_id, terminator, tree),
                 is_precise: false,
             }),
             mir::Terminator::TailCallDynamic { slot, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Dynamic { slot: *slot },
-                callee: terminator_resolved_target(block_id, terminator, tree),
+                callee: Self::terminator_target(block_id, terminator, tree),
                 is_precise: false,
             }),
             _ => None,
         }
+    }
+
+    /// Return the resolved function target for an instruction callsite.
+    fn instruction_target(
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
+        instruction: &mir::Instruction,
+        tree: &mir::Tree,
+    ) -> Option<mir::LocalNodeId<mir::Function>> {
+        instruction.call_direct_target().or_else(|| {
+            tree.metadata
+                .functions
+                .call(mir::CallSite::Instruction(instruction_id))
+                .and_then(|metadata| metadata.target)
+        })
+    }
+
+    /// Return the resolved function target for a terminator callsite.
+    fn terminator_target(
+        block_id: mir::LocalNodeId<mir::Block>,
+        terminator: &mir::Terminator,
+        tree: &mir::Tree,
+    ) -> Option<mir::LocalNodeId<mir::Function>> {
+        terminator.call_direct_target().or_else(|| {
+            tree.metadata
+                .functions
+                .call(mir::CallSite::Terminator(block_id))
+                .and_then(|metadata| metadata.target)
+        })
     }
 }
 

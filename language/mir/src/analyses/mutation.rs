@@ -11,11 +11,21 @@ impl Mutation {
     /// Nothing changed; every analysis stays valid.
     pub const NONE: Self = Self(0);
     /// Control flow changed: blocks added or removed, or edge topology rewritten.
-    pub const CONTROL_FLOW: Self = Self(1 << 0);
+    pub const CONTROL: Self = Self(1 << 0);
     /// Values changed: instructions or operands added, removed, or rewritten.
-    pub const VALUES: Self = Self(1 << 1);
+    pub const VALUE: Self = Self(1 << 1);
+    /// Memory operations or memory metadata changed.
+    pub const MEMORY: Self = Self(1 << 2);
+    /// Effect metadata changed.
+    pub const EFFECT: Self = Self(1 << 3);
+    /// Layout or type representation facts changed.
+    pub const LAYOUT: Self = Self(1 << 4);
+    /// Profile metadata changed.
+    pub const PROFILE: Self = Self(1 << 5);
+    /// Symbol visibility or linkage changed.
+    pub const SYMBOL: Self = Self(1 << 6);
     /// Everything changed; every analysis is invalidated.
-    pub const ALL: Self = Self(0b11);
+    pub const ALL: Self = Self(0b0111_1111);
 
     /// Return the union of two change sets.
     pub const fn union(self, other: Self) -> Self {

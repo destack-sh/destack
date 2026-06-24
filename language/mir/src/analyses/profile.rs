@@ -18,34 +18,36 @@ pub enum CallsiteHotness {
     Cold,
 }
 
-/// Classify hotness from a block count relative to a function entry count.
-pub fn block_hotness_from_counts(block_count: u64, entry_count: u64) -> CallsiteHotness {
-    // guard against missing counts
-    if block_count == 0 {
-        return CallsiteHotness::Unknown;
-    }
+impl CallsiteHotness {
+    /// Classify hotness from a block count relative to a function entry count.
+    pub fn from_counts(block_count: u64, entry_count: u64) -> Self {
+        // guard against missing counts
+        if block_count == 0 {
+            return Self::Unknown;
+        }
 
-    // classify by absolute counts
-    if block_count >= HOT_COUNT {
-        return CallsiteHotness::Hot;
-    }
-    if block_count <= COLD_COUNT {
-        return CallsiteHotness::Cold;
-    }
+        // classify by absolute counts
+        if block_count >= HOT_COUNT {
+            return Self::Hot;
+        }
+        if block_count <= COLD_COUNT {
+            return Self::Cold;
+        }
 
-    // fall back to ratio based classification
-    if entry_count == 0 {
-        return CallsiteHotness::Unknown;
-    }
+        // fall back to ratio based classification
+        if entry_count == 0 {
+            return Self::Unknown;
+        }
 
-    // compare ratios against thresholds
-    let ratio = block_count as f64 / entry_count as f64;
-    if ratio >= HOT_RATIO {
-        return CallsiteHotness::Hot;
-    }
-    if ratio <= COLD_RATIO {
-        return CallsiteHotness::Cold;
-    }
+        // compare ratios against thresholds
+        let ratio = block_count as f64 / entry_count as f64;
+        if ratio >= HOT_RATIO {
+            return Self::Hot;
+        }
+        if ratio <= COLD_RATIO {
+            return Self::Cold;
+        }
 
-    CallsiteHotness::Unknown
+        Self::Unknown
+    }
 }

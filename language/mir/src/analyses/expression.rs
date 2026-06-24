@@ -47,6 +47,249 @@ pub enum ExpressionKey {
     FieldGet { aggregate: mir::Value, index: u32 },
 }
 
+impl ExpressionKey {
+    /// Try to create an expression key for an instruction.
+    ///
+    /// Returns `None` for instructions with side effects such as calls and stores.
+    /// Returns `None` for instructions that are not pure computations like loads.
+    /// Returns `None` for instructions that cannot be safely deduplicated.
+    pub fn from_instruction(instruction: &mir::Instruction, tree: &mir::Tree) -> Option<Self> {
+        match instruction {
+            mir::Instruction::Error => {
+                panic!("recovered MIR instruction reached optimizer");
+            }
+
+            // canonicalize commutative binary operations
+            mir::Instruction::Binary {
+                operator,
+                left,
+                right,
+                ..
+            } => {
+                let left = *left;
+                let right = *right;
+                let (left, right) = if operator.is_commutative() && right.0 < left.0 {
+                    (right, left)
+                } else {
+                    (left, right)
+                };
+
+                Some(Self::Binary {
+                    operator: *operator,
+                    left,
+                    right,
+                })
+            }
+
+            // pure unary operation
+            mir::Instruction::Unary {
+                operator, argument, ..
+            } => Some(Self::Unary {
+                operator: *operator,
+                argument: *argument,
+            }),
+
+            // pure cast operation
+            mir::Instruction::Cast {
+                operator,
+                argument,
+                to_type,
+                ..
+            } => {
+                let type_key = TypeKey::from_type(*to_type, tree);
+
+                Some(Self::Cast {
+                    operator: *operator,
+                    argument: *argument,
+                    to_type: type_key,
+                })
+            }
+
+            // pure value selection operations
+            mir::Instruction::Select {
+                condition,
+                then_value,
+                else_value,
+                ..
+            } => Some(Self::Select {
+                condition: *condition,
+                then_value: *then_value,
+                else_value: *else_value,
+            }),
+            mir::Instruction::VectorSelect {
+                mask,
+                then_value,
+                else_value,
+                ..
+            } => Some(Self::Select {
+                condition: *mask,
+                then_value: *then_value,
+                else_value: *else_value,
+            }),
+            mir::Instruction::TensorSelect {
+                mask,
+                then_value,
+                else_value,
+                ..
+            } => Some(Self::Select {
+                condition: *mask,
+                then_value: *then_value,
+                else_value: *else_value,
+            }),
+
+            // pure field access
+            mir::Instruction::FieldGet {
+                aggregate, index, ..
+            } => Some(Self::FieldGet {
+                aggregate: *aggregate,
+                index: *index,
+            }),
+
+            // side effects and unstable reads are not expression keys
+            mir::Instruction::Const { .. }
+            | mir::Instruction::Call { .. }
+            | mir::Instruction::CallVirtual { .. }
+            | mir::Instruction::CallDynamic { .. }
+            | mir::Instruction::CallIndirect { .. }
+            | mir::Instruction::Intrinsic { .. }
+            | mir::Instruction::Load { .. }
+            | mir::Instruction::Store { .. }
+            | mir::Instruction::LocalGet { .. }
+            | mir::Instruction::LocalSet { .. }
+            | mir::Instruction::NewZeroed { .. }
+            | mir::Instruction::NewUninit { .. }
+            | mir::Instruction::NewComplete { .. }
+            | mir::Instruction::NewSliceZeroed { .. }
+            | mir::Instruction::NewSliceUninit { .. }
+            | mir::Instruction::Free { .. }
+            | mir::Instruction::Pin { .. }
+            | mir::Instruction::Unpin { .. }
+            | mir::Instruction::FrameAllocZeroed { .. }
+            | mir::Instruction::FrameAllocUninit { .. }
+            | mir::Instruction::Struct { .. }
+            | mir::Instruction::Tuple { .. }
+            | mir::Instruction::Array { .. }
+            | mir::Instruction::VectorSplat { .. }
+            | mir::Instruction::VectorExtract { .. }
+            | mir::Instruction::VectorInsert { .. }
+            | mir::Instruction::VectorShuffle { .. }
+            | mir::Instruction::VectorReduce { .. }
+            | mir::Instruction::VectorCompare { .. }
+            | mir::Instruction::VectorConvert { .. }
+            | mir::Instruction::TensorSplat { .. }
+            | mir::Instruction::TensorExtract { .. }
+            | mir::Instruction::TensorLoad { .. }
+            | mir::Instruction::TensorStore { .. }
+            | mir::Instruction::TensorFill { .. }
+            | mir::Instruction::TensorCopy { .. }
+            | mir::Instruction::TensorReshape { .. }
+            | mir::Instruction::TensorBroadcast { .. }
+            | mir::Instruction::TensorTranspose { .. }
+            | mir::Instruction::TensorCast { .. }
+            | mir::Instruction::TensorView { .. }
+            | mir::Instruction::TensorSlice { .. }
+            | mir::Instruction::TensorPad { .. }
+            | mir::Instruction::TensorConcat { .. }
+            | mir::Instruction::TensorReduce { .. }
+            | mir::Instruction::TensorIndexReduce { .. }
+            | mir::Instruction::TensorDot { .. }
+            | mir::Instruction::TensorConvolution { .. }
+            | mir::Instruction::TensorGather { .. }
+            | mir::Instruction::TensorScatter { .. }
+            | mir::Instruction::TensorCompare { .. }
+            | mir::Instruction::TensorConvert { .. }
+            | mir::Instruction::AtomicLoad { .. }
+            | mir::Instruction::AtomicStore { .. }
+            | mir::Instruction::AtomicCompareExchange { .. }
+            | mir::Instruction::AtomicRmw { .. }
+            | mir::Instruction::AtomicFence { .. }
+            | mir::Instruction::BarrierWrite { .. }
+            | mir::Instruction::FieldSet { .. }
+            | mir::Instruction::SliceView { .. }
+            | mir::Instruction::GlobalAddr { .. }
+            | mir::Instruction::FunctionAddr { .. }
+            | mir::Instruction::FunctionBind { .. }
+            | mir::Instruction::FunctionEnvironment { .. }
+            | mir::Instruction::FunctionPointer { .. }
+            | mir::Instruction::FunctionEnvironmentCurrent { .. }
+            | mir::Instruction::LocalAddr { .. }
+            | mir::Instruction::FieldAddr { .. }
+            | mir::Instruction::ElementAddr { .. }
+            | mir::Instruction::Assume { .. }
+            | mir::Instruction::SliceLength { .. }
+            | mir::Instruction::DynamicPayload { .. }
+            | mir::Instruction::DynamicType { .. }
+            | mir::Instruction::VariantTag { .. }
+            | mir::Instruction::VariantPayload { .. }
+            | mir::Instruction::ProfileIncrement { .. }
+            | mir::Instruction::ProfileValue { .. } => None,
+        }
+    }
+
+    /// Apply value substitutions to this expression key.
+    pub fn substitute(self, substitutions: &HashMap<mir::Value, mir::Value>) -> Self {
+        match self {
+            Self::Binary {
+                operator,
+                left,
+                right,
+            } => {
+                let left = *substitutions.get(&left).unwrap_or(&left);
+                let right = *substitutions.get(&right).unwrap_or(&right);
+                let (left, right) = if operator.is_commutative() && right.0 < left.0 {
+                    (right, left)
+                } else {
+                    (left, right)
+                };
+
+                Self::Binary {
+                    operator,
+                    left,
+                    right,
+                }
+            }
+            Self::Unary { operator, argument } => {
+                let argument = *substitutions.get(&argument).unwrap_or(&argument);
+
+                Self::Unary { operator, argument }
+            }
+            Self::Cast {
+                operator,
+                argument,
+                to_type,
+            } => {
+                let argument = *substitutions.get(&argument).unwrap_or(&argument);
+
+                Self::Cast {
+                    operator,
+                    argument,
+                    to_type,
+                }
+            }
+            Self::Select {
+                condition,
+                then_value,
+                else_value,
+            } => {
+                let condition = *substitutions.get(&condition).unwrap_or(&condition);
+                let then_value = *substitutions.get(&then_value).unwrap_or(&then_value);
+                let else_value = *substitutions.get(&else_value).unwrap_or(&else_value);
+
+                Self::Select {
+                    condition,
+                    then_value,
+                    else_value,
+                }
+            }
+            Self::FieldGet { aggregate, index } => {
+                let aggregate = *substitutions.get(&aggregate).unwrap_or(&aggregate);
+
+                Self::FieldGet { aggregate, index }
+            }
+        }
+    }
+}
+
 /// Cached value equivalence for pure expressions.
 #[derive(Debug)]
 pub struct ValueEquivalence<'a> {
@@ -196,7 +439,7 @@ impl<'a> ValueEquivalence<'a> {
                     return false;
                 }
 
-                if !binary_operator_is_commutative(*left_op) {
+                if !left_op.is_commutative() {
                     return self.equivalent(left_arg, right_left)
                         && self.equivalent(right_arg, right_right);
                 }
@@ -417,283 +660,6 @@ impl<'a> ValueEquivalence<'a> {
     }
 }
 
-/// Try to create an expression key for an instruction.
-///
-/// Returns `None` for instructions with side effects such as calls and stores.
-/// Returns `None` for instructions that are not pure computations like loads.
-/// Returns `None` for instructions that cannot be safely deduplicated.
-pub fn expression_key_from_instruction(
-    instruction: &mir::Instruction,
-    tree: &mir::Tree,
-) -> Option<ExpressionKey> {
-    match instruction {
-        mir::Instruction::Error => {
-            panic!("recovered MIR instruction reached optimizer");
-        }
-
-        // binary operations
-        mir::Instruction::Binary {
-            operator,
-            left,
-            right,
-            ..
-        } => {
-            let left = *left;
-            let right = *right;
-
-            // canonicalize commutative ops so (v1 + v0) matches (v0 + v1)
-            let (left, right) = if binary_operator_is_commutative(*operator) && right.0 < left.0 {
-                (right, left)
-            } else {
-                (left, right)
-            };
-            Some(ExpressionKey::Binary {
-                operator: *operator,
-                left,
-                right,
-            })
-        }
-
-        // unary operations
-        mir::Instruction::Unary {
-            operator, argument, ..
-        } => Some(ExpressionKey::Unary {
-            operator: *operator,
-            argument: *argument,
-        }),
-
-        // cast operations
-        mir::Instruction::Cast {
-            operator,
-            argument,
-            to_type,
-            ..
-        } => {
-            let type_key = TypeKey::from_type(*to_type, tree);
-            Some(ExpressionKey::Cast {
-                operator: *operator,
-                argument: *argument,
-                to_type: type_key,
-            })
-        }
-
-        // select (pure, no side effects)
-        mir::Instruction::Select {
-            condition,
-            then_value,
-            else_value,
-            ..
-        } => Some(ExpressionKey::Select {
-            condition: *condition,
-            then_value: *then_value,
-            else_value: *else_value,
-        }),
-        mir::Instruction::VectorSelect {
-            mask,
-            then_value,
-            else_value,
-            ..
-        } => Some(ExpressionKey::Select {
-            condition: *mask,
-            then_value: *then_value,
-            else_value: *else_value,
-        }),
-        mir::Instruction::TensorSelect {
-            mask,
-            then_value,
-            else_value,
-            ..
-        } => Some(ExpressionKey::Select {
-            condition: *mask,
-            then_value: *then_value,
-            else_value: *else_value,
-        }),
-
-        // field access (pure, no side effects)
-        mir::Instruction::FieldGet {
-            aggregate, index, ..
-        } => Some(ExpressionKey::FieldGet {
-            aggregate: *aggregate,
-            index: *index,
-        }),
-
-        // constants are not CSE'd by expression keys (handled by constant folding)
-        // mir::Constant doesn't implement Hash/Eq, and constant deduplication
-        // is better handled by dedicated constant merging passes
-        mir::Instruction::Const { .. } => None,
-
-        // instructions with side effects or that cannot be safely deduplicated
-        mir::Instruction::Call { .. }
-        | mir::Instruction::CallVirtual { .. }
-        | mir::Instruction::CallDynamic { .. }
-        | mir::Instruction::CallIndirect { .. }
-        | mir::Instruction::Intrinsic { .. }
-        | mir::Instruction::Load { .. }
-        | mir::Instruction::Store { .. }
-        | mir::Instruction::LocalGet { .. }
-        | mir::Instruction::LocalSet { .. }
-        | mir::Instruction::NewZeroed { .. }
-        | mir::Instruction::NewUninit { .. }
-        | mir::Instruction::NewComplete { .. }
-        | mir::Instruction::NewSliceZeroed { .. }
-        | mir::Instruction::NewSliceUninit { .. }
-        | mir::Instruction::Free { .. }
-        | mir::Instruction::Pin { .. }
-        | mir::Instruction::Unpin { .. }
-        | mir::Instruction::FrameAllocZeroed { .. }
-        | mir::Instruction::FrameAllocUninit { .. }
-        | mir::Instruction::Struct { .. }
-        | mir::Instruction::Tuple { .. }
-        | mir::Instruction::Array { .. }
-        | mir::Instruction::VectorSplat { .. }
-        | mir::Instruction::VectorExtract { .. }
-        | mir::Instruction::VectorInsert { .. }
-        | mir::Instruction::VectorShuffle { .. }
-        | mir::Instruction::VectorReduce { .. }
-        | mir::Instruction::VectorCompare { .. }
-        | mir::Instruction::VectorConvert { .. }
-        | mir::Instruction::TensorSplat { .. }
-        | mir::Instruction::TensorExtract { .. }
-        | mir::Instruction::TensorLoad { .. }
-        | mir::Instruction::TensorStore { .. }
-        | mir::Instruction::TensorFill { .. }
-        | mir::Instruction::TensorCopy { .. }
-        | mir::Instruction::TensorReshape { .. }
-        | mir::Instruction::TensorBroadcast { .. }
-        | mir::Instruction::TensorTranspose { .. }
-        | mir::Instruction::TensorCast { .. }
-        | mir::Instruction::TensorView { .. }
-        | mir::Instruction::TensorSlice { .. }
-        | mir::Instruction::TensorPad { .. }
-        | mir::Instruction::TensorConcat { .. }
-        | mir::Instruction::TensorReduce { .. }
-        | mir::Instruction::TensorIndexReduce { .. }
-        | mir::Instruction::TensorDot { .. }
-        | mir::Instruction::TensorConvolution { .. }
-        | mir::Instruction::TensorGather { .. }
-        | mir::Instruction::TensorScatter { .. }
-        | mir::Instruction::TensorCompare { .. }
-        | mir::Instruction::TensorConvert { .. }
-        | mir::Instruction::AtomicLoad { .. }
-        | mir::Instruction::AtomicStore { .. }
-        | mir::Instruction::AtomicCompareExchange { .. }
-        | mir::Instruction::AtomicRmw { .. }
-        | mir::Instruction::AtomicFence { .. }
-        | mir::Instruction::BarrierWrite { .. }
-        | mir::Instruction::FieldSet { .. }
-        | mir::Instruction::SliceView { .. }
-        | mir::Instruction::GlobalAddr { .. }
-        | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::FunctionBind { .. }
-        | mir::Instruction::FunctionEnvironment { .. }
-        | mir::Instruction::FunctionPointer { .. }
-        | mir::Instruction::FunctionEnvironmentCurrent { .. }
-        | mir::Instruction::LocalAddr { .. }
-        | mir::Instruction::FieldAddr { .. }
-        | mir::Instruction::ElementAddr { .. }
-        | mir::Instruction::Assume { .. }
-        | mir::Instruction::SliceLength { .. }
-        | mir::Instruction::DynamicPayload { .. }
-        | mir::Instruction::DynamicType { .. }
-        | mir::Instruction::VariantTag { .. }
-        | mir::Instruction::VariantPayload { .. }
-        | mir::Instruction::ProfileIncrement { .. }
-        | mir::Instruction::ProfileValue { .. } => None,
-    }
-}
-
-/// Check if a binary operator is commutative.
-///
-/// For commutative operators, operand order does not affect the result.
-/// This enables matching `a + b` with `b + a`.
-pub fn binary_operator_is_commutative(operator: mir::BinaryOperator) -> bool {
-    matches!(
-        operator,
-        mir::BinaryOperator::Add
-            | mir::BinaryOperator::Multiply
-            | mir::BinaryOperator::FloatAdd
-            | mir::BinaryOperator::FloatMultiply
-            | mir::BinaryOperator::And
-            | mir::BinaryOperator::Or
-            | mir::BinaryOperator::Xor
-            | mir::BinaryOperator::Equal
-            | mir::BinaryOperator::NotEqual
-            | mir::BinaryOperator::FloatEqual
-            | mir::BinaryOperator::FloatNotEqual
-    )
-}
-
-/// Apply value substitutions to an expression key.
-///
-/// Replaces value references in the key according to the substitution map.
-/// Re canonicalizes commutative operations after substitution.
-pub fn expression_key_substitute(
-    key: ExpressionKey,
-    substitutions: &HashMap<mir::Value, mir::Value>,
-) -> ExpressionKey {
-    match key {
-        ExpressionKey::Binary {
-            operator,
-            left,
-            right,
-        } => {
-            let left = *substitutions.get(&left).unwrap_or(&left);
-            let right = *substitutions.get(&right).unwrap_or(&right);
-
-            // re canonicalize after substitution
-            let (left, right) = if binary_operator_is_commutative(operator) && right.0 < left.0 {
-                (right, left)
-            } else {
-                (left, right)
-            };
-
-            ExpressionKey::Binary {
-                operator,
-                left,
-                right,
-            }
-        }
-
-        ExpressionKey::Unary { operator, argument } => {
-            let argument = *substitutions.get(&argument).unwrap_or(&argument);
-            ExpressionKey::Unary { operator, argument }
-        }
-
-        ExpressionKey::Cast {
-            operator,
-            argument,
-            to_type,
-        } => {
-            let argument = *substitutions.get(&argument).unwrap_or(&argument);
-            ExpressionKey::Cast {
-                operator,
-                argument,
-                to_type,
-            }
-        }
-
-        ExpressionKey::Select {
-            condition,
-            then_value,
-            else_value,
-        } => {
-            let condition = *substitutions.get(&condition).unwrap_or(&condition);
-            let then_value = *substitutions.get(&then_value).unwrap_or(&then_value);
-            let else_value = *substitutions.get(&else_value).unwrap_or(&else_value);
-            ExpressionKey::Select {
-                condition,
-                then_value,
-                else_value,
-            }
-        }
-
-        ExpressionKey::FieldGet { aggregate, index } => {
-            let aggregate = *substitutions.get(&aggregate).unwrap_or(&aggregate);
-            ExpressionKey::FieldGet { aggregate, index }
-        }
-    }
-}
-
 /// Resolve transitive substitution chains.
 ///
 /// If we have `v4` mapping to `v2` and `v2` mapping to `v0`, this produces `v4` to `v0` and `v2` to `v0`.
@@ -727,40 +693,22 @@ mod tests {
     #[test]
     fn test_is_commutative() {
         // commutative
-        assert!(binary_operator_is_commutative(mir::BinaryOperator::Add));
-        assert!(binary_operator_is_commutative(
-            mir::BinaryOperator::Multiply
-        ));
-        assert!(binary_operator_is_commutative(
-            mir::BinaryOperator::FloatAdd
-        ));
-        assert!(binary_operator_is_commutative(
-            mir::BinaryOperator::FloatMultiply
-        ));
-        assert!(binary_operator_is_commutative(mir::BinaryOperator::And));
-        assert!(binary_operator_is_commutative(mir::BinaryOperator::Or));
-        assert!(binary_operator_is_commutative(mir::BinaryOperator::Xor));
-        assert!(binary_operator_is_commutative(mir::BinaryOperator::Equal));
-        assert!(binary_operator_is_commutative(
-            mir::BinaryOperator::NotEqual
-        ));
+        assert!(mir::BinaryOperator::Add.is_commutative());
+        assert!(mir::BinaryOperator::Multiply.is_commutative());
+        assert!(mir::BinaryOperator::FloatAdd.is_commutative());
+        assert!(mir::BinaryOperator::FloatMultiply.is_commutative());
+        assert!(mir::BinaryOperator::And.is_commutative());
+        assert!(mir::BinaryOperator::Or.is_commutative());
+        assert!(mir::BinaryOperator::Xor.is_commutative());
+        assert!(mir::BinaryOperator::Equal.is_commutative());
+        assert!(mir::BinaryOperator::NotEqual.is_commutative());
 
         // non commutative
-        assert!(!binary_operator_is_commutative(
-            mir::BinaryOperator::Subtract
-        ));
-        assert!(!binary_operator_is_commutative(
-            mir::BinaryOperator::SignedDivide
-        ));
-        assert!(!binary_operator_is_commutative(
-            mir::BinaryOperator::UnsignedDivide
-        ));
-        assert!(!binary_operator_is_commutative(
-            mir::BinaryOperator::SignedLessThan
-        ));
-        assert!(!binary_operator_is_commutative(
-            mir::BinaryOperator::ShiftLeft
-        ));
+        assert!(!mir::BinaryOperator::Subtract.is_commutative());
+        assert!(!mir::BinaryOperator::SignedDivide.is_commutative());
+        assert!(!mir::BinaryOperator::UnsignedDivide.is_commutative());
+        assert!(!mir::BinaryOperator::SignedLessThan.is_commutative());
+        assert!(!mir::BinaryOperator::ShiftLeft.is_commutative());
     }
 
     /// Substitution chains are resolved transitively.

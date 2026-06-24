@@ -45,7 +45,7 @@ pub enum TypeKey {
     },
     /// Linear uninitialized allocation token type.
     Uninit { value: Box<TypeKey> },
-    /// Reference or pointer type.
+    /// Reference or reference type.
     Reference {
         kind: mir::ReferenceKind,
         lifetime: mir::Lifetime,
@@ -130,7 +130,7 @@ pub enum TypeKey {
         /// The captured environment representation.
         environment: Box<TypeKey>,
     },
-    /// Function pointer type.
+    /// Function reference type.
     FunctionPointer { signature: Box<TypeKey> },
     /// Recursive reference to a previously visited type id.
     Recursive { id: mir::LocalNodeId<mir::Type> },
@@ -404,40 +404,40 @@ impl TypeKey {
     }
 }
 
-/// Return the unsigned integer width for a value when it is known.
-pub fn unsigned_int_width_for_value(
-    value: mir::Value,
-    value_types: &ValueTypeMap,
-    pointer_width_bits: u16,
-    tree: &mir::Tree,
-) -> Option<u16> {
-    // look up the value type
-    let type_id = value_types.require_value_type(value);
-    let ty = tree.get(type_id);
+impl ValueTypeMap {
+    /// Return the unsigned integer width for a value when it is known.
+    pub fn unsigned_int_width(
+        &self,
+        value: mir::Value,
+        pointer_width_bits: u16,
+        tree: &mir::Tree,
+    ) -> Option<u16> {
+        let type_id = self.require_value_type(value);
+        let ty = tree.get(type_id);
 
-    // accept unsigned integer types
-    match ty {
-        mir::Type::Int {
-            width,
-            is_signed: signed,
-        } if !*signed => Some(*width),
-        mir::Type::Usize => Some(pointer_width_bits),
-        _ => None,
+        // accept unsigned integer types
+        match ty {
+            mir::Type::Int {
+                width,
+                is_signed: signed,
+            } if !*signed => Some(*width),
+            mir::Type::Usize => Some(pointer_width_bits),
+            _ => None,
+        }
     }
-}
 
-/// Return true when two values can be safely substituted.
-pub fn can_substitute_value(
-    destination: mir::Value,
-    replacement: mir::Value,
-    value_types: &ValueTypeMap,
-    tree: &mir::Tree,
-) -> bool {
-    // enforce type equality when substituting values
-    let destination_type = value_types.require_value_type(destination);
-    let replacement_type = value_types.require_value_type(replacement);
+    /// Return whether one value can safely replace another value.
+    pub fn can_substitute(
+        &self,
+        destination: mir::Value,
+        replacement: mir::Value,
+        tree: &mir::Tree,
+    ) -> bool {
+        let destination_type = self.require_value_type(destination);
+        let replacement_type = self.require_value_type(replacement);
 
-    types_are_equal(destination_type, replacement_type, tree)
+        types_are_equal(destination_type, replacement_type, tree)
+    }
 }
 
 /// Convert a bit width into bytes when the width is byte aligned.
@@ -454,7 +454,7 @@ fn bytes_for_width(width: u16) -> Option<u64> {
 /// This performs deep structural comparison, resolving `LocalNodeId<Type>`
 /// references through the tree. Two types are equal if they have the
 /// same structure, regardless of whether they have different node IDs.
-pub fn types_are_equal(
+fn types_are_equal(
     a: mir::LocalNodeId<mir::Type>,
     b: mir::LocalNodeId<mir::Type>,
     tree: &mir::Tree,

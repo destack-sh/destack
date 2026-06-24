@@ -1,9 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use super::{
-    Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, LoopAnalysis, Mutation,
-    terminator_targets,
-};
+use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, LoopAnalysis, Mutation};
 use crate::{Block, Edge, Function, FunctionProfile, LocalNodeId, Profile, Terminator, Tree};
 
 /// Largest loop scale, bounding the geometric series for near-certain back edges.
@@ -61,11 +58,96 @@ impl BlockFrequency {
             })
             .collect()
     }
+
+    /// Return relative successor probabilities for one terminator's edges.
+    pub fn successor_probabilities(
+        tree: &Tree,
+        source: LocalNodeId<Block>,
+        terminator: &Terminator,
+        profile: Option<&FunctionProfile>,
+    ) -> Vec<(Edge, f64)> {
+        let targets = terminator.targets(tree, source);
+        if targets.is_empty() {
+            return Vec::new();
+        }
+
+        // sum profiled edge counts to normalize against
+        let counts = targets
+            .iter()
+            .map(|(edge, _)| edge_count(profile, *edge))
+            .collect::<Vec<_>>();
+        let total: u64 = counts.iter().copied().sum();
+        let count = targets.len() as f64;
+
+        // each edge takes its profiled share, or an even split when unweighted
+        targets
+            .iter()
+            .enumerate()
+            .map(|(index, (edge, _))| {
+                let probability = if total > 0 {
+                    counts[index] as f64 / total as f64
+                } else {
+                    1.0 / count
+                };
+                (*edge, probability)
+            })
+            .collect()
+    }
+
+    /// Return absolute block execution counts from profile entry counts.
+    pub fn profile_block_counts(
+        function: &Function,
+        tree: &Tree,
+        profile: Option<&Profile>,
+        analyses: &FunctionAnalyses,
+    ) -> HashMap<LocalNodeId<Block>, u64> {
+        let Some(profile) = profile else {
+            return HashMap::new();
+        };
+
+        let Some(function_profile) = profile.function(function.symbol) else {
+            return HashMap::new();
+        };
+
+        Self::compute_profiled(function, tree, analyses, Some(function_profile))
+            .block_counts(function_profile.entry.get())
+    }
+
+    /// Return absolute edge execution counts from block counts.
+    pub fn edge_counts(
+        function: &Function,
+        tree: &Tree,
+        profile: Option<&Profile>,
+        block_counts: &HashMap<LocalNodeId<Block>, u64>,
+    ) -> HashMap<Edge, u64> {
+        let mut counts = HashMap::new();
+        let function_profile = profile.and_then(|profile| profile.function(function.symbol));
+
+        for &block in &function.blocks {
+            // split this block's count across its successors
+            let source_count = block_counts.get(&block).copied().unwrap_or(0);
+            if source_count == 0 {
+                continue;
+            }
+
+            let terminator = tree.get(tree.get(block).terminator);
+            for (edge, probability) in
+                Self::successor_probabilities(tree, block, terminator, function_profile)
+            {
+                let count = (source_count as f64 * probability).round() as u64;
+                if count > 0 {
+                    counts.insert(edge, count);
+                }
+            }
+        }
+
+        counts
+    }
 }
 
 impl Analysis for BlockFrequency {
     const ID: AnalysisId = AnalysisId("blockfreq");
-    const INVALIDATED_BY: Mutation = Mutation::CONTROL_FLOW;
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL;
 }
 
 impl FunctionAnalysis for BlockFrequency {
@@ -118,7 +200,7 @@ impl<'a> Frequencies<'a> {
         loops: &'a LoopAnalysis,
         profile: Option<&'a FunctionProfile>,
     ) -> Self {
-        let (probabilities, weighted) = branch_probabilities(function, tree, profile);
+        let (probabilities, weighted) = Self::branch_probabilities(function, tree, profile);
 
         // record the innermost loop containing each block
         let mut innermost = HashMap::new();
@@ -224,7 +306,7 @@ impl<'a> Frequencies<'a> {
                 continue;
             }
             let terminator = self.tree.get(self.tree.get(block).terminator);
-            for (edge, _) in terminator_targets(self.tree, block, terminator) {
+            for (edge, _) in terminator.targets(self.tree, block) {
                 let probability = self.probabilities.get(&edge).copied().unwrap_or(0.0);
                 let frequency = source_frequency * probability;
                 if frequency != 0.0 {
@@ -320,7 +402,8 @@ impl<'a> Frequencies<'a> {
         // a plain block at this level distributes by its terminator probabilities
         if self.innermost[&node] == level {
             let terminator = self.tree.get(self.tree.get(node).terminator);
-            return terminator_targets(self.tree, node, terminator)
+            return terminator
+                .targets(self.tree, node)
                 .into_iter()
                 .map(|(edge, _)| {
                     let probability = self.probabilities.get(&edge).copied().unwrap_or(0.0);
@@ -387,70 +470,35 @@ impl<'a> Frequencies<'a> {
     fn loop_depth(&self, index: usize) -> u32 {
         self.loops.get_loop(index).map(|l| l.depth).unwrap_or(0)
     }
-}
 
-/// Successor probabilities for every edge, and whether any profile edge count is present.
-fn branch_probabilities(
-    function: &Function,
-    tree: &Tree,
-    profile: Option<&FunctionProfile>,
-) -> (HashMap<Edge, f64>, bool) {
-    let mut probabilities = HashMap::new();
-    let mut weighted = false;
+    /// Return successor probabilities for every edge and whether any profile edge count is present.
+    fn branch_probabilities(
+        function: &Function,
+        tree: &Tree,
+        profile: Option<&FunctionProfile>,
+    ) -> (HashMap<Edge, f64>, bool) {
+        let mut probabilities = HashMap::new();
+        let mut weighted = false;
 
-    for &block in &function.blocks {
-        let terminator = tree.get(tree.get(block).terminator);
+        for &block in &function.blocks {
+            let terminator = tree.get(tree.get(block).terminator);
 
-        // a profiled edge marks the function as weighted
-        let targets = terminator_targets(tree, block, terminator);
-        if targets
-            .iter()
-            .any(|(edge, _)| edge_count(profile, *edge) > 0)
-        {
-            weighted = true;
+            // a profiled edge marks the function as weighted
+            let targets = terminator.targets(tree, block);
+            if targets
+                .iter()
+                .any(|(edge, _)| edge_count(profile, *edge) > 0)
+            {
+                weighted = true;
+            }
+
+            probabilities.extend(BlockFrequency::successor_probabilities(
+                tree, block, terminator, profile,
+            ));
         }
 
-        probabilities.extend(successor_probabilities(tree, block, terminator, profile));
+        (probabilities, weighted)
     }
-
-    (probabilities, weighted)
-}
-
-/// Relative successor probabilities for one terminator's edges.
-///
-/// Probabilities follow profile edge counts, or split evenly when none are known.
-pub fn successor_probabilities(
-    tree: &Tree,
-    source: LocalNodeId<Block>,
-    terminator: &Terminator,
-    profile: Option<&FunctionProfile>,
-) -> Vec<(Edge, f64)> {
-    let targets = terminator_targets(tree, source, terminator);
-    if targets.is_empty() {
-        return Vec::new();
-    }
-
-    // sum profiled edge counts to normalize against
-    let counts = targets
-        .iter()
-        .map(|(edge, _)| edge_count(profile, *edge))
-        .collect::<Vec<_>>();
-    let total: u64 = counts.iter().copied().sum();
-    let count = targets.len() as f64;
-
-    // each edge takes its profiled share, or an even split when unweighted
-    targets
-        .iter()
-        .enumerate()
-        .map(|(index, (edge, _))| {
-            let probability = if total > 0 {
-                counts[index] as f64 / total as f64
-            } else {
-                1.0 / count
-            };
-            (*edge, probability)
-        })
-        .collect()
 }
 
 /// Return one profiled edge count, or zero when absent.
@@ -458,62 +506,6 @@ fn edge_count(profile: Option<&FunctionProfile>, edge: Edge) -> u64 {
     profile
         .and_then(|profile| profile.edges.get(&edge))
         .map_or(0, |count| count.get())
-}
-
-/// Absolute block execution counts from a function's profile entry count.
-///
-/// Bridges loaded profile data to the frequency model: the entry count scales
-/// the relative block frequencies into absolute counts, or none without a profile.
-pub fn profile_block_counts(
-    function: &Function,
-    tree: &Tree,
-    profile: Option<&Profile>,
-    analyses: &FunctionAnalyses,
-) -> HashMap<LocalNodeId<Block>, u64> {
-    let Some(profile) = profile else {
-        return HashMap::new();
-    };
-
-    let Some(function_profile) = profile.function(function.symbol) else {
-        return HashMap::new();
-    };
-
-    BlockFrequency::compute_profiled(function, tree, analyses, Some(function_profile))
-        .block_counts(function_profile.entry.get())
-}
-
-/// Edge execution counts, splitting each block count by its branch probabilities.
-///
-/// This is the absolute form of the `edge = block * probability` identity, valid
-/// on a working count map a pass has mutated and on terminators it has just built.
-pub fn edge_counts(
-    function: &Function,
-    tree: &Tree,
-    profile: Option<&Profile>,
-    block_counts: &HashMap<LocalNodeId<Block>, u64>,
-) -> HashMap<Edge, u64> {
-    let mut counts = HashMap::new();
-    let function_profile = profile.and_then(|profile| profile.function(function.symbol));
-
-    for &block in &function.blocks {
-        // split this block's count across its successors
-        let source_count = block_counts.get(&block).copied().unwrap_or(0);
-        if source_count == 0 {
-            continue;
-        }
-
-        let terminator = tree.get(tree.get(block).terminator);
-        for (edge, probability) in
-            successor_probabilities(tree, block, terminator, function_profile)
-        {
-            let count = (source_count as f64 * probability).round() as u64;
-            if count > 0 {
-                counts.insert(edge, count);
-            }
-        }
-    }
-
-    counts
 }
 
 /// The loop scale: the geometric series sum for one loop's back-edge mass.
@@ -554,7 +546,7 @@ mod tests {
         let mut edges = HashMap::new();
 
         // attach counts to the structural branch successors
-        for (edge, _) in terminator_targets(tree, block, terminator) {
+        for (edge, _) in terminator.targets(tree, block) {
             match edge.successor {
                 Successor::BranchThen => {
                     edges.insert(edge, Count::new(then_count));
@@ -670,7 +662,7 @@ b3:
         // the back edge carries the body frequency, the exit carries one entry
         let header = blocks[1];
         let terminator = tree.get(tree.get(header).terminator);
-        for (edge, _) in terminator_targets(&tree, header, terminator) {
+        for (edge, _) in terminator.targets(&tree, header) {
             if edge.target == blocks[2] {
                 assert!((frequency.edge(edge) - 9.0).abs() < 1e-6);
             } else if edge.target == blocks[3] {

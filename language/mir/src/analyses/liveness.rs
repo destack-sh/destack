@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
 use crate::{Block, Function, Instruction, Local, LocalNodeId, Tree, Value};
@@ -19,14 +19,14 @@ struct BlockLivenessFacts {
 /// Liveness analysis for one MIR function.
 #[derive(Debug, Clone, Default)]
 pub struct FunctionLiveness {
-    /// Values live at entry to each block.
-    value_live_in: HashMap<LocalNodeId<Block>, HashSet<Value>>,
-    /// Values live at exit of each block.
-    value_live_out: HashMap<LocalNodeId<Block>, HashSet<Value>>,
-    /// Locals live at entry to each block.
-    local_live_in: HashMap<LocalNodeId<Block>, HashSet<LocalNodeId<Local>>>,
-    /// Locals live at exit of each block.
-    local_live_out: HashMap<LocalNodeId<Block>, HashSet<LocalNodeId<Local>>>,
+    /// Values live at entry indexed by block id.
+    value_live_in: Vec<HashSet<Value>>,
+    /// Values live at exit indexed by block id.
+    value_live_out: Vec<HashSet<Value>>,
+    /// Locals live at entry indexed by block id.
+    local_live_in: Vec<HashSet<LocalNodeId<Local>>>,
+    /// Locals live at exit indexed by block id.
+    local_live_out: Vec<HashSet<LocalNodeId<Local>>>,
 }
 
 impl FunctionLiveness {
@@ -45,11 +45,10 @@ impl FunctionLiveness {
     }
 
     /// Collect local use and def facts for each block.
-    fn collect_block_facts(
-        function: &Function,
-        tree: &Tree,
-    ) -> HashMap<LocalNodeId<Block>, BlockLivenessFacts> {
-        let mut facts = HashMap::new();
+    fn collect_block_facts(function: &Function, tree: &Tree) -> Vec<Option<BlockLivenessFacts>> {
+        let block_count = function.block_capacity();
+        let mut facts = Vec::with_capacity(block_count);
+        facts.resize_with(block_count, || None);
 
         // per block facts
         for &block_id in &function.blocks {
@@ -94,7 +93,7 @@ impl FunctionLiveness {
                 }
             }
 
-            facts.insert(block_id, block_facts);
+            facts[block_id.id as usize] = Some(block_facts);
         }
 
         facts
@@ -158,17 +157,22 @@ impl FunctionLiveness {
 
     /// Initialize empty liveness state for all blocks.
     fn initialize(function: &Function) -> Self {
-        let mut liveness = Self::default();
+        let block_count = function.block_capacity();
+        let mut value_live_in = Vec::with_capacity(block_count);
+        let mut value_live_out = Vec::with_capacity(block_count);
+        let mut local_live_in = Vec::with_capacity(block_count);
+        let mut local_live_out = Vec::with_capacity(block_count);
+        value_live_in.resize_with(block_count, HashSet::new);
+        value_live_out.resize_with(block_count, HashSet::new);
+        local_live_in.resize_with(block_count, HashSet::new);
+        local_live_out.resize_with(block_count, HashSet::new);
 
-        // empty block state
-        for &block_id in &function.blocks {
-            liveness.value_live_in.insert(block_id, HashSet::new());
-            liveness.value_live_out.insert(block_id, HashSet::new());
-            liveness.local_live_in.insert(block_id, HashSet::new());
-            liveness.local_live_out.insert(block_id, HashSet::new());
+        Self {
+            value_live_in,
+            value_live_out,
+            local_live_in,
+            local_live_out,
         }
-
-        liveness
     }
 
     /// Propagate liveness until the block states stabilize.
@@ -176,7 +180,7 @@ impl FunctionLiveness {
         liveness: &mut Self,
         function: &Function,
         tree: &Tree,
-        facts: &HashMap<LocalNodeId<Block>, BlockLivenessFacts>,
+        facts: &[Option<BlockLivenessFacts>],
     ) {
         let mut changed = true;
 
@@ -196,12 +200,13 @@ impl FunctionLiveness {
         liveness: &mut Self,
         block_id: LocalNodeId<Block>,
         tree: &Tree,
-        facts: &HashMap<LocalNodeId<Block>, BlockLivenessFacts>,
+        facts: &[Option<BlockLivenessFacts>],
     ) -> bool {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
         let facts = facts
-            .get(&block_id)
+            .get(block_id.id as usize)
+            .and_then(Option::as_ref)
             .unwrap_or_else(|| unreachable!("missing liveness facts for block: {block_id:?}"));
 
         // successor live-out
@@ -209,11 +214,11 @@ impl FunctionLiveness {
         let mut next_local_live_out = HashSet::new();
 
         for successor in terminator.successors(tree) {
-            if let Some(successor_live_in) = liveness.value_live_in.get(&successor) {
+            if let Some(successor_live_in) = liveness.value_live_in.get(successor.id as usize) {
                 next_value_live_out.extend(successor_live_in.iter().copied());
             }
 
-            if let Some(successor_live_in) = liveness.local_live_in.get(&successor) {
+            if let Some(successor_live_in) = liveness.local_live_in.get(successor.id as usize) {
                 next_local_live_out.extend(successor_live_in.iter().copied());
             }
         }
@@ -237,10 +242,10 @@ impl FunctionLiveness {
         if next_value_live_in
             != *liveness
                 .value_live_in
-                .get(&block_id)
+                .get(block_id.id as usize)
                 .unwrap_or_else(|| unreachable!("missing value live-in for block: {block_id:?}"))
         {
-            liveness.value_live_in.insert(block_id, next_value_live_in);
+            liveness.value_live_in[block_id.id as usize] = next_value_live_in;
             changed = true;
         }
 
@@ -248,12 +253,10 @@ impl FunctionLiveness {
         if next_value_live_out
             != *liveness
                 .value_live_out
-                .get(&block_id)
+                .get(block_id.id as usize)
                 .unwrap_or_else(|| unreachable!("missing value live-out for block: {block_id:?}"))
         {
-            liveness
-                .value_live_out
-                .insert(block_id, next_value_live_out);
+            liveness.value_live_out[block_id.id as usize] = next_value_live_out;
             changed = true;
         }
 
@@ -261,10 +264,10 @@ impl FunctionLiveness {
         if next_local_live_in
             != *liveness
                 .local_live_in
-                .get(&block_id)
+                .get(block_id.id as usize)
                 .unwrap_or_else(|| unreachable!("missing local live-in for block: {block_id:?}"))
         {
-            liveness.local_live_in.insert(block_id, next_local_live_in);
+            liveness.local_live_in[block_id.id as usize] = next_local_live_in;
             changed = true;
         }
 
@@ -272,12 +275,10 @@ impl FunctionLiveness {
         if next_local_live_out
             != *liveness
                 .local_live_out
-                .get(&block_id)
+                .get(block_id.id as usize)
                 .unwrap_or_else(|| unreachable!("missing local live-out for block: {block_id:?}"))
         {
-            liveness
-                .local_live_out
-                .insert(block_id, next_local_live_out);
+            liveness.local_live_out[block_id.id as usize] = next_local_live_out;
             changed = true;
         }
 
@@ -286,36 +287,44 @@ impl FunctionLiveness {
 
     /// Return the values live at block entry.
     pub fn value_live_in(&self, block: LocalNodeId<Block>) -> &HashSet<Value> {
-        self.value_live_in.get(&block).unwrap_or_else(|| {
-            static EMPTY: std::sync::OnceLock<HashSet<Value>> = std::sync::OnceLock::new();
-            EMPTY.get_or_init(HashSet::new)
-        })
+        self.value_live_in
+            .get(block.id as usize)
+            .unwrap_or_else(|| {
+                static EMPTY: std::sync::OnceLock<HashSet<Value>> = std::sync::OnceLock::new();
+                EMPTY.get_or_init(HashSet::new)
+            })
     }
 
     /// Return the values live at block exit.
     pub fn value_live_out(&self, block: LocalNodeId<Block>) -> &HashSet<Value> {
-        self.value_live_out.get(&block).unwrap_or_else(|| {
-            static EMPTY: std::sync::OnceLock<HashSet<Value>> = std::sync::OnceLock::new();
-            EMPTY.get_or_init(HashSet::new)
-        })
+        self.value_live_out
+            .get(block.id as usize)
+            .unwrap_or_else(|| {
+                static EMPTY: std::sync::OnceLock<HashSet<Value>> = std::sync::OnceLock::new();
+                EMPTY.get_or_init(HashSet::new)
+            })
     }
 
     /// Return the locals live at block entry.
     pub fn local_live_in(&self, block: LocalNodeId<Block>) -> &HashSet<LocalNodeId<Local>> {
-        self.local_live_in.get(&block).unwrap_or_else(|| {
-            static EMPTY: std::sync::OnceLock<HashSet<LocalNodeId<Local>>> =
-                std::sync::OnceLock::new();
-            EMPTY.get_or_init(HashSet::new)
-        })
+        self.local_live_in
+            .get(block.id as usize)
+            .unwrap_or_else(|| {
+                static EMPTY: std::sync::OnceLock<HashSet<LocalNodeId<Local>>> =
+                    std::sync::OnceLock::new();
+                EMPTY.get_or_init(HashSet::new)
+            })
     }
 
     /// Return the locals live at block exit.
     pub fn local_live_out(&self, block: LocalNodeId<Block>) -> &HashSet<LocalNodeId<Local>> {
-        self.local_live_out.get(&block).unwrap_or_else(|| {
-            static EMPTY: std::sync::OnceLock<HashSet<LocalNodeId<Local>>> =
-                std::sync::OnceLock::new();
-            EMPTY.get_or_init(HashSet::new)
-        })
+        self.local_live_out
+            .get(block.id as usize)
+            .unwrap_or_else(|| {
+                static EMPTY: std::sync::OnceLock<HashSet<LocalNodeId<Local>>> =
+                    std::sync::OnceLock::new();
+                EMPTY.get_or_init(HashSet::new)
+            })
     }
 
     /// Return whether one value is live at block entry.
@@ -419,11 +428,11 @@ impl FunctionLiveness {
     pub fn all_live_values(&self) -> HashSet<Value> {
         let mut values = HashSet::new();
 
-        for live in self.value_live_in.values() {
+        for live in &self.value_live_in {
             values.extend(live.iter().copied());
         }
 
-        for live in self.value_live_out.values() {
+        for live in &self.value_live_out {
             values.extend(live.iter().copied());
         }
 

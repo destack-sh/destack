@@ -1,11 +1,11 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 use crate as mir;
 use destack_core::{float_from_bits, float_to_bits};
 
 use crate::{
     Analysis, AnalysisId, ControlFlowGraph, EdgeArguments, FunctionAnalyses, FunctionAnalysis,
-    TypeContext, fold_binary, fold_cast, fold_unary,
+    TargetLayout, fold_binary, fold_cast, fold_unary,
 };
 
 use super::Lattice;
@@ -149,6 +149,138 @@ impl ValueRange {
                     })
                 }
             }
+        }
+    }
+
+    /// Return the boolean constant represented by this range when known.
+    pub fn as_boolean_constant(&self) -> Option<bool> {
+        let ValueRange::Boolean {
+            can_be_true,
+            can_be_false,
+        } = self
+        else {
+            return None;
+        };
+
+        match (*can_be_true, *can_be_false) {
+            (true, false) => Some(true),
+            (false, true) => Some(false),
+            _ => None,
+        }
+    }
+
+    /// Evaluate an integer comparison against another range.
+    pub fn compare_integer(
+        &self,
+        operator: mir::BinaryOperator,
+        other: &ValueRange,
+    ) -> Option<bool> {
+        // extract integer ranges for both operands
+        let ValueRange::Integer {
+            min: left_min,
+            max: left_max,
+            width: left_width,
+            is_signed: left_signed,
+        } = self
+        else {
+            return None;
+        };
+        let ValueRange::Integer {
+            min: right_min,
+            max: right_max,
+            width: right_width,
+            is_signed: right_signed,
+        } = other
+        else {
+            return None;
+        };
+
+        // reject mismatched integer widths or signedness
+        if left_width != right_width || left_signed != right_signed {
+            return None;
+        }
+
+        // reject comparisons that do not match operand signedness
+        let expects_signed = matches!(
+            operator,
+            mir::BinaryOperator::SignedLessThan
+                | mir::BinaryOperator::SignedLessEqual
+                | mir::BinaryOperator::SignedGreaterThan
+                | mir::BinaryOperator::SignedGreaterEqual
+        );
+        let expects_unsigned = matches!(
+            operator,
+            mir::BinaryOperator::UnsignedLessThan
+                | mir::BinaryOperator::UnsignedLessEqual
+                | mir::BinaryOperator::UnsignedGreaterThan
+                | mir::BinaryOperator::UnsignedGreaterEqual
+        );
+        if expects_signed && !*left_signed {
+            return None;
+        }
+        if expects_unsigned && *left_signed {
+            return None;
+        }
+
+        // evaluate comparison from range relationships
+        match operator {
+            mir::BinaryOperator::Equal => {
+                let is_single = left_min == left_max && right_min == right_max;
+                if is_single && left_min == right_min {
+                    Some(true)
+                } else if left_max < right_min || left_min > right_max {
+                    Some(false)
+                } else {
+                    None
+                }
+            }
+            mir::BinaryOperator::NotEqual => {
+                let is_single = left_min == left_max && right_min == right_max;
+                if left_max < right_min || left_min > right_max {
+                    Some(true)
+                } else if is_single && left_min == right_min {
+                    Some(false)
+                } else {
+                    None
+                }
+            }
+            mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => {
+                if left_max < right_min {
+                    Some(true)
+                } else if left_min >= right_max {
+                    Some(false)
+                } else {
+                    None
+                }
+            }
+            mir::BinaryOperator::SignedLessEqual | mir::BinaryOperator::UnsignedLessEqual => {
+                if left_max <= right_min {
+                    Some(true)
+                } else if left_min > right_max {
+                    Some(false)
+                } else {
+                    None
+                }
+            }
+            mir::BinaryOperator::SignedGreaterThan | mir::BinaryOperator::UnsignedGreaterThan => {
+                if left_min > right_max {
+                    Some(true)
+                } else if left_max <= right_min {
+                    Some(false)
+                } else {
+                    None
+                }
+            }
+            mir::BinaryOperator::SignedGreaterEqual | mir::BinaryOperator::UnsignedGreaterEqual => {
+                if left_min >= right_max {
+                    Some(true)
+                } else if left_max < right_min {
+                    Some(false)
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
     }
 
@@ -304,10 +436,10 @@ impl Lattice for RangeMap {
 /// Range analysis for a function.
 #[derive(Debug)]
 pub struct RangeAnalysis {
-    /// Ranges available at block entry.
-    block_entry: HashMap<mir::LocalNodeId<mir::Block>, RangeMap>,
-    /// Ranges available at block exit.
-    block_exit: HashMap<mir::LocalNodeId<mir::Block>, RangeMap>,
+    /// Ranges available at block entry indexed by block id.
+    block_entry: Vec<Option<RangeMap>>,
+    /// Ranges available at block exit indexed by block id.
+    block_exit: Vec<Option<RangeMap>>,
 }
 
 impl RangeAnalysis {
@@ -316,45 +448,49 @@ impl RangeAnalysis {
         function: &mir::Function,
         tree: &mir::Tree,
         cfg: &ControlFlowGraph,
-        type_context: TypeContext,
+        target_layout: TargetLayout,
     ) -> Self {
         let Some(entry) = function.entry else {
             return Self {
-                block_entry: HashMap::new(),
-                block_exit: HashMap::new(),
+                block_entry: Vec::new(),
+                block_exit: Vec::new(),
             };
         };
 
         // init state maps
-        let mut block_entry: HashMap<mir::LocalNodeId<mir::Block>, RangeMap> = HashMap::new();
-        let mut block_exit: HashMap<mir::LocalNodeId<mir::Block>, RangeMap> = HashMap::new();
+        let mut block_entry = Vec::with_capacity(function.block_capacity());
+        let mut block_exit = Vec::with_capacity(function.block_capacity());
+        block_entry.resize_with(function.block_capacity(), || None);
+        block_exit.resize_with(function.block_capacity(), || None);
 
         // seed entry state
-        block_entry.insert(entry, RangeMap::new());
+        block_entry[entry.id as usize] = Some(RangeMap::new());
 
         // init worklist
         let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
-        let mut in_worklist: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
-        let mut update_counts: HashMap<mir::LocalNodeId<mir::Block>, u32> = HashMap::new();
+        let mut in_worklist = vec![false; function.block_capacity()];
+        let mut update_counts = vec![0u32; function.block_capacity()];
         worklist.push_back(entry);
-        in_worklist.insert(entry);
+        in_worklist[entry.id as usize] = true;
 
         // process blocks until fixed point
         while let Some(block_id) = worklist.pop_front() {
             // remove block from worklist
-            in_worklist.remove(&block_id);
+            in_worklist[block_id.id as usize] = false;
 
             // compute entry state
             let mut entry_state = if block_id == entry {
                 block_entry
-                    .get(&entry)
+                    .get(entry.id as usize)
+                    .and_then(Option::as_ref)
                     .cloned()
                     .unwrap_or_else(RangeMap::new)
             } else {
                 // merge predecessor exits
                 let mut merged: Option<RangeMap> = None;
                 for &pred in cfg.predecessors(block_id) {
-                    let Some(pred_exit) = block_exit.get(&pred) else {
+                    let Some(pred_exit) = block_exit.get(pred.id as usize).and_then(Option::as_ref)
+                    else {
                         continue;
                     };
 
@@ -376,45 +512,46 @@ impl RangeAnalysis {
 
             // check if entry state changed
             let entry_changed = block_entry
-                .get(&block_id)
+                .get(block_id.id as usize)
+                .and_then(Option::as_ref)
                 .map(|old| old != &entry_state)
                 .unwrap_or(true);
 
             if entry_changed || block_id == entry {
                 if entry_changed {
-                    let count = update_counts.entry(block_id).or_insert(0);
-                    *count += 1;
-                    if *count > RANGE_WIDEN_THRESHOLD {
+                    update_counts[block_id.id as usize] += 1;
+                    if update_counts[block_id.id as usize] > RANGE_WIDEN_THRESHOLD {
                         entry_state.widen_all();
                     }
                 }
 
-                block_entry.insert(block_id, entry_state.clone());
+                block_entry[block_id.id as usize] = Some(entry_state.clone());
 
                 // transfer through block
                 let exit_state = transfer_block(
                     block_id,
                     &entry_state,
                     tree,
-                    type_context.pointer_width_bits,
+                    target_layout.pointer_width_bits,
                 );
 
                 // check if exit state changed
                 let exit_changed = block_exit
-                    .get(&block_id)
+                    .get(block_id.id as usize)
+                    .and_then(Option::as_ref)
                     .map(|old| old != &exit_state)
                     .unwrap_or(true);
 
                 if exit_changed {
-                    block_exit.insert(block_id, exit_state);
+                    block_exit[block_id.id as usize] = Some(exit_state);
 
                     // add successors to worklist
                     let block = tree.get(block_id);
                     let terminator = tree.get(block.terminator);
                     for succ in terminator.successors(tree) {
-                        if !in_worklist.contains(&succ) {
+                        if !in_worklist[succ.id as usize] {
+                            in_worklist[succ.id as usize] = true;
                             worklist.push_back(succ);
-                            in_worklist.insert(succ);
                         }
                     }
                 }
@@ -429,7 +566,11 @@ impl RangeAnalysis {
 
     /// Get the ranges at block entry.
     pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> &RangeMap {
-        match self.block_entry.get(&block) {
+        match self
+            .block_entry
+            .get(block.id as usize)
+            .and_then(Option::as_ref)
+        {
             Some(ranges) => ranges,
             None => empty_ranges(),
         }
@@ -437,7 +578,11 @@ impl RangeAnalysis {
 
     /// Get the ranges at block exit.
     pub fn exit(&self, block: mir::LocalNodeId<mir::Block>) -> &RangeMap {
-        match self.block_exit.get(&block) {
+        match self
+            .block_exit
+            .get(block.id as usize)
+            .and_then(Option::as_ref)
+        {
             Some(ranges) => ranges,
             None => empty_ranges(),
         }
@@ -451,7 +596,7 @@ impl Analysis for RangeAnalysis {
 impl FunctionAnalysis for RangeAnalysis {
     fn compute(function: &mir::Function, tree: &mir::Tree, analyses: &FunctionAnalyses) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>(function, tree);
-        Self::build(function, tree, &cfg, analyses.type_context())
+        Self::build(function, tree, &cfg, analyses.target_layout())
     }
 }
 
@@ -485,7 +630,7 @@ fn apply_block_param_ranges(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
     cfg: &ControlFlowGraph,
-    block_exit: &HashMap<mir::LocalNodeId<mir::Block>, RangeMap>,
+    block_exit: &[Option<RangeMap>],
     entry_state: &mut RangeMap,
 ) {
     // resolve ranges for block parameters
@@ -510,7 +655,7 @@ fn resolve_block_param_ranges(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
     cfg: &ControlFlowGraph,
-    block_exit: &HashMap<mir::LocalNodeId<mir::Block>, RangeMap>,
+    block_exit: &[Option<RangeMap>],
 ) -> HashMap<mir::Value, ValueRange> {
     // early exit for blocks without parameters
     let block = tree.get(block_id);
@@ -524,7 +669,7 @@ fn resolve_block_param_ranges(
 
     // scan predecessors
     for &pred in cfg.predecessors(block_id) {
-        let Some(pred_exit) = block_exit.get(&pred) else {
+        let Some(pred_exit) = block_exit.get(pred.id as usize).and_then(Option::as_ref) else {
             continue;
         };
 

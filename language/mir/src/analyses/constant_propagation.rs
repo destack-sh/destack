@@ -1,10 +1,10 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 use crate as mir;
 
 use crate::{
     Analysis, AnalysisId, ConstantLookup, EdgeArguments, FunctionAnalyses, FunctionAnalysis,
-    TypeContext, fold_binary, fold_cast, fold_unary,
+    TargetLayout, fold_binary, fold_cast, fold_unary,
 };
 
 use super::{ControlFlowGraph, Lattice};
@@ -82,10 +82,10 @@ impl Lattice for ConstantMap {
 /// analysis with SSA aware handling of block parameters.
 #[derive(Debug)]
 pub struct ConstantPropagation {
-    /// Constants available at block entry.
-    block_entry: HashMap<mir::LocalNodeId<mir::Block>, ConstantMap>,
-    /// Constants available at block exit.
-    block_exit: HashMap<mir::LocalNodeId<mir::Block>, ConstantMap>,
+    /// Constants available at block entry indexed by block id.
+    block_entry: Vec<Option<ConstantMap>>,
+    /// Constants available at block exit indexed by block id.
+    block_exit: Vec<Option<ConstantMap>>,
 }
 
 impl ConstantPropagation {
@@ -94,9 +94,9 @@ impl ConstantPropagation {
         function: &mir::Function,
         tree: &mir::Tree,
         cfg: &ControlFlowGraph,
-        type_context: TypeContext,
+        target_layout: TargetLayout,
     ) -> Self {
-        Self::build_with_entry_constants(function, tree, cfg, type_context, ConstantMap::new())
+        Self::build_with_entry_constants(function, tree, cfg, target_layout, ConstantMap::new())
     }
 
     /// Build constant propagation with seeded entry constants.
@@ -104,7 +104,7 @@ impl ConstantPropagation {
         function: &mir::Function,
         tree: &mir::Tree,
         cfg: &ControlFlowGraph,
-        type_context: TypeContext,
+        target_layout: TargetLayout,
         entry_constants: ConstantMap,
     ) -> Self {
         // entry block selection
@@ -112,41 +112,45 @@ impl ConstantPropagation {
             Some(entry) => entry,
             None => {
                 return Self {
-                    block_entry: HashMap::new(),
-                    block_exit: HashMap::new(),
+                    block_entry: Vec::new(),
+                    block_exit: Vec::new(),
                 };
             }
         };
 
         // init state maps
-        let mut block_entry: HashMap<mir::LocalNodeId<mir::Block>, ConstantMap> = HashMap::new();
-        let mut block_exit: HashMap<mir::LocalNodeId<mir::Block>, ConstantMap> = HashMap::new();
+        let mut block_entry = Vec::with_capacity(function.block_capacity());
+        let mut block_exit = Vec::with_capacity(function.block_capacity());
+        block_entry.resize_with(function.block_capacity(), || None);
+        block_exit.resize_with(function.block_capacity(), || None);
 
         // seed entry state
-        block_entry.insert(entry, entry_constants);
+        block_entry[entry.id as usize] = Some(entry_constants);
 
         // init worklist
         let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
-        let mut in_worklist: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+        let mut in_worklist = vec![false; function.block_capacity()];
         worklist.push_back(entry);
-        in_worklist.insert(entry);
+        in_worklist[entry.id as usize] = true;
 
         // process blocks until fixed point
         while let Some(block_id) = worklist.pop_front() {
             // remove block from worklist
-            in_worklist.remove(&block_id);
+            in_worklist[block_id.id as usize] = false;
 
             // compute entry state
             let entry_state = if block_id == entry {
                 block_entry
-                    .get(&entry)
+                    .get(entry.id as usize)
+                    .and_then(Option::as_ref)
                     .cloned()
                     .unwrap_or_else(ConstantMap::new)
             } else {
                 // merge predecessor exits
                 let mut merged: Option<ConstantMap> = None;
                 for &pred in cfg.predecessors(block_id) {
-                    let Some(pred_exit) = block_exit.get(&pred) else {
+                    let Some(pred_exit) = block_exit.get(pred.id as usize).and_then(Option::as_ref)
+                    else {
                         continue;
                     };
 
@@ -168,35 +172,38 @@ impl ConstantPropagation {
 
             // update entry state if needed
             let entry_changed = block_entry
-                .get(&block_id)
+                .get(block_id.id as usize)
+                .and_then(Option::as_ref)
                 .map(|old| old != &entry_state)
                 .unwrap_or(true);
 
             if entry_changed || block_id == entry {
                 // record entry state
-                block_entry.insert(block_id, entry_state.clone());
+                block_entry[block_id.id as usize] = Some(entry_state.clone());
 
                 // compute exit state
                 let exit_state = transfer_block(
                     block_id,
                     &entry_state,
                     tree,
-                    type_context.pointer_width_bits,
+                    target_layout.pointer_width_bits,
                 );
                 let exit_changed = block_exit
-                    .get(&block_id)
+                    .get(block_id.id as usize)
+                    .and_then(Option::as_ref)
                     .map(|old| old != &exit_state)
                     .unwrap_or(true);
 
                 if exit_changed {
                     // record exit state
-                    block_exit.insert(block_id, exit_state);
+                    block_exit[block_id.id as usize] = Some(exit_state);
 
                     // enqueue successors
                     let block = tree.get(block_id);
                     let terminator = tree.get(block.terminator);
                     for succ in terminator.successors(tree) {
-                        if in_worklist.insert(succ) {
+                        if !in_worklist[succ.id as usize] {
+                            in_worklist[succ.id as usize] = true;
                             worklist.push_back(succ);
                         }
                     }
@@ -213,7 +220,11 @@ impl ConstantPropagation {
     /// Get the constants at block entry.
     pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> &ConstantMap {
         // read entry state
-        match self.block_entry.get(&block) {
+        match self
+            .block_entry
+            .get(block.id as usize)
+            .and_then(Option::as_ref)
+        {
             Some(constants) => constants,
             None => empty_map(),
         }
@@ -222,7 +233,11 @@ impl ConstantPropagation {
     /// Get the constants at block exit.
     pub fn exit(&self, block: mir::LocalNodeId<mir::Block>) -> &ConstantMap {
         // read exit state
-        match self.block_exit.get(&block) {
+        match self
+            .block_exit
+            .get(block.id as usize)
+            .and_then(Option::as_ref)
+        {
             Some(constants) => constants,
             None => empty_map(),
         }
@@ -245,31 +260,25 @@ impl ConstantPropagation {
     ) -> Option<&mir::Constant> {
         self.exit(block).get(value)
     }
-}
 
-/// Build constant propagation with constant parameters seeded at entry.
-pub fn constant_propagation_with_params(
-    function: &mir::Function,
-    tree: &mir::Tree,
-    type_context: TypeContext,
-    param_constants: &HashMap<mir::Value, mir::Constant>,
-) -> ConstantPropagation {
-    // build a control flow graph for the function
-    let cfg = ControlFlowGraph::build(function, tree);
+    /// Build constant propagation with constant parameters seeded at entry.
+    pub fn with_parameter_constants(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        target_layout: TargetLayout,
+        param_constants: &HashMap<mir::Value, mir::Constant>,
+    ) -> Self {
+        // build a control flow graph for the function
+        let cfg = ControlFlowGraph::build(function, tree);
 
-    // seed entry constants from the provided parameter map
-    let mut entry_constants = ConstantMap::new();
-    for (value, constant) in param_constants {
-        entry_constants.insert(*value, constant.clone());
+        // seed entry constants from the provided parameter map
+        let mut entry_constants = ConstantMap::new();
+        for (value, constant) in param_constants {
+            entry_constants.insert(*value, constant.clone());
+        }
+
+        Self::build_with_entry_constants(function, tree, &cfg, target_layout, entry_constants)
     }
-
-    ConstantPropagation::build_with_entry_constants(
-        function,
-        tree,
-        &cfg,
-        type_context,
-        entry_constants,
-    )
 }
 
 impl Analysis for ConstantPropagation {
@@ -279,7 +288,7 @@ impl Analysis for ConstantPropagation {
 impl FunctionAnalysis for ConstantPropagation {
     fn compute(function: &mir::Function, tree: &mir::Tree, analyses: &FunctionAnalyses) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>(function, tree);
-        Self::build(function, tree, &cfg, analyses.type_context())
+        Self::build(function, tree, &cfg, analyses.target_layout())
     }
 }
 
@@ -299,7 +308,7 @@ fn apply_block_param_constants(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
     cfg: &ControlFlowGraph,
-    block_exit: &HashMap<mir::LocalNodeId<mir::Block>, ConstantMap>,
+    block_exit: &[Option<ConstantMap>],
     entry_state: &mut ConstantMap,
 ) {
     // resolve constants for block parameters
@@ -324,7 +333,7 @@ fn resolve_block_param_constants(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
     cfg: &ControlFlowGraph,
-    block_exit: &HashMap<mir::LocalNodeId<mir::Block>, ConstantMap>,
+    block_exit: &[Option<ConstantMap>],
 ) -> HashMap<mir::Value, mir::Constant> {
     // early exit for blocks without parameters
     let block = tree.get(block_id);
@@ -338,7 +347,7 @@ fn resolve_block_param_constants(
 
     // scan predecessors
     for &pred in cfg.predecessors(block_id) {
-        let Some(pred_exit) = block_exit.get(&pred) else {
+        let Some(pred_exit) = block_exit.get(pred.id as usize).and_then(Option::as_ref) else {
             continue;
         };
 

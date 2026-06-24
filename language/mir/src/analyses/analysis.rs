@@ -7,14 +7,14 @@ use crate as mir;
 
 use super::Mutation;
 
-/// Type related context for MIR analysis.
+/// Target layout facts for MIR analysis.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TypeContext {
+pub struct TargetLayout {
     /// Pointer width in bits for pointer sized integers.
     pub pointer_width_bits: u16,
 }
 
-impl Default for TypeContext {
+impl Default for TargetLayout {
     fn default() -> Self {
         Self {
             pointer_width_bits: usize::BITS as u16,
@@ -24,20 +24,15 @@ impl Default for TypeContext {
 
 /// Options used by MIR analyses.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct MirAnalysisOptions {
-    /// Enable strict borrow checking.
-    pub strict_borrow_mode: bool,
-    /// Type context for layout sensitive analyses.
-    pub type_context: TypeContext,
+pub struct AnalysisOptions {
+    /// Target layout for layout sensitive analyses.
+    pub target_layout: TargetLayout,
 }
 
-impl MirAnalysisOptions {
+impl AnalysisOptions {
     /// Create MIR analysis options.
-    pub fn new(strict_borrow_mode: bool, type_context: TypeContext) -> Self {
-        Self {
-            strict_borrow_mode,
-            type_context,
-        }
+    pub fn new(target_layout: TargetLayout) -> Self {
+        Self { target_layout }
     }
 }
 
@@ -154,7 +149,7 @@ impl std::fmt::Debug for AnalysisCache {
 #[derive(Debug, Default)]
 pub struct FunctionAnalyses {
     cache: AnalysisCache,
-    options: MirAnalysisOptions,
+    options: AnalysisOptions,
 }
 
 impl FunctionAnalyses {
@@ -164,7 +159,7 @@ impl FunctionAnalyses {
     }
 
     /// Create a new function analysis cache with the given options.
-    pub fn with_options(options: MirAnalysisOptions) -> Self {
+    pub fn with_options(options: AnalysisOptions) -> Self {
         Self {
             cache: AnalysisCache::new(),
             options,
@@ -172,13 +167,13 @@ impl FunctionAnalyses {
     }
 
     /// Get the analysis options.
-    pub fn options(&self) -> &MirAnalysisOptions {
+    pub fn options(&self) -> &AnalysisOptions {
         &self.options
     }
 
-    /// Return the type context for this analysis run.
-    pub fn type_context(&self) -> TypeContext {
-        self.options.type_context
+    /// Return the target layout for this analysis run.
+    pub fn target_layout(&self) -> TargetLayout {
+        self.options.target_layout
     }
 
     /// Get or compute a function analysis for the given function.

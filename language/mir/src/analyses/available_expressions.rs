@@ -1,14 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::OnceLock;
 
 use crate as mir;
 
-use crate::{
-    Analysis, AnalysisId, ControlFlowGraph, ExpressionKey, FunctionAnalyses, FunctionAnalysis,
-    expression_key_from_instruction,
-};
+use crate::{ControlFlowGraph, ExpressionKey};
 
-use super::{Lattice, forward_dataflow};
+use super::{DataflowResult, Lattice};
 
 /// Set of expressions available at a test point.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -67,27 +64,32 @@ impl Lattice for AvailableExpressionSet {
 /// Memory loads and other side effects are intentionally excluded.
 #[derive(Debug)]
 pub struct AvailableExpressions {
-    /// Available expressions at entry to each block.
-    block_entry: HashMap<mir::LocalNodeId<mir::Block>, AvailableExpressionSet>,
-    /// Available expressions at exit of each block.
-    block_exit: HashMap<mir::LocalNodeId<mir::Block>, AvailableExpressionSet>,
+    /// Available expressions at entry indexed by block id.
+    block_entry: Vec<Option<AvailableExpressionSet>>,
+    /// Available expressions at exit indexed by block id.
+    block_exit: Vec<Option<AvailableExpressionSet>>,
 }
 
 impl AvailableExpressions {
     /// Build available expressions for a function.
-    fn build(function: &mir::Function, tree: &mir::Tree, cfg: &ControlFlowGraph) -> Self {
+    pub fn build(function: &mir::Function, tree: &mir::Tree, cfg: &ControlFlowGraph) -> Self {
         let entry_state = AvailableExpressionSet::new();
-        let result = forward_dataflow(function, tree, cfg, entry_state, transfer_block);
+        let result = DataflowResult::forward(function, tree, cfg, entry_state, transfer_block);
+        let (block_entry, block_exit) = result.into_parts();
 
         Self {
-            block_entry: result.block_entry,
-            block_exit: result.block_exit,
+            block_entry,
+            block_exit,
         }
     }
 
     /// Get available expressions at block entry.
     pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> &AvailableExpressionSet {
-        match self.block_entry.get(&block) {
+        match self
+            .block_entry
+            .get(block.id as usize)
+            .and_then(Option::as_ref)
+        {
             Some(expressions) => expressions,
             None => empty_expression_set(),
         }
@@ -95,7 +97,11 @@ impl AvailableExpressions {
 
     /// Get available expressions at block exit.
     pub fn exit(&self, block: mir::LocalNodeId<mir::Block>) -> &AvailableExpressionSet {
-        match self.block_exit.get(&block) {
+        match self
+            .block_exit
+            .get(block.id as usize)
+            .and_then(Option::as_ref)
+        {
             Some(expressions) => expressions,
             None => empty_expression_set(),
         }
@@ -115,7 +121,7 @@ impl AvailableExpressions {
         // extend the set with expressions in the block prefix
         for &instruction_id in block_data.instructions.iter().take(instruction_index) {
             let instruction = tree.get(instruction_id);
-            if let Some(key) = expression_key_from_instruction(instruction, tree) {
+            if let Some(key) = ExpressionKey::from_instruction(instruction, tree) {
                 state.insert(key);
             }
         }
@@ -140,25 +146,12 @@ impl AvailableExpressions {
         if let Some(&instruction_id) = tree.get(block).instructions.get(instruction_index) {
             let instruction = tree.get(instruction_id);
 
-            if let Some(key) = expression_key_from_instruction(instruction, tree) {
+            if let Some(key) = ExpressionKey::from_instruction(instruction, tree) {
                 state.insert(key);
             }
         }
 
         state
-    }
-}
-
-impl Analysis for AvailableExpressions {
-    const ID: AnalysisId = AnalysisId("available-exprs");
-}
-
-impl FunctionAnalysis for AvailableExpressions {
-    fn compute(function: &mir::Function, tree: &mir::Tree, analyses: &FunctionAnalyses) -> Self {
-        // read the control flow graph
-        let cfg = analyses.get::<ControlFlowGraph>(function, tree);
-
-        Self::build(function, tree, &cfg)
     }
 }
 
@@ -174,7 +167,7 @@ fn transfer_block(
     // extend the available set with block expressions
     for &instruction_id in &block_data.instructions {
         let instruction = tree.get(instruction_id);
-        if let Some(key) = expression_key_from_instruction(instruction, tree) {
+        if let Some(key) = ExpressionKey::from_instruction(instruction, tree) {
             state.insert(key);
         }
     }
@@ -207,7 +200,7 @@ mod tests {
         for &instruction_id in &block_data.instructions {
             let instruction = tree.get(instruction_id);
 
-            if let Some(key) = expression_key_from_instruction(instruction, tree) {
+            if let Some(key) = ExpressionKey::from_instruction(instruction, tree) {
                 return key;
             }
         }
@@ -235,8 +228,8 @@ b1:
         // fetch the function and analysis
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
-        let available = analyses.get::<AvailableExpressions>(function, &test.tree);
+        let cfg = ControlFlowGraph::build(function, &test.tree);
+        let available = AvailableExpressions::build(function, &test.tree, &cfg);
 
         // capture the expression key and successor block
         let block0 = function.blocks[0];
@@ -276,8 +269,8 @@ b3:
         // fetch the function and analysis
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
-        let available = analyses.get::<AvailableExpressions>(function, &test.tree);
+        let cfg = ControlFlowGraph::build(function, &test.tree);
+        let available = AvailableExpressions::build(function, &test.tree, &cfg);
 
         // capture the expression key and merge block
         let block1 = function.blocks[1];
@@ -315,8 +308,8 @@ b3:
         // fetch the function and analysis
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
-        let available = analyses.get::<AvailableExpressions>(function, &test.tree);
+        let cfg = ControlFlowGraph::build(function, &test.tree);
+        let available = AvailableExpressions::build(function, &test.tree, &cfg);
 
         // capture the expression key and merge block
         let block1 = function.blocks[1];
@@ -346,8 +339,8 @@ entry(v0: int32):
         // fetch the function and analysis
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
-        let available = analyses.get::<AvailableExpressions>(function, &test.tree);
+        let cfg = ControlFlowGraph::build(function, &test.tree);
+        let available = AvailableExpressions::build(function, &test.tree, &cfg);
 
         // confirm the exit set is empty
         let entry_block = function.entry.expect("missing entry block");
@@ -381,8 +374,8 @@ b3:
         // fetch the function and analysis
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
-        let available = analyses.get::<AvailableExpressions>(function, &test.tree);
+        let cfg = ControlFlowGraph::build(function, &test.tree);
+        let available = AvailableExpressions::build(function, &test.tree, &cfg);
 
         // capture the expression key and merge block
         let block1 = function.blocks[1];
@@ -410,17 +403,17 @@ entry(v0: int32, v1: int32, v2: int32):
         // fetch the function and analysis
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
-        let available = analyses.get::<AvailableExpressions>(function, &test.tree);
+        let cfg = ControlFlowGraph::build(function, &test.tree);
+        let available = AvailableExpressions::build(function, &test.tree, &cfg);
 
         // capture the expression keys
         let entry_block = function.entry.expect("missing entry block");
         let block_data = test.tree.get(entry_block);
         let first_key =
-            expression_key_from_instruction(test.tree.get(block_data.instructions[0]), &test.tree)
+            ExpressionKey::from_instruction(test.tree.get(block_data.instructions[0]), &test.tree)
                 .expect("missing first expression");
         let second_key =
-            expression_key_from_instruction(test.tree.get(block_data.instructions[1]), &test.tree)
+            ExpressionKey::from_instruction(test.tree.get(block_data.instructions[1]), &test.tree)
                 .expect("missing second expression");
 
         // confirm no expressions are available before the first instruction
@@ -462,8 +455,8 @@ b2:
         // fetch the function and analysis
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
-        let available = analyses.get::<AvailableExpressions>(function, &test.tree);
+        let cfg = ControlFlowGraph::build(function, &test.tree);
+        let available = AvailableExpressions::build(function, &test.tree, &cfg);
 
         // confirm unreachable block has empty entry
         let unreachable_block = function.blocks[2];

@@ -99,6 +99,54 @@ impl LinkGraph {
     pub fn edges(&self, source: Symbol) -> &[LinkEdge] {
         self.edges.get(&source).map(Vec::as_slice).unwrap_or(&[])
     }
+
+    /// Record address-of edges from a global initializer.
+    fn add_initializer_edges(
+        &mut self,
+        source: Symbol,
+        initializer: &GlobalInitializer,
+        tree: &Tree,
+    ) {
+        match initializer {
+            GlobalInitializer::FunctionAddress(function) => {
+                self.add_edge(
+                    source,
+                    LinkEdge {
+                        target: tree.get(*function).symbol,
+                        kind: LinkEdgeKind::Address,
+                    },
+                );
+            }
+            GlobalInitializer::Aggregate(elements) => {
+                for element in elements {
+                    self.add_initializer_edges(source, element, tree);
+                }
+            }
+            GlobalInitializer::Zero
+            | GlobalInitializer::Scalar(_)
+            | GlobalInitializer::Bytes(_) => {}
+        }
+    }
+
+    /// Approximate a function's inline cost as its instruction count.
+    fn function_inline_cost(function: &Function, tree: &Tree) -> u32 {
+        let mut count = 0usize;
+        for &block_id in &function.blocks {
+            count += tree.get(block_id).instructions.len();
+        }
+
+        count.min(u32::MAX as usize) as u32
+    }
+
+    /// Return the symbol whose address one instruction takes.
+    fn instruction_address_target(instruction: &Instruction, tree: &Tree) -> Option<Symbol> {
+        match instruction {
+            Instruction::FunctionAddr { function, .. }
+            | Instruction::FunctionBind { function, .. } => Some(tree.get(*function).symbol),
+            Instruction::GlobalAddr { global, .. } => Some(tree.get(*global).symbol),
+            _ => None,
+        }
+    }
 }
 
 /// Strongly connected components of the whole-program call graph, by dense symbol id.
@@ -400,7 +448,7 @@ impl ModuleAnalysis for LinkGraph {
                     linkage: function.linkage,
                     memory,
                     behavior,
-                    inline_cost: function_inline_cost(function, tree),
+                    inline_cost: Self::function_inline_cost(function, tree),
                     indirect: !call_graph.unknown_calls(function_id).is_empty(),
                 },
             );
@@ -421,7 +469,9 @@ impl ModuleAnalysis for LinkGraph {
             for &block_id in &function.blocks {
                 let block = tree.get(block_id);
                 for &instruction_id in &block.instructions {
-                    if let Some(target) = address_target(tree.get(instruction_id), tree) {
+                    if let Some(target) =
+                        LinkGraph::instruction_address_target(tree.get(instruction_id), tree)
+                    {
                         graph.add_edge(
                             symbol,
                             LinkEdge {
@@ -444,56 +494,10 @@ impl ModuleAnalysis for LinkGraph {
                 },
             );
             if let Some(initializer) = &global.initializer {
-                collect_initializer_addresses(initializer, tree, symbol, &mut graph);
+                graph.add_initializer_edges(symbol, initializer, tree);
             }
         }
 
         graph
-    }
-}
-
-/// Approximate a function's inline cost as its instruction count.
-fn function_inline_cost(function: &Function, tree: &Tree) -> u32 {
-    let mut count = 0usize;
-    for &block_id in &function.blocks {
-        count += tree.get(block_id).instructions.len();
-    }
-    count.min(u32::MAX as usize) as u32
-}
-
-/// Return the symbol whose address one instruction takes, if any.
-fn address_target(instruction: &Instruction, tree: &Tree) -> Option<Symbol> {
-    match instruction {
-        Instruction::FunctionAddr { function, .. } | Instruction::FunctionBind { function, .. } => {
-            Some(tree.get(*function).symbol)
-        }
-        Instruction::GlobalAddr { global, .. } => Some(tree.get(*global).symbol),
-        _ => None,
-    }
-}
-
-/// Record address-of edges from a global initializer, recursing into aggregates.
-fn collect_initializer_addresses(
-    initializer: &GlobalInitializer,
-    tree: &Tree,
-    source: Symbol,
-    graph: &mut LinkGraph,
-) {
-    match initializer {
-        GlobalInitializer::FunctionAddress(function) => {
-            graph.add_edge(
-                source,
-                LinkEdge {
-                    target: tree.get(*function).symbol,
-                    kind: LinkEdgeKind::Address,
-                },
-            );
-        }
-        GlobalInitializer::Aggregate(elements) => {
-            for element in elements {
-                collect_initializer_addresses(element, tree, source, graph);
-            }
-        }
-        GlobalInitializer::Zero | GlobalInitializer::Scalar(_) | GlobalInitializer::Bytes(_) => {}
     }
 }
