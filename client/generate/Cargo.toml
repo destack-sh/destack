@@ -1,0 +1,31 @@
+[package]
+name = "destack_client_generate"
+description = "Destack client binding generator"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[[bin]]
+name = "destack-client-generate"
+path = "src/main.rs"
+
+[dependencies]
+# destack
+destack_artifact.workspace = true
+destack_dir.workspace = true
+destack_mir.workspace = true
+destack_program.workspace = true
+destack_query.workspace = true
+destack_repository.workspace = true
+destack_serde.workspace = true
+destack_source.workspace = true
+destack_workspace.workspace = true
+
+# general
+anyhow.workspace = true
+
+[lints]
+workspace = true

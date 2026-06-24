@@ -112,8 +112,8 @@ jobs:
       - name: Check CLI
         run: just app/check-quick
 
-  bridge-check:
-    name: Bridge Check
+  client-bridge-check:
+    name: Client and Bridge Check
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -129,5 +129,8 @@ jobs:
           rust_targets: wasm32-wasip2
           install_js_dependencies: "true"
 
-      - name: Check Bridge
+      - name: Check Client
+        run: just client/check-quick --pin-destack-revision "${GITHUB_SHA}"
+
+      - name: Check Bridges
         run: just bridge/check-quick --pin-destack-revision "${GITHUB_SHA}"

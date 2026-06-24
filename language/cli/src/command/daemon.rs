@@ -4,9 +4,7 @@ use std::path::PathBuf;
 use clap::{Args, Subcommand};
 
 use destack_daemon::{DaemonServer, DaemonServerOptions};
-use destack_workspace::{
-    ConnectOptions, Service, Launch, LaunchCommand,
-};
+use destack_workspace::{ConnectOptions, Launch, LaunchCommand, Service};
 
 use crate::common::program::ProgramArgs;
 use crate::console;
@@ -202,9 +200,7 @@ fn daemon_server_launch(
 }
 
 /// Build a daemon server command from CLI program settings.
-fn daemon_server_command(
-    program: &ProgramArgs,
-) -> Result<LaunchCommand, std::io::Error> {
+fn daemon_server_command(program: &ProgramArgs) -> Result<LaunchCommand, std::io::Error> {
     let cwd = program
         .cwd
         .clone()

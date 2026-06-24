@@ -57,12 +57,12 @@ members = [
 	"language/cli",
 	# app
 	"app/cli",
-	# bridge
-	"bridge/generate",
-	"bridge/napi",
-	"bridge/python/rust",
-	"bridge/rust",
-	"bridge/wasm",
+	# client
+	"client/generate",
+	"client/napi",
+	"client/python/rust",
+	"client/rust",
+	"client/wasm",
 	"bridge/zed",
 ]
 
@@ -114,12 +114,12 @@ destack_language_cli = { path = "language/cli" }
 # app
 destack_cli = { path = "app/cli" }
 
-# bridge
-destack_bridge_generate = { path = "bridge/generate" }
-destack_napi = { path = "bridge/napi" }
-destack_wasm = { path = "bridge/wasm" }
-destack = { path = "bridge/rust", default-features = false }
-destack_python = { path = "bridge/python/rust" }
+# client
+destack_client_generate = { path = "client/generate" }
+destack_napi = { path = "client/napi" }
+destack_wasm = { path = "client/wasm" }
+destack = { path = "client/rust", default-features = false }
+destack_python = { path = "client/python/rust" }
 destack_zed = { path = "bridge/zed" }
 
 # codegen
