@@ -4,8 +4,8 @@ use crate::CompilerResult;
 use crate::check::{Decision, Receiver, ReceiverBinding, WalkState};
 
 impl WalkState<'_, '_> {
-    /// Resolve `this` at the current walk point.
-    pub(in crate::check) fn resolve_this_receiver(
+    /// Select the receiver visible at the current walk point.
+    pub(in crate::check) fn select_active_receiver(
         &mut self,
         source: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Option<Receiver>> {
@@ -33,7 +33,7 @@ impl WalkState<'_, '_> {
             return Ok(None);
         }
 
-        // fall back to contextual receiver outside function bodies
+        // use contextual receiver outside function bodies
         if let Some(receiver) = self.flow().current_receiver() {
             self.select_this_receiver(source, receiver)?;
 
