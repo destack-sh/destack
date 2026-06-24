@@ -3,12 +3,7 @@ use std::process::Command;
 
 use anyhow::{Context, Result, bail};
 
-const PACKAGES: &[&str] = &[
-    "destack_capi",
-    "destack_napi",
-    "destack_wasm",
-    "destack_python",
-];
+const PACKAGES: &[&str] = &["destack_napi", "destack_wasm", "destack_python"];
 
 /// Format generated Rust bridge crates.
 pub(in crate::generate) fn format(root: &Path) -> Result<()> {

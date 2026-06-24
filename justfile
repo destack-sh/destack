@@ -27,6 +27,13 @@ build:
     just app/build
     just bridge/build
 
+# regenerate generated code
+generate:
+    just language/generate
+    just app/generate-schema
+    just bridge/generate
+    just platform/generate
+
 # format code
 format:
     just language/format

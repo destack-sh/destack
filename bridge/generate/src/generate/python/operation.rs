@@ -1,7 +1,7 @@
 use crate::generate::core::{to_snake, upper_camel};
 use crate::generate::schema::{Field, Item, Payload, Schema, Shape, Type, Variant};
 
-use super::item::render_protocol_type;
+use super::item::render_type;
 use super::name::{python_field_name, python_parameter_name};
 
 /// One exact Python workspace client operation.
@@ -33,7 +33,7 @@ pub(super) struct WorkspaceParameter {
 impl WorkspaceOperation {
     /// Return exact Python request operations for one workspace client.
     pub(super) fn requests(schema: &Schema) -> Vec<Self> {
-        let request = schema.item("WorkspaceRequest");
+        let request = schema.named_item("WorkspaceRequest");
         let Shape::Enum(variants) = &request.shape else {
             return Vec::new();
         };
@@ -46,7 +46,7 @@ impl WorkspaceOperation {
 
     /// Return exact Python query operations for one workspace client.
     pub(super) fn queries(schema: &Schema) -> Vec<Self> {
-        let query = schema.item("WorkspaceQuery");
+        let query = schema.named_item("WorkspaceQuery");
         let Shape::Enum(variants) = &query.shape else {
             return Vec::new();
         };
@@ -63,9 +63,12 @@ impl WorkspaceOperation {
         let parameters = python_workspace_request_parameters(schema, variant)?;
         let request = python_workspace_request_expression(schema, variant)?;
         let response_field =
-            python_enum_variant_payload_field(schema.item("WorkspaceResponse"), &response)?;
-        let output =
-            python_enum_variant_payload_type(schema, schema.item("WorkspaceResponse"), &response)?;
+            python_enum_variant_payload_field(schema.named_item("WorkspaceResponse"), &response)?;
+        let output = python_enum_variant_payload_type(
+            schema,
+            schema.named_item("WorkspaceResponse"),
+            &response,
+        )?;
 
         Some(Self {
             method: to_snake(&variant.label()),
@@ -80,19 +83,22 @@ impl WorkspaceOperation {
 
     /// Return one exact Python query operation when the variant is root scoped.
     fn query(schema: &Schema, variant: &Variant) -> Option<Self> {
+        let query = schema.named_item("WorkspaceQuery");
         let fields = match &variant.payload {
             Payload::Struct(fields) => fields,
             Payload::Unit | Payload::Tuple(_) => return None,
         };
-        let parameters = python_workspace_root_parameters(schema, fields)?;
+        let parameters = python_workspace_root_parameters(schema, query, fields)?;
         let fields = python_workspace_root_field_names(fields)?;
         let fields = python_workspace_constructor_fields(fields);
         let response = python_workspace_query_response_kind(&variant.label());
-        let response_field =
-            python_enum_variant_payload_field(schema.item("WorkspaceQueryResponse"), &response)?;
+        let response_field = python_enum_variant_payload_field(
+            schema.named_item("WorkspaceQueryResponse"),
+            &response,
+        )?;
         let output = python_enum_variant_payload_type(
             schema,
-            schema.item("WorkspaceQueryResponse"),
+            schema.named_item("WorkspaceQueryResponse"),
             &response,
         )?;
 
@@ -119,12 +125,13 @@ fn python_workspace_request_expression(schema: &Schema, variant: &Variant) -> Op
 
             Some(format!("{class}({fields})"))
         }
-        Payload::Tuple(Type::Named(name)) => {
-            let Shape::Struct(fields) = &schema.item(name).shape else {
+        Payload::Tuple(Type::Named { key, .. }) => {
+            let item = schema.item(key);
+            let Shape::Struct(fields) = &item.shape else {
                 return None;
             };
             let payload = python_parameter_name(&variant.payload_field_name());
-            let payload_class = name.as_str();
+            let payload_class = item.name.as_str();
             let fields = python_workspace_root_field_names(fields)?;
             let fields = python_workspace_constructor_fields(fields);
 
@@ -140,13 +147,16 @@ fn python_workspace_request_parameters(
     variant: &Variant,
 ) -> Option<Vec<WorkspaceParameter>> {
     match &variant.payload {
-        Payload::Struct(fields) => python_workspace_root_parameters(schema, fields),
-        Payload::Tuple(Type::Named(name)) => {
-            let Shape::Struct(fields) = &schema.item(name).shape else {
+        Payload::Struct(fields) => {
+            python_workspace_root_parameters(schema, schema.named_item("WorkspaceRequest"), fields)
+        }
+        Payload::Tuple(Type::Named { key, .. }) => {
+            let item = schema.item(key);
+            let Shape::Struct(fields) = &item.shape else {
                 return None;
             };
 
-            python_workspace_root_parameters(schema, fields)
+            python_workspace_root_parameters(schema, item, fields)
         }
         Payload::Unit | Payload::Tuple(_) => None,
     }
@@ -170,6 +180,7 @@ fn python_workspace_root_field_names(fields: &[Field]) -> Option<Vec<String>> {
 /// Return root scoped Python parameters excluding the root handle.
 fn python_workspace_root_parameters(
     schema: &Schema,
+    item: &Item,
     fields: &[Field],
 ) -> Option<Vec<WorkspaceParameter>> {
     if !fields.iter().any(|field| field.name == "handle") {
@@ -182,7 +193,7 @@ fn python_workspace_root_parameters(
             .filter(|field| field.name != "handle")
             .map(|field| WorkspaceParameter {
                 name: python_field_name(&field.name),
-                ty: render_protocol_type(schema, &field.ty),
+                ty: render_type(schema, item, &field.ty),
             })
             .collect(),
     )
@@ -250,9 +261,9 @@ fn python_enum_variant_payload_type(schema: &Schema, item: &Item, kind: &str) ->
     let variant = variants.iter().find(|variant| variant.label() == kind)?;
 
     match &variant.payload {
-        Payload::Tuple(ty) => Some(render_protocol_type(schema, ty)),
+        Payload::Tuple(ty) => Some(render_type(schema, item, ty)),
         Payload::Struct(fields) if fields.len() == 1 => {
-            Some(render_protocol_type(schema, &fields[0].ty))
+            Some(render_type(schema, item, &fields[0].ty))
         }
         Payload::Unit | Payload::Struct(_) => None,
     }

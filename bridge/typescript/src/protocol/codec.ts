@@ -1,5 +1,5 @@
-import type { ProtocolMessage } from "../generated/protocol/envelope.js";
-import { decodeProtocolMessage, encodeProtocolMessage } from "../generated/protocol/envelope.js";
+import type { ProtocolMessage } from "../_generated/protocol/envelope.js";
+import { decodeProtocolMessage, encodeProtocolMessage } from "../_generated/protocol/envelope.js";
 import { decodeValue, encodeValue } from "./serde.js";
 
 const FRAME_MAGIC = [0x44, 0x53, 0x57, 0x50] as const;

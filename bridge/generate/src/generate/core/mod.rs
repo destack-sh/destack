@@ -1,5 +1,5 @@
 mod emit;
-mod spelling;
+mod name;
 
 pub(super) use emit::*;
-pub(in crate::generate) use spelling::*;
+pub(in crate::generate) use name::*;

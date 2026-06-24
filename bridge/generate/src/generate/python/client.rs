@@ -24,10 +24,17 @@ fn render_protocol_workspace_client(schema: &Schema) -> String {
     let mut text = Text::generated();
     text.line("from __future__ import annotations");
     text.blank();
+    text.line("import destack");
+    text.line("import destack._generated.protocol");
+    text.blank();
+    text.line("from collections.abc import Sequence");
     text.line("from typing import TypeVar");
     text.blank();
     text.line("from destack.protocol.connection import Connection");
-    text.line("from ..query.model import *");
+    text.line("import destack._generated.artifact.reference");
+    text.line("import destack._generated.repository.revision");
+    text.line("import destack._generated.source.file.model.file");
+    text.line("from ..query import *");
     text.line("from ..request import *");
     text.line("from ..response import *");
     text.line("from ..root import *");
@@ -49,9 +56,9 @@ fn render_protocol_workspace_client(schema: &Schema) -> String {
     text.line("from .command.test import TestInput");
     text.line("from .artifact.export import ExportRequest");
     text.line("from .file.image import FileOperation");
-    text.line("from ..artifact.reference import ArtifactReference");
-    text.line("from .file.update import SourceUpdate");
-    text.line("from ..source.file.model.file import Content, ContentId");
+    text.line("from destack._generated.artifact.reference import ArtifactReference");
+    text.line("from destack._generated.source.edit.update import Edit as SourceUpdate");
+    text.line("from destack._generated.source.file.model.file import Content, ContentId");
     text.blank();
     text.line("T = TypeVar(\"T\")");
     text.blank();
@@ -125,9 +132,9 @@ fn render_python_workspace_request_method(text: &mut Text, operation: &Workspace
     ));
     text.doc(&operation.doc, "        ");
     text.blank();
-    text.line(format!("        request = {}", operation.request));
+    text.line(format!("        payload = {}", operation.request));
     text.line(format!(
-        "        response = self._connection.request(request)"
+        "        response = self._connection.request(payload)"
     ));
     text.blank();
     text.line(format!(

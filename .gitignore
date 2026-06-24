@@ -41,6 +41,12 @@ target/
 **/target/
 !language/repository/src/config/target/
 !language/repository/src/config/target/**
+!bridge/python/src/destack/_generated/repository/config/target/
+!bridge/python/src/destack/_generated/repository/config/target/**
+!bridge/python/src/destack/repository/config/target/
+!bridge/python/src/destack/repository/config/target/**
+!bridge/typescript/src/_generated/repository/config/target/
+!bridge/typescript/src/_generated/repository/config/target/**
 Cargo.lock
 *.trace
 

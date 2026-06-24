@@ -2,76 +2,95 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, TypeAlias
+import typing
 
-from destack.protocol.serde import Reader, SerdeError, Writer, nested_bytes
+from destack.protocol.serde import (
+    BinaryReader,
+    BinaryWriter,
+    Json,
+    SerdeError,
+    json_array,
+    json_bool,
+    json_field,
+    json_int,
+    json_object,
+    json_optional,
+    json_string,
+)
 
-import destack._generated.protocol.source.file.model.file
-import destack._generated.protocol.source.file.model.type
 import destack._generated.protocol.workspace.command.common
-
-if TYPE_CHECKING:
-    from destack._generated.protocol.source.file.model.file import (
-        ContentId,
-    )
-
-    from destack._generated.protocol.source.file.model.type import (
-        FileType,
-    )
-
-    from destack._generated.protocol.workspace.command.common import (
-        CommandEnvVar,
-        CommandInput,
-        CommandRevision,
-        CommandTargetOverrides,
-        ManifestOverride,
-    )
+import destack._generated.source.file.model.file
+import destack._generated.source.file.model.type
 
 
 @dataclass(frozen=True, slots=True)
 class FormatInput:
     """Request to format source files or content."""
 
-    """Revision selected for this format request."""
-    revision: CommandRevision
-    """Input sources for the command."""
-    inputs: Sequence[CommandInput]
-    """Whether destack.json should resolve inputs when none are provided."""
+    # revision selected for this format request
+    revision: destack._generated.protocol.workspace.command.common.CommandRevision
+    # input sources for the command
+    inputs: Sequence[destack._generated.protocol.workspace.command.common.CommandInput]
+    # whether destack.json should resolve inputs when none are provided
     config_inputs: bool
-    """Optional working directory for this command."""
+    # optional working directory for this command
     cwd: str | None
-    """Optional Destack manifest path override."""
+    # optional Destack manifest path override
     manifest: str | None
-    """Optional target name override."""
+    # optional target name override
     target: str | None
-    """Optional target overrides."""
-    target_overrides: CommandTargetOverrides | None
-    """Optional profile name override."""
+    # optional target overrides
+    target_overrides: (
+        destack._generated.protocol.workspace.command.common.CommandTargetOverrides
+        | None
+    )
+    # optional profile name override
     profile: str | None
-    """Optional environment overrides."""
-    env: Sequence[CommandEnvVar]
-    """Optional manifest overrides."""
-    overrides: Sequence[ManifestOverride]
-    """Whether the command should watch for changes."""
+    # optional environment overrides
+    env: Sequence[destack._generated.protocol.workspace.command.common.CommandEnvVar]
+    # optional manifest overrides
+    overrides: Sequence[
+        destack._generated.protocol.workspace.command.common.ManifestOverride
+    ]
+    # whether the command should watch for changes
     watch: bool
-    """Whether the command should skip writes."""
+    # whether the command should skip writes
     dry_run: bool
-    """Formatting source."""
+    # formatting source
     source: FormatSource
-    """Formatting mode."""
+    # formatting mode
     mode: FormatMode
 
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_format_input(writer, self)
 
-def encode_format_input(writer: Writer, value: FormatInput) -> None:
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> FormatInput:
+        """Decode one FormatInput."""
+        return decode_format_input(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_format_input(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> FormatInput:
+        """Return one FormatInput from one JSON value."""
+        return from_json_format_input(value)
+
+
+def encode_format_input(writer: BinaryWriter, value: FormatInput) -> None:
+    """Encode one FormatInput."""
     destack._generated.protocol.workspace.command.common.encode_command_revision(
         writer, value.revision
     )
     writer.write_unsigned(len(value.inputs))
-    for item_0 in value.inputs:
+    for item_value_inputs_0 in value.inputs:
         destack._generated.protocol.workspace.command.common.encode_command_input(
-            writer, item_0
+            writer, item_value_inputs_0
         )
     writer.write_bool(value.config_inputs)
     if value.cwd is None:
@@ -102,14 +121,14 @@ def encode_format_input(writer: Writer, value: FormatInput) -> None:
         writer.write_byte(1)
         writer.write_string(value.profile)
     writer.write_unsigned(len(value.env))
-    for item_0 in value.env:
+    for item_value_env_0 in value.env:
         destack._generated.protocol.workspace.command.common.encode_command_env_var(
-            writer, item_0
+            writer, item_value_env_0
         )
     writer.write_unsigned(len(value.overrides))
-    for item_0 in value.overrides:
+    for item_value_overrides_0 in value.overrides:
         destack._generated.protocol.workspace.command.common.encode_manifest_override(
-            writer, item_0
+            writer, item_value_overrides_0
         )
     writer.write_bool(value.watch)
     writer.write_bool(value.dry_run)
@@ -117,62 +136,155 @@ def encode_format_input(writer: Writer, value: FormatInput) -> None:
     encode_format_mode(writer, value.mode)
 
 
-def decode_format_input(reader: Reader) -> FormatInput:
-    field_0 = (
+def decode_format_input(reader: BinaryReader) -> FormatInput:
+    """Decode one FormatInput."""
+    revision = (
         destack._generated.protocol.workspace.command.common.decode_command_revision(
             reader
         )
     )
-    field_1 = [
+    inputs = [
         destack._generated.protocol.workspace.command.common.decode_command_input(
             reader
         )
         for _ in range(reader.read_number())
     ]
-    field_2 = reader.read_bool()
-    field_3 = reader.read_option(lambda: reader.read_string())
-    field_4 = reader.read_option(lambda: reader.read_string())
-    field_5 = reader.read_option(lambda: reader.read_string())
-    field_6 = reader.read_option(
+    config_inputs = reader.read_bool()
+    cwd = reader.read_option(lambda: reader.read_string())
+    manifest = reader.read_option(lambda: reader.read_string())
+    target = reader.read_option(lambda: reader.read_string())
+    target_overrides = reader.read_option(
         lambda: (
             destack._generated.protocol.workspace.command.common.decode_command_target_overrides(
                 reader
             )
         )
     )
-    field_7 = reader.read_option(lambda: reader.read_string())
-    field_8 = [
+    profile = reader.read_option(lambda: reader.read_string())
+    env = [
         destack._generated.protocol.workspace.command.common.decode_command_env_var(
             reader
         )
         for _ in range(reader.read_number())
     ]
-    field_9 = [
+    overrides = [
         destack._generated.protocol.workspace.command.common.decode_manifest_override(
             reader
         )
         for _ in range(reader.read_number())
     ]
-    field_10 = reader.read_bool()
-    field_11 = reader.read_bool()
-    field_12 = decode_format_source(reader)
-    field_13 = decode_format_mode(reader)
+    watch = reader.read_bool()
+    dry_run = reader.read_bool()
+    source = decode_format_source(reader)
+    mode = decode_format_mode(reader)
 
     return FormatInput(
-        revision=field_0,
-        inputs=field_1,
-        config_inputs=field_2,
-        cwd=field_3,
-        manifest=field_4,
-        target=field_5,
-        target_overrides=field_6,
-        profile=field_7,
-        env=field_8,
-        overrides=field_9,
-        watch=field_10,
-        dry_run=field_11,
-        source=field_12,
-        mode=field_13,
+        revision=revision,
+        inputs=inputs,
+        config_inputs=config_inputs,
+        cwd=cwd,
+        manifest=manifest,
+        target=target,
+        target_overrides=target_overrides,
+        profile=profile,
+        env=env,
+        overrides=overrides,
+        watch=watch,
+        dry_run=dry_run,
+        source=source,
+        mode=mode,
+    )
+
+
+def to_json_format_input(value: FormatInput) -> Json:
+    """Return one JSON value for one FormatInput."""
+    return {
+        "revision": destack._generated.protocol.workspace.command.common.to_json_command_revision(
+            value.revision
+        ),
+        "inputs": [
+            destack._generated.protocol.workspace.command.common.to_json_command_input(
+                item_0
+            )
+            for item_0 in value.inputs
+        ],
+        "configInputs": value.config_inputs,
+        **({} if value.cwd is None else {"cwd": value.cwd}),
+        **({} if value.manifest is None else {"manifest": value.manifest}),
+        **({} if value.target is None else {"target": value.target}),
+        **(
+            {}
+            if value.target_overrides is None
+            else {
+                "targetOverrides": destack._generated.protocol.workspace.command.common.to_json_command_target_overrides(
+                    value.target_overrides
+                )
+            }
+        ),
+        **({} if value.profile is None else {"profile": value.profile}),
+        "env": [
+            destack._generated.protocol.workspace.command.common.to_json_command_env_var(
+                item_0
+            )
+            for item_0 in value.env
+        ],
+        "overrides": [
+            destack._generated.protocol.workspace.command.common.to_json_manifest_override(
+                item_0
+            )
+            for item_0 in value.overrides
+        ],
+        "watch": value.watch,
+        "dryRun": value.dry_run,
+        "source": to_json_format_source(value.source),
+        "mode": to_json_format_mode(value.mode),
+    }
+
+
+def from_json_format_input(value: Json) -> FormatInput:
+    """Return one FormatInput from one JSON value."""
+    object_ = json_object(value)
+
+    return FormatInput(
+        revision=destack._generated.protocol.workspace.command.common.from_json_command_revision(
+            json_field(object_, "revision")
+        ),
+        inputs=[
+            destack._generated.protocol.workspace.command.common.from_json_command_input(
+                item_0
+            )
+            for item_0 in json_array(json_field(object_, "inputs"))
+        ],
+        config_inputs=json_bool(json_field(object_, "configInputs")),
+        cwd=json_optional(object_, "cwd", lambda value: json_string(value)),
+        manifest=json_optional(object_, "manifest", lambda value: json_string(value)),
+        target=json_optional(object_, "target", lambda value: json_string(value)),
+        target_overrides=json_optional(
+            object_,
+            "targetOverrides",
+            lambda value: (
+                destack._generated.protocol.workspace.command.common.from_json_command_target_overrides(
+                    value
+                )
+            ),
+        ),
+        profile=json_optional(object_, "profile", lambda value: json_string(value)),
+        env=[
+            destack._generated.protocol.workspace.command.common.from_json_command_env_var(
+                item_0
+            )
+            for item_0 in json_array(json_field(object_, "env"))
+        ],
+        overrides=[
+            destack._generated.protocol.workspace.command.common.from_json_manifest_override(
+                item_0
+            )
+            for item_0 in json_array(json_field(object_, "overrides"))
+        ],
+        watch=json_bool(json_field(object_, "watch")),
+        dry_run=json_bool(json_field(object_, "dryRun")),
+        source=from_json_format_source(json_field(object_, "source")),
+        mode=from_json_format_mode(json_field(object_, "mode")),
     )
 
 
@@ -181,7 +293,15 @@ class FormatSourceFiles:
     """Format files or directories."""
 
     files: Sequence[str]
-    kind: Literal["files"] = "files"
+    kind: typing.Literal["files"] = "files"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_format_source(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_format_source(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,80 +309,158 @@ class FormatSourceOpenFile:
     """Format one open file."""
 
     open_file: str
-    kind: Literal["openFile"] = "openFile"
+    kind: typing.Literal["openFile"] = "openFile"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_format_source(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_format_source(self)
 
 
 @dataclass(frozen=True, slots=True)
 class FormatSourceContent:
     """Format explicit content."""
 
-    """Input label."""
+    # input label
     name: str
-    """Input file type."""
-    file_type: FileType
-    """Content to format."""
-    content: ContentId
-    kind: Literal["content"] = "content"
+    # input file type
+    file_type: destack._generated.source.file.model.type.FileType
+    # content to format
+    content: destack._generated.source.file.model.file.ContentId
+    kind: typing.Literal["content"] = "content"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_format_source(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_format_source(self)
 
 
 """Formatting source."""
-FormatSource: TypeAlias = FormatSourceFiles | FormatSourceOpenFile | FormatSourceContent
+FormatSource: typing.TypeAlias = (
+    FormatSourceFiles | FormatSourceOpenFile | FormatSourceContent
+)
 
 
-def encode_format_source(writer: Writer, value: FormatSource) -> None:
+def encode_format_source(writer: BinaryWriter, value: FormatSource) -> None:
+    """Encode one FormatSource."""
     if value.kind == "files":
         writer.write_unsigned(0)
         writer.write_unsigned(len(value.files))
-        for item_0 in value.files:
-            writer.write_string(item_0)
+        for item_value_files_0 in value.files:
+            writer.write_string(item_value_files_0)
     elif value.kind == "openFile":
         writer.write_unsigned(1)
         writer.write_string(value.open_file)
     elif value.kind == "content":
         writer.write_unsigned(2)
         writer.write_string(value.name)
-        destack._generated.protocol.source.file.model.type.encode_file_type(
+        destack._generated.source.file.model.type.encode_file_type(
             writer, value.file_type
         )
-        destack._generated.protocol.source.file.model.file.encode_content_id(
+        destack._generated.source.file.model.file.encode_content_id(
             writer, value.content
         )
     else:
         raise SerdeError("unknown enum variant")
 
 
-def decode_format_source(reader: Reader) -> FormatSource:
+def decode_format_source(reader: BinaryReader) -> FormatSource:
+    """Decode one FormatSource."""
     variant = reader.read_number()
 
     if variant == 0:
-        return FormatSourceFiles(
-            files=[reader.read_string() for _ in range(reader.read_number())]
-        )
+        files = [reader.read_string() for _ in range(reader.read_number())]
+
+        return FormatSourceFiles(files=files)
     elif variant == 1:
-        return FormatSourceOpenFile(open_file=reader.read_string())
+        open_file = reader.read_string()
+
+        return FormatSourceOpenFile(open_file=open_file)
     elif variant == 2:
-        field_0 = reader.read_string()
-        field_1 = destack._generated.protocol.source.file.model.type.decode_file_type(
-            reader
-        )
-        field_2 = destack._generated.protocol.source.file.model.file.decode_content_id(
-            reader
-        )
+        name = reader.read_string()
+        file_type = destack._generated.source.file.model.type.decode_file_type(reader)
+        content = destack._generated.source.file.model.file.decode_content_id(reader)
 
         return FormatSourceContent(
-            name=field_0,
-            file_type=field_1,
-            content=field_2,
+            name=name,
+            file_type=file_type,
+            content=content,
         )
     else:
         raise SerdeError(f"unknown enum variant index: {variant}")
 
 
+def to_json_format_source(value: FormatSource) -> Json:
+    """Return one JSON value for one FormatSource."""
+    if value.kind == "files":
+        return {
+            "kind": "files",
+            "files": [item_0 for item_0 in value.files],
+        }
+    elif value.kind == "openFile":
+        return {
+            "kind": "openFile",
+            "open_file": value.open_file,
+        }
+    elif value.kind == "content":
+        return {
+            "kind": "content",
+            "name": value.name,
+            "fileType": destack._generated.source.file.model.type.to_json_file_type(
+                value.file_type
+            ),
+            "content": destack._generated.source.file.model.file.to_json_content_id(
+                value.content
+            ),
+        }
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def from_json_format_source(value: Json) -> FormatSource:
+    """Return one FormatSource from one JSON value."""
+    object_ = json_object(value)
+    kind = json_string(json_field(object_, "kind"))
+
+    if kind == "files":
+        return FormatSourceFiles(
+            files=[
+                json_string(item_0)
+                for item_0 in json_array(json_field(object_, "files"))
+            ]
+        )
+    elif kind == "openFile":
+        return FormatSourceOpenFile(
+            open_file=json_string(json_field(object_, "open_file"))
+        )
+    elif kind == "content":
+        return FormatSourceContent(
+            name=json_string(json_field(object_, "name")),
+            file_type=destack._generated.source.file.model.type.from_json_file_type(
+                json_field(object_, "fileType")
+            ),
+            content=destack._generated.source.file.model.file.from_json_content_id(
+                json_field(object_, "content")
+            ),
+        )
+    else:
+        raise SerdeError(f"unknown enum variant: {kind}")
+
+
 """Formatting mode."""
-FormatMode: TypeAlias = Literal["preview"] | Literal["check"] | Literal["write"]
+FormatMode: typing.TypeAlias = (
+    typing.Literal["preview"] | typing.Literal["check"] | typing.Literal["write"]
+)
 
 
-def encode_format_mode(writer: Writer, value: FormatMode) -> None:
+def encode_format_mode(writer: BinaryWriter, value: FormatMode) -> None:
+    """Encode one FormatMode."""
     if value == "preview":
         writer.write_unsigned(0)
     elif value == "check":
@@ -273,7 +471,8 @@ def encode_format_mode(writer: Writer, value: FormatMode) -> None:
         raise SerdeError("unknown enum variant")
 
 
-def decode_format_mode(reader: Reader) -> FormatMode:
+def decode_format_mode(reader: BinaryReader) -> FormatMode:
+    """Decode one FormatMode."""
     variant = reader.read_number()
 
     if variant == 0:
@@ -286,36 +485,74 @@ def decode_format_mode(reader: Reader) -> FormatMode:
         raise SerdeError(f"unknown enum variant index: {variant}")
 
 
+def to_json_format_mode(value: FormatMode) -> Json:
+    """Return one JSON value for one FormatMode."""
+    return value
+
+
+def from_json_format_mode(value: Json) -> FormatMode:
+    """Return one FormatMode from one JSON value."""
+    variant = json_string(value)
+
+    if variant == "preview":
+        return "preview"
+    elif variant == "check":
+        return "check"
+    elif variant == "write":
+        return "write"
+    else:
+        raise SerdeError(f"unknown enum variant: {variant}")
+
+
 @dataclass(frozen=True, slots=True)
 class FormatPayload:
     """Payload for format command output."""
 
-    """The number of files inspected."""
+    # the number of files inspected
     files: int
-    """The number of files that would change."""
+    # the number of files that would change
     changed: int
-    """Paths for files that changed or would change in check mode."""
+    # paths for files that changed or would change in check mode
     changed_files: Sequence[str]
-    """The number of errors encountered."""
+    # the number of errors encountered
     errors: int
-    """Paths for files that failed formatting."""
+    # paths for files that failed formatting
     error_files: Sequence[str]
-    """Whether this was a check-only run."""
+    # whether this was a check-only run
     check: bool
-    """Formatted output for eval mode."""
+    # formatted output for eval mode
     formatted: str | None
 
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_format_payload(writer, self)
 
-def encode_format_payload(writer: Writer, value: FormatPayload) -> None:
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> FormatPayload:
+        """Decode one FormatPayload."""
+        return decode_format_payload(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_format_payload(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> FormatPayload:
+        """Return one FormatPayload from one JSON value."""
+        return from_json_format_payload(value)
+
+
+def encode_format_payload(writer: BinaryWriter, value: FormatPayload) -> None:
+    """Encode one FormatPayload."""
     writer.write_unsigned(value.files)
     writer.write_unsigned(value.changed)
     writer.write_unsigned(len(value.changed_files))
-    for item_0 in value.changed_files:
-        writer.write_string(item_0)
+    for item_value_changed_files_0 in value.changed_files:
+        writer.write_string(item_value_changed_files_0)
     writer.write_unsigned(value.errors)
     writer.write_unsigned(len(value.error_files))
-    for item_0 in value.error_files:
-        writer.write_string(item_0)
+    for item_value_error_files_0 in value.error_files:
+        writer.write_string(item_value_error_files_0)
     writer.write_bool(value.check)
     if value.formatted is None:
         writer.write_byte(0)
@@ -324,23 +561,58 @@ def encode_format_payload(writer: Writer, value: FormatPayload) -> None:
         writer.write_string(value.formatted)
 
 
-def decode_format_payload(reader: Reader) -> FormatPayload:
-    field_0 = reader.read_number()
-    field_1 = reader.read_number()
-    field_2 = [reader.read_string() for _ in range(reader.read_number())]
-    field_3 = reader.read_number()
-    field_4 = [reader.read_string() for _ in range(reader.read_number())]
-    field_5 = reader.read_bool()
-    field_6 = reader.read_option(lambda: reader.read_string())
+def decode_format_payload(reader: BinaryReader) -> FormatPayload:
+    """Decode one FormatPayload."""
+    files = reader.read_number()
+    changed = reader.read_number()
+    changed_files = [reader.read_string() for _ in range(reader.read_number())]
+    errors = reader.read_number()
+    error_files = [reader.read_string() for _ in range(reader.read_number())]
+    check = reader.read_bool()
+    formatted = reader.read_option(lambda: reader.read_string())
 
     return FormatPayload(
-        files=field_0,
-        changed=field_1,
-        changed_files=field_2,
-        errors=field_3,
-        error_files=field_4,
-        check=field_5,
-        formatted=field_6,
+        files=files,
+        changed=changed,
+        changed_files=changed_files,
+        errors=errors,
+        error_files=error_files,
+        check=check,
+        formatted=formatted,
+    )
+
+
+def to_json_format_payload(value: FormatPayload) -> Json:
+    """Return one JSON value for one FormatPayload."""
+    return {
+        "files": value.files,
+        "changed": value.changed,
+        "changedFiles": [item_0 for item_0 in value.changed_files],
+        "errors": value.errors,
+        "errorFiles": [item_0 for item_0 in value.error_files],
+        "check": value.check,
+        **({} if value.formatted is None else {"formatted": value.formatted}),
+    }
+
+
+def from_json_format_payload(value: Json) -> FormatPayload:
+    """Return one FormatPayload from one JSON value."""
+    object_ = json_object(value)
+
+    return FormatPayload(
+        files=json_int(json_field(object_, "files")),
+        changed=json_int(json_field(object_, "changed")),
+        changed_files=[
+            json_string(item_0)
+            for item_0 in json_array(json_field(object_, "changedFiles"))
+        ],
+        errors=json_int(json_field(object_, "errors")),
+        error_files=[
+            json_string(item_0)
+            for item_0 in json_array(json_field(object_, "errorFiles"))
+        ],
+        check=json_bool(json_field(object_, "check")),
+        formatted=json_optional(object_, "formatted", lambda value: json_string(value)),
     )
 
 
@@ -348,16 +620,24 @@ __all__ = [
     "FormatInput",
     "encode_format_input",
     "decode_format_input",
+    "to_json_format_input",
+    "from_json_format_input",
     "FormatSource",
     "encode_format_source",
     "decode_format_source",
+    "to_json_format_source",
+    "from_json_format_source",
     "FormatSourceFiles",
     "FormatSourceOpenFile",
     "FormatSourceContent",
     "FormatMode",
     "encode_format_mode",
     "decode_format_mode",
+    "to_json_format_mode",
+    "from_json_format_mode",
     "FormatPayload",
     "encode_format_payload",
     "decode_format_payload",
+    "to_json_format_payload",
+    "from_json_format_payload",
 ]

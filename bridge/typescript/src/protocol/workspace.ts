@@ -1,51 +1,51 @@
-import type { DiagnosticBatch } from "../generated/protocol/notification.js";
-import type { ProtocolError } from "../generated/protocol/error.js";
-import type { ArtifactReference } from "../generated/protocol/artifact/reference.js";
+import type { DiagnosticBatch } from "../_generated/protocol/notification.js";
+import type { ProtocolError } from "../_generated/protocol/error.js";
+import type { ArtifactReference } from "../_generated/artifact/reference.js";
 import type {
     FileOperation,
     FileImage,
-} from "../generated/protocol/workspace/file/image.js";
+} from "../_generated/protocol/workspace/file/image.js";
 import {
     Content,
     type ContentId,
-} from "../generated/protocol/source/file/model/file.js";
-import type { FileType } from "../generated/protocol/source/file/model/type.js";
-import type { SourceUpdate } from "../generated/protocol/workspace/file/update.js";
-import type { RootId, SourceUpdateResponse } from "../generated/protocol/root.js";
-import type { ArtifactBlob } from "../generated/protocol/response.js";
-import type { Revision } from "../generated/protocol/repository/revision.js";
+} from "../_generated/source/file/model/file.js";
+import type { FileType } from "../_generated/source/file/model/type.js";
+import type { SourceUpdate } from "../_generated/protocol/workspace/file/update.js";
+import type { RootId, SourceUpdateResponse } from "../_generated/protocol/root.js";
+import type { ArtifactBlob } from "../_generated/protocol/response.js";
+import type { Revision } from "../_generated/repository/revision.js";
 import type {
     DiagnosticSnapshot,
     FileImagesRequest,
     FileSnapshot,
     FileSnapshotRequest,
     RootSnapshot,
-    WorkspaceQuery as WorkspaceQueryPayload,
+    WorkspaceQuery,
     WorkspaceQueryResponse,
-} from "../generated/protocol/query.js";
-import { WorkspaceRequest } from "../generated/protocol/request.js";
-import type { WorkspaceResponse } from "../generated/protocol/response.js";
-import type { UpdateBatch } from "../generated/protocol/workspace/message.js";
-import { WorkspaceClient } from "../generated/protocol/workspace/client.js";
-import type { ReloadReason } from "../generated/protocol/workspace/root.js";
+} from "../_generated/protocol/query.js";
+import { WorkspaceRequest } from "../_generated/protocol/request.js";
+import type { WorkspaceResponse } from "../_generated/protocol/response.js";
+import type { UpdateBatch } from "../_generated/protocol/workspace/message.js";
+import { WorkspaceClient } from "../_generated/protocol/workspace/client.js";
+import type { ReloadReason } from "../_generated/protocol/workspace/root.js";
 import type {
     WatchBatchResponse,
     WatchStartOptions,
     WatchStartedResponse,
     WatchStoppedResponse,
-} from "../generated/protocol/watch.js";
-import type { BenchInput } from "../generated/protocol/workspace/command/bench.js";
-import type { BuildInput, BuildOutputs } from "../generated/protocol/workspace/command/build.js";
-import type { CacheInput } from "../generated/protocol/workspace/command/cache.js";
-import type { CheckInput, LintInput } from "../generated/protocol/workspace/command/check.js";
-import type { CleanInput } from "../generated/protocol/workspace/command/clean.js";
-import type { DocInput } from "../generated/protocol/workspace/command/doc.js";
-import type { DoctorInput } from "../generated/protocol/workspace/command/doctor.js";
+} from "../_generated/protocol/watch.js";
+import type { BenchInput } from "../_generated/protocol/workspace/command/bench.js";
+import type { BuildInput, BuildOutputs } from "../_generated/protocol/workspace/command/build.js";
+import type { CacheInput } from "../_generated/protocol/workspace/command/cache.js";
+import type { CheckInput, LintInput } from "../_generated/protocol/workspace/command/check.js";
+import type { CleanInput } from "../_generated/protocol/workspace/command/clean.js";
+import type { DocInput } from "../_generated/protocol/workspace/command/doc.js";
+import type { DoctorInput } from "../_generated/protocol/workspace/command/doctor.js";
 import {
     FormatSource,
     type FormatInput,
-} from "../generated/protocol/workspace/command/format.js";
-import type { InfoInput } from "../generated/protocol/workspace/command/info.js";
+} from "../_generated/protocol/workspace/command/format.js";
+import type { InfoInput } from "../_generated/protocol/workspace/command/info.js";
 import type {
     BenchOutput,
     BuildOutput,
@@ -62,26 +62,26 @@ import type {
     TargetsOutput,
     TaskOutput,
     TestOutput,
-} from "../generated/protocol/workspace/command/output.js";
-import { RunMode, type RunInput } from "../generated/protocol/workspace/command/run.js";
-import type { SettingsInput } from "../generated/protocol/workspace/command/settings.js";
-import type { TargetsInput } from "../generated/protocol/workspace/command/targets.js";
-import { TaskAction, type TaskInput } from "../generated/protocol/workspace/command/task.js";
-import type { TestInput } from "../generated/protocol/workspace/command/test.js";
+} from "../_generated/protocol/workspace/command/output.js";
+import { RunMode, type RunInput } from "../_generated/protocol/workspace/command/run.js";
+import type { SettingsInput } from "../_generated/protocol/workspace/command/settings.js";
+import type { TargetsInput } from "../_generated/protocol/workspace/command/targets.js";
+import { TaskAction, type TaskInput } from "../_generated/protocol/workspace/command/task.js";
+import type { TestInput } from "../_generated/protocol/workspace/command/test.js";
 import {
     CommandRevision,
     type CommandEnvVar,
     type CommandInput,
     type CommandTargetOverrides,
     type ManifestOverride,
-} from "../generated/protocol/workspace/command/common.js";
+} from "../_generated/protocol/workspace/command/common.js";
 import type {
     ExportRequest,
     ExportResult,
-} from "../generated/protocol/workspace/artifact/export.js";
+} from "../_generated/protocol/workspace/artifact/export.js";
 import { Connection, connectEndpoint } from "./connection/index.js";
 
-const DEFAULT_WATCH_COALESCE_WINDOW_MS = 50;
+const DEFAULT_WATCH_COALESCE_WINDOW_MS = 50n;
 const DEFAULT_WATCH_BATCH_SIZE = 1024;
 
 /** Options for opening a remote workspace root. */
@@ -270,7 +270,7 @@ export interface Workspace {
     /** Materialize derived outputs on the workspace host. */
     export(request: ExportRequest): Promise<ExportResult>;
     /** Run one workspace query against this root. */
-    query(query: WorkspaceQueryPayload): Promise<WorkspaceQueryResponse>;
+    query(query: WorkspaceQuery): Promise<WorkspaceQueryResponse>;
     /** Watch roots through this workspace handle. */
     watch(roots?: readonly string[], options?: WatchOptionsInit): Promise<WatchStartedResponse>;
     /** Receive and apply the next watch batch. */
@@ -480,7 +480,7 @@ export class RemoteWorkspace implements Workspace {
     }
 
     /** Run one workspace query against this root. */
-    async query(query: WorkspaceQueryPayload): Promise<WorkspaceQueryResponse> {
+    async query(query: WorkspaceQuery): Promise<WorkspaceQueryResponse> {
         return this.#client.query(query);
     }
 

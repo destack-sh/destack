@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import builtins
+
 from dataclasses import replace
 
 from destack._generated.protocol.envelope import ProtocolNotification
@@ -10,7 +12,7 @@ from destack._generated.protocol.payload import (
     PayloadBodyInline,
     PayloadChunkNotification,
 )
-from destack._generated.protocol.query.model import (
+from destack._generated.protocol.query import (
     QueryResponsePayload,
     WorkspaceQueryResponse,
     WorkspaceQueryResponseQuery,
@@ -28,7 +30,7 @@ class PayloadReceiver:
 
     def __init__(self) -> None:
         self._pending: dict[int, PayloadStream] = {}
-        self._completed: dict[int, bytes] = {}
+        self._completed: dict[int, builtins.bytes] = {}
         self._response: WorkspaceResponse | None = None
 
     def ingest_notification(self, notification: ProtocolNotification) -> bool:
@@ -47,15 +49,15 @@ class PayloadReceiver:
         if chunk.done and chunk.index + 1 != chunk.total:
             raise ProtocolRequestError("payload chunk done marker is inconsistent")
 
-        stream = self._pending.get(chunk.id.field_0)
+        stream = self._pending.get(chunk.id)
         if stream is None:
             stream = PayloadStream(chunk.total)
-            self._pending[chunk.id.field_0] = stream
+            self._pending[chunk.id] = stream
 
         stream.insert(chunk.index, bytes(chunk.bytes))
         if stream.is_complete:
-            del self._pending[chunk.id.field_0]
-            self._completed[chunk.id.field_0] = stream.bytes()
+            del self._pending[chunk.id]
+            self._completed[chunk.id] = stream.bytes()
 
     def resolve(self, response: WorkspaceResponse) -> WorkspaceResponse | None:
         """Resolve deferred payloads referenced by one response."""
@@ -114,7 +116,7 @@ class PayloadReceiver:
         if not isinstance(payload.body, PayloadBodyDeferred):
             raise ProtocolRequestError("unknown payload body")
 
-        payload_id = payload.body.id.field_0
+        payload_id = payload.body.id
         bytes_ = self._completed.get(payload_id)
         if bytes_ is None:
             return None
@@ -133,7 +135,7 @@ class PayloadStream:
         if not isinstance(total, int) or total <= 0:
             raise ProtocolRequestError("payload chunk total must be positive")
 
-        self._chunks: list[bytes | None] = [None] * total
+        self._chunks: list[builtins.bytes | None] = [None] * total
         self._received = 0
 
     @property
@@ -142,7 +144,7 @@ class PayloadStream:
 
         return self._received == len(self._chunks)
 
-    def insert(self, index: int, data: bytes) -> None:
+    def insert(self, index: int, data: builtins.bytes) -> None:
         """Insert one chunk."""
 
         if not isinstance(index, int) or index < 0 or index >= len(self._chunks):
@@ -153,7 +155,7 @@ class PayloadStream:
         self._chunks[index] = data
         self._received += 1
 
-    def bytes(self) -> bytes:
+    def bytes(self) -> builtins.bytes:
         """Merge chunks into one byte buffer."""
 
         chunks = []

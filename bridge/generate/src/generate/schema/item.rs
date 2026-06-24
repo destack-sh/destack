@@ -1,21 +1,22 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use anyhow::Result;
-use proc_macro2::TokenStream;
 
 use super::ty::Type;
-use crate::generate::core::{ident, lower_camel, render_docs, to_snake, upper_camel};
+use crate::generate::core::{lower_camel, to_snake};
 
-const CAPI_HANDLE_ATTRIBUTE: &str = "capi_handle";
+const TUPLE_NEWTYPE_ATTRIBUTE: &str = "tuple_newtype";
 
 /// One bridge DTO type.
 pub(crate) struct Item {
-    /// Rust type name.
+    /// Unique generator key.
+    pub(crate) key: String,
+    /// Exported Rust source type name.
     pub(crate) name: String,
     /// Documentation lines.
     pub(crate) docs: Vec<String>,
-    /// Whether C ABI targets project this item as an opaque handle.
-    pub(crate) is_capi_handle: bool,
+    /// Whether this item is a single-field tuple struct.
+    pub(crate) is_tuple_newtype: bool,
     /// Type shape.
     pub(crate) shape: Shape,
 }
@@ -59,78 +60,27 @@ pub(crate) enum Payload {
     Struct(Vec<Field>),
 }
 
-/// Transport names for one payload enum.
-pub(crate) struct PayloadNames {
-    /// Field names that need variant-qualified transport names.
-    ambiguous: BTreeSet<String>,
-}
-
-impl PayloadNames {
-    /// Return transport names for one payload enum.
-    pub(crate) fn new(variants: &[Variant]) -> Self {
-        let mut fields = BTreeMap::<String, BTreeSet<Type>>::new();
-
-        for variant in variants {
-            for (name, ty) in variant.payload_fields() {
-                fields.entry(name).or_default().insert(ty);
-            }
-        }
-
-        let ambiguous = fields
-            .into_iter()
-            .filter_map(|(name, types)| (types.len() > 1).then_some(name))
-            .collect();
-
-        Self { ambiguous }
-    }
-
-    /// Return the transport field label for one struct payload field.
-    pub(crate) fn field_label(&self, variant: &Variant, field: &Field) -> String {
-        if self.ambiguous.contains(&field.name) {
-            let variant = lower_camel(&variant.name);
-            let field = upper_camel(&field.name);
-
-            format!("{variant}{field}")
-        } else {
-            field.label()
-        }
-    }
-
-    /// Return the Rust transport field name for one struct payload field.
-    pub(crate) fn field_name(&self, variant: &Variant, field: &Field) -> String {
-        to_snake(&self.field_label(variant, field))
-    }
-
-    /// Return the transport field label for one tuple payload.
-    pub(crate) fn tuple_label(&self, variant: &Variant) -> String {
-        variant.payload_field_name()
-    }
-}
-
 impl Item {
     /// Convert one serde schema item to one generator item.
     pub(super) fn from_schema(
-        name: String,
+        key: String,
         item: destack_serde::SchemaItem,
         names: &BTreeMap<destack_serde::SchemaName, String>,
     ) -> Result<Self> {
-        let is_capi_handle = item
+        let is_tuple_newtype = item
             .attributes
             .iter()
-            .any(|attribute| attribute == CAPI_HANDLE_ATTRIBUTE);
+            .any(|attribute| attribute == TUPLE_NEWTYPE_ATTRIBUTE);
         let shape = Shape::from_schema(item.shape, names)?;
+        let name = item.name.name;
 
         Ok(Self {
+            key,
             name,
             docs: item.docs,
-            is_capi_handle,
+            is_tuple_newtype,
             shape,
         })
-    }
-
-    /// Return this item as a Rust identifier.
-    pub(crate) fn ident(&self) -> proc_macro2::Ident {
-        ident(&self.name)
     }
 
     /// Return whether this type references one bridge type.
@@ -168,6 +118,34 @@ impl Item {
         }
 
         Ok(())
+    }
+
+    /// Return whether this item is an enum.
+    pub(crate) fn is_enum(&self) -> bool {
+        matches!(self.shape, Shape::Enum(_))
+    }
+
+    /// Return whether this item contains a map field.
+    pub(crate) fn has_map(&self) -> bool {
+        match &self.shape {
+            Shape::Struct(fields) => fields.iter().any(Field::has_map),
+            Shape::Enum(variants) => variants.iter().any(Variant::has_map),
+        }
+    }
+
+    /// Return this item's scalar tuple newtype field type.
+    pub(crate) fn scalar_newtype(&self) -> Option<&Type> {
+        let Shape::Struct(fields) = &self.shape else {
+            return None;
+        };
+        let [field] = fields.as_slice() else {
+            return None;
+        };
+        if self.is_tuple_newtype && field.name == "value" && field.ty.is_scalar() {
+            Some(&field.ty)
+        } else {
+            None
+        }
     }
 }
 
@@ -211,16 +189,6 @@ impl Field {
         })
     }
 
-    /// Return this field as a Rust identifier.
-    pub(crate) fn ident(&self) -> proc_macro2::Ident {
-        ident(&self.name)
-    }
-
-    /// Return this field documentation as Rust doc attributes.
-    pub(crate) fn docs(&self) -> TokenStream {
-        render_docs(&self.docs)
-    }
-
     /// Return the first documentation line.
     pub(crate) fn doc(&self) -> &str {
         self.docs.first().map(String::as_str).unwrap_or("")
@@ -229,6 +197,11 @@ impl Field {
     /// Return this field label.
     pub(crate) fn label(&self) -> String {
         lower_camel(&self.name)
+    }
+
+    /// Return whether this field contains a map.
+    fn has_map(&self) -> bool {
+        self.ty.has_map()
     }
 }
 
@@ -245,28 +218,6 @@ impl Variant {
         })
     }
 
-    /// Return payload fields as `(name, type)` pairs.
-    pub(crate) fn payload_fields(&self) -> Vec<(String, Type)> {
-        match &self.payload {
-            Payload::Unit => Vec::new(),
-            Payload::Tuple(ty) => vec![(self.payload_field_name(), ty.clone())],
-            Payload::Struct(fields) => fields
-                .iter()
-                .map(|field| (field.name.clone(), field.ty.clone()))
-                .collect(),
-        }
-    }
-
-    /// Return this variant as a Rust identifier.
-    pub(crate) fn ident(&self) -> proc_macro2::Ident {
-        ident(&self.name)
-    }
-
-    /// Return this variant documentation as Rust doc attributes.
-    pub(crate) fn docs(&self) -> TokenStream {
-        render_docs(&self.docs)
-    }
-
     /// Return the first documentation line.
     pub(crate) fn doc(&self) -> &str {
         self.docs.first().map(String::as_str).unwrap_or("")
@@ -277,11 +228,6 @@ impl Variant {
         lower_camel(&self.name)
     }
 
-    /// Return this variant payload field identifier.
-    pub(crate) fn payload_field_ident(&self) -> proc_macro2::Ident {
-        ident(&self.payload_field_name())
-    }
-
     /// Return this variant payload field name.
     pub(crate) fn payload_field_name(&self) -> String {
         if self.name == "Move" {
@@ -289,6 +235,11 @@ impl Variant {
         } else {
             to_snake(&self.name)
         }
+    }
+
+    /// Return whether this variant contains a map payload.
+    fn has_map(&self) -> bool {
+        self.payload.has_map()
     }
 }
 
@@ -327,5 +278,14 @@ impl Payload {
         }
 
         Ok(())
+    }
+
+    /// Return whether this payload contains a map.
+    fn has_map(&self) -> bool {
+        match self {
+            Self::Unit => false,
+            Self::Tuple(ty) => ty.has_map(),
+            Self::Struct(fields) => fields.iter().any(Field::has_map),
+        }
     }
 }

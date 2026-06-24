@@ -53,9 +53,9 @@
             "default": "./dist/protocol/codec.js"
         },
         "./protocol/defaults": {
-            "types": "./dist/generated/protocol/defaults.d.ts",
-            "import": "./dist/generated/protocol/defaults.js",
-            "default": "./dist/generated/protocol/defaults.js"
+            "types": "./dist/_generated/protocol/defaults.d.ts",
+            "import": "./dist/_generated/protocol/defaults.js",
+            "default": "./dist/_generated/protocol/defaults.js"
         },
         "./protocol/serde": {
             "types": "./dist/protocol/serde.d.ts",
@@ -72,17 +72,17 @@
             "import": "./dist/protocol/workspace.js",
             "default": "./dist/protocol/workspace.js"
         },
-        "./generated/*": {
-            "types": "./dist/generated/*.d.ts",
-            "import": "./dist/generated/*.js",
-            "default": "./dist/generated/*.js"
+        "./_generated/*": {
+            "types": "./dist/_generated/*.d.ts",
+            "import": "./dist/_generated/*.js",
+            "default": "./dist/_generated/*.js"
         }
     },
     "sideEffects": false,
     "scripts": {
         "generate": "cargo run -p destack_bridge_generate",
         "build": "bun run generate && rm -rf dist && bun x tsc -p tsconfig.json",
-        "test": "bun run generate && bun x tsc --noEmit -p tsconfig.json && bun run build && node --test test/protocol.mjs",
+        "test": "bun run --cwd ../napi build && bun run build && bun test ./test/*.ts",
         "prepublishOnly": "bun run build",
         "publish:dry": "npm publish --dry-run --access public",
         "publish:live": "npm publish --access public"

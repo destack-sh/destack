@@ -38,7 +38,7 @@ pub(crate) enum Type {
     /// Dynamic JSON value.
     Json,
     /// Another bridge DTO.
-    Named(String),
+    Named { key: String, name: String },
 }
 
 impl Type {
@@ -85,11 +85,14 @@ impl Type {
             )),
             destack_serde::SchemaRef::Json => Ok(Self::Json),
             destack_serde::SchemaRef::Named(name) => {
-                let Some(name) = names.get(&name).cloned() else {
+                let Some(generated) = names.get(&name).cloned() else {
                     bail!("schema references unknown type {}", name.name);
                 };
 
-                Ok(Self::Named(name))
+                Ok(Self::Named {
+                    key: generated,
+                    name: name.name,
+                })
             }
             other => bail!("unsupported bridge schema type {other:?}"),
         }
@@ -116,8 +119,35 @@ impl Type {
                 key.visit_refs(visit)?;
                 value.visit_refs(visit)
             }
-            Self::Named(name) => visit(name),
+            Self::Named { key, .. } => visit(key),
             _ => Ok(()),
         }
+    }
+
+    /// Return whether this type contains a map.
+    pub(crate) fn has_map(&self) -> bool {
+        match self {
+            Self::Vec(ty) | Self::Option(ty) | Self::Array(ty, _) => ty.has_map(),
+            Self::Tuple(types) => types.iter().any(Self::has_map),
+            Self::Map(_, _) => true,
+            _ => false,
+        }
+    }
+
+    /// Return whether this type is a scalar bridge value.
+    pub(crate) fn is_scalar(&self) -> bool {
+        matches!(
+            self,
+            Self::String
+                | Self::Bool
+                | Self::Char
+                | Self::U8
+                | Self::U32
+                | Self::U64
+                | Self::U128
+                | Self::Signed(_)
+                | Self::Float(_)
+                | Self::Usize
+        )
     }
 }

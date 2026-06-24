@@ -1,9 +1,13 @@
 # generated bridge target, do not edit
 
-from .workspace import RemoteWorkspace, Workspace, open_workspace
+from destack.protocol.workspace.client import RemoteWorkspace, Workspace
+from .workspace import MemoryContent, MemoryFile, MemoryWorkspace, open_workspace
 
 __all__ = [
     "Workspace",
     "RemoteWorkspace",
+    "MemoryContent",
+    "MemoryFile",
+    "MemoryWorkspace",
     "open_workspace",
 ]

@@ -1,5 +1,5 @@
-mod capi;
 mod core;
+mod implementation;
 mod main;
 mod python;
 mod rust;

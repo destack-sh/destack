@@ -1,6 +1,6 @@
 use crate::generate::schema::{Field, Item, Payload, Schema, Shape, Type, Variant};
 
-use super::codec::property_key;
+use super::codec::type_property_key;
 
 /// Exact workspace request operation.
 pub(super) struct WorkspaceRequestOperation {
@@ -49,7 +49,7 @@ pub(super) struct WorkspaceParameter {
 impl WorkspaceRequestOperation {
     /// Return exact request operations for one workspace client.
     pub(super) fn all(schema: &Schema) -> Vec<Self> {
-        let request = schema.item("WorkspaceRequest");
+        let request = schema.named_item("WorkspaceRequest");
         let Shape::Enum(variants) = &request.shape else {
             return Vec::new();
         };
@@ -66,11 +66,11 @@ impl WorkspaceRequestOperation {
         let parameters = workspace_request_parameters(schema, variant)?;
         let request = workspace_request_expression(schema, variant)?;
         let response_field =
-            enum_variant_payload_field(schema.item("WorkspaceResponse"), &response)?;
+            enum_variant_payload_field(schema.named_item("WorkspaceResponse"), &response)?;
         let output = format!(
             "Response<{:?}>[{}]",
             response,
-            property_key(&response_field)
+            type_property_key(&response_field)
         );
 
         Some(WorkspaceRequestOperation {
@@ -88,7 +88,7 @@ impl WorkspaceRequestOperation {
 impl WorkspaceQueryOperation {
     /// Return exact query operations for one workspace client.
     pub(super) fn all(schema: &Schema) -> Vec<Self> {
-        let query = schema.item("WorkspaceQuery");
+        let query = schema.named_item("WorkspaceQuery");
         let Shape::Enum(variants) = &query.shape else {
             return Vec::new();
         };
@@ -112,11 +112,11 @@ impl WorkspaceQueryOperation {
         let parameters = workspace_root_parameters("Query", &variant.label(), None, fields)?;
         let response = workspace_query_response_kind(&variant.label());
         let response_field =
-            enum_variant_payload_field(schema.item("WorkspaceQueryResponse"), &response)?;
+            enum_variant_payload_field(schema.named_item("WorkspaceQueryResponse"), &response)?;
         let output = format!(
             "QueryResponse<{:?}>[{}]",
             response,
-            property_key(&response_field)
+            type_property_key(&response_field)
         );
 
         Some(Self {
@@ -142,8 +142,8 @@ fn workspace_request_expression(schema: &Schema, variant: &Variant) -> Option<St
 
             Some(format!("WorkspaceRequest.{constructor}({arguments})"))
         }
-        Payload::Tuple(Type::Named(name)) => {
-            let Shape::Struct(fields) = &schema.item(name).shape else {
+        Payload::Tuple(Type::Named { key, .. }) => {
+            let Shape::Struct(fields) = &schema.item(key).shape else {
                 return None;
             };
             let fields = workspace_root_field_names(fields)?;
@@ -163,8 +163,8 @@ fn workspace_request_parameters(
     let kind = variant.label();
     match &variant.payload {
         Payload::Struct(fields) => workspace_root_parameters("Request", &kind, None, fields),
-        Payload::Tuple(Type::Named(name)) => {
-            let Shape::Struct(fields) = &schema.item(name).shape else {
+        Payload::Tuple(Type::Named { key, .. }) => {
+            let Shape::Struct(fields) = &schema.item(key).shape else {
                 return None;
             };
             let payload = variant.payload_field_name();
@@ -226,11 +226,11 @@ fn workspace_root_parameters(
                 let ty = if let Some(payload) = payload {
                     format!(
                         "{root}<{kind:?}>[{}][{}]",
-                        property_key(payload),
-                        property_key(&name)
+                        type_property_key(payload),
+                        type_property_key(&name)
                     )
                 } else {
-                    format!("{root}<{kind:?}>[{}]", property_key(&name))
+                    format!("{root}<{kind:?}>[{}]", type_property_key(&name))
                 };
 
                 WorkspaceParameter { name, ty }

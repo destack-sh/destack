@@ -118,7 +118,7 @@ class Connection:
             timeout_ms=None, priority=None, trace_id=None
         )
         request = ProtocolRequest(
-            id=RequestId(field_0=request_id),
+            id=request_id,
             options=request_options,
             payload=payload,
         )
@@ -200,9 +200,9 @@ class Connection:
     ) -> WorkspaceResponse:
         """Return one response payload after checking its request id."""
 
-        if response.id.field_0 != request_id:
+        if response.id != request_id:
             raise ProtocolRequestError(
-                f"workspace connection received response id {response.id.field_0}, expected {request_id}"
+                f"workspace connection received response id {response.id}, expected {request_id}"
             )
 
         return response.payload

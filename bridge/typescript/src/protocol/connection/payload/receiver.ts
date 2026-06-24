@@ -1,6 +1,7 @@
-import type { BinaryPayload, PayloadChunkNotification } from "../../../generated/protocol/payload.js";
-import type { WorkspaceQueryResponse } from "../../../generated/protocol/query.js";
-import type { WorkspaceResponse } from "../../../generated/protocol/response.js";
+import type { BinaryPayload, PayloadChunkNotification } from "../../../_generated/protocol/payload.js";
+import type { WorkspaceQueryResponse } from "../../../_generated/protocol/query.js";
+import type { WorkspaceResponse } from "../../../_generated/protocol/response.js";
+import { checkedNumber } from "../integer.js";
 
 /** Deferred payload chunks received while waiting for a response. */
 export class PayloadReceiver {
@@ -9,7 +10,7 @@ export class PayloadReceiver {
 
     /** Ingest one payload chunk. */
     ingest(chunk: PayloadChunkNotification): void {
-        const id = chunk.id[0];
+        const id = checkedNumber(chunk.id, "payload id");
         const total = chunk.total;
         const index = chunk.index;
 
@@ -88,12 +89,12 @@ export class PayloadReceiver {
             return payload;
         }
 
-        const id = payload.body.id[0];
+        const id = checkedNumber(payload.body.id, "payload id");
         const bytes = this.#completed.get(id);
         if (bytes === undefined) {
             return undefined;
         }
-        if (bytes.length !== payload.body.totalBytes) {
+        if (BigInt(bytes.length) !== payload.body.totalBytes) {
             throw new Error("payload size mismatch");
         }
 

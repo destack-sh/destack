@@ -1,34 +1,35 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Result, bail};
+use destack_serde::SchemaRegistry;
 
 use super::item::{Item, Payload, Shape};
-use super::path::{ModulePath, SchemaRoot, schema_type_name, schema_type_names};
+use super::path::{ModulePath, SchemaRoot, schema_type_key, schema_type_keys};
 
-/// Bridge schema parsed from `bridge/language`.
+/// Schema consumed by one bridge generator.
 pub(crate) struct Schema {
-    /// Items keyed by Rust item name.
+    /// Items keyed by generator identity.
     pub(crate) items: BTreeMap<String, Item>,
-    /// Bridge modules in source path order.
+    /// Generated modules in source path order.
     pub(crate) modules: Vec<SchemaModule>,
-    /// Bridge module path keyed by Rust item name.
+    /// Generated module path keyed by generator identity.
     item_modules: BTreeMap<String, ModulePath>,
 }
 
-/// One bridge schema module.
+/// One generated schema module.
 pub(crate) struct SchemaModule {
-    /// Source module path under `bridge/language/src`.
+    /// Generated module path.
     pub(crate) path: ModulePath,
-    /// Type names in source order.
-    pub(crate) names: Vec<String>,
+    /// Type keys in source order.
+    pub(crate) keys: Vec<String>,
 }
 
 impl Schema {
-    /// Load the bridge schema from the bridge language schema registry.
+    /// Load the public language bridge schema.
     pub(crate) fn load() -> Result<Self> {
-        let registry = destack_bridge_language::schema();
+        let registry = public_schema();
 
-        Self::from_registry(SchemaRoot::Bridge, registry)
+        Self::from_registry(SchemaRoot::Public, registry)
     }
 
     /// Load the workspace protocol schema from the workspace protocol registry.
@@ -39,33 +40,40 @@ impl Schema {
     }
 
     /// Convert one Destack serde schema registry into generator schema.
-    fn from_registry(root: SchemaRoot, registry: destack_serde::SchemaRegistry) -> Result<Self> {
-        let type_names = schema_type_names(&registry);
+    fn from_registry(root: SchemaRoot, registry: SchemaRegistry) -> Result<Self> {
+        let type_keys = schema_type_keys(&registry);
         let mut items = BTreeMap::new();
         let mut modules = Vec::new();
         let mut item_modules = BTreeMap::new();
 
-        for (module, module_names) in registry.modules {
-            let path = ModulePath::from_segments(root, &module)?;
-            let names = module_names
-                .into_iter()
+        for (module, module_names) in &registry.modules {
+            let path_root = if root.owns_module(module) {
+                root
+            } else {
+                SchemaRoot::Public
+            };
+            let path = ModulePath::from_segments(path_root, module)?;
+            let keys = module_names
+                .iter()
                 .map(|name| {
-                    let name = schema_type_name(root, &name, &type_names);
-                    item_modules.insert(name.clone(), path.clone());
+                    let key = schema_type_key(root, &name, &type_keys);
+                    item_modules.insert(key.clone(), path.clone());
 
-                    name
+                    key
                 })
                 .collect::<Vec<_>>();
 
-            modules.push(SchemaModule { path, names });
+            if root.owns_module(module) {
+                modules.push(SchemaModule { path, keys });
+            }
         }
 
         for item in registry.items.into_values() {
-            let name = schema_type_name(root, &item.name, &type_names);
-            let item = Item::from_schema(name.clone(), item, &type_names)?;
+            let key = schema_type_key(root, &item.name, &type_keys);
+            let item = Item::from_schema(key.clone(), item, &type_keys)?;
 
-            if items.insert(name.clone(), item).is_some() {
-                bail!("bridge schema contains duplicate item {name}");
+            if items.insert(key.clone(), item).is_some() {
+                bail!("schema contains duplicate item {key}");
             }
         }
 
@@ -76,14 +84,14 @@ impl Schema {
         })
     }
 
-    /// Validate every referenced bridge DTO.
+    /// Validate every referenced schema item.
     pub(crate) fn validate(&self) -> Result<()> {
         for item in self.items.values() {
             item.visit_refs(&mut |name| {
                 if !self.items.contains_key(name) {
                     bail!(
-                        "bridge type {} references missing bridge type {name}",
-                        item.name
+                        "schema type {} references missing schema type {name}",
+                        item.key
                     );
                 }
 
@@ -94,32 +102,44 @@ impl Schema {
         Ok(())
     }
 
-    /// Return one bridge type by name.
-    pub(crate) fn item(&self, name: &str) -> &Item {
+    /// Return one schema item by key.
+    pub(crate) fn item(&self, key: &str) -> &Item {
         self.items
-            .get(name)
-            .unwrap_or_else(|| unreachable!("bridge type {name} was not parsed"))
+            .get(key)
+            .unwrap_or_else(|| unreachable!("schema type {key} was not parsed"))
     }
 
-    /// Return the source module path for one bridge type.
-    pub(crate) fn module_path(&self, name: &str) -> &ModulePath {
+    /// Return one schema item by exported source name.
+    pub(crate) fn named_item(&self, name: &str) -> &Item {
+        let mut matches = self
+            .items
+            .values()
+            .filter(|item| item.name == name)
+            .collect::<Vec<_>>();
+
+        match matches.len() {
+            1 => matches.remove(0),
+            0 => unreachable!("schema type {name} was not parsed"),
+            _ => unreachable!("schema type {name} is ambiguous"),
+        }
+    }
+
+    /// Return the generated module path for one schema item.
+    pub(crate) fn module_path(&self, key: &str) -> &ModulePath {
         self.item_modules
-            .get(name)
-            .unwrap_or_else(|| unreachable!("bridge type {name} has no source module"))
+            .get(key)
+            .unwrap_or_else(|| unreachable!("schema type {key} has no generated module"))
     }
 
-    /// Return bridge types referenced by one generated module.
-    pub(crate) fn referenced_types(&self, names: &[String]) -> Vec<&Item> {
+    /// Return schema items referenced by one generated module.
+    pub(crate) fn referenced_types(&self, keys: &[String]) -> Vec<&Item> {
         let mut items = Vec::new();
 
         for item in self.items.values() {
-            if names.iter().any(|name| name == &item.name) {
+            if keys.iter().any(|key| key == &item.key) {
                 continue;
             }
-            if names
-                .iter()
-                .any(|name| self.item(name).references(&item.name))
-            {
+            if keys.iter().any(|key| self.item(key).references(&item.key)) {
                 items.push(item);
             }
         }
@@ -127,9 +147,14 @@ impl Schema {
         items
     }
 
-    /// Return whether one bridge type is a unit enum.
-    pub(crate) fn is_unit_enum(&self, name: &str) -> bool {
-        let Shape::Enum(variants) = &self.item(name).shape else {
+    /// Return exported item names for schema keys.
+    pub(crate) fn module_names(&self, keys: &[String]) -> Vec<String> {
+        keys.iter().map(|key| self.item(key).name.clone()).collect()
+    }
+
+    /// Return whether one schema item is a unit enum.
+    pub(crate) fn is_unit_enum(&self, key: &str) -> bool {
+        let Shape::Enum(variants) = &self.item(key).shape else {
             return false;
         };
 
@@ -137,4 +162,19 @@ impl Schema {
             .iter()
             .all(|variant| matches!(variant.payload, Payload::Unit))
     }
+}
+
+/// Build the public language bridge schema.
+fn public_schema() -> SchemaRegistry {
+    let mut schema = SchemaRegistry::default();
+
+    destack_source::schema(&mut schema);
+    destack_dir::schema(&mut schema);
+    destack_mir::schema(&mut schema);
+    destack_program::schema(&mut schema);
+    destack_artifact::schema(&mut schema);
+    destack_repository::schema(&mut schema);
+    destack_query::schema(&mut schema);
+
+    schema
 }

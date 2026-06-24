@@ -5,6 +5,7 @@ mod generate;
 mod index;
 mod item;
 mod module;
+mod name;
 mod operation;
 mod output;
 mod path;

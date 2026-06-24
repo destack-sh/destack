@@ -4,18 +4,29 @@ import {
   openRemoteWorkspace,
   type RemoteWorkspaceOptions,
 } from "./protocol/workspace.js";
+import {
+  isMemoryWorkspaceOptions,
+  memoryFiles,
+  memoryRoot,
+  type MemoryWorkspaceOptions,
+  type NativeMemoryFile,
+} from "./workspace/memory.js";
 
 /** Options for opening a local WASM workspace. */
-export type WasmWorkspaceOptions = Omit<
-  RemoteWorkspaceOptions,
-  "connection" | "url"
->;
+export type PathWorkspaceOptions = Omit<RemoteWorkspaceOptions, "connection" | "url">;
+
+/** Options for opening a local WASM workspace. */
+export type WasmWorkspaceOptions = PathWorkspaceOptions | MemoryWorkspaceOptions;
 
 /** Native WASM module shape consumed by embedded workspace transport. */
 type WasmModule = {
   readonly default: () => Promise<unknown>;
   readonly LocalWorkspaceServer: {
     readonly open: (workspace: string) => LocalWorkspaceServer;
+    readonly memory: (
+      root: string,
+      files: readonly NativeMemoryFile[],
+    ) => LocalWorkspaceServer;
   };
 };
 
@@ -32,11 +43,14 @@ export async function openWasmWorkspace(
     (await import("@destack/language-wasm")) as unknown as WasmModule;
   await wasm.default();
 
-  const server = wasm.LocalWorkspaceServer.open(options.workspace);
+  const server = isMemoryWorkspaceOptions(options)
+    ? wasm.LocalWorkspaceServer.memory(memoryRoot(options), memoryFiles(options))
+    : wasm.LocalWorkspaceServer.open(options.workspace);
   const transport = new EmbeddedTransport(new WasmServer(server));
   const connection = new Connection(transport);
+  const workspace = isMemoryWorkspaceOptions(options) ? memoryRoot(options) : options.workspace;
 
-  return openRemoteWorkspace({ ...options, connection });
+  return openRemoteWorkspace({ ...options, workspace, connection });
 }
 
 /** Embedded server adapter for WASM native objects. */

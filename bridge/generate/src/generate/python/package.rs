@@ -1,9 +1,25 @@
 use std::collections::BTreeMap;
 
-use crate::generate::schema::Schema;
+use crate::generate::schema::{Schema, Shape};
 
-use super::path::{protocol_module_names, protocol_python_segments};
+use super::codec::{decode_name, encode_name, from_json_name, to_json_name};
+use super::item::protocol_variant_name;
+use super::path::{module_names, python_segments};
 use super::text::Text;
+
+const PUBLIC_ROOTS: &[&str] = &[
+    "artifact",
+    "core",
+    "dir",
+    "heap",
+    "js",
+    "mir",
+    "program",
+    "qir",
+    "query",
+    "repository",
+    "source",
+];
 
 pub(super) struct PythonPackage {
     /// Package path segments below `destack`.
@@ -20,11 +36,26 @@ impl PythonPackage {
         let mut packages = BTreeMap::<Vec<String>, Self>::new();
 
         for module in &schema.modules {
-            Self::add(
-                &mut packages,
-                module.path.segments().to_vec(),
-                &module.names,
-            );
+            let names = public_module_names(schema, &module.keys);
+            let segments = python_segments(schema, &module.path);
+            Self::add(&mut packages, segments, &names);
+        }
+
+        packages
+    }
+
+    /// Return public Python semantic packages.
+    pub(super) fn public(schema: &Schema) -> BTreeMap<Vec<String>, Self> {
+        let mut packages = BTreeMap::<Vec<String>, Self>::new();
+
+        for module in &schema.modules {
+            let segments = python_segments(schema, &module.path);
+            if !is_public_segments(&segments) {
+                continue;
+            }
+
+            let names = public_module_names(schema, &module.keys);
+            Self::add(&mut packages, segments, &names);
         }
 
         packages
@@ -35,8 +66,8 @@ impl PythonPackage {
         let mut packages = BTreeMap::<Vec<String>, Self>::new();
 
         for module in &schema.modules {
-            let names = protocol_module_names(schema, module);
-            let segments = protocol_python_segments(schema, module);
+            let names = module_names(schema, module);
+            let segments = python_segments(schema, &module.path);
             Self::add(&mut packages, segments, &names);
         }
 
@@ -59,6 +90,8 @@ impl PythonPackage {
         text.line("from __future__ import annotations");
         text.blank();
         self.render_reexports(&mut text);
+        text.blank();
+        render_all(&mut text, &self.names);
 
         text.finish()
     }
@@ -67,8 +100,9 @@ impl PythonPackage {
     pub(super) fn render_public_facade(&self) -> String {
         let mut text = Text::generated();
         self.render_public_reexports(&mut text);
+        self.render_handwritten_exports(&mut text);
         text.blank();
-        render_all(&mut text, &self.names);
+        render_all(&mut text, &self.public_names());
 
         text.finish()
     }
@@ -79,6 +113,9 @@ impl PythonPackage {
         text.line("from __future__ import annotations");
         text.blank();
         self.render_public_reexports(&mut text);
+        self.render_handwritten_exports(&mut text);
+        text.blank();
+        render_all(&mut text, &self.public_names());
 
         text.finish()
     }
@@ -163,6 +200,34 @@ impl PythonPackage {
         }
     }
 
+    /// Render handwritten public exports for this package.
+    fn render_handwritten_exports(&self, text: &mut Text) {
+        if self.segments.as_slice() == ["core"] {
+            text.line("from .string import (");
+            text.line("    StringPool,");
+            text.line(")");
+        }
+        if self.segments.as_slice() == ["dir"] {
+            text.line("from .binding import (");
+            text.line("    BindingTable,");
+            text.line(")");
+        }
+    }
+
+    /// Return public exported names for this package.
+    fn public_names(&self) -> Vec<String> {
+        let mut names = self.names.clone();
+
+        if self.segments.as_slice() == ["core"] {
+            names.push("StringPool".to_string());
+        }
+        if self.segments.as_slice() == ["dir"] {
+            names.push("BindingTable".to_string());
+        }
+
+        names
+    }
+
     /// Return re-exported names grouped by source module.
     fn modules(&self) -> BTreeMap<&str, Vec<&str>> {
         let mut modules = BTreeMap::<&str, Vec<&str>>::new();
@@ -242,20 +307,6 @@ impl StubMethod {
     }
 }
 
-/// Render root re-exports for all generated DTO modules.
-pub(super) fn render_reexports(text: &mut Text, schema: &Schema, indent: &str) {
-    for module in &schema.modules {
-        let path = module.path.slash_path().replace('/', ".");
-        text.line(format!("{indent}from ._generated.{path} import ("));
-
-        for name in &module.names {
-            text.line(format!("{indent}    {name},"));
-        }
-
-        text.line(format!("{indent})"));
-    }
-}
-
 /// Render one Python `__all__` block.
 pub(super) fn render_all(text: &mut Text, names: &[String]) {
     text.line("__all__ = [");
@@ -266,18 +317,54 @@ pub(super) fn render_all(text: &mut Text, names: &[String]) {
 }
 
 /// Return names exported by the root package.
-pub(super) fn root_names(schema: &Schema) -> Vec<String> {
-    let mut names = Vec::new();
+pub(super) fn root_names() -> Vec<String> {
+    let mut names = public_root_names();
     names.push("Workspace".to_string());
     names.push("RemoteWorkspace".to_string());
+    names.push("MemoryContent".to_string());
+    names.push("MemoryFile".to_string());
+    names.push("MemoryWorkspace".to_string());
     names.push("open_workspace".to_string());
-
-    for module in &schema.modules {
-        names.extend(module.names.iter().cloned());
-    }
-
     names.push("VERSION".to_string());
     names.push("version".to_string());
+
+    names
+}
+
+/// Return public root namespace names.
+pub(super) fn public_root_names() -> Vec<String> {
+    PUBLIC_ROOTS.iter().map(|name| name.to_string()).collect()
+}
+
+/// Return whether one Python package path is part of the public facade.
+fn is_public_segments(segments: &[String]) -> bool {
+    segments
+        .first()
+        .is_some_and(|segment| PUBLIC_ROOTS.contains(&segment.as_str()))
+}
+
+/// Return public names emitted by one generated Python module.
+fn public_module_names(schema: &Schema, keys: &[String]) -> Vec<String> {
+    let mut names = Vec::new();
+
+    for key in keys {
+        let item = schema.item(key);
+        names.push(item.name.clone());
+        names.push(encode_name(&item.name));
+        names.push(decode_name(&item.name));
+        names.push(to_json_name(&item.name));
+        names.push(from_json_name(&item.name));
+
+        if let Shape::Enum(variants) = &item.shape
+            && !schema.is_unit_enum(&item.key)
+        {
+            names.extend(
+                variants
+                    .iter()
+                    .map(|variant| protocol_variant_name(schema, item, variant)),
+            );
+        }
+    }
 
     names
 }

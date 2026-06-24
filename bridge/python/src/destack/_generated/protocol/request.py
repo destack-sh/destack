@@ -2,18 +2,24 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, TypeAlias
+import typing
 
-from destack.protocol.serde import Reader, SerdeError, Writer, nested_bytes
+from destack.protocol.serde import (
+    BinaryReader,
+    BinaryWriter,
+    Json,
+    SerdeError,
+    json_field,
+    json_object,
+    json_string,
+)
 
-import destack._generated.protocol.artifact.reference
+import destack._generated.artifact.reference
 import destack._generated.protocol.envelope
 import destack._generated.protocol.handshake
-import destack._generated.protocol.query.model
+import destack._generated.protocol.query
 import destack._generated.protocol.root
-import destack._generated.protocol.source.file.model.file
 import destack._generated.protocol.watch
 import destack._generated.protocol.workspace.artifact.export
 import destack._generated.protocol.workspace.command.bench
@@ -30,419 +36,578 @@ import destack._generated.protocol.workspace.command.settings
 import destack._generated.protocol.workspace.command.targets
 import destack._generated.protocol.workspace.command.task
 import destack._generated.protocol.workspace.command.test
-
-if TYPE_CHECKING:
-    from destack._generated.protocol.artifact.reference import (
-        ArtifactReference,
-    )
-
-    from destack._generated.protocol.envelope import (
-        RequestId,
-    )
-
-    from destack._generated.protocol.handshake import (
-        HandshakeRequest,
-    )
-
-    from destack._generated.protocol.query.model import (
-        WorkspaceQuery,
-    )
-
-    from destack._generated.protocol.root import (
-        CloseRootRequest,
-        FileOperationRequest,
-        OpenRootRequest,
-        ReloadRootRequest,
-        RootId,
-        SourceUpdateRequest,
-    )
-
-    from destack._generated.protocol.source.file.model.file import (
-        Content,
-        ContentId,
-    )
-
-    from destack._generated.protocol.watch import (
-        WatchNextRequest,
-        WatchStartRequest,
-        WatchStopRequest,
-    )
-
-    from destack._generated.protocol.workspace.artifact.export import (
-        ExportRequest,
-    )
-
-    from destack._generated.protocol.workspace.command.bench import (
-        BenchInput,
-    )
-
-    from destack._generated.protocol.workspace.command.build import (
-        BuildInput,
-    )
-
-    from destack._generated.protocol.workspace.command.cache import (
-        CacheInput,
-    )
-
-    from destack._generated.protocol.workspace.command.check import (
-        CheckInput,
-        LintInput,
-    )
-
-    from destack._generated.protocol.workspace.command.clean import (
-        CleanInput,
-    )
-
-    from destack._generated.protocol.workspace.command.doc import (
-        DocInput,
-    )
-
-    from destack._generated.protocol.workspace.command.doctor import (
-        DoctorInput,
-    )
-
-    from destack._generated.protocol.workspace.command.format import (
-        FormatInput,
-    )
-
-    from destack._generated.protocol.workspace.command.info import (
-        InfoInput,
-    )
-
-    from destack._generated.protocol.workspace.command.run import (
-        RunInput,
-    )
-
-    from destack._generated.protocol.workspace.command.settings import (
-        SettingsInput,
-    )
-
-    from destack._generated.protocol.workspace.command.targets import (
-        TargetsInput,
-    )
-
-    from destack._generated.protocol.workspace.command.task import (
-        TaskInput,
-    )
-
-    from destack._generated.protocol.workspace.command.test import (
-        TestInput,
-    )
+import destack._generated.source.file.model.file
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestHandshake:
     """Negotiate protocol version and capabilities."""
 
-    handshake: HandshakeRequest
-    kind: Literal["handshake"] = "handshake"
+    handshake: destack._generated.protocol.handshake.HandshakeRequest
+    kind: typing.Literal["handshake"] = "handshake"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestPing:
     """Check server liveness."""
 
-    kind: Literal["ping"] = "ping"
+    kind: typing.Literal["ping"] = "ping"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestCancel:
     """Cancel an in flight request."""
 
-    id: RequestId
-    kind: Literal["cancel"] = "cancel"
+    id: destack._generated.protocol.envelope.RequestId
+    kind: typing.Literal["cancel"] = "cancel"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestShutdown:
     """Request server shutdown."""
 
-    kind: Literal["shutdown"] = "shutdown"
+    kind: typing.Literal["shutdown"] = "shutdown"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestOpenRoot:
     """Open or register a root."""
 
-    open_root: OpenRootRequest
-    kind: Literal["openRoot"] = "openRoot"
+    open_root: destack._generated.protocol.root.OpenRootRequest
+    kind: typing.Literal["openRoot"] = "openRoot"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestCloseRoot:
     """Close a root handle."""
 
-    close_root: CloseRootRequest
-    kind: Literal["closeRoot"] = "closeRoot"
+    close_root: destack._generated.protocol.root.CloseRootRequest
+    kind: typing.Literal["closeRoot"] = "closeRoot"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestReloadRoot:
     """Reload a root."""
 
-    reload_root: ReloadRootRequest
-    kind: Literal["reloadRoot"] = "reloadRoot"
+    reload_root: destack._generated.protocol.root.ReloadRootRequest
+    kind: typing.Literal["reloadRoot"] = "reloadRoot"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestApplyFileOperation:
     """Apply a file operation to a root."""
 
-    apply_file_operation: FileOperationRequest
-    kind: Literal["applyFileOperation"] = "applyFileOperation"
+    apply_file_operation: destack._generated.protocol.root.FileOperationRequest
+    kind: typing.Literal["applyFileOperation"] = "applyFileOperation"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestApplySourceUpdate:
     """Apply a source update to a root."""
 
-    apply_source_update: SourceUpdateRequest
-    kind: Literal["applySourceUpdate"] = "applySourceUpdate"
+    apply_source_update: destack._generated.protocol.root.SourceUpdateRequest
+    kind: typing.Literal["applySourceUpdate"] = "applySourceUpdate"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestStartWatch:
     """Start watching a root."""
 
-    start_watch: WatchStartRequest
-    kind: Literal["startWatch"] = "startWatch"
+    start_watch: destack._generated.protocol.watch.WatchStartRequest
+    kind: typing.Literal["startWatch"] = "startWatch"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestNextWatchBatch:
     """Receive and apply the next watch batch."""
 
-    next_watch_batch: WatchNextRequest
-    kind: Literal["nextWatchBatch"] = "nextWatchBatch"
+    next_watch_batch: destack._generated.protocol.watch.WatchNextRequest
+    kind: typing.Literal["nextWatchBatch"] = "nextWatchBatch"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestStopWatch:
     """Stop watching a root."""
 
-    stop_watch: WatchStopRequest
-    kind: Literal["stopWatch"] = "stopWatch"
+    stop_watch: destack._generated.protocol.watch.WatchStopRequest
+    kind: typing.Literal["stopWatch"] = "stopWatch"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestCheck:
     """Check source state."""
 
-    """Root handle."""
-    handle: RootId
-    """Check input."""
-    input: CheckInput
-    kind: Literal["check"] = "check"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # check input
+    input: destack._generated.protocol.workspace.command.check.CheckInput
+    kind: typing.Literal["check"] = "check"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestLint:
     """Lint source state."""
 
-    """Root handle."""
-    handle: RootId
-    """Lint input."""
-    input: LintInput
-    kind: Literal["lint"] = "lint"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # lint input
+    input: destack._generated.protocol.workspace.command.check.LintInput
+    kind: typing.Literal["lint"] = "lint"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestFormat:
     """Format source files or content."""
 
-    """Root handle."""
-    handle: RootId
-    """Format input."""
-    input: FormatInput
-    kind: Literal["format"] = "format"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # format input
+    input: destack._generated.protocol.workspace.command.format.FormatInput
+    kind: typing.Literal["format"] = "format"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestBuild:
     """Build target artifacts."""
 
-    """Root handle."""
-    handle: RootId
-    """Build input."""
-    input: BuildInput
-    kind: Literal["build"] = "build"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # build input
+    input: destack._generated.protocol.workspace.command.build.BuildInput
+    kind: typing.Literal["build"] = "build"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestRun:
     """Run a workspace target."""
 
-    """Root handle."""
-    handle: RootId
-    """Run input."""
-    input: RunInput
-    kind: Literal["run"] = "run"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # run input
+    input: destack._generated.protocol.workspace.command.run.RunInput
+    kind: typing.Literal["run"] = "run"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestTest:
     """Run workspace tests."""
 
-    """Root handle."""
-    handle: RootId
-    """Test input."""
-    input: TestInput
-    kind: Literal["test"] = "test"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # test input
+    input: destack._generated.protocol.workspace.command.test.TestInput
+    kind: typing.Literal["test"] = "test"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestDoc:
     """Generate documentation."""
 
-    """Root handle."""
-    handle: RootId
-    """Documentation input."""
-    input: DocInput
-    kind: Literal["doc"] = "doc"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # documentation input
+    input: destack._generated.protocol.workspace.command.doc.DocInput
+    kind: typing.Literal["doc"] = "doc"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestBench:
     """Run benchmarks."""
 
-    """Root handle."""
-    handle: RootId
-    """Benchmark input."""
-    input: BenchInput
-    kind: Literal["bench"] = "bench"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # benchmark input
+    input: destack._generated.protocol.workspace.command.bench.BenchInput
+    kind: typing.Literal["bench"] = "bench"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestInfo:
     """Return workspace information."""
 
-    """Root handle."""
-    handle: RootId
-    """Information input."""
-    input: InfoInput
-    kind: Literal["info"] = "info"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # information input
+    input: destack._generated.protocol.workspace.command.info.InfoInput
+    kind: typing.Literal["info"] = "info"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestTargets:
     """Return configured targets."""
 
-    """Root handle."""
-    handle: RootId
-    """Targets input."""
-    input: TargetsInput
-    kind: Literal["targets"] = "targets"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # targets input
+    input: destack._generated.protocol.workspace.command.targets.TargetsInput
+    kind: typing.Literal["targets"] = "targets"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestCache:
     """Return cache locations."""
 
-    """Root handle."""
-    handle: RootId
-    """Cache input."""
-    input: CacheInput
-    kind: Literal["cache"] = "cache"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # cache input
+    input: destack._generated.protocol.workspace.command.cache.CacheInput
+    kind: typing.Literal["cache"] = "cache"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestSettings:
     """Return resolved settings."""
 
-    """Root handle."""
-    handle: RootId
-    """Settings input."""
-    input: SettingsInput
-    kind: Literal["settings"] = "settings"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # settings input
+    input: destack._generated.protocol.workspace.command.settings.SettingsInput
+    kind: typing.Literal["settings"] = "settings"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestDoctor:
     """Return workspace health information."""
 
-    """Root handle."""
-    handle: RootId
-    """Doctor input."""
-    input: DoctorInput
-    kind: Literal["doctor"] = "doctor"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # doctor input
+    input: destack._generated.protocol.workspace.command.doctor.DoctorInput
+    kind: typing.Literal["doctor"] = "doctor"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestTask:
     """Run workspace tasks."""
 
-    """Root handle."""
-    handle: RootId
-    """Task input."""
-    input: TaskInput
-    kind: Literal["task"] = "task"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # task input
+    input: destack._generated.protocol.workspace.command.task.TaskInput
+    kind: typing.Literal["task"] = "task"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestClean:
     """Clean generated state."""
 
-    """Root handle."""
-    handle: RootId
-    """Clean input."""
-    input: CleanInput
-    kind: Literal["clean"] = "clean"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # clean input
+    input: destack._generated.protocol.workspace.command.clean.CleanInput
+    kind: typing.Literal["clean"] = "clean"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestArtifact:
     """Return one artifact payload."""
 
-    """Root handle."""
-    handle: RootId
-    """Artifact reference."""
-    artifact: ArtifactReference
-    kind: Literal["artifact"] = "artifact"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # artifact reference
+    artifact: destack._generated.artifact.reference.ArtifactReference
+    kind: typing.Literal["artifact"] = "artifact"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestStore:
     """Store one content payload."""
 
-    """Root handle."""
-    handle: RootId
-    """Content payload."""
-    content: Content
-    kind: Literal["store"] = "store"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # content payload
+    content: destack._generated.source.file.model.file.Content
+    kind: typing.Literal["store"] = "store"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestLoad:
     """Load one content payload."""
 
-    """Root handle."""
-    handle: RootId
-    """Content id."""
-    content: ContentId
-    kind: Literal["load"] = "load"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # content id
+    content: destack._generated.source.file.model.file.ContentId
+    kind: typing.Literal["load"] = "load"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestExport:
     """Materialize derived outputs."""
 
-    """Root handle."""
-    handle: RootId
-    """Export request."""
-    request: ExportRequest
-    kind: Literal["export"] = "export"
+    # root handle
+    handle: destack._generated.protocol.root.RootId
+    # export request
+    request: destack._generated.protocol.workspace.artifact.export.ExportRequest
+    kind: typing.Literal["export"] = "export"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceRequestQuery:
     """Execute a query."""
 
-    query: WorkspaceQuery
-    kind: Literal["query"] = "query"
+    query: destack._generated.protocol.query.WorkspaceQuery
+    kind: typing.Literal["query"] = "query"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_workspace_request(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_workspace_request(self)
 
 
 """Requests accepted by the workspace protocol."""
-WorkspaceRequest: TypeAlias = (
+WorkspaceRequest: typing.TypeAlias = (
     WorkspaceRequestHandshake
     | WorkspaceRequestPing
     | WorkspaceRequestCancel
@@ -478,7 +643,8 @@ WorkspaceRequest: TypeAlias = (
 )
 
 
-def encode_workspace_request(writer: Writer, value: WorkspaceRequest) -> None:
+def encode_workspace_request(writer: BinaryWriter, value: WorkspaceRequest) -> None:
+    """Encode one WorkspaceRequest."""
     if value.kind == "handshake":
         writer.write_unsigned(0)
         destack._generated.protocol.handshake.encode_handshake_request(
@@ -624,19 +790,17 @@ def encode_workspace_request(writer: Writer, value: WorkspaceRequest) -> None:
     elif value.kind == "artifact":
         writer.write_unsigned(27)
         destack._generated.protocol.root.encode_root_id(writer, value.handle)
-        destack._generated.protocol.artifact.reference.encode_artifact_reference(
+        destack._generated.artifact.reference.encode_artifact_reference(
             writer, value.artifact
         )
     elif value.kind == "store":
         writer.write_unsigned(28)
         destack._generated.protocol.root.encode_root_id(writer, value.handle)
-        destack._generated.protocol.source.file.model.file.encode_content(
-            writer, value.content
-        )
+        destack._generated.source.file.model.file.encode_content(writer, value.content)
     elif value.kind == "load":
         writer.write_unsigned(29)
         destack._generated.protocol.root.encode_root_id(writer, value.handle)
-        destack._generated.protocol.source.file.model.file.encode_content_id(
+        destack._generated.source.file.model.file.encode_content_id(
             writer, value.content
         )
     elif value.kind == "export":
@@ -647,300 +811,776 @@ def encode_workspace_request(writer: Writer, value: WorkspaceRequest) -> None:
         )
     elif value.kind == "query":
         writer.write_unsigned(31)
-        destack._generated.protocol.query.model.encode_workspace_query(
-            writer, value.query
-        )
+        destack._generated.protocol.query.encode_workspace_query(writer, value.query)
     else:
         raise SerdeError("unknown enum variant")
 
 
-def decode_workspace_request(reader: Reader) -> WorkspaceRequest:
+def decode_workspace_request(reader: BinaryReader) -> WorkspaceRequest:
+    """Decode one WorkspaceRequest."""
     variant = reader.read_number()
 
     if variant == 0:
-        return WorkspaceRequestHandshake(
-            handshake=destack._generated.protocol.handshake.decode_handshake_request(
-                reader
-            )
+        handshake = destack._generated.protocol.handshake.decode_handshake_request(
+            reader
         )
+
+        return WorkspaceRequestHandshake(handshake=handshake)
     elif variant == 1:
         return WorkspaceRequestPing()
     elif variant == 2:
-        field_0 = destack._generated.protocol.envelope.decode_request_id(reader)
+        id = destack._generated.protocol.envelope.decode_request_id(reader)
 
         return WorkspaceRequestCancel(
-            id=field_0,
+            id=id,
         )
     elif variant == 3:
         return WorkspaceRequestShutdown()
     elif variant == 4:
-        return WorkspaceRequestOpenRoot(
-            open_root=destack._generated.protocol.root.decode_open_root_request(reader)
-        )
+        open_root = destack._generated.protocol.root.decode_open_root_request(reader)
+
+        return WorkspaceRequestOpenRoot(open_root=open_root)
     elif variant == 5:
-        return WorkspaceRequestCloseRoot(
-            close_root=destack._generated.protocol.root.decode_close_root_request(
-                reader
-            )
-        )
+        close_root = destack._generated.protocol.root.decode_close_root_request(reader)
+
+        return WorkspaceRequestCloseRoot(close_root=close_root)
     elif variant == 6:
-        return WorkspaceRequestReloadRoot(
-            reload_root=destack._generated.protocol.root.decode_reload_root_request(
-                reader
-            )
+        reload_root = destack._generated.protocol.root.decode_reload_root_request(
+            reader
         )
+
+        return WorkspaceRequestReloadRoot(reload_root=reload_root)
     elif variant == 7:
+        apply_file_operation = (
+            destack._generated.protocol.root.decode_file_operation_request(reader)
+        )
+
         return WorkspaceRequestApplyFileOperation(
-            apply_file_operation=destack._generated.protocol.root.decode_file_operation_request(
-                reader
-            )
+            apply_file_operation=apply_file_operation
         )
     elif variant == 8:
+        apply_source_update = (
+            destack._generated.protocol.root.decode_source_update_request(reader)
+        )
+
         return WorkspaceRequestApplySourceUpdate(
-            apply_source_update=destack._generated.protocol.root.decode_source_update_request(
-                reader
-            )
+            apply_source_update=apply_source_update
         )
     elif variant == 9:
-        return WorkspaceRequestStartWatch(
-            start_watch=destack._generated.protocol.watch.decode_watch_start_request(
-                reader
-            )
+        start_watch = destack._generated.protocol.watch.decode_watch_start_request(
+            reader
         )
+
+        return WorkspaceRequestStartWatch(start_watch=start_watch)
     elif variant == 10:
-        return WorkspaceRequestNextWatchBatch(
-            next_watch_batch=destack._generated.protocol.watch.decode_watch_next_request(
-                reader
-            )
+        next_watch_batch = destack._generated.protocol.watch.decode_watch_next_request(
+            reader
         )
+
+        return WorkspaceRequestNextWatchBatch(next_watch_batch=next_watch_batch)
     elif variant == 11:
-        return WorkspaceRequestStopWatch(
-            stop_watch=destack._generated.protocol.watch.decode_watch_stop_request(
-                reader
-            )
-        )
+        stop_watch = destack._generated.protocol.watch.decode_watch_stop_request(reader)
+
+        return WorkspaceRequestStopWatch(stop_watch=stop_watch)
     elif variant == 12:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = (
-            destack._generated.protocol.workspace.command.check.decode_check_input(
-                reader
-            )
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        input = destack._generated.protocol.workspace.command.check.decode_check_input(
+            reader
         )
 
         return WorkspaceRequestCheck(
-            handle=field_0,
-            input=field_1,
+            handle=handle,
+            input=input,
         )
     elif variant == 13:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = destack._generated.protocol.workspace.command.check.decode_lint_input(
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        input = destack._generated.protocol.workspace.command.check.decode_lint_input(
             reader
         )
 
         return WorkspaceRequestLint(
-            handle=field_0,
-            input=field_1,
+            handle=handle,
+            input=input,
         )
     elif variant == 14:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = (
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        input = (
             destack._generated.protocol.workspace.command.format.decode_format_input(
                 reader
             )
         )
 
         return WorkspaceRequestFormat(
-            handle=field_0,
-            input=field_1,
+            handle=handle,
+            input=input,
         )
     elif variant == 15:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = (
-            destack._generated.protocol.workspace.command.build.decode_build_input(
-                reader
-            )
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        input = destack._generated.protocol.workspace.command.build.decode_build_input(
+            reader
         )
 
         return WorkspaceRequestBuild(
-            handle=field_0,
-            input=field_1,
+            handle=handle,
+            input=input,
         )
     elif variant == 16:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = destack._generated.protocol.workspace.command.run.decode_run_input(
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        input = destack._generated.protocol.workspace.command.run.decode_run_input(
             reader
         )
 
         return WorkspaceRequestRun(
-            handle=field_0,
-            input=field_1,
+            handle=handle,
+            input=input,
         )
     elif variant == 17:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = destack._generated.protocol.workspace.command.test.decode_test_input(
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        input = destack._generated.protocol.workspace.command.test.decode_test_input(
             reader
         )
 
         return WorkspaceRequestTest(
-            handle=field_0,
-            input=field_1,
+            handle=handle,
+            input=input,
         )
     elif variant == 18:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = destack._generated.protocol.workspace.command.doc.decode_doc_input(
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        input = destack._generated.protocol.workspace.command.doc.decode_doc_input(
             reader
         )
 
         return WorkspaceRequestDoc(
-            handle=field_0,
-            input=field_1,
+            handle=handle,
+            input=input,
         )
     elif variant == 19:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = (
-            destack._generated.protocol.workspace.command.bench.decode_bench_input(
-                reader
-            )
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        input = destack._generated.protocol.workspace.command.bench.decode_bench_input(
+            reader
         )
 
         return WorkspaceRequestBench(
-            handle=field_0,
-            input=field_1,
+            handle=handle,
+            input=input,
         )
     elif variant == 20:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = destack._generated.protocol.workspace.command.info.decode_info_input(
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        input = destack._generated.protocol.workspace.command.info.decode_info_input(
             reader
         )
 
         return WorkspaceRequestInfo(
-            handle=field_0,
-            input=field_1,
+            handle=handle,
+            input=input,
         )
     elif variant == 21:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = (
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        input = (
             destack._generated.protocol.workspace.command.targets.decode_targets_input(
                 reader
             )
         )
 
         return WorkspaceRequestTargets(
-            handle=field_0,
-            input=field_1,
+            handle=handle,
+            input=input,
         )
     elif variant == 22:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = (
-            destack._generated.protocol.workspace.command.cache.decode_cache_input(
-                reader
-            )
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        input = destack._generated.protocol.workspace.command.cache.decode_cache_input(
+            reader
         )
 
         return WorkspaceRequestCache(
-            handle=field_0,
-            input=field_1,
+            handle=handle,
+            input=input,
         )
     elif variant == 23:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = destack._generated.protocol.workspace.command.settings.decode_settings_input(
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        input = destack._generated.protocol.workspace.command.settings.decode_settings_input(
             reader
         )
 
         return WorkspaceRequestSettings(
-            handle=field_0,
-            input=field_1,
+            handle=handle,
+            input=input,
         )
     elif variant == 24:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = (
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        input = (
             destack._generated.protocol.workspace.command.doctor.decode_doctor_input(
                 reader
             )
         )
 
         return WorkspaceRequestDoctor(
-            handle=field_0,
-            input=field_1,
+            handle=handle,
+            input=input,
         )
     elif variant == 25:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = destack._generated.protocol.workspace.command.task.decode_task_input(
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        input = destack._generated.protocol.workspace.command.task.decode_task_input(
             reader
         )
 
         return WorkspaceRequestTask(
-            handle=field_0,
-            input=field_1,
+            handle=handle,
+            input=input,
         )
     elif variant == 26:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = (
-            destack._generated.protocol.workspace.command.clean.decode_clean_input(
-                reader
-            )
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        input = destack._generated.protocol.workspace.command.clean.decode_clean_input(
+            reader
         )
 
         return WorkspaceRequestClean(
-            handle=field_0,
-            input=field_1,
+            handle=handle,
+            input=input,
         )
     elif variant == 27:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = (
-            destack._generated.protocol.artifact.reference.decode_artifact_reference(
-                reader
-            )
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        artifact = destack._generated.artifact.reference.decode_artifact_reference(
+            reader
         )
 
         return WorkspaceRequestArtifact(
-            handle=field_0,
-            artifact=field_1,
+            handle=handle,
+            artifact=artifact,
         )
     elif variant == 28:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = destack._generated.protocol.source.file.model.file.decode_content(
-            reader
-        )
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        content = destack._generated.source.file.model.file.decode_content(reader)
 
         return WorkspaceRequestStore(
-            handle=field_0,
-            content=field_1,
+            handle=handle,
+            content=content,
         )
     elif variant == 29:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = destack._generated.protocol.source.file.model.file.decode_content_id(
-            reader
-        )
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        content = destack._generated.source.file.model.file.decode_content_id(reader)
 
         return WorkspaceRequestLoad(
-            handle=field_0,
-            content=field_1,
+            handle=handle,
+            content=content,
         )
     elif variant == 30:
-        field_0 = destack._generated.protocol.root.decode_root_id(reader)
-        field_1 = (
+        handle = destack._generated.protocol.root.decode_root_id(reader)
+        request = (
             destack._generated.protocol.workspace.artifact.export.decode_export_request(
                 reader
             )
         )
 
         return WorkspaceRequestExport(
-            handle=field_0,
-            request=field_1,
+            handle=handle,
+            request=request,
         )
     elif variant == 31:
-        return WorkspaceRequestQuery(
-            query=destack._generated.protocol.query.model.decode_workspace_query(reader)
-        )
+        query = destack._generated.protocol.query.decode_workspace_query(reader)
+
+        return WorkspaceRequestQuery(query=query)
     else:
         raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_workspace_request(value: WorkspaceRequest) -> Json:
+    """Return one JSON value for one WorkspaceRequest."""
+    if value.kind == "handshake":
+        return {
+            "kind": "handshake",
+            "handshake": destack._generated.protocol.handshake.to_json_handshake_request(
+                value.handshake
+            ),
+        }
+    elif value.kind == "ping":
+        return {
+            "kind": "ping",
+        }
+    elif value.kind == "cancel":
+        return {
+            "kind": "cancel",
+            "id": destack._generated.protocol.envelope.to_json_request_id(value.id),
+        }
+    elif value.kind == "shutdown":
+        return {
+            "kind": "shutdown",
+        }
+    elif value.kind == "openRoot":
+        return {
+            "kind": "openRoot",
+            "open_root": destack._generated.protocol.root.to_json_open_root_request(
+                value.open_root
+            ),
+        }
+    elif value.kind == "closeRoot":
+        return {
+            "kind": "closeRoot",
+            "close_root": destack._generated.protocol.root.to_json_close_root_request(
+                value.close_root
+            ),
+        }
+    elif value.kind == "reloadRoot":
+        return {
+            "kind": "reloadRoot",
+            "reload_root": destack._generated.protocol.root.to_json_reload_root_request(
+                value.reload_root
+            ),
+        }
+    elif value.kind == "applyFileOperation":
+        return {
+            "kind": "applyFileOperation",
+            "apply_file_operation": destack._generated.protocol.root.to_json_file_operation_request(
+                value.apply_file_operation
+            ),
+        }
+    elif value.kind == "applySourceUpdate":
+        return {
+            "kind": "applySourceUpdate",
+            "apply_source_update": destack._generated.protocol.root.to_json_source_update_request(
+                value.apply_source_update
+            ),
+        }
+    elif value.kind == "startWatch":
+        return {
+            "kind": "startWatch",
+            "start_watch": destack._generated.protocol.watch.to_json_watch_start_request(
+                value.start_watch
+            ),
+        }
+    elif value.kind == "nextWatchBatch":
+        return {
+            "kind": "nextWatchBatch",
+            "next_watch_batch": destack._generated.protocol.watch.to_json_watch_next_request(
+                value.next_watch_batch
+            ),
+        }
+    elif value.kind == "stopWatch":
+        return {
+            "kind": "stopWatch",
+            "stop_watch": destack._generated.protocol.watch.to_json_watch_stop_request(
+                value.stop_watch
+            ),
+        }
+    elif value.kind == "check":
+        return {
+            "kind": "check",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "input": destack._generated.protocol.workspace.command.check.to_json_check_input(
+                value.input
+            ),
+        }
+    elif value.kind == "lint":
+        return {
+            "kind": "lint",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "input": destack._generated.protocol.workspace.command.check.to_json_lint_input(
+                value.input
+            ),
+        }
+    elif value.kind == "format":
+        return {
+            "kind": "format",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "input": destack._generated.protocol.workspace.command.format.to_json_format_input(
+                value.input
+            ),
+        }
+    elif value.kind == "build":
+        return {
+            "kind": "build",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "input": destack._generated.protocol.workspace.command.build.to_json_build_input(
+                value.input
+            ),
+        }
+    elif value.kind == "run":
+        return {
+            "kind": "run",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "input": destack._generated.protocol.workspace.command.run.to_json_run_input(
+                value.input
+            ),
+        }
+    elif value.kind == "test":
+        return {
+            "kind": "test",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "input": destack._generated.protocol.workspace.command.test.to_json_test_input(
+                value.input
+            ),
+        }
+    elif value.kind == "doc":
+        return {
+            "kind": "doc",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "input": destack._generated.protocol.workspace.command.doc.to_json_doc_input(
+                value.input
+            ),
+        }
+    elif value.kind == "bench":
+        return {
+            "kind": "bench",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "input": destack._generated.protocol.workspace.command.bench.to_json_bench_input(
+                value.input
+            ),
+        }
+    elif value.kind == "info":
+        return {
+            "kind": "info",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "input": destack._generated.protocol.workspace.command.info.to_json_info_input(
+                value.input
+            ),
+        }
+    elif value.kind == "targets":
+        return {
+            "kind": "targets",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "input": destack._generated.protocol.workspace.command.targets.to_json_targets_input(
+                value.input
+            ),
+        }
+    elif value.kind == "cache":
+        return {
+            "kind": "cache",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "input": destack._generated.protocol.workspace.command.cache.to_json_cache_input(
+                value.input
+            ),
+        }
+    elif value.kind == "settings":
+        return {
+            "kind": "settings",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "input": destack._generated.protocol.workspace.command.settings.to_json_settings_input(
+                value.input
+            ),
+        }
+    elif value.kind == "doctor":
+        return {
+            "kind": "doctor",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "input": destack._generated.protocol.workspace.command.doctor.to_json_doctor_input(
+                value.input
+            ),
+        }
+    elif value.kind == "task":
+        return {
+            "kind": "task",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "input": destack._generated.protocol.workspace.command.task.to_json_task_input(
+                value.input
+            ),
+        }
+    elif value.kind == "clean":
+        return {
+            "kind": "clean",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "input": destack._generated.protocol.workspace.command.clean.to_json_clean_input(
+                value.input
+            ),
+        }
+    elif value.kind == "artifact":
+        return {
+            "kind": "artifact",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "artifact": destack._generated.artifact.reference.to_json_artifact_reference(
+                value.artifact
+            ),
+        }
+    elif value.kind == "store":
+        return {
+            "kind": "store",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "content": destack._generated.source.file.model.file.to_json_content(
+                value.content
+            ),
+        }
+    elif value.kind == "load":
+        return {
+            "kind": "load",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "content": destack._generated.source.file.model.file.to_json_content_id(
+                value.content
+            ),
+        }
+    elif value.kind == "export":
+        return {
+            "kind": "export",
+            "handle": destack._generated.protocol.root.to_json_root_id(value.handle),
+            "request": destack._generated.protocol.workspace.artifact.export.to_json_export_request(
+                value.request
+            ),
+        }
+    elif value.kind == "query":
+        return {
+            "kind": "query",
+            "query": destack._generated.protocol.query.to_json_workspace_query(
+                value.query
+            ),
+        }
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def from_json_workspace_request(value: Json) -> WorkspaceRequest:
+    """Return one WorkspaceRequest from one JSON value."""
+    object_ = json_object(value)
+    kind = json_string(json_field(object_, "kind"))
+
+    if kind == "handshake":
+        return WorkspaceRequestHandshake(
+            handshake=destack._generated.protocol.handshake.from_json_handshake_request(
+                json_field(object_, "handshake")
+            )
+        )
+    elif kind == "ping":
+        return WorkspaceRequestPing()
+    elif kind == "cancel":
+        return WorkspaceRequestCancel(
+            id=destack._generated.protocol.envelope.from_json_request_id(
+                json_field(object_, "id")
+            ),
+        )
+    elif kind == "shutdown":
+        return WorkspaceRequestShutdown()
+    elif kind == "openRoot":
+        return WorkspaceRequestOpenRoot(
+            open_root=destack._generated.protocol.root.from_json_open_root_request(
+                json_field(object_, "open_root")
+            )
+        )
+    elif kind == "closeRoot":
+        return WorkspaceRequestCloseRoot(
+            close_root=destack._generated.protocol.root.from_json_close_root_request(
+                json_field(object_, "close_root")
+            )
+        )
+    elif kind == "reloadRoot":
+        return WorkspaceRequestReloadRoot(
+            reload_root=destack._generated.protocol.root.from_json_reload_root_request(
+                json_field(object_, "reload_root")
+            )
+        )
+    elif kind == "applyFileOperation":
+        return WorkspaceRequestApplyFileOperation(
+            apply_file_operation=destack._generated.protocol.root.from_json_file_operation_request(
+                json_field(object_, "apply_file_operation")
+            )
+        )
+    elif kind == "applySourceUpdate":
+        return WorkspaceRequestApplySourceUpdate(
+            apply_source_update=destack._generated.protocol.root.from_json_source_update_request(
+                json_field(object_, "apply_source_update")
+            )
+        )
+    elif kind == "startWatch":
+        return WorkspaceRequestStartWatch(
+            start_watch=destack._generated.protocol.watch.from_json_watch_start_request(
+                json_field(object_, "start_watch")
+            )
+        )
+    elif kind == "nextWatchBatch":
+        return WorkspaceRequestNextWatchBatch(
+            next_watch_batch=destack._generated.protocol.watch.from_json_watch_next_request(
+                json_field(object_, "next_watch_batch")
+            )
+        )
+    elif kind == "stopWatch":
+        return WorkspaceRequestStopWatch(
+            stop_watch=destack._generated.protocol.watch.from_json_watch_stop_request(
+                json_field(object_, "stop_watch")
+            )
+        )
+    elif kind == "check":
+        return WorkspaceRequestCheck(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            input=destack._generated.protocol.workspace.command.check.from_json_check_input(
+                json_field(object_, "input")
+            ),
+        )
+    elif kind == "lint":
+        return WorkspaceRequestLint(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            input=destack._generated.protocol.workspace.command.check.from_json_lint_input(
+                json_field(object_, "input")
+            ),
+        )
+    elif kind == "format":
+        return WorkspaceRequestFormat(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            input=destack._generated.protocol.workspace.command.format.from_json_format_input(
+                json_field(object_, "input")
+            ),
+        )
+    elif kind == "build":
+        return WorkspaceRequestBuild(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            input=destack._generated.protocol.workspace.command.build.from_json_build_input(
+                json_field(object_, "input")
+            ),
+        )
+    elif kind == "run":
+        return WorkspaceRequestRun(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            input=destack._generated.protocol.workspace.command.run.from_json_run_input(
+                json_field(object_, "input")
+            ),
+        )
+    elif kind == "test":
+        return WorkspaceRequestTest(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            input=destack._generated.protocol.workspace.command.test.from_json_test_input(
+                json_field(object_, "input")
+            ),
+        )
+    elif kind == "doc":
+        return WorkspaceRequestDoc(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            input=destack._generated.protocol.workspace.command.doc.from_json_doc_input(
+                json_field(object_, "input")
+            ),
+        )
+    elif kind == "bench":
+        return WorkspaceRequestBench(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            input=destack._generated.protocol.workspace.command.bench.from_json_bench_input(
+                json_field(object_, "input")
+            ),
+        )
+    elif kind == "info":
+        return WorkspaceRequestInfo(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            input=destack._generated.protocol.workspace.command.info.from_json_info_input(
+                json_field(object_, "input")
+            ),
+        )
+    elif kind == "targets":
+        return WorkspaceRequestTargets(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            input=destack._generated.protocol.workspace.command.targets.from_json_targets_input(
+                json_field(object_, "input")
+            ),
+        )
+    elif kind == "cache":
+        return WorkspaceRequestCache(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            input=destack._generated.protocol.workspace.command.cache.from_json_cache_input(
+                json_field(object_, "input")
+            ),
+        )
+    elif kind == "settings":
+        return WorkspaceRequestSettings(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            input=destack._generated.protocol.workspace.command.settings.from_json_settings_input(
+                json_field(object_, "input")
+            ),
+        )
+    elif kind == "doctor":
+        return WorkspaceRequestDoctor(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            input=destack._generated.protocol.workspace.command.doctor.from_json_doctor_input(
+                json_field(object_, "input")
+            ),
+        )
+    elif kind == "task":
+        return WorkspaceRequestTask(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            input=destack._generated.protocol.workspace.command.task.from_json_task_input(
+                json_field(object_, "input")
+            ),
+        )
+    elif kind == "clean":
+        return WorkspaceRequestClean(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            input=destack._generated.protocol.workspace.command.clean.from_json_clean_input(
+                json_field(object_, "input")
+            ),
+        )
+    elif kind == "artifact":
+        return WorkspaceRequestArtifact(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            artifact=destack._generated.artifact.reference.from_json_artifact_reference(
+                json_field(object_, "artifact")
+            ),
+        )
+    elif kind == "store":
+        return WorkspaceRequestStore(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            content=destack._generated.source.file.model.file.from_json_content(
+                json_field(object_, "content")
+            ),
+        )
+    elif kind == "load":
+        return WorkspaceRequestLoad(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            content=destack._generated.source.file.model.file.from_json_content_id(
+                json_field(object_, "content")
+            ),
+        )
+    elif kind == "export":
+        return WorkspaceRequestExport(
+            handle=destack._generated.protocol.root.from_json_root_id(
+                json_field(object_, "handle")
+            ),
+            request=destack._generated.protocol.workspace.artifact.export.from_json_export_request(
+                json_field(object_, "request")
+            ),
+        )
+    elif kind == "query":
+        return WorkspaceRequestQuery(
+            query=destack._generated.protocol.query.from_json_workspace_query(
+                json_field(object_, "query")
+            )
+        )
+    else:
+        raise SerdeError(f"unknown enum variant: {kind}")
 
 
 __all__ = [
     "WorkspaceRequest",
     "encode_workspace_request",
     "decode_workspace_request",
+    "to_json_workspace_request",
+    "from_json_workspace_request",
     "WorkspaceRequestHandshake",
     "WorkspaceRequestPing",
     "WorkspaceRequestCancel",

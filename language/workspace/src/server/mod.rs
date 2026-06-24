@@ -4,15 +4,18 @@ mod connection;
 mod error;
 mod lease;
 mod lifecycle;
+mod open;
 mod options;
 mod query;
 mod root;
 mod server;
 mod source;
 mod watch;
+mod websocket;
 
 pub use error::ServerError;
 pub use lease::RootLease;
 pub use lifecycle::*;
 pub use options::ServerOptions;
 pub use server::Server;
+pub use websocket::{WebSocketServer, WebSocketServerError};

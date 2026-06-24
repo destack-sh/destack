@@ -18,7 +18,15 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-destack_bridge_language.workspace = true
+destack_artifact.workspace = true
+destack_core.workspace = true
+destack_dir.workspace = true
+destack_heap.workspace = true
+destack_js.workspace = true
+destack_mir.workspace = true
+destack_program.workspace = true
+destack_qir.workspace = true
+destack_query.workspace = true
 destack_repository.workspace = true
 destack_source.workspace = true
 destack_workspace = { workspace = true, default-features = false }

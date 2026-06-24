@@ -9,6 +9,8 @@ use crate::generate::schema::{Schema, SchemaModule};
 use super::text::GENERATED_HEADER;
 
 const FORMAT_PATHS: &[&str] = &["bridge/napi", "bridge/wasm", "bridge/typescript"];
+const GENERATED_ROOT: &str = "bridge/typescript/src/_generated";
+const OLD_GENERATED_ROOT: &str = "bridge/typescript/src/generated";
 
 /// Format generated TypeScript bridge files.
 pub(in crate::generate) fn format(root: &Path) -> Result<()> {
@@ -39,20 +41,22 @@ pub(in crate::generate) fn format(root: &Path) -> Result<()> {
 
 /// Prune generated TypeScript output from previous generator layouts.
 pub(super) fn prune_outputs(root: &Path, schema: &Schema) -> Result<()> {
-    let generated_root = root.join("bridge/typescript/src/generated");
-    if generated_root.exists() {
-        fs::remove_dir_all(generated_root)?;
+    for path in [GENERATED_ROOT, OLD_GENERATED_ROOT] {
+        let path = root.join(path);
+        if path.exists() {
+            fs::remove_dir_all(path)?;
+        }
     }
 
     for module in &schema.modules {
-        prune_file(root, &old_module_path(module))?;
+        prune_generated_file(root, &old_module_path(module))?;
     }
 
     Ok(())
 }
 
 /// Prune one stale generated TypeScript file when it exists.
-fn prune_file(root: &Path, path: &str) -> Result<()> {
+pub(super) fn prune_generated_file(root: &Path, path: &str) -> Result<()> {
     let path = root.join(path);
     if !path.exists() {
         return Ok(());
@@ -69,7 +73,7 @@ fn prune_file(root: &Path, path: &str) -> Result<()> {
 /// Return one generated TypeScript module path.
 pub(super) fn module_path(module: &SchemaModule) -> String {
     format!(
-        "bridge/typescript/src/generated/{}.ts",
+        "bridge/typescript/src/_generated/{}.ts",
         module.path.slash_path()
     )
 }

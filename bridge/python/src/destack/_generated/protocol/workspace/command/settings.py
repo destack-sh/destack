@@ -2,62 +2,89 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, TypeAlias
+import typing
 
-from destack.protocol.serde import Reader, SerdeError, Writer, nested_bytes
+from destack.protocol.serde import (
+    BinaryReader,
+    BinaryWriter,
+    Json,
+    SerdeError,
+    json_array,
+    json_bool,
+    json_field,
+    json_int,
+    json_object,
+    json_optional,
+    json_string,
+)
 
 import destack._generated.protocol.workspace.command.common
-
-if TYPE_CHECKING:
-    from destack._generated.protocol.workspace.command.common import (
-        CommandEnvVar,
-        CommandInput,
-        CommandRevision,
-        CommandTargetOverrides,
-        ManifestOverride,
-    )
 
 
 @dataclass(frozen=True, slots=True)
 class SettingsInput:
     """Request to return resolved settings."""
 
-    """Revision selected for this settings request."""
-    revision: CommandRevision
-    """Input sources for the command."""
-    inputs: Sequence[CommandInput]
-    """Whether destack.json should resolve inputs when none are provided."""
+    # revision selected for this settings request
+    revision: destack._generated.protocol.workspace.command.common.CommandRevision
+    # input sources for the command
+    inputs: Sequence[destack._generated.protocol.workspace.command.common.CommandInput]
+    # whether destack.json should resolve inputs when none are provided
     config_inputs: bool
-    """Optional working directory for this command."""
+    # optional working directory for this command
     cwd: str | None
-    """Optional Destack manifest path override."""
+    # optional Destack manifest path override
     manifest: str | None
-    """Optional target name override."""
+    # optional target name override
     target: str | None
-    """Optional target overrides."""
-    target_overrides: CommandTargetOverrides | None
-    """Optional profile name override."""
+    # optional target overrides
+    target_overrides: (
+        destack._generated.protocol.workspace.command.common.CommandTargetOverrides
+        | None
+    )
+    # optional profile name override
     profile: str | None
-    """Optional environment overrides."""
-    env: Sequence[CommandEnvVar]
-    """Optional manifest overrides."""
-    overrides: Sequence[ManifestOverride]
-    """Whether the command should watch for changes."""
+    # optional environment overrides
+    env: Sequence[destack._generated.protocol.workspace.command.common.CommandEnvVar]
+    # optional manifest overrides
+    overrides: Sequence[
+        destack._generated.protocol.workspace.command.common.ManifestOverride
+    ]
+    # whether the command should watch for changes
     watch: bool
-    """Whether the command should skip writes."""
+    # whether the command should skip writes
     dry_run: bool
 
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_settings_input(writer, self)
 
-def encode_settings_input(writer: Writer, value: SettingsInput) -> None:
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> SettingsInput:
+        """Decode one SettingsInput."""
+        return decode_settings_input(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_settings_input(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> SettingsInput:
+        """Return one SettingsInput from one JSON value."""
+        return from_json_settings_input(value)
+
+
+def encode_settings_input(writer: BinaryWriter, value: SettingsInput) -> None:
+    """Encode one SettingsInput."""
     destack._generated.protocol.workspace.command.common.encode_command_revision(
         writer, value.revision
     )
     writer.write_unsigned(len(value.inputs))
-    for item_0 in value.inputs:
+    for item_value_inputs_0 in value.inputs:
         destack._generated.protocol.workspace.command.common.encode_command_input(
-            writer, item_0
+            writer, item_value_inputs_0
         )
     writer.write_bool(value.config_inputs)
     if value.cwd is None:
@@ -88,71 +115,160 @@ def encode_settings_input(writer: Writer, value: SettingsInput) -> None:
         writer.write_byte(1)
         writer.write_string(value.profile)
     writer.write_unsigned(len(value.env))
-    for item_0 in value.env:
+    for item_value_env_0 in value.env:
         destack._generated.protocol.workspace.command.common.encode_command_env_var(
-            writer, item_0
+            writer, item_value_env_0
         )
     writer.write_unsigned(len(value.overrides))
-    for item_0 in value.overrides:
+    for item_value_overrides_0 in value.overrides:
         destack._generated.protocol.workspace.command.common.encode_manifest_override(
-            writer, item_0
+            writer, item_value_overrides_0
         )
     writer.write_bool(value.watch)
     writer.write_bool(value.dry_run)
 
 
-def decode_settings_input(reader: Reader) -> SettingsInput:
-    field_0 = (
+def decode_settings_input(reader: BinaryReader) -> SettingsInput:
+    """Decode one SettingsInput."""
+    revision = (
         destack._generated.protocol.workspace.command.common.decode_command_revision(
             reader
         )
     )
-    field_1 = [
+    inputs = [
         destack._generated.protocol.workspace.command.common.decode_command_input(
             reader
         )
         for _ in range(reader.read_number())
     ]
-    field_2 = reader.read_bool()
-    field_3 = reader.read_option(lambda: reader.read_string())
-    field_4 = reader.read_option(lambda: reader.read_string())
-    field_5 = reader.read_option(lambda: reader.read_string())
-    field_6 = reader.read_option(
+    config_inputs = reader.read_bool()
+    cwd = reader.read_option(lambda: reader.read_string())
+    manifest = reader.read_option(lambda: reader.read_string())
+    target = reader.read_option(lambda: reader.read_string())
+    target_overrides = reader.read_option(
         lambda: (
             destack._generated.protocol.workspace.command.common.decode_command_target_overrides(
                 reader
             )
         )
     )
-    field_7 = reader.read_option(lambda: reader.read_string())
-    field_8 = [
+    profile = reader.read_option(lambda: reader.read_string())
+    env = [
         destack._generated.protocol.workspace.command.common.decode_command_env_var(
             reader
         )
         for _ in range(reader.read_number())
     ]
-    field_9 = [
+    overrides = [
         destack._generated.protocol.workspace.command.common.decode_manifest_override(
             reader
         )
         for _ in range(reader.read_number())
     ]
-    field_10 = reader.read_bool()
-    field_11 = reader.read_bool()
+    watch = reader.read_bool()
+    dry_run = reader.read_bool()
 
     return SettingsInput(
-        revision=field_0,
-        inputs=field_1,
-        config_inputs=field_2,
-        cwd=field_3,
-        manifest=field_4,
-        target=field_5,
-        target_overrides=field_6,
-        profile=field_7,
-        env=field_8,
-        overrides=field_9,
-        watch=field_10,
-        dry_run=field_11,
+        revision=revision,
+        inputs=inputs,
+        config_inputs=config_inputs,
+        cwd=cwd,
+        manifest=manifest,
+        target=target,
+        target_overrides=target_overrides,
+        profile=profile,
+        env=env,
+        overrides=overrides,
+        watch=watch,
+        dry_run=dry_run,
+    )
+
+
+def to_json_settings_input(value: SettingsInput) -> Json:
+    """Return one JSON value for one SettingsInput."""
+    return {
+        "revision": destack._generated.protocol.workspace.command.common.to_json_command_revision(
+            value.revision
+        ),
+        "inputs": [
+            destack._generated.protocol.workspace.command.common.to_json_command_input(
+                item_0
+            )
+            for item_0 in value.inputs
+        ],
+        "configInputs": value.config_inputs,
+        **({} if value.cwd is None else {"cwd": value.cwd}),
+        **({} if value.manifest is None else {"manifest": value.manifest}),
+        **({} if value.target is None else {"target": value.target}),
+        **(
+            {}
+            if value.target_overrides is None
+            else {
+                "targetOverrides": destack._generated.protocol.workspace.command.common.to_json_command_target_overrides(
+                    value.target_overrides
+                )
+            }
+        ),
+        **({} if value.profile is None else {"profile": value.profile}),
+        "env": [
+            destack._generated.protocol.workspace.command.common.to_json_command_env_var(
+                item_0
+            )
+            for item_0 in value.env
+        ],
+        "overrides": [
+            destack._generated.protocol.workspace.command.common.to_json_manifest_override(
+                item_0
+            )
+            for item_0 in value.overrides
+        ],
+        "watch": value.watch,
+        "dryRun": value.dry_run,
+    }
+
+
+def from_json_settings_input(value: Json) -> SettingsInput:
+    """Return one SettingsInput from one JSON value."""
+    object_ = json_object(value)
+
+    return SettingsInput(
+        revision=destack._generated.protocol.workspace.command.common.from_json_command_revision(
+            json_field(object_, "revision")
+        ),
+        inputs=[
+            destack._generated.protocol.workspace.command.common.from_json_command_input(
+                item_0
+            )
+            for item_0 in json_array(json_field(object_, "inputs"))
+        ],
+        config_inputs=json_bool(json_field(object_, "configInputs")),
+        cwd=json_optional(object_, "cwd", lambda value: json_string(value)),
+        manifest=json_optional(object_, "manifest", lambda value: json_string(value)),
+        target=json_optional(object_, "target", lambda value: json_string(value)),
+        target_overrides=json_optional(
+            object_,
+            "targetOverrides",
+            lambda value: (
+                destack._generated.protocol.workspace.command.common.from_json_command_target_overrides(
+                    value
+                )
+            ),
+        ),
+        profile=json_optional(object_, "profile", lambda value: json_string(value)),
+        env=[
+            destack._generated.protocol.workspace.command.common.from_json_command_env_var(
+                item_0
+            )
+            for item_0 in json_array(json_field(object_, "env"))
+        ],
+        overrides=[
+            destack._generated.protocol.workspace.command.common.from_json_manifest_override(
+                item_0
+            )
+            for item_0 in json_array(json_field(object_, "overrides"))
+        ],
+        watch=json_bool(json_field(object_, "watch")),
+        dry_run=json_bool(json_field(object_, "dryRun")),
     )
 
 
@@ -160,27 +276,46 @@ def decode_settings_input(reader: Reader) -> SettingsInput:
 class SettingsPayload:
     """Payload for settings command output."""
 
-    """Machine-local Destack home."""
+    # machine-local Destack home
     home: str
-    """Package directory."""
+    # package directory
     packages: str
-    """Maximum package directory size in bytes before pruning is requested."""
+    # maximum package directory size in bytes before pruning is requested
     package_maximum_bytes: int | None
-    """Workspace-local cache and session directory."""
+    # workspace-local cache and session directory
     workspace_cache: str
-    """Maximum cache size in bytes before pruning is requested."""
+    # maximum cache size in bytes before pruning is requested
     cache_maximum_bytes: int | None
-    """Workspace-owned vendor directory."""
+    # workspace-owned vendor directory
     vendor: str
-    """Default registry name."""
+    # default registry name
     registry: str | None
-    """Known registries."""
+    # known registries
     registries: Sequence[SettingsRegistry]
-    """Network settings for package and update commands."""
+    # network settings for package and update commands
     network: SettingsNetwork
 
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_settings_payload(writer, self)
 
-def encode_settings_payload(writer: Writer, value: SettingsPayload) -> None:
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> SettingsPayload:
+        """Decode one SettingsPayload."""
+        return decode_settings_payload(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_settings_payload(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> SettingsPayload:
+        """Return one SettingsPayload from one JSON value."""
+        return from_json_settings_payload(value)
+
+
+def encode_settings_payload(writer: BinaryWriter, value: SettingsPayload) -> None:
+    """Encode one SettingsPayload."""
     writer.write_string(value.home)
     writer.write_string(value.packages)
     if value.package_maximum_bytes is None:
@@ -201,32 +336,82 @@ def encode_settings_payload(writer: Writer, value: SettingsPayload) -> None:
         writer.write_byte(1)
         writer.write_string(value.registry)
     writer.write_unsigned(len(value.registries))
-    for item_0 in value.registries:
-        encode_settings_registry(writer, item_0)
+    for item_value_registries_0 in value.registries:
+        encode_settings_registry(writer, item_value_registries_0)
     encode_settings_network(writer, value.network)
 
 
-def decode_settings_payload(reader: Reader) -> SettingsPayload:
-    field_0 = reader.read_string()
-    field_1 = reader.read_string()
-    field_2 = reader.read_option(lambda: reader.read_number())
-    field_3 = reader.read_string()
-    field_4 = reader.read_option(lambda: reader.read_number())
-    field_5 = reader.read_string()
-    field_6 = reader.read_option(lambda: reader.read_string())
-    field_7 = [decode_settings_registry(reader) for _ in range(reader.read_number())]
-    field_8 = decode_settings_network(reader)
+def decode_settings_payload(reader: BinaryReader) -> SettingsPayload:
+    """Decode one SettingsPayload."""
+    home = reader.read_string()
+    packages = reader.read_string()
+    package_maximum_bytes = reader.read_option(lambda: reader.read_number())
+    workspace_cache = reader.read_string()
+    cache_maximum_bytes = reader.read_option(lambda: reader.read_number())
+    vendor = reader.read_string()
+    registry = reader.read_option(lambda: reader.read_string())
+    registries = [decode_settings_registry(reader) for _ in range(reader.read_number())]
+    network = decode_settings_network(reader)
 
     return SettingsPayload(
-        home=field_0,
-        packages=field_1,
-        package_maximum_bytes=field_2,
-        workspace_cache=field_3,
-        cache_maximum_bytes=field_4,
-        vendor=field_5,
-        registry=field_6,
-        registries=field_7,
-        network=field_8,
+        home=home,
+        packages=packages,
+        package_maximum_bytes=package_maximum_bytes,
+        workspace_cache=workspace_cache,
+        cache_maximum_bytes=cache_maximum_bytes,
+        vendor=vendor,
+        registry=registry,
+        registries=registries,
+        network=network,
+    )
+
+
+def to_json_settings_payload(value: SettingsPayload) -> Json:
+    """Return one JSON value for one SettingsPayload."""
+    return {
+        "home": value.home,
+        "packages": value.packages,
+        **(
+            {}
+            if value.package_maximum_bytes is None
+            else {"packageMaximumBytes": value.package_maximum_bytes}
+        ),
+        "workspaceCache": value.workspace_cache,
+        **(
+            {}
+            if value.cache_maximum_bytes is None
+            else {"cacheMaximumBytes": value.cache_maximum_bytes}
+        ),
+        "vendor": value.vendor,
+        **({} if value.registry is None else {"registry": value.registry}),
+        "registries": [
+            to_json_settings_registry(item_0) for item_0 in value.registries
+        ],
+        "network": to_json_settings_network(value.network),
+    }
+
+
+def from_json_settings_payload(value: Json) -> SettingsPayload:
+    """Return one SettingsPayload from one JSON value."""
+    object_ = json_object(value)
+
+    return SettingsPayload(
+        home=json_string(json_field(object_, "home")),
+        packages=json_string(json_field(object_, "packages")),
+        package_maximum_bytes=json_optional(
+            object_, "packageMaximumBytes", lambda value: json_int(value)
+        ),
+        workspace_cache=json_string(json_field(object_, "workspaceCache")),
+        cache_maximum_bytes=json_optional(
+            object_, "cacheMaximumBytes", lambda value: json_int(value)
+        ),
+        vendor=json_string(json_field(object_, "vendor")),
+        registry=json_optional(object_, "registry", lambda value: json_string(value)),
+        registries=[
+            from_json_settings_registry(item_0)
+            for item_0 in json_array(json_field(object_, "registries"))
+        ],
+        network=from_json_settings_network(json_field(object_, "network")),
     )
 
 
@@ -234,29 +419,73 @@ def decode_settings_payload(reader: Reader) -> SettingsPayload:
 class SettingsRegistry:
     """Registry settings for command output."""
 
-    """Registry name."""
+    # registry name
     name: str
-    """Registry URL."""
+    # registry URL
     url: str
-    """Redacted authentication shape."""
+    # redacted authentication shape
     authentication: SettingsRegistryAuthentication
 
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_settings_registry(writer, self)
 
-def encode_settings_registry(writer: Writer, value: SettingsRegistry) -> None:
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> SettingsRegistry:
+        """Decode one SettingsRegistry."""
+        return decode_settings_registry(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_settings_registry(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> SettingsRegistry:
+        """Return one SettingsRegistry from one JSON value."""
+        return from_json_settings_registry(value)
+
+
+def encode_settings_registry(writer: BinaryWriter, value: SettingsRegistry) -> None:
+    """Encode one SettingsRegistry."""
     writer.write_string(value.name)
     writer.write_string(value.url)
     encode_settings_registry_authentication(writer, value.authentication)
 
 
-def decode_settings_registry(reader: Reader) -> SettingsRegistry:
-    field_0 = reader.read_string()
-    field_1 = reader.read_string()
-    field_2 = decode_settings_registry_authentication(reader)
+def decode_settings_registry(reader: BinaryReader) -> SettingsRegistry:
+    """Decode one SettingsRegistry."""
+    name = reader.read_string()
+    url = reader.read_string()
+    authentication = decode_settings_registry_authentication(reader)
 
     return SettingsRegistry(
-        name=field_0,
-        url=field_1,
-        authentication=field_2,
+        name=name,
+        url=url,
+        authentication=authentication,
+    )
+
+
+def to_json_settings_registry(value: SettingsRegistry) -> Json:
+    """Return one JSON value for one SettingsRegistry."""
+    return {
+        "name": value.name,
+        "url": value.url,
+        "authentication": to_json_settings_registry_authentication(
+            value.authentication
+        ),
+    }
+
+
+def from_json_settings_registry(value: Json) -> SettingsRegistry:
+    """Return one SettingsRegistry from one JSON value."""
+    object_ = json_object(value)
+
+    return SettingsRegistry(
+        name=json_string(json_field(object_, "name")),
+        url=json_string(json_field(object_, "url")),
+        authentication=from_json_settings_registry_authentication(
+            json_field(object_, "authentication")
+        ),
     )
 
 
@@ -264,36 +493,68 @@ def decode_settings_registry(reader: Reader) -> SettingsRegistry:
 class SettingsRegistryAuthenticationNone:
     """No registry authentication."""
 
-    kind: Literal["none"] = "none"
+    kind: typing.Literal["none"] = "none"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_settings_registry_authentication(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_settings_registry_authentication(self)
 
 
 @dataclass(frozen=True, slots=True)
 class SettingsRegistryAuthenticationToken:
     """Inline token authentication."""
 
-    kind: Literal["token"] = "token"
+    kind: typing.Literal["token"] = "token"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_settings_registry_authentication(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_settings_registry_authentication(self)
 
 
 @dataclass(frozen=True, slots=True)
 class SettingsRegistryAuthenticationTokenFromEnvironment:
     """Token read from one environment variable."""
 
-    """Environment variable name."""
+    # environment variable name
     variable: str
-    kind: Literal["tokenFromEnvironment"] = "tokenFromEnvironment"
+    kind: typing.Literal["tokenFromEnvironment"] = "tokenFromEnvironment"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_settings_registry_authentication(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_settings_registry_authentication(self)
 
 
 @dataclass(frozen=True, slots=True)
 class SettingsRegistryAuthenticationCommand:
     """Credentials printed by one process command."""
 
-    """Program to run."""
+    # program to run
     program: str
-    kind: Literal["command"] = "command"
+    kind: typing.Literal["command"] = "command"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_settings_registry_authentication(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_settings_registry_authentication(self)
 
 
 """Redacted registry authentication shape."""
-SettingsRegistryAuthentication: TypeAlias = (
+SettingsRegistryAuthentication: typing.TypeAlias = (
     SettingsRegistryAuthenticationNone
     | SettingsRegistryAuthenticationToken
     | SettingsRegistryAuthenticationTokenFromEnvironment
@@ -302,8 +563,9 @@ SettingsRegistryAuthentication: TypeAlias = (
 
 
 def encode_settings_registry_authentication(
-    writer: Writer, value: SettingsRegistryAuthentication
+    writer: BinaryWriter, value: SettingsRegistryAuthentication
 ) -> None:
+    """Encode one SettingsRegistryAuthentication."""
     if value.kind == "none":
         writer.write_unsigned(0)
     elif value.kind == "token":
@@ -319,8 +581,9 @@ def encode_settings_registry_authentication(
 
 
 def decode_settings_registry_authentication(
-    reader: Reader,
+    reader: BinaryReader,
 ) -> SettingsRegistryAuthentication:
+    """Decode one SettingsRegistryAuthentication."""
     variant = reader.read_number()
 
     if variant == 0:
@@ -328,38 +591,106 @@ def decode_settings_registry_authentication(
     elif variant == 1:
         return SettingsRegistryAuthenticationToken()
     elif variant == 2:
-        field_0 = reader.read_string()
+        variable = reader.read_string()
 
         return SettingsRegistryAuthenticationTokenFromEnvironment(
-            variable=field_0,
+            variable=variable,
         )
     elif variant == 3:
-        field_0 = reader.read_string()
+        program = reader.read_string()
 
         return SettingsRegistryAuthenticationCommand(
-            program=field_0,
+            program=program,
         )
     else:
         raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_settings_registry_authentication(
+    value: SettingsRegistryAuthentication,
+) -> Json:
+    """Return one JSON value for one SettingsRegistryAuthentication."""
+    if value.kind == "none":
+        return {
+            "kind": "none",
+        }
+    elif value.kind == "token":
+        return {
+            "kind": "token",
+        }
+    elif value.kind == "tokenFromEnvironment":
+        return {
+            "kind": "tokenFromEnvironment",
+            "variable": value.variable,
+        }
+    elif value.kind == "command":
+        return {
+            "kind": "command",
+            "program": value.program,
+        }
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def from_json_settings_registry_authentication(
+    value: Json,
+) -> SettingsRegistryAuthentication:
+    """Return one SettingsRegistryAuthentication from one JSON value."""
+    object_ = json_object(value)
+    kind = json_string(json_field(object_, "kind"))
+
+    if kind == "none":
+        return SettingsRegistryAuthenticationNone()
+    elif kind == "token":
+        return SettingsRegistryAuthenticationToken()
+    elif kind == "tokenFromEnvironment":
+        return SettingsRegistryAuthenticationTokenFromEnvironment(
+            variable=json_string(json_field(object_, "variable")),
+        )
+    elif kind == "command":
+        return SettingsRegistryAuthenticationCommand(
+            program=json_string(json_field(object_, "program")),
+        )
+    else:
+        raise SerdeError(f"unknown enum variant: {kind}")
 
 
 @dataclass(frozen=True, slots=True)
 class SettingsNetwork:
     """Network settings for command output."""
 
-    """Whether network access should be disabled by default."""
+    # whether network access should be disabled by default
     offline: bool
-    """Whether a proxy is configured."""
+    # whether a proxy is configured
     has_proxy: bool
-    """Request timeout in milliseconds."""
+    # request timeout in milliseconds
     timeout_milliseconds: int | None
-    """Number of retries for transient network failures."""
+    # number of retries for transient network failures
     retry_count: int | None
-    """Maximum concurrent network requests."""
+    # maximum concurrent network requests
     concurrency: int | None
 
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_settings_network(writer, self)
 
-def encode_settings_network(writer: Writer, value: SettingsNetwork) -> None:
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> SettingsNetwork:
+        """Decode one SettingsNetwork."""
+        return decode_settings_network(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_settings_network(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> SettingsNetwork:
+        """Return one SettingsNetwork from one JSON value."""
+        return from_json_settings_network(value)
+
+
+def encode_settings_network(writer: BinaryWriter, value: SettingsNetwork) -> None:
+    """Encode one SettingsNetwork."""
     writer.write_bool(value.offline)
     writer.write_bool(value.has_proxy)
     if value.timeout_milliseconds is None:
@@ -379,19 +710,52 @@ def encode_settings_network(writer: Writer, value: SettingsNetwork) -> None:
         writer.write_unsigned(value.concurrency)
 
 
-def decode_settings_network(reader: Reader) -> SettingsNetwork:
-    field_0 = reader.read_bool()
-    field_1 = reader.read_bool()
-    field_2 = reader.read_option(lambda: reader.read_number())
-    field_3 = reader.read_option(lambda: reader.read_number())
-    field_4 = reader.read_option(lambda: reader.read_number())
+def decode_settings_network(reader: BinaryReader) -> SettingsNetwork:
+    """Decode one SettingsNetwork."""
+    offline = reader.read_bool()
+    has_proxy = reader.read_bool()
+    timeout_milliseconds = reader.read_option(lambda: reader.read_number())
+    retry_count = reader.read_option(lambda: reader.read_number())
+    concurrency = reader.read_option(lambda: reader.read_number())
 
     return SettingsNetwork(
-        offline=field_0,
-        has_proxy=field_1,
-        timeout_milliseconds=field_2,
-        retry_count=field_3,
-        concurrency=field_4,
+        offline=offline,
+        has_proxy=has_proxy,
+        timeout_milliseconds=timeout_milliseconds,
+        retry_count=retry_count,
+        concurrency=concurrency,
+    )
+
+
+def to_json_settings_network(value: SettingsNetwork) -> Json:
+    """Return one JSON value for one SettingsNetwork."""
+    return {
+        "offline": value.offline,
+        "hasProxy": value.has_proxy,
+        **(
+            {}
+            if value.timeout_milliseconds is None
+            else {"timeoutMilliseconds": value.timeout_milliseconds}
+        ),
+        **({} if value.retry_count is None else {"retryCount": value.retry_count}),
+        **({} if value.concurrency is None else {"concurrency": value.concurrency}),
+    }
+
+
+def from_json_settings_network(value: Json) -> SettingsNetwork:
+    """Return one SettingsNetwork from one JSON value."""
+    object_ = json_object(value)
+
+    return SettingsNetwork(
+        offline=json_bool(json_field(object_, "offline")),
+        has_proxy=json_bool(json_field(object_, "hasProxy")),
+        timeout_milliseconds=json_optional(
+            object_, "timeoutMilliseconds", lambda value: json_int(value)
+        ),
+        retry_count=json_optional(object_, "retryCount", lambda value: json_int(value)),
+        concurrency=json_optional(
+            object_, "concurrency", lambda value: json_int(value)
+        ),
     )
 
 
@@ -399,15 +763,23 @@ __all__ = [
     "SettingsInput",
     "encode_settings_input",
     "decode_settings_input",
+    "to_json_settings_input",
+    "from_json_settings_input",
     "SettingsPayload",
     "encode_settings_payload",
     "decode_settings_payload",
+    "to_json_settings_payload",
+    "from_json_settings_payload",
     "SettingsRegistry",
     "encode_settings_registry",
     "decode_settings_registry",
+    "to_json_settings_registry",
+    "from_json_settings_registry",
     "SettingsRegistryAuthentication",
     "encode_settings_registry_authentication",
     "decode_settings_registry_authentication",
+    "to_json_settings_registry_authentication",
+    "from_json_settings_registry_authentication",
     "SettingsRegistryAuthenticationNone",
     "SettingsRegistryAuthenticationToken",
     "SettingsRegistryAuthenticationTokenFromEnvironment",
@@ -415,4 +787,6 @@ __all__ = [
     "SettingsNetwork",
     "encode_settings_network",
     "decode_settings_network",
+    "to_json_settings_network",
+    "from_json_settings_network",
 ]
