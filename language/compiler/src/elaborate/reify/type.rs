@@ -25,14 +25,19 @@ impl Compiler {
             return Ok(None);
         };
 
-        // map positional arguments to parameter types when uniform across candidates
+        // map provided arguments to their selected parameter types
         let mut expected_types = Vec::with_capacity(arguments.len());
-        for (index, argument_id) in arguments.iter().enumerate() {
-            let argument = state.tree.get(*argument_id);
-            let expected_type_id = match argument {
-                Argument::Positional { .. } => resolution.parameters.get(index).copied(),
-                _ => None,
-            };
+        for argument_id in arguments {
+            let argument = argument_id.into_global_any(state.module_id);
+            let expected_type_id = resolution.arguments.iter().find_map(|binding| {
+                let is_provided = match &binding.argument {
+                    dir::ArgumentSource::Provided(source) => *source == argument,
+                    dir::ArgumentSource::Rest(sources) => sources.contains(&argument),
+                    dir::ArgumentSource::Omitted => false,
+                };
+
+                is_provided.then_some(binding.ty.into_local())
+            });
             expected_types.push(expected_type_id);
         }
 

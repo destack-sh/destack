@@ -33,8 +33,8 @@ impl SnapshotTable for dir::ResolutionSegment {
             add_read_write_resolution_row(builder, node_id, resolution);
         }
 
-        for (node_id, resolution) in self.predicate_entries() {
-            add_predicate_resolution_row(builder, node_id, resolution);
+        for (node_id, resolution) in self.guard_entries() {
+            add_guard_resolution_row(builder, node_id, resolution);
         }
 
         for (node_id, resolution) in self.construct_entries() {
@@ -56,7 +56,7 @@ impl SnapshotTable for dir::ResolutionSegment {
         let member_count = self.member_entries().count();
         let call_count = self.call_entries().count();
         let read_write_count = self.read_write_entries().count();
-        let predicate_count = self.predicate_entries().count();
+        let guard_count = self.guard_entries().count();
         let construct_count = self.construct_entries().count();
         let pattern_count = self.pattern_entries().count();
         let assign_pattern_count = self.assign_pattern_entries().count();
@@ -67,7 +67,7 @@ impl SnapshotTable for dir::ResolutionSegment {
             && member_count == 0
             && call_count == 0
             && read_write_count == 0
-            && predicate_count == 0
+            && guard_count == 0
             && construct_count == 0
             && pattern_count == 0
             && assign_pattern_count == 0
@@ -82,7 +82,7 @@ impl SnapshotTable for dir::ResolutionSegment {
             .count_field("receivers", receiver_count)
             .count_field("members", member_count)
             .count_field("calls", call_count)
-            .count_field("predicates", predicate_count)
+            .count_field("guards", guard_count)
             .count_field("constructs", construct_count)
             .count_field("patterns", pattern_count)
             .count_field("assign_patterns", assign_pattern_count);
@@ -125,14 +125,21 @@ fn add_instantiation_resolution_row(
 ) {
     let anchor = builder.anchor_node(node_id);
     let source = builder.node_source(node_id);
-    let instance = builder.generic_instance_label(resolution.symbol, &resolution.arguments);
+    let arguments = generic_argument_values(&resolution.generic_arguments);
+    let instance = builder.generic_instance_label(resolution.symbol, &arguments);
     let row = SnapshotRow::new(anchor, "resolution", "instantiation")
         .optional_field("source", source.clone())
         .field("target", builder.symbol_path_label(resolution.symbol))
         .field("instance", instance);
 
     builder.push(row);
-    builder.add_generic_instance(anchor, source, resolution.symbol, &resolution.arguments);
+    add_generic_instance(
+        builder,
+        anchor,
+        source,
+        resolution.symbol,
+        &resolution.generic_arguments,
+    );
 }
 
 /// Add one label resolution row.
@@ -195,7 +202,7 @@ fn add_member_resolution_row(
             .field("target", builder.member_candidate_label(candidate))
             .optional_field(
                 "instance",
-                generic_instance_label(builder, candidate.symbol, &candidate.arguments),
+                generic_instance_label(builder, candidate.symbol, &candidate.generic_arguments),
             ),
         dir::MemberTarget::Existential(candidates) => row.field("kind", "existential").list_field(
             "targets",
@@ -230,15 +237,22 @@ fn add_call_resolution_row(
                 .iter()
                 .map(|type_id| builder.global_type_label(*type_id)),
         )
+        .optional_field(
+            "arguments",
+            argument_bindings_label(builder, &resolution.arguments),
+        )
         .type_field("return", builder.global_type_label(resolution.return_type));
 
     let row = match &resolution.target {
         dir::CallTarget::Builtin(builtin) => row
             .field("kind", "builtin")
             .field("builtin", builtin_call_label(*builtin)),
-        dir::CallTarget::Expression { arguments } => row
-            .field("kind", "expression")
-            .optional_field("arguments", arguments_label(builder, arguments)),
+        dir::CallTarget::Expression { generic_arguments } => {
+            row.field("kind", "expression").optional_field(
+                "generic_arguments",
+                generic_arguments_label(builder, generic_arguments),
+            )
+        }
         dir::CallTarget::Symbol(candidate) => {
             add_call_candidate_fields(builder, row.field("kind", "symbol"), candidate)
         }
@@ -278,39 +292,304 @@ fn add_read_write_resolution_row(
     builder.push(row);
 }
 
-/// Add one predicate resolution row.
-fn add_predicate_resolution_row(
+/// Add one guard resolution row.
+fn add_guard_resolution_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::PredicateResolution,
+    resolution: &dir::GuardResolution,
 ) {
-    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "predicate")
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "guard")
         .optional_field("source", builder.node_source(node_id));
 
+    let predicate = match resolution {
+        dir::GuardResolution::Is(predicate) => &predicate.predicate,
+        dir::GuardResolution::InstanceOf(predicate) => &predicate.predicate,
+        dir::GuardResolution::In(predicate) => &predicate.predicate,
+    };
+
     let row = match resolution {
-        dir::PredicateResolution::Is(predicate) => row
+        dir::GuardResolution::Is(predicate) => row
             .field("kind", "is")
             .type_field("value", builder.global_type_label(predicate.value_type))
-            .type_field("target", builder.global_type_label(predicate.target_type)),
-        dir::PredicateResolution::InstanceOf(predicate) => row
+            .type_field("target", builder.global_type_label(predicate.target_type))
+            .field("predicate", predicate_label(builder, &predicate.predicate))
+            .optional_field(
+                "success",
+                predicate
+                    .predicate
+                    .success
+                    .as_ref()
+                    .map(|projection| projection_label(builder, projection)),
+            ),
+        dir::GuardResolution::InstanceOf(predicate) => row
             .field("kind", "instanceof")
             .type_field("value", builder.global_type_label(predicate.value_type))
             .field("target", builder.symbol_path_label(predicate.target))
             .type_field(
                 "target_type",
                 builder.global_type_label(predicate.target_type),
-            ),
-        dir::PredicateResolution::In(predicate) => row
-            .field("kind", "in")
-            .type_field("key_type", builder.global_type_label(predicate.key_type))
-            .type_field(
-                "receiver",
-                builder.global_type_label(predicate.receiver_type),
             )
-            .optional_field("key", predicate.key.map(|key| builder.static_key(key))),
+            .field("predicate", predicate_label(builder, &predicate.predicate))
+            .optional_field(
+                "success",
+                predicate
+                    .predicate
+                    .success
+                    .as_ref()
+                    .map(|projection| projection_label(builder, projection)),
+            ),
+        dir::GuardResolution::In(predicate) => {
+            let row = row
+                .field("kind", "in")
+                .type_field("key_type", builder.global_type_label(predicate.key_type))
+                .type_field(
+                    "receiver",
+                    builder.global_type_label(predicate.receiver_type),
+                )
+                .field("predicate", predicate_label(builder, &predicate.predicate));
+
+            row
+        }
     };
 
     builder.push(row);
+    add_predicate_generic_instances(builder, node_id, predicate);
+}
+
+/// Return a compact label for one selected value projection.
+fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projection) -> String {
+    match projection {
+        dir::Projection::Identity { ty } => {
+            format!("identity({})", builder.global_type_label(*ty))
+        }
+        dir::Projection::FieldGet { field, ty } => format!(
+            "field.get({}, {})",
+            projection_field_label(builder, field),
+            builder.global_type_label(*ty)
+        ),
+        dir::Projection::SequenceElement { index, ty } => {
+            format!(
+                "sequence.element({index}, {})",
+                builder.global_type_label(*ty)
+            )
+        }
+        dir::Projection::SequenceView { ty } => {
+            format!("sequence.view({})", builder.global_type_label(*ty))
+        }
+        dir::Projection::SliceLength { ty } => {
+            format!("slice.length({})", builder.global_type_label(*ty))
+        }
+        dir::Projection::DynamicPayload { ty } => {
+            format!("dynamic.payload({})", builder.global_type_label(*ty))
+        }
+        dir::Projection::DynamicType { ty } => {
+            format!("dynamic.type({})", builder.global_type_label(*ty))
+        }
+        dir::Projection::VariantTag { ty } => {
+            format!("variant.tag({})", builder.global_type_label(*ty))
+        }
+        dir::Projection::VariantPayload {
+            owner,
+            member,
+            generic_arguments,
+            ty,
+            ..
+        } => {
+            let arguments = projection_generic_arguments_label(builder, generic_arguments);
+
+            format!(
+                "variant.payload({}.{}{arguments}, {})",
+                builder.symbol_path_label(*owner),
+                builder.symbol_path_label(*member),
+                builder.global_type_label(*ty)
+            )
+        }
+        dir::Projection::NewtypePayload {
+            symbol,
+            generic_arguments,
+            ty,
+        } => {
+            let arguments = projection_generic_arguments_label(builder, generic_arguments);
+
+            format!(
+                "newtype.payload({}{}, {})",
+                builder.symbol_path_label(*symbol),
+                arguments,
+                builder.global_type_label(*ty)
+            )
+        }
+        dir::Projection::Borrow { access, ty } => {
+            let access = access
+                .map(|access| dir::MemoryLiteral::Access(access).text().to_string())
+                .unwrap_or_else(|| "inferred".to_string());
+
+            format!("borrow({access}, {})", builder.global_type_label(*ty))
+        }
+        dir::Projection::Move { access, ty } => {
+            let access = access
+                .map(|access| dir::MemoryLiteral::Access(access).text().to_string())
+                .unwrap_or_else(|| "inferred".to_string());
+
+            format!("move({access}, {})", builder.global_type_label(*ty))
+        }
+        dir::Projection::Dereference { ty } => {
+            format!("dereference({})", builder.global_type_label(*ty))
+        }
+    }
+}
+
+/// Return a compact label for one projected field.
+fn projection_field_label(
+    builder: &DirSnapshotBuilder<'_>,
+    field: &dir::ProjectionField,
+) -> String {
+    match field {
+        dir::ProjectionField::Key(key) => builder.static_key(*key),
+        dir::ProjectionField::Member(symbol) => builder.symbol_path_label(*symbol),
+    }
+}
+
+/// Return generic arguments for one projection label.
+fn projection_generic_arguments_label(
+    builder: &DirSnapshotBuilder<'_>,
+    arguments: &[dir::GenericArgumentBinding],
+) -> String {
+    if arguments.is_empty() {
+        String::new()
+    } else {
+        let arguments = arguments
+            .iter()
+            .map(|argument| builder.global_type_label(argument.argument))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        format!("<{arguments}>")
+    }
+}
+
+/// Return a compact label for one executable predicate.
+fn predicate_label(builder: &DirSnapshotBuilder<'_>, predicate: &dir::Predicate) -> String {
+    match &predicate.test {
+        dir::PredicateTest::Unary(test) => format!(
+            "{} is {}",
+            projection_label(builder, &test.input),
+            predicate_condition_label(builder, &test.condition)
+        ),
+        dir::PredicateTest::Has(test) => format!(
+            "has({}, {})",
+            projection_label(builder, &test.receiver),
+            predicate_key_label(builder, &test.key)
+        ),
+        dir::PredicateTest::Call(resolution) => {
+            format!("call({})", call_target_label(builder, &resolution.target))
+        }
+        dir::PredicateTest::Any(alternatives) => alternatives
+            .iter()
+            .map(|predicate| predicate_label(builder, predicate))
+            .collect::<Vec<_>>()
+            .join(" | "),
+    }
+}
+
+/// Return a compact label for one predicate condition.
+fn predicate_condition_label(
+    builder: &DirSnapshotBuilder<'_>,
+    condition: &dir::PredicateCondition,
+) -> String {
+    match condition {
+        dir::PredicateCondition::Always => "always".to_string(),
+        dir::PredicateCondition::Never => "never".to_string(),
+        dir::PredicateCondition::Literal(value) => builder.scalar_literal_label(value),
+        dir::PredicateCondition::Range(range) => range_label(builder, range),
+        dir::PredicateCondition::Primitive(primitive) => primitive_label(*primitive),
+        dir::PredicateCondition::Type(ty) => format!("type({})", builder.global_type_label(*ty)),
+        dir::PredicateCondition::Subtype(ty) => {
+            format!("subtype({})", builder.global_type_label(*ty))
+        }
+    }
+}
+
+/// Return a compact label for one predicate key.
+fn predicate_key_label(builder: &DirSnapshotBuilder<'_>, key: &dir::PredicateKey) -> String {
+    match key {
+        dir::PredicateKey::Static(key) => builder.static_key(*key),
+        dir::PredicateKey::Dynamic(projection) => projection_label(builder, projection),
+    }
+}
+
+/// Return a compact label for one call target.
+fn call_target_label(builder: &DirSnapshotBuilder<'_>, target: &dir::CallTarget) -> String {
+    match target {
+        dir::CallTarget::Builtin(builtin) => builtin_call_label(*builtin),
+        dir::CallTarget::Expression { .. } => "expression".to_string(),
+        dir::CallTarget::Symbol(candidate) => builder.call_candidate_label(candidate),
+        dir::CallTarget::Universal(candidates) => candidates
+            .iter()
+            .map(|candidate| builder.call_candidate_label(candidate))
+            .collect::<Vec<_>>()
+            .join(" | "),
+    }
+}
+
+/// Return a compact label for one range condition.
+fn range_label(builder: &DirSnapshotBuilder<'_>, range: &dir::PredicateRange) -> String {
+    let start = range
+        .start
+        .map(|value| builder.scalar_literal_label(&value))
+        .unwrap_or_default();
+    let end = range
+        .end
+        .map(|value| builder.scalar_literal_label(&value))
+        .unwrap_or_default();
+    let operator = match range.end_bound {
+        dir::RangeEnd::Inclusive => "..=",
+        dir::RangeEnd::Open => "..",
+    };
+
+    format!("{start}{operator}{end}")
+}
+
+/// Return the canonical label for one primitive predicate.
+fn primitive_label(primitive: dir::PrimitiveType) -> String {
+    match primitive {
+        dir::PrimitiveType::Boolean => "boolean".to_string(),
+        dir::PrimitiveType::Character => "char".to_string(),
+        dir::PrimitiveType::String => "string".to_string(),
+        dir::PrimitiveType::Bigint => "bigint".to_string(),
+        dir::PrimitiveType::Integer(integer) => integer_label(integer),
+        dir::PrimitiveType::Float(float) => float_label(float),
+        dir::PrimitiveType::Symbol => "symbol".to_string(),
+        dir::PrimitiveType::UniqueSymbol => "unique symbol".to_string(),
+    }
+}
+
+/// Return the canonical label for one integer predicate.
+fn integer_label(integer: dir::IntegerType) -> String {
+    match integer {
+        dir::IntegerType::Integer { is_signed: true } => "int".to_string(),
+        dir::IntegerType::Integer { is_signed: false } => "uint".to_string(),
+        dir::IntegerType::Fixed {
+            width,
+            is_signed: true,
+        } => format!("int{width}"),
+        dir::IntegerType::Fixed {
+            width,
+            is_signed: false,
+        } => format!("uint{width}"),
+        dir::IntegerType::Pointer { is_signed: true } => "isize".to_string(),
+        dir::IntegerType::Pointer { is_signed: false } => "usize".to_string(),
+    }
+}
+
+/// Return the canonical label for one float predicate.
+fn float_label(float: dir::FloatType) -> String {
+    match float {
+        dir::FloatType::Float => "float".to_string(),
+        dir::FloatType::Float16 => "float16".to_string(),
+        dir::FloatType::Bfloat16 => "bfloat16".to_string(),
+        dir::FloatType::Float32 => "float32".to_string(),
+        dir::FloatType::Float64 => "float64".to_string(),
+    }
 }
 
 /// Add one construct resolution row.
@@ -328,6 +607,10 @@ fn add_construct_resolution_row(
                 .iter()
                 .map(|type_id| builder.global_type_label(*type_id)),
         )
+        .optional_field(
+            "arguments",
+            argument_bindings_label(builder, &resolution.arguments),
+        )
         .type_field("return", builder.global_type_label(resolution.return_type));
 
     let row = match &resolution.target {
@@ -343,7 +626,7 @@ fn add_construct_resolution_row(
             .field("variant", builder.symbol_path_label(candidate.variant))
             .optional_field(
                 "instance",
-                generic_instance_label(builder, candidate.owner, &candidate.arguments),
+                generic_instance_label(builder, candidate.owner, &candidate.generic_arguments),
             )
             .field(
                 "discriminant",
@@ -367,8 +650,8 @@ fn add_pattern_resolution_row(
         .field("kind", pattern_resolution_label(resolution));
 
     let row = match resolution {
-        dir::PatternResolution::Wildcard => row,
-        dir::PatternResolution::Binding(binding) => row
+        dir::PatternResolution::Ignore => row,
+        dir::PatternResolution::Bind(binding) => row
             .optional_field(
                 "target",
                 binding
@@ -379,91 +662,31 @@ fn add_pattern_resolution_row(
                 "pattern",
                 binding.pattern.map(|node| builder.node_label(node)),
             ),
-        dir::PatternResolution::Literal(literal) => {
-            row.field("value", builder.scalar_literal_label(&literal.value))
+        dir::PatternResolution::Must(pattern) => {
+            row.field("pattern", builder.node_label(pattern.pattern))
         }
-        dir::PatternResolution::Range(range) => row
-            .type_field("domain", builder.global_type_label(range.domain))
-            .optional_field(
-                "start",
-                range
-                    .start
-                    .map(|value| builder.scalar_literal_label(&value)),
-            )
-            .optional_field(
-                "end",
-                range.end.map(|value| builder.scalar_literal_label(&value)),
-            )
-            .field("bound", DirSnapshotBuilder::variant_label(range.end_bound)),
-        dir::PatternResolution::Tuple(tuple) => row.tuple_field(
-            "fields",
-            pattern_positional_field_labels(builder, segment, &tuple.fields),
-        ),
-        dir::PatternResolution::Sequence(sequence) => {
-            add_pattern_sequence_fields(builder, segment, row, sequence)
+        dir::PatternResolution::Default(default) => row
+            .field("pattern", builder.node_label(default.pattern))
+            .field("value", builder.node_label(default.value)),
+        dir::PatternResolution::Test(test) => {
+            add_pattern_test_fields(builder, row, &test.predicate)
         }
-        dir::PatternResolution::Shape(shape) => row.object_field(
-            "fields",
-            pattern_keyed_fields_label(builder, segment, &shape.fields),
-        ),
-        dir::PatternResolution::Nominal(nominal) => row
-            .field("target", builder.symbol_path_label(nominal.symbol))
+        dir::PatternResolution::Project(project) => row
+            .field("projection", projection_label(builder, &project.projection))
             .optional_field(
-                "instance",
-                generic_instance_label(builder, nominal.symbol, &nominal.arguments),
-            )
-            .object_field(
-                "fields",
-                pattern_keyed_fields_label(builder, segment, &nominal.fields),
+                "pattern",
+                project.pattern.map(|node| builder.node_label(node)),
             ),
-        dir::PatternResolution::Newtype(newtype) => row
-            .field("target", builder.symbol_path_label(newtype.symbol))
-            .optional_field(
-                "instance",
-                generic_instance_label(builder, newtype.symbol, &newtype.arguments),
-            )
-            .optional_field("value", newtype.value.map(|node| builder.node_label(node))),
-        dir::PatternResolution::Variant(variant) => {
-            let row = row
-                .field("owner", builder.symbol_path_label(variant.owner))
-                .field("variant", builder.symbol_path_label(variant.variant))
-                .optional_field(
-                    "instance",
-                    generic_instance_label(builder, variant.owner, &variant.arguments),
-                )
-                .field(
-                    "discriminant",
-                    builder.scalar_literal_label(&variant.discriminant),
-                )
-                .optional_field(
-                    "payload",
-                    pattern_variant_payload_label(&variant.fields).map(str::to_string),
-                );
-
-            add_pattern_variant_fields(builder, segment, row, &variant.fields)
+        dir::PatternResolution::Destructure(destructure) => {
+            add_pattern_destructure_fields(builder, segment, row, destructure)
         }
-        dir::PatternResolution::Union(union) => row.list_field(
-            "alternatives",
-            union
-                .alternatives
+        dir::PatternResolution::Or(pattern) => row.list_field(
+            "patterns",
+            pattern
+                .patterns
                 .iter()
                 .map(|node| builder.node_label(*node)),
         ),
-        dir::PatternResolution::Borrow(borrow) => row
-            .optional_field(
-                "access",
-                borrow.access.map(DirSnapshotBuilder::variant_label),
-            )
-            .field("pattern", builder.node_label(borrow.pattern)),
-        dir::PatternResolution::Move(move_) => row
-            .optional_field(
-                "access",
-                move_.access.map(DirSnapshotBuilder::variant_label),
-            )
-            .field("pattern", builder.node_label(move_.pattern)),
-        dir::PatternResolution::Dereference(dereference) => {
-            row.field("pattern", builder.node_label(dereference.pattern))
-        }
     };
 
     builder.push(row);
@@ -493,20 +716,129 @@ fn builtin_call_label(builtin: dir::BuiltinCall) -> String {
 /// Return one pattern resolution label.
 fn pattern_resolution_label(resolution: &dir::PatternResolution) -> &'static str {
     match resolution {
-        dir::PatternResolution::Wildcard => "wildcard",
-        dir::PatternResolution::Binding(_) => "binding",
-        dir::PatternResolution::Literal(_) => "literal",
-        dir::PatternResolution::Range(_) => "range",
-        dir::PatternResolution::Tuple(_) => "tuple",
-        dir::PatternResolution::Sequence(_) => "sequence",
-        dir::PatternResolution::Shape(_) => "object",
-        dir::PatternResolution::Nominal(_) => "nominal_object",
-        dir::PatternResolution::Newtype(_) => "newtype",
-        dir::PatternResolution::Variant(_) => "variant",
-        dir::PatternResolution::Union(_) => "union",
-        dir::PatternResolution::Borrow(_) => "borrow",
-        dir::PatternResolution::Move(_) => "move",
-        dir::PatternResolution::Dereference(_) => "dereference",
+        dir::PatternResolution::Ignore => "wildcard",
+        dir::PatternResolution::Bind(_) => "binding",
+        dir::PatternResolution::Must(_) => "must",
+        dir::PatternResolution::Default(_) => "default",
+        dir::PatternResolution::Test(test) => pattern_predicate_label(&test.predicate),
+        dir::PatternResolution::Project(project) => pattern_projection_label(&project.projection),
+        dir::PatternResolution::Destructure(destructure) => pattern_destructure_label(destructure),
+        dir::PatternResolution::Or(_) => "union",
+    }
+}
+
+/// Return one pattern predicate label.
+fn pattern_predicate_label(predicate: &dir::Predicate) -> &'static str {
+    match predicate_condition(predicate) {
+        Some(dir::PredicateCondition::Literal(_)) => "literal",
+        Some(dir::PredicateCondition::Range(_)) => "range",
+        _ => "test",
+    }
+}
+
+/// Return one pattern projection label.
+fn pattern_projection_label(projection: &dir::Projection) -> &'static str {
+    match projection {
+        dir::Projection::Borrow { .. } => "borrow",
+        dir::Projection::Move { .. } => "move",
+        dir::Projection::Dereference { .. } => "dereference",
+        dir::Projection::NewtypePayload { .. } => "newtype",
+        _ => "project",
+    }
+}
+
+/// Return one pattern destructure label.
+fn pattern_destructure_label(destructure: &dir::PatternDestructureResolution) -> &'static str {
+    match destructure {
+        dir::PatternDestructureResolution::Tuple(_) => "tuple",
+        dir::PatternDestructureResolution::Object(_) => "object",
+        dir::PatternDestructureResolution::Nominal(_) => "nominal_object",
+        dir::PatternDestructureResolution::Sequence(_) => "sequence",
+        dir::PatternDestructureResolution::Variant(_) => "variant",
+    }
+}
+
+/// Add fields for one pattern predicate.
+fn add_pattern_test_fields(
+    builder: &DirSnapshotBuilder<'_>,
+    row: SnapshotRow,
+    predicate: &dir::Predicate,
+) -> SnapshotRow {
+    match predicate_condition(predicate) {
+        Some(dir::PredicateCondition::Literal(value)) => {
+            row.field("value", builder.scalar_literal_label(value))
+        }
+        Some(dir::PredicateCondition::Range(range)) => row
+            .type_field("domain", builder.global_type_label(range.domain))
+            .optional_field(
+                "start",
+                range
+                    .start
+                    .map(|value| builder.scalar_literal_label(&value)),
+            )
+            .optional_field(
+                "end",
+                range.end.map(|value| builder.scalar_literal_label(&value)),
+            )
+            .field("bound", DirSnapshotBuilder::variant_label(range.end_bound)),
+        _ => row.field("predicate", predicate_label(builder, predicate)),
+    }
+}
+
+/// Return the unary condition for one predicate.
+fn predicate_condition(predicate: &dir::Predicate) -> Option<&dir::PredicateCondition> {
+    match &predicate.test {
+        dir::PredicateTest::Unary(test) => Some(&test.condition),
+        dir::PredicateTest::Has(_) | dir::PredicateTest::Call(_) | dir::PredicateTest::Any(_) => {
+            None
+        }
+    }
+}
+
+/// Add fields for one pattern destructure.
+fn add_pattern_destructure_fields(
+    builder: &DirSnapshotBuilder<'_>,
+    segment: &dir::ResolutionSegment,
+    row: SnapshotRow,
+    destructure: &dir::PatternDestructureResolution,
+) -> SnapshotRow {
+    match destructure {
+        dir::PatternDestructureResolution::Tuple(tuple) => row.tuple_field(
+            "fields",
+            pattern_positional_field_labels(builder, segment, &tuple.fields),
+        ),
+        dir::PatternDestructureResolution::Object(object) => row.object_field(
+            "fields",
+            pattern_keyed_fields_label(builder, segment, &object.fields),
+        ),
+        dir::PatternDestructureResolution::Nominal(nominal) => row
+            .field("target", builder.symbol_path_label(nominal.symbol))
+            .optional_field(
+                "instance",
+                generic_instance_label(builder, nominal.symbol, &nominal.generic_arguments),
+            )
+            .object_field(
+                "fields",
+                pattern_keyed_fields_label(builder, segment, &nominal.fields),
+            ),
+        dir::PatternDestructureResolution::Sequence(sequence) => add_pattern_sequence_fields(
+            builder,
+            segment,
+            add_pattern_sequence_length_field(builder, row, &sequence.length),
+            &sequence.fields,
+            sequence.rest.as_ref(),
+        ),
+        dir::PatternDestructureResolution::Variant(variant) => {
+            let row = row
+                .field("predicate", predicate_label(builder, &variant.predicate))
+                .field("projection", projection_label(builder, &variant.projection))
+                .optional_field(
+                    "payload",
+                    pattern_variant_payload_label(&variant.fields).map(str::to_string),
+                );
+
+            add_pattern_variant_fields(builder, segment, row, &variant.fields)
+        }
     }
 }
 
@@ -583,7 +915,7 @@ fn add_call_candidate_fields(
         )
         .optional_field(
             "instance",
-            generic_instance_label(builder, candidate.symbol, &candidate.arguments),
+            generic_instance_label(builder, candidate.symbol, &candidate.generic_arguments),
         )
 }
 
@@ -602,7 +934,7 @@ fn add_class_construct_candidate_fields(
         )
         .optional_field(
             "instance",
-            generic_instance_label(builder, candidate.symbol, &candidate.arguments),
+            generic_instance_label(builder, candidate.symbol, &candidate.generic_arguments),
         )
 }
 
@@ -615,7 +947,7 @@ fn add_construct_candidate_fields(
     row.field("target", builder.symbol_path_label(candidate.symbol))
         .optional_field(
             "instance",
-            generic_instance_label(builder, candidate.symbol, &candidate.arguments),
+            generic_instance_label(builder, candidate.symbol, &candidate.generic_arguments),
         )
 }
 
@@ -630,15 +962,22 @@ fn add_member_target_generic_instances(
 
     match target {
         dir::MemberTarget::Symbol(candidate) => {
-            builder.add_generic_instance(anchor, source, candidate.symbol, &candidate.arguments);
+            add_generic_instance(
+                builder,
+                anchor,
+                source,
+                candidate.symbol,
+                &candidate.generic_arguments,
+            );
         }
         dir::MemberTarget::Existential(candidates) | dir::MemberTarget::Universal(candidates) => {
             for candidate in candidates {
-                builder.add_generic_instance(
+                add_generic_instance(
+                    builder,
                     anchor,
                     source.clone(),
                     candidate.symbol,
-                    &candidate.arguments,
+                    &candidate.generic_arguments,
                 );
             }
         }
@@ -659,15 +998,22 @@ fn add_call_target_generic_instances(
 
     match target {
         dir::CallTarget::Symbol(candidate) => {
-            builder.add_generic_instance(anchor, source, candidate.symbol, &candidate.arguments);
+            add_generic_instance(
+                builder,
+                anchor,
+                source,
+                candidate.symbol,
+                &candidate.generic_arguments,
+            );
         }
         dir::CallTarget::Universal(candidates) => {
             for candidate in candidates {
-                builder.add_generic_instance(
+                add_generic_instance(
+                    builder,
                     anchor,
                     source.clone(),
                     candidate.symbol,
-                    &candidate.arguments,
+                    &candidate.generic_arguments,
                 );
             }
         }
@@ -686,13 +1032,31 @@ fn add_construct_target_generic_instances(
 
     match target {
         dir::ConstructTarget::Class(candidate) => {
-            builder.add_generic_instance(anchor, source, candidate.symbol, &candidate.arguments);
+            add_generic_instance(
+                builder,
+                anchor,
+                source,
+                candidate.symbol,
+                &candidate.generic_arguments,
+            );
         }
         dir::ConstructTarget::Newtype(candidate) => {
-            builder.add_generic_instance(anchor, source, candidate.symbol, &candidate.arguments);
+            add_generic_instance(
+                builder,
+                anchor,
+                source,
+                candidate.symbol,
+                &candidate.generic_arguments,
+            );
         }
         dir::ConstructTarget::Variant(candidate) => {
-            builder.add_generic_instance(anchor, source, candidate.owner, &candidate.arguments);
+            add_generic_instance(
+                builder,
+                anchor,
+                source,
+                candidate.owner,
+                &candidate.generic_arguments,
+            );
         }
     }
 }
@@ -707,26 +1071,106 @@ fn add_pattern_generic_instances(
     let source = builder.node_source(node_id);
 
     match resolution {
-        dir::PatternResolution::Nominal(nominal) => {
-            builder.add_generic_instance(anchor, source, nominal.symbol, &nominal.arguments);
+        dir::PatternResolution::Project(project) => {
+            add_projection_generic_instance(builder, anchor, source, &project.projection);
         }
-        dir::PatternResolution::Newtype(newtype) => {
-            builder.add_generic_instance(anchor, source, newtype.symbol, &newtype.arguments);
+        dir::PatternResolution::Test(test) => {
+            add_predicate_generic_instances(builder, node_id, &test.predicate);
         }
-        dir::PatternResolution::Variant(variant) => {
-            builder.add_generic_instance(anchor, source, variant.owner, &variant.arguments);
+        dir::PatternResolution::Destructure(destructure) => {
+            add_destructure_generic_instance(builder, anchor, source, destructure);
         }
-        dir::PatternResolution::Wildcard
-        | dir::PatternResolution::Binding(_)
-        | dir::PatternResolution::Literal(_)
-        | dir::PatternResolution::Range(_)
-        | dir::PatternResolution::Tuple(_)
-        | dir::PatternResolution::Sequence(_)
-        | dir::PatternResolution::Shape(_)
-        | dir::PatternResolution::Union(_)
-        | dir::PatternResolution::Borrow(_)
-        | dir::PatternResolution::Move(_)
-        | dir::PatternResolution::Dereference(_) => {}
+        dir::PatternResolution::Ignore
+        | dir::PatternResolution::Bind(_)
+        | dir::PatternResolution::Must(_)
+        | dir::PatternResolution::Default(_)
+        | dir::PatternResolution::Or(_) => {}
+    }
+}
+
+/// Add generic instance rows from one predicate.
+fn add_predicate_generic_instances(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    predicate: &dir::Predicate,
+) {
+    let anchor = builder.anchor_node(node_id);
+    let source = builder.node_source(node_id);
+
+    match &predicate.test {
+        dir::PredicateTest::Unary(test) => {
+            add_projection_generic_instance(builder, anchor, source.clone(), &test.input);
+        }
+        dir::PredicateTest::Has(test) => {
+            add_projection_generic_instance(builder, anchor, source.clone(), &test.receiver);
+            if let dir::PredicateKey::Dynamic(projection) = &test.key {
+                add_projection_generic_instance(builder, anchor, source.clone(), projection);
+            }
+        }
+        dir::PredicateTest::Call(resolution) => {
+            add_call_target_generic_instances(builder, node_id, &resolution.target);
+        }
+        dir::PredicateTest::Any(alternatives) => {
+            for alternative in alternatives {
+                add_predicate_generic_instances(builder, node_id, alternative);
+            }
+        }
+    }
+
+    if let Some(success) = &predicate.success {
+        add_projection_generic_instance(builder, anchor, source, success);
+    }
+}
+
+/// Add generic instance rows from one projection.
+fn add_projection_generic_instance(
+    builder: &mut DirSnapshotBuilder<'_>,
+    anchor: SnapshotAnchor,
+    source: Option<String>,
+    projection: &dir::Projection,
+) {
+    match projection {
+        dir::Projection::NewtypePayload {
+            symbol,
+            generic_arguments,
+            ..
+        } => {
+            add_generic_instance(builder, anchor, source, *symbol, generic_arguments);
+        }
+        dir::Projection::VariantPayload {
+            owner,
+            generic_arguments,
+            ..
+        } => {
+            add_generic_instance(builder, anchor, source, *owner, generic_arguments);
+        }
+        _ => {}
+    }
+}
+
+/// Add generic instance rows from one destructure resolution.
+fn add_destructure_generic_instance(
+    builder: &mut DirSnapshotBuilder<'_>,
+    anchor: SnapshotAnchor,
+    source: Option<String>,
+    destructure: &dir::PatternDestructureResolution,
+) {
+    match destructure {
+        dir::PatternDestructureResolution::Nominal(nominal) => {
+            add_generic_instance(
+                builder,
+                anchor,
+                source,
+                nominal.symbol,
+                &nominal.generic_arguments,
+            );
+        }
+        dir::PatternDestructureResolution::Variant(variant) => {
+            add_projection_generic_instance(builder, anchor, source, &variant.projection);
+        }
+        dir::PatternDestructureResolution::Tuple(_)
+        | dir::PatternDestructureResolution::Object(_)
+        | dir::PatternDestructureResolution::Sequence(_) => {}
     }
 }
 
@@ -734,13 +1178,27 @@ fn add_pattern_generic_instances(
 fn generic_instance_label(
     builder: &DirSnapshotBuilder<'_>,
     symbol: dir::GlobalSymbolId,
-    arguments: &[dir::GlobalTypeId],
+    arguments: &[dir::GenericArgumentBinding],
 ) -> Option<String> {
+    let arguments = generic_instance_arguments(builder, symbol, arguments);
     if arguments.is_empty() {
         return None;
     }
 
-    Some(builder.generic_instance_label(symbol, arguments))
+    Some(builder.generic_instance_label(symbol, &arguments))
+}
+
+/// Add one generic instance row from selected argument bindings.
+fn add_generic_instance(
+    builder: &mut DirSnapshotBuilder<'_>,
+    anchor: SnapshotAnchor,
+    source: Option<String>,
+    symbol: dir::GlobalSymbolId,
+    arguments: &[dir::GenericArgumentBinding],
+) {
+    let arguments = generic_instance_arguments(builder, symbol, arguments);
+
+    builder.add_generic_instance(anchor, source, symbol, &arguments);
 }
 
 /// Add ordered pattern sequence fields.
@@ -748,38 +1206,30 @@ fn add_pattern_sequence_fields(
     builder: &DirSnapshotBuilder<'_>,
     segment: &dir::ResolutionSegment,
     row: SnapshotRow,
-    sequence: &dir::PatternSequenceResolution,
+    fields: &[dir::PatternFieldResolution],
+    rest: Option<&dir::PatternRestResolution>,
 ) -> SnapshotRow {
-    match sequence {
-        dir::PatternSequenceResolution::Array { fields, rest } => row
-            .field("sequence", "array")
-            .tuple_field(
-                "fields",
-                pattern_positional_field_labels(builder, segment, fields),
-            )
-            .optional_field(
-                "rest",
-                rest.as_ref()
-                    .map(|rest| pattern_rest_label(builder, segment, rest)),
-            ),
-        dir::PatternSequenceResolution::Slice { fields, rest } => row
-            .field("sequence", "slice")
-            .tuple_field(
-                "fields",
-                pattern_positional_field_labels(builder, segment, fields),
-            )
-            .optional_field(
-                "rest",
-                rest.as_ref()
-                    .map(|rest| pattern_rest_label(builder, segment, rest)),
-            ),
-        dir::PatternSequenceResolution::FixedArray { fields, length } => row
-            .field("sequence", "fixed_array")
-            .field("length", builder.global_type_label(*length))
-            .tuple_field(
-                "fields",
-                pattern_positional_field_labels(builder, segment, fields),
-            ),
+    row.tuple_field(
+        "fields",
+        pattern_positional_field_labels(builder, segment, fields),
+    )
+    .optional_field(
+        "rest",
+        rest.map(|rest| pattern_rest_label(builder, segment, rest)),
+    )
+}
+
+/// Add exact sequence length when it is statically known.
+fn add_pattern_sequence_length_field(
+    builder: &DirSnapshotBuilder<'_>,
+    row: SnapshotRow,
+    length: &dir::PatternSequenceLength,
+) -> SnapshotRow {
+    match length {
+        dir::PatternSequenceLength::Dynamic => row,
+        dir::PatternSequenceLength::Exact(length) => {
+            row.field("length", builder.global_type_label(*length))
+        }
     }
 }
 
@@ -847,10 +1297,7 @@ fn pattern_keyed_field_label(
     segment: &dir::ResolutionSegment,
     field: &dir::PatternFieldResolution,
 ) -> String {
-    let target = match field.target {
-        dir::PatternFieldTarget::Key(key) => builder.static_key(key),
-        dir::PatternFieldTarget::Index(index) => index.to_string(),
-    };
+    let target = pattern_field_target_label(builder, &field.projection);
 
     let Some(pattern) = field.pattern else {
         return target;
@@ -871,10 +1318,7 @@ fn pattern_positional_field_label(
     field: &dir::PatternFieldResolution,
 ) -> String {
     let Some(pattern) = field.pattern else {
-        return match field.target {
-            dir::PatternFieldTarget::Key(key) => builder.static_key(key),
-            dir::PatternFieldTarget::Index(index) => index.to_string(),
-        };
+        return pattern_field_target_label(builder, &field.projection);
     };
 
     pattern_child_label(builder, segment, pattern)
@@ -895,9 +1339,27 @@ fn pattern_variant_payload_label(fields: &[dir::PatternFieldResolution]) -> Opti
 
 /// Return whether all fields are positional.
 fn pattern_fields_are_positional(fields: &[dir::PatternFieldResolution]) -> bool {
-    fields
-        .iter()
-        .all(|field| matches!(field.target, dir::PatternFieldTarget::Index(_)))
+    fields.iter().all(|field| {
+        matches!(
+            field.projection,
+            dir::Projection::FieldGet {
+                field: dir::ProjectionField::Key(dir::StaticKey::Index(_)),
+                ..
+            } | dir::Projection::SequenceElement { .. }
+        )
+    })
+}
+
+/// Return the source-facing target label for one pattern field projection.
+fn pattern_field_target_label(
+    builder: &DirSnapshotBuilder<'_>,
+    projection: &dir::Projection,
+) -> String {
+    match projection {
+        dir::Projection::FieldGet { field, .. } => projection_field_label(builder, field),
+        dir::Projection::SequenceElement { index, .. } => index.to_string(),
+        _ => projection_label(builder, projection),
+    }
 }
 
 /// Return one compact child pattern label.
@@ -907,14 +1369,21 @@ fn pattern_child_label(
     pattern: dir::GlobalNodeIdAny,
 ) -> String {
     match segment.pattern_resolution(pattern) {
-        Some(dir::PatternResolution::Wildcard) => "_".to_string(),
-        Some(dir::PatternResolution::Binding(binding)) => binding
+        Some(dir::PatternResolution::Ignore) => "_".to_string(),
+        Some(dir::PatternResolution::Bind(binding)) => binding
             .symbol
             .map(|symbol| builder.symbol_path_label(symbol))
             .unwrap_or_else(|| builder.node_label(pattern)),
-        Some(dir::PatternResolution::Literal(literal)) => {
-            builder.scalar_literal_label(&literal.value)
+        Some(dir::PatternResolution::Must(must)) => {
+            pattern_child_label(builder, segment, must.pattern)
         }
+        Some(dir::PatternResolution::Default(default)) => {
+            pattern_child_label(builder, segment, default.pattern)
+        }
+        Some(dir::PatternResolution::Test(test)) => match predicate_condition(&test.predicate) {
+            Some(dir::PredicateCondition::Literal(value)) => builder.scalar_literal_label(value),
+            _ => builder.node_label(pattern),
+        },
         _ => builder.node_label(pattern),
     }
 }
@@ -964,8 +1433,8 @@ fn assign_pattern_keyed_field_label(
     field: &dir::AssignPatternFieldResolution,
 ) -> String {
     let target = match field.target {
-        dir::PatternFieldTarget::Key(key) => builder.static_key(key),
-        dir::PatternFieldTarget::Index(index) => index.to_string(),
+        dir::AssignPatternFieldTarget::Key(key) => builder.static_key(key),
+        dir::AssignPatternFieldTarget::Index(index) => index.to_string(),
     };
 
     let Some(pattern) = field.pattern else {
@@ -988,8 +1457,8 @@ fn assign_pattern_positional_field_label(
 ) -> String {
     let Some(pattern) = field.pattern else {
         return match field.target {
-            dir::PatternFieldTarget::Key(key) => builder.static_key(key),
-            dir::PatternFieldTarget::Index(index) => index.to_string(),
+            dir::AssignPatternFieldTarget::Key(key) => builder.static_key(key),
+            dir::AssignPatternFieldTarget::Index(index) => index.to_string(),
         };
     };
 
@@ -1062,9 +1531,9 @@ fn assign_pattern_rest_label(
 }
 
 /// Render one applied generic argument list label.
-fn arguments_label(
+fn generic_arguments_label(
     builder: &DirSnapshotBuilder<'_>,
-    arguments: &[dir::GlobalTypeId],
+    arguments: &[dir::GenericArgumentBinding],
 ) -> Option<String> {
     if arguments.is_empty() {
         return None;
@@ -1072,9 +1541,108 @@ fn arguments_label(
 
     let arguments = arguments
         .iter()
-        .map(|argument| builder.global_type_label(*argument))
+        .map(|argument| builder.global_type_label(argument.argument))
         .collect::<Vec<_>>()
         .join(", ");
 
     Some(format!("({arguments})"))
+}
+
+/// Render one runtime argument binding list label.
+fn argument_bindings_label(
+    builder: &DirSnapshotBuilder<'_>,
+    arguments: &[dir::ArgumentBinding],
+) -> Option<String> {
+    if arguments.is_empty() {
+        return None;
+    }
+
+    let arguments = arguments
+        .iter()
+        .map(|argument| argument_binding_label(builder, argument))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    Some(format!("({arguments})"))
+}
+
+/// Render one runtime argument binding label.
+fn argument_binding_label(
+    builder: &DirSnapshotBuilder<'_>,
+    binding: &dir::ArgumentBinding,
+) -> String {
+    let source = match &binding.argument {
+        dir::ArgumentSource::Provided(node) => {
+            let source = builder
+                .node_source(*node)
+                .unwrap_or_else(|| builder.node_label(*node));
+
+            format!("provided({source})")
+        }
+        dir::ArgumentSource::Omitted => "omitted".to_string(),
+        dir::ArgumentSource::Rest(nodes) => {
+            let sources = nodes
+                .iter()
+                .map(|node| {
+                    builder
+                        .node_source(*node)
+                        .unwrap_or_else(|| builder.node_label(*node))
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            format!("rest({sources})")
+        }
+    };
+
+    format!("{} as {}", source, builder.global_type_label(binding.ty))
+}
+
+/// Return selected generic argument values in binding order.
+fn generic_argument_values(arguments: &[dir::GenericArgumentBinding]) -> Vec<dir::GlobalTypeId> {
+    dir::GenericArgumentBinding::values(arguments).collect()
+}
+
+/// Return selected arguments owned by one generic symbol template.
+fn generic_instance_arguments(
+    builder: &DirSnapshotBuilder<'_>,
+    symbol: dir::GlobalSymbolId,
+    arguments: &[dir::GenericArgumentBinding],
+) -> Vec<dir::GlobalTypeId> {
+    let Some(generics) = generic_table(builder, symbol.module_id) else {
+        return generic_argument_values(arguments);
+    };
+    let Some((_, template)) = generics
+        .iter_templates()
+        .find(|(_, template)| template.symbol == Some(symbol))
+    else {
+        return Vec::new();
+    };
+
+    let mut selected = Vec::new();
+    for parameter in &template.parameters {
+        let parameter = dir::GlobalGenericParameterId::new(symbol.module_id, *parameter);
+        let Some(argument) = arguments
+            .iter()
+            .find(|argument| argument.parameter == parameter)
+            .map(|argument| argument.argument)
+        else {
+            continue;
+        };
+        selected.push(argument);
+    }
+
+    selected
+}
+
+/// Return the generic table for one module, when loaded.
+fn generic_table<'a>(
+    builder: &'a DirSnapshotBuilder<'_>,
+    module: destack_source::ModuleId,
+) -> Option<&'a dir::GenericTable<'static>> {
+    if module == builder.tree.module_id {
+        builder.generics.as_ref()
+    } else {
+        builder.foreign_generics.get(&module)
+    }
 }
