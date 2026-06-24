@@ -143,6 +143,49 @@ interface Drawable extends Alias {}
 }
 
 #[test]
+fn test_interface_extends_rejects_union_base() {
+    let session = TestSession::single(
+        r#"
+interface Named {}
+interface DrawableBase {}
+
+interface Drawable extends Named | DrawableBase {}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Named {}
+interface DrawableBase {}
+
+interface Drawable extends Named | DrawableBase {}
+
+=== checked ===
+interface Named {}
+/// @type.symbol symbol=Named source="interface Named {}" type=Named
+/// @definition.interface symbol=Named source="interface Named {}"
+
+interface DrawableBase {}
+/// @type.symbol symbol=DrawableBase source="interface DrawableBase {}" type=DrawableBase
+/// @definition.interface symbol=DrawableBase source="interface DrawableBase {}"
+
+interface Drawable extends Named | DrawableBase {}
+/// @type.symbol symbol=Drawable source="interface Drawable extends Named | DrawableBase {}" type=Drawable
+/// @definition.interface symbol=Drawable source="interface Drawable extends Named | DrawableBase {}"
+/// @resolution.name source=Named target=Named
+/// @resolution.name source=DrawableBase target=DrawableBase
+"#,
+        r#"
+/// @diagnostic.error code=EC615 message="interface 'Drawable' can only extend interfaces, not 'Named | DrawableBase'"
+/// @diagnostic.label line=5 column=34 span="|" line_source="interface Drawable extends Named | DrawableBase {}"
+"#,
+    );
+}
+
+#[test]
 fn test_interface_extends_rejects_conflicting_generic_base() {
     let session = TestSession::single(
         r#"

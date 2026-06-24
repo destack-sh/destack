@@ -113,6 +113,49 @@ class Document extends Alias {}
 }
 
 #[test]
+fn test_class_extends_rejects_union_base() {
+    let session = TestSession::single(
+        r#"
+class Base {}
+class Other {}
+
+class Document extends Base | Other {}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Base {}
+class Other {}
+
+class Document extends Base | Other {}
+
+=== checked ===
+class Base {}
+/// @type.symbol symbol=Base source="class Base {}" type=Base
+/// @definition.class symbol=Base source="class Base {}"
+
+class Other {}
+/// @type.symbol symbol=Other source="class Other {}" type=Other
+/// @definition.class symbol=Other source="class Other {}"
+
+class Document extends Base | Other {}
+/// @type.symbol symbol=Document source="class Document extends Base | Other {}" type=Document
+/// @definition.class symbol=Document source="class Document extends Base | Other {}"
+/// @resolution.name source=Base target=Base
+/// @resolution.name source=Other target=Other
+"#,
+        r#"
+/// @diagnostic.error code=EC202 message="type 'Document' does not extend 'Base | Other'"
+/// @diagnostic.label line=5 column=29 span="|" line_source="class Document extends Base | Other {}"
+"#,
+    );
+}
+
+#[test]
 fn test_class_implements_interface_members() {
     let session = TestSession::single(
         r#"
