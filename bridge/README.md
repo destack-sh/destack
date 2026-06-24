@@ -6,8 +6,6 @@ Destack bridges into the rest of the universe.
 
 | Project | Status | Summary |
 |---------|--------|---------|
-| [`language`](language/README.md) | Experimental | Shared Rust language DTO schema used by generated bindings |
-| [`capi`](capi/README.md) | Experimental | Minimal C ABI bridge surface for FFI language clients |
 | [`typescript`](typescript/README.md) | Alpha | Primary language bridge package published as `@destack/language` |
 | [`rust`](rust/README.md) | Experimental | Rust language bridge crate published as `destack` |
 | [`python`](python/README.md) | Experimental | Python language bridge package published as `destack` |
