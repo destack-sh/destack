@@ -11,6 +11,14 @@ pub(in crate::check) enum Answer<T> {
 }
 
 impl<T> Answer<T> {
+    /// Return the ready value, if this answer has settled.
+    pub(in crate::check) fn ready(self) -> Option<T> {
+        match self {
+            Self::Ready(value) => Some(value),
+            Self::Pending(_) => None,
+        }
+    }
+
     /// Return a pending answer blocked by one dependency stream.
     pub(in crate::check) fn pending(dependencies: impl IntoIterator<Item = Dependency>) -> Self {
         let mut pending = SmallVec::new();
@@ -26,6 +34,16 @@ impl<T> Answer<T> {
 }
 
 impl Answer<bool> {
+    /// Return whether this answer is ready true.
+    pub(in crate::check) fn is_ready_true(&self) -> bool {
+        matches!(self, Self::Ready(true))
+    }
+
+    /// Return whether this answer is ready false.
+    pub(in crate::check) fn is_ready_false(&self) -> bool {
+        matches!(self, Self::Ready(false))
+    }
+
     /// Combine two boolean answers conjunctively.
     pub(in crate::check) fn and(self, other: Self) -> Self {
         match (self, other) {
@@ -52,6 +70,19 @@ impl Answer<bool> {
         }
     }
 }
+
+/// Unwrap one ready solver answer or propagate its pending blockers.
+macro_rules! answer {
+    ($answer:expr $(,)?) => {
+        match $answer {
+            Answer::Ready(value) => value,
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        }
+    };
+}
+
+/// The importable solver answer propagation macro.
+pub(in crate::check) use answer;
 
 /// One dependency that can wake solver work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

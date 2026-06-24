@@ -13,7 +13,7 @@ impl Obligation {
         finished: bool,
         context: &DumpContext<'_, '_>,
     ) -> ArtifactEvent {
-        let event = ArtifactEvent::new("obligation.check")
+        let event = ArtifactEvent::new("obligation.checked")
             .debug()
             .text("id", context.obligation_label(id))
             .text("kind", self.kind_label())
@@ -87,23 +87,23 @@ impl Obligation {
 
 /// Render one runtime predicate payload.
 fn runtime_predicate_label(
-    predicate: &dir::PredicateResolution,
+    predicate: &dir::GuardResolution,
     context: &DumpContext<'_, '_>,
 ) -> String {
     match predicate {
-        dir::PredicateResolution::Is(predicate) => {
+        dir::GuardResolution::Is(predicate) => {
             let value = context.type_label(predicate.value_type);
             let target = context.type_label(predicate.target_type);
 
             format!("{value} is {target}")
         }
-        dir::PredicateResolution::InstanceOf(predicate) => {
+        dir::GuardResolution::InstanceOf(predicate) => {
             let value = context.type_label(predicate.value_type);
-            let target = context.symbol_label(predicate.target);
+            let target = context.type_label(predicate.target_type);
 
             format!("{value} instanceof {target}")
         }
-        dir::PredicateResolution::In(predicate) => {
+        dir::GuardResolution::In(predicate) => {
             let key = context.type_label(predicate.key_type);
             let receiver = context.type_label(predicate.receiver_type);
 

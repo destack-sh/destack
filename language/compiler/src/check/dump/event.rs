@@ -27,82 +27,75 @@ impl CheckEvent {
         log: &mut ArtifactEventLog,
     ) {
         let event = match self {
-            Self::SolveStart { tasks, variables } => ArtifactEvent::new("solve.start")
+            Self::SolveStarted { tasks, variables } => ArtifactEvent::new("solve.started")
                 .info()
                 .usize("tasks", *tasks)
                 .usize("variables", *variables),
-            Self::SolveStep { step, task } => {
-                let event = ArtifactEvent::new("solve.step").info().usize("step", *step);
+            Self::TaskRan { step, task } => {
+                let event = ArtifactEvent::new("task.ran").info().usize("step", *step);
 
                 task.render_event(event, context)
             }
-            Self::SolveFinish {
+            Self::SolveFinished {
                 iterations,
                 variables,
-            } => ArtifactEvent::new("solve.finish")
+            } => ArtifactEvent::new("solve.finished")
                 .info()
                 .usize("iterations", *iterations)
                 .usize("variables", *variables),
-            Self::RelationCheck {
+            Self::RelationChecked {
                 constraint,
-                finished,
+                is_finished,
             } => match context.check.constraints.get(*constraint) {
-                Ok(relation) => relation.render_event(*constraint, *finished, context),
-                Err(_) => ArtifactEvent::new("relation.check")
+                Ok(relation) => relation.render_event(*constraint, *is_finished, context),
+                Err(_) => ArtifactEvent::new("relation.checked")
                     .debug()
                     .text("id", context.constraint_label(*constraint))
-                    .bool("finished", *finished),
+                    .bool("finished", *is_finished),
             },
-            Self::ObligationCheck {
+            Self::ObligationChecked {
                 obligation,
-                finished,
+                is_finished,
             } => match context.check.obligations.get(*obligation) {
                 Ok(obligation_state) => {
-                    obligation_state.render_event(*obligation, *finished, context)
+                    obligation_state.render_event(*obligation, *is_finished, context)
                 }
-                Err(_) => ArtifactEvent::new("obligation.check")
+                Err(_) => ArtifactEvent::new("obligation.checked")
                     .debug()
                     .text("id", context.obligation_label(*obligation))
-                    .bool("finished", *finished),
+                    .bool("finished", *is_finished),
             },
-            Self::Decision { node } => ArtifactEvent::new("decision.set")
+            Self::NodeDecided { node } => ArtifactEvent::new("node.decided")
                 .debug()
                 .text("node", context.node_label(*node))
                 .text("at", context.node_source_label(*node)),
-            Self::VariableSolution {
+            Self::VariableSolved {
                 variable,
                 solution,
                 waiters,
-            } => ArtifactEvent::new("variable.solution")
+            } => ArtifactEvent::new("variable.solved")
                 .debug()
                 .text("variable", context.variable_label(*variable))
                 .text("solution", context.type_label(*solution))
-                .text("waiters", context.task_list_label(waiters)),
+                .usize("waiters", *waiters),
             Self::VariableBlocked {
                 variable,
-                lower,
-                upper,
-                default,
+                bounds,
                 blockers,
             } => ArtifactEvent::new("variable.blocked")
                 .debug()
                 .text("variable", context.variable_label(*variable))
-                .text("lower", context.type_list_label(lower))
-                .text("upper", context.type_list_label(upper))
-                .text("default", context.optional_type_label(*default))
+                .text("lower", context.type_list_label(&bounds.lower))
+                .text("upper", context.type_list_label(&bounds.upper))
+                .text("default", context.optional_type_label(bounds.default))
                 .text("blockers", context.dependency_list_label(blockers)),
-            Self::VariableUnsolved {
-                variable,
-                lower,
-                upper,
-                default,
-            } => ArtifactEvent::new("variable.unsolved")
+            Self::VariableUnsolved { variable, bounds } => ArtifactEvent::new("variable.unsolved")
                 .debug()
                 .text("variable", context.variable_label(*variable))
-                .text("lower", context.type_list_label(lower))
-                .text("upper", context.type_list_label(upper))
-                .text("default", context.optional_type_label(*default)),
-            Self::VariableAlias {
+                .text("lower", context.type_list_label(&bounds.lower))
+                .text("upper", context.type_list_label(&bounds.upper))
+                .text("default", context.optional_type_label(bounds.default)),
+            Self::VariableAliased {
                 variable,
                 representative,
             } => ArtifactEvent::new("variable.alias")
