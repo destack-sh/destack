@@ -2,7 +2,7 @@ use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckError, CheckState, MemberLookup, Origin};
+use crate::check::{Answer, CheckError, CheckState, MemberLookup, Origin, answer};
 
 /// Writable storage selected by source syntax.
 ///
@@ -88,20 +88,10 @@ impl CheckState<'_> {
         &mut self,
         place: Place,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
-        self.build_writable_place_error(place)
-    }
-
-    /// Build the diagnostic for one place that rejects writes.
-    fn build_writable_place_error(
-        &mut self,
-        place: Place,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let diagnostic = match place.target {
-            PlaceTarget::Binding { symbol } => {
-                self.build_writable_binding_error(place.source, symbol)?
-            }
+            PlaceTarget::Binding { symbol } => self.writable_binding_error(place.source, symbol)?,
             PlaceTarget::Member { owner, key } => {
-                self.build_writable_member_error(place.source, owner, key)?
+                self.writable_member_error(place.source, owner, key)?
             }
             PlaceTarget::Index { .. } | PlaceTarget::Dereference => Answer::Ready(None),
         };
@@ -109,8 +99,8 @@ impl CheckState<'_> {
         Ok(diagnostic)
     }
 
-    /// Build the diagnostic for one binding that rejects writes.
-    fn build_writable_binding_error(
+    /// Return the diagnostic for one binding that rejects writes.
+    fn writable_binding_error(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -172,18 +162,15 @@ impl CheckState<'_> {
         Ok(Answer::Ready(None))
     }
 
-    /// Build the diagnostic for one member that rejects writes.
-    fn build_writable_member_error(
+    /// Return the diagnostic for one member that rejects writes.
+    fn writable_member_error(
         &mut self,
         source: dir::GlobalNodeIdAny,
         owner: dir::GlobalTypeId,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let origin = Origin::Node(source);
-        let owner = match self.evaluate_root(origin, owner)? {
-            Answer::Ready(owner) => owner,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let owner = answer!(self.evaluate_root(origin, owner)?);
 
         // structural fields carry their write access directly
         if let dir::Type::Shape(shape) = self.ty(owner)? {

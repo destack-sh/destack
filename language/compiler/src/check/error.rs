@@ -723,6 +723,90 @@ pub enum CheckError {
         key: String,
     },
 
+    /// `instanceof` target is not a class declaration.
+    ///
+    /// ```ds
+    /// interface Named {}
+    ///
+    /// value instanceof Named;
+    /// ```
+    #[diagnostic(
+        code = "EC317",
+        message = "right-hand side of 'instanceof' must be a class"
+    )]
+    InstanceOfTargetNotClass {
+        /// Report the `instanceof` expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// `instanceof` can never hold for the supplied value type.
+    ///
+    /// ```ds
+    /// class User {}
+    ///
+    /// declare const name: string;
+    ///
+    /// name instanceof User;
+    /// ```
+    #[diagnostic(
+        code = "EC318",
+        message = "type '{source}' can never be an instance of '{target}'"
+    )]
+    ImpossibleInstanceOf {
+        /// Report the tested value.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The tested value type.
+        source: String,
+        /// The target class type.
+        target: String,
+    },
+
+    /// `is` can never hold for the supplied value type.
+    ///
+    /// ```ds
+    /// declare const value: string;
+    ///
+    /// value is int32;
+    /// ```
+    #[diagnostic(
+        code = "EC319",
+        message = "type '{source}' can never satisfy runtime check '{target}'"
+    )]
+    ImpossibleIs {
+        /// Report the tested value.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The tested value type.
+        source: String,
+        /// The checked target type.
+        target: String,
+    },
+
+    /// `is` target cannot be tested at runtime.
+    ///
+    /// ```ds
+    /// declare const value: unknown;
+    ///
+    /// value is &User;
+    /// ```
+    #[diagnostic(
+        code = "EC320",
+        message = "type '{target}' cannot be tested at runtime"
+    )]
+    RuntimePredicateNotTestable {
+        /// Report the checked target.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The checked target type.
+        target: String,
+    },
+
     // -------------------------------------------------------------------------
     // 4xx: expressions
     // -------------------------------------------------------------------------

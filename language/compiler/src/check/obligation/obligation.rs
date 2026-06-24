@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 
 use crate::{CheckError, CompilerError, CompilerResult, DiagnosticAnchor};
 
-use crate::check::{Answer, CheckEvent, CheckState, Condition, Mutation, Place, Task};
+use crate::check::{Answer, AutoInterface, CheckEvent, CheckState, Condition, Mutation, Place};
 
 /// Stable index of one collected obligation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -55,8 +55,10 @@ pub(in crate::check) enum Obligation {
     WritablePlace(WritablePlaceObligation),
     /// A type at a representation slot must have a computed representation.
     Representation(RepresentationObligation),
-    /// A runtime-erased type must have a checkable dynamic surface.
-    DynamicSafety(DynamicSafetyObligation),
+    /// A type must satisfy one compiler-known auto interface.
+    AutoInterface(AutoInterfaceObligation),
+    /// A runtime predicate must have valid operands.
+    RuntimePredicate(RuntimePredicateObligation),
     /// An extension must provide members required by its implemented interfaces.
     ExtensionConformance(ExtensionConformanceObligation),
     /// An implementation must not overlap a conflicting implementation.
@@ -73,7 +75,8 @@ impl Obligation {
             Self::TryPropagation(obligation) => obligation.source,
             Self::WritablePlace(obligation) => obligation.place.source,
             Self::Representation(obligation) => obligation.source,
-            Self::DynamicSafety(obligation) => obligation.source,
+            Self::AutoInterface(obligation) => obligation.source,
+            Self::RuntimePredicate(obligation) => obligation.source,
             Self::ExtensionConformance(obligation) => obligation.source,
             Self::ImplementationCoherence(obligation) => obligation.source,
             Self::DeclarationHeritage(obligation) => obligation.source,
@@ -87,7 +90,8 @@ impl Obligation {
             Self::TryPropagation(obligation) => &obligation.condition,
             Self::WritablePlace(obligation) => &obligation.condition,
             Self::Representation(obligation) => &obligation.condition,
-            Self::DynamicSafety(obligation) => &obligation.condition,
+            Self::AutoInterface(obligation) => &obligation.condition,
+            Self::RuntimePredicate(obligation) => &obligation.condition,
             Self::ExtensionConformance(obligation) => &obligation.condition,
             Self::ImplementationCoherence(obligation) => &obligation.condition,
             Self::DeclarationHeritage(obligation) => &obligation.condition,
@@ -194,19 +198,41 @@ pub(in crate::check) struct RepresentationObligation {
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
 
-/// Obliges a type to support runtime erasure.
+/// Obliges a type to satisfy one compiler-known auto interface.
 ///
 /// ```ds
-/// value is Printable
+/// T: DynamicSafe
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct DynamicSafetyObligation {
-    /// The source requiring runtime erasure.
+pub(in crate::check) struct AutoInterfaceObligation {
+    /// The source requiring the interface.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The static condition under which this obligation exists.
     pub(in crate::check) condition: Condition,
-    /// The type that must support runtime erasure.
+    /// The type that must satisfy the interface.
     pub(in crate::check) ty: dir::GlobalTypeId,
+    /// The required auto interface.
+    pub(in crate::check) interface: AutoInterface,
+}
+
+/// Obliges a runtime predicate to be executable.
+///
+/// ```ds
+/// value instanceof User
+/// "name" in value
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct RuntimePredicateObligation {
+    /// The predicate expression.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The static condition under which this obligation exists.
+    pub(in crate::check) condition: Condition,
+    /// The left operand expression.
+    pub(in crate::check) left: dir::GlobalNodeIdAny,
+    /// The right operand expression or type.
+    pub(in crate::check) right: dir::GlobalNodeIdAny,
+    /// The selected predicate.
+    pub(in crate::check) predicate: dir::GuardResolution,
 }
 
 /// Obliges an extension to provide members required by its implemented interfaces.
@@ -239,13 +265,11 @@ pub(in crate::check) struct ImplementationCoherenceObligation {
     pub(in crate::check) symbol: dir::GlobalSymbolId,
 }
 
-/// Collected obligations with completion tracking.
+/// Collected obligations in allocation order.
 #[derive(Debug)]
 pub(in crate::check) struct ObligationTable {
     /// The collected obligations in allocation order.
     obligations: Vec<Obligation>,
-    /// Whether each obligation finished checking.
-    completed: Vec<bool>,
 }
 
 impl ObligationTable {
@@ -253,7 +277,6 @@ impl ObligationTable {
     pub(in crate::check) fn new() -> Self {
         Self {
             obligations: Vec::new(),
-            completed: Vec::new(),
         }
     }
 
@@ -261,7 +284,6 @@ impl ObligationTable {
     pub(in crate::check) fn allocate(&mut self, obligation: Obligation) -> ObligationId {
         let id = ObligationId(self.obligations.len() as u32);
         self.obligations.push(obligation);
-        self.completed.push(false);
 
         id
     }
@@ -275,55 +297,53 @@ impl ObligationTable {
             })
     }
 
-    /// Mark one obligation complete.
-    pub(in crate::check) fn complete(&mut self, id: ObligationId) {
-        self.completed[id.index()] = true;
-    }
-
-    /// Return whether one obligation finished checking.
-    pub(in crate::check) fn is_complete(&self, id: ObligationId) -> bool {
-        self.completed[id.index()]
-    }
-
     /// Return the number of collected obligations.
     pub(in crate::check) fn count(&self) -> usize {
         self.obligations.len()
     }
 
+    /// Iterate obligation ids in allocation order.
+    pub(in crate::check) fn ids(&self) -> impl Iterator<Item = ObligationId> {
+        (0..self.obligations.len()).map(|index| ObligationId(index as u32))
+    }
+
     /// Drop the youngest obligations down to one count.
     pub(in crate::check) fn truncate(&mut self, count: usize) {
         self.obligations.truncate(count);
-        self.completed.truncate(count);
-    }
-
-    /// Iterate obligations that never finished checking.
-    pub(in crate::check) fn unfinished(&self) -> impl Iterator<Item = &Obligation> + '_ {
-        self.obligations
-            .iter()
-            .zip(self.completed.iter())
-            .filter_map(|(obligation, complete)| (!complete).then_some(obligation))
     }
 }
 
 impl CheckState<'_> {
-    /// Collect one journaled obligation and schedule it.
+    /// Collect one journaled obligation.
     pub(in crate::check) fn push_obligation(&mut self, obligation: Obligation) -> ObligationId {
         let id = self.obligations.allocate(obligation);
         self.journal.record(Mutation::ObligationAllocated);
-        self.queue_task(Task::Oblige(id));
 
         id
     }
 
-    /// Run one obligated check once.
-    pub(in crate::check) fn run_obligation(
-        &mut self,
-        id: ObligationId,
-    ) -> CompilerResult<Answer<()>> {
-        if self.obligations.is_complete(id) {
-            return Ok(Answer::Ready(()));
+    /// Check collected obligations after inference reaches a fixed point.
+    pub(in crate::check) fn check_obligations(&mut self) -> CompilerResult<()> {
+        let obligations = self.obligations.ids().collect::<Vec<_>>();
+
+        for obligation in obligations {
+            match self.run_obligation(obligation)? {
+                Answer::Ready(()) => {}
+                Answer::Pending(blockers) => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "check obligation {obligation:?} is still pending after solve: {blockers:?}"
+                        ),
+                    });
+                }
+            }
         }
 
+        Ok(())
+    }
+
+    /// Check one obligation once.
+    fn run_obligation(&mut self, id: ObligationId) -> CompilerResult<Answer<()>> {
         // copy the obligation for the borrow-free check
         let obligation = self.obligations.get(id)?.clone();
         let predicates = match obligation.condition() {
@@ -336,19 +356,18 @@ impl CheckState<'_> {
             match self.decide_condition(&predicates)? {
                 // skip obligations whose condition failed
                 Answer::Ready(false) => {
-                    self.obligations.complete(id);
-                    self.record_event(CheckEvent::ObligationCheck {
+                    self.record_event(CheckEvent::ObligationChecked {
                         obligation: id,
-                        finished: true,
+                        is_finished: true,
                     });
 
                     return Ok(Answer::Ready(()));
                 }
                 Answer::Ready(true) => {}
                 Answer::Pending(blockers) => {
-                    self.record_event(CheckEvent::ObligationCheck {
+                    self.record_event(CheckEvent::ObligationChecked {
                         obligation: id,
-                        finished: false,
+                        is_finished: false,
                     });
 
                     return Ok(Answer::Pending(blockers));
@@ -369,18 +388,17 @@ impl CheckState<'_> {
                         .diagnostics
                         .push(diagnostic);
                 }
-                self.obligations.complete(id);
-                self.record_event(CheckEvent::ObligationCheck {
+                self.record_event(CheckEvent::ObligationChecked {
                     obligation: id,
-                    finished: true,
+                    is_finished: true,
                 });
 
                 Ok(Answer::Ready(()))
             }
             Answer::Pending(blockers) => {
-                self.record_event(CheckEvent::ObligationCheck {
+                self.record_event(CheckEvent::ObligationChecked {
                     obligation: id,
-                    finished: false,
+                    is_finished: false,
                 });
 
                 Ok(Answer::Pending(blockers))
@@ -404,9 +422,10 @@ impl CheckState<'_> {
             Obligation::Representation(obligation) => {
                 self.check_layout(obligation.source, obligation.ty)
             }
-            Obligation::DynamicSafety(obligation) => {
-                self.check_dynamic_safe(obligation.source, obligation.ty)
+            Obligation::AutoInterface(obligation) => {
+                self.check_auto_interface(obligation.source, obligation.ty, obligation.interface)
             }
+            Obligation::RuntimePredicate(obligation) => self.check_runtime_predicate(obligation),
             Obligation::ExtensionConformance(obligation) => {
                 self.check_extension_conformance(obligation.source, obligation.symbol)
             }
@@ -414,7 +433,7 @@ impl CheckState<'_> {
                 self.check_implementation_coherence(obligation.source, obligation.symbol)
             }
             Obligation::DeclarationHeritage(obligation) => {
-                self.check_heritage(obligation.source, obligation.symbol)
+                self.check_declaration_heritage(obligation.source, obligation.symbol)
             }
         }
     }

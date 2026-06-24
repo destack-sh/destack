@@ -2,7 +2,7 @@ use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckError, CheckState, MatchCase, Origin};
+use crate::check::{Answer, CheckError, CheckState, MatchCase, Origin, answer};
 
 impl CheckState<'_> {
     /// Check whether one match covers every known selector value.
@@ -45,22 +45,18 @@ impl CheckState<'_> {
         }
 
         // accept any covering pattern alternative
-        let decision = self.decide_patterns_cover(origin, &patterns, value)?;
-        let diagnostic = match decision {
-            Answer::Ready(true) => None,
-            Answer::Ready(false) => {
-                let missing = self.uncovered_witness(origin, &patterns, value)?;
-                let (module, anchor) = self.source_anchor(source);
+        let diagnostic = if answer!(self.decide_patterns_cover(origin, &patterns, value)?) {
+            None
+        } else {
+            let missing = self.uncovered_witness(origin, &patterns, value)?;
+            let (module, anchor) = self.source_anchor(source);
+            let error = CheckError::NonExhaustivePattern {
+                anchor,
+                module,
+                missing,
+            };
 
-                let error = CheckError::NonExhaustivePattern {
-                    anchor,
-                    module,
-                    missing,
-                };
-
-                Some(error.help("cover the remaining values or add a wildcard '_' arm"))
-            }
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            Some(error.help("cover the remaining values or add a wildcard '_' arm"))
         };
 
         Ok(Answer::Ready(diagnostic))

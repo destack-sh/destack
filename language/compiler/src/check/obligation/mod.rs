@@ -1,8 +1,9 @@
-mod dynamic;
 mod exhaustive;
 mod heritage;
+mod interface;
 mod obligation;
 mod place;
+mod predicate;
 mod refutability;
 mod r#try;
 
