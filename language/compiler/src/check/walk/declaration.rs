@@ -1,9 +1,9 @@
 use destack_dir as dir;
 
 use crate::check::{
-    Decision, DeclarationHeritageObligation, ExtensionConformanceObligation,
-    GenericInductionDeclaration, GenericTemplateId, ImplementationCoherenceObligation, Obligation,
-    Origin, Receiver, ReceiverBinding, Relation, RepresentationObligation, WalkState,
+    DeclarationHeritageObligation, ExtensionConformanceObligation, GenericInductionDeclaration,
+    GenericTemplateId, ImplementationCoherenceObligation, Obligation, Origin, Receiver,
+    ReceiverBinding, Relation, RepresentationObligation, WalkState,
 };
 use crate::{CheckError, CompilerError, CompilerResult};
 
@@ -121,7 +121,9 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
         let source = id.into_global_any(self.module);
-        let Some(template) = self.signature_template(source, None, Some(symbol), signature)? else {
+        let Some(template) =
+            self.declare_signature_template(source, None, Some(symbol), signature)?
+        else {
             return Ok(());
         };
 
@@ -226,53 +228,12 @@ impl WalkState<'_, '_> {
             self.walk_where_clause(*where_clause)?;
         }
 
-        // intrinsic nominal declarations stay opaque
-        let is_intrinsic = matches!(
+        // handle intrinsic declarations separately from ordinary aliases
+        if matches!(
             self.tree.get(declaration.value),
             dir::TypeExpression::Intrinsic
-        );
-        if is_intrinsic {
-            if !declaration.is_nominal {
-                // declared intrinsic aliases expand to builtin operations
-                let mapping = self
-                    .check
-                    .environment
-                    .language
-                    .item(symbol)
-                    .and_then(string_mapping_for_item);
-                if let Some(mapping) = mapping
-                    && let Some(template_id) = template
-                    && let Some(parameter) = self
-                        .check
-                        .generic_template(template_id)
-                        .and_then(|template| template.parameters.first().copied())
-                {
-                    let source = declaration.value.into_any();
-                    let target = self.push_type(
-                        dir::Type::Parameter(parameter.into_global(self.module)),
-                        source,
-                    )?;
-                    let value = self.push_type(
-                        dir::Type::Operation(dir::TypeOperation::StringMapping { mapping, target }),
-                        source,
-                    )?;
-                    self.declare_symbol_type(symbol, value)?;
-                    self.check.insert_definition(
-                        symbol,
-                        id.into_global_any(self.module),
-                        dir::Definition::TypeAlias(dir::TypeAliasDefinition {
-                            template: template.map(|template| template.local_id),
-                            value,
-                        }),
-                    )?;
-
-                    return Ok(());
-                }
-
-                self.check
-                    .report_invalid_intrinsic_type(self.module, declaration.value.into_any());
-            }
-
+        ) {
+            self.walk_intrinsic_type_declaration(id, declaration, symbol, template)?;
             return Ok(());
         }
 
@@ -287,7 +248,7 @@ impl WalkState<'_, '_> {
                 value,
             })
         } else {
-            self.declare_symbol_type(symbol, value)?;
+            self.constrain_symbol_type(symbol, value)?;
 
             dir::Definition::TypeAlias(dir::TypeAliasDefinition {
                 template: template.map(|template| template.local_id),
@@ -295,6 +256,47 @@ impl WalkState<'_, '_> {
             })
         };
         self.check.insert_definition(symbol, source, definition)?;
+
+        Ok(())
+    }
+
+    /// Walk one type declaration whose value is `intrinsic`.
+    fn walk_intrinsic_type_declaration(
+        &mut self,
+        id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &dir::TypeDeclaration,
+        symbol: dir::GlobalSymbolId,
+        template: Option<GenericTemplateId>,
+    ) -> CompilerResult<()> {
+        let source = id.into_global_any(self.module);
+
+        let value = self.push_type(dir::Type::Intrinsic, declaration.value.into_any())?;
+
+        // intrinsic newtypes stay opaque
+        if declaration.is_nominal {
+            let definition = dir::Definition::Newtype(dir::NewtypeDefinition {
+                template: template.map(|template| template.local_id),
+                value,
+            });
+            self.check.insert_definition(symbol, source, definition)?;
+
+            return Ok(());
+        }
+
+        // transparent intrinsic aliases reduce when applied
+        if self.check.is_transparent_intrinsic_alias(symbol) {
+            self.constrain_symbol_type(symbol, value)?;
+            let definition = dir::Definition::TypeAlias(dir::TypeAliasDefinition {
+                template: template.map(|template| template.local_id),
+                value,
+            });
+            self.check.insert_definition(symbol, source, definition)?;
+
+            return Ok(());
+        }
+
+        self.check
+            .report_invalid_intrinsic_type(self.module, declaration.value.into_any());
 
         Ok(())
     }
@@ -330,7 +332,7 @@ impl WalkState<'_, '_> {
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(*where_clause)?;
         }
-        let receiver = self.nominal_receiver(id.into_any(), symbol)?;
+        let receiver = self.declare_nominal_receiver(id.into_any(), symbol)?;
         let _receiver = self.enter_receiver_maybe(Some(receiver));
 
         // walk implemented interfaces
@@ -338,27 +340,31 @@ impl WalkState<'_, '_> {
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
             self.record_type_induction_site(induction, ty);
-            if let Some(heritage) = self.heritage(*implemented_type, ty)? {
-                if self.check.symbol_kind(heritage.symbol).is_interface() {
-                    self.relate_heritage_type(
+            if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
+                if self.check.symbol_kind(instance.symbol).is_interface() {
+                    self.relate_heritage_clause(
                         *implemented_type,
                         Relation::Implements,
                         receiver.ty,
                         ty,
                     );
-                    implements.push(heritage);
+                    implements.push(dir::NominalHeritage {
+                        source,
+                        symbol: instance.symbol,
+                        arguments: instance.arguments,
+                    });
                 } else {
-                    self.report_implementation_target(
+                    self.report_implementation_target_not_interface_symbol(
                         self.check.format_symbol(symbol),
-                        heritage.symbol,
-                        heritage.source,
+                        instance.symbol,
+                        source,
                     );
                 }
-            } else if let Some(target) = self.heritage_symbol(*implemented_type) {
-                self.report_implementation_target(
+            } else {
+                self.report_implementation_target_not_interface_type(
                     self.check.format_symbol(symbol),
-                    target,
-                    (*implemented_type).into_global_any(self.module),
+                    ty,
+                    implemented_type.into_global_any(self.module),
                 );
             }
         }
@@ -382,10 +388,10 @@ impl WalkState<'_, '_> {
         self.check.insert_definition(symbol, source, definition)?;
 
         // heritage rules check once the inherited declarations close
-        self.oblige_heritage(source, symbol);
+        self.collect_heritage_obligation(source, symbol);
 
         // concrete structs need one fixed representation
-        self.oblige_declaration_layout(symbol, receiver, template);
+        self.collect_declaration_layout_obligation(symbol, receiver, template);
 
         Ok(())
     }
@@ -421,7 +427,7 @@ impl WalkState<'_, '_> {
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(*where_clause)?;
         }
-        let receiver = self.nominal_receiver(id.into_any(), symbol)?;
+        let receiver = self.declare_nominal_receiver(id.into_any(), symbol)?;
         let _receiver = self.enter_receiver_maybe(Some(receiver));
 
         // walk superclass type
@@ -430,23 +436,24 @@ impl WalkState<'_, '_> {
         if let Some(extends_type) = declaration.extends_type {
             let ty = self.walk_type_expression(extends_type)?;
             self.record_type_induction_site(induction, ty);
-            if let Some(heritage) = self.heritage(extends_type, ty)? {
-                if self.check.symbol_kind(heritage.symbol) == dir::SymbolKind::Class {
-                    self.relate_heritage_type(extends_type, Relation::Extends, receiver.ty, ty);
-                    extends = Some(heritage);
+            if let Some((source, instance)) = self.heritage_instance(extends_type, ty)? {
+                if self.check.symbol_kind(instance.symbol) == dir::SymbolKind::Class {
+                    self.relate_heritage_clause(extends_type, Relation::Extends, receiver.ty, ty);
+                    extends = Some(dir::NominalHeritage {
+                        source,
+                        symbol: instance.symbol,
+                        arguments: instance.arguments,
+                    });
                     super_ty = Some(ty);
                 } else {
-                    self.report_class_base_symbol(receiver.ty, heritage.symbol, heritage.source);
+                    self.report_does_not_extend_symbol(receiver.ty, instance.symbol, source);
                 }
-            } else if let Some(target) = self.heritage_symbol(extends_type) {
-                self.report_class_base_symbol(
+            } else {
+                self.report_does_not_extend_type(
                     receiver.ty,
-                    target,
+                    ty,
                     extends_type.into_global_any(self.module),
                 );
-            } else {
-                self.relate_heritage_type(extends_type, Relation::Extends, receiver.ty, ty);
-                super_ty = Some(ty);
             }
         }
 
@@ -455,27 +462,31 @@ impl WalkState<'_, '_> {
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
             self.record_type_induction_site(induction, ty);
-            if let Some(heritage) = self.heritage(*implemented_type, ty)? {
-                if self.check.symbol_kind(heritage.symbol).is_interface() {
-                    self.relate_heritage_type(
+            if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
+                if self.check.symbol_kind(instance.symbol).is_interface() {
+                    self.relate_heritage_clause(
                         *implemented_type,
                         Relation::Implements,
                         receiver.ty,
                         ty,
                     );
-                    implements.push(heritage);
+                    implements.push(dir::NominalHeritage {
+                        source,
+                        symbol: instance.symbol,
+                        arguments: instance.arguments,
+                    });
                 } else {
-                    self.report_implementation_target(
+                    self.report_implementation_target_not_interface_symbol(
                         self.check.format_symbol(symbol),
-                        heritage.symbol,
-                        heritage.source,
+                        instance.symbol,
+                        source,
                     );
                 }
-            } else if let Some(target) = self.heritage_symbol(*implemented_type) {
-                self.report_implementation_target(
+            } else {
+                self.report_implementation_target_not_interface_type(
                     self.check.format_symbol(symbol),
-                    target,
-                    (*implemented_type).into_global_any(self.module),
+                    ty,
+                    implemented_type.into_global_any(self.module),
                 );
             }
         }
@@ -508,10 +519,10 @@ impl WalkState<'_, '_> {
         self.check.insert_definition(symbol, source, definition)?;
 
         // heritage rules check once the inherited declarations close
-        self.oblige_heritage(source, symbol);
+        self.collect_heritage_obligation(source, symbol);
 
         // concrete classes need one fixed representation
-        self.oblige_declaration_layout(symbol, receiver, template);
+        self.collect_declaration_layout_obligation(symbol, receiver, template);
 
         Ok(())
     }
@@ -547,7 +558,7 @@ impl WalkState<'_, '_> {
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(*where_clause)?;
         }
-        let receiver = self.nominal_receiver(id.into_any(), symbol)?;
+        let receiver = self.declare_nominal_receiver(id.into_any(), symbol)?;
         let _receiver = self.enter_receiver_maybe(Some(receiver));
 
         // walk implemented interfaces
@@ -555,27 +566,31 @@ impl WalkState<'_, '_> {
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
             self.record_type_induction_site(induction, ty);
-            if let Some(heritage) = self.heritage(*implemented_type, ty)? {
-                if self.check.symbol_kind(heritage.symbol).is_interface() {
-                    self.relate_heritage_type(
+            if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
+                if self.check.symbol_kind(instance.symbol).is_interface() {
+                    self.relate_heritage_clause(
                         *implemented_type,
                         Relation::Implements,
                         receiver.ty,
                         ty,
                     );
-                    implements.push(heritage);
+                    implements.push(dir::NominalHeritage {
+                        source,
+                        symbol: instance.symbol,
+                        arguments: instance.arguments,
+                    });
                 } else {
-                    self.report_implementation_target(
+                    self.report_implementation_target_not_interface_symbol(
                         self.check.format_symbol(symbol),
-                        heritage.symbol,
-                        heritage.source,
+                        instance.symbol,
+                        source,
                     );
                 }
-            } else if let Some(target) = self.heritage_symbol(*implemented_type) {
-                self.report_implementation_target(
+            } else {
+                self.report_implementation_target_not_interface_type(
                     self.check.format_symbol(symbol),
-                    target,
-                    (*implemented_type).into_global_any(self.module),
+                    ty,
+                    implemented_type.into_global_any(self.module),
                 );
             }
         }
@@ -602,10 +617,10 @@ impl WalkState<'_, '_> {
         self.check.insert_definition(symbol, source, definition)?;
 
         // heritage rules check once the inherited declarations close
-        self.oblige_heritage(source, symbol);
+        self.collect_heritage_obligation(source, symbol);
 
         // enums need one fixed backing representation
-        self.oblige_declaration_layout(symbol, receiver, template);
+        self.collect_declaration_layout_obligation(symbol, receiver, template);
 
         Ok(())
     }
@@ -641,7 +656,7 @@ impl WalkState<'_, '_> {
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(*where_clause)?;
         }
-        let receiver = self.nominal_receiver(id.into_any(), symbol)?;
+        let receiver = self.declare_nominal_receiver(id.into_any(), symbol)?;
         let _receiver = self.enter_receiver_maybe(Some(receiver));
 
         // walk inherited interfaces
@@ -649,17 +664,25 @@ impl WalkState<'_, '_> {
         for extends_type in &declaration.extends_types {
             let ty = self.walk_type_expression(*extends_type)?;
             self.record_type_induction_site(induction, ty);
-            if let Some(heritage) = self.heritage(*extends_type, ty)? {
-                if self.check.symbol_kind(heritage.symbol).is_interface() {
-                    extends.push(heritage);
+            if let Some((source, instance)) = self.heritage_instance(*extends_type, ty)? {
+                if self.check.symbol_kind(instance.symbol).is_interface() {
+                    extends.push(dir::NominalHeritage {
+                        source,
+                        symbol: instance.symbol,
+                        arguments: instance.arguments,
+                    });
                 } else {
-                    self.report_interface_base(symbol, heritage.symbol, heritage.source);
+                    self.report_interface_base_not_interface_symbol(
+                        symbol,
+                        instance.symbol,
+                        source,
+                    );
                 }
-            } else if let Some(target) = self.heritage_symbol(*extends_type) {
-                self.report_interface_base(
+            } else {
+                self.report_interface_base_not_interface_type(
                     symbol,
-                    target,
-                    (*extends_type).into_global_any(self.module),
+                    ty,
+                    extends_type.into_global_any(self.module),
                 );
             }
         }
@@ -684,7 +707,7 @@ impl WalkState<'_, '_> {
         self.check.insert_definition(symbol, source, definition)?;
 
         // heritage rules check once the inherited declarations close
-        self.oblige_heritage(source, symbol);
+        self.collect_heritage_obligation(source, symbol);
 
         Ok(())
     }
@@ -722,10 +745,10 @@ impl WalkState<'_, '_> {
             where_clauses.extend(self.walk_extension_where_clause(*where_clause)?);
         }
 
-        // walk target before exposing receiver
+        // expose members under the extended receiver
         let target_type = self.walk_type_expression(declaration.target_type)?;
         self.record_type_induction_site(induction, target_type);
-        let target = self.extension_target(declaration.target_type, target_type)?;
+        let target = self.walk_extension_target(declaration.target_type, target_type)?;
         let target_name = match &target {
             dir::ExtensionTarget::Nominal { root, .. } => self.check.format_symbol(*root),
             _ => self.check.format_type(target_type),
@@ -742,21 +765,25 @@ impl WalkState<'_, '_> {
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
             self.record_type_induction_site(induction, ty);
-            if let Some(heritage) = self.heritage(*implemented_type, ty)? {
-                if self.check.symbol_kind(heritage.symbol).is_interface() {
-                    implements.push(heritage);
+            if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
+                if self.check.symbol_kind(instance.symbol).is_interface() {
+                    implements.push(dir::NominalHeritage {
+                        source,
+                        symbol: instance.symbol,
+                        arguments: instance.arguments,
+                    });
                 } else {
-                    self.report_implementation_target(
+                    self.report_implementation_target_not_interface_symbol(
                         target_name.clone(),
-                        heritage.symbol,
-                        heritage.source,
+                        instance.symbol,
+                        source,
                     );
                 }
-            } else if let Some(target) = self.heritage_symbol(*implemented_type) {
-                self.report_implementation_target(
+            } else {
+                self.report_implementation_target_not_interface_type(
                     target_name.clone(),
-                    target,
-                    (*implemented_type).into_global_any(self.module),
+                    ty,
+                    implemented_type.into_global_any(self.module),
                 );
             }
         }
@@ -780,7 +807,7 @@ impl WalkState<'_, '_> {
             _ if declaration.name.is_some() => dir::ExtensionForm::Named,
             _ => dir::ExtensionForm::Local,
         };
-        let definition = dir::Definition::Extension(dir::Extension {
+        let definition = dir::Definition::Extension(dir::ExtensionDefinition {
             symbol,
             form,
             template: template.map(|template| template.local_id),
@@ -791,15 +818,15 @@ impl WalkState<'_, '_> {
         });
         self.check.insert_definition(symbol, source, definition)?;
 
-        self.oblige_extension_conformance(source, symbol);
-        self.oblige_implementation_coherence(source, symbol);
-        self.oblige_heritage(source, symbol);
+        self.collect_extension_conformance_obligation(source, symbol);
+        self.collect_implementation_coherence_obligation(source, symbol);
+        self.collect_heritage_obligation(source, symbol);
 
         Ok(())
     }
 
     /// Queue one extension conformance obligation under the active guard.
-    fn oblige_extension_conformance(
+    fn collect_extension_conformance_obligation(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -815,7 +842,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Queue one implementation coherence obligation under the active guard.
-    fn oblige_implementation_coherence(
+    fn collect_implementation_coherence_obligation(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -832,7 +859,11 @@ impl WalkState<'_, '_> {
     }
 
     /// Queue one heritage obligation under the active guard.
-    fn oblige_heritage(&mut self, source: dir::GlobalNodeIdAny, symbol: dir::GlobalSymbolId) {
+    fn collect_heritage_obligation(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) {
         let condition = self.active_static_guard();
         self.check.push_obligation(Obligation::DeclarationHeritage(
             DeclarationHeritageObligation {
@@ -845,7 +876,7 @@ impl WalkState<'_, '_> {
 
     /// Demand one concrete declaration's layout.
     /// Generic declarations lay out per instantiation instead.
-    fn oblige_declaration_layout(
+    fn collect_declaration_layout_obligation(
         &mut self,
         symbol: dir::GlobalSymbolId,
         receiver: Receiver,
@@ -893,20 +924,23 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
 
-        // walk signature before reading its inputs
+        // declare signature parameters before building the function type
         let source = id.into_global_any(self.module);
         let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
         let template =
-            self.signature_template(source, None, Some(symbol), &declaration.signature)?;
+            self.declare_signature_template(source, None, Some(symbol), &declaration.signature)?;
         self.walk_function_signature(template, &declaration.signature)?;
         if declaration.body.is_none() && !declaration.is_ambient {
             self.report_missing_declaration_body(id.into_any(), self.check.format_symbol(symbol));
         }
-        let result =
-            self.function_result_type(id.into_any(), &declaration.signature, declaration.body)?;
+        let result = self.walk_function_result_type(
+            id.into_any(),
+            &declaration.signature,
+            declaration.body,
+        )?;
 
-        // tie the function symbol to its callable type
-        let signature = self.function_signature_type(
+        // write the function symbol type
+        let signature = self.walk_function_signature_type(
             id.into_any(),
             &declaration.signature,
             template,
@@ -916,12 +950,12 @@ impl WalkState<'_, '_> {
         let is_function_value =
             declaration.signature.form == dir::FunctionForm::Lambda || declaration.name.is_none();
         let function = if is_function_value {
-            self.function_value_type(id.into_any(), signature)?
+            self.push_function_value_type(id.into_any(), signature)?
         } else {
             signature
         };
         self.record_type_induction_site(induction, function);
-        self.declare_symbol_type(symbol, function)?;
+        self.constrain_symbol_type(symbol, function)?;
 
         // walk body after its result exists
         if let (Some(body), Some(result)) = (declaration.body, result) {
@@ -936,7 +970,7 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Walk one enum field and return its variant row.
+    /// Walk one enum field and return its variant member.
     ///
     /// Example:
     /// ```ds
@@ -965,8 +999,8 @@ impl WalkState<'_, '_> {
                 .module(self.module)
                 .declaration_symbol(id.into_any())
             {
-                let written = self.static_expression_type(value)?;
-                self.declare_symbol_value(symbol, written)?;
+                let written = self.walk_static_term(value)?;
+                self.set_symbol_value(symbol, written)?;
             }
         }
 
@@ -1099,11 +1133,6 @@ impl WalkState<'_, '_> {
             )?;
         }
 
-        // walk return type
-        if let Some(return_type) = signature.return_type {
-            self.walk_type_expression(return_type)?;
-        }
-
         // walk where clauses
         for where_clause in &signature.where_clauses {
             self.walk_where_clause(*where_clause)?;
@@ -1113,7 +1142,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Return the generic template declared by one function signature.
-    pub(in crate::check) fn signature_template(
+    pub(in crate::check) fn declare_signature_template(
         &mut self,
         source: dir::GlobalNodeIdAny,
         parent: Option<GenericTemplateId>,
@@ -1155,7 +1184,7 @@ impl WalkState<'_, '_> {
         };
 
         // constrain the receiver to its parameter type
-        let Some(ty) = self.parameter_type(parameter)? else {
+        let Some(ty) = self.walk_parameter_type(parameter)? else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "this parameter {:?} has no type",
@@ -1174,79 +1203,13 @@ impl WalkState<'_, '_> {
         })
     }
 
-    /// Report one concrete callable declaration without an implementation body.
-    pub(in crate::check) fn report_missing_declaration_body(
-        &mut self,
-        source: dir::LocalNodeIdAny,
-        member: String,
-    ) {
-        let (module, anchor) = self.check.source_anchor(source.into_global(self.module));
-        let error = CheckError::MissingDeclarationBody {
-            anchor,
-            module,
-            name: member,
-        };
-        self.check.module_mut(module).diagnostics.push(error.into());
-    }
-
-    /// Report one interface inheritance clause that does not name an interface.
-    fn report_interface_base(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        target: dir::GlobalSymbolId,
-        target_source: dir::GlobalNodeIdAny,
-    ) {
-        let (module, anchor) = self.check.source_anchor(target_source);
-        let error = CheckError::InterfaceBaseNotInterface {
-            anchor,
-            module,
-            source: self.check.format_symbol(symbol),
-            target: self.check.format_symbol(target),
-        };
-        self.check.module_mut(module).diagnostics.push(error.into());
-    }
-
-    /// Report one implementation clause that does not name an interface.
-    fn report_implementation_target(
-        &mut self,
-        source: String,
-        target: dir::GlobalSymbolId,
-        target_source: dir::GlobalNodeIdAny,
-    ) {
-        let (module, anchor) = self.check.source_anchor(target_source);
-        let error = CheckError::ImplementationTargetNotInterface {
-            anchor,
-            module,
-            source,
-            target: self.check.format_symbol(target),
-        };
-        self.check.module_mut(module).diagnostics.push(error.into());
-    }
-
-    /// Report one class inheritance clause naming a non-class declaration.
-    fn report_class_base_symbol(
-        &mut self,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalSymbolId,
-        target_source: dir::GlobalNodeIdAny,
-    ) {
-        let (module, anchor) = self.check.source_anchor(target_source);
-        let error = CheckError::DoesNotExtend {
-            anchor,
-            module,
-            source: self.check.format_type(source),
-            target: self.check.format_symbol(target),
-        };
-        self.check.module_mut(module).diagnostics.push(error.into());
-    }
-
-    /// Return one function result type.
+    /// Walk one function return annotation or open its inferred result.
     ///
     /// Example:
     /// ```ds
     /// function value(): number { 1 }
     /// ```
-    pub(in crate::check) fn function_result_type(
+    pub(in crate::check) fn walk_function_result_type(
         &mut self,
         source: dir::LocalNodeIdAny,
         signature: &dir::FunctionSignature,
@@ -1254,8 +1217,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // use explicit return annotations
         if let Some(return_type) = signature.return_type {
-            let result = self.walk_type_expression(return_type)?;
-            self.bind_result_lifetimes(source, result, body.is_some())?;
+            let result = self.walk_return_type_expression(source, return_type, body.is_some())?;
 
             return Ok(Some(result));
         }
@@ -1269,43 +1231,13 @@ impl WalkState<'_, '_> {
         Ok(Some(self.open_type(source)?))
     }
 
-    /// Bind elided result lifetimes by the declaration's body.
-    /// NOTE #Suspicious: not entirely sure if bind_result_lifetimes is where we should be inducing?
-    fn bind_result_lifetimes(
-        &mut self,
-        source: dir::LocalNodeIdAny,
-        result: dir::GlobalTypeId,
-        has_body: bool,
-    ) -> CompilerResult<()> {
-        let mut reported = false;
-        for variable in self.check.type_variables(result)? {
-            let representative = self.check.variables.representative(variable)?;
-            let Some(induction) = self.check.generics.induction(representative) else {
-                continue;
-            };
-            if induction.induction != dir::GenericParameterInduction::Form {
-                continue;
-            }
-
-            if has_body {
-                self.check.generics.remove_induction(representative);
-            } else if !reported {
-                self.check
-                    .report_ambient_lifetime_elided(self.module, source);
-                reported = true;
-            }
-        }
-
-        Ok(())
-    }
-
     /// Return one nominal declaration receiver scope.
     ///
     /// Example:
     /// ```ds
     /// struct Box { value: number }
     /// ```
-    fn nominal_receiver(
+    fn declare_nominal_receiver(
         &mut self,
         source: dir::LocalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -1333,55 +1265,22 @@ impl WalkState<'_, '_> {
         })
     }
 
-    /// Return one heritage application from a walked annotation.
-    /// Non-reference heritages are reported by their own relations.
-    fn heritage(
+    /// Return the nominal instance written in one heritage annotation.
+    fn heritage_instance(
         &mut self,
         source: dir::LocalNodeId<dir::TypeExpression>,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::NominalHeritage>> {
+    ) -> CompilerResult<Option<(dir::GlobalNodeIdAny, dir::GenericInstance)>> {
         let global_source = source.into_global_any(self.module);
-        let ty = self.check.resolve_shallow(ty)?;
         let dir::Type::Reference(instance) = self.check.ty(ty)? else {
             return Ok(None);
         };
-        let symbol = instance.symbol;
-        let arguments = instance.arguments.clone();
 
-        // only declaration heads can become heritage graph edges
-        let kind = self.check.symbol_kind(symbol);
-        if !kind.is_nominal() && !kind.is_interface() {
-            return Ok(None);
-        }
-
-        Ok(Some(dir::NominalHeritage {
-            source: global_source,
-            symbol,
-            arguments,
-        }))
-    }
-
-    /// Return the declaration symbol named directly by one heritage clause.
-    fn heritage_symbol(
-        &self,
-        source: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> Option<dir::GlobalSymbolId> {
-        if !matches!(self.tree.get(source), dir::TypeExpression::Reference { .. }) {
-            return None;
-        }
-        let global_source = source.into_global_any(self.module);
-        let Decision::Name(resolution) = self.check.decisions.get(global_source)? else {
-            return None;
-        };
-        let [symbol] = resolution.symbols() else {
-            return None;
-        };
-
-        Some(*symbol)
+        Ok(Some((global_source, instance.clone())))
     }
 
     /// Relate one written heritage clause.
-    fn relate_heritage_type(
+    fn relate_heritage_clause(
         &mut self,
         source: dir::LocalNodeId<dir::TypeExpression>,
         relation: Relation,
@@ -1393,7 +1292,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Return one extension target from a walked target annotation.
-    fn extension_target(
+    fn walk_extension_target(
         &mut self,
         _annotation: dir::LocalNodeId<dir::TypeExpression>,
         ty: dir::GlobalTypeId,
@@ -1408,15 +1307,121 @@ impl WalkState<'_, '_> {
 
         Ok(dir::ExtensionTarget::Blanket { ty })
     }
-}
 
-/// Return the string mapping one language item declares, when any.
-fn string_mapping_for_item(item: dir::LanguageItem) -> Option<dir::StringMapping> {
-    match item {
-        dir::LanguageItem::Uppercase => Some(dir::StringMapping::Uppercase),
-        dir::LanguageItem::Lowercase => Some(dir::StringMapping::Lowercase),
-        dir::LanguageItem::Capitalize => Some(dir::StringMapping::Capitalize),
-        dir::LanguageItem::Uncapitalize => Some(dir::StringMapping::Uncapitalize),
-        _ => None,
+    /// Report one concrete callable declaration without an implementation body.
+    pub(in crate::check) fn report_missing_declaration_body(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        member: String,
+    ) {
+        let (module, anchor) = self.check.source_anchor(source.into_global(self.module));
+        let error = CheckError::MissingDeclarationBody {
+            anchor,
+            module,
+            name: member,
+        };
+        self.check.module_mut(module).diagnostics.push(error.into());
+    }
+
+    /// Report one interface inheritance clause that names a non-interface symbol.
+    fn report_interface_base_not_interface_symbol(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        target: dir::GlobalSymbolId,
+        target_source: dir::GlobalNodeIdAny,
+    ) {
+        let (module, anchor) = self.check.source_anchor(target_source);
+        let error = CheckError::InterfaceBaseNotInterface {
+            anchor,
+            module,
+            source: self.check.format_symbol(symbol),
+            target: self.check.format_symbol(target),
+        };
+        self.check.module_mut(module).diagnostics.push(error.into());
+    }
+
+    /// Report one interface inheritance clause that names a non-interface type.
+    fn report_interface_base_not_interface_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        target: dir::GlobalTypeId,
+        target_source: dir::GlobalNodeIdAny,
+    ) {
+        let (module, anchor) = self.check.source_anchor(target_source);
+        let error = CheckError::InterfaceBaseNotInterface {
+            anchor,
+            module,
+            source: self.check.format_symbol(symbol),
+            target: self.check.format_type(target),
+        };
+        self.check.module_mut(module).diagnostics.push(error.into());
+    }
+
+    /// Report one implementation clause that names a non-interface symbol.
+    fn report_implementation_target_not_interface_symbol(
+        &mut self,
+        source: String,
+        target: dir::GlobalSymbolId,
+        target_source: dir::GlobalNodeIdAny,
+    ) {
+        let (module, anchor) = self.check.source_anchor(target_source);
+        let error = CheckError::ImplementationTargetNotInterface {
+            anchor,
+            module,
+            source,
+            target: self.check.format_symbol(target),
+        };
+        self.check.module_mut(module).diagnostics.push(error.into());
+    }
+
+    /// Report one implementation clause that names a non-interface type.
+    fn report_implementation_target_not_interface_type(
+        &mut self,
+        source: String,
+        target: dir::GlobalTypeId,
+        target_source: dir::GlobalNodeIdAny,
+    ) {
+        let (module, anchor) = self.check.source_anchor(target_source);
+        let error = CheckError::ImplementationTargetNotInterface {
+            anchor,
+            module,
+            source,
+            target: self.check.format_type(target),
+        };
+        self.check.module_mut(module).diagnostics.push(error.into());
+    }
+
+    /// Report one class inheritance clause that does not extend its target symbol.
+    fn report_does_not_extend_symbol(
+        &mut self,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalSymbolId,
+        target_source: dir::GlobalNodeIdAny,
+    ) {
+        let (module, anchor) = self.check.source_anchor(target_source);
+        let error = CheckError::DoesNotExtend {
+            anchor,
+            module,
+            source: self.check.format_type(source),
+            target: self.check.format_symbol(target),
+        };
+        self.check.module_mut(module).diagnostics.push(error.into());
+    }
+
+    /// Report one class inheritance clause that does not extend its target type.
+    fn report_does_not_extend_type(
+        &mut self,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        target_source: dir::GlobalNodeIdAny,
+    ) {
+        let (module, anchor) = self.check.source_anchor(target_source);
+        let error = CheckError::DoesNotExtend {
+            anchor,
+            module,
+            source: self.check.format_type(source),
+            target: self.check.format_type(target),
+        };
+        self.check.module_mut(module).diagnostics.push(error.into());
     }
 }
