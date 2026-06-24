@@ -15,40 +15,39 @@ pub struct IntegerRangeSnapshot {
     pub(crate) is_signed: bool,
 }
 
-/// Evaluate a check constraint to a constant truth value when possible.
-pub fn constraint_truth_value(
-    constraint: &mir::CheckConstraint,
-    ranges: &RangeMap,
-) -> Option<bool> {
-    match constraint {
-        mir::CheckConstraint::Bounds {
-            index,
-            length,
-            is_signed,
-            ..
-        } => bounds_constraint_truth(*index, *length, *is_signed, ranges),
-        mir::CheckConstraint::Null { .. } => None,
-        mir::CheckConstraint::DivZero { divisor } => div_zero_constraint_truth(*divisor, ranges),
-        mir::CheckConstraint::ShiftRange {
-            value,
-            bit_width,
-            is_signed,
-        } => shift_constraint_truth(*value, u16::from(*bit_width), *is_signed, ranges),
-        mir::CheckConstraint::Narrow {
-            value,
-            to_width,
-            is_signed,
-        } => narrow_constraint_truth(*value, u16::from(*to_width), *is_signed, ranges),
-        mir::CheckConstraint::Overflow {
-            operator,
-            left,
-            right,
-            is_signed,
-        } => overflow_constraint_truth(*operator, *left, *right, *is_signed, ranges),
-        mir::CheckConstraint::Type { .. }
-        | mir::CheckConstraint::Variant { .. }
-        | mir::CheckConstraint::ReceiverType { .. }
-        | mir::CheckConstraint::Implements { .. } => None,
+impl RangeMap {
+    /// Evaluate one check constraint to a constant truth value when possible.
+    pub fn truth_value(&self, constraint: &mir::CheckConstraint) -> Option<bool> {
+        match constraint {
+            mir::CheckConstraint::Bounds {
+                index,
+                length,
+                is_signed,
+                ..
+            } => bounds_constraint_truth(*index, *length, *is_signed, self),
+            mir::CheckConstraint::Null { .. } => None,
+            mir::CheckConstraint::DivZero { divisor } => div_zero_constraint_truth(*divisor, self),
+            mir::CheckConstraint::ShiftRange {
+                value,
+                bit_width,
+                is_signed,
+            } => shift_constraint_truth(*value, u16::from(*bit_width), *is_signed, self),
+            mir::CheckConstraint::Narrow {
+                value,
+                to_width,
+                is_signed,
+            } => narrow_constraint_truth(*value, u16::from(*to_width), *is_signed, self),
+            mir::CheckConstraint::Overflow {
+                operator,
+                left,
+                right,
+                is_signed,
+            } => overflow_constraint_truth(*operator, *left, *right, *is_signed, self),
+            mir::CheckConstraint::Type { .. }
+            | mir::CheckConstraint::Variant { .. }
+            | mir::CheckConstraint::ReceiverType { .. }
+            | mir::CheckConstraint::Implements { .. } => None,
+        }
     }
 }
 

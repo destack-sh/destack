@@ -30,16 +30,6 @@ impl LifetimeAnalysis {
         self.get(function_id).includes_slot(param_index)
     }
 
-    /// Resolve a return lifetime from a function signature type.
-    pub fn resolve_signature(signature: impl Into<mir::TypeId>, tree: &mir::Tree) -> mir::Lifetime {
-        let signature = signature.into();
-        if let Some(lifetime) = explicit_signature_return_lifetime(&signature, tree) {
-            return lifetime;
-        }
-
-        mir::Lifetime::empty()
-    }
-
     /// Build lifetime analysis for all functions in the tree.
     fn build(tree: &mir::Tree) -> Self {
         let mut function_lifetimes = HashMap::new();
@@ -53,19 +43,6 @@ impl LifetimeAnalysis {
 
         Self { function_lifetimes }
     }
-}
-
-/// Return the explicit return lifetime carried by one function signature reference.
-fn explicit_signature_return_lifetime(
-    signature: &mir::TypeId,
-    tree: &mir::Tree,
-) -> Option<mir::Lifetime> {
-    let signature = *signature;
-    let mir::Type::FunctionSignature { result, .. } = tree.get(signature) else {
-        return None;
-    };
-
-    tree.type_lifetime(*result)
 }
 
 impl Analysis for LifetimeAnalysis {
@@ -277,139 +254,6 @@ entry(v0: int32):
 
         let lifetime = analysis.get(function_id);
         assert!(lifetime.is_empty());
-    }
-
-    /// Signature lifetime resolves to none when return has no borrowed refs.
-    #[test]
-    fn test_signature_lifetime_non_borrowed_return() {
-        let mut program = TestProgram::new(
-            r#"
-function test(): void {
-entry:
-    return
-}
-"#,
-        );
-
-        let int_ty = program.tree.insert_type(mir::Type::Int {
-            width: 32,
-            is_signed: true,
-        });
-        let signature = program.tree.insert_type(mir::Type::FunctionSignature {
-            lifetimes: Vec::new(),
-            parameters: vec![int_ty.into()],
-            result: int_ty,
-        });
-
-        let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
-        assert!(lifetime.is_empty());
-    }
-
-    /// Signature lifetime resolves to none without declared return lifetime.
-    #[test]
-    fn test_signature_lifetime_none_without_declared_lifetime() {
-        let mut program = TestProgram::new(
-            r#"
-function test(): void {
-entry:
-    return
-}
-"#,
-        );
-
-        let int_ty = program.tree.insert_type(mir::Type::Int {
-            width: 32,
-            is_signed: true,
-        });
-        let borrowed_ref = program.tree.insert_type(mir::Type::Reference {
-            kind: mir::ReferenceKind::Borrowed,
-            lifetime: mir::Lifetime::empty(),
-            space: mir::Space::Local,
-            access: mir::Access::Readonly,
-            pointee: int_ty,
-            nullability: mir::Nullability::None,
-        });
-        let signature = program.tree.insert_type(mir::Type::FunctionSignature {
-            lifetimes: Vec::new(),
-            parameters: vec![int_ty.into()],
-            result: borrowed_ref,
-        });
-
-        let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
-        assert!(lifetime.is_empty());
-    }
-
-    /// Signature lifetime resolves to none instead of inferring from borrowed params.
-    #[test]
-    fn test_signature_lifetime_none_for_undeclared_borrowed_params() {
-        let mut program = TestProgram::new(
-            r#"
-function test(): void {
-entry:
-    return
-}
-"#,
-        );
-
-        let int_ty = program.tree.insert_type(mir::Type::Int {
-            width: 32,
-            is_signed: true,
-        });
-        let borrowed_ref = program.tree.insert_type(mir::Type::Reference {
-            kind: mir::ReferenceKind::Borrowed,
-            lifetime: mir::Lifetime::empty(),
-            space: mir::Space::Local,
-            access: mir::Access::Readonly,
-            pointee: int_ty,
-            nullability: mir::Nullability::None,
-        });
-        let signature = program.tree.insert_type(mir::Type::FunctionSignature {
-            lifetimes: Vec::new(),
-            parameters: vec![int_ty.into(), borrowed_ref.into()],
-            result: borrowed_ref,
-        });
-
-        let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
-        assert!(lifetime.is_empty());
-    }
-
-    /// Applied signature lifetimes resolve through the return type.
-    #[test]
-    fn test_resolve_applied_signature_lifetime() {
-        let mut program = TestProgram::new(
-            r#"
-function test(): void {
-entry:
-    return
-}
-"#,
-        );
-
-        let int_ty = program.tree.insert_type(mir::Type::Int {
-            width: 32,
-            is_signed: true,
-        });
-        let borrowed_ref = program.tree.insert_type(mir::Type::Reference {
-            kind: mir::ReferenceKind::Borrowed,
-            lifetime: mir::Lifetime::slot(0),
-            space: mir::Space::Local,
-            access: mir::Access::Readonly,
-            pointee: int_ty,
-            nullability: mir::Nullability::None,
-        });
-        let applied_ref = program.tree.insert_type(mir::Type::WithLifetimes {
-            base: borrowed_ref,
-            lifetimes: vec![mir::Lifetime::slot(2)],
-        });
-        let signature = program.tree.insert_type(mir::Type::FunctionSignature {
-            lifetimes: vec![mir::LifetimeParameter::new(None)],
-            parameters: vec![applied_ref.into()],
-            result: applied_ref,
-        });
-
-        let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
-        assert!(lifetime.includes_slot(2));
-        assert!(!lifetime.includes_slot(0));
     }
 
     /// Applied aggregate lifetimes keep independent borrowed paths.

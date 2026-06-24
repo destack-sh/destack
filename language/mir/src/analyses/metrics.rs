@@ -11,24 +11,26 @@ pub struct MirStats {
     pub blocks: usize,
 }
 
-/// Count MIR size metrics for all functions in a tree.
-pub fn count_mir_size(tree: &mir::Tree) -> MirStats {
-    let mut metrics = MirStats::default();
+impl MirStats {
+    /// Count MIR size metrics for all functions in a tree.
+    pub fn count(tree: &mir::Tree) -> Self {
+        let mut metrics = Self::default();
 
-    for (_, function) in tree.iter_nodes::<mir::Function>() {
-        // skip imported functions (no body)
-        if function.entry.is_none() {
-            continue;
+        for (_, function) in tree.iter_nodes::<mir::Function>() {
+            // skip imported functions with no body
+            if function.entry.is_none() {
+                continue;
+            }
+
+            metrics.functions += 1;
+            metrics.blocks += function.blocks.len();
+
+            for &block_id in &function.blocks {
+                let block = tree.get(block_id);
+                metrics.instructions += block.instructions.len();
+            }
         }
 
-        metrics.functions += 1;
-        metrics.blocks += function.blocks.len();
-
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            metrics.instructions += block.instructions.len();
-        }
+        metrics
     }
-
-    metrics
 }

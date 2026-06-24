@@ -342,7 +342,7 @@ impl LoopAnalysis {
     }
 
     /// Get the loop with the given header.
-    pub fn loop_for_header(&self, header: mir::LocalNodeId<mir::Block>) -> Option<&Loop> {
+    pub fn header_loop(&self, header: mir::LocalNodeId<mir::Block>) -> Option<&Loop> {
         self.header_to_loop.get(&header).map(|&i| &self.loops[i])
     }
 
@@ -395,7 +395,7 @@ impl LoopAnalysis {
 
 impl Analysis for LoopAnalysis {
     const ID: AnalysisId = AnalysisId("loops");
-    const INVALIDATED_BY: Mutation = Mutation::CONTROL_FLOW;
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL;
 }
 
 impl FunctionAnalysis for LoopAnalysis {
@@ -469,7 +469,7 @@ b2:
         let block0 = function.blocks[0];
         let block1 = function.blocks[1];
 
-        let lp = analysis.loop_for_header(block1).unwrap();
+        let lp = analysis.header_loop(block1).unwrap();
         assert!(lp.contains(block1));
         assert!(!lp.contains(block0));
     }
@@ -505,7 +505,7 @@ b3:
         let block1 = function.blocks[1];
         let block2 = function.blocks[2];
 
-        let lp = analysis.loop_for_header(block1).unwrap();
+        let lp = analysis.header_loop(block1).unwrap();
 
         // block1 is header, block2 is latch
         assert_eq!(lp.header, block1);
@@ -554,8 +554,8 @@ b4:
         let block2 = function.blocks[2];
         let block3 = function.blocks[3];
 
-        let outer = analysis.loop_for_header(block1).unwrap();
-        let inner = analysis.loop_for_header(block2).unwrap();
+        let outer = analysis.header_loop(block1).unwrap();
+        let inner = analysis.header_loop(block2).unwrap();
 
         // outer loop
         assert!(outer.parent.is_none());

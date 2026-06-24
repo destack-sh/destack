@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 
 use crate as mir;
 
@@ -23,34 +23,71 @@ pub trait Lattice: Clone + PartialEq {
     fn meet(&self, other: &Self) -> Self;
 }
 
-/// Result of a dataflow analysis.
-///
-/// Contains the computed state at entry and exit of each block.
+/// Dense result of a dataflow analysis.
 #[derive(Debug, Clone)]
 pub struct DataflowResult<S> {
-    /// State at entry to each block (after merging predecessors).
-    pub block_entry: HashMap<mir::LocalNodeId<mir::Block>, S>,
-    /// State at exit of each block (after processing instructions).
-    pub block_exit: HashMap<mir::LocalNodeId<mir::Block>, S>,
+    /// State at entry indexed by block id.
+    block_entry: Vec<Option<S>>,
+    /// State at exit indexed by block id.
+    block_exit: Vec<Option<S>>,
 }
 
 impl<S> DataflowResult<S> {
     /// Create an empty result.
     pub fn new() -> Self {
         Self {
-            block_entry: HashMap::new(),
-            block_exit: HashMap::new(),
+            block_entry: Vec::new(),
+            block_exit: Vec::new(),
         }
     }
 
-    /// Get the state at entry to a block.
-    pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> Option<&S> {
-        self.block_entry.get(&block)
+    /// Create a result large enough for one function.
+    pub fn for_function(function: &mir::Function) -> Self {
+        let block_count = function
+            .blocks
+            .iter()
+            .map(|block| block.id as usize + 1)
+            .max()
+            .unwrap_or(0);
+
+        let mut block_entry = Vec::with_capacity(block_count);
+        let mut block_exit = Vec::with_capacity(block_count);
+        block_entry.resize_with(block_count, || None);
+        block_exit.resize_with(block_count, || None);
+
+        Self {
+            block_entry,
+            block_exit,
+        }
     }
 
-    /// Get the state at exit of a block.
+    /// Return the state at entry to a block.
+    pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> Option<&S> {
+        self.block_entry
+            .get(block.id as usize)
+            .and_then(Option::as_ref)
+    }
+
+    /// Return the state at exit of a block.
     pub fn exit(&self, block: mir::LocalNodeId<mir::Block>) -> Option<&S> {
-        self.block_exit.get(&block)
+        self.block_exit
+            .get(block.id as usize)
+            .and_then(Option::as_ref)
+    }
+
+    /// Set the state at entry to a block.
+    pub fn set_entry(&mut self, block: mir::LocalNodeId<mir::Block>, state: S) {
+        self.block_entry[block.id as usize] = Some(state);
+    }
+
+    /// Set the state at exit of a block.
+    pub fn set_exit(&mut self, block: mir::LocalNodeId<mir::Block>, state: S) {
+        self.block_exit[block.id as usize] = Some(state);
+    }
+
+    /// Split into entry and exit tables.
+    pub fn into_parts(self) -> (Vec<Option<S>>, Vec<Option<S>>) {
+        (self.block_entry, self.block_exit)
     }
 }
 
@@ -60,275 +97,225 @@ impl<S> Default for DataflowResult<S> {
     }
 }
 
-/// Run a forward dataflow analysis using a worklist algorithm.
-///
-/// Forward dataflow propagates information from entry to exit, following
-/// control flow edges. At join points (blocks with multiple predecessors),
-/// states are merged using the lattice meet operation.
-///
-/// # Parameters
-///
-/// - `function`: The function to analyze
-/// - `tree`: The MIR tree
-/// - `cfg`: Control flow graph (for predecessor information)
-/// - `entry_state`: Initial state at function entry
-/// - `transfer`: Transfer function that processes a block and returns the exit state.
-///   Takes `(block_id, entry_state, tree)` and returns `exit_state`.
-///
-/// # Returns
-///
-/// A `DataflowResult` containing the computed states at entry and exit of each block.
-///
-/// # Algorithm
-///
-/// Uses a worklist algorithm:
-/// 1. Initialize entry block with `entry_state`
-/// 2. For each block in worklist:
-///    - Compute entry state by meeting predecessor exit states
-///    - Apply transfer function to get exit state
-///    - If exit state changed, add successors to worklist
-/// 3. Iterate until fixed point
-pub fn forward_dataflow<S, F>(
-    function: &mir::Function,
-    tree: &mir::Tree,
-    cfg: &ControlFlowGraph,
-    entry_state: S,
-    mut transfer: F,
-) -> DataflowResult<S>
+impl<S> DataflowResult<S>
 where
     S: Lattice,
-    F: FnMut(mir::LocalNodeId<mir::Block>, S, &mir::Tree) -> S,
 {
-    let entry = match function.entry {
-        Some(e) => e,
-        None => return DataflowResult::new(), // no body (external function)
-    };
-
-    let mut result = DataflowResult::new();
-
-    // initialize entry block
-    result.block_entry.insert(entry, entry_state.clone());
-
-    // worklist algorithm
-    let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
-    let mut in_worklist: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
-
-    worklist.push_back(entry);
-    in_worklist.insert(entry);
-
-    while let Some(block_id) = worklist.pop_front() {
-        in_worklist.remove(&block_id);
-
-        // compute entry state by merging predecessor exits
-        let new_entry = if block_id == entry {
-            result
-                .block_entry
-                .get(&entry)
-                .cloned()
-                .unwrap_or_else(|| entry_state.clone())
-        } else {
-            let predecessors = cfg.predecessors(block_id);
-            if predecessors.is_empty() {
-                continue; // unreachable block
-            }
-
-            let mut merged: Option<S> = None;
-            for &pred in predecessors {
-                if let Some(pred_exit) = result.block_exit.get(&pred) {
-                    merged = Some(match merged {
-                        Some(state) => state.meet(pred_exit),
-                        None => pred_exit.clone(),
-                    });
-                }
-            }
-
-            let Some(merged) = merged else {
-                continue;
-            };
-
-            merged
+    /// Run a forward dataflow analysis using a worklist algorithm.
+    pub fn forward<F>(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        cfg: &ControlFlowGraph,
+        entry_state: S,
+        mut transfer: F,
+    ) -> Self
+    where
+        F: FnMut(mir::LocalNodeId<mir::Block>, S, &mir::Tree) -> S,
+    {
+        let entry = match function.entry {
+            Some(entry) => entry,
+            None => return Self::new(),
         };
 
-        // check if entry state changed
-        let entry_changed = result
-            .block_entry
-            .get(&block_id)
-            .map(|old| old != &new_entry)
-            .unwrap_or(true);
+        let mut result = Self::for_function(function);
 
-        if entry_changed || block_id == entry {
-            result.block_entry.insert(block_id, new_entry.clone());
+        // initialize entry block
+        result.set_entry(entry, entry_state.clone());
 
-            // apply transfer function
+        // seed the worklist with the entry block
+        let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
+        let mut in_worklist: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+
+        worklist.push_back(entry);
+        in_worklist.insert(entry);
+
+        while let Some(block_id) = worklist.pop_front() {
+            in_worklist.remove(&block_id);
+
+            // merge predecessor exits into the block entry
+            let new_entry = if block_id == entry {
+                result
+                    .entry(entry)
+                    .cloned()
+                    .unwrap_or_else(|| entry_state.clone())
+            } else {
+                let predecessors = cfg.predecessors(block_id);
+                if predecessors.is_empty() {
+                    continue;
+                }
+
+                let mut merged: Option<S> = None;
+                for &predecessor in predecessors {
+                    if let Some(predecessor_exit) = result.exit(predecessor) {
+                        merged = Some(match merged {
+                            Some(state) => state.meet(predecessor_exit),
+                            None => predecessor_exit.clone(),
+                        });
+                    }
+                }
+
+                let Some(merged) = merged else {
+                    continue;
+                };
+
+                merged
+            };
+
+            // skip blocks whose entry is already stable
+            let entry_changed = result
+                .entry(block_id)
+                .map(|old| old != &new_entry)
+                .unwrap_or(true);
+            if !entry_changed && block_id != entry {
+                continue;
+            }
+
+            result.set_entry(block_id, new_entry.clone());
+
+            // apply transfer from entry state to exit state
             let exit_state = transfer(block_id, new_entry, tree);
-
-            // check if exit state changed
             let exit_changed = result
-                .block_exit
-                .get(&block_id)
+                .exit(block_id)
                 .map(|old| old != &exit_state)
                 .unwrap_or(true);
-
-            if exit_changed {
-                result.block_exit.insert(block_id, exit_state);
-
-                // add successors to worklist
-                let block = tree.get(block_id);
-                let terminator = tree.get(block.terminator);
-                for successor in terminator.successors(tree) {
-                    if !in_worklist.contains(&successor) {
-                        worklist.push_back(successor);
-                        in_worklist.insert(successor);
-                    }
-                }
-            }
-        }
-    }
-
-    result
-}
-
-/// Run a backward dataflow analysis using a worklist algorithm.
-///
-/// Backward dataflow propagates information from exit to entry, following
-/// control flow edges in reverse. At join points (blocks with multiple successors),
-/// states are merged using the lattice meet operation.
-///
-/// # Parameters
-///
-/// - `function`: The function to analyze
-/// - `tree`: The MIR tree
-/// - `cfg`: Control flow graph (for predecessor information)
-/// - `exit_state`: Initial state at function exits (return/unreachable)
-/// - `transfer`: Transfer function that processes a block and returns the entry state.
-///   Takes `(block_id, exit_state, tree)` and returns `entry_state`.
-///
-/// # Returns
-///
-/// A `DataflowResult` containing the computed states at entry and exit of each block.
-pub fn backward_dataflow<S, F>(
-    function: &mir::Function,
-    tree: &mir::Tree,
-    cfg: &ControlFlowGraph,
-    exit_state: S,
-    mut transfer: F,
-) -> DataflowResult<S>
-where
-    S: Lattice,
-    F: FnMut(mir::LocalNodeId<mir::Block>, S, &mir::Tree) -> S,
-{
-    if function.entry.is_none() {
-        return DataflowResult::new();
-    }
-
-    let mut result = DataflowResult::new();
-
-    // initialize exit blocks (return/unreachable terminators)
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        let terminator = tree.get(block.terminator);
-        if matches!(
-            terminator,
-            mir::Terminator::Return { .. }
-                | mir::Terminator::Trap { .. }
-                | mir::Terminator::Panic { .. }
-                | mir::Terminator::Unreachable
-                | mir::Terminator::TailCall { .. }
-                | mir::Terminator::TailCallVirtual { .. }
-                | mir::Terminator::TailCallDynamic { .. }
-                | mir::Terminator::TailCallIndirect { .. }
-        ) {
-            result.block_exit.insert(block_id, exit_state.clone());
-        }
-    }
-
-    // worklist algorithm (process in reverse order for faster convergence)
-    let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
-    let mut in_worklist: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
-
-    // start with all blocks that have exit states
-    for &block_id in &function.blocks {
-        if result.block_exit.contains_key(&block_id) {
-            worklist.push_back(block_id);
-            in_worklist.insert(block_id);
-        }
-    }
-
-    while let Some(block_id) = worklist.pop_front() {
-        in_worklist.remove(&block_id);
-
-        let block = tree.get(block_id);
-        let terminator = tree.get(block.terminator);
-
-        // compute exit state by merging successor entries
-        let new_exit = if result.block_exit.contains_key(&block_id) {
-            // use existing exit state (for exit blocks)
-            let mut merged = result.block_exit.get(&block_id).unwrap().clone();
-
-            // also merge with successor entries
-            for successor in terminator.successors(tree) {
-                if let Some(succ_entry) = result.block_entry.get(&successor) {
-                    merged = merged.meet(succ_entry);
-                }
-            }
-            merged
-        }
-        // compute from successors only
-        else {
-            let successors: Vec<_> = terminator.successors(tree).into_iter().collect();
-            if successors.is_empty() {
+            if !exit_changed {
                 continue;
             }
 
-            let mut merged = match result.block_entry.get(&successors[0]) {
-                Some(s) => s.clone(),
-                None => continue,
-            };
+            result.set_exit(block_id, exit_state);
 
-            for &succ in &successors[1..] {
-                if let Some(succ_entry) = result.block_entry.get(&succ) {
-                    merged = merged.meet(succ_entry);
-                }
-            }
-
-            merged
-        };
-
-        // check if exit state changed
-        let exit_changed = result
-            .block_exit
-            .get(&block_id)
-            .map(|old| old != &new_exit)
-            .unwrap_or(true);
-
-        if exit_changed {
-            result.block_exit.insert(block_id, new_exit.clone());
-
-            // apply transfer function (backward: exit to entry)
-            let entry_state = transfer(block_id, new_exit, tree);
-
-            // check if entry state changed
-            let entry_changed = result
-                .block_entry
-                .get(&block_id)
-                .map(|old| old != &entry_state)
-                .unwrap_or(true);
-
-            if entry_changed {
-                result.block_entry.insert(block_id, entry_state);
-
-                // add predecessors to worklist
-                for &pred_id in cfg.predecessors(block_id) {
-                    if !in_worklist.contains(&pred_id) {
-                        worklist.push_back(pred_id);
-                        in_worklist.insert(pred_id);
-                    }
+            // enqueue successors that may observe the changed exit
+            let block = tree.get(block_id);
+            let terminator = tree.get(block.terminator);
+            for successor in terminator.successors(tree) {
+                if !in_worklist.contains(&successor) {
+                    worklist.push_back(successor);
+                    in_worklist.insert(successor);
                 }
             }
         }
+
+        result
     }
 
-    result
+    /// Run a backward dataflow analysis using a worklist algorithm.
+    pub fn backward<F>(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        cfg: &ControlFlowGraph,
+        exit_state: S,
+        mut transfer: F,
+    ) -> Self
+    where
+        F: FnMut(mir::LocalNodeId<mir::Block>, S, &mir::Tree) -> S,
+    {
+        if function.entry.is_none() {
+            return Self::new();
+        }
+
+        let mut result = Self::for_function(function);
+
+        // seed terminal blocks with the caller-provided exit state
+        for &block_id in &function.blocks {
+            let block = tree.get(block_id);
+            let terminator = tree.get(block.terminator);
+            if matches!(
+                terminator,
+                mir::Terminator::Return { .. }
+                    | mir::Terminator::Trap { .. }
+                    | mir::Terminator::Panic { .. }
+                    | mir::Terminator::Unreachable
+                    | mir::Terminator::TailCall { .. }
+                    | mir::Terminator::TailCallVirtual { .. }
+                    | mir::Terminator::TailCallDynamic { .. }
+                    | mir::Terminator::TailCallIndirect { .. }
+            ) {
+                result.set_exit(block_id, exit_state.clone());
+            }
+        }
+
+        // seed the worklist from every terminal block
+        let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
+        let mut in_worklist: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+
+        for &block_id in &function.blocks {
+            if result.exit(block_id).is_some() {
+                worklist.push_back(block_id);
+                in_worklist.insert(block_id);
+            }
+        }
+
+        while let Some(block_id) = worklist.pop_front() {
+            in_worklist.remove(&block_id);
+
+            let block = tree.get(block_id);
+            let terminator = tree.get(block.terminator);
+
+            // merge successor entries into the block exit
+            let new_exit = if let Some(exit) = result.exit(block_id) {
+                let mut merged = exit.clone();
+                for successor in terminator.successors(tree) {
+                    if let Some(successor_entry) = result.entry(successor) {
+                        merged = merged.meet(successor_entry);
+                    }
+                }
+
+                merged
+            } else {
+                let successors = terminator.successors(tree);
+                if successors.is_empty() {
+                    continue;
+                }
+
+                let mut successor_entries = successors
+                    .into_iter()
+                    .filter_map(|successor| result.entry(successor));
+                let Some(first_entry) = successor_entries.next() else {
+                    continue;
+                };
+
+                let mut merged = first_entry.clone();
+                for successor_entry in successor_entries {
+                    merged = merged.meet(successor_entry);
+                }
+
+                merged
+            };
+
+            // skip blocks whose exit is already stable
+            let exit_changed = result
+                .exit(block_id)
+                .map(|old| old != &new_exit)
+                .unwrap_or(true);
+            if !exit_changed {
+                continue;
+            }
+
+            result.set_exit(block_id, new_exit.clone());
+
+            // apply transfer from exit state to entry state
+            let entry_state = transfer(block_id, new_exit, tree);
+            let entry_changed = result
+                .entry(block_id)
+                .map(|old| old != &entry_state)
+                .unwrap_or(true);
+            if !entry_changed {
+                continue;
+            }
+
+            result.set_entry(block_id, entry_state);
+
+            // enqueue predecessors that may observe the changed entry
+            for &predecessor in cfg.predecessors(block_id) {
+                if !in_worklist.contains(&predecessor) {
+                    worklist.push_back(predecessor);
+                    in_worklist.insert(predecessor);
+                }
+            }
+        }
+
+        result
+    }
 }
 
 /// A set lattice where meet is union.
@@ -421,7 +408,7 @@ b2:
         let function = program.tree.get(function_id);
         let cfg = ControlFlowGraph::build(function, &program.tree);
         let entry_state: HashSet<mir::LocalNodeId<mir::Block>> = [block0].into_iter().collect();
-        let result = forward_dataflow(
+        let result = DataflowResult::forward(
             function,
             &program.tree,
             &cfg,
@@ -460,7 +447,7 @@ entry(v0: int32):
         let entry = function.entry.expect("missing entry");
 
         let exit_state: HashSet<mir::LocalNodeId<mir::Block>> = [entry].into_iter().collect();
-        let result = backward_dataflow(
+        let result = DataflowResult::backward(
             function,
             &program.tree,
             &cfg,
@@ -493,7 +480,7 @@ entry(v0: ref<void, managed, readonly>):
         let entry = function.entry.expect("missing entry");
 
         let exit_state: HashSet<mir::LocalNodeId<mir::Block>> = [entry].into_iter().collect();
-        let result = backward_dataflow(
+        let result = DataflowResult::backward(
             function,
             &program.tree,
             &cfg,

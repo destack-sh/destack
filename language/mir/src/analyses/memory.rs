@@ -2,9 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use crate as mir;
 
-use crate::{AliasAnalysis, MemoryAccessEffect, MemoryAccessLocation, TypeContext};
+use crate::{AliasResult, TargetLayout};
 
-use super::{TypeKey, ValueTypeMap};
+use super::{TypeKey, ValueDefinitions, ValueTypeMap};
 
 /// A memory location being accessed.
 ///
@@ -12,531 +12,415 @@ use super::{TypeKey, ValueTypeMap};
 /// This is the fundamental unit for alias queries: "do these two locations overlap?"
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MemoryLocation {
-    /// The pointer value being dereferenced.
-    pub ptr: mir::Value,
+    /// The reference value being dereferenced.
+    pub reference: mir::Value,
     /// Size of the access in bytes, if known.
     pub size: Option<u64>,
-    /// Type being accessed, for TBAA.
+    /// Type being accessed, when known.
     pub access_type: Option<TypeKey>,
-    /// Reference kind for the pointer, when known.
-    pub pointer_kind: Option<mir::ReferenceKind>,
-    /// Space for the pointer, when known.
-    pub pointer_space: Option<mir::Space>,
+    /// Reference kind for the reference, when known.
+    pub reference_kind: Option<mir::ReferenceKind>,
+    /// Space for the reference, when known.
+    pub reference_space: Option<mir::Space>,
 }
 
-/// Return true when a memory effect is trackable by optimizations.
-///
-/// Trackable effects have known locations and are not volatile or barriers.
-pub fn effect_is_trackable(effect: &MemoryAccessEffect) -> bool {
-    !effect.is_volatile
-        && !effect.is_barrier
-        && !matches!(effect.location, MemoryAccessLocation::Unknown)
-}
+impl ValueDefinitions {
+    /// Collect stack allocations that do not escape the function.
+    pub fn non_escaping_frame_allocs(
+        &self,
+        function: &mir::Function,
+        tree: &mir::Tree,
+    ) -> HashSet<mir::Value> {
+        // collect stack allocation bases
+        let mut frame_allocs = HashSet::new();
 
-/// Return the stack allocation base for a derived pointer value.
-///
-/// This walks through address computations to find the original stack alloc.
-pub fn frame_alloc_base(
-    value: mir::Value,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    tree: &mir::Tree,
-) -> Option<mir::Value> {
-    // walk pointer definitions to find the base allocation
-    let mut current = value;
-    let mut visited = HashSet::new();
+        // scan blocks for stack allocations
+        for &block_id in &function.blocks {
+            // read the block
+            let block = tree.get(block_id);
 
-    // iterate through pointer derivations until a base is found
-    loop {
-        // stop on cycles
-        if !visited.insert(current) {
-            return None;
-        }
-
-        // read the defining instruction
-        let instruction_id = definitions.get(&current)?;
-        let instruction = tree.get(*instruction_id);
-
-        // walk through address computations
-        match instruction {
-            mir::Instruction::FrameAllocZeroed { destination, .. }
-            | mir::Instruction::FrameAllocUninit { destination, .. }
-                if *destination == current =>
-            {
-                return Some(current);
-            }
-            mir::Instruction::FieldAddr { aggregate, .. } => {
-                current = *aggregate;
-            }
-            mir::Instruction::ElementAddr { array, .. } => {
-                current = *array;
-            }
-            mir::Instruction::Cast { argument, .. } => {
-                current = *argument;
-            }
-            _ => return None,
-        }
-    }
-}
-
-/// Collect stack allocations that do not escape the function.
-pub fn collect_non_escaping_frame_allocs(
-    function: &mir::Function,
-    tree: &mir::Tree,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-) -> HashSet<mir::Value> {
-    // collect stack allocation bases
-    let mut frame_allocs = HashSet::new();
-
-    // scan blocks for stack allocations
-    for &block_id in &function.blocks {
-        // read the block
-        let block = tree.get(block_id);
-
-        // scan instructions in the block
-        for &instruction_id in &block.instructions {
-            // read the instruction
-            let instruction = tree.get(instruction_id);
-            if let mir::Instruction::FrameAllocZeroed { destination, .. }
-            | mir::Instruction::FrameAllocUninit { destination, .. } = instruction
-            {
-                frame_allocs.insert(*destination);
+            // scan instructions in the block
+            for &instruction_id in &block.instructions {
+                // read the instruction
+                let instruction = tree.get(instruction_id);
+                if let mir::Instruction::FrameAllocZeroed { destination, .. }
+                | mir::Instruction::FrameAllocUninit { destination, .. } = instruction
+                {
+                    frame_allocs.insert(*destination);
+                }
             }
         }
-    }
 
-    // collect escaping stack allocations
-    let mut escaping = HashSet::new();
-    let local_defs = collect_local_defs(function, tree);
-    let param_defs = collect_block_param_defs(function, tree);
+        // collect escaping stack allocations
+        let mut escaping = HashSet::new();
 
-    // scan blocks for escaping uses
-    for &block_id in &function.blocks {
-        // read the block
-        let block = tree.get(block_id);
+        // scan blocks for escaping uses
+        for &block_id in &function.blocks {
+            // read the block
+            let block = tree.get(block_id);
 
-        // scan instructions in the block
-        for &instruction_id in &block.instructions {
-            // read the instruction
-            let instruction = tree.get(instruction_id);
-            match instruction {
-                mir::Instruction::Call { .. }
-                | mir::Instruction::CallVirtual { .. }
-                | mir::Instruction::CallDynamic { .. }
-                | mir::Instruction::CallIndirect { .. } => {
-                    // capture call effects for escape checks
-                    let argument_effects = tree
-                        .metadata
-                        .functions
-                        .call(mir::CallSite::Instruction(instruction_id))
-                        .map(|metadata| metadata.arguments.as_slice());
+            // scan instructions in the block
+            for &instruction_id in &block.instructions {
+                // read the instruction
+                let instruction = tree.get(instruction_id);
+                match instruction {
+                    mir::Instruction::Call { .. }
+                    | mir::Instruction::CallVirtual { .. }
+                    | mir::Instruction::CallDynamic { .. }
+                    | mir::Instruction::CallIndirect { .. } => {
+                        // capture call effects for escape checks
+                        let argument_effects = tree
+                            .metadata
+                            .functions
+                            .call(mir::CallSite::Instruction(instruction_id))
+                            .map(|metadata| metadata.arguments.as_slice());
 
-                    // mark stack pointers passed to calls as escaping
-                    if let Some(arg_slice) = instruction.argument_slice() {
-                        let arguments = tree.get_values(arg_slice);
+                        // mark stack references passed to calls as escaping
+                        if let Some(arg_slice) = instruction.argument_slice() {
+                            let arguments = tree.get_values(arg_slice);
 
-                        for (index, arg) in arguments.iter().copied().enumerate() {
-                            if call_argument_escapes(argument_effects, index) {
-                                record_stack_escape_reference(
-                                    arg,
-                                    definitions,
-                                    &local_defs,
-                                    &param_defs,
-                                    tree,
-                                    &frame_allocs,
-                                    &mut escaping,
-                                );
+                            for (index, arg) in arguments.iter().copied().enumerate() {
+                                if call_argument_escapes(argument_effects, index) {
+                                    record_stack_escape_reference(
+                                        arg,
+                                        self,
+                                        tree,
+                                        &frame_allocs,
+                                        &mut escaping,
+                                    );
+                                }
                             }
                         }
                     }
+                    mir::Instruction::Store { value, .. } => {
+                        // mark stored stack references as escaping
+                        record_stack_escape_reference(
+                            *value,
+                            self,
+                            tree,
+                            &frame_allocs,
+                            &mut escaping,
+                        );
+                    }
+                    _ => {}
                 }
-                mir::Instruction::Store { value, .. } => {
-                    // mark stored stack pointers as escaping
-                    record_stack_escape_reference(
-                        *value,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
-                        tree,
-                        &frame_allocs,
-                        &mut escaping,
-                    );
-                }
-                _ => {}
             }
-        }
 
-        // scan terminators for escaping values
-        let terminator = tree.get(block.terminator);
-        match terminator {
-            mir::Terminator::Error => return HashSet::new(),
-            mir::Terminator::Return { value: Some(value) } => {
-                record_stack_escape_reference(
-                    *value,
-                    definitions,
-                    &local_defs,
-                    &param_defs,
-                    tree,
-                    &frame_allocs,
-                    &mut escaping,
-                );
-            }
-            mir::Terminator::Jump { target } => {
-                for arg in target.arguments(tree).iter().copied() {
-                    record_stack_escape_reference(
-                        arg,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
-                        tree,
-                        &frame_allocs,
-                        &mut escaping,
-                    );
+            // scan terminators for escaping values
+            let terminator = tree.get(block.terminator);
+            match terminator {
+                mir::Terminator::Error => return HashSet::new(),
+                mir::Terminator::Return { value: Some(value) } => {
+                    record_stack_escape_reference(*value, self, tree, &frame_allocs, &mut escaping);
                 }
-            }
-            mir::Terminator::Branch {
-                then_target,
-                else_target,
-                ..
-            } => {
-                for arg in then_target
-                    .arguments(tree)
-                    .iter()
-                    .chain(else_target.arguments(tree).iter())
-                    .copied()
-                {
-                    record_stack_escape_reference(
-                        arg,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
-                        tree,
-                        &frame_allocs,
-                        &mut escaping,
-                    );
-                }
-            }
-            mir::Terminator::Check {
-                success, failure, ..
-            } => {
-                for arg in success
-                    .arguments(tree)
-                    .iter()
-                    .chain(failure.arguments(tree).iter())
-                    .copied()
-                {
-                    record_stack_escape_reference(
-                        arg,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
-                        tree,
-                        &frame_allocs,
-                        &mut escaping,
-                    );
-                }
-            }
-            mir::Terminator::NewZeroedTry {
-                success, failure, ..
-            }
-            | mir::Terminator::NewUninitTry {
-                success, failure, ..
-            } => {
-                for arg in success
-                    .arguments(tree)
-                    .iter()
-                    .chain(failure.arguments(tree).iter())
-                    .copied()
-                {
-                    record_stack_escape_reference(
-                        arg,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
-                        tree,
-                        &frame_allocs,
-                        &mut escaping,
-                    );
-                }
-            }
-            mir::Terminator::NewSliceZeroedTry {
-                length,
-                success,
-                failure,
-                ..
-            }
-            | mir::Terminator::NewSliceUninitTry {
-                length,
-                success,
-                failure,
-                ..
-            } => {
-                record_stack_escape_reference(
-                    *length,
-                    definitions,
-                    &local_defs,
-                    &param_defs,
-                    tree,
-                    &frame_allocs,
-                    &mut escaping,
-                );
-
-                for arg in success
-                    .arguments(tree)
-                    .iter()
-                    .chain(failure.arguments(tree).iter())
-                    .copied()
-                {
-                    record_stack_escape_reference(
-                        arg,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
-                        tree,
-                        &frame_allocs,
-                        &mut escaping,
-                    );
-                }
-            }
-            mir::Terminator::Switch { cases, default, .. } => {
-                for arg in default.arguments(tree).iter().copied() {
-                    record_stack_escape_reference(
-                        arg,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
-                        tree,
-                        &frame_allocs,
-                        &mut escaping,
-                    );
-                }
-                for case in tree.get_switch_cases(*cases) {
-                    for arg in case.target.arguments(tree).iter().copied() {
+                mir::Terminator::Jump { target } => {
+                    for arg in target.arguments(tree).iter().copied() {
                         record_stack_escape_reference(
                             arg,
-                            definitions,
-                            &local_defs,
-                            &param_defs,
+                            self,
                             tree,
                             &frame_allocs,
                             &mut escaping,
                         );
                     }
                 }
-            }
-            mir::Terminator::Yield {
-                value,
-                resume,
-                unwind,
-            } => {
-                record_stack_escape_reference(
-                    *value,
-                    definitions,
-                    &local_defs,
-                    &param_defs,
-                    tree,
-                    &frame_allocs,
-                    &mut escaping,
-                );
-                for arg in resume.arguments(tree).iter().copied() {
-                    record_stack_escape_reference(
-                        arg,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
-                        tree,
-                        &frame_allocs,
-                        &mut escaping,
-                    );
-                }
-                if let Some(unwind) = unwind {
-                    for arg in unwind.arguments(tree).iter().copied() {
+                mir::Terminator::Branch {
+                    then_target,
+                    else_target,
+                    ..
+                } => {
+                    for arg in then_target
+                        .arguments(tree)
+                        .iter()
+                        .chain(else_target.arguments(tree).iter())
+                        .copied()
+                    {
                         record_stack_escape_reference(
                             arg,
-                            definitions,
-                            &local_defs,
-                            &param_defs,
+                            self,
                             tree,
                             &frame_allocs,
                             &mut escaping,
                         );
                     }
                 }
-            }
-            mir::Terminator::Call { call, target, .. } => {
-                for arg in tree
-                    .get_values(call.arguments)
-                    .iter()
-                    .chain(target.arguments(tree).iter())
-                    .copied()
-                {
+                mir::Terminator::Check {
+                    success, failure, ..
+                } => {
+                    for arg in success
+                        .arguments(tree)
+                        .iter()
+                        .chain(failure.arguments(tree).iter())
+                        .copied()
+                    {
+                        record_stack_escape_reference(
+                            arg,
+                            self,
+                            tree,
+                            &frame_allocs,
+                            &mut escaping,
+                        );
+                    }
+                }
+                mir::Terminator::NewZeroedTry {
+                    success, failure, ..
+                }
+                | mir::Terminator::NewUninitTry {
+                    success, failure, ..
+                } => {
+                    for arg in success
+                        .arguments(tree)
+                        .iter()
+                        .chain(failure.arguments(tree).iter())
+                        .copied()
+                    {
+                        record_stack_escape_reference(
+                            arg,
+                            self,
+                            tree,
+                            &frame_allocs,
+                            &mut escaping,
+                        );
+                    }
+                }
+                mir::Terminator::NewSliceZeroedTry {
+                    length,
+                    success,
+                    failure,
+                    ..
+                }
+                | mir::Terminator::NewSliceUninitTry {
+                    length,
+                    success,
+                    failure,
+                    ..
+                } => {
                     record_stack_escape_reference(
-                        arg,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
+                        *length,
+                        self,
                         tree,
                         &frame_allocs,
                         &mut escaping,
                     );
+
+                    for arg in success
+                        .arguments(tree)
+                        .iter()
+                        .chain(failure.arguments(tree).iter())
+                        .copied()
+                    {
+                        record_stack_escape_reference(
+                            arg,
+                            self,
+                            tree,
+                            &frame_allocs,
+                            &mut escaping,
+                        );
+                    }
                 }
-            }
-            mir::Terminator::CallIndirect {
-                callee,
-                call,
-                target,
-                ..
-            } => {
-                record_stack_escape_reference(
-                    *callee,
-                    definitions,
-                    &local_defs,
-                    &param_defs,
-                    tree,
-                    &frame_allocs,
-                    &mut escaping,
-                );
-                for arg in tree
-                    .get_values(call.arguments)
-                    .iter()
-                    .chain(target.arguments(tree).iter())
-                    .copied()
-                {
+                mir::Terminator::Switch { cases, default, .. } => {
+                    for arg in default.arguments(tree).iter().copied() {
+                        record_stack_escape_reference(
+                            arg,
+                            self,
+                            tree,
+                            &frame_allocs,
+                            &mut escaping,
+                        );
+                    }
+                    for case in tree.get_switch_cases(*cases) {
+                        for arg in case.target.arguments(tree).iter().copied() {
+                            record_stack_escape_reference(
+                                arg,
+                                self,
+                                tree,
+                                &frame_allocs,
+                                &mut escaping,
+                            );
+                        }
+                    }
+                }
+                mir::Terminator::Yield {
+                    value,
+                    resume,
+                    unwind,
+                } => {
+                    record_stack_escape_reference(*value, self, tree, &frame_allocs, &mut escaping);
+                    for arg in resume.arguments(tree).iter().copied() {
+                        record_stack_escape_reference(
+                            arg,
+                            self,
+                            tree,
+                            &frame_allocs,
+                            &mut escaping,
+                        );
+                    }
+                    if let Some(unwind) = unwind {
+                        for arg in unwind.arguments(tree).iter().copied() {
+                            record_stack_escape_reference(
+                                arg,
+                                self,
+                                tree,
+                                &frame_allocs,
+                                &mut escaping,
+                            );
+                        }
+                    }
+                }
+                mir::Terminator::Call { call, target, .. } => {
+                    for arg in tree
+                        .get_values(call.arguments)
+                        .iter()
+                        .chain(target.arguments(tree).iter())
+                        .copied()
+                    {
+                        record_stack_escape_reference(
+                            arg,
+                            self,
+                            tree,
+                            &frame_allocs,
+                            &mut escaping,
+                        );
+                    }
+                }
+                mir::Terminator::CallIndirect {
+                    callee,
+                    call,
+                    target,
+                    ..
+                } => {
                     record_stack_escape_reference(
-                        arg,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
+                        *callee,
+                        self,
                         tree,
                         &frame_allocs,
                         &mut escaping,
                     );
+                    for arg in tree
+                        .get_values(call.arguments)
+                        .iter()
+                        .chain(target.arguments(tree).iter())
+                        .copied()
+                    {
+                        record_stack_escape_reference(
+                            arg,
+                            self,
+                            tree,
+                            &frame_allocs,
+                            &mut escaping,
+                        );
+                    }
                 }
-            }
-            mir::Terminator::CallVirtual {
-                receiver,
-                call,
-                target,
-                ..
-            } => {
-                record_stack_escape_reference(
-                    *receiver,
-                    definitions,
-                    &local_defs,
-                    &param_defs,
-                    tree,
-                    &frame_allocs,
-                    &mut escaping,
-                );
-                for arg in tree
-                    .get_values(call.arguments)
-                    .iter()
-                    .chain(target.arguments(tree).iter())
-                    .copied()
-                {
+                mir::Terminator::CallVirtual {
+                    receiver,
+                    call,
+                    target,
+                    ..
+                } => {
                     record_stack_escape_reference(
-                        arg,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
+                        *receiver,
+                        self,
                         tree,
                         &frame_allocs,
                         &mut escaping,
                     );
+                    for arg in tree
+                        .get_values(call.arguments)
+                        .iter()
+                        .chain(target.arguments(tree).iter())
+                        .copied()
+                    {
+                        record_stack_escape_reference(
+                            arg,
+                            self,
+                            tree,
+                            &frame_allocs,
+                            &mut escaping,
+                        );
+                    }
                 }
-            }
-            mir::Terminator::CallDynamic {
-                receiver,
-                call,
-                target,
-                ..
-            } => {
-                record_stack_escape_reference(
-                    *receiver,
-                    definitions,
-                    &local_defs,
-                    &param_defs,
-                    tree,
-                    &frame_allocs,
-                    &mut escaping,
-                );
-                for arg in tree
-                    .get_values(call.arguments)
-                    .iter()
-                    .chain(target.arguments(tree).iter())
-                    .copied()
-                {
+                mir::Terminator::CallDynamic {
+                    receiver,
+                    call,
+                    target,
+                    ..
+                } => {
                     record_stack_escape_reference(
-                        arg,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
+                        *receiver,
+                        self,
                         tree,
                         &frame_allocs,
                         &mut escaping,
                     );
+                    for arg in tree
+                        .get_values(call.arguments)
+                        .iter()
+                        .chain(target.arguments(tree).iter())
+                        .copied()
+                    {
+                        record_stack_escape_reference(
+                            arg,
+                            self,
+                            tree,
+                            &frame_allocs,
+                            &mut escaping,
+                        );
+                    }
                 }
-            }
-            mir::Terminator::Trap { .. } => {}
-            mir::Terminator::Panic { payload } => {
-                if let Some(payload) = payload {
+                mir::Terminator::Trap { .. } => {}
+                mir::Terminator::Panic { payload } => {
+                    if let Some(payload) = payload {
+                        record_stack_escape_reference(
+                            *payload,
+                            self,
+                            tree,
+                            &frame_allocs,
+                            &mut escaping,
+                        );
+                    }
+                }
+                mir::Terminator::UnwindResume => {}
+                mir::Terminator::TailCall { call, .. }
+                | mir::Terminator::TailCallVirtual { call, .. }
+                | mir::Terminator::TailCallDynamic { call, .. } => {
+                    for arg in tree.get_values(call.arguments).iter().copied() {
+                        record_stack_escape_reference(
+                            arg,
+                            self,
+                            tree,
+                            &frame_allocs,
+                            &mut escaping,
+                        );
+                    }
+                }
+                mir::Terminator::TailCallIndirect { callee, call, .. } => {
                     record_stack_escape_reference(
-                        *payload,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
+                        *callee,
+                        self,
                         tree,
                         &frame_allocs,
                         &mut escaping,
                     );
+                    for arg in tree.get_values(call.arguments).iter().copied() {
+                        record_stack_escape_reference(
+                            arg,
+                            self,
+                            tree,
+                            &frame_allocs,
+                            &mut escaping,
+                        );
+                    }
                 }
+                mir::Terminator::Unreachable | mir::Terminator::Return { value: None } => {}
             }
-            mir::Terminator::UnwindResume => {}
-            mir::Terminator::TailCall { call, .. }
-            | mir::Terminator::TailCallVirtual { call, .. }
-            | mir::Terminator::TailCallDynamic { call, .. } => {
-                for arg in tree.get_values(call.arguments).iter().copied() {
-                    record_stack_escape_reference(
-                        arg,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
-                        tree,
-                        &frame_allocs,
-                        &mut escaping,
-                    );
-                }
-            }
-            mir::Terminator::TailCallIndirect { callee, call, .. } => {
-                record_stack_escape_reference(
-                    *callee,
-                    definitions,
-                    &local_defs,
-                    &param_defs,
-                    tree,
-                    &frame_allocs,
-                    &mut escaping,
-                );
-                for arg in tree.get_values(call.arguments).iter().copied() {
-                    record_stack_escape_reference(
-                        arg,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
-                        tree,
-                        &frame_allocs,
-                        &mut escaping,
-                    );
-                }
-            }
-            mir::Terminator::Unreachable | mir::Terminator::Return { value: None } => {}
         }
+
+        // retain only stack allocations that never escaped
+        frame_allocs
+            .difference(&escaping)
+            .copied()
+            .collect::<HashSet<_>>()
     }
-
-    // retain only stack allocations that never escaped
-    frame_allocs
-        .difference(&escaping)
-        .copied()
-        .collect::<HashSet<_>>()
 }
 
 /// Report whether a call argument may escape.
@@ -558,9 +442,7 @@ fn call_argument_escapes(arguments: Option<&[mir::CallArgumentEffect]>, index: u
 /// Record a stack escape by walking derived values.
 fn record_stack_escape(
     value: mir::Value,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
-    param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
+    definitions: &ValueDefinitions,
     tree: &mir::Tree,
     frame_allocs: &HashSet<mir::Value>,
     escaping: &mut HashSet<mir::Value>,
@@ -570,8 +452,6 @@ fn record_stack_escape(
     record_stack_escape_value(
         value,
         definitions,
-        local_defs,
-        param_defs,
         tree,
         frame_allocs,
         escaping,
@@ -582,613 +462,290 @@ fn record_stack_escape(
 /// Record a stack escape for a recoverable value reference.
 fn record_stack_escape_reference(
     value: mir::Value,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
-    param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
+    definitions: &ValueDefinitions,
     tree: &mir::Tree,
     frame_allocs: &HashSet<mir::Value>,
     escaping: &mut HashSet<mir::Value>,
 ) {
-    record_stack_escape(
-        value,
-        definitions,
-        local_defs,
-        param_defs,
-        tree,
-        frame_allocs,
-        escaping,
-    );
+    record_stack_escape(value, definitions, tree, frame_allocs, escaping);
 }
 
 /// Record stack escapes from a value and its derived operands.
-#[allow(clippy::too_many_arguments)]
 fn record_stack_escape_value(
     value: mir::Value,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
-    param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
+    definitions: &ValueDefinitions,
     tree: &mir::Tree,
     frame_allocs: &HashSet<mir::Value>,
     escaping: &mut HashSet<mir::Value>,
     visited: &mut HashSet<mir::Value>,
 ) {
     let mut bases = HashSet::new();
-    collect_frame_alloc_bases_for_value(
-        value,
-        definitions,
-        local_defs,
-        param_defs,
-        tree,
-        frame_allocs,
-        visited,
-        &mut bases,
-    );
+    definitions.collect_frame_alloc_bases(value, tree, frame_allocs, visited, &mut bases);
 
     escaping.extend(bases);
 }
 
-/// Collect local definitions for stack escape tracking.
-pub fn collect_local_defs(
-    function: &mir::Function,
-    tree: &mir::Tree,
-) -> HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>> {
-    let mut defs: HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>> = HashMap::new();
-
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        for &instruction_id in &block.instructions {
-            if let mir::Instruction::LocalSet { local, value } = tree.get(instruction_id) {
-                let value = *value;
-
-                defs.entry(*local).or_default().push(value);
-            }
-        }
-    }
-
-    defs
-}
-
-/// Collect block parameter definitions from predecessor arguments.
-pub fn collect_block_param_defs(
-    function: &mir::Function,
-    tree: &mir::Tree,
-) -> HashMap<mir::Value, Vec<mir::Value>> {
-    let mut defs: HashMap<mir::Value, Vec<mir::Value>> = HashMap::new();
-
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        let terminator = tree.get(block.terminator);
-
-        match terminator {
-            mir::Terminator::Jump { target } => {
-                add_param_defs(&mut defs, target, tree);
-            }
-            mir::Terminator::Branch {
-                then_target,
-                else_target,
-                ..
-            } => {
-                add_param_defs(&mut defs, then_target, tree);
-                add_param_defs(&mut defs, else_target, tree);
-            }
-            mir::Terminator::Check {
-                success, failure, ..
-            } => {
-                add_param_defs(&mut defs, success, tree);
-                add_param_defs(&mut defs, failure, tree);
-            }
-            mir::Terminator::Switch { cases, default, .. } => {
-                add_param_defs(&mut defs, default, tree);
-                for case in tree.get_switch_cases(*cases) {
-                    add_param_defs(&mut defs, &case.target, tree);
-                }
-            }
-            mir::Terminator::Yield { resume, unwind, .. } => {
-                add_param_defs(&mut defs, resume, tree);
-                if let Some(unwind) = unwind {
-                    add_param_defs(&mut defs, unwind, tree);
-                }
-            }
-            _ => {}
-        }
-    }
-
-    defs
-}
-
-/// Add predecessor arguments as block parameter definitions.
-fn add_param_defs(
-    defs: &mut HashMap<mir::Value, Vec<mir::Value>>,
-    target: &mir::BlockTarget,
-    tree: &mir::Tree,
-) {
-    let block_id = target.block;
-
-    let target_block = tree.get(block_id);
-    let target_params = &target_block.parameters;
-    for (param, arg) in target_params.iter().zip(target.arguments(tree).iter()) {
-        let param = param.value;
-        let arg = *arg;
-
-        defs.entry(param).or_default().push(arg);
-    }
-}
-
-/// Collect stack allocation bases reachable from a value.
-#[allow(clippy::too_many_arguments)]
-pub fn collect_frame_alloc_bases_for_value(
-    value: mir::Value,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
-    param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
-    tree: &mir::Tree,
-    frame_allocs: &HashSet<mir::Value>,
-    visited: &mut HashSet<mir::Value>,
-    bases: &mut HashSet<mir::Value>,
-) {
-    // avoid repeating work for values
-    if !visited.insert(value) {
-        return;
-    }
-
-    // resolve the stack base
-    if let Some(base) = frame_alloc_base(value, definitions, tree) {
-        if frame_allocs.contains(&base) {
-            bases.insert(base);
-        }
-        return;
-    }
-
-    // look through derived values
-    let Some(instruction_id) = definitions.get(&value) else {
-        // walk block parameter definitions when present
-        if let Some(params) = param_defs.get(&value) {
-            for &arg in params {
-                collect_frame_alloc_bases_for_value(
-                    arg,
-                    definitions,
-                    local_defs,
-                    param_defs,
-                    tree,
-                    frame_allocs,
-                    visited,
-                    bases,
-                );
-            }
-        }
-        return;
-    };
-
-    let instruction = tree.get(*instruction_id);
-    match instruction {
-        mir::Instruction::Struct { fields, .. } => {
-            let args = tree.get_values(*fields);
-            for arg in args.iter().copied() {
-                collect_frame_alloc_bases_for_value(
-                    arg,
-                    definitions,
-                    local_defs,
-                    param_defs,
-                    tree,
-                    frame_allocs,
-                    visited,
-                    bases,
-                );
-            }
-        }
-        mir::Instruction::Tuple { elements, .. } | mir::Instruction::Array { elements, .. } => {
-            let args = tree.get_values(*elements);
-            for arg in args.iter().copied() {
-                collect_frame_alloc_bases_for_value(
-                    arg,
-                    definitions,
-                    local_defs,
-                    param_defs,
-                    tree,
-                    frame_allocs,
-                    visited,
-                    bases,
-                );
-            }
-        }
-        mir::Instruction::Select {
-            then_value,
-            else_value,
-            ..
-        } => {
-            let then_value = *then_value;
-            let else_value = *else_value;
-
-            collect_frame_alloc_bases_for_value(
-                then_value,
-                definitions,
-                local_defs,
-                param_defs,
-                tree,
-                frame_allocs,
-                visited,
-                bases,
-            );
-            collect_frame_alloc_bases_for_value(
-                else_value,
-                definitions,
-                local_defs,
-                param_defs,
-                tree,
-                frame_allocs,
-                visited,
-                bases,
-            );
-        }
-        mir::Instruction::FieldGet { aggregate, .. } => {
-            let aggregate = *aggregate;
-
-            collect_frame_alloc_bases_for_value(
-                aggregate,
-                definitions,
-                local_defs,
-                param_defs,
-                tree,
-                frame_allocs,
-                visited,
-                bases,
-            );
-        }
-        mir::Instruction::LocalGet { local, .. } => {
-            if let Some(values) = local_defs.get(local) {
-                for &arg in values {
-                    collect_frame_alloc_bases_for_value(
-                        arg,
-                        definitions,
-                        local_defs,
-                        param_defs,
-                        tree,
-                        frame_allocs,
-                        visited,
-                        bases,
-                    );
-                }
-            }
-        }
-        _ => {}
-    }
-}
-
 impl MemoryLocation {
-    /// Create a location from just a pointer (unknown size).
-    pub fn from_ptr(ptr: mir::Value) -> Self {
+    /// Create a location from just a reference with unknown size.
+    pub fn from_reference(reference: mir::Value) -> Self {
         Self {
-            ptr,
+            reference,
             size: None,
             access_type: None,
-            pointer_kind: None,
-            pointer_space: None,
+            reference_kind: None,
+            reference_space: None,
         }
     }
 
     /// Create a location with known size.
-    pub fn with_size(ptr: mir::Value, size: u64) -> Self {
+    pub fn with_size(reference: mir::Value, size: u64) -> Self {
         Self {
-            ptr,
+            reference,
             size: Some(size),
             access_type: None,
-            pointer_kind: None,
-            pointer_space: None,
+            reference_kind: None,
+            reference_space: None,
         }
     }
 
     /// Create a location with type information.
-    pub fn with_type(ptr: mir::Value, access_type: TypeKey) -> Self {
-        let (pointer_kind, pointer_space) = match &access_type {
+    pub fn with_type(reference: mir::Value, access_type: TypeKey) -> Self {
+        let (reference_kind, reference_space) = match &access_type {
             TypeKey::Reference { kind, space, .. } | TypeKey::TensorView { kind, space, .. } => {
                 (Some(*kind), Some(space.clone()))
             }
             _ => (None, None),
         };
         Self {
-            ptr,
+            reference,
             size: None,
             access_type: Some(access_type),
-            pointer_kind,
-            pointer_space,
+            reference_kind,
+            reference_space,
         }
     }
 
     /// Create a fully specified location.
     pub fn new(
-        ptr: mir::Value,
+        reference: mir::Value,
         size: Option<u64>,
         access_type: Option<TypeKey>,
-        pointer_kind: Option<mir::ReferenceKind>,
-        pointer_space: Option<mir::Space>,
+        reference_kind: Option<mir::ReferenceKind>,
+        reference_space: Option<mir::Space>,
     ) -> Self {
         Self {
-            ptr,
+            reference,
             size,
             access_type,
-            pointer_kind,
-            pointer_space,
+            reference_kind,
+            reference_space,
         }
     }
-}
 
-/// Check whether two memory access effects describe the same location.
-pub fn effects_match_location(
-    alias: &AliasAnalysis,
-    current: &MemoryAccessEffect,
-    previous: &MemoryAccessEffect,
-) -> bool {
-    // check location sets
-    if !spaces_may_alias(current.space_set, previous.space_set) {
-        return false;
-    }
-
-    // compare concrete locations
-    match (&current.location, &previous.location) {
-        (MemoryAccessLocation::Local(local), MemoryAccessLocation::Local(other_local)) => {
-            local == other_local
+    /// Return aliasing for another location with the same reference value.
+    pub fn alias_same_reference(&self, other: &MemoryLocation) -> AliasResult {
+        match (self.size, other.size) {
+            (Some(left), Some(right)) if left == right => AliasResult::MustAlias,
+            (Some(_), Some(_)) => AliasResult::PartialAlias,
+            _ => AliasResult::PartialAlias,
         }
-        (MemoryAccessLocation::Pointer(current_ptr), MemoryAccessLocation::Pointer(other_ptr)) => {
-            if !memory_locations_compatible(current_ptr, other_ptr) {
-                return false;
-            }
+    }
 
-            alias.alias(current_ptr, other_ptr).is_must_alias()
+    /// Return whether both locations are compatible for value forwarding.
+    pub fn is_compatible_with(&self, other: &MemoryLocation) -> bool {
+        // compare byte sizes when both sides know them
+        if let (Some(left_size), Some(right_size)) = (self.size, other.size)
+            && left_size != right_size
+        {
+            return false;
         }
-        _ => false,
-    }
-}
 
-/// Check whether two access effects may alias.
-pub fn effects_may_alias(
-    alias: &AliasAnalysis,
-    left: &MemoryAccessEffect,
-    right: &MemoryAccessEffect,
-) -> bool {
-    // check location sets
-    if !spaces_may_alias(left.space_set, right.space_set) {
-        return false;
-    }
-
-    // compare concrete locations
-    match (&left.location, &right.location) {
-        (MemoryAccessLocation::Unknown, _) | (_, MemoryAccessLocation::Unknown) => true,
-        (MemoryAccessLocation::Local(local), MemoryAccessLocation::Local(other)) => local == other,
-        (MemoryAccessLocation::Pointer(left_ptr), MemoryAccessLocation::Pointer(right_ptr)) => {
-            if !memory_locations_compatible(left_ptr, right_ptr) {
-                return false;
-            }
-
-            alias.alias(left_ptr, right_ptr).may_alias()
+        // compare access types when both sides know them
+        if let (Some(left_type), Some(right_type)) = (&self.access_type, &other.access_type)
+            && left_type != right_type
+        {
+            return false;
         }
-        _ => false,
+
+        true
     }
 }
 
-/// Return true when an instruction has ordered memory access metadata.
-pub fn instruction_has_atomic_ordering(
-    tree: &mir::Tree,
-    instruction: mir::LocalNodeId<mir::Instruction>,
-) -> bool {
-    // atomic instructions carry ordering on the instruction
-    if matches!(
-        tree.get(instruction),
-        mir::Instruction::AtomicLoad { .. }
-            | mir::Instruction::AtomicStore { .. }
-            | mir::Instruction::AtomicCompareExchange { .. }
-            | mir::Instruction::AtomicRmw { .. }
-            | mir::Instruction::AtomicFence { .. }
-    ) {
-        return true;
-    }
-
-    // read access metadata for this instruction
-    let Some(accesses) = tree.metadata.memory.memory_accesses(instruction) else {
-        return false;
-    };
-
-    // check for ordered or fenced accesses
-    accesses.iter().any(|access| {
-        access.ordering.is_some()
-            || access.flags.is_some()
-            || matches!(access.kind, mir::MemoryAccessKind::Fence)
-    })
-}
-
-/// Return true when an instruction requires exact memory access behavior.
-pub fn instruction_requires_exact_access(
-    tree: &mir::Tree,
-    instruction: mir::LocalNodeId<mir::Instruction>,
-) -> bool {
-    // ordered instructions must preserve exact access behavior
-    if matches!(
-        tree.get(instruction),
-        mir::Instruction::AtomicLoad { .. }
-            | mir::Instruction::AtomicStore { .. }
-            | mir::Instruction::AtomicCompareExchange { .. }
-            | mir::Instruction::AtomicRmw { .. }
-            | mir::Instruction::AtomicFence { .. }
-            | mir::Instruction::BarrierWrite { .. }
-    ) {
-        return true;
-    }
-
-    // read memory access metadata for the instruction
-    let Some(accesses) = tree.metadata.memory.memory_accesses(instruction) else {
-        return false;
-    };
-
-    // require exact access behavior for volatile, ordered, or fenced operations
-    accesses.iter().any(|access| {
-        access.is_volatile
-            || access.ordering.is_some()
-            || access.flags.is_some()
-            || matches!(access.kind, mir::MemoryAccessKind::Fence)
-    })
-}
-
-/// Check if two memory locations are compatible for value forwarding.
-pub fn memory_locations_compatible(a: &MemoryLocation, b: &MemoryLocation) -> bool {
-    if let (Some(size_a), Some(size_b)) = (a.size, b.size)
-        && size_a != size_b
-    {
-        return false;
-    }
-
-    if let (Some(type_a), Some(type_b)) = (&a.access_type, &b.access_type)
-        && type_a != type_b
-    {
-        return false;
-    }
-
-    true
-}
-
-/// Check whether two location sets may alias.
-pub fn spaces_may_alias(a: mir::SpaceSet, b: mir::SpaceSet) -> bool {
-    !a.is_disjoint(b)
-}
-
-/// Resolve a pointer's pointee type when it is statically known.
-pub fn resolve_pointer_pointee_type(
-    pointer: mir::Value,
-    tree: &mir::Tree,
-    value_types: &ValueTypeMap,
-) -> Option<mir::LocalNodeId<mir::Type>> {
-    // resolve the reference pointee type
-    let type_id = value_types.require_value_type(pointer);
-    let ty = tree.get(type_id);
-    match ty {
-        mir::Type::Reference { pointee, .. } => Some(*pointee),
-        mir::Type::TensorView { element, .. } => Some(*element),
-        _ => None,
-    }
-}
-
-/// Resolve a pointer's TS++ space when it is statically known.
-pub fn resolve_pointer_space(
-    pointer: mir::Value,
-    tree: &mir::Tree,
-    value_types: &ValueTypeMap,
-) -> Option<mir::Space> {
-    // resolve the reference TS++ space
-    let ty_id = value_types.require_value_type(pointer);
-    let ty = tree.get(ty_id);
-    match ty {
-        mir::Type::Reference { space, .. } => Some(space.clone()),
-        mir::Type::TensorView { space, .. } => Some(space.clone()),
-        _ => None,
-    }
-}
-
-/// Resolve a pointer's reference kind when it is statically known.
-pub fn resolve_pointer_kind(
-    pointer: mir::Value,
-    tree: &mir::Tree,
-    value_types: &ValueTypeMap,
-) -> Option<mir::ReferenceKind> {
-    // resolve the reference kind from the pointer type
-    let ty_id = value_types.require_value_type(pointer);
-    let ty = tree.get(ty_id);
-    match ty {
-        mir::Type::Reference { kind, .. } => Some(*kind),
-        mir::Type::TensorView { kind, .. } => Some(*kind),
-        _ => None,
-    }
-}
-
-/// Base object that a pointer ultimately derives from.
-///
-/// Pointers with different identified bases cannot alias.
-/// This is the foundation of provenance-based alias analysis.
+/// Memory target touched by one reference-like value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum PointerBase {
-    /// Stack allocation instruction.
-    FrameAlloc(mir::LocalNodeId<mir::Instruction>),
+pub enum MemoryTarget {
+    /// A precise memory place.
+    Place(MemoryPlace),
+    /// Any memory in the given spaces.
+    Any {
+        /// The memory spaces that may be touched.
+        spaces: mir::SpaceSet,
+    },
+}
+
+impl MemoryTarget {
+    /// Create an imprecise target for all memory spaces.
+    pub fn any() -> Self {
+        Self::Any {
+            spaces: mir::SpaceSet::ANY,
+        }
+    }
+
+    /// Create an imprecise target for one memory space.
+    pub fn any_space(space: mir::Space) -> Self {
+        Self::Any {
+            spaces: space.space_set(),
+        }
+    }
+
+    /// Return the memory spaces covered by this target.
+    pub fn spaces(&self, tree: &mir::Tree) -> mir::SpaceSet {
+        match self {
+            MemoryTarget::Place(place) => place.storage.spaces(tree),
+            MemoryTarget::Any { spaces } => *spaces,
+        }
+    }
+
+    /// Return whether this target may touch one storage root.
+    pub fn may_touch_storage(&self, storage: &Storage, tree: &mir::Tree) -> bool {
+        match self {
+            MemoryTarget::Place(place) => !place.storage.is_disjoint_from(storage),
+            MemoryTarget::Any { spaces } => !spaces.is_disjoint(storage.spaces(tree)),
+        }
+    }
+}
+
+/// Identified storage root for one memory place.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Storage {
+    /// Frame allocation instruction.
+    FrameAllocation(mir::LocalNodeId<mir::Instruction>),
     /// Local slot address.
-    Local(mir::LocalNodeId<mir::Local>),
+    LocalSlot(mir::LocalNodeId<mir::Local>),
+    /// Static storage address.
+    Static(mir::LocalNodeId<mir::Global>),
     /// Heap allocation instruction.
-    HeapAlloc(mir::LocalNodeId<mir::Instruction>),
-    /// Global variable address.
-    Global(mir::LocalNodeId<mir::Global>),
+    Allocation {
+        /// The allocation instruction.
+        instruction: mir::LocalNodeId<mir::Instruction>,
+        /// The allocation storage space.
+        space: mir::Space,
+        /// The reference kind produced by the allocation.
+        kind: mir::ReferenceKind,
+    },
     /// Function parameter.
     Parameter {
         /// Parameter index.
         index: u32,
-        /// Whether this parameter has noalias semantics.
-        noalias: bool,
+        /// The parameter storage space.
+        space: mir::Space,
+        /// The parameter reference kind.
+        kind: mir::ReferenceKind,
+        /// The parameter access.
+        access: mir::Access,
     },
-    /// Return value from a call instruction.
-    CallResult(mir::LocalNodeId<mir::Instruction>),
-    /// Unknown base (conservative).
-    Unknown,
 }
 
-impl PointerBase {
-    /// Check if this is an identified object (known unique allocation).
-    pub fn is_identified(&self) -> bool {
+impl Storage {
+    /// Return true if this parameter is exclusive.
+    pub fn is_exclusive_parameter(&self) -> bool {
         matches!(
             self,
-            PointerBase::FrameAlloc(_)
-                | PointerBase::Local(_)
-                | PointerBase::HeapAlloc(_)
-                | PointerBase::Global(_)
+            Storage::Parameter {
+                access: mir::Access::Exclusive,
+                ..
+            }
         )
     }
 
-    /// Check if this is a noalias parameter.
-    pub fn is_noalias_param(&self) -> bool {
-        matches!(self, PointerBase::Parameter { noalias: true, .. })
+    /// Return whether two identified storage roots are disjoint.
+    pub fn is_disjoint_from(&self, other: &Storage) -> bool {
+        match (self, other) {
+            (Storage::FrameAllocation(left), Storage::FrameAllocation(right)) => left != right,
+            (Storage::LocalSlot(left), Storage::LocalSlot(right)) => left != right,
+            (Storage::Static(left), Storage::Static(right)) => left != right,
+            (
+                Storage::Allocation {
+                    instruction: left, ..
+                },
+                Storage::Allocation {
+                    instruction: right, ..
+                },
+            ) => left != right,
+            (Storage::Parameter { .. }, _) | (_, Storage::Parameter { .. }) => false,
+            _ => true,
+        }
     }
 
-    /// Check if this base is from a local allocation (stack or heap).
-    pub fn is_local_alloc(&self) -> bool {
-        matches!(
-            self,
-            PointerBase::FrameAlloc(_) | PointerBase::Local(_) | PointerBase::HeapAlloc(_)
-        )
+    /// Return whether exclusive parameter facts prove disjointness.
+    pub fn exclusive_parameters_are_disjoint(&self, other: &Storage) -> bool {
+        match (self, other) {
+            (
+                Storage::Parameter {
+                    access: mir::Access::Exclusive,
+                    ..
+                },
+                Storage::Parameter {
+                    access: mir::Access::Exclusive,
+                    ..
+                },
+            ) => self != other,
+            _ => false,
+        }
+    }
+
+    /// Return the memory spaces covered by this storage root.
+    pub fn spaces(&self, tree: &mir::Tree) -> mir::SpaceSet {
+        match self {
+            Storage::FrameAllocation(_) | Storage::LocalSlot(_) => mir::SpaceSet::FRAME,
+            Storage::Static(global) => {
+                let global = tree.get(*global);
+
+                global.space.space_set()
+            }
+            Storage::Allocation { space, .. } | Storage::Parameter { space, .. } => {
+                space.space_set()
+            }
+        }
     }
 }
 
-/// Variable offset component in pointer arithmetic.
+/// Indexed byte offset component in reference arithmetic.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct VarOffset {
+pub struct IndexedOffset {
     /// The index value.
     pub index: mir::Value,
     /// Scale factor (element size in bytes).
     pub scale: u64,
 }
 
-/// Decomposed pointer representation.
-///
-/// A pointer is decomposed into: base + const_offset + sum(var_offset * scale)
-/// This enables precise offset-based alias analysis.
-#[derive(Debug, Clone)]
-pub struct DecomposedPointer {
-    /// The underlying base object.
-    pub base: PointerBase,
-    /// Constant byte offset from base.
+/// Precise memory place representation.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MemoryPlace {
+    /// The identified storage root.
+    pub storage: Storage,
+    /// Constant byte offset from storage root.
     pub const_offset: i64,
-    /// Variable offsets with their scales.
-    pub var_offsets: Vec<VarOffset>,
-    /// Field path from base (for struct accesses).
-    pub field_path: Vec<u32>,
+    /// Indexed offsets with their scales.
+    pub indexed_offsets: Vec<IndexedOffset>,
+    /// Field path from storage root.
+    pub fields: Vec<u32>,
 }
 
-impl DecomposedPointer {
-    /// Create a decomposed pointer from just a base.
-    pub fn from_base(base: PointerBase) -> Self {
+impl MemoryPlace {
+    /// Create a memory place from one storage root.
+    pub fn from_storage(storage: Storage) -> Self {
         Self {
-            base,
+            storage,
             const_offset: 0,
-            field_path: Vec::new(),
-            var_offsets: Vec::new(),
+            fields: Vec::new(),
+            indexed_offsets: Vec::new(),
         }
     }
 
-    /// Check if this pointer has only constant offsets (no variable indexing).
+    /// Check if this place has only constant offsets.
     pub fn is_constant_offset(&self) -> bool {
-        self.var_offsets.is_empty()
+        self.indexed_offsets.is_empty()
     }
 
     /// Add a constant offset.
@@ -1198,159 +755,241 @@ impl DecomposedPointer {
 
     /// Add a field index to the path.
     pub fn add_field(&mut self, field_index: u32) {
-        self.field_path.push(field_index);
+        self.fields.push(field_index);
     }
 
-    /// Add a variable offset.
-    pub fn add_var_offset(&mut self, index: mir::Value, scale: u64) {
-        self.var_offsets.push(VarOffset { index, scale });
+    /// Add an indexed offset.
+    pub fn add_indexed_offset(&mut self, index: mir::Value, scale: u64) {
+        self.indexed_offsets.push(IndexedOffset { index, scale });
+    }
+
+    /// Return aliasing with another place under known access locations.
+    pub fn alias_with(
+        &self,
+        location: &MemoryLocation,
+        other: &MemoryPlace,
+        other_location: &MemoryLocation,
+    ) -> AliasResult {
+        // disjoint field paths cannot alias
+        if self.fields_are_disjoint_from(other) {
+            return AliasResult::NoAlias;
+        }
+
+        // constant byte ranges can be compared exactly
+        if self.is_constant_offset()
+            && other.is_constant_offset()
+            && let (Some(size), Some(other_size)) = (location.size, other_location.size)
+        {
+            let range = ByteRange::new(self.const_offset, size);
+            let other_range = ByteRange::new(other.const_offset, other_size);
+
+            return match range.relation(other_range) {
+                RangeRelation::Disjoint => AliasResult::NoAlias,
+                RangeRelation::Equal => AliasResult::MustAlias,
+                _ => AliasResult::PartialAlias,
+            };
+        }
+
+        // identical indexed offset values can still prove disjoint byte ranges
+        if self.indexed_offsets_are_disjoint_from(other, location.size, other_location.size) {
+            return AliasResult::NoAlias;
+        }
+
+        AliasResult::MayAlias
+    }
+
+    /// Return whether two field paths are statically disjoint.
+    fn fields_are_disjoint_from(&self, other: &MemoryPlace) -> bool {
+        if self.fields.is_empty() || other.fields.is_empty() {
+            return false;
+        }
+
+        self.fields
+            .iter()
+            .zip(other.fields.iter())
+            .any(|(left, right)| left != right)
+    }
+
+    /// Return whether two indexed ranges are statically disjoint.
+    fn indexed_offsets_are_disjoint_from(
+        &self,
+        other: &MemoryPlace,
+        size: Option<u64>,
+        other_size: Option<u64>,
+    ) -> bool {
+        if self.indexed_offsets.len() != 1 || other.indexed_offsets.len() != 1 {
+            return false;
+        }
+
+        let offset = &self.indexed_offsets[0];
+        let other_offset = &other.indexed_offsets[0];
+        if offset.scale != other_offset.scale {
+            return false;
+        }
+
+        let (Some(size), Some(other_size)) = (
+            size.or(Some(offset.scale)),
+            other_size.or(Some(other_offset.scale)),
+        ) else {
+            return false;
+        };
+
+        if offset.index != other_offset.index {
+            return false;
+        }
+
+        let range = ByteRange::new(self.const_offset, size);
+        let other_range = ByteRange::new(other.const_offset, other_size);
+        let relation = range.relation(other_range);
+
+        matches!(relation, RangeRelation::Disjoint)
     }
 }
 
-/// Builder for decomposing pointers by walking the def chain.
+/// Builder for resolving memory targets by walking the def chain.
 #[derive(Debug)]
 #[allow(dead_code)]
-pub struct PointerDecomposer<'a> {
-    /// Cached decomposition results.
-    cache: HashMap<mir::Value, DecomposedPointer>,
-    /// Map from values to their constant integer values.
-    constants: &'a HashMap<mir::Value, i64>,
-    /// Map from values to their defining instructions.
-    definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+pub struct MemoryTargetBuilder<'a> {
+    /// Cached target results.
+    cache: HashMap<mir::Value, MemoryTarget>,
+    /// Value definitions for reference provenance.
+    definitions: &'a ValueDefinitions,
     /// The MIR tree.
     tree: &'a mir::Tree,
-    /// Function parameters for noalias checking.
+    /// Function parameters for parameter targets.
     parameters: &'a [mir::FunctionParameter],
-    /// Whether strict borrow mode is enabled.
-    strict_borrow_mode: bool,
     /// Value type map for element sizing.
     value_types: &'a ValueTypeMap,
     /// Type context for layout sensitive operations.
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 }
 
-impl<'a> PointerDecomposer<'a> {
-    /// Create a new decomposer.
+impl<'a> MemoryTargetBuilder<'a> {
+    /// Create a new target builder.
     pub fn new(
-        constants: &'a HashMap<mir::Value, i64>,
-        definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+        definitions: &'a ValueDefinitions,
         tree: &'a mir::Tree,
         parameters: &'a [mir::FunctionParameter],
-        strict_borrow_mode: bool,
         value_types: &'a ValueTypeMap,
-        type_context: TypeContext,
+        target_layout: TargetLayout,
     ) -> Self {
         Self {
             cache: HashMap::new(),
-            constants,
             definitions,
             tree,
             parameters,
-            strict_borrow_mode,
             value_types,
-            type_context,
+            target_layout,
         }
     }
 
-    /// Decompose a pointer value.
-    pub fn decompose(&mut self, ptr: mir::Value) -> DecomposedPointer {
+    /// Resolve a reference value to a memory target.
+    pub fn target(&mut self, reference: mir::Value) -> MemoryTarget {
         // check cache
-        if let Some(cached) = self.cache.get(&ptr) {
+        if let Some(cached) = self.cache.get(&reference) {
             return cached.clone();
         }
 
-        let result = self.decompose_impl(ptr);
-        self.cache.insert(ptr, result.clone());
+        let result = self.target_impl(reference);
+        self.cache.insert(reference, result.clone());
         result
     }
 
-    /// Internal decomposition logic.
-    fn decompose_impl(&mut self, ptr: mir::Value) -> DecomposedPointer {
+    /// Resolve a reference value to a memory target.
+    fn target_impl(&mut self, reference: mir::Value) -> MemoryTarget {
         // check if it's a parameter
         for (index, parameter) in self.parameters.iter().enumerate() {
-            if Some(parameter.value) == Some(ptr) {
-                let noalias = self.is_parameter_noalias(parameter);
-                return DecomposedPointer::from_base(PointerBase::Parameter {
-                    index: index as u32,
-                    noalias,
-                });
+            if Some(parameter.value) == Some(reference) {
+                return self.parameter_target(index, parameter);
             }
         }
 
         // check if it's defined by an instruction
-        let Some(&instruction_id) = self.definitions.get(&ptr) else {
-            return DecomposedPointer::from_base(PointerBase::Unknown);
+        let Some(instruction_id) = self.definitions.instruction(reference) else {
+            return self.any_target(reference);
         };
 
         let inst = self.tree.get(instruction_id);
 
         match inst {
-            // allocations are base objects
+            // identify fresh allocation storage
             mir::Instruction::FrameAllocZeroed { destination, .. }
             | mir::Instruction::FrameAllocUninit { destination, .. }
-                if *destination == ptr =>
+                if *destination == reference =>
             {
-                DecomposedPointer::from_base(PointerBase::FrameAlloc(instruction_id))
+                MemoryTarget::Place(MemoryPlace::from_storage(Storage::FrameAllocation(
+                    instruction_id,
+                )))
             }
             mir::Instruction::NewZeroed { destination, .. }
             | mir::Instruction::NewUninit { destination, .. }
-                if *destination == ptr =>
+                if *destination == reference =>
             {
-                DecomposedPointer::from_base(PointerBase::HeapAlloc(instruction_id))
+                self.allocation_target(instruction_id, reference)
             }
             mir::Instruction::NewSliceZeroed { destination, .. }
             | mir::Instruction::NewSliceUninit { destination, .. }
-                if *destination == ptr =>
+                if *destination == reference =>
             {
-                DecomposedPointer::from_base(PointerBase::HeapAlloc(instruction_id))
+                self.allocation_target(instruction_id, reference)
             }
             mir::Instruction::NewComplete {
                 destination, value, ..
-            } if *destination == ptr => {
+            } if *destination == reference => {
                 let value = *value;
 
-                self.decompose(value)
+                self.target(value)
             }
 
-            // global address is a base
+            // identify static storage
             mir::Instruction::GlobalAddr {
                 destination,
                 global,
                 ..
-            } if *destination == ptr => DecomposedPointer::from_base(PointerBase::Global(*global)),
+            } if *destination == reference => {
+                MemoryTarget::Place(MemoryPlace::from_storage(Storage::Static(*global)))
+            }
             mir::Instruction::LocalAddr {
                 destination, local, ..
-            } if *destination == ptr => DecomposedPointer::from_base(PointerBase::Local(*local)),
+            } if *destination == reference => {
+                MemoryTarget::Place(MemoryPlace::from_storage(Storage::LocalSlot(*local)))
+            }
 
-            // field address: decompose base and add field offset
+            // extend precise target with a field path
             mir::Instruction::FieldAddr {
                 destination,
                 aggregate,
                 index,
                 ..
-            } if *destination == ptr => {
+            } if *destination == reference => {
                 let aggregate = *aggregate;
 
-                let mut base_decomp = self.decompose(aggregate);
-                base_decomp.add_field(*index);
-                base_decomp
+                let mut target = self.target(aggregate);
+                if let MemoryTarget::Place(place) = &mut target {
+                    place.add_field(*index);
+                }
+
+                target
             }
 
-            // element address: decompose base and add index offset
+            // extend precise target with an indexed offset
             mir::Instruction::ElementAddr {
                 destination,
                 array,
                 index,
                 ..
-            } if *destination == ptr => {
+            } if *destination == reference => {
                 let array = *array;
                 let index = *index;
 
-                let mut base_decomp = self.decompose(array);
+                let mut target = self.target(array);
 
                 let scale = self.element_size(array).unwrap_or(1).max(1);
-                base_decomp.add_var_offset(index, scale);
-                base_decomp
+                if let MemoryTarget::Place(place) = &mut target {
+                    place.add_indexed_offset(index, scale);
+                }
+
+                target
             }
 
             // casts preserve provenance
@@ -1358,40 +997,82 @@ impl<'a> PointerDecomposer<'a> {
                 destination,
                 argument,
                 ..
-            } if *destination == ptr => {
+            } if *destination == reference => {
                 let argument = *argument;
 
-                self.decompose(argument)
+                self.target(argument)
             }
 
-            // calls return unknown pointers
-            mir::Instruction::Call { destination, .. }
-            | mir::Instruction::CallVirtual { destination, .. }
-            | mir::Instruction::CallDynamic { destination, .. }
-            | mir::Instruction::CallIndirect { destination, .. }
-                if *destination == Some(ptr) =>
-            {
-                DecomposedPointer::from_base(PointerBase::CallResult(instruction_id))
-            }
-
-            // loads produce unknown pointers
-            mir::Instruction::Load { destination, .. } if *destination == ptr => {
-                DecomposedPointer::from_base(PointerBase::Unknown)
-            }
-
-            // anything else is unknown
-            _ => DecomposedPointer::from_base(PointerBase::Unknown),
+            // anything else is imprecise
+            _ => self.any_target(reference),
         }
     }
 
-    /// Check if a parameter has noalias semantics.
-    fn is_parameter_noalias(&self, parameter: &mir::FunctionParameter) -> bool {
-        // in strict borrow mode, exclusive parameters are noalias
-        if self.strict_borrow_mode {
-            let ty = self.tree.get(parameter.ty);
-            ty.is_writable_borrowed_reference()
-        } else {
-            false
+    /// Return a target for a parameter reference.
+    fn parameter_target(&self, index: usize, parameter: &mir::FunctionParameter) -> MemoryTarget {
+        let ty = self.tree.get(parameter.ty);
+
+        match ty {
+            mir::Type::Reference {
+                kind,
+                space,
+                access,
+                ..
+            }
+            | mir::Type::Slice {
+                kind,
+                space,
+                access,
+                ..
+            }
+            | mir::Type::TensorView {
+                kind,
+                space,
+                access,
+                ..
+            } => MemoryTarget::Place(MemoryPlace::from_storage(Storage::Parameter {
+                index: index as u32,
+                space: space.clone(),
+                kind: *kind,
+                access: *access,
+            })),
+            _ => MemoryTarget::any(),
+        }
+    }
+
+    /// Return a target for a heap allocation.
+    fn allocation_target(
+        &self,
+        instruction: mir::LocalNodeId<mir::Instruction>,
+        reference: mir::Value,
+    ) -> MemoryTarget {
+        let ty_id = self.value_type(reference);
+        let ty = self.tree.get(ty_id);
+
+        match ty {
+            mir::Type::Reference { kind, space, .. }
+            | mir::Type::Slice { kind, space, .. }
+            | mir::Type::TensorView { kind, space, .. } => {
+                MemoryTarget::Place(MemoryPlace::from_storage(Storage::Allocation {
+                    instruction,
+                    space: space.clone(),
+                    kind: *kind,
+                }))
+            }
+            _ => MemoryTarget::any(),
+        }
+    }
+
+    /// Return an imprecise target bounded by a reference type when possible.
+    fn any_target(&self, reference: mir::Value) -> MemoryTarget {
+        let ty_id = self.value_type(reference);
+        let ty = self.tree.get(ty_id);
+
+        match ty {
+            mir::Type::Reference { space, .. }
+            | mir::Type::Slice { space, .. }
+            | mir::Type::TensorView { space, .. } => MemoryTarget::any_space(space.clone()),
+            _ => MemoryTarget::any(),
         }
     }
 
@@ -1419,25 +1100,71 @@ impl<'a> PointerDecomposer<'a> {
         };
 
         let key = TypeKey::from_type(element_id, self.tree);
-        key.byte_size(self.type_context.pointer_width_bits)
+        key.byte_size(self.target_layout.pointer_width_bits)
     }
 }
 
-/// Check if two byte ranges overlap.
-///
-/// Returns true if [off1, off1+size1) overlaps with [off2, off2+size2).
-pub fn ranges_overlap(off1: i64, size1: u64, off2: i64, size2: u64) -> bool {
-    let end1 = off1.saturating_add(size1 as i64);
-    let end2 = off2.saturating_add(size2 as i64);
-    !(end1 <= off2 || end2 <= off1)
+/// One half-open byte range.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ByteRange {
+    /// Start offset in bytes.
+    pub offset: i64,
+    /// Size in bytes.
+    pub size: u64,
 }
 
-/// Check if two byte ranges are exactly equal.
-pub fn ranges_equal(off1: i64, size1: u64, off2: i64, size2: u64) -> bool {
-    off1 == off2 && size1 == size2
+impl ByteRange {
+    /// Create a byte range.
+    pub fn new(offset: i64, size: u64) -> Self {
+        Self { offset, size }
+    }
+
+    /// Return the exclusive end offset.
+    pub fn end(self) -> i64 {
+        self.offset.saturating_add(self.size as i64)
+    }
+
+    /// Return whether this range overlaps another range.
+    pub fn overlaps(self, other: ByteRange) -> bool {
+        let end = self.end();
+        let other_end = other.end();
+
+        !(end <= other.offset || other_end <= self.offset)
+    }
+
+    /// Return whether this range exactly equals another range.
+    pub fn equals(self, other: ByteRange) -> bool {
+        self.offset == other.offset && self.size == other.size
+    }
+
+    /// Return the relationship between this range and another range.
+    pub fn relation(self, other: ByteRange) -> RangeRelation {
+        let end = self.end();
+        let other_end = other.end();
+
+        // disjoint
+        if end <= other.offset || other_end <= self.offset {
+            return RangeRelation::Disjoint;
+        }
+
+        // equal
+        if self.equals(other) {
+            return RangeRelation::Equal;
+        }
+
+        // containment
+        if self.offset <= other.offset && end >= other_end {
+            return RangeRelation::Contains;
+        }
+        if other.offset <= self.offset && other_end >= end {
+            return RangeRelation::ContainedBy;
+        }
+
+        RangeRelation::Overlaps
+    }
 }
 
-/// Compute the relationship between two ranges.
+/// Relationship between two byte ranges.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RangeRelation {
     /// Ranges are disjoint.
@@ -1452,32 +1179,6 @@ pub enum RangeRelation {
     Overlaps,
 }
 
-/// Determine the relationship between two byte ranges.
-pub fn range_relation(off1: i64, size1: u64, off2: i64, size2: u64) -> RangeRelation {
-    let end1 = off1.saturating_add(size1 as i64);
-    let end2 = off2.saturating_add(size2 as i64);
-
-    // disjoint
-    if end1 <= off2 || end2 <= off1 {
-        return RangeRelation::Disjoint;
-    }
-
-    // equal
-    if off1 == off2 && size1 == size2 {
-        return RangeRelation::Equal;
-    }
-
-    // containment
-    if off1 <= off2 && end1 >= end2 {
-        return RangeRelation::Contains;
-    }
-    if off2 <= off1 && end2 >= end1 {
-        return RangeRelation::ContainedBy;
-    }
-
-    RangeRelation::Overlaps
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1485,70 +1186,94 @@ mod tests {
     /// Ranges that overlap are detected as overlapping.
     #[test]
     fn test_ranges_overlap() {
-        assert!(!ranges_overlap(0, 4, 10, 4));
-        assert!(!ranges_overlap(10, 4, 0, 4));
+        assert!(!ByteRange::new(0, 4).overlaps(ByteRange::new(10, 4)));
+        assert!(!ByteRange::new(10, 4).overlaps(ByteRange::new(0, 4)));
 
-        assert!(!ranges_overlap(0, 4, 4, 4));
+        assert!(!ByteRange::new(0, 4).overlaps(ByteRange::new(4, 4)));
 
-        assert!(ranges_overlap(0, 8, 4, 8));
-        assert!(ranges_overlap(4, 8, 0, 8));
+        assert!(ByteRange::new(0, 8).overlaps(ByteRange::new(4, 8)));
+        assert!(ByteRange::new(4, 8).overlaps(ByteRange::new(0, 8)));
 
-        assert!(ranges_overlap(0, 16, 4, 4));
-        assert!(ranges_overlap(4, 4, 0, 16));
+        assert!(ByteRange::new(0, 16).overlaps(ByteRange::new(4, 4)));
+        assert!(ByteRange::new(4, 4).overlaps(ByteRange::new(0, 16)));
 
-        assert!(ranges_overlap(0, 8, 0, 8));
+        assert!(ByteRange::new(0, 8).overlaps(ByteRange::new(0, 8)));
     }
 
     /// Range relationships return the expected classification.
     #[test]
     fn test_range_relation() {
-        assert_eq!(range_relation(0, 4, 10, 4), RangeRelation::Disjoint);
-        assert_eq!(range_relation(0, 8, 0, 8), RangeRelation::Equal);
-        assert_eq!(range_relation(0, 16, 4, 4), RangeRelation::Contains);
-        assert_eq!(range_relation(4, 4, 0, 16), RangeRelation::ContainedBy);
-        assert_eq!(range_relation(0, 8, 4, 8), RangeRelation::Overlaps);
+        assert_eq!(
+            ByteRange::new(0, 4).relation(ByteRange::new(10, 4)),
+            RangeRelation::Disjoint
+        );
+        assert_eq!(
+            ByteRange::new(0, 8).relation(ByteRange::new(0, 8)),
+            RangeRelation::Equal
+        );
+        assert_eq!(
+            ByteRange::new(0, 16).relation(ByteRange::new(4, 4)),
+            RangeRelation::Contains
+        );
+        assert_eq!(
+            ByteRange::new(4, 4).relation(ByteRange::new(0, 16)),
+            RangeRelation::ContainedBy
+        );
+        assert_eq!(
+            ByteRange::new(0, 8).relation(ByteRange::new(4, 8)),
+            RangeRelation::Overlaps
+        );
     }
 
-    /// Pointer bases report identification status.
+    /// Storage roots expose their memory spaces.
     #[test]
-    fn test_pointer_base_is_identified() {
-        let stack = PointerBase::FrameAlloc(mir::LocalNodeId::new(0));
-        let param = PointerBase::Parameter {
-            index: 0,
-            noalias: false,
+    fn test_storage_spaces() {
+        let tree = mir::Tree::new();
+        let stack = Storage::FrameAllocation(mir::LocalNodeId::new(0));
+        let local = Storage::LocalSlot(mir::LocalNodeId::new(0));
+        let allocation = Storage::Allocation {
+            instruction: mir::LocalNodeId::new(1),
+            space: mir::Space::Shared,
+            kind: mir::ReferenceKind::Managed,
         };
-        let unknown = PointerBase::Unknown;
+        let parameter = Storage::Parameter {
+            index: 0,
+            space: mir::Space::Local,
+            kind: mir::ReferenceKind::Borrowed,
+            access: mir::Access::Mutable,
+        };
 
-        assert!(stack.is_identified());
-        assert!(!param.is_identified());
-        assert!(!unknown.is_identified());
+        assert_eq!(stack.spaces(&tree), mir::SpaceSet::FRAME);
+        assert_eq!(local.spaces(&tree), mir::SpaceSet::FRAME);
+        assert_eq!(allocation.spaces(&tree), mir::SpaceSet::SHARED);
+        assert_eq!(parameter.spaces(&tree), mir::SpaceSet::LOCAL);
     }
 
-    /// Decomposed pointers track constant and variable offsets.
+    /// Memory places track constant and indexed offsets.
     #[test]
-    fn test_decomposed_pointer_const_offset() {
-        let mut ptr =
-            DecomposedPointer::from_base(PointerBase::FrameAlloc(mir::LocalNodeId::new(0)));
-        assert!(ptr.is_constant_offset());
+    fn test_memory_place_const_offset() {
+        let mut place =
+            MemoryPlace::from_storage(Storage::FrameAllocation(mir::LocalNodeId::new(0)));
+        assert!(place.is_constant_offset());
 
-        ptr.add_const_offset(16);
-        assert!(ptr.is_constant_offset());
-        assert_eq!(ptr.const_offset, 16);
+        place.add_const_offset(16);
+        assert!(place.is_constant_offset());
+        assert_eq!(place.const_offset, 16);
 
-        ptr.add_var_offset(mir::Value::new(0), 4);
-        assert!(!ptr.is_constant_offset());
+        place.add_indexed_offset(mir::Value::new(0), 4);
+        assert!(!place.is_constant_offset());
     }
 
     /// Memory location constructors fill the expected fields.
     #[test]
     fn test_memory_location_constructors() {
-        let loc1 = MemoryLocation::from_ptr(mir::Value::new(0));
-        assert_eq!(loc1.ptr, mir::Value::new(0));
+        let loc1 = MemoryLocation::from_reference(mir::Value::new(0));
+        assert_eq!(loc1.reference, mir::Value::new(0));
         assert!(loc1.size.is_none());
         assert!(loc1.access_type.is_none());
 
         let loc2 = MemoryLocation::with_size(mir::Value::new(1), 8);
-        assert_eq!(loc2.ptr, mir::Value::new(1));
+        assert_eq!(loc2.reference, mir::Value::new(1));
         assert_eq!(loc2.size, Some(8));
         assert!(loc2.access_type.is_none());
 
@@ -1557,169 +1282,182 @@ mod tests {
             signed: true,
         };
         let loc3 = MemoryLocation::with_type(mir::Value::new(2), ty.clone());
-        assert_eq!(loc3.ptr, mir::Value::new(2));
+        assert_eq!(loc3.reference, mir::Value::new(2));
         assert!(loc3.size.is_none());
         assert_eq!(loc3.access_type, Some(ty.clone()));
 
         let loc4 = MemoryLocation::new(mir::Value::new(3), Some(4), Some(ty.clone()), None, None);
-        assert_eq!(loc4.ptr, mir::Value::new(3));
+        assert_eq!(loc4.reference, mir::Value::new(3));
         assert_eq!(loc4.size, Some(4));
         assert_eq!(loc4.access_type, Some(ty));
     }
 
-    /// Noalias parameters are reported as noalias.
+    /// Exclusive parameters are reported as exclusive.
     #[test]
-    fn test_pointer_base_is_noalias_param() {
-        let noalias_param = PointerBase::Parameter {
+    fn test_storage_is_exclusive_parameter() {
+        let exclusive_parameter = Storage::Parameter {
             index: 0,
-            noalias: true,
+            space: mir::Space::Local,
+            kind: mir::ReferenceKind::Borrowed,
+            access: mir::Access::Exclusive,
         };
-        let regular_param = PointerBase::Parameter {
+        let mutable_parameter = Storage::Parameter {
             index: 1,
-            noalias: false,
+            space: mir::Space::Local,
+            kind: mir::ReferenceKind::Borrowed,
+            access: mir::Access::Mutable,
         };
-        let stack = PointerBase::FrameAlloc(mir::LocalNodeId::new(0));
+        let stack = Storage::FrameAllocation(mir::LocalNodeId::new(0));
 
-        assert!(noalias_param.is_noalias_param());
-        assert!(!regular_param.is_noalias_param());
-        assert!(!stack.is_noalias_param());
+        assert!(exclusive_parameter.is_exclusive_parameter());
+        assert!(!mutable_parameter.is_exclusive_parameter());
+        assert!(!stack.is_exclusive_parameter());
     }
 
-    /// Local allocation bases are detected accurately.
+    /// Imprecise memory targets carry space information.
     #[test]
-    fn test_pointer_base_is_local_alloc() {
-        let stack = PointerBase::FrameAlloc(mir::LocalNodeId::new(0));
-        let heap = PointerBase::HeapAlloc(mir::LocalNodeId::new(1));
-        let global = PointerBase::Global(mir::LocalNodeId::new(0));
-        let param = PointerBase::Parameter {
-            index: 0,
-            noalias: false,
-        };
-        let call = PointerBase::CallResult(mir::LocalNodeId::new(3));
-        let unknown = PointerBase::Unknown;
+    fn test_memory_target_any_spaces() {
+        let tree = mir::Tree::new();
+        let target = MemoryTarget::any_space(mir::Space::Shared);
 
-        assert!(stack.is_local_alloc());
-        assert!(heap.is_local_alloc());
-        assert!(!global.is_local_alloc());
-        assert!(!param.is_local_alloc());
-        assert!(!call.is_local_alloc());
-        assert!(!unknown.is_local_alloc());
+        assert_eq!(target.spaces(&tree), mir::SpaceSet::SHARED);
     }
 
-    /// Identified pointer bases report the expected status.
+    /// Precise memory targets expose their storage spaces.
     #[test]
-    fn test_pointer_base_all_variants_identified() {
-        let stack = PointerBase::FrameAlloc(mir::LocalNodeId::new(0));
-        let heap = PointerBase::HeapAlloc(mir::LocalNodeId::new(1));
-        let global = PointerBase::Global(mir::LocalNodeId::new(0));
+    fn test_memory_target_place_spaces() {
+        let tree = mir::Tree::new();
+        let place = MemoryPlace::from_storage(Storage::Allocation {
+            instruction: mir::LocalNodeId::new(0),
+            space: mir::Space::Local,
+            kind: mir::ReferenceKind::Managed,
+        });
+        let target = MemoryTarget::Place(place);
 
-        assert!(stack.is_identified());
-        assert!(heap.is_identified());
-        assert!(global.is_identified());
-
-        let param = PointerBase::Parameter {
-            index: 0,
-            noalias: false,
-        };
-        let call = PointerBase::CallResult(mir::LocalNodeId::new(3));
-        let unknown = PointerBase::Unknown;
-
-        assert!(!param.is_identified());
-        assert!(!call.is_identified());
-        assert!(!unknown.is_identified());
+        assert_eq!(target.spaces(&tree), mir::SpaceSet::LOCAL);
     }
 
-    /// Field paths are captured by decomposed pointers.
+    /// Field paths are captured by memory places.
     #[test]
-    fn test_decomposed_pointer_field_path() {
-        let mut ptr =
-            DecomposedPointer::from_base(PointerBase::FrameAlloc(mir::LocalNodeId::new(0)));
-        assert!(ptr.field_path.is_empty());
+    fn test_memory_place_fields() {
+        let mut place =
+            MemoryPlace::from_storage(Storage::FrameAllocation(mir::LocalNodeId::new(0)));
+        assert!(place.fields.is_empty());
 
-        ptr.add_field(0);
-        assert_eq!(ptr.field_path, vec![0]);
+        place.add_field(0);
+        assert_eq!(place.fields, vec![0]);
 
-        ptr.add_field(2);
-        assert_eq!(ptr.field_path, vec![0, 2]);
+        place.add_field(2);
+        assert_eq!(place.fields, vec![0, 2]);
 
-        assert!(ptr.is_constant_offset());
+        assert!(place.is_constant_offset());
     }
 
-    /// Multiple variable offsets are tracked.
+    /// Multiple indexed offsets are tracked.
     #[test]
-    fn test_decomposed_pointer_multiple_var_offsets() {
-        let mut ptr =
-            DecomposedPointer::from_base(PointerBase::HeapAlloc(mir::LocalNodeId::new(0)));
+    fn test_memory_place_multiple_indexed_offsets() {
+        let mut place = MemoryPlace::from_storage(Storage::Allocation {
+            instruction: mir::LocalNodeId::new(0),
+            space: mir::Space::Local,
+            kind: mir::ReferenceKind::Unique,
+        });
 
-        ptr.add_var_offset(mir::Value::new(1), 4);
-        ptr.add_var_offset(mir::Value::new(2), 8);
+        place.add_indexed_offset(mir::Value::new(1), 4);
+        place.add_indexed_offset(mir::Value::new(2), 8);
 
-        assert!(!ptr.is_constant_offset());
-        assert_eq!(ptr.var_offsets.len(), 2);
-        assert_eq!(ptr.var_offsets[0].index, mir::Value::new(1));
-        assert_eq!(ptr.var_offsets[0].scale, 4);
-        assert_eq!(ptr.var_offsets[1].index, mir::Value::new(2));
-        assert_eq!(ptr.var_offsets[1].scale, 8);
+        assert!(!place.is_constant_offset());
+        assert_eq!(place.indexed_offsets.len(), 2);
+        assert_eq!(place.indexed_offsets[0].index, mir::Value::new(1));
+        assert_eq!(place.indexed_offsets[0].scale, 4);
+        assert_eq!(place.indexed_offsets[1].index, mir::Value::new(2));
+        assert_eq!(place.indexed_offsets[1].scale, 8);
     }
 
     /// Constant offsets accumulate.
     #[test]
-    fn test_decomposed_pointer_const_offset_accumulation() {
-        let mut ptr = DecomposedPointer::from_base(PointerBase::Global(mir::LocalNodeId::new(0)));
+    fn test_memory_place_const_offset_accumulation() {
+        let mut place = MemoryPlace::from_storage(Storage::Static(mir::LocalNodeId::new(0)));
 
-        ptr.add_const_offset(8);
-        ptr.add_const_offset(16);
+        place.add_const_offset(8);
+        place.add_const_offset(16);
 
-        assert_eq!(ptr.const_offset, 24);
+        assert_eq!(place.const_offset, 24);
     }
 
     /// Negative offsets are handled consistently.
     #[test]
-    fn test_decomposed_pointer_negative_offset() {
-        let mut ptr =
-            DecomposedPointer::from_base(PointerBase::FrameAlloc(mir::LocalNodeId::new(0)));
+    fn test_memory_place_negative_offset() {
+        let mut place =
+            MemoryPlace::from_storage(Storage::FrameAllocation(mir::LocalNodeId::new(0)));
 
-        ptr.add_const_offset(-8);
-        assert_eq!(ptr.const_offset, -8);
+        place.add_const_offset(-8);
+        assert_eq!(place.const_offset, -8);
 
-        ptr.add_const_offset(4);
-        assert_eq!(ptr.const_offset, -4);
+        place.add_const_offset(4);
+        assert_eq!(place.const_offset, -4);
     }
 
     /// Equal ranges are detected.
     #[test]
     fn test_ranges_equal() {
-        assert!(ranges_equal(0, 4, 0, 4));
-        assert!(!ranges_equal(0, 4, 0, 8));
-        assert!(!ranges_equal(0, 4, 4, 4));
-        assert!(!ranges_equal(0, 8, 4, 8));
+        assert!(ByteRange::new(0, 4).equals(ByteRange::new(0, 4)));
+        assert!(!ByteRange::new(0, 4).equals(ByteRange::new(0, 8)));
+        assert!(!ByteRange::new(0, 4).equals(ByteRange::new(4, 4)));
+        assert!(!ByteRange::new(0, 8).equals(ByteRange::new(4, 8)));
     }
 
     /// Adjacent ranges are disjoint.
     #[test]
     fn test_range_relation_adjacent() {
-        assert_eq!(range_relation(0, 4, 4, 4), RangeRelation::Disjoint);
-        assert_eq!(range_relation(4, 4, 0, 4), RangeRelation::Disjoint);
+        assert_eq!(
+            ByteRange::new(0, 4).relation(ByteRange::new(4, 4)),
+            RangeRelation::Disjoint
+        );
+        assert_eq!(
+            ByteRange::new(4, 4).relation(ByteRange::new(0, 4)),
+            RangeRelation::Disjoint
+        );
     }
 
     /// Partial overlaps are classified correctly.
     #[test]
     fn test_range_relation_partial_overlap() {
-        assert_eq!(range_relation(0, 8, 4, 8), RangeRelation::Overlaps);
-        assert_eq!(range_relation(4, 8, 0, 8), RangeRelation::Overlaps);
+        assert_eq!(
+            ByteRange::new(0, 8).relation(ByteRange::new(4, 8)),
+            RangeRelation::Overlaps
+        );
+        assert_eq!(
+            ByteRange::new(4, 8).relation(ByteRange::new(0, 8)),
+            RangeRelation::Overlaps
+        );
     }
 
-    /// Zero sized ranges are classified conservatively.
+    /// Zero sized ranges use half open range semantics.
     #[test]
     fn test_range_relation_zero_size() {
-        assert_eq!(range_relation(0, 0, 0, 0), RangeRelation::Disjoint);
+        assert_eq!(
+            ByteRange::new(0, 0).relation(ByteRange::new(0, 0)),
+            RangeRelation::Disjoint
+        );
 
-        assert_eq!(range_relation(0, 0, 0, 4), RangeRelation::Disjoint);
-        assert_eq!(range_relation(0, 4, 0, 0), RangeRelation::Disjoint);
+        assert_eq!(
+            ByteRange::new(0, 0).relation(ByteRange::new(0, 4)),
+            RangeRelation::Disjoint
+        );
+        assert_eq!(
+            ByteRange::new(0, 4).relation(ByteRange::new(0, 0)),
+            RangeRelation::Disjoint
+        );
 
-        assert_eq!(range_relation(2, 0, 0, 8), RangeRelation::ContainedBy);
+        assert_eq!(
+            ByteRange::new(2, 0).relation(ByteRange::new(0, 8)),
+            RangeRelation::ContainedBy
+        );
 
-        // zero-size range after the end: disjoint
-        assert_eq!(range_relation(10, 0, 0, 8), RangeRelation::Disjoint);
+        // handle zero size after the end
+        assert_eq!(
+            ByteRange::new(10, 0).relation(ByteRange::new(0, 8)),
+            RangeRelation::Disjoint
+        );
     }
 }

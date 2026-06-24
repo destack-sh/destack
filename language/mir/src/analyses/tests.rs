@@ -212,18 +212,18 @@ impl TestProgram {
     }
 
     /// Attach pointer access metadata to an instruction.
-    pub(crate) fn insert_pointer_access(
+    pub(crate) fn insert_reference_access(
         &mut self,
         instruction: LocalNodeId<mir::Instruction>,
         kind: mir::MemoryAccessKind,
         pointer: mir::Value,
         size: Option<u64>,
     ) {
-        self.insert_pointer_access_with_options(instruction, kind, pointer, size, false, None);
+        self.insert_reference_access_with_options(instruction, kind, pointer, size, false, None);
     }
 
     /// Attach pointer access metadata to an instruction with flags.
-    pub(crate) fn insert_pointer_access_with_options(
+    pub(crate) fn insert_reference_access_with_options(
         &mut self,
         instruction: LocalNodeId<mir::Instruction>,
         kind: mir::MemoryAccessKind,
@@ -235,7 +235,7 @@ impl TestProgram {
         // build the access metadata
         let access = mir::MemoryAccessMetadata {
             kind,
-            target: mir::MemoryAccessTarget::Pointer(pointer),
+            target: mir::MemoryAccessTarget::Reference(pointer),
             size,
             alignment: None,
             is_volatile,

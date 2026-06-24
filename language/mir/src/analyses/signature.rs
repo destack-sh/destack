@@ -34,7 +34,7 @@ impl SignatureKey {
         Some(Self { parameters, result })
     }
 
-    /// Build a signature key from a function pointer type.
+    /// Build a signature key from a function reference type.
     pub fn from_signature_type(tree: &mir::Tree, signature: &mir::TypeId) -> Option<Self> {
         // resolve the function pointer signature
         let (_, parameters, result) = tree.get(*signature).function_signature_parts()?;
@@ -54,6 +54,26 @@ impl SignatureKey {
         let result = TypeKey::from_type_id(&result, tree);
 
         Some(Self { parameters, result })
+    }
+
+    /// Insert a function pointer signature type for a function.
+    pub fn insert_function_type(
+        function_id: mir::LocalNodeId<mir::Function>,
+        tree: &mut mir::Tree,
+    ) -> mir::LocalNodeId<mir::Type> {
+        let function = tree.get(function_id);
+        let lifetimes = function.lifetimes.clone();
+        let parameters = function
+            .parameters
+            .iter()
+            .map(mir::FunctionParameter::signature_parameter)
+            .collect();
+
+        tree.insert_type(mir::Type::FunctionSignature {
+            lifetimes,
+            parameters,
+            result: function.return_type,
+        })
     }
 }
 
@@ -144,63 +164,40 @@ impl ParameterRemap {
 
         Some(mir::AllocationSize::new(stride_index, element_count_index))
     }
-}
 
-/// Build a function pointer signature type for a function.
-pub fn build_signature_type(
-    function_id: mir::LocalNodeId<mir::Function>,
-    tree: &mut mir::Tree,
-) -> mir::LocalNodeId<mir::Type> {
-    // collect parameter types from the function signature
-    let function = tree.get(function_id);
-    let lifetimes = function.lifetimes.clone();
-    let parameters = function
-        .parameters
-        .iter()
-        .map(mir::FunctionParameter::signature_parameter)
-        .collect();
+    /// Collect parameter indices that must be preserved by metadata.
+    pub fn required_indices(
+        function: &mir::Function,
+        metadata: Option<&mir::FunctionMetadata>,
+        tree: &mir::Tree,
+    ) -> HashSet<usize> {
+        let mut required = HashSet::new();
 
-    // insert the function pointer type
-    tree.insert_type(mir::Type::FunctionSignature {
-        lifetimes,
-        parameters,
-        result: function.return_type,
-    })
-}
-
-/// Collect parameter indices that must be preserved by metadata.
-pub fn required_parameter_indices(
-    function: &mir::Function,
-    metadata: Option<&mir::FunctionMetadata>,
-    tree: &mir::Tree,
-) -> HashSet<usize> {
-    // gather required indices from metadata
-    let mut required = HashSet::new();
-
-    // include return type lifetime slots
-    if let Some(lifetime) = tree.type_lifetime(function.return_type) {
-        for index in lifetime.slot_indices() {
-            required.insert(index as usize);
-        }
-    }
-
-    // include caller obligation lifetime slots
-    for parameter in &function.parameters {
-        for obligation in &parameter.obligations {
-            let mir::BorrowObligation::SuspensionStable { lifetime } = obligation;
+        // include return type lifetime slots
+        if let Some(lifetime) = tree.type_lifetime(function.return_type) {
             for index in lifetime.slot_indices() {
                 required.insert(index as usize);
             }
         }
-    }
 
-    // include allocation size indices
-    if let Some(allocation_size) = metadata.and_then(|metadata| metadata.allocation_size) {
-        required.insert(allocation_size.stride_index as usize);
-        if let Some(count_index) = allocation_size.element_count_index {
-            required.insert(count_index as usize);
+        // include caller obligation lifetime slots
+        for parameter in &function.parameters {
+            for obligation in &parameter.obligations {
+                let mir::BorrowObligation::SuspensionStable { lifetime } = obligation;
+                for index in lifetime.slot_indices() {
+                    required.insert(index as usize);
+                }
+            }
         }
-    }
 
-    required
+        // include allocation size indices
+        if let Some(allocation_size) = metadata.and_then(|metadata| metadata.allocation_size) {
+            required.insert(allocation_size.stride_index as usize);
+            if let Some(count_index) = allocation_size.element_count_index {
+                required.insert(count_index as usize);
+            }
+        }
+
+        required
+    }
 }

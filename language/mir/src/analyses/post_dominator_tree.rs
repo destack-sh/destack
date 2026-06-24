@@ -1,17 +1,16 @@
 use std::collections::{HashMap, HashSet};
 
-use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation};
 use crate::{Block, ControlFlowGraph, Function, LocalNodeId, Tree};
 
 /// Postdominator tree for one function.
 #[derive(Debug, Clone)]
 pub struct PostDominatorTree {
-    /// Immediate postdominator for each block.
-    immediate_postdominators: HashMap<LocalNodeId<Block>, LocalNodeId<Block>>,
-    /// Preorder numbers for fast postdominance queries.
-    preorder: HashMap<LocalNodeId<Block>, u32>,
-    /// Maximum preorder number in each subtree.
-    preorder_max: HashMap<LocalNodeId<Block>, u32>,
+    /// Immediate postdominator indexed by block id.
+    immediate_postdominators: Vec<Option<LocalNodeId<Block>>>,
+    /// Preorder numbers indexed by block id.
+    preorder: Vec<Option<u32>>,
+    /// Maximum preorder number in each subtree indexed by block id.
+    preorder_max: Vec<Option<u32>>,
 }
 
 impl PostDominatorTree {
@@ -19,9 +18,9 @@ impl PostDominatorTree {
     pub fn build(function: &Function, tree: &Tree, cfg: &ControlFlowGraph) -> Self {
         let Some(entry) = function.entry else {
             return Self {
-                immediate_postdominators: HashMap::new(),
-                preorder: HashMap::new(),
-                preorder_max: HashMap::new(),
+                immediate_postdominators: Vec::new(),
+                preorder: Vec::new(),
+                preorder_max: Vec::new(),
             };
         };
 
@@ -62,7 +61,8 @@ impl PostDominatorTree {
             predecessors[exit_index].push(virtual_root);
         }
 
-        let mut immediate_postdominators = HashMap::new();
+        let block_count = function.block_capacity();
+        let mut immediate_postdominators = vec![None; block_count];
 
         // postdominator edges
         if has_exits {
@@ -79,7 +79,7 @@ impl PostDominatorTree {
                     }
 
                     let ipdom_block = function.blocks[ipdom_index];
-                    immediate_postdominators.insert(block, ipdom_block);
+                    immediate_postdominators[block.id as usize] = Some(ipdom_block);
                 }
             }
         }
@@ -96,7 +96,10 @@ impl PostDominatorTree {
 
     /// Return the immediate postdominator of one block.
     pub fn immediate_postdominator(&self, block: LocalNodeId<Block>) -> Option<LocalNodeId<Block>> {
-        self.immediate_postdominators.get(&block).copied()
+        self.immediate_postdominators
+            .get(block.id as usize)
+            .copied()
+            .flatten()
     }
 
     /// Return whether one block postdominates another.
@@ -105,13 +108,13 @@ impl PostDominatorTree {
             return true;
         }
 
-        let Some(a_pre) = self.preorder.get(&a).copied() else {
+        let Some(a_pre) = self.preorder.get(a.id as usize).copied().flatten() else {
             return false;
         };
-        let Some(b_pre) = self.preorder.get(&b).copied() else {
+        let Some(b_pre) = self.preorder.get(b.id as usize).copied().flatten() else {
             return false;
         };
-        let Some(a_max) = self.preorder_max.get(&a).copied() else {
+        let Some(a_max) = self.preorder_max.get(a.id as usize).copied().flatten() else {
             return false;
         };
 
@@ -138,33 +141,27 @@ impl PostDominatorTree {
     /// Compute preorder ranges for the postdominator forest.
     fn compute_preorder(
         blocks: &[LocalNodeId<Block>],
-        immediate_postdominators: &HashMap<LocalNodeId<Block>, LocalNodeId<Block>>,
+        immediate_postdominators: &[Option<LocalNodeId<Block>>],
         entry: LocalNodeId<Block>,
-    ) -> (
-        HashMap<LocalNodeId<Block>, u32>,
-        HashMap<LocalNodeId<Block>, u32>,
-    ) {
-        let mut children = HashMap::new();
-
-        // child lists
-        for &block in blocks {
-            children.insert(block, Vec::new());
-        }
+    ) -> (Vec<Option<u32>>, Vec<Option<u32>>) {
+        let block_count = blocks
+            .iter()
+            .map(|block| block.id as usize + 1)
+            .max()
+            .unwrap_or(0);
+        let mut children = vec![Vec::new(); block_count];
 
         // postdominator edges
-        for (&block, &ipdom) in immediate_postdominators {
-            children
-                .get_mut(&ipdom)
-                .unwrap_or_else(|| {
-                    unreachable!("missing postdominator children for block: {ipdom:?}")
-                })
-                .push(block);
+        for &block in blocks {
+            if let Some(ipdom) = immediate_postdominators[block.id as usize] {
+                children[ipdom.id as usize].push(block);
+            }
         }
 
         let mut roots: Vec<_> = blocks
             .iter()
             .copied()
-            .filter(|block| !immediate_postdominators.contains_key(block))
+            .filter(|block| immediate_postdominators[block.id as usize].is_none())
             .collect();
         roots.sort();
 
@@ -173,13 +170,13 @@ impl PostDominatorTree {
             roots.push(entry);
         }
 
-        let mut preorder = HashMap::new();
-        let mut preorder_max = HashMap::new();
+        let mut preorder = vec![None; block_count];
+        let mut preorder_max = vec![None; block_count];
         let mut counter = 0u32;
 
         // forest walk
         for root in roots {
-            if preorder.contains_key(&root) {
+            if preorder[root.id as usize].is_some() {
                 continue;
             }
 
@@ -198,40 +195,25 @@ impl PostDominatorTree {
     /// Fill preorder ranges for one postdominator subtree.
     fn fill_preorder(
         block: LocalNodeId<Block>,
-        children: &HashMap<LocalNodeId<Block>, Vec<LocalNodeId<Block>>>,
-        preorder: &mut HashMap<LocalNodeId<Block>, u32>,
-        preorder_max: &mut HashMap<LocalNodeId<Block>, u32>,
+        children: &[Vec<LocalNodeId<Block>>],
+        preorder: &mut [Option<u32>],
+        preorder_max: &mut [Option<u32>],
         counter: &mut u32,
     ) {
         *counter += 1;
-        preorder.insert(block, *counter);
+        preorder[block.id as usize] = Some(*counter);
 
         let mut max = *counter;
 
         // subtree walk
-        if let Some(block_children) = children.get(&block) {
-            for &child in block_children {
-                Self::fill_preorder(child, children, preorder, preorder_max, counter);
-                max = max.max(*preorder_max.get(&child).unwrap_or_else(|| {
-                    unreachable!("missing postdominator preorder max for child: {child:?}")
-                }));
-            }
+        for &child in &children[block.id as usize] {
+            Self::fill_preorder(child, children, preorder, preorder_max, counter);
+            max = max.max(preorder_max[child.id as usize].unwrap_or_else(|| {
+                unreachable!("missing postdominator preorder max for child: {child:?}")
+            }));
         }
 
-        preorder_max.insert(block, max);
-    }
-}
-
-impl Analysis for PostDominatorTree {
-    const ID: AnalysisId = AnalysisId("postdomtree");
-    const INVALIDATED_BY: Mutation = Mutation::CONTROL_FLOW;
-}
-
-impl FunctionAnalysis for PostDominatorTree {
-    fn compute(function: &Function, tree: &Tree, analyses: &FunctionAnalyses) -> Self {
-        let cfg = analyses.get::<ControlFlowGraph>(function, tree);
-
-        Self::build(function, tree, &cfg)
+        preorder_max[block.id as usize] = Some(max);
     }
 }
 

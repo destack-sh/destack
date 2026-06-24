@@ -4,9 +4,9 @@ use crate as mir;
 use destack_core::{float_from_bits, float_to_bits};
 
 use crate::{
-    Analysis, AnalysisId, BlockParamForwarding, FunctionAnalyses, FunctionAnalysis, TypeContext,
-    constant_is_one, constant_is_zero, constant_zero_for_type, constant_zero_like, fold_binary,
-    fold_cast, instruction_is_pure,
+    Analysis, AnalysisId, BlockParamForwarding, FunctionAnalyses, FunctionAnalysis, TargetLayout,
+    ValueDefinition, ValueDefinitions, constant_is_one, constant_is_zero, constant_zero_for_type,
+    constant_zero_like, fold_binary, fold_cast, instruction_is_pure,
 };
 
 use super::{ControlFlowGraph, Loop, LoopAnalysis};
@@ -129,7 +129,8 @@ impl ScalarEvolution {
         tree: &mir::Tree,
         cfg: &ControlFlowGraph,
         loops: &LoopAnalysis,
-        type_context: TypeContext,
+        definitions: &ValueDefinitions,
+        target_layout: TargetLayout,
     ) -> Self {
         // handle functions without bodies
         if function.entry.is_none() {
@@ -137,9 +138,6 @@ impl ScalarEvolution {
                 loop_scev: HashMap::new(),
             };
         }
-
-        // build definition metadata for values
-        let definitions = ValueDefinitions::build(function, tree);
 
         // build block parameter forwarding
         let forwarding = BlockParamForwarding::build(function, tree, cfg);
@@ -152,9 +150,9 @@ impl ScalarEvolution {
                 tree,
                 cfg,
                 lp,
-                &definitions,
+                definitions,
                 &forwarding,
-                type_context,
+                target_layout,
             );
             let scev_map = builder.build();
             loop_scev.insert(loop_index, scev_map);
@@ -164,7 +162,7 @@ impl ScalarEvolution {
     }
 
     /// Get the SCEV for a value in a specific loop.
-    pub fn scev_for_value_in_loop(&self, loop_index: usize, value: mir::Value) -> Option<&Scev> {
+    pub fn value_scev(&self, loop_index: usize, value: mir::Value) -> Option<&Scev> {
         self.loop_scev.get(&loop_index)?.get(&value)
     }
 
@@ -182,87 +180,16 @@ impl FunctionAnalysis for ScalarEvolution {
     fn compute(function: &mir::Function, tree: &mir::Tree, analyses: &FunctionAnalyses) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>(function, tree);
         let loops = analyses.get::<LoopAnalysis>(function, tree);
-        Self::build(function, tree, &cfg, &loops, analyses.type_context())
-    }
-}
+        let definitions = analyses.get::<ValueDefinitions>(function, tree);
 
-/// Definition kind for an SSA value.
-#[derive(Debug, Clone, Copy)]
-enum ValueDefinitionKind {
-    /// Block parameter definition.
-    Parameter {
-        /// Parameter index within the block.
-        index: usize,
-    },
-    /// Instruction definition.
-    Instruction {
-        /// Instruction id that defines the value.
-        instruction: mir::LocalNodeId<mir::Instruction>,
-    },
-}
-
-/// Definition metadata for a value.
-#[derive(Debug, Clone, Copy)]
-struct ValueDefinition {
-    /// Block that defines the value.
-    block: mir::LocalNodeId<mir::Block>,
-    /// Kind of definition.
-    kind: ValueDefinitionKind,
-}
-
-/// Map of SSA values to their definition metadata.
-#[derive(Debug)]
-struct ValueDefinitions {
-    /// Definition metadata by value.
-    definitions: HashMap<mir::Value, ValueDefinition>,
-}
-
-impl ValueDefinitions {
-    /// Build a definition map for a function.
-    fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
-        let mut definitions = HashMap::new();
-
-        // record block parameters
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            for (index, param) in block.parameters.iter().enumerate() {
-                let value = param.value;
-
-                definitions.insert(
-                    value,
-                    ValueDefinition {
-                        block: block_id,
-                        kind: ValueDefinitionKind::Parameter { index },
-                    },
-                );
-            }
-        }
-
-        // record instruction destinations
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            for &instruction_id in &block.instructions {
-                let instruction = tree.get(instruction_id);
-                if let Some(destination) = instruction.destination() {
-                    definitions.insert(
-                        destination,
-                        ValueDefinition {
-                            block: block_id,
-                            kind: ValueDefinitionKind::Instruction {
-                                instruction: instruction_id,
-                            },
-                        },
-                    );
-                }
-            }
-        }
-
-        Self { definitions }
-    }
-
-    /// Get the definition for a value.
-    fn definition_for(&self, value: mir::Value) -> Option<ValueDefinition> {
-        self.definitions.get(&value).copied()
+        Self::build(
+            function,
+            tree,
+            &cfg,
+            &loops,
+            &definitions,
+            analyses.target_layout(),
+        )
     }
 }
 
@@ -285,7 +212,7 @@ struct LoopScevBuilder<'a> {
     /// Values currently being computed.
     in_progress: HashSet<mir::Value>,
     /// Type context for layout sensitive operations.
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 }
 
 impl<'a> LoopScevBuilder<'a> {
@@ -297,7 +224,7 @@ impl<'a> LoopScevBuilder<'a> {
         lp: &'a Loop,
         definitions: &'a ValueDefinitions,
         forwarding: &'a BlockParamForwarding,
-        type_context: TypeContext,
+        target_layout: TargetLayout,
     ) -> Self {
         let invariants = collect_loop_invariants(function, tree, lp, definitions);
 
@@ -310,7 +237,7 @@ impl<'a> LoopScevBuilder<'a> {
             invariants,
             cache: HashMap::new(),
             in_progress: HashSet::new(),
-            type_context,
+            target_layout,
         }
     }
 
@@ -387,11 +314,11 @@ impl<'a> LoopScevBuilder<'a> {
         }
 
         // handle instruction defined values
-        let Some(definition) = self.definitions.definition_for(value) else {
+        let Some(definition) = self.definitions.definition(value) else {
             return Scev::Unknown(value);
         };
 
-        let ValueDefinitionKind::Instruction { instruction } = definition.kind else {
+        let ValueDefinition::Instruction { instruction, .. } = definition else {
             return Scev::Unknown(value);
         };
 
@@ -566,7 +493,7 @@ impl<'a> LoopScevBuilder<'a> {
                 operator,
                 constant.clone(),
                 to_type,
-                self.type_context.pointer_width_bits,
+                self.target_layout.pointer_width_bits,
                 self.tree,
             )
         {
@@ -576,7 +503,7 @@ impl<'a> LoopScevBuilder<'a> {
         // read the target type
         let target_type = self.tree.get(to_type);
         let Some((width, _)) =
-            target_type.int_info_with_pointer_width(self.type_context.pointer_width_bits)
+            target_type.int_info_with_pointer_width(self.target_layout.pointer_width_bits)
         else {
             return Scev::Unknown(destination);
         };
@@ -601,27 +528,29 @@ impl<'a> LoopScevBuilder<'a> {
     /// Check if a value is defined inside the loop.
     fn value_defined_in_loop(&self, value: mir::Value) -> bool {
         // treat missing definitions as not in loop
-        let definition = match self.definitions.definition_for(value) {
+        let definition = match self.definitions.definition(value) {
             Some(definition) => definition,
             None => return false,
         };
 
-        self.lp.blocks.contains(&definition.block)
+        definition
+            .block()
+            .is_some_and(|block| self.lp.blocks.contains(&block))
     }
 
     /// Get the index of a header parameter if this value is one.
     fn header_param_index(&self, value: mir::Value) -> Option<usize> {
         // require a header parameter definition
-        let definition = self.definitions.definition_for(value)?;
+        let definition = self.definitions.definition(value)?;
+        let ValueDefinition::BlockParameter { block, index } = definition else {
+            return None;
+        };
 
-        if definition.block != self.lp.header {
+        if block != self.lp.header {
             return None;
         }
 
-        match definition.kind {
-            ValueDefinitionKind::Parameter { index } => Some(index),
-            _ => None,
-        }
+        Some(index)
     }
 
     /// Compute an AddRec for a loop header parameter when possible.
@@ -688,7 +617,7 @@ impl<'a> LoopScevBuilder<'a> {
             self.tree,
             self.lp.header,
             param_index,
-            self.type_context.pointer_width_bits,
+            self.target_layout.pointer_width_bits,
         )?;
         let step_zero = Scev::Constant(step_zero);
 
@@ -712,8 +641,8 @@ impl<'a> LoopScevBuilder<'a> {
         }
 
         // require instruction definition
-        let definition = self.definitions.definition_for(value)?;
-        let ValueDefinitionKind::Instruction { instruction } = definition.kind else {
+        let definition = self.definitions.definition(value)?;
+        let ValueDefinition::Instruction { instruction, .. } = definition else {
             return None;
         };
 
@@ -791,8 +720,11 @@ fn collect_loop_invariants(
     }
 
     // seed invariants with values defined outside the loop
-    for (&value, definition) in &definitions.definitions {
-        if !lp.blocks.contains(&definition.block) {
+    for (value, definition) in definitions.definitions() {
+        if definition
+            .block()
+            .is_some_and(|block| !lp.blocks.contains(&block))
+        {
             invariants.insert(value);
         }
     }
@@ -863,7 +795,7 @@ fn header_argument_from_pred(
     // collect predecessor arguments for the header edge
     let pred_block = tree.get(pred);
     let pred_terminator = tree.get(pred_block.terminator);
-    let args = pred_terminator.arguments_for_successor(tree, header);
+    let args = pred_terminator.successor_arguments(tree, header);
 
     args.get(param_index).copied()
 }
@@ -875,8 +807,8 @@ fn constant_for_value(
     definitions: &ValueDefinitions,
 ) -> Option<mir::Constant> {
     // require an instruction definition
-    let definition = definitions.definition_for(value)?;
-    let ValueDefinitionKind::Instruction { instruction } = definition.kind else {
+    let definition = definitions.definition(value)?;
+    let ValueDefinition::Instruction { instruction, .. } = definition else {
         return None;
     };
 
@@ -1417,9 +1349,7 @@ b2(v7: int32):
             loop_header: function.blocks[1],
         };
 
-        let actual = scev
-            .scev_for_value_in_loop(loop_index, param_value)
-            .unwrap();
+        let actual = scev.value_scev(loop_index, param_value).unwrap();
         assert_eq!(actual, &expected);
     }
 
@@ -1459,9 +1389,7 @@ b2(v6: int32):
         let header_block = test.tree.get(function.blocks[1]);
         let param_value = header_block.parameters[0].value;
 
-        let actual = scev
-            .scev_for_value_in_loop(loop_index, param_value)
-            .unwrap();
+        let actual = scev.value_scev(loop_index, param_value).unwrap();
         assert!(matches!(actual, Scev::Unknown(_)));
     }
 
@@ -1516,9 +1444,7 @@ b2(v6: int32):
             loop_header: function.blocks[1],
         };
 
-        let actual = scev
-            .scev_for_value_in_loop(loop_index, param_value)
-            .unwrap();
+        let actual = scev.value_scev(loop_index, param_value).unwrap();
         assert_eq!(actual, &expected);
     }
 
@@ -1574,9 +1500,7 @@ b3(v5: int32):
             loop_header: function.blocks[1],
         };
 
-        let actual = scev
-            .scev_for_value_in_loop(loop_index, param_value)
-            .unwrap();
+        let actual = scev.value_scev(loop_index, param_value).unwrap();
         assert_eq!(actual, &expected);
     }
 
@@ -1637,9 +1561,7 @@ b2(v9: int32):
             loop_header: function.blocks[1],
         };
 
-        let actual = scev
-            .scev_for_value_in_loop(loop_index, derived_value)
-            .unwrap();
+        let actual = scev.value_scev(loop_index, derived_value).unwrap();
         assert_eq!(actual, &expected);
     }
 
@@ -1698,9 +1620,7 @@ b2(v7: int32):
             loop_header: function.blocks[1],
         };
 
-        let actual = scev
-            .scev_for_value_in_loop(loop_index, derived_value)
-            .unwrap();
+        let actual = scev.value_scev(loop_index, derived_value).unwrap();
         assert_eq!(actual, &expected);
     }
 
@@ -1760,9 +1680,7 @@ b2(v8: int32):
             loop_header: function.blocks[1],
         };
 
-        let actual = scev
-            .scev_for_value_in_loop(loop_index, derived_value)
-            .unwrap();
+        let actual = scev.value_scev(loop_index, derived_value).unwrap();
         assert_eq!(actual, &expected);
     }
 
@@ -1818,9 +1736,7 @@ b2(v8: int32):
             loop_header: function.blocks[1],
         };
 
-        let actual = scev
-            .scev_for_value_in_loop(loop_index, derived_value)
-            .unwrap();
+        let actual = scev.value_scev(loop_index, derived_value).unwrap();
         assert_eq!(actual, &expected);
     }
 
@@ -1877,9 +1793,7 @@ b2(v8: int32):
             loop_header: function.blocks[1],
         };
 
-        let actual = scev
-            .scev_for_value_in_loop(loop_index, param_value)
-            .unwrap();
+        let actual = scev.value_scev(loop_index, param_value).unwrap();
         assert_eq!(actual, &expected);
     }
 
@@ -1936,9 +1850,7 @@ b2(v8: int32):
             loop_header: function.blocks[1],
         };
 
-        let actual = scev
-            .scev_for_value_in_loop(loop_index, param_value)
-            .unwrap();
+        let actual = scev.value_scev(loop_index, param_value).unwrap();
         assert_eq!(actual, &expected);
     }
 
@@ -1998,9 +1910,7 @@ b2(v8: int32):
             loop_header: function.blocks[1],
         };
 
-        let actual = scev
-            .scev_for_value_in_loop(loop_index, divide_value)
-            .unwrap();
+        let actual = scev.value_scev(loop_index, divide_value).unwrap();
         assert_eq!(actual, &expected);
     }
 
@@ -2042,10 +1952,7 @@ b2(v8: int32):
 
         let header_block = test.tree.get(function.blocks[1]);
         let param_value = header_block.parameters[0].value;
-        let param_scev = scev
-            .scev_for_value_in_loop(loop_index, param_value)
-            .unwrap()
-            .clone();
+        let param_scev = scev.value_scev(loop_index, param_value).unwrap().clone();
 
         let block1 = test.tree.get(function.blocks[1]);
         let arithmetic_value = test
@@ -2076,12 +1983,8 @@ b2(v8: int32):
             })),
         );
 
-        let actual_arithmetic = scev
-            .scev_for_value_in_loop(loop_index, arithmetic_value)
-            .unwrap();
-        let actual_logical = scev
-            .scev_for_value_in_loop(loop_index, logical_value)
-            .unwrap();
+        let actual_arithmetic = scev.value_scev(loop_index, arithmetic_value).unwrap();
+        let actual_logical = scev.value_scev(loop_index, logical_value).unwrap();
 
         assert_eq!(actual_arithmetic, &expected_arithmetic);
         assert_eq!(actual_logical, &expected_logical);
@@ -2129,10 +2032,7 @@ b2(v13: int64):
 
         let header_block = test.tree.get(function.blocks[1]);
         let param_value = header_block.parameters[0].value;
-        let param_scev = scev
-            .scev_for_value_in_loop(loop_index, param_value)
-            .unwrap()
-            .clone();
+        let param_scev = scev.value_scev(loop_index, param_value).unwrap().clone();
 
         let block1 = test.tree.get(function.blocks[1]);
         let divide_value = test
@@ -2191,17 +2091,11 @@ b2(v13: int64):
             width: 64,
         };
 
-        let actual_divide = scev
-            .scev_for_value_in_loop(loop_index, divide_value)
-            .unwrap();
-        let actual_shift = scev
-            .scev_for_value_in_loop(loop_index, shift_value)
-            .unwrap();
-        let actual_remainder = scev
-            .scev_for_value_in_loop(loop_index, remainder_value)
-            .unwrap();
-        let actual_sext = scev.scev_for_value_in_loop(loop_index, sext_value).unwrap();
-        let actual_uext = scev.scev_for_value_in_loop(loop_index, uext_value).unwrap();
+        let actual_divide = scev.value_scev(loop_index, divide_value).unwrap();
+        let actual_shift = scev.value_scev(loop_index, shift_value).unwrap();
+        let actual_remainder = scev.value_scev(loop_index, remainder_value).unwrap();
+        let actual_sext = scev.value_scev(loop_index, sext_value).unwrap();
+        let actual_uext = scev.value_scev(loop_index, uext_value).unwrap();
 
         assert_eq!(actual_divide, &expected_divide);
         assert_eq!(actual_shift, &expected_shift);

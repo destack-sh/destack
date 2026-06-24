@@ -64,12 +64,12 @@ struct DepthFirstFrame {
 /// Dominator tree for one function.
 #[derive(Debug, Clone)]
 pub struct DominatorTree {
-    /// Immediate dominator for each block.
-    immediate_dominators: HashMap<LocalNodeId<Block>, LocalNodeId<Block>>,
-    /// Preorder numbers for fast dominance queries.
-    preorder: HashMap<LocalNodeId<Block>, u32>,
-    /// Maximum preorder number in each subtree.
-    preorder_max: HashMap<LocalNodeId<Block>, u32>,
+    /// Immediate dominator indexed by block id.
+    immediate_dominators: Vec<Option<LocalNodeId<Block>>>,
+    /// Preorder numbers indexed by block id.
+    preorder: Vec<Option<u32>>,
+    /// Maximum preorder number in each subtree indexed by block id.
+    preorder_max: Vec<Option<u32>>,
 }
 
 impl DominatorTree {
@@ -77,9 +77,9 @@ impl DominatorTree {
     pub fn build(function: &Function, tree: &Tree, cfg: &ControlFlowGraph) -> Self {
         let Some(entry) = function.entry else {
             return Self {
-                immediate_dominators: HashMap::new(),
-                preorder: HashMap::new(),
-                preorder_max: HashMap::new(),
+                immediate_dominators: Vec::new(),
+                preorder: Vec::new(),
+                preorder_max: Vec::new(),
             };
         };
 
@@ -89,13 +89,14 @@ impl DominatorTree {
         let result =
             DominatorComputation::compute(&dense.successors, &dense.predecessors, entry_index);
 
-        let mut immediate_dominators = HashMap::new();
+        let block_count = function.block_capacity();
+        let mut immediate_dominators = vec![None; block_count];
 
         // block dominators
         for (&block, &index) in &dense.block_index {
             if let Some(idom_index) = result.immediate_dominators[index] {
                 let idom_block = function.blocks[idom_index];
-                immediate_dominators.insert(block, idom_block);
+                immediate_dominators[block.id as usize] = Some(idom_block);
             }
         }
 
@@ -111,18 +112,21 @@ impl DominatorTree {
 
     /// Return the immediate dominator of one block.
     pub fn immediate_dominator(&self, block: LocalNodeId<Block>) -> Option<LocalNodeId<Block>> {
-        self.immediate_dominators.get(&block).copied()
+        self.immediate_dominators
+            .get(block.id as usize)
+            .copied()
+            .flatten()
     }
 
     /// Return whether one block dominates another.
     pub fn dominates(&self, a: LocalNodeId<Block>, b: LocalNodeId<Block>) -> bool {
-        let Some(a_pre) = self.preorder.get(&a).copied() else {
+        let Some(a_pre) = self.preorder.get(a.id as usize).copied().flatten() else {
             return false;
         };
-        let Some(a_max) = self.preorder_max.get(&a).copied() else {
+        let Some(a_max) = self.preorder_max.get(a.id as usize).copied().flatten() else {
             return false;
         };
-        let Some(b_pre) = self.preorder.get(&b).copied() else {
+        let Some(b_pre) = self.preorder.get(b.id as usize).copied().flatten() else {
             return false;
         };
 
@@ -138,30 +142,24 @@ impl DominatorTree {
     fn compute_preorder(
         blocks: &[LocalNodeId<Block>],
         entry: LocalNodeId<Block>,
-        immediate_dominators: &HashMap<LocalNodeId<Block>, LocalNodeId<Block>>,
-    ) -> (
-        HashMap<LocalNodeId<Block>, u32>,
-        HashMap<LocalNodeId<Block>, u32>,
-    ) {
-        let mut children = HashMap::new();
-
-        // child lists
-        for &block in blocks {
-            children.insert(block, Vec::new());
-        }
+        immediate_dominators: &[Option<LocalNodeId<Block>>],
+    ) -> (Vec<Option<u32>>, Vec<Option<u32>>) {
+        let block_count = blocks
+            .iter()
+            .map(|block| block.id as usize + 1)
+            .max()
+            .unwrap_or(0);
+        let mut children = vec![Vec::new(); block_count];
 
         // dominator edges
-        for (&block, &idom) in immediate_dominators {
-            children
-                .get_mut(&idom)
-                .unwrap_or_else(|| {
-                    unreachable!("missing dominator-tree children for block: {idom:?}")
-                })
-                .push(block);
+        for &block in blocks {
+            if let Some(idom) = immediate_dominators[block.id as usize] {
+                children[idom.id as usize].push(block);
+            }
         }
 
-        let mut preorder = HashMap::new();
-        let mut preorder_max = HashMap::new();
+        let mut preorder = vec![None; block_count];
+        let mut preorder_max = vec![None; block_count];
         let mut counter = 0u32;
 
         // subtree ranges
@@ -179,27 +177,25 @@ impl DominatorTree {
     /// Fill preorder ranges for one dominator subtree.
     fn fill_preorder(
         block: LocalNodeId<Block>,
-        children: &HashMap<LocalNodeId<Block>, Vec<LocalNodeId<Block>>>,
-        preorder: &mut HashMap<LocalNodeId<Block>, u32>,
-        preorder_max: &mut HashMap<LocalNodeId<Block>, u32>,
+        children: &[Vec<LocalNodeId<Block>>],
+        preorder: &mut [Option<u32>],
+        preorder_max: &mut [Option<u32>],
         counter: &mut u32,
     ) {
         *counter += 1;
-        preorder.insert(block, *counter);
+        preorder[block.id as usize] = Some(*counter);
 
         let mut max = *counter;
 
         // subtree walk
-        if let Some(block_children) = children.get(&block) {
-            for &child in block_children {
-                Self::fill_preorder(child, children, preorder, preorder_max, counter);
-                max = max.max(*preorder_max.get(&child).unwrap_or_else(|| {
-                    unreachable!("missing dominator preorder max for child: {child:?}")
-                }));
-            }
+        for &child in &children[block.id as usize] {
+            Self::fill_preorder(child, children, preorder, preorder_max, counter);
+            max = max.max(preorder_max[child.id as usize].unwrap_or_else(|| {
+                unreachable!("missing dominator preorder max for child: {child:?}")
+            }));
         }
 
-        preorder_max.insert(block, max);
+        preorder_max[block.id as usize] = Some(max);
     }
 }
 
@@ -424,7 +420,7 @@ impl DominatorComputation {
 
 impl Analysis for DominatorTree {
     const ID: AnalysisId = AnalysisId("domtree");
-    const INVALIDATED_BY: Mutation = Mutation::CONTROL_FLOW;
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL;
 }
 
 impl FunctionAnalysis for DominatorTree {

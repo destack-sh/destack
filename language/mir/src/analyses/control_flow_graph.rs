@@ -1,25 +1,18 @@
-use std::collections::{HashMap, HashSet};
-
 use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation};
-use crate as mir;
 use crate::{Block, Function, LocalNodeId, Tree};
 
 /// Control flow graph for one function.
 #[derive(Debug, Clone)]
 pub struct ControlFlowGraph {
-    /// Predecessors for each block.
-    predecessors: HashMap<LocalNodeId<Block>, Vec<LocalNodeId<Block>>>,
+    /// Predecessors indexed by block id.
+    predecessors: Vec<Vec<LocalNodeId<Block>>>,
 }
 
 impl ControlFlowGraph {
     /// Build the control flow graph for one function.
     pub fn build(function: &Function, tree: &Tree) -> Self {
-        let mut predecessors = HashMap::new();
-
-        // initialize predecessor lists
-        for &block_id in &function.blocks {
-            predecessors.insert(block_id, Vec::new());
-        }
+        let block_count = function.block_capacity();
+        let mut predecessors = vec![Vec::new(); block_count];
 
         // compute predecessors from successor edges
         for &block_id in &function.blocks {
@@ -27,7 +20,7 @@ impl ControlFlowGraph {
             let terminator = tree.get(block.terminator);
 
             for successor in terminator.successors(tree) {
-                if let Some(block_predecessors) = predecessors.get_mut(&successor) {
+                if let Some(block_predecessors) = predecessors.get_mut(successor.id as usize) {
                     block_predecessors.push(block_id);
                 }
             }
@@ -39,7 +32,7 @@ impl ControlFlowGraph {
     /// Return the predecessors of one block.
     pub fn predecessors(&self, block: LocalNodeId<Block>) -> &[LocalNodeId<Block>] {
         self.predecessors
-            .get(&block)
+            .get(block.id as usize)
             .map(|predecessors| predecessors.as_slice())
             .unwrap_or(&[])
     }
@@ -52,19 +45,23 @@ impl ControlFlowGraph {
         }
 
         let mut worklist = vec![block];
-        let mut visited = HashSet::new();
+        let mut visited = vec![false; self.predecessors.len()];
 
         // walk backward through predecessors until we find the entry
         while let Some(current) = worklist.pop() {
-            if !visited.insert(current) {
+            let Some(is_visited) = visited.get_mut(current.id as usize) else {
+                continue;
+            };
+            if *is_visited {
                 continue;
             }
+            *is_visited = true;
 
             if current == entry {
                 return true;
             }
 
-            if let Some(predecessors) = self.predecessors.get(&current) {
+            if let Some(predecessors) = self.predecessors.get(current.id as usize) {
                 worklist.extend(predecessors.iter().copied());
             }
         }
@@ -75,135 +72,13 @@ impl ControlFlowGraph {
 
 impl Analysis for ControlFlowGraph {
     const ID: AnalysisId = AnalysisId("cfg");
-    const INVALIDATED_BY: Mutation = Mutation::CONTROL_FLOW;
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL;
 }
 
 impl FunctionAnalysis for ControlFlowGraph {
     fn compute(function: &Function, tree: &Tree, _analyses: &FunctionAnalyses) -> Self {
         Self::build(function, tree)
     }
-}
-
-/// Enumerate the control flow edges leaving one terminator.
-pub fn terminator_edges(
-    tree: &mir::Tree,
-    source: mir::LocalNodeId<mir::Block>,
-    terminator: &mir::Terminator,
-) -> Vec<(mir::Edge, mir::LocalNodeId<mir::Block>)> {
-    terminator_targets(tree, source, terminator)
-        .into_iter()
-        .map(|(edge, _)| (edge, edge.target))
-        .collect()
-}
-
-/// Enumerate the control flow edges leaving one terminator with their targets.
-pub fn terminator_targets<'a>(
-    tree: &'a mir::Tree,
-    source: mir::LocalNodeId<mir::Block>,
-    terminator: &'a mir::Terminator,
-) -> Vec<(mir::Edge, &'a mir::BlockTarget)> {
-    match terminator {
-        mir::Terminator::Error => Vec::new(),
-        mir::Terminator::Jump { target, .. } => block_edge(source, mir::Successor::Jump, target)
-            .into_iter()
-            .collect(),
-        mir::Terminator::Branch {
-            then_target,
-            else_target,
-            ..
-        } => [
-            block_edge(source, mir::Successor::BranchThen, then_target),
-            block_edge(source, mir::Successor::BranchElse, else_target),
-        ]
-        .into_iter()
-        .flatten()
-        .collect(),
-        mir::Terminator::Check {
-            success, failure, ..
-        } => [
-            block_edge(source, mir::Successor::CheckSuccess, success),
-            block_edge(source, mir::Successor::CheckFailure, failure),
-        ]
-        .into_iter()
-        .flatten()
-        .collect(),
-        mir::Terminator::NewZeroedTry {
-            success, failure, ..
-        }
-        | mir::Terminator::NewUninitTry {
-            success, failure, ..
-        }
-        | mir::Terminator::NewSliceZeroedTry {
-            success, failure, ..
-        }
-        | mir::Terminator::NewSliceUninitTry {
-            success, failure, ..
-        } => [
-            block_edge(source, mir::Successor::TrySuccess, success),
-            block_edge(source, mir::Successor::TryFailure, failure),
-        ]
-        .into_iter()
-        .flatten()
-        .collect(),
-        mir::Terminator::Switch { default, cases, .. } => {
-            let mut edges = Vec::with_capacity(cases.len() + 1);
-
-            // default edge
-            edges.extend(block_edge(source, mir::Successor::SwitchDefault, default));
-
-            // case edges
-            for case in tree.get_switch_cases(*cases) {
-                edges.extend(block_edge(
-                    source,
-                    mir::Successor::SwitchCase { value: case.value },
-                    &case.target,
-                ));
-            }
-
-            edges
-        }
-        mir::Terminator::Yield { resume, unwind, .. } => {
-            let mut edges = Vec::with_capacity(2);
-
-            edges.extend(block_edge(source, mir::Successor::YieldResume, resume));
-            if let Some(unwind) = unwind {
-                edges.extend(block_edge(source, mir::Successor::YieldUnwind, unwind));
-            }
-
-            edges
-        }
-        mir::Terminator::Call { target, unwind, .. }
-        | mir::Terminator::CallIndirect { target, unwind, .. }
-        | mir::Terminator::CallVirtual { target, unwind, .. }
-        | mir::Terminator::CallDynamic { target, unwind, .. } => {
-            let mut edges = Vec::with_capacity(2);
-
-            edges.extend(block_edge(source, mir::Successor::CallReturn, target));
-            if let Some(unwind) = unwind {
-                edges.extend(block_edge(source, mir::Successor::CallUnwind, unwind));
-            }
-
-            edges
-        }
-        mir::Terminator::Return { .. }
-        | mir::Terminator::Panic { .. }
-        | mir::Terminator::UnwindResume
-        | mir::Terminator::Trap { .. }
-        | mir::Terminator::Unreachable
-        | mir::Terminator::TailCall { .. }
-        | mir::Terminator::TailCallVirtual { .. }
-        | mir::Terminator::TailCallDynamic { .. }
-        | mir::Terminator::TailCallIndirect { .. } => Vec::new(),
-    }
-}
-
-/// Pair one block target with its edge when it resolves to a concrete block.
-fn block_edge(
-    source: mir::LocalNodeId<mir::Block>,
-    successor: mir::Successor,
-    target: &mir::BlockTarget,
-) -> Option<(mir::Edge, &mir::BlockTarget)> {
-    Some((mir::Edge::new(source, successor, target.block), target))
 }
 
 #[cfg(test)]
