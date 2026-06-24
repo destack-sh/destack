@@ -155,9 +155,8 @@ impl ResolveState<'_> {
         }
 
         // otherwise the final segment carries the reference
-        match prefixes.last() {
-            Some(reference) => self.references.insert(source, reference.clone()),
-            None => {}
+        if let Some(reference) = prefixes.last() {
+            self.references.insert(source, reference.clone());
         }
     }
 
