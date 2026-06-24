@@ -2,8 +2,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Access, BinaryOperator, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, RangeEnd, ScalarLiteral,
-    StaticKey, UnaryOperator,
+    ArgumentBinding, BinaryOperator, GenericArgumentBinding, GlobalNodeIdAny, GlobalSymbolId,
+    GlobalTypeId, Predicate, Projection, ScalarLiteral, StaticKey, UnaryOperator,
 };
 
 /// Receiver selected by contextual lookup, such as `this` or `super`.
@@ -98,18 +98,21 @@ impl NameResolution {
 /// make<string>      // symbol: make, arguments: (string)
 /// Box<int32>        // symbol: Box, arguments: (int32)
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct InstantiationResolution {
     /// The generic declaration being applied.
     pub symbol: GlobalSymbolId,
-    /// The complete generic arguments after defaults are filled.
-    pub arguments: Vec<GlobalTypeId>,
+    /// The complete selected generic argument bindings.
+    pub generic_arguments: Vec<GenericArgumentBinding>,
 }
 
 impl InstantiationResolution {
     /// Create an instantiation resolution.
-    pub fn new(symbol: GlobalSymbolId, arguments: Vec<GlobalTypeId>) -> Self {
-        Self { symbol, arguments }
+    pub fn new(symbol: GlobalSymbolId, generic_arguments: Vec<GenericArgumentBinding>) -> Self {
+        Self {
+            symbol,
+            generic_arguments,
+        }
     }
 }
 
@@ -243,12 +246,14 @@ pub enum MemberTarget {
 pub struct MemberCandidate {
     /// The receiver type that selects this candidate.
     pub receiver: GlobalTypeId,
+    /// The declaration that exposed this member.
+    pub owner: GlobalSymbolId,
     /// The selected member symbol.
     pub symbol: GlobalSymbolId,
     /// The member type applied to the matched receiver.
     pub ty: GlobalTypeId,
-    /// The generic arguments of the member symbol, empty when not statically applied.
-    pub arguments: Vec<GlobalTypeId>,
+    /// The selected generic argument bindings needed by this member candidate.
+    pub generic_arguments: Vec<GenericArgumentBinding>,
 }
 
 /// Callable selected at a call site.
@@ -265,6 +270,8 @@ pub struct CallResolution {
     pub callable_type: Option<GlobalTypeId>,
     /// The dynamic parameter types after static substitutions.
     pub parameters: Vec<GlobalTypeId>,
+    /// The source arguments bound to selected parameters.
+    pub arguments: Vec<ArgumentBinding>,
     /// The return type after static substitutions.
     pub return_type: GlobalTypeId,
 }
@@ -275,12 +282,14 @@ impl CallResolution {
         target: CallTarget,
         callable_type: Option<GlobalTypeId>,
         parameters: Vec<GlobalTypeId>,
+        arguments: Vec<ArgumentBinding>,
         return_type: GlobalTypeId,
     ) -> Self {
         Self {
             target,
             callable_type,
             parameters,
+            arguments,
             return_type,
         }
     }
@@ -329,8 +338,8 @@ pub enum CallTarget {
     /// double(21)     // calls a function-typed value
     /// ```
     Expression {
-        /// The generic arguments of the callable value, empty when not statically applied.
-        arguments: Vec<GlobalTypeId>,
+        /// The selected generic argument bindings, empty when not statically applied.
+        generic_arguments: Vec<GenericArgumentBinding>,
     },
     /// Exactly one symbol-backed callable selected at compile time.
     ///
@@ -351,55 +360,102 @@ pub enum CallTarget {
 
 impl CallTarget {
     /// Return the generic arguments selected for one direct call target.
-    pub fn direct_generic_arguments(&self) -> Option<&[GlobalTypeId]> {
+    pub fn direct_generic_arguments(&self) -> Option<&[GenericArgumentBinding]> {
         match self {
-            Self::Expression { arguments } => Some(arguments),
-            Self::Symbol(candidate) => Some(&candidate.arguments),
+            Self::Expression { generic_arguments } => Some(generic_arguments),
+            Self::Symbol(candidate) => Some(&candidate.generic_arguments),
             Self::Builtin(_) | Self::Universal(_) => None,
         }
     }
 }
 
-/// Runtime predicate selected during checking.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
-pub enum PredicateResolution {
-    /// Runtime `is` predicate, like `value is T`.
-    Is(IsPredicate),
-    /// Runtime `instanceof` predicate, like `value instanceof User`.
-    InstanceOf(InstanceOfPredicate),
-    /// Runtime `in` predicate, like `"name" in value`.
-    In(InPredicate),
+/// Guard expression selected during checking.
+///
+/// Examples:
+/// ```ds
+/// value is string
+/// value instanceof User
+/// "name" in value
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum GuardResolution {
+    /// `is` guard, like `value is T`.
+    ///
+    /// Examples:
+    /// ```ds
+    /// value is string
+    /// ```
+    Is(IsGuardResolution),
+    /// `instanceof` guard, like `value instanceof User`.
+    ///
+    /// Examples:
+    /// ```ds
+    /// value instanceof User
+    /// ```
+    InstanceOf(InstanceOfGuardResolution),
+    /// `in` guard, like `"name" in value`.
+    ///
+    /// Examples:
+    /// ```ds
+    /// "name" in value
+    /// ```
+    In(InGuardResolution),
 }
 
-/// Runtime `is` predicate selected during checking.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
-pub struct IsPredicate {
+/// `is` guard selected during checking.
+///
+/// Examples:
+/// ```ds
+/// if (value is string) {
+///     value.length;
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct IsGuardResolution {
     /// The tested value type.
     pub value_type: GlobalTypeId,
     /// The tested target type.
     pub target_type: GlobalTypeId,
+    /// The executable predicate.
+    pub predicate: Predicate,
 }
 
-/// Runtime `instanceof` predicate selected during checking.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
-pub struct InstanceOfPredicate {
+/// `instanceof` guard selected during checking.
+///
+/// Examples:
+/// ```ds
+/// if (value instanceof User) {
+///     value.name;
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct InstanceOfGuardResolution {
     /// The tested value type.
     pub value_type: GlobalTypeId,
     /// The selected right-hand-side declaration.
     pub target: GlobalSymbolId,
     /// The selected instance type tested at runtime.
     pub target_type: GlobalTypeId,
+    /// The executable predicate.
+    pub predicate: Predicate,
 }
 
-/// Runtime `in` predicate selected during checking.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
-pub struct InPredicate {
+/// `in` guard selected during checking.
+///
+/// Examples:
+/// ```ds
+/// if ("name" in value) {
+///     value.name;
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct InGuardResolution {
     /// The tested key type.
     pub key_type: GlobalTypeId,
     /// The tested receiver type.
     pub receiver_type: GlobalTypeId,
-    /// The statically known key, when the source key is static.
-    pub key: Option<StaticKey>,
+    /// The executable predicate.
+    pub predicate: Predicate,
 }
 
 /// Compiler builtin callable selected at a usage site.
@@ -441,8 +497,8 @@ pub struct CallCandidate {
     pub receiver: Option<GlobalTypeId>,
     /// The selected callable symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic arguments of the callable symbol, empty when not statically applied.
-    pub arguments: Vec<GlobalTypeId>,
+    /// The selected generic argument bindings needed by this call candidate.
+    pub generic_arguments: Vec<GenericArgumentBinding>,
 }
 
 /// Construct expression selected at a usage site.
@@ -458,6 +514,8 @@ pub struct ConstructResolution {
     pub target: ConstructTarget,
     /// The dynamic parameter types after static substitutions.
     pub parameters: Vec<GlobalTypeId>,
+    /// The source arguments bound to selected parameters.
+    pub arguments: Vec<ArgumentBinding>,
     /// The return type after static substitutions.
     pub return_type: GlobalTypeId,
 }
@@ -467,11 +525,13 @@ impl ConstructResolution {
     pub fn new(
         target: ConstructTarget,
         parameters: Vec<GlobalTypeId>,
+        arguments: Vec<ArgumentBinding>,
         return_type: GlobalTypeId,
     ) -> Self {
         Self {
             target,
             parameters,
+            arguments,
             return_type,
         }
     }
@@ -528,8 +588,8 @@ pub struct ClassConstructCandidate {
     pub symbol: GlobalSymbolId,
     /// The selected explicit constructor symbol, when declared.
     pub constructor: Option<GlobalSymbolId>,
-    /// The generic arguments of the class symbol, empty when not statically applied.
-    pub arguments: Vec<GlobalTypeId>,
+    /// The selected generic argument bindings for the class symbol.
+    pub generic_arguments: Vec<GenericArgumentBinding>,
 }
 
 /// One newtype construction candidate after overload selection.
@@ -542,8 +602,8 @@ pub struct ClassConstructCandidate {
 pub struct NewtypeConstructCandidate {
     /// The selected newtype symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic arguments of the newtype symbol, empty when not statically applied.
-    pub arguments: Vec<GlobalTypeId>,
+    /// The selected generic argument bindings for the newtype symbol.
+    pub generic_arguments: Vec<GenericArgumentBinding>,
 }
 
 /// One tagged variant construction candidate after checking.
@@ -552,52 +612,98 @@ pub struct NewtypeConstructCandidate {
 /// ```ds
 /// Shape.Rectangle({ width, height })
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct VariantConstructCandidate {
     /// The selected variant family symbol.
     pub owner: GlobalSymbolId,
     /// The selected variant symbol.
     pub variant: GlobalSymbolId,
-    /// The generic arguments of the owner symbol, empty when not statically applied.
-    pub arguments: Vec<GlobalTypeId>,
+    /// The selected generic argument bindings for the owner symbol.
+    pub generic_arguments: Vec<GenericArgumentBinding>,
     /// The discriminant value injected by the constructor.
     pub discriminant: ScalarLiteral,
 }
 
 /// Pattern meaning selected during checking.
+///
+/// Examples:
+/// ```ds
+/// _                         // Ignore
+/// value                     // Bind
+/// value!                    // Must
+/// value = fallback          // Default
+/// "ready"                   // Test
+/// *point                    // Project
+/// Point { x, y }            // Destructure
+/// "yes" | "no"              // Or
+/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum PatternResolution {
     /// Pattern that accepts the input without binding, like `_`.
-    Wildcard,
+    ///
+    /// Examples:
+    /// ```ds
+    /// match value { _ => true }
+    /// ```
+    Ignore,
     /// Pattern that binds a symbol, like `value`.
-    Binding(PatternBindingResolution),
-    /// Pattern that accepts one static literal value, like `"ok"` or `0`.
-    Literal(PatternLiteralResolution),
-    /// Pattern that accepts one scalar interval, like `0..10` or `..=255`.
-    Range(PatternRangeResolution),
-    /// Pattern that destructures a tuple-shaped input, like `(x, y)`.
-    Tuple(PatternTupleResolution),
-    /// Pattern that destructures an ordered collection, like `[head, ...tail]`.
-    Sequence(PatternSequenceResolution),
-    /// Pattern that destructures a structural input, like `{ kind: "ok", value }`.
-    Shape(PatternShapeResolution),
-    /// Pattern that destructures a symbol-backed nominal input, like `Point { x, y }`.
-    Nominal(PatternNominalResolution),
-    /// Pattern that unwraps a symbol-backed newtype input, like `UserId(value)`.
-    Newtype(PatternNewtypeResolution),
-    /// Pattern that selects a symbol-backed variant input, like `State.Ready`.
-    Variant(PatternVariantResolution),
-    /// Pattern that accepts one of several alternatives, like `0 | 1 | 2`.
-    Union(PatternUnionResolution),
-    /// Pattern that borrows the input before matching, like `&readonly value`.
-    Borrow(PatternBorrowResolution),
-    /// Pattern that moves the input before matching, like `^value`.
-    Move(PatternMoveResolution),
-    /// Pattern that dereferences the input before matching, like `*Point { x, y }`.
-    Dereference(PatternDereferenceResolution),
+    ///
+    /// Examples:
+    /// ```ds
+    /// match value { name => name }
+    /// ```
+    Bind(PatternBindingResolution),
+    /// Pattern that requires a successful nested match, like `value!`.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const value! = maybe;
+    /// ```
+    Must(PatternMustResolution),
+    /// Pattern that uses a default value when the selected value is undefined.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const { name = "anonymous" } = user;
+    /// ```
+    Default(PatternDefaultResolution),
+    /// Pattern that tests one executable predicate.
+    ///
+    /// Examples:
+    /// ```ds
+    /// match value { "ready" => true }
+    /// ```
+    Test(PatternPredicateResolution),
+    /// Pattern that projects the input before matching, like `*Point { x, y }`.
+    ///
+    /// Examples:
+    /// ```ds
+    /// match box { *Point { x, y } => x + y }
+    /// ```
+    Project(PatternProjectionResolution),
+    /// Pattern that destructures projected child values.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const Point { x, y } = point;
+    /// ```
+    Destructure(PatternDestructureResolution),
+    /// Pattern that accepts one of several branches, like `0 | 1 | 2`.
+    ///
+    /// Examples:
+    /// ```ds
+    /// match value { 0 | 1 | 2 => true }
+    /// ```
+    Or(PatternOrResolution),
 }
 
 /// Symbol binding introduced by one pattern.
+///
+/// Examples:
+/// ```ds
+/// match value { name => name }
+/// match value { name @ "ready" => name }
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct PatternBindingResolution {
     /// The bound symbol, when the binding has a user-visible name.
@@ -606,160 +712,245 @@ pub struct PatternBindingResolution {
     pub pattern: Option<GlobalNodeIdAny>,
 }
 
-/// Static literal selected by one pattern.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct PatternLiteralResolution {
-    /// The committed literal value.
-    pub value: ScalarLiteral,
+/// Required nested pattern selected during checking.
+///
+/// Examples:
+/// ```ds
+/// const value! = maybe;
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct PatternMustResolution {
+    /// The nested pattern that must match.
+    pub pattern: GlobalNodeIdAny,
 }
 
-/// Scalar range selected by one pattern.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct PatternRangeResolution {
-    /// The scalar domain constrained by the range.
-    pub domain: GlobalTypeId,
-    /// The optional committed lower bound.
-    pub start: Option<ScalarLiteral>,
-    /// The optional committed upper bound.
-    pub end: Option<ScalarLiteral>,
-    /// Whether the upper bound is inclusive.
-    pub end_bound: RangeEnd,
+/// Defaulted nested pattern selected during checking.
+///
+/// Examples:
+/// ```ds
+/// const { name = "anonymous" } = user;
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct PatternDefaultResolution {
+    /// The nested pattern.
+    pub pattern: GlobalNodeIdAny,
+    /// The default expression.
+    pub value: GlobalNodeIdAny,
 }
 
-/// Tuple fields selected by one pattern.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct PatternTupleResolution {
-    /// The tuple field mapping in source order.
+/// Executable predicate selected by one pattern.
+///
+/// Examples:
+/// ```ds
+/// match value { "ready" => true }
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct PatternPredicateResolution {
+    /// The executable predicate.
+    pub predicate: Predicate,
+}
+
+/// Projection selected by one pattern.
+///
+/// Examples:
+/// ```ds
+/// match box { *Point { x, y } => x + y }
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct PatternProjectionResolution {
+    /// The selected projection.
+    pub projection: Projection,
+    /// The pattern matched after projection.
+    pub pattern: Option<GlobalNodeIdAny>,
+}
+
+/// Destructuring selected by one pattern.
+///
+/// Examples:
+/// ```ds
+/// const (count, label) = pair;
+/// const { name } = user;
+/// const Point { x, y } = point;
+/// const [head, ...tail] = values;
+/// match status { Status.Ok(value) => value }
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum PatternDestructureResolution {
+    /// Tuple-shaped destructuring, like `(x, y)`.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const (count, label) = pair;
+    /// ```
+    Tuple(PatternTupleDestructureResolution),
+    /// Object-shaped destructuring, like `{ name }`.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const { name, age } = user;
+    /// ```
+    Object(PatternObjectDestructureResolution),
+    /// Symbol-backed nominal destructuring, like `Point { x, y }`.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const Point { x, y } = point;
+    /// ```
+    Nominal(PatternNominalDestructureResolution),
+    /// Sequence destructuring, like `[head, ...tail]`.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const [head, ...tail] = values;
+    /// ```
+    Sequence(PatternSequenceDestructureResolution),
+    /// Tagged variant destructuring, like `Status.Ok(value)`.
+    ///
+    /// Examples:
+    /// ```ds
+    /// match status { Status.Ok(value) => value }
+    /// ```
+    Variant(PatternVariantDestructureResolution),
+}
+
+/// Tuple destructuring selected by one pattern.
+///
+/// Examples:
+/// ```ds
+/// const (count, label) = pair;
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct PatternTupleDestructureResolution {
+    /// The tuple fields in source order.
     pub fields: Vec<PatternFieldResolution>,
 }
 
-/// Ordered collection selected by one pattern.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum PatternSequenceResolution {
-    /// Dynamically sized array pattern, like `[head, ...tail]` over `T[]`.
-    Array {
-        /// The fixed prefix and suffix fields.
-        fields: Vec<PatternFieldResolution>,
-        /// The rest field, when present.
-        rest: Option<PatternRestResolution>,
-    },
-    /// Borrowed slice pattern, like `[head, ...tail]` over `[T]`.
-    Slice {
-        /// The fixed prefix and suffix fields.
-        fields: Vec<PatternFieldResolution>,
-        /// The rest field, when present.
-        rest: Option<PatternRestResolution>,
-    },
-    /// Fixed-size array pattern, like `[a, b, c]` over `[T; 3]`.
-    FixedArray {
-        /// The fixed element fields.
-        fields: Vec<PatternFieldResolution>,
-        /// The committed array length singleton.
-        length: GlobalTypeId,
-    },
-}
-
-/// Structural fields selected by one pattern.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct PatternShapeResolution {
-    /// The structural field mapping in source order.
+/// Object destructuring selected by one pattern.
+///
+/// Examples:
+/// ```ds
+/// const { name, age } = user;
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct PatternObjectDestructureResolution {
+    /// The object fields in source order.
     pub fields: Vec<PatternFieldResolution>,
 }
 
-/// Symbol-backed nominal pattern selected during checking.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct PatternNominalResolution {
+/// Nominal destructuring selected by one pattern.
+///
+/// Examples:
+/// ```ds
+/// const Point { x, y } = point;
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct PatternNominalDestructureResolution {
     /// The selected nominal symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic arguments of the nominal symbol, empty when not statically applied.
-    pub arguments: Vec<GlobalTypeId>,
-    /// The nominal field mapping in source order.
+    /// The selected generic argument bindings for the nominal symbol.
+    pub generic_arguments: Vec<GenericArgumentBinding>,
+    /// The nominal fields in source order.
     pub fields: Vec<PatternFieldResolution>,
 }
 
-/// Symbol-backed newtype pattern selected during checking.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct PatternNewtypeResolution {
-    /// The selected newtype symbol.
-    pub symbol: GlobalSymbolId,
-    /// The generic arguments of the newtype symbol, empty when not statically applied.
-    pub arguments: Vec<GlobalTypeId>,
-    /// The wrapped value pattern.
-    pub value: Option<GlobalNodeIdAny>,
+/// Sequence destructuring selected by one pattern.
+///
+/// Examples:
+/// ```ds
+/// const [head, ...tail] = values;
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct PatternSequenceDestructureResolution {
+    /// The sequence length knowledge selected during checking.
+    pub length: PatternSequenceLength,
+    /// The fixed fields in source order.
+    pub fields: Vec<PatternFieldResolution>,
+    /// The rest field, when present.
+    pub rest: Option<PatternRestResolution>,
 }
 
-/// Symbol-backed variant pattern selected during checking.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct PatternVariantResolution {
-    /// The selected variant family symbol.
-    pub owner: GlobalSymbolId,
-    /// The selected variant symbol.
-    pub variant: GlobalSymbolId,
-    /// The generic arguments of the variant symbol, empty when not statically applied.
-    pub arguments: Vec<GlobalTypeId>,
-    /// The discriminant value.
-    pub discriminant: ScalarLiteral,
-    /// The variant field mapping in source order.
+/// Tagged variant destructuring selected by one pattern.
+///
+/// Examples:
+/// ```ds
+/// match status { Status.Ok(value) => value }
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct PatternVariantDestructureResolution {
+    /// The selected variant predicate.
+    pub predicate: Predicate,
+    /// The selected variant payload projection.
+    pub projection: Projection,
+    /// The payload fields in source order.
     pub fields: Vec<PatternFieldResolution>,
 }
 
-/// Alternative patterns selected during checking.
+/// Sequence length knowledge selected during checking.
+///
+/// Examples:
+/// ```ds
+/// const [head, ...tail] = values; // Dynamic
+/// const [x, y] = pair;            // Exact
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum PatternSequenceLength {
+    /// Dynamically known sequence length.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const [head, ...tail] = values;
+    /// ```
+    Dynamic,
+    /// Exact static sequence length.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const [x, y] = pair;
+    /// ```
+    Exact(GlobalTypeId),
+}
+
+/// Or-pattern branches selected during checking.
+///
+/// Examples:
+/// ```ds
+/// match value { "yes" | "no" => true }
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct PatternUnionResolution {
-    /// The alternative pattern nodes.
-    pub alternatives: Vec<GlobalNodeIdAny>,
-}
-
-/// Borrow operation selected by one pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct PatternBorrowResolution {
-    /// The requested borrow access, if source explicit.
-    pub access: Option<Access>,
-    /// The pattern matched through the borrow.
-    pub pattern: GlobalNodeIdAny,
-}
-
-/// Move operation selected by one pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct PatternMoveResolution {
-    /// The requested move access, if source explicit.
-    pub access: Option<Access>,
-    /// The pattern matched after moving.
-    pub pattern: GlobalNodeIdAny,
-}
-
-/// Dereference operation selected by one pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct PatternDereferenceResolution {
-    /// The pattern matched through the dereference.
-    pub pattern: GlobalNodeIdAny,
+pub struct PatternOrResolution {
+    /// The branch pattern nodes.
+    pub patterns: Vec<GlobalNodeIdAny>,
 }
 
 /// One destructured pattern field.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+///
+/// Examples:
+/// ```ds
+/// const { name } = user;
+/// const [head] = values;
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct PatternFieldResolution {
     /// The source node that introduces the field.
     pub source: GlobalNodeIdAny,
-    /// The selected field target.
-    pub target: PatternFieldTarget,
+    /// The selected field projection.
+    pub projection: Projection,
     /// The nested pattern matched for the field.
     pub pattern: Option<GlobalNodeIdAny>,
 }
 
-/// Field target selected by one destructuring pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum PatternFieldTarget {
-    /// Named or symbolic field target.
-    Key(StaticKey),
-    /// Positional field target.
-    Index(usize),
-}
-
 /// Rest field selected by one ordered pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+///
+/// Examples:
+/// ```ds
+/// const [head, ...tail] = values;
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct PatternRestResolution {
     /// The source node that introduces the rest field.
     pub source: GlobalNodeIdAny,
+    /// The selected rest projection.
+    pub projection: Projection,
     /// The nested pattern matched for the rest field.
     pub pattern: Option<GlobalNodeIdAny>,
 }
@@ -817,9 +1008,18 @@ pub struct AssignPatternFieldResolution {
     /// The source node that introduces the field.
     pub source: GlobalNodeIdAny,
     /// The selected field target.
-    pub target: PatternFieldTarget,
+    pub target: AssignPatternFieldTarget,
     /// The nested assignment target.
     pub pattern: Option<GlobalNodeIdAny>,
+}
+
+/// Field target selected by one assignment destructuring pattern.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum AssignPatternFieldTarget {
+    /// Named or symbolic field target.
+    Key(StaticKey),
+    /// Positional field target.
+    Index(usize),
 }
 
 /// Rest field selected by one assignment destructuring pattern.

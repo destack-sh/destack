@@ -210,3 +210,49 @@ pub struct GenericParameterBinding {
     /// Whether arguments must solve to singleton types.
     pub is_comptime: bool,
 }
+
+/// One selected generic argument bound to its declaration parameter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct GenericArgumentBinding {
+    /// The declaration parameter selected by the argument.
+    pub parameter: GlobalGenericParameterId,
+    /// The selected argument type or static singleton.
+    pub argument: GlobalTypeId,
+}
+
+impl GenericArgumentBinding {
+    /// Create one selected generic argument binding.
+    pub fn new(parameter: GlobalGenericParameterId, argument: GlobalTypeId) -> Self {
+        Self {
+            parameter,
+            argument,
+        }
+    }
+
+    /// Return selected argument values in binding order.
+    pub fn values(bindings: &[Self]) -> impl Iterator<Item = GlobalTypeId> + '_ {
+        bindings.iter().map(|binding| binding.argument)
+    }
+}
+
+/// One runtime argument bound to its selected parameter slot.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ArgumentBinding {
+    /// The selected parameter position.
+    pub parameter: usize,
+    /// The selected parameter type after static substitutions.
+    pub ty: GlobalTypeId,
+    /// The source argument bound to this parameter.
+    pub argument: ArgumentSource,
+}
+
+/// Source argument bound to one selected parameter slot.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum ArgumentSource {
+    /// One source argument was supplied.
+    Provided(GlobalNodeIdAny),
+    /// No source argument was supplied.
+    Omitted,
+    /// Remaining source arguments were supplied to a rest parameter.
+    Rest(Vec<GlobalNodeIdAny>),
+}

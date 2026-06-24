@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AssignPatternResolution, CallResolution, ConstructResolution, GlobalNodeIdAny, GlobalSymbolId,
-    InstantiationResolution, LabelResolution, MemberResolution, NameResolution, PatternResolution,
-    PredicateResolution, ReadWriteResolution, ReceiverResolution, SegmentView,
+    GuardResolution, InstantiationResolution, LabelResolution, MemberResolution, NameResolution,
+    PatternResolution, ReadWriteResolution, ReceiverResolution, SegmentView,
 };
 
 /// Cumulative checked resolutions for one DIR module.
@@ -104,11 +104,9 @@ impl<'a> ResolutionTable<'a> {
         self.visible_entries(|segment| &segment.read_writes)
     }
 
-    /// Iterate visible predicate resolutions.
-    pub fn predicate_entries(
-        &self,
-    ) -> impl Iterator<Item = (GlobalNodeIdAny, &PredicateResolution)> + '_ {
-        self.visible_entries(|segment| &segment.predicates)
+    /// Iterate visible guard resolutions.
+    pub fn guard_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &GuardResolution)> + '_ {
+        self.visible_entries(|segment| &segment.guards)
     }
 
     /// Iterate visible construct resolutions.
@@ -175,9 +173,9 @@ impl<'a> ResolutionTable<'a> {
         self.lookup(node_id, |segment| &segment.read_writes)
     }
 
-    /// Get the predicate resolution for a node.
-    pub fn predicate_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&PredicateResolution> {
-        self.lookup(node_id, |segment| &segment.predicates)
+    /// Get the guard resolution for a node.
+    pub fn guard_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&GuardResolution> {
+        self.lookup(node_id, |segment| &segment.guards)
     }
 
     /// Get the construct resolution for a node.
@@ -261,8 +259,8 @@ pub struct ResolutionSegment {
     pub(crate) calls: IndexMap<GlobalNodeIdAny, CallResolution>,
     /// Checked paired read-write resolutions keyed by DIR node.
     pub(crate) read_writes: IndexMap<GlobalNodeIdAny, ReadWriteResolution>,
-    /// Checked predicate resolutions keyed by DIR node.
-    pub(crate) predicates: IndexMap<GlobalNodeIdAny, PredicateResolution>,
+    /// Checked guard resolutions keyed by DIR node.
+    pub(crate) guards: IndexMap<GlobalNodeIdAny, GuardResolution>,
     /// Checked construct resolutions keyed by DIR node.
     pub(crate) constructs: IndexMap<GlobalNodeIdAny, ConstructResolution>,
     /// Checked pattern resolutions keyed by DIR node.
@@ -283,7 +281,7 @@ impl ResolutionSegment {
             members: IndexMap::new(),
             calls: IndexMap::new(),
             read_writes: IndexMap::new(),
-            predicates: IndexMap::new(),
+            guards: IndexMap::new(),
             constructs: IndexMap::new(),
             patterns: IndexMap::new(),
             assign_patterns: IndexMap::new(),
@@ -320,8 +318,8 @@ impl ResolutionSegment {
             self.read_writes.insert(target, resolution);
         }
 
-        if let Some(resolution) = self.predicates.get(&source).cloned() {
-            self.predicates.insert(target, resolution);
+        if let Some(resolution) = self.guards.get(&source).cloned() {
+            self.guards.insert(target, resolution);
         }
 
         if let Some(resolution) = self.constructs.get(&source).cloned() {
@@ -436,18 +434,14 @@ impl ResolutionSegment {
         self.read_writes.get(&node_id)
     }
 
-    /// Set the predicate resolution for a node.
-    pub fn set_predicate_resolution(
-        &mut self,
-        node_id: GlobalNodeIdAny,
-        resolution: PredicateResolution,
-    ) {
-        self.predicates.insert(node_id, resolution);
+    /// Set the guard resolution for a node.
+    pub fn set_guard_resolution(&mut self, node_id: GlobalNodeIdAny, resolution: GuardResolution) {
+        self.guards.insert(node_id, resolution);
     }
 
-    /// Get the predicate resolution for a node.
-    pub fn predicate_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&PredicateResolution> {
-        self.predicates.get(&node_id)
+    /// Get the guard resolution for a node.
+    pub fn guard_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&GuardResolution> {
+        self.guards.get(&node_id)
     }
 
     /// Set the construct resolution for a node.
@@ -552,11 +546,9 @@ impl ResolutionSegment {
             .map(|(node_id, resolution)| (*node_id, resolution))
     }
 
-    /// Iterate visible predicate resolutions.
-    pub fn predicate_entries(
-        &self,
-    ) -> impl Iterator<Item = (GlobalNodeIdAny, &PredicateResolution)> + '_ {
-        self.predicates
+    /// Iterate visible guard resolutions.
+    pub fn guard_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &GuardResolution)> + '_ {
+        self.guards
             .iter()
             .map(|(node_id, resolution)| (*node_id, resolution))
     }
@@ -597,7 +589,7 @@ impl ResolutionSegment {
             && self.members.is_empty()
             && self.calls.is_empty()
             && self.read_writes.is_empty()
-            && self.predicates.is_empty()
+            && self.guards.is_empty()
             && self.constructs.is_empty()
             && self.patterns.is_empty()
             && self.assign_patterns.is_empty()
