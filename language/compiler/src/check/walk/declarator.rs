@@ -42,39 +42,31 @@ impl WalkState<'_, '_> {
         symbol: dir::GlobalSymbolId,
         declarator: &dir::Declarator,
     ) -> CompilerResult<()> {
-        // walk declared types before reading their values
+        // bind annotated declarators before checking their initializers
         if let Some(ty) = declarator.ty {
-            self.walk_type_expression(ty)?;
+            let written = self.walk_type_expression(ty)?;
+            self.constrain_symbol_type(symbol, written)?;
+
+            // check initializers against explicit annotations
+            if let Some(value) = declarator.value {
+                self.walk_expression(value, self.tree.get(value))?;
+                self.expect_assignable(value, written)?;
+            }
+
+            return Ok(());
         }
 
         // settle the widening policy before walking an inferred value
-        let widening = if declarator.ty.is_none() {
-            match declarator.value {
-                Some(value) if self.should_widen_declarator_initializer(symbol, value) => {
-                    Widening::Widen
-                }
-                _ => Widening::Preserve,
+        let widening = match declarator.value {
+            Some(value) if self.should_widen_declarator_initializer(symbol, value) => {
+                Widening::Widen
             }
-        } else {
-            Widening::Preserve
+            _ => Widening::Preserve,
         };
 
         // walk initializers under their binding policy
         if let Some(value) = declarator.value {
             self.walk_expression_with_widening(value, self.tree.get(value), widening)?;
-        }
-
-        // bind annotated declarators to their written types directly
-        if let Some(ty) = declarator.ty {
-            let written = self.walk_type_expression(ty)?;
-            self.declare_symbol_type(symbol, written)?;
-
-            // check initializers against explicit annotations
-            if let Some(value) = declarator.value {
-                self.expect_assignable(value, written)?;
-            }
-
-            return Ok(());
         }
 
         // bind closed initializers directly (widened)
@@ -84,9 +76,9 @@ impl WalkState<'_, '_> {
                 let source = value.into_any();
                 let bound = match widening {
                     Widening::Widen => self.check.widen_type(self.module, source, initializer)?,
-                    Widening::Preserve | Widening::WidenAggregate => initializer,
+                    Widening::Preserve => initializer,
                 };
-                self.declare_symbol_type(symbol, bound)?;
+                self.constrain_symbol_type(symbol, bound)?;
 
                 // record contextual widening when the binding changed shape
                 if bound != initializer {
@@ -134,7 +126,7 @@ impl WalkState<'_, '_> {
             self.walk_expression(value, self.tree.get(value))?;
         }
 
-        // flow the matched value into the pattern holes
+        // flow the matched value into the pattern type
         let matched = if let Some(value) = declarator.value {
             Some(self.node_type(value)?)
         } else if let Some(ty) = declarator.ty {

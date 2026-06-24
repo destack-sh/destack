@@ -165,7 +165,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
         let target = self.walk_type_expression(target_type)?;
-        let source = self.node_type(value)?;
+        let source = self.expression_type(value)?;
         let predicate = match branch {
             ConditionBranch::True => NarrowPredicate::Is(target),
             ConditionBranch::False => NarrowPredicate::IsNot(target),
@@ -197,7 +197,7 @@ impl WalkState<'_, '_> {
         };
         let source = self.expression_type(value)?;
 
-        self.narrow_flow_path_by(path, source, value.into_any(), NarrowPredicate::HasKey(key))
+        self.narrow_flow_path_by(path, source, value.into_any(), NarrowPredicate::Has(key))
     }
 
     /// Narrow flow from one `value instanceof Target` expression.
@@ -216,7 +216,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
         let target = self.node_type(target)?;
-        let source = self.node_type(value)?;
+        let source = self.expression_type(value)?;
         let predicate = match branch {
             ConditionBranch::True => NarrowPredicate::Is(target),
             ConditionBranch::False => NarrowPredicate::IsNot(target),
@@ -244,7 +244,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
 
-        let source = self.node_type(value)?;
+        let source = self.expression_type(value)?;
         let predicate = match branch {
             ConditionBranch::True => NarrowPredicate::Is(target),
             ConditionBranch::False => NarrowPredicate::IsNot(target),
