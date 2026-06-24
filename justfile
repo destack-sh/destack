@@ -25,13 +25,14 @@ build:
     just platform/build
     just service/build
     just app/build
+    just client/build
     just bridge/build
 
 # regenerate generated code
 generate:
     just language/generate
     just app/generate-schema
-    just bridge/generate
+    just client/generate
     just platform/generate
 
 # format code
@@ -41,6 +42,7 @@ format:
     just platform/format
     just service/format
     just app/format
+    just client/format
     just bridge/format
 
 # check formatting
@@ -50,6 +52,7 @@ format-check:
     just platform/format-check
     just service/format-check
     just app/format-check
+    just client/format-check
     just bridge/format-check
 
 # alias for format
@@ -67,6 +70,7 @@ lint:
     just platform/lint
     just service/lint
     just app/lint
+    just client/lint
     just bridge/lint
 
 # run tests
@@ -76,6 +80,7 @@ test:
     just platform/test
     just service/test
     just app/test
+    just client/test
     just bridge/test
 
 # default check
@@ -90,6 +95,7 @@ check-quick:
     just platform/check-quick
     just service/check-quick
     just app/check-quick
+    just client/check-quick
     just bridge/check-quick
 
 # check with slow suites
@@ -100,14 +106,15 @@ check-full:
     just platform/check-full
     just service/check-full
     just app/check-full
+    just client/check-full
     just bridge/check-full
 
 # lint workflows and shell scripts
 check-hygiene:
     just ensure-hygiene-toolchain
     PATH="${HOME}/.local/bin:${PATH}" actionlint
-    shellcheck -x dev/toolchain/*.sh dev/toolchain/lib/*.sh dev/ci/*.sh app/cli/scripts/*.sh bridge/scripts/*.sh
-    shfmt -d dev/toolchain/*.sh dev/toolchain/lib/*.sh dev/ci/*.sh app/cli/scripts/*.sh bridge/scripts/*.sh
+    shellcheck -x dev/toolchain/*.sh dev/toolchain/lib/*.sh dev/ci/*.sh app/cli/scripts/*.sh client/scripts/*.sh
+    shfmt -d dev/toolchain/*.sh dev/toolchain/lib/*.sh dev/ci/*.sh app/cli/scripts/*.sh client/scripts/*.sh
 
 # install ci hygiene toolchains on this host
 install-hygiene-toolchain:
@@ -121,21 +128,24 @@ doctor-hygiene-toolchain:
 ensure-hygiene-toolchain:
     bash dev/ci/hygiene-toolchain.sh ensure
 
-# install all toolchains used by runtime, bridge, and ci hygiene lanes
+# install all toolchains used by runtime, clients, bridges, and ci hygiene lanes
 install-toolchain:
     just language/install-toolchain
+    just client/install-toolchain
     just bridge/install-toolchain
     just install-hygiene-toolchain
 
-# inspect runtime, bridge, and ci hygiene toolchain readiness on this host
+# inspect runtime, clients, bridges, and ci hygiene toolchain readiness on this host
 doctor-toolchain:
     just language/doctor-toolchain
+    just client/doctor-toolchain
     just bridge/doctor-toolchain
     just doctor-hygiene-toolchain
 
-# ensure runtime, bridge, and ci hygiene toolchains are present, optionally auto install with DESTACK_AUTO_INSTALL_TOOLCHAINS=1
+# ensure runtime, clients, bridges, and ci hygiene toolchains are present
 ensure-toolchain:
     just language/ensure-toolchain
+    just client/ensure-toolchain
     just bridge/ensure-toolchain
     just ensure-hygiene-toolchain
 
@@ -146,6 +156,7 @@ clean:
     just platform/clean
     just service/clean
     just app/clean
+    just client/clean
     just bridge/clean
 
 # --- release ---
@@ -167,6 +178,7 @@ publish dry="--dry-run":
     just build
     just library/publish "{{dry}}"
     just app/publish "{{dry}}"
+    just client/publish "{{dry}}"
     just bridge/publish "{{dry}}"
     just template/publish-create-destack "{{dry}}"
 
@@ -176,6 +188,7 @@ publish-release:
     just app/validate-cli-publish
     just library/publish ""
     just app/publish ""
+    just client/publish ""
     just bridge/publish ""
     just template/publish-create-destack-live
 

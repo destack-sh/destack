@@ -1,0 +1,55 @@
+{
+    "name": "@destack/language-wasm",
+    "version": "0.55.4",
+    "description": "WebAssembly language bindings for Destack",
+    "license": "MIT",
+    "type": "module",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/destack-sh/destack.git",
+        "directory": "client/wasm"
+    },
+    "homepage": "https://github.com/destack-sh/destack/tree/main/client/wasm",
+    "bugs": {
+        "url": "https://github.com/destack-sh/destack/issues"
+    },
+    "keywords": [
+        "destack",
+        "wasm",
+        "webassembly",
+        "typescript"
+    ],
+    "files": [
+        "dist",
+        "scripts",
+        "README.md",
+        "Cargo.toml"
+    ],
+    "main": "./dist/destack_wasm.js",
+    "types": "./dist/destack_wasm.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/destack_wasm.d.ts",
+            "import": "./dist/destack_wasm.js",
+            "default": "./dist/destack_wasm.js"
+        }
+    },
+    "sideEffects": false,
+    "scripts": {
+        "build": "rm -rf dist && bun x wasm-pack build --release --target web --out-dir dist",
+        "test": "bun run build",
+        "size:report": "bun ./scripts/size-report.mjs",
+        "size:report:all": "bun ./scripts/size-report.mjs --brotli",
+        "prepublishOnly": "bun run build",
+        "publish:dry": "npm publish --dry-run --access public",
+        "publish:live": "npm publish --access public"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "dependencies": {},
+    "devDependencies": {
+        "wasm-pack": "0.15.0",
+        "typescript": "5.8.3"
+    }
+}

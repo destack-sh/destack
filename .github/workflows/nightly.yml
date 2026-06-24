@@ -149,8 +149,8 @@ jobs:
       - name: Check CLI
         run: just app/check-full
 
-  bridge-check:
-    name: Bridge Check
+  client-bridge-check:
+    name: Client and Bridge Check
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -166,7 +166,10 @@ jobs:
           rust_targets: wasm32-wasip2
           install_js_dependencies: "true"
 
-      - name: Check Bridge
+      - name: Check Client
+        run: just client/check-full --pin-destack-revision "${GITHUB_SHA}"
+
+      - name: Check Bridges
         run: just bridge/check-full --pin-destack-revision "${GITHUB_SHA}"
 
   language-fuzz:
@@ -224,7 +227,7 @@ jobs:
       - library-check
       - service-check
       - cli-check
-      - bridge-check
+      - client-bridge-check
       - language-runtime-linux-check
       - language-runtime-macos-check
       - language-runtime-windows-check

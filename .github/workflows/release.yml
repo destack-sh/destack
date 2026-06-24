@@ -108,8 +108,8 @@ jobs:
       - name: Check CLI
         run: just app/check-full
 
-  bridge-check:
-    name: Bridge Check
+  client-bridge-check:
+    name: Client and Bridge Check
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -125,7 +125,10 @@ jobs:
           rust_targets: wasm32-wasip2
           install_js_dependencies: "true"
 
-      - name: Check Bridge
+      - name: Check Client
+        run: just client/check-full --pin-destack-revision "${GITHUB_SHA}"
+
+      - name: Check Bridges
         run: just bridge/check-full --pin-destack-revision "${GITHUB_SHA}"
 
   language-runtime-linux-check:
@@ -148,7 +151,7 @@ jobs:
       - library-check
       - service-check
       - cli-check
-      - bridge-check
+      - client-bridge-check
       - language-runtime-linux-check
       - language-runtime-macos-check
       - language-runtime-windows-check
@@ -311,8 +314,10 @@ jobs:
       - name: Install JS Dependencies
         run: bun install --frozen-lockfile
 
-      - name: Check Bridge Publish Toolchains
-        run: just bridge/ensure-toolchain
+      - name: Check Publish Toolchains
+        run: |
+          just client/ensure-toolchain
+          just bridge/ensure-toolchain
 
       - name: Stage CLI npm Binaries
         run: just app/stage-cli-binaries-from-artifacts "$(cat VERSION.txt)" "release-cli-assets"
@@ -350,30 +355,30 @@ jobs:
           just library/publish ""
           just template/publish-create-destack-live
           just app/publish ""
-          just bridge/publish-npm ""
+          just client/publish-npm ""
         env:
           NPM_CONFIG_PROVENANCE: "true"
 
       - name: Publish Cargo packages
-        run: just bridge/publish-cargo ""
+        run: just client/publish-cargo ""
         env:
           CARGO_TOKEN: ${{ secrets.CARGO_TOKEN }}
 
       - name: Build PyPI distributions
         run: |
           python3 -m pip install --upgrade pip build twine
-          (cd bridge/python && python3 -m build && python3 -m twine check dist/*)
-          (cd bridge/python/aliases/destack-py && python3 -m build && python3 -m twine check dist/*)
+          (cd client/python && python3 -m build && python3 -m twine check dist/*)
+          (cd client/python/aliases/destack-py && python3 -m build && python3 -m twine check dist/*)
 
       - name: Publish PyPI package
         uses: pypa/gh-action-pypi-publish@ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0
         with:
-          packages-dir: bridge/python/dist
+          packages-dir: client/python/dist
 
       - name: Publish PyPI legacy alias package
         uses: pypa/gh-action-pypi-publish@ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0
         with:
-          packages-dir: bridge/python/aliases/destack-py/dist
+          packages-dir: client/python/aliases/destack-py/dist
 
       - name: Publish VS Code extension
         run: just bridge/publish-vscode ""

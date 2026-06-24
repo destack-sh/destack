@@ -45,25 +45,6 @@
       "name": "@destack/cli-win32-x64-msvc",
       "version": "0.55.4",
     },
-    "bridge/napi": {
-      "name": "@destack/language-napi",
-      "version": "0.55.4",
-      "devDependencies": {
-        "@napi-rs/cli": "3.7.0",
-        "typescript": "5.8.3",
-      },
-    },
-    "bridge/typescript": {
-      "name": "@destack/language",
-      "version": "0.55.4",
-      "dependencies": {
-        "@destack/language-napi": "0.55.4",
-        "@destack/language-wasm": "0.55.4",
-      },
-      "devDependencies": {
-        "typescript": "5.8.3",
-      },
-    },
     "bridge/vscode": {
       "name": "destack",
       "version": "0.55.4",
@@ -78,7 +59,26 @@
         "vscode-tmgrammar-test": "^0.1.3",
       },
     },
-    "bridge/wasm": {
+    "client/napi": {
+      "name": "@destack/language-napi",
+      "version": "0.55.4",
+      "devDependencies": {
+        "@napi-rs/cli": "3.7.0",
+        "typescript": "5.8.3",
+      },
+    },
+    "client/typescript": {
+      "name": "@destack/language",
+      "version": "0.55.4",
+      "dependencies": {
+        "@destack/language-napi": "0.55.4",
+        "@destack/language-wasm": "0.55.4",
+      },
+      "devDependencies": {
+        "typescript": "5.8.3",
+      },
+    },
+    "client/wasm": {
       "name": "@destack/language-wasm",
       "version": "0.55.4",
       "devDependencies": {
@@ -275,11 +275,11 @@
 
     "@destack/grammar": ["@destack/grammar@workspace:language/grammar"],
 
-    "@destack/language": ["@destack/language@workspace:bridge/typescript"],
+    "@destack/language": ["@destack/language@workspace:client/typescript"],
 
-    "@destack/language-napi": ["@destack/language-napi@workspace:bridge/napi"],
+    "@destack/language-napi": ["@destack/language-napi@workspace:client/napi"],
 
-    "@destack/language-wasm": ["@destack/language-wasm@workspace:bridge/wasm"],
+    "@destack/language-wasm": ["@destack/language-wasm@workspace:client/wasm"],
 
     "@destack/platform": ["@destack/platform@workspace:platform/stack"],
 

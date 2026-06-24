@@ -1,19 +1,13 @@
-# Bridge
+# Bridges
 
-Destack bridges into the rest of the universe.
+Destack bridges into host tools and editor environments.
 
 ## Projects
 
 | Project | Status | Summary |
 |---------|--------|---------|
-| [`typescript`](typescript/README.md) | Alpha | Primary language bridge package published as `@destack/language` |
-| [`rust`](rust/README.md) | Experimental | Rust language bridge crate published as `destack` |
-| [`python`](python/README.md) | Experimental | Python language bridge package published as `destack` |
 | [`vscode`](vscode/README.md) | Experimental | VS Code extension and language support |
 | [`zed`](zed/README.md) | Experimental | Zed extension integration |
-
-The `napi` and `wasm` packages are TypeScript bridge backends.
-They are maintained as implementation packages for `typescript`, not first-class bridge products.
 
 ## Commands
 
@@ -30,7 +24,6 @@ just bridge/check-full
 just bridge/install-toolchain
 just bridge/doctor-toolchain
 just bridge/ensure-toolchain
-just bridge/wasm-size
 just bridge/publish --dry-run
 just bridge/publish-zed --dry-run
 ```
