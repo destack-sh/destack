@@ -4,6 +4,17 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::WalkState;
 
+/// One generic argument after walking its type or static value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) struct GenericArgument {
+    /// The associated argument name, when written.
+    pub(in crate::check) name: Option<dir::StringId>,
+    /// The argument type or singleton static term.
+    pub(in crate::check) ty: dir::GlobalTypeId,
+    /// The source node that produced the argument value.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+}
+
 impl WalkState<'_, '_> {
     /// Walk one runtime argument.
     ///
@@ -39,7 +50,7 @@ impl WalkState<'_, '_> {
             }
             None => self.push_type(dir::Type::Error, id.into_any())?,
         };
-        self.declare_node_type(id, ty)?;
+        self.constrain_node_type(id, ty)?;
 
         Ok(())
     }
@@ -53,7 +64,7 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn walk_generic_arguments(
         &mut self,
         arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    ) -> CompilerResult<SmallVec<[(Option<dir::StringId>, dir::GlobalTypeId); 2]>> {
+    ) -> CompilerResult<SmallVec<[GenericArgument; 2]>> {
         let mut applied = SmallVec::new();
 
         // preserve generic argument order
@@ -74,29 +85,43 @@ impl WalkState<'_, '_> {
     fn walk_generic_argument(
         &mut self,
         id: dir::LocalNodeId<dir::GenericArgument>,
-    ) -> CompilerResult<(Option<dir::StringId>, dir::GlobalTypeId)> {
-        let (name, ty) = match self.tree.get(id) {
+    ) -> CompilerResult<GenericArgument> {
+        let (name, ty, source) = match self.tree.get(id) {
             // <T> and <...T>
-            dir::GenericArgument::Type { value } | dir::GenericArgument::SpreadType { value } => {
-                (None, self.walk_type_expression(*value)?)
-            }
+            dir::GenericArgument::Type { value } | dir::GenericArgument::SpreadType { value } => (
+                None,
+                self.walk_type_expression(*value)?,
+                value.into_global_any(self.module),
+            ),
             // <type Item = T>
-            dir::GenericArgument::AssociatedType { name, value } => {
-                (Some(*name), self.walk_type_expression(*value)?)
-            }
+            dir::GenericArgument::AssociatedType { name, value } => (
+                Some(*name),
+                self.walk_type_expression(*value)?,
+                value.into_global_any(self.module),
+            ),
             // <C> and <...C>
             dir::GenericArgument::Value { value } | dir::GenericArgument::SpreadValue { value } => {
-                (None, self.static_expression_type(*value)?)
+                (
+                    None,
+                    self.walk_static_term(*value)?,
+                    value.into_global_any(self.module),
+                )
             }
             // <comptime Size = N>
-            dir::GenericArgument::AssociatedConst { name, value } => {
-                (Some(*name), self.static_expression_type(*value)?)
-            }
+            dir::GenericArgument::AssociatedConst { name, value } => (
+                Some(*name),
+                self.walk_static_term(*value)?,
+                value.into_global_any(self.module),
+            ),
             // keep the argument arity visible to solve
-            dir::GenericArgument::Error => (None, self.push_type(dir::Type::Error, id.into_any())?),
+            dir::GenericArgument::Error => (
+                None,
+                self.push_type(dir::Type::Error, id.into_any())?,
+                id.into_global_any(self.module),
+            ),
         };
-        self.declare_node_type(id, ty)?;
+        self.constrain_node_type(id, ty)?;
 
-        Ok((name, ty))
+        Ok(GenericArgument { name, ty, source })
     }
 }

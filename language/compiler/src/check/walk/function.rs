@@ -6,13 +6,13 @@ use crate::check::{
 };
 
 impl<'check, 'state> WalkState<'check, 'state> {
-    /// Return one function type from a function signature.
+    /// Walk one function signature and return its type.
     ///
     /// Example:
     /// ```ds
     /// function run<T>(value: T): T { value }
     /// ```
-    pub(in crate::check) fn function_signature_type(
+    pub(in crate::check) fn walk_function_signature_type(
         &mut self,
         source: dir::LocalNodeIdAny,
         signature: &dir::FunctionSignature,
@@ -20,10 +20,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
         receiver_type: Option<dir::GlobalTypeId>,
         return_type: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let generic_parameters = self.signature_generic_parameters(source, template)?;
+        let generic_parameters = self.push_signature_generic_parameter_types(source, template)?;
 
         let this_parameter = if let Some(parameter) = signature.this_parameter {
-            self.parameter_type(parameter)?.or(receiver_type)
+            self.walk_parameter_type(parameter)?.or(receiver_type)
         } else {
             receiver_type
         };
@@ -31,7 +31,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         // collect runtime parameters
         let mut parameters = Vec::new();
         for parameter in &signature.parameters {
-            if let Some(parameter) = self.function_parameter_type(*parameter)? {
+            if let Some(parameter) = self.walk_function_parameter_type(*parameter)? {
                 parameters.push(parameter);
             }
         }
@@ -48,36 +48,45 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.push_type(dir::Type::FunctionSignature(function), source)
     }
 
-    /// Return one function type from a type-space function declaration.
+    /// Walk one function type expression.
     ///
     /// Example:
     /// ```ds
     /// (value: T) => U
     /// ```
-    pub(in crate::check) fn function_type(
+    pub(in crate::check) fn walk_function_type(
         &mut self,
         source: dir::LocalNodeIdAny,
         declaration: &dir::FunctionTypeExpression,
-        template: Option<GenericTemplateId>,
+        parent: Option<GenericTemplateId>,
         return_type: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let generic_parameters = self.signature_generic_parameters(source, template)?;
+        let template = self.walk_signature_template(
+            source,
+            parent,
+            declaration.declares_generic_template(&self.tree),
+            &declaration.generic_parameters,
+            &declaration.where_clauses,
+        )?;
+        let generic_parameters = self.push_signature_generic_parameter_types(source, template)?;
         let return_type = match (return_type, declaration.return_type) {
             (Some(return_type), _) => Some(return_type),
-            (None, Some(return_type)) => Some(self.walk_type_expression(return_type)?),
+            (None, Some(return_type)) => {
+                Some(self.walk_return_type_expression(source, return_type, false)?)
+            }
             (None, None) => None,
         };
 
         let this_parameter = if let Some(parameter) = declaration.this_parameter {
-            self.parameter_type(parameter)?
+            self.walk_parameter_type(parameter)?
         } else {
             None
         };
 
-        // collect runtime parameters
+        // collect signature parameters
         let mut parameters = Vec::new();
         for parameter in &declaration.parameters {
-            if let Some(parameter) = self.function_parameter_type(*parameter)? {
+            if let Some(parameter) = self.walk_signature_parameter_type(template, *parameter)? {
                 parameters.push(parameter);
             }
         }
@@ -92,33 +101,42 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
         let signature = self.push_type(dir::Type::FunctionSignature(function), source)?;
 
-        self.function_value_type(source, signature)
+        self.push_function_value_type(source, signature)
     }
 
-    /// Return one function type from a type-space constructor declaration.
+    /// Walk one constructor type expression.
     ///
     /// Example:
     /// ```ds
     /// new (value: T) => Box<T>
     /// ```
-    pub(in crate::check) fn constructor_type(
+    pub(in crate::check) fn walk_constructor_type(
         &mut self,
         source: dir::LocalNodeIdAny,
         declaration: &dir::ConstructorType,
-        template: Option<GenericTemplateId>,
+        parent: Option<GenericTemplateId>,
         return_type: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let generic_parameters = self.signature_generic_parameters(source, template)?;
+        let template = self.walk_signature_template(
+            source,
+            parent,
+            declaration.declares_generic_template(&self.tree),
+            &declaration.generic_parameters,
+            &declaration.where_clauses,
+        )?;
+        let generic_parameters = self.push_signature_generic_parameter_types(source, template)?;
         let return_type = match (return_type, declaration.return_type) {
             (Some(return_type), _) => Some(return_type),
-            (None, Some(return_type)) => Some(self.walk_type_expression(return_type)?),
+            (None, Some(return_type)) => {
+                Some(self.walk_return_type_expression(source, return_type, false)?)
+            }
             (None, None) => None,
         };
 
-        // collect runtime parameters
+        // collect signature parameters
         let mut parameters = Vec::new();
         for parameter in &declaration.parameters {
-            if let Some(parameter) = self.function_parameter_type(*parameter)? {
+            if let Some(parameter) = self.walk_signature_parameter_type(template, *parameter)? {
                 parameters.push(parameter);
             }
         }
@@ -136,7 +154,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     }
 
     /// Return one fat callable value type for a function signature.
-    pub(in crate::check) fn function_value_type(
+    pub(in crate::check) fn push_function_value_type(
         &mut self,
         source: dir::LocalNodeIdAny,
         signature: dir::GlobalTypeId,
@@ -151,7 +169,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     }
 
     /// Return the parameter types captured by one callable signature.
-    fn signature_generic_parameters(
+    fn push_signature_generic_parameter_types(
         &mut self,
         source: dir::LocalNodeIdAny,
         template: Option<GenericTemplateId>,
@@ -168,6 +186,40 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
 
         Ok(types)
+    }
+
+    /// Return the template owned by one callable type header.
+    fn walk_signature_template(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        parent: Option<GenericTemplateId>,
+        declares_template: bool,
+        generic_parameters: &[dir::LocalNodeId<dir::GenericParameter>],
+        where_clauses: &[dir::LocalNodeId<dir::WhereClause>],
+    ) -> CompilerResult<Option<GenericTemplateId>> {
+        if !declares_template {
+            return Ok(None);
+        }
+
+        let source = source.into_global(self.module);
+        let template = if generic_parameters.is_empty() {
+            self.check.declare_generic_template(source, parent, None)?
+        } else {
+            let Some(template) =
+                self.walk_generic_template(source, parent, None, generic_parameters)?
+            else {
+                return Ok(None);
+            };
+
+            template
+        };
+
+        // apply where clauses after all header parameters exist
+        for where_clause in where_clauses {
+            self.walk_where_clause(*where_clause)?;
+        }
+
+        Ok(Some(template))
     }
 
     /// Walk one function body inside a function flow frame.
@@ -261,13 +313,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
         )
     }
 
-    /// Return one runtime function parameter type.
+    /// Walk one runtime function parameter and return its signature slot.
     ///
     /// Example:
     /// ```ds
     /// (value?: T, ...rest: U[])
     /// ```
-    fn function_parameter_type(
+    fn walk_function_parameter_type(
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
     ) -> CompilerResult<Option<dir::FunctionParameterType>> {
@@ -278,7 +330,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         );
         let is_optional = parameter.is_optional();
         let is_comptime = parameter.is_comptime();
-        let Some(ty) = self.parameter_type(id)? else {
+        let Some(ty) = self.walk_parameter_type(id)? else {
             return Ok(None);
         };
 
@@ -302,7 +354,59 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }))
     }
 
-    /// Return one runtime parameter type.
+    /// Walk one callable type parameter and return its signature slot.
+    fn walk_signature_parameter_type(
+        &mut self,
+        template: Option<GenericTemplateId>,
+        id: dir::LocalNodeId<dir::Parameter>,
+    ) -> CompilerResult<Option<dir::FunctionParameterType>> {
+        let parameter = self.tree.get(id);
+        if parameter.declared_type().is_none() {
+            self.check
+                .report_missing_type_annotation(self.module, id.into_any());
+        }
+        let is_rest = matches!(
+            parameter,
+            dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. }
+        );
+        let is_optional = parameter.is_optional();
+        let is_comptime = parameter.is_comptime();
+        let Some(written) = self.walk_parameter_type(id)? else {
+            return Ok(None);
+        };
+
+        // comptime parameters are static generic parameters at call sites
+        let static_parameter = if is_comptime {
+            let source = id.into_any();
+            let symbol = self.check.module(self.module).declaration_symbol(source);
+            let default = match parameter {
+                dir::Parameter::Named { default, .. } | dir::Parameter::Pattern { default, .. } => {
+                    *default
+                }
+                _ => None,
+            };
+
+            self.induce_comptime_parameter(
+                template,
+                source,
+                symbol,
+                Some(written),
+                default,
+                is_rest,
+            )?
+        } else {
+            None
+        };
+
+        Ok(Some(dir::FunctionParameterType {
+            ty: written,
+            static_parameter,
+            is_optional,
+            is_rest,
+        }))
+    }
+
+    /// Walk one parameter annotation and return its type.
     ///
     /// Missing annotations use the parameter node variable so contextual
     /// lambdas can still receive an expected type.
@@ -311,7 +415,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// ```ds
     /// (value: T)
     /// ```
-    pub(in crate::check) fn parameter_type(
+    pub(in crate::check) fn walk_parameter_type(
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
@@ -335,7 +439,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         } else {
             written
         };
-        self.declare_node_type(id, written)?;
+        self.constrain_node_type(id, written)?;
 
         Ok(Some(written))
     }
