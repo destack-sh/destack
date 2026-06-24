@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Label selection operator for runtime identity selectors.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum RuntimeLabelOperator {
@@ -18,7 +19,7 @@ pub enum RuntimeLabelOperator {
 }
 
 /// One label requirement clause for runtime identity selectors.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeLabelRequirement {
@@ -70,7 +71,7 @@ impl RuntimeLabelRequirement {
 }
 
 /// Kubernetes-style label selector for runtime identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -129,7 +130,7 @@ impl RuntimeLabelSelector {
 }
 
 /// Runtime identity selector for worker and runtime scopes.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]

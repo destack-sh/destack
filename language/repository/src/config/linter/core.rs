@@ -1,3 +1,4 @@
+use destack_serde::Reflect;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +10,7 @@ use super::{
 /// Lint rule categories.
 ///
 /// Each category has a letter code used in lint identifiers (e.g., `LC002` for Correctness).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum LintCategory {
@@ -119,7 +120,7 @@ impl std::fmt::Display for LintCategory {
 }
 
 /// Lint rule preset.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum LintPreset {
@@ -164,7 +165,7 @@ impl std::fmt::Display for LintPreset {
 }
 
 /// Preferred array type syntax for the `array-type` rule.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum ArrayTypeStyle {
@@ -176,7 +177,7 @@ pub enum ArrayTypeStyle {
 }
 
 /// Filename case style for the `filename-case` rule.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum FilenameCase {
@@ -192,7 +193,7 @@ pub enum FilenameCase {
 }
 
 /// Return-await mode for the `return-await` rule.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum ReturnAwaitMode {
@@ -208,7 +209,7 @@ pub enum ReturnAwaitMode {
 }
 
 /// Required Unicode regex flag for `require-unicode-regexp`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum UnicodeRegexpRequireFlag {
@@ -230,7 +231,7 @@ impl UnicodeRegexpRequireFlag {
 }
 
 /// Switch counting variant for `cyclomatic-complexity`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum CyclomaticComplexityVariant {
@@ -242,7 +243,7 @@ pub enum CyclomaticComplexityVariant {
 }
 
 /// `this` parameter counting policy for `max-params`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum MaxParamsCountThis {
@@ -256,7 +257,7 @@ pub enum MaxParamsCountThis {
 }
 
 /// Enforcement mode for `operator-assignment`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum OperatorAssignmentMode {
@@ -268,7 +269,7 @@ pub enum OperatorAssignmentMode {
 }
 
 /// Enforcement mode for `object-shorthand`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum ObjectShorthandMode {
@@ -288,7 +289,7 @@ pub enum ObjectShorthandMode {
 }
 
 /// Enforcement mode for `yoda`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum YodaMode {
@@ -300,7 +301,7 @@ pub enum YodaMode {
 }
 
 /// Ordering policy for `grouped-accessor-pairs`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum GroupedAccessorPairsOrder {
@@ -314,7 +315,7 @@ pub enum GroupedAccessorPairsOrder {
 }
 
 /// Member syntax groups for `sort-imports`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum SortImportsMemberSyntax {
@@ -329,7 +330,7 @@ pub enum SortImportsMemberSyntax {
 }
 
 /// Destructuring policy for `prefer-const`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum PreferConstDestructuring {
@@ -341,7 +342,7 @@ pub enum PreferConstDestructuring {
 }
 
 /// Warning comment term matching location for `no-warning-comments`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum WarningCommentLocation {
@@ -353,7 +354,7 @@ pub enum WarningCommentLocation {
 }
 
 /// Bitwise operators configurable for the `no-bitwise` rule.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum BitwiseOperator {
@@ -412,7 +413,7 @@ impl BitwiseOperator {
 /// 1. Individual rule overrides
 /// 2. Category-level overrides
 /// 3. Preset defaults
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -589,7 +590,7 @@ impl LinterOptions {
 }
 
 /// Rule severity level.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum LintSeverity {
@@ -654,7 +655,7 @@ impl std::fmt::Display for LintSeverity {
 }
 
 /// Condition assignment policy for `no-cond-assign`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum ConditionAssignmentMode {
@@ -666,7 +667,7 @@ pub enum ConditionAssignmentMode {
 }
 
 /// Empty function kinds that `no-empty-function` may allow.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum EmptyFunctionKind {

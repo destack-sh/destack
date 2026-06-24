@@ -2,6 +2,7 @@ use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use destack_serde::Reflect;
 use destack_source::{File, FileId};
 use indexmap::IndexMap;
 use serde::Deserialize;
@@ -27,7 +28,7 @@ pub const DEFAULT_SOURCE_EXCLUDE: &[&str] = &[
 ];
 
 /// Destack configuration document.
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "schema", schemars(title = "Destack"))]
 #[serde(default)]
@@ -52,7 +53,7 @@ pub struct Destack {
     /// Package keywords.
     pub keywords: Vec<String>,
     /// Repository wide workspace package and group configuration.
-    workspace: Option<WorkspaceLayout>,
+    pub workspace: Option<WorkspaceLayout>,
     /// Config path inherited before this config.
     pub extends: Option<String>,
     /// Specific files to include in the project.
@@ -121,19 +122,19 @@ impl Destack {
 
 /// Return the JSON schema for `destack.json`.
 #[cfg(feature = "schema")]
-pub fn destack_schema() -> schemars::Reflect {
+pub fn destack_schema() -> schemars::Schema {
     schemars::schema_for!(Destack)
 }
 
 /// Workspace package layout.
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-struct WorkspaceLayout {
+pub struct WorkspaceLayout {
     /// Package root glob patterns.
-    packages: Option<Vec<String>>,
+    pub packages: Option<Vec<String>>,
     /// Named groups of package paths.
-    groups: Option<IndexMap<String, Vec<String>>>,
+    pub groups: Option<IndexMap<String, Vec<String>>>,
 }
 
 /// Loaded `destack.json` file.

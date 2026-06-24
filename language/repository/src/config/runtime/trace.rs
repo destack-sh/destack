@@ -1,11 +1,12 @@
 use std::path::PathBuf;
 
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::ReplayPayloadMode;
 
 /// Restore contract for one world checkpoint or replay boundary.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum RestoreMode {
@@ -17,7 +18,7 @@ pub enum RestoreMode {
 }
 
 /// Runtime trace configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]

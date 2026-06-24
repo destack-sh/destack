@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use destack_source::{IndentStyle, LineEnding};
 
 /// Quote style for string literals.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum QuoteStyle {
     /// Use double quotes: `"hello"`.
     #[default]
@@ -69,7 +69,7 @@ impl std::fmt::Display for QuoteStyle {
 }
 
 /// Trailing comma policy for multi-line constructs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum TrailingComma {
     /// Add trailing commas everywhere valid in ES2017+ (functions, arrays, objects).
     #[default]
@@ -118,7 +118,7 @@ impl std::fmt::Display for TrailingComma {
 }
 
 /// Arrow function parentheses policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum ArrowParentheses {
     /// Always include parentheses: `(x) => x`.
     #[default]
@@ -153,7 +153,7 @@ impl std::fmt::Display for ArrowParentheses {
 }
 
 /// Object property quote style.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum QuoteProperty {
     /// Only quote properties when required (e.g., `{ "foo-bar": 1, baz: 2 }`).
     #[default]
@@ -192,7 +192,7 @@ impl std::fmt::Display for QuoteProperty {
 }
 
 /// Import organization mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum OrganizeImports {
     /// Organize imports: sort statements by group and specifiers alphabetically.
     On,
@@ -232,7 +232,7 @@ impl std::fmt::Display for OrganizeImports {
 }
 
 /// Sort order for import/export specifiers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum ImportSortOrder {
     /// Natural sort: numbers ordered as integers (a1 < a2 < a10).
     #[default]
@@ -267,7 +267,7 @@ impl std::fmt::Display for ImportSortOrder {
 }
 
 /// How to choose between single-line and multiline JSDoc comments.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum JsdocCommentLineStrategy {
     /// Use one line when the content fits on one line.
     #[default]
@@ -279,7 +279,7 @@ pub enum JsdocCommentLineStrategy {
 }
 
 /// How to wrap JSDoc prose.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum JsdocLineWrappingStyle {
     /// Re-wrap text greedily to the configured width.
     #[default]

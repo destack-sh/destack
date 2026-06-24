@@ -1,8 +1,9 @@
 use destack_heap::{DEFAULT_GC_GROWTH_PERCENT, DEFAULT_YOUNG_SIZE_BYTES};
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Runtime heap configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -29,7 +30,7 @@ impl Default for HeapOptions {
 }
 
 /// Runtime local-heap policy.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -53,7 +54,7 @@ impl Default for LocalHeapOptions {
 }
 
 /// Runtime shared-heap policy.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]

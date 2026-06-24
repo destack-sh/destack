@@ -4,6 +4,7 @@ mod dir;
 pub mod format;
 pub mod navigation;
 pub mod refactor;
+mod schema;
 mod source;
 
 pub use assist::*;
@@ -17,3 +18,4 @@ pub use dir::SymbolKind;
 pub use format::*;
 pub use navigation::*;
 pub use refactor::*;
+pub use schema::*;

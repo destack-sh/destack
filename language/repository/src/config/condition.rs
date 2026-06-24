@@ -1,4 +1,5 @@
 pub use destack_artifact::ConditionSet;
+use destack_serde::Reflect;
 use destack_source::matches as glob_matches;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
@@ -48,7 +49,7 @@ impl BuiltinSuffixAlias {
 }
 
 /// Named source graph condition.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -64,7 +65,7 @@ pub struct Condition {
 }
 
 /// Named condition declarations from `destack.json`.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -336,7 +337,7 @@ impl ConditionCatalog {
 }
 
 /// Source-level reference to one active condition predicate.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ConditionRef {
@@ -389,7 +390,7 @@ impl std::fmt::Display for ConditionRefError {
 }
 
 /// Declared condition predicate before named references are resolved.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -423,7 +424,7 @@ pub struct ConditionPredicate {
 }
 
 /// Predicate over active source graph and runtime conditions.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -632,7 +633,7 @@ pub fn builtin_condition_aliases() -> IndexMap<String, ConditionGate> {
 }
 
 /// One condition axis name.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum ConditionAxis {
@@ -694,7 +695,7 @@ impl ConditionAxis {
 }
 
 /// Selector over one active condition axis.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ConditionSelector {
     /// Condition names or glob patterns.
@@ -739,7 +740,7 @@ impl ConditionSelector {
 }
 
 /// Deserialized selector shorthand.
-#[derive(Deserialize)]
+#[derive(Deserialize, Reflect)]
 #[serde(untagged)]
 enum ConditionSelectorValue {
     /// Exact selector name.
