@@ -245,18 +245,18 @@ impl FunctionLowerer<'_> {
         let predicate = self
             .context
             .resolutions
-            .predicate_resolution(expression_id.into_global_any(self.context.module_id))
+            .guard_resolution(expression_id.into_global_any(self.context.module_id))
             .ok_or_else(|| LowerError::Internal {
                 anchor: self.context.module_id.into(),
                 module: self.context.module_id,
                 message: "missing predicate resolution for type predicate".to_string(),
             })?;
         let target_type_id = match predicate {
-            dir::PredicateResolution::Is(predicate) => predicate.target_type.into_local(),
-            dir::PredicateResolution::InstanceOf(_) => {
+            dir::GuardResolution::Is(predicate) => predicate.target_type.into_local(),
+            dir::GuardResolution::InstanceOf(_) => {
                 return self.unsupported_type_descriptor_predicate(expression_id);
             }
-            dir::PredicateResolution::In(_) => {
+            dir::GuardResolution::In(_) => {
                 return Err(LowerError::Internal {
                     anchor: self.context.module_id.into(),
                     module: self.context.module_id,
@@ -360,13 +360,13 @@ impl FunctionLowerer<'_> {
         let predicate = self
             .context
             .resolutions
-            .predicate_resolution(expression_id.into_global_any(self.context.module_id))
+            .guard_resolution(expression_id.into_global_any(self.context.module_id))
             .ok_or_else(|| LowerError::Internal {
                 anchor: self.context.module_id.into(),
                 module: self.context.module_id,
                 message: "missing predicate resolution for member predicate".to_string(),
             })?;
-        if !matches!(predicate, dir::PredicateResolution::In(_)) {
+        if !matches!(predicate, dir::GuardResolution::In(_)) {
             return Err(LowerError::Internal {
                 anchor: self.context.module_id.into(),
                 module: self.context.module_id,
