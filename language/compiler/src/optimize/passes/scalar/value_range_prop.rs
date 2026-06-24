@@ -57,7 +57,7 @@ impl FunctionPass for ValueRangePropagation {
 
         // report what this pass changed
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }

@@ -6,8 +6,7 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, ControlFlowGraph, EdgeSplitPolicy, MemoryAccess, MemoryAccessId, MemorySSA,
-    Mutation, build_value_definition_map, collect_non_escaping_frame_allocs, effect_is_trackable,
-    ensure_edge_block, frame_alloc_base, instruction_has_atomic_ordering,
+    Mutation, ValueDefinitions, ensure_edge_block,
 };
 
 declare_pass! {
@@ -69,7 +68,7 @@ impl FunctionPass for StoreSink {
 
         // report what this pass changed
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -127,8 +126,8 @@ fn run_store_sink(
     let alias = analyses.get::<AliasAnalysis>(function, tree).clone();
 
     // build pointer definition info
-    let definitions = build_value_definition_map(function, tree);
-    let non_escaping_frame_allocs = collect_non_escaping_frame_allocs(function, tree, &definitions);
+    let definitions = ValueDefinitions::build(function, tree);
+    let non_escaping_frame_allocs = definitions.non_escaping_frame_allocs(function, tree);
 
     // collect store candidates
     let candidates = collect_store_candidates(
@@ -231,7 +230,7 @@ fn collect_store_candidates(
     tree: &mir::Tree,
     memory_ssa: &MemorySSA,
     non_escaping_frame_allocs: &HashSet<mir::Value>,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &ValueDefinitions,
 ) -> Vec<StoreCandidate> {
     // scan blocks for store candidates
     let mut candidates = Vec::new();
@@ -258,7 +257,7 @@ fn collect_store_candidates(
             };
 
             // read the MemorySSA access
-            let access_id = match memory_ssa.access_for_instruction(instruction_id) {
+            let access_id = match memory_ssa.instruction_access(instruction_id) {
                 Some(access_id) => access_id,
                 None => continue,
             };
@@ -272,12 +271,12 @@ fn collect_store_candidates(
             }
 
             // skip ordered stores
-            if instruction_has_atomic_ordering(tree, instruction_id) {
+            if tree.instruction_has_atomic_ordering(instruction_id) {
                 continue;
             }
 
             // require a trackable effect
-            if !effect_is_trackable(&def_access.effect) {
+            if !def_access.effect.is_trackable() {
                 continue;
             }
 
@@ -342,7 +341,7 @@ fn store_is_sinkable_location(
     kind: StoreKind,
     pointer: Option<mir::Value>,
     non_escaping_frame_allocs: &HashSet<mir::Value>,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &ValueDefinitions,
     tree: &mir::Tree,
 ) -> bool {
     // allow local stores
@@ -354,7 +353,7 @@ fn store_is_sinkable_location(
     let Some(pointer) = pointer else {
         return false;
     };
-    let Some(base) = frame_alloc_base(pointer, definitions, tree) else {
+    let Some(base) = definitions.frame_alloc_base(pointer, tree) else {
         return false;
     };
 
@@ -375,7 +374,7 @@ fn collect_use_blocks_by_def(
         let block = tree.get(block_id);
 
         for &instruction_id in &block.instructions {
-            let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
+            let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
                 continue;
             };
 
@@ -384,7 +383,7 @@ fn collect_use_blocks_by_def(
                     continue;
                 };
 
-                let clobber = memory_ssa.clobbering_access_for_use(access_id, alias);
+                let clobber = memory_ssa.clobbering_use(access_id, alias);
                 blocks_by_def.entry(clobber).or_default().insert(block_id);
             }
         }
@@ -461,12 +460,12 @@ fn clone_store_metadata(
         return;
     };
 
-    // update pointer targets for cloned metadata
+    // update reference targets for cloned metadata
     let mut cloned = Vec::with_capacity(accesses.len());
     for access in accesses {
         let mut updated = access.clone();
-        if let (Some(pointer), mir::MemoryAccessTarget::Pointer(_)) = (pointer, updated.target) {
-            updated.target = mir::MemoryAccessTarget::Pointer(pointer);
+        if let (Some(pointer), mir::MemoryAccessTarget::Reference(_)) = (pointer, updated.target) {
+            updated.target = mir::MemoryAccessTarget::Reference(pointer);
         }
         cloned.push(updated);
     }

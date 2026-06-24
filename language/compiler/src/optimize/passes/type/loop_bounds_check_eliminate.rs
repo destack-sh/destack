@@ -106,7 +106,7 @@ impl FunctionPass for LoopBoundsCheckEliminate {
             &forwarding,
         );
         if changed {
-            Mutation::CONTROL_FLOW
+            Mutation::CONTROL
         } else {
             Mutation::NONE
         }
@@ -687,7 +687,7 @@ fn affine_value_for_loop(
 
     // prefer scalar evolution when available
     let scev = scev
-        .scev_for_value_in_loop(loop_index, value)
+        .value_scev(loop_index, value)
         .cloned()
         .unwrap_or(Scev::Unknown(value));
 

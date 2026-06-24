@@ -5,9 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    ConstantPropagation, Mutation, instruction_requires_exact_access,
-    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
-    terminator_substitute_uses,
+    ConstantPropagation, Mutation, instruction_substitute_uses_in_tree,
+    remap_instruction_memory_accesses, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -81,7 +80,7 @@ impl FunctionPass for Sroa {
 
         // report what this pass changed
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -139,9 +138,9 @@ struct SplitCandidate {
     element_types: Vec<mir::LocalNodeId<mir::Type>>,
     /// Uses of the allocation (field/element addresses).
     uses: Vec<UseInfo>,
-    /// Loads performed directly on the base pointer.
+    /// Loads performed directly on the base reference.
     base_loads: Vec<mir::LocalNodeId<mir::Instruction>>,
-    /// Stores performed directly on the base pointer.
+    /// Stores performed directly on the base reference.
     base_stores: Vec<mir::LocalNodeId<mir::Instruction>>,
 }
 
@@ -386,9 +385,9 @@ fn analyze_uses(
                         worklist.push(*destination);
                     }
 
-                    // loads and stores are allowed, base pointer uses are recorded
+                    // loads and stores are allowed, base reference uses are recorded
                     mir::Instruction::Load { pointer, .. } if *pointer == value => {
-                        if instruction_requires_exact_access(tree, inst_id) {
+                        if tree.instruction_requires_exact_access(inst_id) {
                             return None;
                         }
                         if value == alloc_value {
@@ -397,7 +396,7 @@ fn analyze_uses(
                     }
 
                     mir::Instruction::Store { pointer, .. } if *pointer == value => {
-                        if instruction_requires_exact_access(tree, inst_id) {
+                        if tree.instruction_requires_exact_access(inst_id) {
                             return None;
                         }
                         if value == alloc_value {
@@ -540,7 +539,7 @@ fn split_allocation(
         to_remove.insert(use_info.instruction);
     }
 
-    // rewrite base pointer loads and stores
+    // rewrite base reference loads and stores
     let base_loads: HashSet<_> = candidate.base_loads.iter().copied().collect();
     let base_stores: HashSet<_> = candidate.base_stores.iter().copied().collect();
 
@@ -555,7 +554,7 @@ fn split_allocation(
         let mut new_instructions: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
 
         for instruction_id in instruction_ids {
-            // rewrite base pointer loads into scalar loads
+            // rewrite base reference loads into scalar loads
             if base_loads.contains(&instruction_id) {
                 let mut rewritten =
                     rewrite_base_load(candidate, function, tree, &index_to_value, instruction_id);
@@ -563,7 +562,7 @@ fn split_allocation(
                 continue;
             }
 
-            // rewrite base pointer stores into scalar stores
+            // rewrite base reference stores into scalar stores
             if base_stores.contains(&instruction_id) {
                 let mut rewritten =
                     rewrite_base_store(candidate, function, tree, &index_to_value, instruction_id);
@@ -590,7 +589,7 @@ fn split_allocation(
     true
 }
 
-/// Rewrite a base pointer load into scalar loads and aggregate rebuild.
+/// Rewrite a base reference load into scalar loads and aggregate rebuild.
 fn rewrite_base_load(
     candidate: &SplitCandidate,
     function: &mut mir::Function,
@@ -637,7 +636,7 @@ fn rewrite_base_load(
     new_instructions
 }
 
-/// Rewrite a base pointer store into aggregate decompositions and scalar stores.
+/// Rewrite a base reference store into aggregate decompositions and scalar stores.
 fn rewrite_base_store(
     candidate: &SplitCandidate,
     function: &mut mir::Function,

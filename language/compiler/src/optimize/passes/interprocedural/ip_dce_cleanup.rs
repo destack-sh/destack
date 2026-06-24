@@ -57,7 +57,7 @@ impl ModulePass for InterproceduralDceCleanup {
         // report what this pass changed
         if changed {
             ctx.strings.intern("ip-dce-cleanup");
-            Mutation::CONTROL_FLOW
+            Mutation::CONTROL
         } else {
             Mutation::NONE
         }

@@ -6,9 +6,9 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, MemoryAccess,
-    MemoryAccessEffect, MemoryAccessLocation, MemorySSA, Mutation, block_is_speculatable_no_reads,
-    build_instruction_block_map, build_value_definition_map, clone_loop_blocks_with_instructions,
-    control_instructions_for_latch, effects_may_alias, instruction_has_atomic_ordering,
+    MemoryAccessEffect, MemoryEffectTarget, MemorySSA, Mutation, ValueDefinitions,
+    block_is_speculatable_no_reads, build_instruction_block_map,
+    clone_loop_blocks_with_instructions, control_instructions_for_latch,
     instruction_is_speculatable, loop_guard_branch, loop_preheader, terminator_remap,
 };
 
@@ -107,7 +107,7 @@ impl FunctionPass for LoopDistribute {
 
         // report what this pass changed
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -163,7 +163,7 @@ fn run_loop_distribute(
     alias: &AliasAnalysis,
 ) -> bool {
     // build value definition info
-    let definitions = build_value_definition_map(function, tree);
+    let definitions = ValueDefinitions::build(function, tree).instruction_map();
     let instruction_blocks = build_instruction_block_map(function, tree);
 
     // select a candidate loop
@@ -480,12 +480,12 @@ fn collect_group_effects(
     let mut effects = Vec::new();
     for instruction_id in instructions {
         // reject ordered memory accesses
-        if instruction_has_atomic_ordering(tree, *instruction_id) {
+        if tree.instruction_has_atomic_ordering(*instruction_id) {
             return None;
         }
 
         // read memory accesses for this instruction
-        let Some(accesses) = memory_ssa.accesses_for_instruction(*instruction_id) else {
+        let Some(accesses) = memory_ssa.instruction_accesses(*instruction_id) else {
             continue;
         };
 
@@ -503,7 +503,7 @@ fn collect_group_effects(
             }
 
             // require a known location
-            if effect.location == MemoryAccessLocation::Unknown {
+            if matches!(effect.location, MemoryEffectTarget::Any { .. }) {
                 return None;
             }
 
@@ -544,7 +544,7 @@ fn groups_are_independent(groups: &[StoreGroup], alias: &AliasAnalysis) -> bool 
                     if !(effect.writes || other_effect.writes) {
                         continue;
                     }
-                    if effects_may_alias(alias, effect, other_effect) {
+                    if effect.may_alias(alias, other_effect) {
                         return false;
                     }
                 }

@@ -6,10 +6,9 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, ConstantPropagation, ControlFlowGraph, DominatorTree, EdgeSplitPolicy,
-    MemoryAccess, MemoryAccessEffect, MemoryAccessId, MemoryAccessLocation, MemorySSA, Mutation,
-    ValueEquivalence, build_instruction_block_map, build_use_def_maps, build_value_definition_map,
-    effect_is_trackable, effects_match_location, ensure_edge_block,
-    instruction_has_atomic_ordering, instruction_is_read_only_access, instruction_is_speculatable,
+    MemoryAccess, MemoryAccessEffect, MemoryAccessId, MemoryEffectTarget, MemorySSA, Mutation,
+    ValueDefinitions, ValueEquivalence, build_instruction_block_map, build_use_def_maps,
+    ensure_edge_block, instruction_is_read_only_access, instruction_is_speculatable,
     resolve_edge_value, value_available_in_block,
 };
 
@@ -74,7 +73,7 @@ impl FunctionPass for StorePre {
 
         // report what this pass changed
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -150,7 +149,7 @@ fn run_store_pre(
 
     // build value definition info
     let use_def = build_use_def_maps(function, tree);
-    let definitions = build_value_definition_map(function, tree);
+    let definitions = ValueDefinitions::build(function, tree).instruction_map();
     let instruction_blocks = build_instruction_block_map(function, tree);
     let function_params: HashSet<_> = function
         .parameters
@@ -302,7 +301,7 @@ fn store_access_info(
     memory_ssa: &MemorySSA,
 ) -> Option<StoreCandidate> {
     // resolve the memory ssa def access
-    let access_id = memory_ssa.access_for_instruction(instruction_id)?;
+    let access_id = memory_ssa.instruction_access(instruction_id)?;
     let MemoryAccess::Def(def_access) = memory_ssa.access(access_id) else {
         return None;
     };
@@ -313,30 +312,33 @@ fn store_access_info(
     }
 
     // skip ordered stores
-    if instruction_has_atomic_ordering(tree, instruction_id) {
+    if tree.instruction_has_atomic_ordering(instruction_id) {
         return None;
     }
 
     // require a trackable effect
-    if !effect_is_trackable(&def_access.effect) {
+    if !def_access.effect.is_trackable() {
         return None;
     }
 
     // ensure the effect location matches the store kind
     match kind {
         StoreKind::Store => {
-            if !matches!(def_access.effect.location, MemoryAccessLocation::Pointer(_)) {
+            if !matches!(
+                def_access.effect.location,
+                MemoryEffectTarget::Reference { .. }
+            ) {
                 return None;
             }
         }
         StoreKind::LocalSet => {
-            if !matches!(def_access.effect.location, MemoryAccessLocation::Local(_)) {
+            if !matches!(def_access.effect.location, MemoryEffectTarget::Local(_)) {
                 return None;
             }
         }
     }
 
-    // require a pointer for pointer stores
+    // require a reference for reference stores
     if matches!(kind, StoreKind::Store) && pointer.is_none() {
         return None;
     }
@@ -347,7 +349,7 @@ fn store_access_info(
     }
 
     // require a memory phi at the block entry
-    let phi_access = memory_ssa.phi_for_block(block_id)?;
+    let phi_access = memory_ssa.block_phi(block_id)?;
     if memory_ssa.defining_access(access_id) != Some(phi_access) {
         return None;
     }
@@ -424,7 +426,7 @@ fn collect_edge_insertions(
     }
 
     // resolve incoming memory accesses for the store block
-    let MemoryAccess::Phi(phi) = memory_ssa.access(memory_ssa.phi_for_block(store.block)?) else {
+    let MemoryAccess::Phi(phi) = memory_ssa.access(memory_ssa.block_phi(store.block)?) else {
         return None;
     };
     let incoming_by_pred: HashMap<_, _> = phi
@@ -455,7 +457,7 @@ fn collect_edge_insertions(
             param_indices,
         )?;
 
-        // ensure the pointer value is available on this edge
+        // ensure the reference value is available on this edge
         if let Some(ptr) = pointer
             && !value_available_in_block(ptr, predecessor, def_blocks, function_params, domtree)
         {
@@ -513,7 +515,7 @@ fn incoming_def_matches(
     };
 
     // skip untrackable defs
-    if !effect_is_trackable(&def_access.effect) {
+    if !def_access.effect.is_trackable() {
         return false;
     }
 
@@ -523,13 +525,13 @@ fn incoming_def_matches(
     }
 
     // require the same location metadata
-    if !effects_match_location(alias, &store.effect, &def_access.effect) {
+    if !store.effect.matches_location(alias, &def_access.effect) {
         return false;
     }
 
     // require the instruction to match the store kind
     let def_instruction = def_access.instruction;
-    if instruction_has_atomic_ordering(tree, def_instruction) {
+    if tree.instruction_has_atomic_ordering(def_instruction) {
         return false;
     }
     let (def_kind, def_pointer, def_local, def_value) = match tree.get(def_instruction) {
@@ -550,7 +552,7 @@ fn incoming_def_matches(
         return false;
     }
 
-    // ensure pointer values match when applicable
+    // ensure reference values match when applicable
     if let (Some(expected), Some(actual)) = (pointer, def_pointer) {
         if !equivalence.equivalent(expected, actual) {
             return false;
@@ -602,12 +604,12 @@ fn clone_store_metadata(
         return;
     };
 
-    // update pointer targets for cloned metadata
+    // update reference targets for cloned metadata
     let mut cloned = Vec::with_capacity(accesses.len());
     for access in accesses {
         let mut updated = access.clone();
-        if let (Some(pointer), mir::MemoryAccessTarget::Pointer(_)) = (pointer, updated.target) {
-            updated.target = mir::MemoryAccessTarget::Pointer(pointer);
+        if let (Some(pointer), mir::MemoryAccessTarget::Reference(_)) = (pointer, updated.target) {
+            updated.target = mir::MemoryAccessTarget::Reference(pointer);
         }
         cloned.push(updated);
     }

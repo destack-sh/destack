@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    Mutation, TypeContext, build_use_def_maps, fold_binary, fold_cast, fold_intrinsic, fold_unary,
+    Mutation, TargetLayout, build_use_def_maps, fold_binary, fold_cast, fold_intrinsic, fold_unary,
     instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
     terminator_substitute_uses,
 };
@@ -63,10 +63,10 @@ impl FunctionPass for SparseConditionalConstantPropagation {
         _analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // run SCCP
-        let (cfg_changed, value_changed) = run_sccp(function, tree, ctx.type_context());
+        let (cfg_changed, value_changed) = run_sccp(function, tree, ctx.target_layout());
 
         if cfg_changed || value_changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -85,7 +85,7 @@ impl FunctionPass for SparseConditionalConstantPropagation {
 fn run_sccp(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 ) -> (bool, bool) {
     // skip external functions
     let entry = match function.entry {
@@ -97,7 +97,7 @@ fn run_sccp(
     let use_def = build_use_def_maps(function, tree);
 
     // run sccp analysis
-    let mut state = SccpState::new(tree, &use_def.use_blocks, entry, type_context);
+    let mut state = SccpState::new(tree, &use_def.use_blocks, entry, target_layout);
     let result = state.run();
 
     // apply constant folding and reachability
@@ -212,7 +212,7 @@ struct SccpState<'a> {
     /// Blocks already in the worklist.
     in_worklist: HashSet<mir::LocalNodeId<mir::Block>>,
     /// Type context for layout sensitive operations.
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 }
 
 impl<'a> SccpState<'a> {
@@ -221,7 +221,7 @@ impl<'a> SccpState<'a> {
         tree: &'a mir::Tree,
         use_blocks: &'a HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Block>>>,
         entry: mir::LocalNodeId<mir::Block>,
-        type_context: TypeContext,
+        target_layout: TargetLayout,
     ) -> Self {
         // initialize the analysis state
         Self {
@@ -234,7 +234,7 @@ impl<'a> SccpState<'a> {
             edge_use_blocks: HashMap::new(),
             block_worklist: VecDeque::new(),
             in_worklist: HashSet::new(),
-            type_context,
+            target_layout,
         }
     }
 
@@ -698,7 +698,7 @@ impl<'a> SccpState<'a> {
                         *operator,
                         value,
                         *to_type,
-                        self.type_context.pointer_width_bits,
+                        self.target_layout.pointer_width_bits,
                         self.tree,
                     )
                     .map(LatticeValue::Constant)

@@ -9,10 +9,8 @@ use crate::optimize::passes::scalar::{
 use crate::optimize::{ModulePass, PipelineContext, run_function_passes_always};
 use destack_mir::{
     CallGraphScc, CallsiteHotness, ConstantPropagation, Mutation, ParameterRemap, SignatureKey,
-    apply_constant_parameters, block_hotness_from_counts, build_signature_type,
-    clone_instruction_metadata, constant_arguments_for_parameters,
-    constant_propagation_with_params, instruction_map_with_locals, required_parameter_indices,
-    terminator_remap,
+    apply_constant_parameters, clone_instruction_metadata, constant_arguments_for_parameters,
+    instruction_map_with_locals, terminator_remap,
 };
 
 /// Maximum specializations per function.
@@ -82,7 +80,7 @@ impl ModulePass for ArgumentSpecialize {
         // report what this pass changed
         if changed {
             ctx.strings.intern("argument-specialize");
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -166,7 +164,7 @@ fn run_argument_specialize(
     let scc_map = analyses.get::<CallGraphScc>(tree);
 
     // build constant propagation maps for callers
-    let constants_by_function = build_constant_maps(tree, ctx.type_context());
+    let constants_by_function = build_constant_maps(tree, ctx.target_layout());
 
     // track specialization state
     let mut changed = false;
@@ -206,7 +204,7 @@ fn run_argument_specialize(
         caller_block_counts
             .entry(callsite.caller)
             .or_insert_with(|| {
-                mir::profile_block_counts(
+                mir::BlockFrequency::profile_block_counts(
                     tree.get(callsite.caller),
                     tree,
                     ctx.profile(),
@@ -223,7 +221,7 @@ fn run_argument_specialize(
             .copied()
             .unwrap_or(0);
         if ctx.profile().is_some() {
-            match block_hotness_from_counts(block_count, entry_count) {
+            match CallsiteHotness::from_counts(block_count, entry_count) {
                 CallsiteHotness::Hot => {}
                 CallsiteHotness::Unknown | CallsiteHotness::Cold => continue,
             }
@@ -330,7 +328,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 /// Build constant propagation data for each defined function.
 fn build_constant_maps(
     tree: &mir::Tree,
-    type_context: mir::TypeContext,
+    target_layout: mir::TargetLayout,
 ) -> HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation> {
     // prepare the constants map
     let mut maps = HashMap::new();
@@ -341,8 +339,12 @@ fn build_constant_maps(
             continue;
         }
 
-        let constants =
-            constant_propagation_with_params(function, tree, type_context, &HashMap::new());
+        let constants = ConstantPropagation::with_parameter_constants(
+            function,
+            tree,
+            target_layout,
+            &HashMap::new(),
+        );
         maps.insert(function_id, constants);
     }
 
@@ -368,7 +370,7 @@ fn callsite_constants(
         &callsite.arguments,
         &callee.parameters,
         block_constants,
-        ctx.type_context().pointer_width_bits,
+        ctx.target_layout().pointer_width_bits,
         tree,
     )
 }
@@ -561,7 +563,7 @@ fn removable_constant_parameters(
 ) -> Vec<usize> {
     // collect required parameter indices
     let metadata = tree.metadata.functions.function(function_id);
-    let required = required_parameter_indices(function, metadata, tree);
+    let required = ParameterRemap::required_indices(function, metadata, tree);
 
     // collect removable indices
     let mut removable = Vec::new();
@@ -635,7 +637,7 @@ fn update_callsite(
     let signature_type = if remap.removal_indices().is_empty() {
         None
     } else {
-        Some(build_signature_type(new_callee, tree))
+        Some(SignatureKey::insert_function_type(new_callee, tree))
     };
 
     let callsite_id = mir::CallSite::Instruction(callsite.call_instruction);
@@ -883,7 +885,7 @@ entry:
             .expect("missing specialized access metadata");
         assert_eq!(accesses.len(), 1);
         match accesses[0].target {
-            mir::MemoryAccessTarget::Pointer(value) => {
+            mir::MemoryAccessTarget::Reference(value) => {
                 assert_eq!(value, specialized_pointer);
             }
             _ => panic!("unexpected access target"),

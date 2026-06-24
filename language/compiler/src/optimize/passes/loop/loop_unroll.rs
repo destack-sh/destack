@@ -6,9 +6,8 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, CallsiteHotness, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis,
-    Mutation, ScalarEvolution, Scev, ValueTypeMap, block_hotness_from_counts, build_use_def_maps,
-    build_value_definition_map, clone_instruction_metadata, clone_loop_blocks,
-    instruction_is_speculatable, instruction_map, terminator_remap,
+    Mutation, ScalarEvolution, Scev, ValueTypeMap, build_use_def_maps, clone_instruction_metadata,
+    clone_loop_blocks, instruction_is_speculatable, instruction_map, terminator_remap,
 };
 
 declare_pass! {
@@ -172,7 +171,7 @@ impl FunctionPass for LoopUnroll {
 
         // report what this pass changed
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -208,7 +207,7 @@ impl FunctionPass for LoopUnrollAndJam {
 
         // report what this pass changed
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -362,7 +361,8 @@ fn run_loop_unroll(
     }
 
     // collect profile data for hotness decisions
-    let block_counts = mir::profile_block_counts(function, tree, ctx.profile(), analyses);
+    let block_counts =
+        mir::BlockFrequency::profile_block_counts(function, tree, ctx.profile(), analyses);
     let entry_count = function
         .entry
         .and_then(|entry| block_counts.get(&entry).copied())
@@ -467,7 +467,8 @@ fn run_loop_unroll_and_jam(
     }
 
     // collect profile data for hotness decisions
-    let block_counts = mir::profile_block_counts(function, tree, ctx.profile(), analyses);
+    let block_counts =
+        mir::BlockFrequency::profile_block_counts(function, tree, ctx.profile(), analyses);
     let entry_count = function
         .entry
         .and_then(|entry| block_counts.get(&entry).copied())
@@ -648,7 +649,7 @@ fn find_unroll_candidate(
     if !latch_terminator.successors(tree).contains(&lp.header) {
         return None;
     }
-    let _latch_arguments = latch_terminator.arguments_for_successor(tree, lp.header);
+    let _latch_arguments = latch_terminator.successor_arguments(tree, lp.header);
 
     // require guard either in header or latch
     let guard_at_latch = exiting_block == latch;
@@ -922,7 +923,7 @@ fn find_jam_candidate(
     let entry_block = inner_preheader.unwrap_or(outer_header);
     let entry_block_data = tree.get(entry_block);
     let entry_terminator = tree.get(entry_block_data.terminator);
-    let entry_args = entry_terminator.arguments_for_successor(tree, inner_header);
+    let entry_args = entry_terminator.successor_arguments(tree, inner_header);
     let outer_entry_index = entry_args
         .iter()
         .position(|&arg| forwarding.resolve(arg) == forwarding.resolve(outer_guard.induction))?;
@@ -935,7 +936,7 @@ fn find_jam_candidate(
     // locate the outer latch parameter carrying the induction
     let inner_header_block = tree.get(inner_header);
     let inner_header_terminator = tree.get(inner_header_block.terminator);
-    let exit_args = inner_header_terminator.arguments_for_successor(tree, inner_exit);
+    let exit_args = inner_header_terminator.successor_arguments(tree, inner_exit);
     let outer_latch_index = exit_args
         .iter()
         .position(|&arg| forwarding.resolve(arg) == forwarding.resolve(inner_outer_param))?;
@@ -1115,7 +1116,7 @@ fn outer_step_for_guard(
     scev: &ScalarEvolution,
 ) -> Option<i128> {
     // read the scalar evolution recurrence
-    let scev_expr = scev.scev_for_value_in_loop(loop_index, induction)?;
+    let scev_expr = scev.value_scev(loop_index, induction)?;
     let (start, step) = match scev_expr {
         Scev::AddRec { start, step, .. } => (start.as_ref(), step.as_ref()),
         _ => return None,
@@ -1139,7 +1140,7 @@ fn outer_step_from_latch(
     // read the latch argument for the induction parameter
     let latch_block = tree.get(latch);
     let latch_terminator = tree.get(latch_block.terminator);
-    let args = latch_terminator.arguments_for_successor(tree, header);
+    let args = latch_terminator.successor_arguments(tree, header);
     let update_value = *args.get(param_index)?;
     let update_value = forwarding.resolve(update_value);
     let induction = forwarding.resolve(induction);
@@ -1214,7 +1215,7 @@ fn trip_count_from_header(
     // read the starting induction argument
     let entry_block = tree.get(entry_pred);
     let entry_terminator = tree.get(entry_block.terminator);
-    let args = entry_terminator.arguments_for_successor(tree, header);
+    let args = entry_terminator.successor_arguments(tree, header);
     let start_value = *args.get(param_index)?;
     let start_const = constant_value_for(start_value, function, tree, forwarding)?;
     let bound_const = constant_value_for(guard.bound, function, tree, forwarding)?;
@@ -1246,7 +1247,7 @@ fn inner_body_is_jammable(
 ) -> bool {
     // gather definition maps for dependency checks
     let def_maps = build_use_def_maps(function, tree);
-    let def_map = build_value_definition_map(function, tree);
+    let def_map = mir::ValueDefinitions::build(function, tree).instruction_map();
 
     // cache outer block parameters for dependency checks
     let outer_block_params: HashSet<_> = outer
@@ -1557,7 +1558,7 @@ fn unroll_and_jam_loop(
     }
 
     // locate the inner update instruction
-    let def_map = build_value_definition_map(function, tree);
+    let def_map = mir::ValueDefinitions::build(function, tree).instruction_map();
     let Some(update_info) = inner_update_info(candidate, tree, &def_map) else {
         return false;
     };
@@ -1717,7 +1718,7 @@ fn inner_update_info(
     let latch_block = tree.get(candidate.inner_latch);
     let latch_terminator = tree.get(latch_block.terminator);
     let update_value = latch_terminator
-        .arguments_for_successor(tree, candidate.inner_header)
+        .successor_arguments(tree, candidate.inner_header)
         .get(candidate.inner_param_index)?;
 
     // locate the defining instruction
@@ -1799,7 +1800,7 @@ fn rewrite_outer_latch_step(
     // resolve the outer induction type
     let outer_type = value_types.require_value_type(candidate.outer_induction);
 
-    let pointer_width_bits = ctx.type_context().pointer_width_bits;
+    let pointer_width_bits = ctx.target_layout().pointer_width_bits;
     let scaled_constant = match scaled_step_constant(
         candidate.outer_step,
         factor,
@@ -1872,7 +1873,7 @@ fn jam_inner_body(
     // resolve the outer induction type
     let outer_type = value_types.require_value_type(candidate.outer_induction);
 
-    let pointer_width_bits = ctx.type_context().pointer_width_bits;
+    let pointer_width_bits = ctx.target_layout().pointer_width_bits;
     let mut new_instructions = Vec::new();
     new_instructions.extend(update_info.body_instructions.iter().copied());
 
@@ -2007,7 +2008,7 @@ fn unroll_limits_for_loop(
 
     // classify loop hotness from the header count
     let header_count = block_counts.get(&header).copied().unwrap_or(0);
-    let hotness = block_hotness_from_counts(header_count, entry_count);
+    let hotness = CallsiteHotness::from_counts(header_count, entry_count);
     if matches!(hotness, CallsiteHotness::Cold) {
         return None;
     }
@@ -2295,7 +2296,7 @@ fn rewrite_latch_to_jump(
     if !latch_has_edge {
         return false;
     }
-    let latch_args = terminator.arguments_for_successor(tree, header).to_vec();
+    let latch_args = terminator.successor_arguments(tree, header).to_vec();
     let latch_args = tree.add_values(&latch_args);
 
     // replace the latch terminator with a jump
@@ -2325,7 +2326,7 @@ fn rewrite_latch_block(
         return false;
     }
     let latch_args = terminator
-        .arguments_for_successor(tree, iteration.header)
+        .successor_arguments(tree, iteration.header)
         .to_vec();
 
     // handle non last iterations
@@ -2542,7 +2543,7 @@ fn trip_count_for_guard(
     let bound = forwarding.resolve(guard.bound);
 
     // look up scalar evolution for the induction variable
-    let scev_expr = scev.scev_for_value_in_loop(loop_index, induction)?;
+    let scev_expr = scev.value_scev(loop_index, induction)?;
     let (start, step) = match scev_expr {
         Scev::AddRec { start, step, .. } => (start.as_ref(), step.as_ref()),
         _ => return None,
@@ -2552,7 +2553,7 @@ fn trip_count_for_guard(
     let start_const = scev_constant(start)?;
     let step_const = scev_constant(step)?;
     let bound_const = scev
-        .scev_for_value_in_loop(loop_index, bound)
+        .value_scev(loop_index, bound)
         .and_then(scev_constant)
         .cloned()
         .or_else(|| constant_value_for(bound, function, tree, forwarding))?;

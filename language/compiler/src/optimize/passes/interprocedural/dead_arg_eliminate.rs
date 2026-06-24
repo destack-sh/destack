@@ -4,10 +4,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{ModulePass, PipelineContext};
-use destack_mir::{
-    Mutation, ParameterRemap, SignatureKey, build_signature_type, build_use_def_maps,
-    required_parameter_indices,
-};
+use destack_mir::{Mutation, ParameterRemap, SignatureKey, build_use_def_maps};
 
 declare_pass! {
     /// Remove unused parameters from local functions and their callsites.
@@ -57,7 +54,7 @@ impl ModulePass for DeadArgEliminate {
         // report what this pass changed
         if changed {
             ctx.strings.intern("dead-arg-eliminate");
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -235,7 +232,7 @@ fn unused_parameter_indices(
 
     // collect parameters that are required by metadata
     let metadata = tree.metadata.functions.function(function_id);
-    let required = required_parameter_indices(function, metadata, tree);
+    let required = ParameterRemap::required_indices(function, metadata, tree);
 
     // collect parameters that have no uses
     let mut unused = Vec::new();
@@ -317,7 +314,9 @@ fn update_call_sites(
                 let signature = if unused.is_empty() {
                     call.signature
                 } else {
-                    *signature_type.get_or_insert_with(|| build_signature_type(function_id, tree))
+                    *signature_type.get_or_insert_with(|| {
+                        SignatureKey::insert_function_type(function_id, tree)
+                    })
                 };
 
                 // update the call instruction with the new argument slice

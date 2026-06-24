@@ -73,7 +73,7 @@ impl FunctionPass for LoopPeel {
 
         let changed = run_loop_peel(function, tree, ctx, analyses);
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }

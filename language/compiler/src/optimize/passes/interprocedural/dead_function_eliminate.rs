@@ -58,7 +58,7 @@ impl ModulePass for DeadFunctionEliminate {
 
         // report stripped definitions as control-flow changes
         if changed {
-            Mutation::CONTROL_FLOW
+            Mutation::CONTROL
         } else {
             Mutation::NONE
         }

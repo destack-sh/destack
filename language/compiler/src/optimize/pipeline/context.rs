@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 
 use crate::optimize::{DiagnosticEmitter, ModuleWorkItem, PackageWorkset, PassMetadata};
 use crate::{DiagnosticAnchor, OptimizeError, OptimizeWarning};
-use destack_mir::{FunctionAnalyses, MirAnalysisOptions, TypeContext};
+use destack_mir::{AnalysisOptions, FunctionAnalyses, TargetLayout};
 
 /// Shared diagnostics state for pipeline contexts.
 #[derive(Debug)]
@@ -18,8 +18,6 @@ pub struct PipelineDiagnostics {
     errors: Mutex<Vec<DiagnosticBuilder<OptimizeError>>>,
     /// Accumulated warnings from pipeline passes.
     warnings: Mutex<Vec<DiagnosticBuilder<OptimizeWarning>>>,
-    /// Whether all strict aliasing checks passed.
-    is_strict_safe: AtomicBool,
     /// Whether type layouts have been validated for this pipeline run.
     type_layouts_validated: AtomicBool,
 }
@@ -30,7 +28,6 @@ impl PipelineDiagnostics {
         Self {
             errors: Mutex::new(Vec::new()),
             warnings: Mutex::new(Vec::new()),
-            is_strict_safe: AtomicBool::new(true),
             type_layouts_validated: AtomicBool::new(false),
         }
     }
@@ -43,16 +40,6 @@ impl PipelineDiagnostics {
     /// Emit an optimization warning.
     pub fn emit_warning(&self, warning: impl Into<DiagnosticBuilder<OptimizeWarning>>) {
         self.warnings.lock().push(warning.into());
-    }
-
-    /// Mark that aliasing violations were found.
-    pub fn mark_aliasing_violation(&self) {
-        self.is_strict_safe.store(false, Ordering::Relaxed);
-    }
-
-    /// Check if code is strict safe.
-    pub fn is_strict_safe(&self) -> bool {
-        self.is_strict_safe.load(Ordering::Relaxed)
     }
 
     /// Return true when type layouts have been validated.
@@ -95,12 +82,10 @@ impl Default for PipelineDiagnostics {
 /// Options for pipeline execution.
 #[derive(Debug, Clone)]
 pub struct PipelineOptions {
-    /// Enable strict borrow checking mode.
-    pub strict_borrow_mode: bool,
     /// Maximum array elements for SROA to split (larger arrays are left intact).
     pub sroa_max_array_elements: usize,
     /// Type context for layout sensitive optimizations.
-    pub type_context: TypeContext,
+    pub target_layout: TargetLayout,
     /// Loop unroll threshold in instructions.
     pub unroll_threshold: usize,
     /// Inline budget scaling for this optimization level.
@@ -112,9 +97,8 @@ pub struct PipelineOptions {
 impl Default for PipelineOptions {
     fn default() -> Self {
         Self {
-            strict_borrow_mode: false,
             sroa_max_array_elements: 8,
-            type_context: TypeContext::default(),
+            target_layout: TargetLayout::default(),
             unroll_threshold: 200,
             inline_budget_scale_percent: 100,
             require_optimized_metadata: false,
@@ -123,9 +107,9 @@ impl Default for PipelineOptions {
 }
 
 impl PipelineOptions {
-    /// Return the type context for this pipeline run.
-    pub fn type_context(&self) -> TypeContext {
-        self.type_context
+    /// Return the target layout for this pipeline run.
+    pub fn target_layout(&self) -> TargetLayout {
+        self.target_layout
     }
 
     /// Return the loop unroll threshold for this pipeline run.
@@ -180,7 +164,6 @@ impl std::fmt::Debug for PipelineContext<'_> {
             .field("has_profile", &self.profile.is_some())
             .field("errors", &self.diagnostics.errors.lock().len())
             .field("warnings", &self.diagnostics.warnings.lock().len())
-            .field("is_strict_safe", &self.diagnostics.is_strict_safe())
             .finish()
     }
 }
@@ -308,14 +291,13 @@ impl<'a> PipelineContext<'a> {
     /// The pipeline holds one cache per function across that function's pass
     /// sequence and queries it with the function and tree at each access.
     pub fn new_function_analyses(&self) -> FunctionAnalyses {
-        let options =
-            MirAnalysisOptions::new(self.options.strict_borrow_mode, self.options.type_context);
+        let options = AnalysisOptions::new(self.options.target_layout);
         FunctionAnalyses::with_options(options)
     }
 
-    /// Return the type context for this pipeline run.
-    pub fn type_context(&self) -> TypeContext {
-        self.options.type_context
+    /// Return the target layout for this pipeline run.
+    pub fn target_layout(&self) -> TargetLayout {
+        self.options.target_layout
     }
 
     /// Emit an optimization error.
@@ -326,22 +308,6 @@ impl<'a> PipelineContext<'a> {
     /// Emit an optimization warning.
     pub fn emit_warning(&self, warning: impl Into<DiagnosticBuilder<OptimizeWarning>>) {
         self.diagnostics.emit_warning(warning);
-    }
-
-    /// Mark that aliasing violations were found (code is not strict safe).
-    pub fn mark_aliasing_violation(&self) {
-        self.diagnostics.mark_aliasing_violation();
-    }
-
-    /// Check if code is strict safe (no aliasing violations found in lenient mode).
-    pub fn is_strict_safe(&self) -> bool {
-        self.diagnostics.is_strict_safe()
-    }
-
-    /// Check if `&mut T` should have noalias semantics for optimization.
-    /// True if strict mode enabled OR lenient mode with no violations.
-    pub fn use_strict_aliasing(&self) -> bool {
-        self.options.strict_borrow_mode || self.is_strict_safe()
     }
 
     /// Take all accumulated errors.
@@ -377,10 +343,6 @@ impl DiagnosticEmitter for PipelineContext<'_> {
 
     fn emit_warning(&self, warning: impl Into<DiagnosticBuilder<OptimizeWarning>>) {
         self.diagnostics.emit_warning(warning);
-    }
-
-    fn mark_aliasing_violation(&self) {
-        self.diagnostics.mark_aliasing_violation();
     }
 }
 
@@ -473,16 +435,6 @@ impl PackagePipelineContext {
         self.diagnostics.emit_warning(warning);
     }
 
-    /// Mark that aliasing violations were found.
-    pub fn mark_aliasing_violation(&self) {
-        self.diagnostics.mark_aliasing_violation();
-    }
-
-    /// Check if code is strict safe.
-    pub fn is_strict_safe(&self) -> bool {
-        self.diagnostics.is_strict_safe()
-    }
-
     /// Take all accumulated errors.
     pub fn take_errors(&self) -> Vec<DiagnosticBuilder<OptimizeError>> {
         self.diagnostics.take_errors()
@@ -516,10 +468,6 @@ impl DiagnosticEmitter for PackagePipelineContext {
 
     fn emit_warning(&self, warning: impl Into<DiagnosticBuilder<OptimizeWarning>>) {
         self.diagnostics.emit_warning(warning);
-    }
-
-    fn mark_aliasing_violation(&self) {
-        self.diagnostics.mark_aliasing_violation();
     }
 }
 
@@ -589,16 +537,6 @@ impl ProgramPipelineContext {
         self.diagnostics.emit_warning(warning);
     }
 
-    /// Mark that aliasing violations were found.
-    pub fn mark_aliasing_violation(&self) {
-        self.diagnostics.mark_aliasing_violation();
-    }
-
-    /// Check if code is strict safe.
-    pub fn is_strict_safe(&self) -> bool {
-        self.diagnostics.is_strict_safe()
-    }
-
     /// Take all accumulated errors.
     pub fn take_errors(&self) -> Vec<DiagnosticBuilder<OptimizeError>> {
         self.diagnostics.take_errors()
@@ -632,9 +570,5 @@ impl DiagnosticEmitter for ProgramPipelineContext {
 
     fn emit_warning(&self, warning: impl Into<DiagnosticBuilder<OptimizeWarning>>) {
         self.diagnostics.emit_warning(warning);
-    }
-
-    fn mark_aliasing_violation(&self) {
-        self.diagnostics.mark_aliasing_violation();
     }
 }

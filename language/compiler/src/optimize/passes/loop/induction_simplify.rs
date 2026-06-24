@@ -80,7 +80,7 @@ impl FunctionPass for InductionVariableSimplify {
         function.recompute_next_value_id(tree);
         let changed = run_induction_simplify(function, tree, &loops, &scev, &cfg);
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -171,7 +171,7 @@ fn run_induction_simplify(
 
             // resolve the recurrence key for the parameter
             let scev_key = scev
-                .scev_for_value_in_loop(loop_index, param_value)
+                .value_scev(loop_index, param_value)
                 .and_then(|scev_value| {
                     let scev_value = scev_value.clone();
                     let Scev::AddRec { loop_header, .. } = &scev_value else {
@@ -613,7 +613,7 @@ fn param_signature(
     for &pred in cfg.predecessors(header) {
         let pred_block = tree.get(pred);
         let pred_terminator = tree.get(pred_block.terminator);
-        let args = pred_terminator.arguments_for_successor(tree, header);
+        let args = pred_terminator.successor_arguments(tree, header);
         let arg = *args.get(param_index)?;
         let arg = forwarding.resolve(arg);
         arguments.push((pred, arg));

@@ -83,7 +83,7 @@ impl FunctionPass for IfConvert {
 
         // report what this pass changed
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -292,9 +292,14 @@ fn apply_if_convert(
     }
 
     // check conversion cost model
-    let block_counts =
-        mir::profile_block_counts(function, tree, ctx.profile(), &mir::FunctionAnalyses::new());
-    let edge_counts = mir::edge_counts(function, tree, ctx.profile(), &block_counts);
+    let block_counts = mir::BlockFrequency::profile_block_counts(
+        function,
+        tree,
+        ctx.profile(),
+        &mir::FunctionAnalyses::new(),
+    );
+    let edge_counts =
+        mir::BlockFrequency::edge_counts(function, tree, ctx.profile(), &block_counts);
     if !should_convert(
         &candidate,
         &then_block,
@@ -622,7 +627,7 @@ b3(v9: int32):
                     assert_eq!(accesses.len(), 1);
                     assert_eq!(
                         accesses[0].target,
-                        mir::MemoryAccessTarget::Pointer(then_arg)
+                        mir::MemoryAccessTarget::Reference(then_arg)
                     );
                     saw_then = true;
                 }
@@ -639,7 +644,7 @@ b3(v9: int32):
                     assert_eq!(accesses.len(), 1);
                     assert_eq!(
                         accesses[0].target,
-                        mir::MemoryAccessTarget::Pointer(else_arg)
+                        mir::MemoryAccessTarget::Reference(else_arg)
                     );
                     saw_else = true;
                 }

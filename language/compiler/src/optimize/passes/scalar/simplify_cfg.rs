@@ -7,11 +7,10 @@ use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     ConstantPropagation, DominatorTree, LoopAnalysis, Mutation, RangeAnalysis, RangeMap,
     ValueRange, apply_substitutions_in_dominated_blocks, block_parameters_used_outside_block,
-    block_uses_available_in_predecessor, bool_from_range, build_use_def_maps,
-    build_value_instruction_map, build_value_use_counts, clone_instruction_metadata,
-    constraint_truth_value, evaluate_integer_range_comparison, function_thread_jumps,
-    instruction_is_speculatable, instruction_map, is_comparison_operator, substitute_values,
-    swap_comparison_operator, terminator_remap, terminator_substitute_uses,
+    block_uses_available_in_predecessor, build_use_def_maps, build_value_instruction_map,
+    build_value_use_counts, clone_instruction_metadata, function_thread_jumps,
+    instruction_is_speculatable, instruction_map, substitute_values, terminator_remap,
+    terminator_substitute_uses,
 };
 
 /// Return block metadata for canonicalization.
@@ -105,7 +104,7 @@ impl FunctionPass for SimplifyCfg {
 
         // report what this pass changed
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -286,7 +285,9 @@ fn fold_branches(
                 let condition_value = condition_value
                     .or_else(|| {
                         if is_range_allowed {
-                            bool_from_range(exit_ranges.get(*condition))
+                            exit_ranges
+                                .get(*condition)
+                                .and_then(mir::ValueRange::as_boolean_constant)
                         } else {
                             None
                         }
@@ -312,7 +313,7 @@ fn fold_branches(
                 failure,
             } => {
                 let condition_value = if is_range_allowed {
-                    constraint_truth_value(constraint, exit_ranges)
+                    exit_ranges.truth_value(constraint)
                 } else {
                     None
                 };
@@ -646,7 +647,7 @@ fn resolve_edge_target(
             success,
             failure,
         } => {
-            let condition_value = constraint_truth_value(constraint, &target_ranges)?;
+            let condition_value = target_ranges.truth_value(constraint)?;
             // choose the resolved check target
             let target = if condition_value { success } else { failure };
             let target_arguments = target.arguments(tree);
@@ -798,7 +799,7 @@ fn apply_comparison_constraint(
 
     // refine the right operand when the left is constant
     if let (Some(left_const), None) = (left_const, right_const) {
-        let Some(swapped) = swap_comparison_operator(*operator) else {
+        let Some(swapped) = operator.swap_operands() else {
             return;
         };
         refine_range_for_comparison(edge_ranges, *right, swapped, is_true, left_const);
@@ -839,7 +840,10 @@ fn resolve_condition_value(
     }
 
     // check range derived booleans
-    if let Some(value) = bool_from_range(ranges.get(condition)) {
+    if let Some(value) = ranges
+        .get(condition)
+        .and_then(mir::ValueRange::as_boolean_constant)
+    {
         return Some(value);
     }
 
@@ -860,7 +864,7 @@ fn resolve_condition_value(
 
     let left_range = ranges.get(*left)?;
     let right_range = ranges.get(*right)?;
-    evaluate_integer_range_comparison(*operator, left_range, right_range)
+    left_range.compare_integer(*operator, right_range)
 }
 
 /// Resolve a switch to a single target using edge specific ranges.
@@ -1213,7 +1217,7 @@ fn value_is_boolean(
             value: mir::Constant::Boolean { .. },
             ..
         } => true,
-        mir::Instruction::Binary { operator, .. } => is_comparison_operator(*operator),
+        mir::Instruction::Binary { operator, .. } => operator.is_comparison(),
         _ => false,
     }
 }
@@ -1994,9 +1998,13 @@ fn tail_duplicate_blocks(
     // build definition metadata
     let use_def = build_use_def_maps(function, tree);
     let value_def_blocks = &use_def.def_block;
-    let block_counts =
-        mir::profile_block_counts(function, tree, profile, &mir::FunctionAnalyses::new());
-    let edge_counts = mir::edge_counts(function, tree, profile, &block_counts);
+    let block_counts = mir::BlockFrequency::profile_block_counts(
+        function,
+        tree,
+        profile,
+        &mir::FunctionAnalyses::new(),
+    );
+    let edge_counts = mir::BlockFrequency::edge_counts(function, tree, profile, &block_counts);
 
     // collect predecessor counts and jump predecessors
     let mut predecessor_counts: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();

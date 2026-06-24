@@ -7,7 +7,7 @@ use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, ControlFlowGraph, LoopAnalysis, Mutation, RangeAnalysis, ScalarEvolution,
     Scev, UseDefMaps, ValueRange, ValueTypeMap, build_use_def_maps, clone_loop_blocks,
-    terminator_remap, unsigned_int_width_for_value,
+    terminator_remap,
 };
 
 declare_pass! {
@@ -97,7 +97,7 @@ impl FunctionPass for LoopVersioning {
 
         let changed = run_loop_versioning(function, tree, ctx, analyses);
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -195,26 +195,23 @@ fn run_loop_versioning(
         }
 
         // require consistent unsigned integer types
-        let Some(bound_width) = unsigned_int_width_for_value(
+        let Some(bound_width) = value_types.unsigned_int_width(
             resolved_bound,
-            &value_types,
-            ctx.type_context().pointer_width_bits,
+            ctx.target_layout().pointer_width_bits,
             tree,
         ) else {
             continue;
         };
-        let Some(length_width) = unsigned_int_width_for_value(
+        let Some(length_width) = value_types.unsigned_int_width(
             resolved_length,
-            &value_types,
-            ctx.type_context().pointer_width_bits,
+            ctx.target_layout().pointer_width_bits,
             tree,
         ) else {
             continue;
         };
-        let Some(induction_width) = unsigned_int_width_for_value(
+        let Some(induction_width) = value_types.unsigned_int_width(
             guard.induction,
-            &value_types,
-            ctx.type_context().pointer_width_bits,
+            ctx.target_layout().pointer_width_bits,
             tree,
         ) else {
             continue;
@@ -412,8 +409,7 @@ fn guard_from_header(
 /// Check whether the guard describes a simple induction pattern.
 fn guard_is_simple(guard: &GuardInfo, loop_index: usize, scev: &ScalarEvolution) -> bool {
     // require a simple add recurrence for the induction variable
-    let Some(Scev::AddRec { start, step, .. }) =
-        scev.scev_for_value_in_loop(loop_index, guard.induction)
+    let Some(Scev::AddRec { start, step, .. }) = scev.value_scev(loop_index, guard.induction)
     else {
         return false;
     };

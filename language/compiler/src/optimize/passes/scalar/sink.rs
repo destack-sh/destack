@@ -6,9 +6,8 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis, MemoryLocation, Mutation,
-    build_instruction_block_map, build_use_def_maps, build_value_definition_map,
-    instruction_is_memory_read, instruction_is_speculatable, instruction_may_affect_memory,
-    instruction_requires_exact_access,
+    ValueDefinitions, build_instruction_block_map, build_use_def_maps, instruction_is_memory_read,
+    instruction_is_speculatable, instruction_may_affect_memory,
 };
 
 declare_pass! {
@@ -84,7 +83,7 @@ impl FunctionPass for Sink {
 
         // report what this pass changed
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -120,7 +119,7 @@ fn run_sink(
 
     // build value->uses map and value->defining-block map
     let use_def = build_use_def_maps(function, tree);
-    let definition_map = build_value_definition_map(function, tree);
+    let definition_map = ValueDefinitions::build(function, tree).instruction_map();
     let instruction_blocks = build_instruction_block_map(function, tree);
 
     // collect sinking work
@@ -142,7 +141,7 @@ fn run_sink(
             let instruction = tree.get(instruction_id);
 
             // do not sink instructions that require exact access semantics
-            if instruction_requires_exact_access(tree, instruction_id) {
+            if tree.instruction_requires_exact_access(instruction_id) {
                 continue;
             }
 
@@ -328,7 +327,7 @@ fn memory_read_can_sink(
     match instruction {
         mir::Instruction::Load { pointer, .. } => {
             // check for clobbering memory operations
-            let location = MemoryLocation::from_ptr(*pointer);
+            let location = MemoryLocation::from_reference(*pointer);
             for &later_id in &block.instructions[index + 1..] {
                 let later = tree.get(later_id);
                 if instruction_may_affect_memory(later) && alias.may_clobber(later_id, &location) {

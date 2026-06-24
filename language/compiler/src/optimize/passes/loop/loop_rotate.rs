@@ -60,7 +60,7 @@ impl FunctionPass for LoopRotate {
 
         let changed = run_loop_rotate(entry, function, tree, &loops, &cfg, &domtree);
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }

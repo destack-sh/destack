@@ -8,8 +8,7 @@ use destack_mir::{
     AvailableExpressions, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, ExpressionKey,
     Mutation, UseDefMaps, ValueTypeMap, append_edge_arguments, apply_substitutions_in_function,
     build_use_def_maps, collect_reachable_blocks, compute_dominance_frontiers, ensure_edge_block,
-    expression_key_from_instruction, expression_key_substitute, instruction_has_side_effects,
-    instruction_is_speculatable,
+    instruction_has_side_effects, instruction_is_speculatable,
 };
 
 declare_pass! {
@@ -70,7 +69,7 @@ impl FunctionPass for PartialRedundancyElim {
         // gather analyses
         let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
         let domtree = analyses.get::<DominatorTree>(function, tree).clone();
-        let available = analyses.get::<AvailableExpressions>(function, tree).clone();
+        let available = AvailableExpressions::build(function, tree, &cfg);
         let value_types = ValueTypeMap::new(function, tree);
 
         // run PRE
@@ -86,7 +85,7 @@ impl FunctionPass for PartialRedundancyElim {
 
         // report what this pass changed
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -177,7 +176,7 @@ fn run_pre(
                 continue;
             }
 
-            let Some(key) = expression_key_from_instruction(instruction, tree) else {
+            let Some(key) = ExpressionKey::from_instruction(instruction, tree) else {
                 continue;
             };
             let Some(destination) = instruction.destination() else {
@@ -582,14 +581,14 @@ fn rename_block(
             continue;
         }
 
-        let Some(key) = expression_key_from_instruction(instruction, tree) else {
+        let Some(key) = ExpressionKey::from_instruction(instruction, tree) else {
             continue;
         };
         let Some(destination) = instruction.destination() else {
             continue;
         };
 
-        let key = expression_key_substitute(key, substitutions);
+        let key = key.substitute(substitutions);
         if let Some(existing) = current.get(&key).and_then(|stack| stack.last()) {
             substitutions.insert(destination, *existing);
             to_remove.insert(instruction_id);

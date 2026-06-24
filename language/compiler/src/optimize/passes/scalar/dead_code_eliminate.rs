@@ -4,10 +4,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
-use destack_mir::{
-    AliasAnalysis, MemoryLocation, Mutation, instruction_has_side_effects,
-    instruction_requires_exact_access,
-};
+use destack_mir::{AliasAnalysis, MemoryLocation, Mutation, instruction_has_side_effects};
 
 declare_pass! {
     /// Aggressive Dead Code Elimination (ADCE).
@@ -55,7 +52,7 @@ impl FunctionPass for DeadCodeEliminate {
 
         // report what this pass changed
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -107,7 +104,7 @@ fn run_dead_code_elimination(
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
             if (instruction_has_side_effects(instruction)
-                || instruction_requires_exact_access(tree, instruction_id))
+                || tree.instruction_requires_exact_access(instruction_id))
                 && live.insert(instruction_id)
             {
                 worklist.push_back(instruction_id);
@@ -213,7 +210,7 @@ fn remove_dead_stores(
                 mir::Instruction::Store { pointer, .. } => {
                     let pointer = *pointer;
 
-                    if instruction_requires_exact_access(tree, instruction_id) {
+                    if tree.instruction_requires_exact_access(instruction_id) {
                         continue;
                     }
 
@@ -284,7 +281,7 @@ fn store_overwritten_in_block(
     alias: &AliasAnalysis,
 ) -> bool {
     // build a memory location for the stored pointer
-    let location = MemoryLocation::from_ptr(pointer);
+    let location = MemoryLocation::from_reference(pointer);
 
     // scan later instructions in the block
     for instruction_id in instruction_ids.iter().skip(start + 1).copied() {
@@ -292,13 +289,14 @@ fn store_overwritten_in_block(
 
         // stop when a later store overwrites this location
         if let mir::Instruction::Store {
-            pointer: other_ptr, ..
+            pointer: other_reference,
+            ..
         } = instruction
         {
-            let other_loc = MemoryLocation::from_ptr(*other_ptr);
+            let other_loc = MemoryLocation::from_reference(*other_reference);
             let alias_result = alias.alias(&location, &other_loc);
 
-            if alias_result.is_must_alias() || location.ptr == other_loc.ptr {
+            if alias_result.is_must_alias() || location.reference == other_loc.reference {
                 return true;
             }
             if alias_result.may_alias() {
@@ -308,8 +306,8 @@ fn store_overwritten_in_block(
         }
 
         // stop when any instruction may read or write the location
-        let mod_ref = alias.get_mod_ref_info(instruction_id, &location);
-        if mod_ref.is_ref() || mod_ref.is_mod() {
+        let effect = alias.memory_effect(instruction_id, &location);
+        if effect.reads() || effect.writes() {
             return false;
         }
     }

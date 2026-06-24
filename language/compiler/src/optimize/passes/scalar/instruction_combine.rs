@@ -5,11 +5,10 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    ConstantMap, ConstantPropagation, Mutation, RangeAnalysis, RangeMap, TypeContext,
+    ConstantMap, ConstantPropagation, Mutation, RangeAnalysis, RangeMap, TargetLayout,
     constant_all_ones_like, constant_is_all_ones, constant_is_one, constant_is_zero,
-    constant_zero_like, evaluate_integer_range_comparison, fold_binary, fold_cast, fold_unary,
-    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
-    resolve_substitution_chains, terminator_substitute_uses,
+    constant_zero_like, fold_binary, fold_cast, fold_unary, instruction_substitute_uses_in_tree,
+    remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
 
 /// Maximum recursion depth for chained field.set simplification.
@@ -68,11 +67,11 @@ impl FunctionPass for InstructionCombine {
         let constants = analyses.get::<ConstantPropagation>(function, tree).clone();
         let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
         let changed =
-            run_instruction_combine(function, tree, &constants, &ranges, ctx.type_context());
+            run_instruction_combine(function, tree, &constants, &ranges, ctx.target_layout());
 
         // report what this pass changed
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -111,7 +110,7 @@ fn run_instruction_combine(
     tree: &mut mir::Tree,
     constants: &ConstantPropagation,
     ranges: &RangeAnalysis,
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 ) -> bool {
     let mut value_to_instruction: HashMap<mir::Value, mir::Instruction> = HashMap::new();
     let mut aggregate_operands: HashMap<mir::Value, Vec<mir::Value>> = HashMap::new();
@@ -287,7 +286,7 @@ fn run_instruction_combine(
                     tree,
                     &mut block_constants,
                     &block_ranges,
-                    type_context,
+                    target_layout,
                 );
             }
         }
@@ -360,7 +359,7 @@ fn simplify_binary_operator(
     // fold comparisons using range evidence
     if let Some(left_range) = ranges.get(left)
         && let Some(right_range) = ranges.get(right)
-        && let Some(result) = evaluate_integer_range_comparison(operator, left_range, right_range)
+        && let Some(result) = left_range.compare_integer(operator, right_range)
     {
         return Some(Simplification::Constant(mir::Constant::Boolean {
             value: result,
@@ -593,7 +592,7 @@ fn update_constant_map(
     tree: &mir::Tree,
     block_constants: &mut ConstantMap,
     ranges: &RangeMap,
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 ) {
     // skip instructions without destinations
     let Some(destination) = instruction.destination() else {
@@ -659,7 +658,7 @@ fn update_constant_map(
                     *operator,
                     argument,
                     *to_type,
-                    type_context.pointer_width_bits,
+                    target_layout.pointer_width_bits,
                     tree,
                 )
             {

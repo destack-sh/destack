@@ -1,15 +1,13 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, DecomposedPointer, MemoryAccess, MemoryAccessId, MemoryAccessLocation,
-    MemorySSA, Mutation, PointerDecomposer, PostDominatorTree, RangeRelation, TypeContext,
-    ValueTypeMap, build_value_definition_map, collect_block_param_defs,
-    collect_frame_alloc_bases_for_value, collect_local_defs, collect_non_escaping_frame_allocs,
-    frame_alloc_base, range_relation,
+    AliasAnalysis, ByteRange, MemoryAccess, MemoryAccessId, MemoryEffectTarget, MemoryPlace,
+    MemorySSA, MemoryTarget, MemoryTargetBuilder, Mutation, PostDominatorTree, RangeRelation,
+    TargetLayout, ValueDefinitions, ValueTypeMap,
 };
 
 declare_pass! {
@@ -70,13 +68,10 @@ impl FunctionPass for DeadStoreEliminate {
         };
 
         // get analyses
-        let (aa, memory_ssa, postdom) = {
-            (
-                analyses.get::<AliasAnalysis>(function, tree).clone(),
-                analyses.get::<MemorySSA>(function, tree),
-                analyses.get::<PostDominatorTree>(function, tree),
-            )
-        };
+        let aa = analyses.get::<AliasAnalysis>(function, tree).clone();
+        let memory_ssa = analyses.get::<MemorySSA>(function, tree);
+        let cfg = analyses.get::<mir::ControlFlowGraph>(function, tree);
+        let postdom = PostDominatorTree::build(function, tree, &cfg);
 
         let value_types = ValueTypeMap::new(function, tree);
 
@@ -87,13 +82,13 @@ impl FunctionPass for DeadStoreEliminate {
             &aa,
             memory_ssa.as_ref(),
             &value_types,
-            postdom.as_ref(),
-            ctx.type_context(),
+            &postdom,
+            ctx.target_layout(),
         );
 
         // report what this pass changed
         if changed {
-            Mutation::VALUES
+            Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -118,7 +113,7 @@ fn run_dead_store_eliminate(
     memory_ssa: &MemorySSA,
     value_types: &ValueTypeMap,
     postdom: &PostDominatorTree,
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 ) -> bool {
     // collect store candidates
     let store_candidates = collect_store_candidates(function, tree, memory_ssa);
@@ -135,17 +130,12 @@ fn run_dead_store_eliminate(
     let live_defs = collect_live_defs(function, tree, memory_ssa, aa);
 
     // collect non escaping stack allocations
-    let definitions = build_value_definition_map(function, tree);
-    let constants = build_integer_constant_map(function, tree);
-    let non_escaping_frame_allocs = collect_non_escaping_frame_allocs(function, tree, &definitions);
-    let local_defs = collect_local_defs(function, tree);
-    let param_defs = collect_block_param_defs(function, tree);
+    let value_definitions = ValueDefinitions::build(function, tree);
+    let non_escaping_frame_allocs = value_definitions.non_escaping_frame_allocs(function, tree);
     let frame_alloc_reads = collect_frame_alloc_reads(
         function,
         memory_ssa,
-        &definitions,
-        &local_defs,
-        &param_defs,
+        &value_definitions,
         &non_escaping_frame_allocs,
         tree,
     );
@@ -165,15 +155,15 @@ fn run_dead_store_eliminate(
             continue;
         }
 
-        // skip unknown locations
-        if matches!(store.location, MemoryAccessLocation::Unknown) {
+        // skip imprecise targets
+        if matches!(store.location, MemoryEffectTarget::Any { .. }) {
             continue;
         }
 
         // remove stores to non escaping stack memory
         if store_is_non_escaping_stack(
             &store,
-            &definitions,
+            &value_definitions,
             &non_escaping_frame_allocs,
             &frame_alloc_reads,
             tree,
@@ -191,10 +181,9 @@ fn run_dead_store_eliminate(
             postdom,
             function,
             tree,
-            &definitions,
-            &constants,
+            &value_definitions,
             value_types,
-            type_context,
+            target_layout,
         ) {
             dead_stores.insert(store.instruction);
         }
@@ -225,10 +214,10 @@ struct StoreCandidate {
     block: mir::LocalNodeId<mir::Block>,
     /// Instruction index within the block.
     index: usize,
-    /// Optional pointer for pointer locations.
+    /// Optional pointer for reference locations.
     pointer: Option<mir::Value>,
     /// Access location for the store.
-    location: MemoryAccessLocation,
+    location: MemoryEffectTarget,
     /// True when the store is volatile.
     is_volatile: bool,
     /// True when the store is a barrier.
@@ -281,7 +270,7 @@ fn collect_store_candidates(
             }
 
             // read memory accesses for this instruction
-            let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
+            let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
                 continue;
             };
 
@@ -291,9 +280,9 @@ fn collect_store_candidates(
                     continue;
                 };
 
-                // resolve pointer locations when available
+                // resolve reference locations when available
                 let pointer = match &def_access.effect.location {
-                    MemoryAccessLocation::Pointer(location) => Some(location.ptr),
+                    MemoryEffectTarget::Reference { location, .. } => Some(location.reference),
                     _ => None,
                 };
 
@@ -332,7 +321,7 @@ fn collect_def_accesses(
         // scan instructions in the block
         for (index, &instruction_id) in block.instructions.iter().enumerate() {
             // read the access list
-            let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
+            let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
                 continue;
             };
 
@@ -372,7 +361,7 @@ fn collect_live_defs(
         // scan instructions in the block
         for &instruction_id in &block.instructions {
             // read the access list
-            let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
+            let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
                 continue;
             };
 
@@ -381,7 +370,7 @@ fn collect_live_defs(
                 match memory_ssa.access(access_id) {
                     MemoryAccess::Use(_use_access) => {
                         // record the def that feeds this use
-                        let clobber = memory_ssa.clobbering_access_for_use(access_id, aa);
+                        let clobber = memory_ssa.clobbering_use(access_id, aa);
                         record_live_clobber(clobber, memory_ssa, &mut live_defs);
                     }
                     MemoryAccess::Def(def_access) => {
@@ -391,11 +380,8 @@ fn collect_live_defs(
                         }
 
                         // record the def that feeds the read portion
-                        let clobber = memory_ssa.clobbering_access_for_read(
-                            access_id,
-                            &def_access.effect.location,
-                            aa,
-                        );
+                        let clobber =
+                            memory_ssa.clobbering_read(access_id, &def_access.effect.location, aa);
                         record_live_clobber(clobber, memory_ssa, &mut live_defs);
                     }
                     _ => {}
@@ -447,9 +433,7 @@ fn record_live_clobber(
 fn collect_frame_alloc_reads(
     function: &mir::Function,
     memory_ssa: &MemorySSA,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
-    param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
+    definitions: &ValueDefinitions,
     frame_allocs: &HashSet<mir::Value>,
     tree: &mir::Tree,
 ) -> HashSet<mir::Value> {
@@ -464,7 +448,7 @@ fn collect_frame_alloc_reads(
         // scan instructions for memory uses
         for &instruction_id in &block.instructions {
             // read the access list
-            let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
+            let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
                 continue;
             };
 
@@ -473,17 +457,15 @@ fn collect_frame_alloc_reads(
                 let MemoryAccess::Use(use_access) = memory_ssa.access(access_id) else {
                     continue;
                 };
-                let MemoryAccessLocation::Pointer(location) = &use_access.effect.location else {
+                let MemoryEffectTarget::Reference { location, .. } = &use_access.effect.location
+                else {
                     continue;
                 };
 
                 // resolve stack bases for the pointer
                 let mut visited = HashSet::new();
-                collect_frame_alloc_bases_for_value(
-                    location.ptr,
-                    definitions,
-                    local_defs,
-                    param_defs,
+                definitions.collect_frame_alloc_bases(
+                    location.reference,
                     tree,
                     frame_allocs,
                     &mut visited,
@@ -499,13 +481,13 @@ fn collect_frame_alloc_reads(
 /// Return true when a store targets a non escaping stack allocation.
 fn store_is_non_escaping_stack(
     store: &StoreCandidate,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    definitions: &ValueDefinitions,
     non_escaping_frame_allocs: &HashSet<mir::Value>,
     frame_alloc_reads: &HashSet<mir::Value>,
     tree: &mir::Tree,
 ) -> bool {
-    // only pointer locations can be stack allocations
-    let MemoryAccessLocation::Pointer(_) = store.location else {
+    // only reference locations can be stack allocations
+    let MemoryEffectTarget::Reference { .. } = store.location else {
         return false;
     };
 
@@ -513,7 +495,7 @@ fn store_is_non_escaping_stack(
     let Some(pointer) = store.pointer else {
         return false;
     };
-    let Some(base) = frame_alloc_base(pointer, definitions, tree) else {
+    let Some(base) = definitions.frame_alloc_base(pointer, tree) else {
         return false;
     };
 
@@ -538,19 +520,16 @@ fn store_is_postdominated_by_clobber(
     postdom: &PostDominatorTree,
     function: &mir::Function,
     tree: &mir::Tree,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    constants: &HashMap<mir::Value, i64>,
+    definitions: &ValueDefinitions,
     value_types: &ValueTypeMap,
-    type_context: TypeContext,
+    target_layout: TargetLayout,
 ) -> bool {
-    let mut decomposer = PointerDecomposer::new(
-        constants,
+    let mut targets = MemoryTargetBuilder::new(
         definitions,
         tree,
         &function.parameters,
-        false,
         value_types,
-        type_context,
+        target_layout,
     );
 
     // search for clobbering defs that postdominate the store
@@ -577,11 +556,9 @@ fn store_is_postdominated_by_clobber(
         }
 
         // return once a clobbering def is found
-        if let Some(overwrites) = def_fully_overwrites_store(
-            &def_access.effect.location,
-            &store.location,
-            &mut decomposer,
-        ) {
+        if let Some(overwrites) =
+            def_fully_overwrites_store(&def_access.effect.location, &store.location, &mut targets)
+        {
             if overwrites && memory_ssa.def_clobbers_access(def.access, store.access, aa) {
                 return true;
             }
@@ -589,7 +566,7 @@ fn store_is_postdominated_by_clobber(
             continue;
         }
 
-        if matches!(store.location, MemoryAccessLocation::Local(_))
+        if matches!(store.location, MemoryEffectTarget::Local(_))
             && memory_ssa.def_clobbers_access(def.access, store.access, aa)
         {
             return true;
@@ -601,50 +578,53 @@ fn store_is_postdominated_by_clobber(
 
 /// Return true when a def fully overwrites the store location.
 fn def_fully_overwrites_store(
-    def_location: &MemoryAccessLocation,
-    store_location: &MemoryAccessLocation,
-    decomposer: &mut PointerDecomposer<'_>,
+    def_location: &MemoryEffectTarget,
+    store_location: &MemoryEffectTarget,
+    targets: &mut MemoryTargetBuilder<'_>,
 ) -> Option<bool> {
-    let MemoryAccessLocation::Pointer(def_loc) = def_location else {
+    let MemoryEffectTarget::Reference {
+        location: def_loc, ..
+    } = def_location
+    else {
         return None;
     };
-    let MemoryAccessLocation::Pointer(store_loc) = store_location else {
+    let MemoryEffectTarget::Reference {
+        location: store_loc,
+        ..
+    } = store_location
+    else {
         return None;
     };
 
     let def_size = def_loc.size?;
     let store_size = store_loc.size?;
 
-    let def_decomp = decomposer.decompose(def_loc.ptr);
-    let store_decomp = decomposer.decompose(store_loc.ptr);
+    let def_target = targets.target(def_loc.reference);
+    let store_target = targets.target(store_loc.reference);
 
-    // require identified bases for overwrite reasoning
-    if !def_decomp.base.is_identified() || !store_decomp.base.is_identified() {
+    let MemoryTarget::Place(def_place) = def_target else {
+        return None;
+    };
+    let MemoryTarget::Place(store_place) = store_target else {
+        return None;
+    };
+
+    // require constant offsets and identical field paths
+    if !place_is_constant(&def_place) || !place_is_constant(&store_place) {
+        return None;
+    }
+    if def_place.fields != store_place.fields {
         return None;
     }
 
-    if !decomposition_is_constant(&def_decomp) || !decomposition_is_constant(&store_decomp) {
-        return None;
+    // disjoint identified storage cannot overwrite
+    if def_place.storage != store_place.storage {
+        return Some(false);
     }
 
-    if def_decomp.field_path != store_decomp.field_path {
-        return None;
-    }
-
-    if def_decomp.base != store_decomp.base {
-        if def_decomp.base.is_identified() && store_decomp.base.is_identified() {
-            return Some(false);
-        }
-
-        return None;
-    }
-
-    let relation = range_relation(
-        def_decomp.const_offset,
-        def_size,
-        store_decomp.const_offset,
-        store_size,
-    );
+    let def_range = ByteRange::new(def_place.const_offset, def_size);
+    let store_range = ByteRange::new(store_place.const_offset, store_size);
+    let relation = def_range.relation(store_range);
 
     match relation {
         RangeRelation::Equal | RangeRelation::Contains => Some(true),
@@ -654,42 +634,9 @@ fn def_fully_overwrites_store(
     }
 }
 
-/// Return true when the decomposition has only constant offsets.
-fn decomposition_is_constant(pointer: &DecomposedPointer) -> bool {
-    pointer.var_offsets.is_empty()
-}
-
-/// Build a map from values to constant integer values.
-fn build_integer_constant_map(
-    function: &mir::Function,
-    tree: &mir::Tree,
-) -> HashMap<mir::Value, i64> {
-    let mut constants = HashMap::new();
-
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        for &instruction_id in &block.instructions {
-            let instruction = tree.get(instruction_id);
-            if let mir::Instruction::Const { destination, value } = instruction {
-                let destination = *destination;
-                match value {
-                    mir::Constant::Int { value, .. } => {
-                        if let Ok(value) = i64::try_from(*value) {
-                            constants.insert(destination, value);
-                        }
-                    }
-                    mir::Constant::UInt { value, .. } => {
-                        if let Ok(value) = i64::try_from(*value) {
-                            constants.insert(destination, value);
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-
-    constants
+/// Return true when the memory place has only constant offsets.
+fn place_is_constant(place: &MemoryPlace) -> bool {
+    place.indexed_offsets.is_empty()
 }
 
 #[cfg(test)]

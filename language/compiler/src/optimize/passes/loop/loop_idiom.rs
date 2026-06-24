@@ -6,10 +6,9 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, BlockParamForwarding, ControlFlowGraph, DominatorTree, LoopAnalysis, Mutation,
-    RangeAnalysis, ScalarEvolution, Scev, TypeKey, UseDefMaps, ValueRange, ValueTypeMap,
-    build_use_def_maps, build_value_definition_map, build_value_use_counts, constant_for_value,
-    constant_is_zero, instruction_has_side_effects, instruction_is_borrow_address,
-    instruction_is_speculatable, instruction_requires_exact_access, unsigned_int_width_for_value,
+    RangeAnalysis, ScalarEvolution, Scev, TypeKey, UseDefMaps, ValueDefinitions, ValueRange,
+    ValueTypeMap, build_use_def_maps, build_value_use_counts, constant_for_value, constant_is_zero,
+    instruction_has_side_effects, instruction_is_borrow_address, instruction_is_speculatable,
 };
 
 declare_pass! {
@@ -83,7 +82,7 @@ impl FunctionPass for LoopIdiomRecognize {
 
         let changed = run_loop_idiom(function, tree, ctx, analyses);
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -134,7 +133,7 @@ fn run_loop_idiom(
 
         // build use def and definition maps
         let use_def = build_use_def_maps(function, tree);
-        let value_definitions = build_value_definition_map(function, tree);
+        let value_definitions = ValueDefinitions::build(function, tree).instruction_map();
         let use_counts = build_value_use_counts(function, tree);
         let value_types = ValueTypeMap::new(function, tree);
 
@@ -190,18 +189,16 @@ fn run_loop_idiom(
             };
 
             // require consistent unsigned types for induction and bound
-            let Some(induction_width) = unsigned_int_width_for_value(
+            let Some(induction_width) = value_types.unsigned_int_width(
                 guard.induction,
-                &value_types,
-                ctx.type_context().pointer_width_bits,
+                ctx.target_layout().pointer_width_bits,
                 tree,
             ) else {
                 continue;
             };
-            let Some(bound_width) = unsigned_int_width_for_value(
+            let Some(bound_width) = value_types.unsigned_int_width(
                 bound_value,
-                &value_types,
-                ctx.type_context().pointer_width_bits,
+                ctx.target_layout().pointer_width_bits,
                 tree,
             ) else {
                 continue;
@@ -209,10 +206,9 @@ fn run_loop_idiom(
             if induction_width != bound_width {
                 continue;
             }
-            let Some(start_width) = unsigned_int_width_for_value(
+            let Some(start_width) = value_types.unsigned_int_width(
                 start_value,
-                &value_types,
-                ctx.type_context().pointer_width_bits,
+                ctx.target_layout().pointer_width_bits,
                 tree,
             ) else {
                 continue;
@@ -396,7 +392,7 @@ fn run_loop_idiom(
                 continue;
             }
 
-            let Some(element_size) = dest_key.byte_size(ctx.type_context().pointer_width_bits)
+            let Some(element_size) = dest_key.byte_size(ctx.target_layout().pointer_width_bits)
             else {
                 continue;
             };
@@ -456,7 +452,7 @@ fn run_loop_idiom(
 
             let use_memcpy =
                 arrays_are_value_types(pattern.dest_array, pattern.src_array, &value_types, tree)
-                    || aa.pointers_no_alias(pattern.store_pointer, pattern.load_pointer);
+                    || aa.references_no_alias(pattern.store_pointer, pattern.load_pointer);
             let intrinsic = if use_memcpy {
                 mir::Intrinsic::Memcpy
             } else {
@@ -542,9 +538,9 @@ struct MemcpyPattern {
     store_block: mir::LocalNodeId<mir::Block>,
     /// The block containing the load.
     load_block: mir::LocalNodeId<mir::Block>,
-    /// The store pointer value.
+    /// The store reference value.
     store_pointer: mir::Value,
-    /// The load pointer value.
+    /// The load reference value.
     load_pointer: mir::Value,
 }
 
@@ -556,7 +552,7 @@ fn match_memset_pattern(
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<MemsetPattern> {
     // scan loop blocks for a single store with a speculatable body
-    let mut store_ptr = None;
+    let mut store_reference = None;
     let mut store_value = None;
     let mut store_block = None;
 
@@ -574,16 +570,16 @@ fn match_memset_pattern(
             let inst = tree.get(inst_id);
 
             // reject volatile or ordered memory accesses
-            if instruction_requires_exact_access(tree, inst_id) {
+            if tree.instruction_requires_exact_access(inst_id) {
                 return None;
             }
 
             if instruction_has_side_effects(inst) {
                 if let mir::Instruction::Store { pointer, value } = inst {
-                    if store_ptr.is_some() {
+                    if store_reference.is_some() {
                         return None;
                     }
-                    store_ptr = Some(*pointer);
+                    store_reference = Some(*pointer);
                     store_value = Some(*value);
                     store_block = Some(block_id);
                     continue;
@@ -599,9 +595,9 @@ fn match_memset_pattern(
     }
 
     // require a single store and resolve its address
-    let store_ptr = store_ptr?;
+    let store_reference = store_reference?;
     let (array, index, element_addr_type) =
-        element_addr_for_pointer(store_ptr, tree, value_definitions)?;
+        element_addr_for_pointer(store_reference, tree, value_definitions)?;
     if index != induction {
         return None;
     }
@@ -626,10 +622,10 @@ fn match_memcpy_pattern(
     use_counts: &HashMap<mir::Value, usize>,
 ) -> Option<MemcpyPattern> {
     // scan loop blocks for a single load and store
-    let mut store_ptr = None;
+    let mut store_reference = None;
     let mut store_value = None;
     let mut store_block = None;
-    let mut load_ptr = None;
+    let mut load_reference = None;
     let mut load_value = None;
     let mut load_block = None;
 
@@ -647,16 +643,16 @@ fn match_memcpy_pattern(
             let inst = tree.get(inst_id);
 
             // reject volatile or ordered memory accesses
-            if instruction_requires_exact_access(tree, inst_id) {
+            if tree.instruction_requires_exact_access(inst_id) {
                 return None;
             }
 
             match inst {
                 mir::Instruction::Store { pointer, value } => {
-                    if store_ptr.is_some() {
+                    if store_reference.is_some() {
                         return None;
                     }
-                    store_ptr = Some(*pointer);
+                    store_reference = Some(*pointer);
                     store_value = Some(*value);
                     store_block = Some(block_id);
                     continue;
@@ -666,10 +662,10 @@ fn match_memcpy_pattern(
                     pointer,
                     ..
                 } => {
-                    if load_ptr.is_some() {
+                    if load_reference.is_some() {
                         return None;
                     }
-                    load_ptr = Some(*pointer);
+                    load_reference = Some(*pointer);
                     load_value = Some(*destination);
                     load_block = Some(block_id);
                     continue;
@@ -687,9 +683,9 @@ fn match_memcpy_pattern(
     }
 
     // require a single load and store
-    let store_ptr = store_ptr?;
+    let store_reference = store_reference?;
     let store_value = store_value?;
-    let load_ptr = load_ptr?;
+    let load_reference = load_reference?;
     let load_value = load_value?;
 
     // require the load value to feed the store
@@ -704,9 +700,9 @@ fn match_memcpy_pattern(
 
     // resolve both addresses back to element.address
     let (dest_array, dest_index, dest_element_addr_type) =
-        element_addr_for_pointer(store_ptr, tree, value_definitions)?;
+        element_addr_for_pointer(store_reference, tree, value_definitions)?;
     let (src_array, src_index, src_element_addr_type) =
-        element_addr_for_pointer(load_ptr, tree, value_definitions)?;
+        element_addr_for_pointer(load_reference, tree, value_definitions)?;
 
     if dest_index != induction || src_index != induction {
         return None;
@@ -719,8 +715,8 @@ fn match_memcpy_pattern(
         src_element_addr_type,
         store_block: store_block?,
         load_block: load_block?,
-        store_pointer: store_ptr,
-        load_pointer: load_ptr,
+        store_pointer: store_reference,
+        load_pointer: load_reference,
     })
 }
 
@@ -909,7 +905,7 @@ fn emit_memset(
     });
     block.instructions.push(fill_inst);
 
-    // compute the base pointer for the memset
+    // compute the base reference for the memset
     let ptr_inst = tree.insert(mir::Instruction::ElementAddr {
         destination: function.next_typed_value(element_addr_type),
         array,
@@ -947,7 +943,7 @@ fn emit_memcpy_or_memmove(
     tree: &mut mir::Tree,
     block: &mut mir::Block,
 ) {
-    // compute the destination base pointer
+    // compute the destination base reference
     let dest_ptr_inst = tree.insert(mir::Instruction::ElementAddr {
         destination: function.next_typed_value(dest_element_addr_type),
         array: dest_array,
@@ -956,7 +952,7 @@ fn emit_memcpy_or_memmove(
     });
     block.instructions.push(dest_ptr_inst);
 
-    // compute the source base pointer
+    // compute the source base reference
     let src_ptr_inst = tree.insert(mir::Instruction::ElementAddr {
         destination: function.next_typed_value(src_element_addr_type),
         array: src_array,
@@ -1312,7 +1308,7 @@ fn guard_is_simple(guard: &GuardInfo, loop_index: usize, scev: &ScalarEvolution)
         start,
         step,
         loop_header,
-    }) = scev.scev_for_value_in_loop(loop_index, guard.induction)
+    }) = scev.value_scev(loop_index, guard.induction)
     else {
         return false;
     };
@@ -1487,13 +1483,13 @@ b3:
         let function = test.tree.get(function_id);
 
         let mut store_id = None;
-        let mut store_ptr = None;
+        let mut store_reference = None;
         for block_id in &function.blocks {
             let block = test.tree.get(*block_id);
             for instruction_id in &block.instructions {
                 if let mir::Instruction::Store { pointer, .. } = test.tree.get(*instruction_id) {
                     store_id = Some(*instruction_id);
-                    store_ptr = Some(*pointer);
+                    store_reference = Some(*pointer);
                     break;
                 }
             }
@@ -1503,11 +1499,11 @@ b3:
         }
 
         let store_id = store_id.expect("missing store instruction");
-        let store_ptr = store_ptr.expect("missing store pointer");
+        let store_reference = store_reference.expect("missing store pointer");
         test.insert_pointer_access_with_options(
             store_id,
             mir::MemoryAccessKind::Write,
-            store_ptr,
+            store_reference,
             None,
             true,
             None,

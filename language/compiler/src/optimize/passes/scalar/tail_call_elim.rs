@@ -6,7 +6,7 @@ use destack_mir as mir;
 use destack_core::StringPool;
 
 use crate::optimize::{ModulePass, PipelineContext};
-use destack_mir::{Mutation, build_signature_type, clone_instruction_metadata};
+use destack_mir::{Mutation, SignatureKey, clone_instruction_metadata};
 
 declare_pass! {
     /// Eliminates tail-recursive calls by converting them to jumps.
@@ -35,7 +35,7 @@ impl ModulePass for TailCallElim {
         // run tail call elimination
         let changed = run_tail_call_elimination(tree, ctx.strings);
         if changed {
-            Mutation::CONTROL_FLOW | Mutation::VALUES
+            Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
         }
@@ -587,7 +587,7 @@ fn update_recursive_calls_to_impl(
     tree: &mut mir::Tree,
 ) {
     let block = tree.get(block_id).clone();
-    let signature = build_signature_type(impl_function_id, tree);
+    let signature = SignatureKey::insert_function_type(impl_function_id, tree);
 
     for &instr_id in &block.instructions {
         let instr = tree.get(instr_id).clone();
@@ -644,7 +644,7 @@ fn rewrite_as_wrapper(
 
     // create call to impl
     let result_value = function.next_typed_value(return_type);
-    let signature = build_signature_type(impl_function_id, tree);
+    let signature = SignatureKey::insert_function_type(impl_function_id, tree);
     let call_instr = mir::Instruction::Call {
         destination: Some(result_value),
         function: impl_function_id,
@@ -763,7 +763,7 @@ fn update_call_site(
     let new_arguments = tree.add_values(&new_args);
     let mut call = call;
     call.arguments = new_arguments;
-    call.signature = build_signature_type(function, tree);
+    call.signature = SignatureKey::insert_function_type(function, tree);
 
     let new_call = mir::Instruction::Call {
         destination,
