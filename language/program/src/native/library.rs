@@ -1,10 +1,10 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use destack_source::ContentId;
 
 /// Loadable native library image.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Library {
     /// The native library location.
     pub source: LibrarySource,
@@ -35,7 +35,7 @@ impl Library {
 }
 
 /// Native library source.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum LibrarySource {
     /// Library is loaded from a process or platform search path.
     Name(String),

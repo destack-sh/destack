@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -6,7 +6,7 @@ use crate::FunctionId;
 use destack_mir as mir;
 
 /// VM resume states keyed by execution frame state.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ResumeTable {
     /// Resume states by dense frame state id.
     states: Vec<ResumeState>,
@@ -49,7 +49,7 @@ impl ResumeTable {
 }
 
 /// VM state for one resumable frame.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ResumeState {
     /// The lowered VM program point.
     pub point: ProgramPoint,
@@ -62,7 +62,7 @@ pub struct ResumeState {
 }
 
 /// VM entry bindings for one resume state.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FrameEntry {
     /// The slot bindings applied on entry.
     pub bindings: Vec<FrameBinding>,
@@ -71,7 +71,7 @@ pub struct FrameEntry {
 }
 
 /// One frame slot binding.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FrameBinding {
     /// The source frame slot.
     pub source: mir::FrameSlotId,
@@ -80,7 +80,7 @@ pub struct FrameBinding {
 }
 
 /// One lowered VM program point.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct ProgramPoint {
     /// The owning function.
     pub function: FunctionId,

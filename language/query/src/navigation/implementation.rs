@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::collections::HashSet;
 
 use destack_dir as dir;
@@ -8,14 +8,14 @@ use crate::core::{ModuleQueryContext, NominalRelation, QueryPosition, WorkspaceQ
 use crate::navigation::{NavigationRelation, NavigationTarget};
 
 /// Request goto implementation at a cursor position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoImplementationRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
 /// Response payload for goto implementation queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoImplementationResponse {
     /// Implementation targets.
     pub targets: Vec<NavigationTarget>,

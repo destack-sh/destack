@@ -13,15 +13,15 @@ use destack_workspace::protocol::{
     WorkspaceResponse,
 };
 use destack_workspace::{
-    Client, ClientOptions, FileOperation, Transport, TransportError, WorkspaceConnectOptions,
-    WorkspaceConnection, WorkspaceEndpoint, WorkspaceIpcError, WorkspaceIpcListener,
+    Client, ClientOptions, ConnectOptions, FileOperation, IpcError, IpcListener, Service,
+    Transport, TransportError,
 };
 
-use crate::daemon::{WorkspaceServer, WorkspaceServerOptions};
+use crate::daemon::{DaemonServer, DaemonServerOptions};
 
-/// The workspace server result type used by connection tests.
+/// The daemon server result type used by connection tests.
 #[cfg(unix)]
-type WorkspaceServerResult = Result<(), crate::daemon::WorkspaceServerError>;
+type DaemonServerResult = Result<(), crate::daemon::DaemonServerError>;
 
 /// Unique suffix counter for ipc probe socket paths.
 #[cfg(unix)]
@@ -46,22 +46,20 @@ fn ensure_ipc_test_environment() -> bool {
     ));
     let _ = std::fs::remove_file(&probe_path);
 
-    let bind_result = WorkspaceIpcListener::bind(&probe_path, 1024);
+    let bind_result = IpcListener::bind(&probe_path, 1024);
     let _ = std::fs::remove_file(&probe_path);
 
     // accept healthy probe results
     match bind_result {
         Ok(_) => true,
-        Err(WorkspaceIpcError::Unsupported) => {
+        Err(IpcError::Unsupported) => {
             if allow_ipc_test_skip() {
                 return false;
             }
 
             panic!("ipc is unsupported in this runtime");
         }
-        Err(WorkspaceIpcError::Io(error))
-            if error.kind() == std::io::ErrorKind::PermissionDenied =>
-        {
+        Err(IpcError::Io(error)) if error.kind() == std::io::ErrorKind::PermissionDenied => {
             if allow_ipc_test_skip() {
                 return false;
             }
@@ -74,11 +72,11 @@ fn ensure_ipc_test_environment() -> bool {
 
 /// Build deterministic server options for connection tests.
 #[cfg(unix)]
-fn connection_test_server_options() -> WorkspaceServerOptions {
+fn connection_test_server_options() -> DaemonServerOptions {
     // start from deterministic defaults
-    let mut options = WorkspaceServerOptions {
+    let mut options = DaemonServerOptions {
         idle_shutdown: None,
-        ..WorkspaceServerOptions::default()
+        ..DaemonServerOptions::default()
     };
 
     // run provider work in one worker to avoid test contention
@@ -88,11 +86,11 @@ fn connection_test_server_options() -> WorkspaceServerOptions {
     options
 }
 
-/// Spawn a workspace server thread and return its completion channel.
+/// Spawn a daemon server thread and return its completion channel.
 #[cfg(unix)]
-fn spawn_workspace_server(
-    server: WorkspaceServer,
-) -> (std::thread::JoinHandle<()>, Receiver<WorkspaceServerResult>) {
+fn spawn_daemon_server(
+    server: DaemonServer,
+) -> (std::thread::JoinHandle<()>, Receiver<DaemonServerResult>) {
     let (tx, rx) = std::sync::mpsc::channel();
     let handle = std::thread::spawn(move || {
         let result = server.serve();
@@ -102,41 +100,41 @@ fn spawn_workspace_server(
     (handle, rx)
 }
 
-/// Join a workspace server thread and assert it exited cleanly.
+/// Join a daemon server thread and assert it exited cleanly.
 #[cfg(unix)]
-fn join_workspace_server(
+fn join_daemon_server(
     handle: std::thread::JoinHandle<()>,
-    result_rx: Receiver<WorkspaceServerResult>,
+    result_rx: Receiver<DaemonServerResult>,
 ) {
     let _ = handle.join();
 
     match result_rx.recv_timeout(Duration::from_secs(1)) {
         Ok(Ok(())) => {}
-        Ok(Err(error)) => panic!("workspace server exited with error: {error}"),
-        Err(error) => panic!("missing workspace server result: {error}"),
+        Ok(Err(error)) => panic!("daemon server exited with error: {error}"),
+        Err(error) => panic!("missing daemon server result: {error}"),
     }
 }
 
-/// Harness for workspace server connection lifecycle tests.
+/// Harness for daemon server connection lifecycle tests.
 #[cfg(unix)]
-struct TestWorkspaceServer {
+struct TestDaemonServer {
     /// Temporary root for this server.
     root: TemporaryPhysicalFileSystem,
     /// Shared repository backing server restarts.
     repository: Arc<Repository>,
-    /// Stable workspace endpoint metadata.
-    endpoint: WorkspaceEndpoint,
+    /// Stable workspace service metadata.
+    service: Service,
     /// Running server thread handle, when started.
     server_handle: Option<std::thread::JoinHandle<()>>,
     /// Running server result channel, when started.
-    server_result_rx: Option<Receiver<WorkspaceServerResult>>,
+    server_result_rx: Option<Receiver<DaemonServerResult>>,
 }
 
 #[cfg(unix)]
-impl TestWorkspaceServer {
-    /// Create a workspace server harness with an isolated root.
+impl TestDaemonServer {
+    /// Create a daemon server harness with an isolated root.
     fn new(prefix: &str) -> Self {
-        // build a root and workspace endpoint
+        // build a root and workspace service
         let root = TemporaryPhysicalFileSystem::new_with_prefix(prefix);
         let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
         let environment = Environment::capture_process();
@@ -159,12 +157,12 @@ impl TestWorkspaceServer {
             Settings::default(),
             layout,
         ));
-        let endpoint = WorkspaceEndpoint::new(repository.layout().home.clone());
+        let service = Service::new(repository.layout().home.clone());
 
         Self {
             root,
             repository,
-            endpoint,
+            service,
             server_handle: None,
             server_result_rx: None,
         }
@@ -175,36 +173,36 @@ impl TestWorkspaceServer {
         self.root.root()
     }
 
-    /// Start the workspace server with deterministic test options.
+    /// Start the daemon server with deterministic test options.
     fn start(&mut self) {
         self.start_with_options(connection_test_server_options());
     }
 
-    /// Start the workspace server with explicit options.
-    fn start_with_options(&mut self, options: WorkspaceServerOptions) {
+    /// Start the daemon server with explicit options.
+    fn start_with_options(&mut self, options: DaemonServerOptions) {
         // reject duplicate starts for a running server
         if self.server_handle.is_some() || self.server_result_rx.is_some() {
-            panic!("workspace connection server is already running");
+            panic!("daemon server is already running");
         }
 
-        // spawn the workspace server thread
+        // spawn the daemon server thread
         let server =
-            WorkspaceServer::with_options(self.repository.clone(), self.endpoint.clone(), options)
-                .expect("workspace server should initialize");
-        let (handle, server_result_rx) = spawn_workspace_server(server);
+            DaemonServer::with_options(self.repository.clone(), self.service.clone(), options)
+                .expect("daemon server should initialize");
+        let (handle, server_result_rx) = spawn_daemon_server(server);
         self.server_handle = Some(handle);
         self.server_result_rx = Some(server_result_rx);
     }
 
-    /// Connect to the running workspace server.
-    fn connect(&self) -> WorkspaceConnection {
+    /// Connect to the running daemon server.
+    fn connect(&self) -> Arc<Client> {
         let server_result_rx = self.server_result_rx.as_ref();
-        wait_for_workspace_server(&self.endpoint, server_result_rx)
+        wait_for_daemon_server(&self.service, server_result_rx)
     }
 
     /// Send shutdown through a connection and join the server.
-    fn shutdown_and_join(&mut self, connection: WorkspaceConnection) {
-        let _ = connection.client.send_request(WorkspaceRequest::Shutdown);
+    fn shutdown_and_join(&mut self, connection: Arc<Client>) {
+        let _ = connection.send_request(WorkspaceRequest::Shutdown);
         drop(connection);
         self.join();
     }
@@ -219,14 +217,14 @@ impl TestWorkspaceServer {
             .server_result_rx
             .take()
             .expect("expected running workspace connection server result channel");
-        join_workspace_server(handle, result_rx);
+        join_daemon_server(handle, result_rx);
     }
 
     /// Wait for server exit and join the thread when it finishes.
     fn wait_for_exit(
         &mut self,
         timeout: Duration,
-    ) -> Result<WorkspaceServerResult, std::sync::mpsc::RecvTimeoutError> {
+    ) -> Result<DaemonServerResult, std::sync::mpsc::RecvTimeoutError> {
         let result_rx = self
             .server_result_rx
             .as_ref()
@@ -252,13 +250,13 @@ fn test_workspace_ipc_reconnect() {
         return;
     }
 
-    // start a workspace server harness
-    let mut server = TestWorkspaceServer::new("workspace_ipc_reconnect");
+    // start a daemon server harness
+    let mut server = TestDaemonServer::new("workspace_ipc_reconnect");
     server.start();
 
-    // connect to the workspace server and issue a ping
+    // connect to the daemon server and issue a ping
     let connection = server.connect();
-    let response = connection.client.send_request(WorkspaceRequest::Ping);
+    let response = connection.send_request(WorkspaceRequest::Ping);
 
     // assertion block
     assert!(
@@ -269,7 +267,7 @@ fn test_workspace_ipc_reconnect() {
     // drop the connection and reconnect
     drop(connection);
     let connection = server.connect();
-    let response = connection.client.send_request(WorkspaceRequest::Ping);
+    let response = connection.send_request(WorkspaceRequest::Ping);
 
     // assertion block
     assert!(
@@ -289,13 +287,13 @@ fn test_workspace_ipc_restart() {
         return;
     }
 
-    // start a workspace server harness
-    let mut server = TestWorkspaceServer::new("workspace_ipc_restart");
+    // start a daemon server harness
+    let mut server = TestDaemonServer::new("workspace_ipc_restart");
     server.start();
 
-    // connect to the workspace server and issue a ping
+    // connect to the daemon server and issue a ping
     let connection = server.connect();
-    let response = connection.client.send_request(WorkspaceRequest::Ping);
+    let response = connection.send_request(WorkspaceRequest::Ping);
 
     // assertion block
     assert!(
@@ -306,12 +304,12 @@ fn test_workspace_ipc_restart() {
     // request shutdown and join the server
     server.shutdown_and_join(connection);
 
-    // restart the workspace server
+    // restart the daemon server
     server.start();
 
-    // reconnect to the workspace server and issue another ping
+    // reconnect to the daemon server and issue another ping
     let connection = server.connect();
-    let response = connection.client.send_request(WorkspaceRequest::Ping);
+    let response = connection.send_request(WorkspaceRequest::Ping);
 
     // assertion block
     assert!(
@@ -331,19 +329,16 @@ fn test_workspace_ipc_restart_resubscribe() {
         return;
     }
 
-    // start a workspace server harness
-    let mut server = TestWorkspaceServer::new("workspace_ipc_resubscribe");
+    // start a daemon server harness
+    let mut server = TestDaemonServer::new("workspace_ipc_resubscribe");
     server.start();
 
-    // connect to the workspace server and open the root
+    // connect to the daemon server and open the root
     let connection = server.connect();
-    let response = connection
-        .client
-        .send_request(WorkspaceRequest::OpenRoot(OpenRootRequest {
-            workspace: server.root_path().to_path_buf(),
-            root: server.root_path().to_path_buf(),
-            options: RootOpenOptions::default(),
-        }));
+    let response = connection.send_request(WorkspaceRequest::OpenRoot(OpenRootRequest {
+        root: server.root_path().to_path_buf(),
+        options: RootOpenOptions::default(),
+    }));
     let handle_id = match response {
         Ok(WorkspaceResponse::RootOpened(response)) => response.handle,
         other => panic!("unexpected response: {other:?}"),
@@ -355,9 +350,8 @@ fn test_workspace_ipc_restart_resubscribe() {
         path: file_path.clone(),
         content: "export const value = 1".to_string(),
     };
-    let response = connection
-        .client
-        .send_request(WorkspaceRequest::ApplyFileOperation(FileOperationRequest {
+    let response =
+        connection.send_request(WorkspaceRequest::ApplyFileOperation(FileOperationRequest {
             handle: handle_id,
             operation,
         }));
@@ -371,18 +365,15 @@ fn test_workspace_ipc_restart_resubscribe() {
     // request shutdown and join the server
     server.shutdown_and_join(connection);
 
-    // restart the workspace server
+    // restart the daemon server
     server.start();
 
     // reconnect and open the root again
     let connection = server.connect();
-    let response = connection
-        .client
-        .send_request(WorkspaceRequest::OpenRoot(OpenRootRequest {
-            workspace: server.root_path().to_path_buf(),
-            root: server.root_path().to_path_buf(),
-            options: RootOpenOptions::default(),
-        }));
+    let response = connection.send_request(WorkspaceRequest::OpenRoot(OpenRootRequest {
+        root: server.root_path().to_path_buf(),
+        options: RootOpenOptions::default(),
+    }));
     let handle_id = match response {
         Ok(WorkspaceResponse::RootOpened(response)) => response.handle,
         other => panic!("unexpected response: {other:?}"),
@@ -393,9 +384,8 @@ fn test_workspace_ipc_restart_resubscribe() {
         path: file_path,
         content: "export const value = 2".to_string(),
     };
-    let response = connection
-        .client
-        .send_request(WorkspaceRequest::ApplyFileOperation(FileOperationRequest {
+    let response =
+        connection.send_request(WorkspaceRequest::ApplyFileOperation(FileOperationRequest {
             handle: handle_id,
             operation,
         }));
@@ -418,14 +408,14 @@ fn test_workspace_ipc_idle_shutdown() {
         return;
     }
 
-    // configure the workspace server for a short idle shutdown
-    let options = WorkspaceServerOptions {
+    // configure the daemon server for a short idle shutdown
+    let options = DaemonServerOptions {
         idle_shutdown: Some(Duration::from_millis(25)),
-        ..WorkspaceServerOptions::default()
+        ..DaemonServerOptions::default()
     };
 
-    // start a workspace server harness
-    let mut server = TestWorkspaceServer::new("workspace_ipc_idle_shutdown");
+    // start a daemon server harness
+    let mut server = TestDaemonServer::new("workspace_ipc_idle_shutdown");
     server.start_with_options(options);
 
     // wait for the server to shut itself down
@@ -441,17 +431,17 @@ fn test_workspace_ipc_idle_shutdown() {
     assert!(result.is_ok());
 }
 
-/// Wait for workspace server metadata and connection to become available.
+/// Wait for daemon server metadata and connection to become available.
 #[cfg(unix)]
-fn wait_for_workspace_server(
-    endpoint: &WorkspaceEndpoint,
-    server_result_rx: Option<&Receiver<WorkspaceServerResult>>,
-) -> WorkspaceConnection {
+fn wait_for_daemon_server(
+    service: &Service,
+    server_result_rx: Option<&Receiver<DaemonServerResult>>,
+) -> Arc<Client> {
     // build connect options and deadline
-    let options = WorkspaceConnectOptions {
+    let options = ConnectOptions {
         timeout: Duration::from_secs(1),
         retry_delay: Duration::from_millis(25),
-        ..WorkspaceConnectOptions::default()
+        ..ConnectOptions::default()
     };
     let deadline = std::time::Instant::now() + Duration::from_secs(2);
 
@@ -460,19 +450,19 @@ fn wait_for_workspace_server(
         // fail fast when the server thread exits before connect
         if let Some(server_result_rx) = server_result_rx {
             match server_result_rx.try_recv() {
-                Ok(Ok(())) => panic!("workspace server exited before accepting connections"),
+                Ok(Ok(())) => panic!("daemon server exited before accepting connections"),
                 Ok(Err(error)) => {
-                    panic!("workspace server exited before accepting connections: {error}")
+                    panic!("daemon server exited before accepting connections: {error}")
                 }
                 Err(TryRecvError::Disconnected) => {
-                    panic!("workspace server thread disconnected before accepting connections");
+                    panic!("daemon server thread disconnected before accepting connections");
                 }
                 Err(TryRecvError::Empty) => {}
             }
         }
 
-        if let Ok(Some(_)) = endpoint.read_metadata()
-            && let Ok(connection) = endpoint.connect(options.clone(), None)
+        if let Ok(Some(_)) = service.read_metadata()
+            && let Ok(connection) = service.connect(options.clone(), None)
         {
             return connection;
         }
@@ -481,9 +471,9 @@ fn wait_for_workspace_server(
 
     // fail when the server never appears
     panic!(
-        "failed to connect to workspace server: metadata_exists={} socket_exists={}",
-        endpoint.read_metadata().ok().flatten().is_some(),
-        endpoint.socket_path.exists()
+        "failed to connect to daemon server: metadata_exists={} socket_exists={}",
+        service.read_metadata().ok().flatten().is_some(),
+        service.socket_path.exists()
     );
 }
 
@@ -491,11 +481,11 @@ fn wait_for_workspace_server(
 #[cfg(unix)]
 #[test]
 fn test_workspace_websocket_roundtrip() {
-    let mut server = TestWorkspaceServer::new("destack-workspace-websocket-ping");
+    let mut server = TestDaemonServer::new("destack-workspace-websocket-ping");
     server.start();
 
-    // wait for endpoint metadata and connect over WebSocket
-    let metadata = wait_for_metadata(&server.endpoint, server.server_result_rx.as_ref());
+    // wait for service metadata and connect over WebSocket
+    let metadata = wait_for_metadata(&server.service, server.server_result_rx.as_ref());
     let transport = TestWebSocketTransport::connect(&metadata.websocket_url);
     let client = Client::new(Arc::new(transport));
     client
@@ -516,42 +506,42 @@ fn test_workspace_websocket_roundtrip() {
     server.join();
 }
 
-/// Wait for workspace server metadata to become available.
+/// Wait for daemon server metadata to become available.
 #[cfg(unix)]
 fn wait_for_metadata(
-    endpoint: &WorkspaceEndpoint,
-    server_result_rx: Option<&Receiver<WorkspaceServerResult>>,
-) -> destack_workspace::WorkspaceServerMetadata {
+    service: &Service,
+    server_result_rx: Option<&Receiver<DaemonServerResult>>,
+) -> destack_workspace::Metadata {
     let deadline = std::time::Instant::now() + Duration::from_secs(2);
 
     while std::time::Instant::now() < deadline {
         // fail fast when the server thread exits before publishing metadata
         if let Some(server_result_rx) = server_result_rx {
             match server_result_rx.try_recv() {
-                Ok(Ok(())) => panic!("workspace server exited before publishing metadata"),
+                Ok(Ok(())) => panic!("daemon server exited before publishing metadata"),
                 Ok(Err(error)) => {
-                    panic!("workspace server exited before publishing metadata: {error}")
+                    panic!("daemon server exited before publishing metadata: {error}")
                 }
                 Err(TryRecvError::Disconnected) => {
-                    panic!("workspace server thread disconnected before publishing metadata");
+                    panic!("daemon server thread disconnected before publishing metadata");
                 }
                 Err(TryRecvError::Empty) => {}
             }
         }
 
-        if let Ok(Some(metadata)) = endpoint.read_metadata() {
+        if let Ok(Some(metadata)) = service.read_metadata() {
             return metadata;
         }
         std::thread::sleep(Duration::from_millis(25));
     }
 
-    panic!("failed to read workspace server metadata");
+    panic!("failed to read daemon server metadata");
 }
 
 /// Test WebSocket transport for workspace protocol tests.
 #[cfg(unix)]
 struct TestWebSocketTransport {
-    /// TCP stream connected to the workspace server.
+    /// TCP stream connected to the daemon server.
     stream: parking_lot::Mutex<std::net::TcpStream>,
     /// Protocol frame codec.
     codec: FrameCodec,
@@ -561,8 +551,8 @@ struct TestWebSocketTransport {
 impl TestWebSocketTransport {
     /// Connect to a WebSocket URL.
     fn connect(url: &str) -> Self {
-        let endpoint = TestWebSocketEndpoint::parse(url);
-        let mut stream = std::net::TcpStream::connect(&endpoint.address)
+        let service = TestWebSocketEndpoint::parse(url);
+        let mut stream = std::net::TcpStream::connect(&service.address)
             .expect("websocket tcp connection should open");
 
         // perform the WebSocket upgrade
@@ -574,7 +564,7 @@ impl TestWebSocketTransport {
              Sec-WebSocket-Key: dGVzdGluZy1kZXN0YWNrIQ==\r\n\
              Sec-WebSocket-Version: 13\r\n\
              \r\n",
-            endpoint.path, endpoint.address
+            service.path, service.address
         );
         std::io::Write::write_all(&mut stream, request.as_bytes())
             .expect("websocket request should write");
@@ -607,7 +597,7 @@ impl Transport for TestWebSocketTransport {
     fn close(&self) {}
 }
 
-/// Parsed WebSocket endpoint used by tests.
+/// Parsed WebSocket service used by tests.
 #[cfg(unix)]
 struct TestWebSocketEndpoint {
     /// Socket address.

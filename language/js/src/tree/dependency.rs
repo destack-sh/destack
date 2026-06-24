@@ -1,9 +1,10 @@
 use crate::{Expression, LocalNodeId, Name, Node, NodeType, StringId};
 
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// How one dependency item binds into the local module or export surface.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum DependencyBinding {
     /// Named binding (`import { foo } from "foo"` or `export { foo } from "foo"`).
     Named,
@@ -14,7 +15,7 @@ pub enum DependencyBinding {
 }
 
 /// The source form of one dependency item.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum DependencyForm {
     /// Type-marked dependency (`import type foo` or `export type foo`).
     Type,
@@ -29,7 +30,7 @@ pub enum DependencyForm {
 /// baz
 /// qux as quux
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct DependencyItem {
     /// How the item binds.
     pub binding: DependencyBinding,

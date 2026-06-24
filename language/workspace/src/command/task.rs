@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -19,7 +19,7 @@ use super::outcome::CommandOutcome;
 const DESTACK_TASK_SOURCE: &str = "destack";
 
 /// Task entry for task list output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TaskEntry {
     /// Project identifier.
     pub project: String,
@@ -32,7 +32,7 @@ pub struct TaskEntry {
 }
 
 /// Payload for task command output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TaskPayload {
     /// Task list entries.
     pub tasks: Option<Vec<TaskEntry>>,
@@ -43,7 +43,7 @@ pub struct TaskPayload {
 }
 
 /// One per-project task execution result.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TaskResult {
     /// Project identifier.
     pub project: String,
@@ -62,7 +62,7 @@ pub struct TaskResult {
 }
 
 /// Task selection for the task command.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum TaskAction {
     /// List available tasks.
     List,
@@ -78,7 +78,7 @@ pub enum TaskAction {
 }
 
 /// Options for the task command.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TaskOptions {
     /// Task action to run.
     pub action: TaskAction,
@@ -89,7 +89,7 @@ pub struct TaskOptions {
 }
 
 /// Request to run workspace tasks.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TaskInput {
     /// Revision selected for this task request.
     pub revision: CommandRevision,

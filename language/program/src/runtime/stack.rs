@@ -1,8 +1,8 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Durable stack image captured at one managed safepoint.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct StackImage {
     /// The captured stack bytes.
     pub bytes: Vec<u8>,

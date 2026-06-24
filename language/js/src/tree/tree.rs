@@ -4,6 +4,7 @@ use std::fmt::{Debug, Formatter};
 use destack_core::Arena;
 use destack_dir as dir;
 use destack_dir::GlobalSymbolId;
+use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +19,7 @@ use crate::{
 pub const MODULE_DEFAULT_NAME: &str = "_default";
 
 /// Dense metadata for one JS node id.
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Reflect)]
 pub(crate) struct NodeIndexEntry {
     /// The packed local id and node type.
     packed: u32,
@@ -110,7 +111,7 @@ impl NodeIndexEntry {
 }
 
 /// One stable symbol identity in lowered script output.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ScriptSymbolId {
     /// One symbol lowered directly from source DIR.
     Source(GlobalSymbolId),
@@ -119,7 +120,7 @@ pub enum ScriptSymbolId {
 }
 
 /// One DIR node that produced a JS node.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct NodeOrigin {
     /// The origin module.
     pub module_id: ModuleId,
@@ -128,7 +129,7 @@ pub struct NodeOrigin {
 }
 
 /// Mutable AST tree for a single source unit. NOT THREAD-SAFE.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Reflect)]
 pub struct Tree {
     /// The next id to allocate.
     pub(crate) next_global_id: u32,

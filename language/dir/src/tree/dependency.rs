@@ -1,5 +1,5 @@
 use destack_core::{StringId, StringPool};
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -7,7 +7,7 @@ use crate::{
 };
 
 /// How one dependency item binds into the local module.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum DependencyBinding {
     /// Named binding (`import { foo } from "foo"` or `export { foo } from "foo"`).
     Named,
@@ -18,7 +18,7 @@ pub enum DependencyBinding {
 }
 
 /// The export kind of a declaration or binding.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ExportKind {
     /// Named export (`export const foo = 1`).
     Named,
@@ -27,7 +27,7 @@ pub enum ExportKind {
 }
 
 /// The source form of one dependency declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum DependencyForm {
     /// Plain dependency (`import { foo } from "foo"` or `export { foo }`).
     Plain,
@@ -36,7 +36,7 @@ pub enum DependencyForm {
 }
 
 /// A dependency item imports or exports one binding from a target.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum DependencyItem {
     /// One valid dependency binding.
     ///

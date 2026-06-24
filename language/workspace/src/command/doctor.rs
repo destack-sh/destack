@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -14,14 +14,14 @@ use super::common::{
 use super::context::CommandContext;
 use super::outcome::CommandOutcome;
 /// Options for the doctor command.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
 pub struct DoctorOptions {
     /// Whether to run extended checks.
     pub full: bool,
 }
 
 /// Request to return workspace health information.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct DoctorInput {
     /// Revision selected for this doctor request.
     pub revision: CommandRevision,
@@ -54,7 +54,7 @@ pub struct DoctorInput {
 impl_command_input_options!(DoctorInput { full: false });
 
 /// Tool probe entry for doctor output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DoctorTool {
     /// Tool name.
     pub name: String,
@@ -65,7 +65,7 @@ pub struct DoctorTool {
 }
 
 /// Status values for tool detection.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 #[serde(rename_all = "snake_case")]
 pub enum DoctorToolStatus {
     /// Tool responded successfully.
@@ -77,7 +77,7 @@ pub enum DoctorToolStatus {
 }
 
 /// Workspace details for doctor output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DoctorWorkspace {
     /// Workspace root path.
     pub root: String,
@@ -90,7 +90,7 @@ pub struct DoctorWorkspace {
 }
 
 /// Payload for doctor command output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DoctorPayload {
     /// CLI version string.
     pub cli_version: String,

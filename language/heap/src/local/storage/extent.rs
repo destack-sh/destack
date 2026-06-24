@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::LargeBlockId;
@@ -6,7 +6,7 @@ use crate::HeapReference;
 use crate::allocator::Slot;
 
 /// One heap allocation place.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub(crate) enum HeapPlace {
     /// One young space block at a base offset.
     YoungRange {
@@ -22,7 +22,7 @@ pub(crate) enum HeapPlace {
 }
 
 /// One page map entry in heap storage.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub(crate) enum HeapPageMapEntry {
     /// One young space page and its logical page index.
     Young {

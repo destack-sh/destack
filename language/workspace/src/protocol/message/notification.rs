@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use destack_source::{Diagnostic, FileId};
@@ -9,7 +9,7 @@ use super::{PayloadChunkNotification, RootId};
 use crate::{Message, ProgressEvent};
 
 /// Diagnostic batch for notifications.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct DiagnosticBatch {
     /// The file id for these diagnostics.
     pub file_id: FileId,
@@ -43,7 +43,7 @@ impl DiagnosticBatch {
 }
 
 /// Notification for diagnostics updates.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct DiagnosticsNotification {
     /// Root handle.
     pub handle: RootId,
@@ -52,7 +52,7 @@ pub struct DiagnosticsNotification {
 }
 
 /// Notification for workspace messages.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct MessageNotification {
     /// Root handle.
     pub handle: RootId,
@@ -61,7 +61,7 @@ pub struct MessageNotification {
 }
 
 /// Progress notification payload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ProgressNotification {
     /// Root handle.
     pub handle: RootId,
@@ -70,7 +70,7 @@ pub struct ProgressNotification {
 }
 
 /// Notifications emitted by the workspace protocol.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum WorkspaceNotification {
     /// Publish diagnostics for a root.
     Diagnostics(DiagnosticsNotification),

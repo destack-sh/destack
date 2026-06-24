@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
 use destack_artifact::ArtifactReference;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::ContentId;
 use serde::{Deserialize, Serialize};
 
 /// Request to materialize derived outputs on the workspace host.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ExportRequest {
     /// Artifact to export.
     pub artifact: ArtifactReference,
@@ -17,14 +17,14 @@ pub struct ExportRequest {
 }
 
 /// Result of materializing derived outputs.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ExportResult {
     /// Files written on the workspace host.
     pub files: Vec<ExportedFile>,
 }
 
 /// One file written by export.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ExportedFile {
     /// Path written on the workspace host.
     pub path: PathBuf,

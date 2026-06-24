@@ -8,7 +8,7 @@ use crate::common::format::DiagnosticOutputJson;
 use crate::console;
 use crate::diagnostic::{ConsoleError, ConsoleResult};
 
-/// Schema identifier for watch reports.
+/// Reflect identifier for watch reports.
 const WATCH_REPORT_SCHEMA: &str = "destack.watch.v1";
 
 /// Reason a watch compile was triggered.

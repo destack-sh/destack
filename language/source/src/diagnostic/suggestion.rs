@@ -1,10 +1,10 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{DiagnosticLabel, PatchSet};
 
 /// Whether a suggestion can be applied automatically.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Applicability {
     /// The suggestion is machine-applicable.
     Automatic,
@@ -15,7 +15,7 @@ pub enum Applicability {
 }
 
 /// One suggested source change for a diagnostic.
-#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize, Reflect)]
 pub struct DiagnosticSuggestion {
     /// Exact source patches for machine application.
     pub patches: PatchSet,

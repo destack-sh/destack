@@ -1,9 +1,9 @@
 use destack_core::StableHasher;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Stable identity for environment variables read by one profile.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 pub enum EnvironmentKey {
     /// All captured environment variables by key and hash.
     All { keys: Vec<String>, hash: u128 },

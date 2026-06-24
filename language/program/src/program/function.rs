@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::collections::HashMap;
 
 use destack_core::StringPool;
@@ -10,7 +10,7 @@ use crate::vm::{CellLayout, Error};
 use super::{ProgramIndex, TypeId, TypeTable};
 
 /// Durable runtime function id inside one program.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct FunctionId(pub u32);
 
 impl FunctionId {
@@ -35,7 +35,7 @@ impl From<FunctionId> for u32 {
 }
 
 /// Runtime function metadata carried by one durable program.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FunctionTable {
     /// Dense function records keyed by program function id.
     functions: Vec<Option<Function>>,
@@ -124,7 +124,7 @@ impl FunctionTable {
 }
 
 /// Runtime function metadata.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Function {
     /// The source-facing function name.
     pub name: String,

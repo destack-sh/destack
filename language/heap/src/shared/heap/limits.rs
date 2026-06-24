@@ -1,10 +1,10 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{AccountingRegion, HeapError, HeapResult, apply_byte_delta};
 
 /// Hard limits for one live shared heap.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
 pub struct SharedHeapLimits {
     /// Optional hard limit for total retained shared-heap bytes.
     pub max_bytes: Option<u64>,

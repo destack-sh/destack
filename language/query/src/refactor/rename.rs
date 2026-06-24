@@ -1,6 +1,6 @@
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::{FileId, FilePatch, ModuleId, Patch, PatchSet, Span};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -15,7 +15,7 @@ use crate::dir::{
 use crate::source::{is_simple_identifier, sort_and_dedup_spans};
 
 /// Target of a rename query.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RenameTarget {
     /// The semantic rename target.
     pub target: QueryTarget,
@@ -26,21 +26,21 @@ pub struct RenameTarget {
 }
 
 /// Request the rename target at a cursor position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RenameTargetRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
 /// Response payload for rename target queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RenameTargetResponse {
     /// Rename target, if available.
     pub result: Option<RenameTarget>,
 }
 
 /// Request rename edits at a cursor position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RenameRequest {
     /// The queried position.
     pub position: QueryPosition,
@@ -49,7 +49,7 @@ pub struct RenameRequest {
 }
 
 /// Response payload for rename queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RenameResponse {
     /// Rename edit, if available.
     pub edit: Option<PatchSet>,

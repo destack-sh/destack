@@ -1,5 +1,5 @@
 use destack_repository::Revision;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::Diagnostic;
 use serde::{Deserialize, Serialize};
 
@@ -21,7 +21,7 @@ use super::task::TaskPayload;
 macro_rules! command_output {
     ($name:ident, $data:ty) => {
         /// Output produced by one workspace command.
-        #[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+        #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
         pub struct $name {
             /// Revision used for this operation.
             pub revision: Revision,
@@ -98,7 +98,7 @@ macro_rules! command_output {
 }
 
 /// Output produced by one workspace operation.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct Output<T = ()> {
     /// Revision used for this operation.
     pub revision: Revision,

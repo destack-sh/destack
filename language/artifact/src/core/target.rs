@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Semantic runtime contract for compiled code.
@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
     Default,
     Serialize,
     Deserialize,
-    Schema,
+    Reflect,
 )]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
@@ -71,7 +71,7 @@ impl Runtime {
     Default,
     Serialize,
     Deserialize,
-    Schema,
+    Reflect,
 )]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
@@ -118,7 +118,7 @@ impl BuildProfile {
     Default,
     Serialize,
     Deserialize,
-    Schema,
+    Reflect,
 )]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
@@ -165,7 +165,7 @@ impl BuildLinkage {
     Default,
     Serialize,
     Deserialize,
-    Schema,
+    Reflect,
 )]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
@@ -316,7 +316,7 @@ impl Platform {
 
 /// Host environment that provides target imports and ambient effects.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
@@ -384,7 +384,7 @@ impl Host {
 }
 
 /// CPU architecture for native targets.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum TargetArch {
@@ -478,7 +478,7 @@ impl TargetArch {
 }
 
 /// Target vendor for native targets.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum TargetVendor {
@@ -541,7 +541,7 @@ impl TargetVendor {
 }
 
 /// Target ABI flavor.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum TargetAbi {

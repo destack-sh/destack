@@ -1,8 +1,8 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Compact reference to an index list stored in the MIR tree.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash, Serialize, Deserialize, Reflect)]
 pub struct IndexSlice {
     /// Start index in the index buffer.
     pub start: u32,
@@ -31,7 +31,7 @@ impl IndexSlice {
 }
 
 /// Compact reference to an extent list stored in the MIR tree.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash, Serialize, Deserialize, Reflect)]
 pub struct ExtentSlice {
     /// Start index in the extent buffer.
     pub start: u32,
@@ -60,7 +60,7 @@ impl ExtentSlice {
 }
 
 /// Compact reference to a flag list stored in the MIR tree.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash, Serialize, Deserialize, Reflect)]
 pub struct FlagSlice {
     /// Start index in the flag buffer.
     pub start: u32,
@@ -90,7 +90,7 @@ impl FlagSlice {
 
 /// Compact identity for one tensor immediate stored in the MIR tree.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct TensorImmediateId(pub u32);
 
 impl TensorImmediateId {
@@ -108,7 +108,7 @@ impl TensorImmediateId {
 }
 
 /// Static tensor instruction immediate.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TensorImmediate {
     /// Dimension numbers for a tensor dot product.
     Dot {

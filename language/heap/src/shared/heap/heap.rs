@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -51,7 +51,7 @@ struct ImageState {
 }
 
 /// One serialized shared heap snapshot.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SharedHeapSnapshot {
     /// The captured shared heap options.
     options: SharedHeapOptions,

@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::fmt;
 use std::sync::Arc;
 
@@ -39,7 +39,7 @@ pub struct Machine {
 }
 
 /// Immutable machine image.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct MachineImage {
     /// The machine configuration options.
     pub options: MachineOptions,

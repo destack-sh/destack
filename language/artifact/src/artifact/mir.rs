@@ -1,9 +1,10 @@
 use destack_core::BitSet;
 use destack_mir::{self as mir, CallComponentGraph, LinkGraph, LinkSupergraph, Symbol};
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Lowered MIR payload before optimization.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirLowered {
     /// The MIR tree.
     pub tree: mir::Tree,
@@ -25,7 +26,7 @@ impl Default for MirLowered {
 }
 
 /// Verified MIR patch after required semantic verification.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirVerified {
     /// Required verification patch.
     pub patch: mir::Patch,
@@ -41,7 +42,7 @@ impl MirVerified {
 }
 
 /// Optimized MIR payload after pipeline transforms.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirOptimized {
     /// Ordered optimization patches.
     pub patches: Vec<mir::Patch>,
@@ -68,7 +69,7 @@ impl Default for MirOptimized {
 }
 
 /// Per-module link summary produced by program analysis.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirAnalyzed {
     /// The module's symbol reference graph.
     pub links: LinkGraph,
@@ -82,7 +83,7 @@ impl MirAnalyzed {
 }
 
 /// Whole-program analysis columns shared across the optimization of every module.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct ProgramAnalysis {
     /// Every defined symbol in the program.
     symbols: Vec<Symbol>,

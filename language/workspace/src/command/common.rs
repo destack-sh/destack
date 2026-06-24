@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use destack_serde::Schema;
+use destack_serde::Reflect;
 
 use destack_repository::{Revision, Target};
 use destack_source::{FileType, TargetId};
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use super::DEFAULT_PROGRESS_INTERVAL;
 
 /// Command input sources.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum CommandInput {
     /// A file path input.
     File { path: PathBuf },
@@ -35,7 +35,7 @@ pub enum CommandInput {
 }
 
 /// Target overrides for command execution.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
 pub struct CommandTargetOverrides {
     /// Output directory override.
     pub out_dir: Option<PathBuf>,
@@ -62,7 +62,7 @@ impl CommandTargetOverrides {
 }
 
 /// Revision selection for command execution.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, Default)]
 pub enum CommandRevision {
     /// Execute from the current root revision.
     #[default]
@@ -72,7 +72,7 @@ pub enum CommandRevision {
 }
 
 /// Environment variable override for commands.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CommandEnvVar {
     /// Environment variable name.
     pub key: String,
@@ -81,7 +81,7 @@ pub struct CommandEnvVar {
 }
 
 /// Manifest override applied to one command invocation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ManifestOverride {
     /// Manifest path, such as `compiler.target`.
     pub path: String,
@@ -110,7 +110,7 @@ impl From<destack_repository::ManifestOverride> for ManifestOverride {
 }
 
 /// JSON-compatible value carried by command protocol messages.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum JsonValue {
     /// Null value.
     #[default]
@@ -227,7 +227,7 @@ impl std::fmt::Display for JsonValueError {
 impl std::error::Error for JsonValueError {}
 
 /// Standard payload for unimplemented command responses.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CommandMessagePayload {
     /// Message describing the command response.
     pub message: String,
@@ -236,7 +236,7 @@ pub struct CommandMessagePayload {
 }
 
 /// Output chunk from command execution.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CommandOutputChunk {
     /// Output stream kind.
     pub stream: OutputStream,
@@ -245,7 +245,7 @@ pub struct CommandOutputChunk {
 }
 
 /// Generated output file produced by a command.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CommandOutputFile {
     /// Output id.
     pub id: u64,
@@ -262,7 +262,7 @@ pub struct CommandOutputFile {
 }
 
 /// Command output stream kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum OutputStream {
     /// Standard output.
     Stdout,
@@ -288,7 +288,7 @@ fn json_number(value: serde_json::Number) -> JsonValue {
 }
 
 /// Progress event payload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ProgressEvent {
     /// Identifier for the ongoing task.
     pub task: String,
@@ -345,7 +345,7 @@ impl<'a> CommandProgress<'a> {
 }
 
 /// Common command options shared across command payloads.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CommandOptions {
     /// Input sources for the command.
     pub inputs: Vec<CommandInput>,

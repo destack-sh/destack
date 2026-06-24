@@ -1,8 +1,9 @@
 use crate::{Expression, LocalNodeId, Path, StringId};
 
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 /// A ScalarLiteral is literal scalar value.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ScalarLiteral {
     /// Null value.
     Null,
@@ -24,7 +25,7 @@ pub enum ScalarLiteral {
 }
 
 /// A TemplateLiteral is literal template value.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum TemplateLiteral {
     /// Template string value.
     String { template: StringId },

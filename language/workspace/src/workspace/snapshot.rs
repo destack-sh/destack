@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_query::QueryModule;
 use destack_repository::{FormatterOptions, Repository, Revision, RevisionPin};
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_session::{Session, SessionError};
 use destack_source::{File, FileId, PackageId, ProfileId, TargetId};
 use serde::{Deserialize, Serialize};
@@ -89,7 +89,7 @@ pub struct FileView {
 }
 
 /// Request to read one workspace snapshot.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ViewRequest {
     /// Return root query context.
     Root {
@@ -103,7 +103,7 @@ pub enum ViewRequest {
 }
 
 /// Result of reading one workspace snapshot.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ViewResult {
     /// Root query context.
     Root(RootSnapshot),
@@ -114,7 +114,7 @@ pub enum ViewResult {
 }
 
 /// Request to read diagnostics.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum DiagnosticsRequest {
     /// Return diagnostics for every open root.
     All,

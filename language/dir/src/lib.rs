@@ -1,11 +1,13 @@
 #![feature(default_field_values)]
 
+mod schema;
 mod source;
 mod symbol;
 mod table;
 mod tree;
 mod r#type;
 
+pub use schema::*;
 pub use source::*;
 pub use symbol::*;
 pub use table::*;

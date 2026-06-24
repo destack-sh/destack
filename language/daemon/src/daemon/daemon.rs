@@ -4,8 +4,6 @@ use std::sync::Arc;
 use destack_repository::Repository;
 use destack_session::SessionEventHandler;
 use destack_source::{FileWatcher, PhysicalFileWatcher};
-use destack_workspace::protocol::{ProtocolError, ProtocolErrorCode};
-use destack_workspace::{Workspace, WorkspaceRegistry};
 
 use crate::DaemonError;
 
@@ -77,11 +75,6 @@ impl Daemon {
         self.workspaces.open(workspace_root)
     }
 
-    /// Return one opened workspace.
-    pub(crate) fn workspace(&self, workspace_root: &Path) -> Option<Arc<OpenedWorkspace>> {
-        self.workspaces.get(workspace_root)
-    }
-
     /// Return all opened workspace roots.
     pub fn workspace_roots(&self) -> Vec<std::path::PathBuf> {
         self.workspaces.roots()
@@ -90,41 +83,5 @@ impl Daemon {
     /// Return the number of opened workspaces.
     pub fn workspace_count(&self) -> usize {
         self.workspaces.len()
-    }
-}
-
-impl WorkspaceRegistry for Daemon {
-    fn open(&self, workspace: &Path) -> Result<Arc<dyn Workspace>, ProtocolError> {
-        let workspace = Daemon::open(self, workspace)
-            .map_err(|error| ProtocolError::internal(error.to_string()))?;
-
-        Ok(workspace.workspace())
-    }
-
-    fn workspace(&self, workspace: &Path) -> Option<Arc<dyn Workspace>> {
-        self.workspace(workspace)
-            .map(|workspace| workspace.workspace() as Arc<dyn Workspace>)
-    }
-
-    fn acquire(&self, workspace: &Path, root: &Path) -> Result<(), ProtocolError> {
-        let workspace = Daemon::open(self, workspace)
-            .map_err(|error| ProtocolError::internal(error.to_string()))?;
-        workspace
-            .acquire_root(root)
-            .map_err(|error| ProtocolError::internal(error.to_string()))
-    }
-
-    fn release(&self, workspace: &Path, root: &Path) -> Result<(), ProtocolError> {
-        let Some(workspace) = self.workspace(workspace) else {
-            return Err(ProtocolError::new(
-                ProtocolErrorCode::NotFound,
-                "workspace is closed",
-            ));
-        };
-        workspace
-            .release_root(root)
-            .map_err(|error| ProtocolError::internal(error.to_string()))?;
-
-        Ok(())
     }
 }

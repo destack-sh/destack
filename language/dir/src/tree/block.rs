@@ -1,10 +1,10 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Node, NodeType};
 
 /// The structural form of a block.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum BlockForm {
     /// Explicit blocks with { ... }
     Explicit,
@@ -15,7 +15,7 @@ pub enum BlockForm {
 }
 
 /// How a block is interpreted.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum BlockContext {
     /// The block is expression-position and may keep a value tail.
     Expression,
@@ -32,7 +32,7 @@ pub enum BlockContext {
 ///     y = 2
 /// }
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Block {
     /// The block context.
     pub context: BlockContext,

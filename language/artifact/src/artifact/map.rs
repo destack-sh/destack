@@ -1,10 +1,11 @@
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// The stable source map version.
 pub const SOURCE_MAP_VERSION: u32 = 3;
 
 /// One emitted or linked source map.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SourceMap {
     /// The source map version.
     pub version: u32,

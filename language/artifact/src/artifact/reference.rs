@@ -1,10 +1,10 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{ArtifactKey, ArtifactVersion};
 
 /// Stable reference to one artifact payload.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct ArtifactReference {
     /// Artifact key.
     pub key: ArtifactKey,

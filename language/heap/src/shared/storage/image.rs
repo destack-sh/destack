@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -16,7 +16,7 @@ use crate::shared::storage::{HeapAccounting, HeapState, LargeStorage, SmallStora
 use crate::{Allocator, GcState, HeapResult, PageSpan, SizeClassTable};
 
 /// One frozen shared heap storage image.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub(crate) struct HeapStorageImage {
     /// The configured size-class table.
     size_classes: SizeClassTable,

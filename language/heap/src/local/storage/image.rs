@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -17,7 +17,7 @@ use crate::{
 };
 
 /// One frozen heap storage image.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub(crate) struct HeapStorageImage {
     /// The captured branchable young space image.
     young: YoungImage,

@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use destack_mir::TraceId;
@@ -16,7 +16,7 @@ use crate::{
 };
 
 /// The configuration for one shared heap instance.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SharedHeapOptions {
     /// The collector configuration.
     pub gc: GcOptions,

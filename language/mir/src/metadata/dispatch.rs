@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,7 @@ use destack_core::StringId;
 use crate::{Field, Function, Global, LocalNodeId, Type};
 
 /// Canonical dispatch metadata for one MIR module.
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Schema)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
 pub struct DispatchMetadata {
     /// Class dispatch tables.
     pub vtables: Vec<Vtable>,
@@ -167,7 +167,7 @@ impl DispatchMetadata {
 }
 
 /// Metadata for a class vtable.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Vtable {
     /// The class type owning this table.
     pub ty: LocalNodeId<Type>,
@@ -178,7 +178,7 @@ pub struct Vtable {
 }
 
 /// Metadata for one concrete implementation of one dynamic constraint.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct DynamicTable {
     /// The concrete type providing the implementation.
     pub concrete: LocalNodeId<Type>,
@@ -203,7 +203,7 @@ impl DynamicTable {
 }
 
 /// Slot layout for one dynamic constraint.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct DynamicShape {
     /// The dynamic constraint type owning this shape.
     pub constraint: LocalNodeId<Type>,
@@ -212,7 +212,7 @@ pub struct DynamicShape {
 }
 
 /// Entry in a class vtable.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum VtableEntry {
     /// Slot containing the runtime type descriptor.
     TypeDescriptor,
@@ -229,7 +229,7 @@ pub enum VtableEntry {
 }
 
 /// Entry in a dynamic dispatch table.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum DynamicEntry {
     /// Slot containing a field offset.
     Field {
@@ -259,7 +259,7 @@ pub enum DynamicEntry {
 }
 
 /// Slot descriptor for a dynamic layout.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum DynamicSlot {
     /// Field slot.
     Field {
@@ -297,7 +297,7 @@ pub enum DynamicSlot {
 }
 
 /// Slot index inside a dispatch table.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct DispatchSlot(pub u32);
 
 impl DispatchSlot {

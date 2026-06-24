@@ -121,7 +121,7 @@ impl Destack {
 
 /// Return the JSON schema for `destack.json`.
 #[cfg(feature = "schema")]
-pub fn destack_schema() -> schemars::Schema {
+pub fn destack_schema() -> schemars::Reflect {
     schemars::schema_for!(Destack)
 }
 

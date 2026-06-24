@@ -42,7 +42,7 @@ fn schema_file_name_for(json_file_name: &str) -> String {
 }
 
 /// Write one schema file with stable formatting.
-fn write_schema_file(path: &Path, schema: &schemars::Schema) {
+fn write_schema_file(path: &Path, schema: &schemars::Reflect) {
     let json =
         serde_json::to_string_pretty(schema).expect("failed to serialize conformance schema");
     fs::write(path, format!("{json}\n")).expect("failed to write conformance schema");

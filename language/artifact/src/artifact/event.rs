@@ -1,14 +1,15 @@
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Line-oriented artifact event log.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ArtifactEventLog {
     /// The events in emission order.
     pub events: Vec<ArtifactEvent>,
 }
 
 /// One artifact event with ordered fields.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ArtifactEvent {
     /// The stable event name.
     pub name: String,
@@ -21,7 +22,7 @@ pub struct ArtifactEvent {
 }
 
 /// One artifact event level.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ArtifactEventLevel {
     /// Broad progress event.
     Info,
@@ -32,7 +33,7 @@ pub enum ArtifactEventLevel {
 }
 
 /// One ordered event field.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ArtifactEventField {
     /// The field key.
     pub key: String,
@@ -41,7 +42,7 @@ pub struct ArtifactEventField {
 }
 
 /// One artifact event field value.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ArtifactEventValue {
     /// Boolean field value.
     Bool(bool),

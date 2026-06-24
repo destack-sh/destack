@@ -1,9 +1,9 @@
 use proc_macro::TokenStream;
 
 use quote::quote;
-use syn::{Data, DeriveInput, Fields, GenericParam, LitStr, parse_macro_input};
+use syn::{Data, DeriveInput, Fields, GenericParam, LitStr, Token, parse_macro_input};
 
-/// Expand one `Schema` derive invocation.
+/// Expand one `Reflect` derive invocation.
 pub(crate) fn expand(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
@@ -13,19 +13,20 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
     }
 }
 
-/// Expand one parsed schema derive input.
+/// Expand one parsed reflection derive input.
 fn expand_input(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let ident = input.ident;
     let docs = docs(&input.attrs);
+    let attributes = attributes(&input.data)?;
     let shape = shape(&input.data)?;
     let mut generics = input.generics;
 
-    // require schema support for each generic type parameter
+    // require reflection support for each generic type parameter
     for parameter in &mut generics.params {
         if let GenericParam::Type(parameter) = parameter {
             parameter
                 .bounds
-                .push(syn::parse_quote!(destack_serde::Schema));
+                .push(syn::parse_quote!(destack_serde::Reflect));
         }
     }
 
@@ -34,12 +35,13 @@ fn expand_input(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let module = quote!(module_path!());
 
     Ok(quote! {
-        impl #impl_generics destack_serde::Schema for #ident #type_generics #where_clause {
-            fn schema(registry: &mut destack_serde::SchemaRegistry) -> destack_serde::SchemaRef {
-                registry.register(
+        impl #impl_generics destack_serde::Reflect for #ident #type_generics #where_clause {
+            fn reflect(registry: &mut destack_serde::SchemaRegistry) -> destack_serde::SchemaRef {
+                registry.declare_with(
                     #module,
                     #name,
                     vec![#(#docs.to_string()),*],
+                    vec![#(#attributes.to_string()),*],
                     |registry| #shape,
                 )
             }
@@ -47,7 +49,29 @@ fn expand_input(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     })
 }
 
-/// Build the schema shape for one Rust item.
+/// Extract schema consumer attributes from one Rust item.
+fn attributes(data: &Data) -> syn::Result<Vec<String>> {
+    match data {
+        Data::Struct(data) if matches!(data.fields, Fields::Unnamed(_)) => {
+            let Fields::Unnamed(fields) = &data.fields else {
+                unreachable!("struct fields were matched above");
+            };
+
+            if fields.unnamed.len() == 1 {
+                Ok(vec!["tuple_newtype".to_string()])
+            } else {
+                Ok(Vec::new())
+            }
+        }
+        Data::Struct(_) | Data::Enum(_) => Ok(Vec::new()),
+        Data::Union(data) => Err(syn::Error::new(
+            data.union_token.span,
+            "Destack schemas do not support unions",
+        )),
+    }
+}
+
+/// Build the reflection shape for one Rust item.
 fn shape(data: &Data) -> syn::Result<proc_macro2::TokenStream> {
     match data {
         Data::Struct(data) => {
@@ -85,7 +109,7 @@ fn shape(data: &Data) -> syn::Result<proc_macro2::TokenStream> {
     }
 }
 
-/// Build struct fields for one schema shape.
+/// Build struct fields for one reflection shape.
 fn fields(fields: &Fields) -> syn::Result<proc_macro2::TokenStream> {
     match fields {
         Fields::Named(fields) => named_fields(fields),
@@ -105,7 +129,7 @@ fn named_fields(fields: &syn::FieldsNamed) -> syn::Result<proc_macro2::TokenStre
             let Some(ident) = field.ident.as_ref() else {
                 return Err(syn::Error::new_spanned(field, "expected named field"));
             };
-            let name = ident.to_string();
+            let name = field_name(ident);
 
             field_schema(field, name)
         })
@@ -116,6 +140,17 @@ fn named_fields(fields: &syn::FieldsNamed) -> syn::Result<proc_macro2::TokenStre
 
 /// Build unnamed struct fields.
 fn unnamed_fields(fields: &syn::FieldsUnnamed) -> syn::Result<proc_macro2::TokenStream> {
+    if fields.unnamed.len() == 1 {
+        let Some(field) = fields.unnamed.first() else {
+            return Err(syn::Error::new_spanned(fields, "expected tuple field"));
+        };
+        let Some(field) = active_field(field)? else {
+            return Ok(quote!(Vec::new()));
+        };
+
+        return field_schema(field, "value".to_string()).map(|field| quote!(vec![#field]));
+    }
+
     let fields = fields
         .unnamed
         .iter()
@@ -141,7 +176,7 @@ fn active_field(field: &syn::Field) -> syn::Result<Option<&syn::Field>> {
     }
 }
 
-/// Build one schema field.
+/// Build one reflection field.
 fn field_schema(field: &syn::Field, name: String) -> syn::Result<proc_macro2::TokenStream> {
     let docs = docs(&field.attrs);
     let ty = &field.ty;
@@ -150,7 +185,7 @@ fn field_schema(field: &syn::Field, name: String) -> syn::Result<proc_macro2::To
         destack_serde::SchemaField {
             name: #name.to_string(),
             docs: vec![#(#docs.to_string()),*],
-            ty: <#ty as destack_serde::Schema>::schema(registry),
+            ty: <#ty as destack_serde::Reflect>::reflect(registry),
         }
     })
 }
@@ -166,7 +201,7 @@ fn payload(input: &Fields) -> syn::Result<proc_macro2::TokenStream> {
             let ty = &field.ty;
 
             Ok(quote!(destack_serde::SchemaPayload::Tuple(
-                <#ty as destack_serde::Schema>::schema(registry),
+                <#ty as destack_serde::Reflect>::reflect(registry),
             )))
         }
         Fields::Unnamed(_) | Fields::Named(_) => {
@@ -209,6 +244,10 @@ fn is_serde_skip(attributes: &[syn::Attribute]) -> syn::Result<bool> {
             if meta.path.is_ident("skip") {
                 is_skipped = true;
             }
+            if meta.input.peek(Token![=]) {
+                let value = meta.value()?;
+                let _ = value.parse::<syn::Expr>()?;
+            }
 
             Ok(())
         })?;
@@ -220,4 +259,11 @@ fn is_serde_skip(attributes: &[syn::Attribute]) -> syn::Result<bool> {
 /// Clean one Rust documentation literal.
 fn clean_doc(value: &LitStr) -> String {
     value.value().trim().to_string()
+}
+
+/// Return the serialized field name for one Rust field identifier.
+fn field_name(ident: &syn::Ident) -> String {
+    let name = ident.to_string();
+
+    name.strip_prefix("r#").unwrap_or(&name).to_string()
 }

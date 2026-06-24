@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
 use destack_dir as dir;
+use destack_serde::Reflect;
 use destack_source::{ComponentId, FileId, ModuleId};
 use serde::{Deserialize, Serialize};
 
 use crate::ArtifactProjectionFingerprint;
 
 /// Parsed DIR for one source module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirParsed {
     /// The parsed tree, indexed with its structural parents.
     pub tree: dir::Tree,
@@ -66,7 +67,7 @@ impl DirParsed {
 }
 
 /// Parsed roots and side data for one physical file in a canonical module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirParsedFile {
     /// The source file id.
     pub file_id: FileId,
@@ -105,7 +106,7 @@ impl DirParsedFile {
 }
 
 /// Bound DIR base for one source module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirBound {
     /// Source bindings.
     pub bindings: Arc<dir::BindingSegment>,
@@ -140,7 +141,7 @@ impl DirBound {
 }
 
 /// Source import resolution for one profile-scoped module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirImported {
     /// Resolved module imports.
     pub modules: Arc<dir::ModuleSegment>,
@@ -154,7 +155,7 @@ impl DirImported {
 }
 
 /// Fixed-point macro expansion segment for one profile-scoped module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirExpanded {
     /// Tree changes.
     pub patch: dir::Patch,
@@ -195,7 +196,7 @@ impl DirExpanded {
 }
 
 /// Export table over the expanded view for one profile-scoped module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirExported {
     /// Resolved exports.
     pub exports: dir::ExportTable,
@@ -213,7 +214,7 @@ impl DirExported {
 }
 
 /// Resolved import targets for one profile-scoped module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirResolved {
     /// Resolved imports.
     pub imports: dir::ImportTable,
@@ -222,7 +223,7 @@ pub struct DirResolved {
 }
 
 /// Checked DIR output for one source component.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirCheckedComponent {
     /// The checked component id.
     pub component: ComponentId,
@@ -238,7 +239,7 @@ impl DirCheckedComponent {
 }
 
 /// Checked DIR entry for one module in a checked component.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirCheckedComponentEntry {
     /// The checked module id.
     pub module: ModuleId,
@@ -249,7 +250,7 @@ pub struct DirCheckedComponentEntry {
 }
 
 /// Type-checking segment for one profile-scoped module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirCheckedModule {
     /// New annotation invocations.
     pub annotations: Arc<dir::AnnotationSegment>,
@@ -272,7 +273,7 @@ pub struct DirCheckedModule {
 }
 
 /// Facade artifact for one module checked inside a component.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirChecked {
     /// The component that owns this module's checked output.
     pub component: ComponentId,
@@ -340,7 +341,7 @@ impl DirCheckedModule {
 }
 
 /// Comptime materialization segment for one profile-scoped module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirMaterialized {
     /// Tree changes.
     pub patch: dir::Patch,
@@ -443,7 +444,7 @@ impl DirMaterialized {
 }
 
 /// DIR-to-MIR elaboration segment for one profile-scoped module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirElaborated {
     /// Tree changes.
     pub patch: dir::Patch,

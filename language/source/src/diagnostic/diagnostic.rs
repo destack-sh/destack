@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -7,7 +7,7 @@ use crate::{
 };
 
 /// A final renderable diagnostic.
-#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize, Reflect)]
 pub struct Diagnostic {
     /// The stable identifier of the diagnostic (like `E001` or `W017`).
     pub code: String,

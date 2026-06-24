@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,7 @@ use crate::{Commit, FileOperation, Message, ReloadReason, SourceUpdate, UpdateBa
 
 /// Unique identifier for an opened root.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct RootId(pub u64);
 
 impl RootId {
@@ -19,7 +19,7 @@ impl RootId {
 }
 
 /// Request to open a root.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct OpenRootRequest {
     /// The root path.
     pub root: PathBuf,
@@ -28,7 +28,7 @@ pub struct OpenRootRequest {
 }
 
 /// Options for opening a root.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RootOpenOptions {
     /// Whether to preload root state.
     pub load_index: bool,
@@ -42,7 +42,7 @@ impl Default for RootOpenOptions {
 }
 
 /// Response to opening a root.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RootOpenedResponse {
     /// Assigned root handle id.
     pub handle: RootId,
@@ -55,21 +55,21 @@ pub struct RootOpenedResponse {
 }
 
 /// Request to close a root handle.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CloseRootRequest {
     /// Handle to close.
     pub handle: RootId,
 }
 
 /// Response to closing a root.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RootClosedResponse {
     /// Closed handle id.
     pub handle: RootId,
 }
 
 /// Request to reload a root.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ReloadRootRequest {
     /// Root handle.
     pub handle: RootId,
@@ -78,7 +78,7 @@ pub struct ReloadRootRequest {
 }
 
 /// Response to root reloads.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RootReloadResponse {
     /// Root handle.
     pub handle: RootId,
@@ -87,7 +87,7 @@ pub struct RootReloadResponse {
 }
 
 /// Request to apply a file operation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FileOperationRequest {
     /// Root handle.
     pub handle: RootId,
@@ -96,7 +96,7 @@ pub struct FileOperationRequest {
 }
 
 /// Response to a file operation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FileOperationResponse {
     /// Root handle.
     pub handle: RootId,
@@ -105,7 +105,7 @@ pub struct FileOperationResponse {
 }
 
 /// Request to apply a source update.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SourceUpdateRequest {
     /// Root handle.
     pub handle: RootId,
@@ -114,7 +114,7 @@ pub struct SourceUpdateRequest {
 }
 
 /// Response to a source update.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SourceUpdateResponse {
     /// Root handle.
     pub handle: RootId,

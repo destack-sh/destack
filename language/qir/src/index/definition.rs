@@ -1,9 +1,9 @@
 use destack_dir::GlobalSymbolId;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Query index entries read from checked definitions.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct DefinitionIndex {
     /// Nominal relation entries ordered by target symbol.
     relations_by_target: Vec<NominalEntry>,
@@ -60,7 +60,7 @@ impl DefinitionIndex {
 }
 
 /// Nominal relation entry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 pub struct NominalEntry {
     /// The source nominal symbol.
     pub source_symbol: GlobalSymbolId,
@@ -71,7 +71,7 @@ pub struct NominalEntry {
 }
 
 /// Nominal relation kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 pub enum NominalRelation {
     /// Inheritance edge.
     Extends,
@@ -80,7 +80,7 @@ pub enum NominalRelation {
 }
 
 /// Extension declaration entry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 pub struct ExtensionEntry {
     /// The extension declaration symbol.
     pub extension_symbol: GlobalSymbolId,

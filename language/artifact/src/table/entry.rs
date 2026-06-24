@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -92,7 +92,7 @@ impl ArtifactResult {
 }
 
 /// One named artifact sidecar.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ArtifactSidecar {
     /// The sidecar name.
     pub name: String,

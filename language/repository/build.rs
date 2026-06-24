@@ -50,7 +50,7 @@ enum ExportKind {
     /// Template material.
     Template,
     /// Reflect-derived schema material.
-    Schema,
+    Reflect,
     /// Simulation scenario or model material.
     Simulation,
     /// Service definition material.
@@ -204,7 +204,7 @@ fn export_kind_name(kind: ExportKind) -> &'static str {
         ExportKind::Module => "ExportKind::Module",
         ExportKind::Asset => "ExportKind::Asset",
         ExportKind::Template => "ExportKind::Template",
-        ExportKind::Schema => "ExportKind::Schema",
+        ExportKind::Reflect => "ExportKind::Reflect",
         ExportKind::Simulation => "ExportKind::Simulation",
         ExportKind::Service => "ExportKind::Service",
         ExportKind::App => "ExportKind::App",

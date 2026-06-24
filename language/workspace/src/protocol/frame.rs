@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::io::{Read, Write};
 
 use serde::{Deserialize, Serialize};
@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use super::{FRAME_HEADER_SIZE_BYTES, FRAME_MAGIC, FRAME_VERSION, ProtocolLimits};
 
 /// Frame header metadata.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FrameHeader {
     /// Magic bytes for protocol frames.
     pub magic: [u8; 4],

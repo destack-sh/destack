@@ -1,9 +1,10 @@
 use crate::{Asynchrony, GenericParameter, Keyword, LocalNodeId, Parameter, TypeExpression};
 
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// The role of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum FunctionRole {
     /// Getter method.
     Getter,
@@ -26,7 +27,7 @@ impl FunctionRole {
 }
 
 /// The style of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum FunctionForm {
     /// Function with a body.
     Function,
@@ -35,7 +36,7 @@ pub enum FunctionForm {
 }
 
 /// The signature of a function.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FunctionSignature {
     /// The asynchrony of the function.
     pub asynchrony: Asynchrony,

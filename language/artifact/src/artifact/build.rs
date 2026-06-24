@@ -1,10 +1,11 @@
+use destack_serde::Reflect;
 use destack_source::ContentId;
 use serde::{Deserialize, Serialize};
 
 use crate::{BuildLinkage, BuildProfile};
 
 /// One target-built toolchain payload.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct Build {
     /// The build distribution profile.
     pub profile: BuildProfile,

@@ -1,5 +1,5 @@
 use destack_artifact::ArtifactReference;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::{Content, ContentId};
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +15,7 @@ use crate::{
 };
 
 /// Requests accepted by the workspace protocol.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum WorkspaceRequest {
     /// Negotiate protocol version and capabilities.
     Handshake(HandshakeRequest),

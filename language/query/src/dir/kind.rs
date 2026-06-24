@@ -1,10 +1,10 @@
 use destack_dir as dir;
 use destack_qir::{MemberKind as MemberEntryKind, SymbolKind as SymbolEntryKind};
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Kind of a symbol in navigation queries.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum SymbolKind {
     /// A file symbol.
     File,

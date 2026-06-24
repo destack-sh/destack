@@ -1,7 +1,7 @@
 use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -9,7 +9,7 @@ use super::interval::IntervalTree;
 use crate::{FileId, Span};
 
 /// The type of node search to perform.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum NodeSearchMode {
     /// Search for the biggest outermost node that matches.
     BiggestOutermost,
@@ -21,7 +21,7 @@ pub enum NodeSearchMode {
 
 /// The type of span for a node.
 #[derive(
-    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
 pub enum NodeSpanType {
     /// The enclosing span of a node.
@@ -40,7 +40,7 @@ pub enum NodeSpanType {
 
 /// A source boundary owned by one node.
 #[derive(
-    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
 pub enum NodeSpanBoundary {
     /// The leading owned prefix span of a node.
@@ -53,7 +53,7 @@ pub enum NodeSpanBoundary {
 
 /// A named source region within one node.
 #[derive(
-    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
 pub enum NodeSpanRegion {
     /// The opening element span of a compound node.
@@ -82,7 +82,7 @@ pub enum NodeSpanRegion {
 
 /// An indexed source list within one node.
 #[derive(
-    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
 pub enum NodeSpanList {
     /// One generic ordered source segment.
@@ -93,7 +93,7 @@ pub enum NodeSpanList {
 
 /// One typed node span keyed by source node id and span kind.
 #[derive(
-    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
 pub struct NodeSpanKey {
     /// The source node id that owns this node span.
@@ -264,7 +264,7 @@ impl Clone for SourceIndex {
 }
 
 /// Serialized source index shape.
-#[derive(Serialize, Deserialize, Schema)]
+#[derive(Serialize, Deserialize, Reflect)]
 struct SourceIndexData {
     enclosing_spans: Vec<Span>,
     #[serde(default)]
@@ -275,9 +275,9 @@ struct SourceIndexData {
     side_spans: FxHashMap<NodeSpanKey, Span>,
 }
 
-impl Schema for SourceIndex {
-    fn schema(registry: &mut destack_serde::SchemaRegistry) -> destack_serde::SchemaRef {
-        SourceIndexData::schema(registry)
+impl Reflect for SourceIndex {
+    fn reflect(registry: &mut destack_serde::SchemaRegistry) -> destack_serde::SchemaRef {
+        SourceIndexData::reflect(registry)
     }
 }
 
@@ -376,7 +376,7 @@ impl Default for SourceIndex {
 }
 
 /// Result of finding enclosing spans at a position.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct EnclosingSpan {
     /// The source node id for this enclosing span.
     pub source_id: u32,

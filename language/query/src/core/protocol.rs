@@ -1,11 +1,11 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::method::QueryMethodId;
 use crate::{assist, navigation, refactor};
 
 /// Query request payload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 #[serde(tag = "kind", content = "params", rename_all = "snake_case")]
 pub enum QueryRequest {
     /// Completion request payload.
@@ -123,7 +123,7 @@ impl QueryRequest {
 }
 
 /// Query response payload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 #[serde(tag = "kind", content = "result", rename_all = "snake_case")]
 pub enum QueryResponse {
     /// Completion response payload.

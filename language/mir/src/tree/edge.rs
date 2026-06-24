@@ -1,10 +1,10 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{Block, LocalNodeId};
 
 /// Successor selected by one MIR terminator.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Successor {
     /// The target of an unconditional jump.
     Jump,
@@ -38,7 +38,7 @@ pub enum Successor {
 }
 
 /// Control-flow edge selected by a terminator successor.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct Edge {
     /// The source block.
     pub source: LocalNodeId<Block>,

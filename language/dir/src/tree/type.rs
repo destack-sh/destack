@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// One type-surface member.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum TypeMember {
     /// Named field.
     Field {
@@ -185,7 +185,7 @@ impl TypeMember {
 }
 
 /// A mapped type parameter.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeMappedParameter {
     /// The parameter name.
     pub name: StringId,
@@ -200,7 +200,7 @@ impl Node for TypeMappedParameter {
 }
 
 /// A mapped-type modifier sign.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum MappedTypeModifier {
     /// The plain modifier without an explicit sign.
     Present,
@@ -213,7 +213,7 @@ pub enum MappedTypeModifier {
 }
 
 /// One function type expression in type space.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FunctionTypeExpression {
     /// The generic parameters of the function type.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
@@ -252,7 +252,7 @@ impl FunctionTypeExpression {
 }
 
 /// One constructor type in type space.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ConstructorType {
     /// The generic parameters of the constructor type.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
@@ -282,7 +282,7 @@ impl ConstructorType {
 }
 
 /// The parsed form of an infer type expression.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum InferForm {
     /// Anonymous `_` type inference hole.
     Hole,
@@ -291,7 +291,7 @@ pub enum InferForm {
 }
 
 /// A type-space expression.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum TypeExpression {
     /// Parenthesized type expression.
     ///

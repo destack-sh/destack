@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::NodeVisitor;
@@ -12,7 +12,7 @@ use crate::format::{format_global_inlay_type, format_inlay_type};
 use crate::source::is_simple_identifier;
 
 /// Request payload for extract function queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ExtractFunctionRequest {
     /// The selected source range.
     pub range: QueryRange,
@@ -21,7 +21,7 @@ pub struct ExtractFunctionRequest {
 }
 
 /// Response payload for extract function queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ExtractFunctionResponse {
     /// Extract function edit, if available.
     pub edit: Option<PatchSet>,

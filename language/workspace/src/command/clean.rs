@@ -1,5 +1,5 @@
 use destack_repository::DestackFile;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -13,7 +13,7 @@ use super::common::{
 use super::context::CommandContext;
 use super::outcome::CommandOutcome;
 /// Options for the clean command.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
 pub struct CleanOptions {
     /// Optional directory override.
     pub dir: Option<PathBuf>,
@@ -28,7 +28,7 @@ pub struct CleanOptions {
 }
 
 /// Payload for clean command output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct CleanPayload {
     /// Removed paths or candidate paths for dry runs.
     pub removed: Vec<String>,
@@ -39,7 +39,7 @@ pub struct CleanPayload {
 }
 
 /// Request to clean generated state.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CleanInput {
     /// Revision selected for this clean request.
     pub revision: CommandRevision,

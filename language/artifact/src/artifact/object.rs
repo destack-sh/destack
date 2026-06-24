@@ -1,10 +1,11 @@
+use destack_serde::Reflect;
 use destack_source::{ContentId, FileType};
 use serde::{Deserialize, Serialize};
 
 use crate::SourceMap;
 
 /// One compiled-code linker input for a target.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct Object {
     /// The compiled-code object format.
     pub format: ObjectFormat,
@@ -54,7 +55,7 @@ impl Object {
 }
 
 /// One compiled-code object format.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ObjectFormat {
     /// Native relocatable object file.
     Object,

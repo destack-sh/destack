@@ -1,7 +1,7 @@
 use crate::core::QueryPosition;
 use destack_dir as dir;
 use destack_dir::{Argument, Declaration, Expression, GlobalSymbolId, Member, NodeType};
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::core::ModuleQueryContext;
@@ -9,7 +9,7 @@ use crate::dir::ParameterList;
 use crate::format::format_call_signature;
 
 /// A parameter in a signature.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SignatureParameter {
     /// The parameter label (e.g., "name: string").
     pub label: String,
@@ -35,7 +35,7 @@ impl SignatureParameter {
 }
 
 /// A single signature (for overloaded functions, there may be multiple).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SignatureItem {
     /// The full signature label.
     pub label: String,
@@ -70,7 +70,7 @@ impl SignatureItem {
 }
 
 /// Signature help result.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SignatureHelp {
     /// Available signatures.
     pub signatures: Vec<SignatureItem>,
@@ -93,14 +93,14 @@ impl SignatureHelp {
 }
 
 /// Request signature help at a cursor position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SignatureHelpRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
 /// Response payload for signature help queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SignatureHelpResponse {
     /// Signature help data, if available.
     pub help: Option<SignatureHelp>,

@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -14,7 +14,7 @@ const CONTENT_DOMAIN: &[u8] = b"destack.content.v1";
 
 /// The id of a File.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 #[serde(transparent)]
 pub struct FileId(pub u128);
 
@@ -82,7 +82,7 @@ pub struct File {
 }
 
 /// One exact content payload.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum Content {
     /// Text content.
     Text { content: String },
@@ -92,7 +92,7 @@ pub enum Content {
 
 /// The exact identity of one content payload.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 #[serde(transparent)]
 pub struct ContentId(pub u128);
 

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use destack_repository::{DestackFile, Target};
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
 
@@ -13,14 +13,14 @@ use super::common::{
 use super::context::CommandContext;
 use super::outcome::CommandOutcome;
 /// Options for the targets command.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
 pub struct TargetsOptions {
     /// Whether to list targets for all packages.
     pub all: bool,
 }
 
 /// Target row shown by workspace discovery commands.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TargetEntry {
     /// The target name.
     pub name: String,
@@ -41,14 +41,14 @@ pub struct TargetEntry {
 }
 
 /// Payload for targets command output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TargetsPayload {
     /// List of target entries.
     pub targets: Vec<TargetEntry>,
 }
 
 /// Request to return configured targets.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TargetsInput {
     /// Revision selected for this targets request.
     pub revision: CommandRevision,

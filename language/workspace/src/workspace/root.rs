@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_repository::{Ref, Revision};
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_session::Session;
 use serde::{Deserialize, Serialize};
 
@@ -12,7 +12,7 @@ use crate::file::normalize_path;
 use super::LocalWorkspace;
 
 /// Request to reload host source state.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ReloadRequest {
     /// Roots to reload.
     pub roots: Vec<PathBuf>,
@@ -21,7 +21,7 @@ pub struct ReloadRequest {
 }
 
 /// Reason for reloading host source state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ReloadReason {
     /// Reload requested by the caller.
     Manual,

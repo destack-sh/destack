@@ -421,7 +421,8 @@ impl DestackLanguageServer {
         let _ = uri;
         self.workspace()
             .ok()
-            .is_some_and(|workspace| workspace.is_file_open(path))
+            .and_then(|workspace| workspace.is_file_open(path).ok())
+            .unwrap_or(false)
     }
 
     /// Convert an LSP code action kind into service query kinds.
@@ -2315,7 +2316,11 @@ impl LanguageServer for DestackLanguageServer {
         else {
             return Ok(None);
         };
-        if !self.workspace()?.is_file_open(&path) {
+        if !self
+            .workspace()?
+            .is_file_open(&path)
+            .map_err(|_| jsonrpc::Error::internal_error())?
+        {
             return Ok(None);
         }
 

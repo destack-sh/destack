@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::CommandResult;
@@ -11,11 +11,11 @@ use super::common::{
 use super::context::CommandContext;
 use super::outcome::CommandOutcome;
 /// Options for the bench command.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
 pub struct BenchOptions {}
 
 /// Request to run benchmarks.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct BenchInput {
     /// Revision selected for this benchmark run.
     pub revision: CommandRevision,

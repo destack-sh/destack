@@ -2,11 +2,11 @@ use destack_heap::{HeapError, HeapReferenceKind};
 use destack_memory::MemoryError;
 use destack_mir::{Block, Local, LocalNodeId, Value};
 use destack_program::{FunctionId, StaticId, vm};
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// One VM reference space.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ReferenceKind {
     /// Local managed heap reference.
     Heap,
@@ -17,7 +17,7 @@ pub enum ReferenceKind {
 }
 
 /// Errors that can occur during VM execution.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Error {
     /// The program representation is invalid or unsupported.
     Program { reason: ProgramError },
@@ -32,7 +32,7 @@ pub enum Error {
 }
 
 /// Invalid or unsupported VM program representation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ProgramError {
     /// Attempted to execute an undefined function.
     UndefinedFunction { function: FunctionId },
@@ -65,7 +65,7 @@ pub enum ProgramError {
 }
 
 /// Language trap reached while executing code.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Trap {
     /// Division by zero.
     DivisionByZero,
@@ -106,7 +106,7 @@ pub enum Trap {
 }
 
 /// Import boundary failure.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ImportError {
     /// Imported function not found.
     NotFound,
@@ -115,7 +115,7 @@ pub enum ImportError {
 }
 
 /// VM resource failure.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ResourceError {
     /// Heap allocation failed.
     AllocationFailed,

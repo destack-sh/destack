@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -7,7 +7,7 @@ use crate::{
 };
 
 /// The source form of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum FunctionForm {
     /// A normal function.
     Function,
@@ -16,7 +16,7 @@ pub enum FunctionForm {
 }
 
 /// When a function may be called.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum FunctionPhase {
     /// The function may be called at runtime and evaluated at comptime.
     Normal,
@@ -25,7 +25,7 @@ pub enum FunctionPhase {
 }
 
 /// The source form used to spell a receiver.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ThisForm {
     /// Shorthand receiver, for example `&readonly this`.
     Implicit,
@@ -34,7 +34,7 @@ pub enum ThisForm {
 }
 
 /// The signature of a function.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FunctionSignature {
     /// The asynchrony of the function.
     pub asynchrony: Asynchrony,

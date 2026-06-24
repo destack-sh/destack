@@ -1,10 +1,10 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::num::NonZeroU32;
 
 use serde::{Deserialize, Serialize};
 
 /// Heap trace metadata for one runtime payload.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TraceMap {
     /// Payload contains no heap references.
     Empty,
@@ -99,7 +99,7 @@ impl TraceMap {
 }
 
 /// One tag-selected trace variant.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct TraceVariant {
     /// The normalized numeric tag value selecting this variant.
     pub tag: u64,
@@ -111,7 +111,7 @@ pub struct TraceVariant {
 
 /// Stable non-zero identifier for one heap trace map.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
 pub struct TraceId(NonZeroU32);
 
@@ -138,7 +138,7 @@ impl TraceId {
 }
 
 /// Shared table of heap trace maps for one lowered program.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TraceTable {
     /// Trace maps indexed by TraceId.
     traces: Vec<TraceMap>,

@@ -1,9 +1,10 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 /// The type of a node.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum NodeType {
     Block,
     CatchClause,
@@ -63,7 +64,7 @@ impl NodeType {
 }
 
 /// Unique identifier for nodes with dynamic type.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct LocalNodeIdAny {
     pub id: u32,
     pub ty: NodeType,
@@ -122,7 +123,7 @@ impl<T: Node> TryFrom<LocalNodeIdAny> for LocalNodeId<T> {
 
 /// Unique identifier for nodes in a local arena, parameterized by node type.
 #[repr(transparent)]
-#[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 #[serde(bound = "")]
 pub struct LocalNodeId<T: Node> {
     pub id: u32,
@@ -172,7 +173,7 @@ pub trait Node: Sized {
 }
 
 /// A Visibility is the visibility of an item.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Visibility {
     /// Public to everything.
     Public,
@@ -183,7 +184,7 @@ pub enum Visibility {
 }
 
 /// The asynchrony of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Asynchrony {
     /// Synchronous function.
     Sync,
@@ -192,7 +193,7 @@ pub enum Asynchrony {
 }
 
 /// A Mutability is the mutability of a binding (const or mutable).
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Mutability {
     /// Cannot be modified (incl. inner even if they are mutable).
     Immutable,

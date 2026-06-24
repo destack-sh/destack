@@ -1,3 +1,4 @@
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -6,7 +7,7 @@ use crate::{
 };
 
 /// The type of a binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum BindingKind {
     /// Must binding (like `x`).
     Must,
@@ -15,7 +16,7 @@ pub enum BindingKind {
 }
 
 /// Variance annotation for type parameters.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum VarianceModifier {
     /// Contravariant type parameter.
     In,
@@ -26,7 +27,7 @@ pub enum VarianceModifier {
 }
 
 /// The scope of a binding (dynamic or static).
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum BindingAnchor {
     /// Container scope.
     Instance,
@@ -35,21 +36,21 @@ pub enum BindingAnchor {
 }
 
 /// The operator to apply to the binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum BindingOperator {
     /// Apply `as const` to the value of the binding.
     AsConst,
 }
 
 /// The accessor kind of a binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum AccessorKind {
     /// Auto-accessor (generates getter/setter).
     Accessor,
 }
 
 /// The modifiers of a field-like item.
-#[derive(Debug, Copy, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Default, Serialize, Deserialize, Reflect)]
 pub struct BindingModifier {
     /// The kind of the binding.
     pub kind: Option<BindingKind>,
@@ -70,7 +71,7 @@ pub struct BindingModifier {
 }
 
 /// One generic parameter.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum GenericParameter {
     /// Type parameter.
     Type {
@@ -86,7 +87,7 @@ impl Node for GenericParameter {
 }
 
 /// Named or positional parameter to some construct.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Parameter {
     /// Named parameter (like `x: int32` or `Validate: boolean = true`).
     Named {
@@ -121,7 +122,7 @@ impl Node for Parameter {
 }
 
 /// Positional argument to some construct.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Argument {
     /// Positional argument (like `1` or `foo()`).
     Positional { value: LocalNodeId<Expression> },

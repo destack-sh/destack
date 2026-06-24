@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::sync::Arc;
 
 use destack_mir::TraceTable;
@@ -30,7 +30,7 @@ struct ImageState {
 }
 
 /// One serialized heap snapshot payload.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct HeapSnapshot {
     /// The heap options used by this image.
     options: HeapOptions,

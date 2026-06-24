@@ -1,10 +1,10 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::{WorkspaceNotification, WorkspaceRequest, WorkspaceResponse};
 
 /// Request options for protocol calls.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
 pub struct RequestOptions {
     /// Optional timeout in milliseconds.
     pub timeout_ms: Option<u64>,
@@ -16,7 +16,7 @@ pub struct RequestOptions {
 
 /// Unique identifier for protocol requests.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct RequestId(pub u64);
 
 impl RequestId {
@@ -27,7 +27,7 @@ impl RequestId {
 }
 
 /// Protocol message envelope.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub enum ProtocolMessage {
     /// Request message sent from a client to a server.
     Request(Box<ProtocolRequest>),
@@ -38,7 +38,7 @@ pub enum ProtocolMessage {
 }
 
 /// Request envelope with identifier and payload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ProtocolRequest {
     /// Unique request id.
     pub id: RequestId,
@@ -49,7 +49,7 @@ pub struct ProtocolRequest {
 }
 
 /// Response envelope with identifier and payload.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct ProtocolResponse {
     /// Request id being answered.
     pub id: RequestId,
@@ -58,7 +58,7 @@ pub struct ProtocolResponse {
 }
 
 /// Notification envelope sent without an explicit response.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct ProtocolNotification {
     /// Notification payload.
     pub payload: WorkspaceNotification,

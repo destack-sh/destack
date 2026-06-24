@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +8,7 @@ pub use crate::dir::SymbolKind;
 use crate::dir::{declaration_display_name, is_synthetic_function_keyword_field, member_key_name};
 
 /// A symbol in a document (for outline view).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct DocumentSymbol {
     /// The symbol's name.
     pub name: String,
@@ -57,14 +57,14 @@ impl DocumentSymbol {
 }
 
 /// Request document symbols for a document.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct DocumentSymbolsRequest {
     /// The queried module.
     pub module: QueryModule,
 }
 
 /// Response payload for document symbols queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct DocumentSymbolsResponse {
     /// Document symbols.
     pub symbols: Vec<DocumentSymbol>,

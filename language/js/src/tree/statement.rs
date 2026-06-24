@@ -1,3 +1,4 @@
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -8,7 +9,7 @@ use crate::{
 use destack_source::ModuleId;
 
 /// The kind of one dependency attribute clause.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum DependencyAttributeClauseKind {
     /// The standard `with` attribute clause keyword.
     With,
@@ -17,7 +18,7 @@ pub enum DependencyAttributeClauseKind {
 }
 
 /// One dependency attribute clause.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct DependencyAttributeClause {
     /// The clause introducer.
     pub kind: DependencyAttributeClauseKind,
@@ -26,7 +27,7 @@ pub struct DependencyAttributeClause {
 }
 
 /// A Statement is a JS/TS top-level statement in some container/block.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Statement {
     /// Import items (including type items).
     Import {
@@ -157,7 +158,7 @@ impl Node for Statement {
 }
 
 /// The binding keyword used by a for each binding.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum BindingKeyword {
     /// `var` binding keyword.
     Var,
@@ -168,7 +169,7 @@ pub enum BindingKeyword {
 }
 
 /// The initializer of one for statement.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ForInitialization {
     /// One expression initializer.
     Expression(LocalNodeId<Expression>),

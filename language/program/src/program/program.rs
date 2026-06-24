@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::sync::Arc;
 
 use destack_heap as heap;
@@ -20,7 +20,7 @@ use vm::{CellLayout, FrameEntry, ProgramPoint, ResumeTable, SideTable, ValueShap
 use super::ProgramHeader;
 
 /// Durable executable program produced by the toolchain.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Program {
     /// Serialized program compatibility header.
     pub header: ProgramHeader,

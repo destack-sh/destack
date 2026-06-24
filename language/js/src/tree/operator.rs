@@ -1,6 +1,7 @@
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 /// Unary operator.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum UnaryOperator {
     /// `++`
     PostIncrement,
@@ -49,7 +50,7 @@ impl UnaryOperator {
 }
 
 /// Binary operator.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum BinaryOperator {
     // multiplication
     /// `*`
@@ -117,7 +118,7 @@ pub enum BinaryOperator {
 }
 
 /// Assignment operator.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum AssignOperator {
     /// `+=`
     AddAssign,

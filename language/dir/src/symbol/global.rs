@@ -1,11 +1,11 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{DependencyItem, ExportSelector, LocalNodeId, LocalSymbolId, StaticKey};
 
 /// One local global declaration from a symbol declared in the current module.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct LocalGlobalEntry {
     /// The global name.
     pub key: StaticKey,
@@ -14,7 +14,7 @@ pub struct LocalGlobalEntry {
 }
 
 /// One named global re-export from another module.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct IndirectGlobalEntry {
     /// The global name.
     pub key: StaticKey,
@@ -27,7 +27,7 @@ pub struct IndirectGlobalEntry {
 }
 
 /// One global table entry.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum GlobalEntry {
     /// A local global declaration.
     Local(LocalGlobalEntry),

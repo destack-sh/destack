@@ -1,11 +1,11 @@
 use destack_mir as mir;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::CellLayout;
 
 /// Compiled projection from a base address to one value.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Projection {
     /// The projected value type.
     pub value_type: mir::LocalNodeId<mir::Type>,
@@ -80,7 +80,7 @@ impl Projection {
 }
 
 /// Compiled projection from a base address to one physical cell slot.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SlotProjection {
     /// The fixed byte offset from the base address.
     pub byte_offset: usize,
@@ -102,7 +102,7 @@ impl SlotProjection {
 }
 
 /// Compiled projection data for one slice descriptor.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SliceProjection {
     /// The slice data projection.
     pub data: SlotProjection,

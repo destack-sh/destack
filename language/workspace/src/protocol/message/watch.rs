@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use destack_source::{FileWatchEvent, FileWatchEventKind, FileWatchRescanReason, FileWatchStatus};
@@ -45,7 +45,7 @@ impl Default for WatchPolicy {
 }
 
 /// Request to start watching roots through a handle.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct WatchStartRequest {
     /// Root handle.
     pub handle: RootId,
@@ -56,7 +56,7 @@ pub struct WatchStartRequest {
 }
 
 /// Options for starting a workspace watch.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct WatchStartOptions {
     /// Maximum time to coalesce events in milliseconds.
     pub coalesce_window_ms: u64,
@@ -75,35 +75,35 @@ impl WatchStartOptions {
 }
 
 /// Response for watch start requests.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct WatchStartedResponse {
     /// Root handle.
     pub handle: RootId,
 }
 
 /// Request to receive and apply the next watch batch.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct WatchNextRequest {
     /// Root handle.
     pub handle: RootId,
 }
 
 /// Request to stop watching roots through a handle.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct WatchStopRequest {
     /// Root handle.
     pub handle: RootId,
 }
 
 /// Response for watch stop requests.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct WatchStoppedResponse {
     /// Root handle.
     pub handle: RootId,
 }
 
 /// Response for watch batch processing.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct WatchBatchResponse {
     /// Root handle.
     pub handle: RootId,
@@ -125,7 +125,7 @@ impl WatchBatchResponse {
 }
 
 /// Watch batch payload used in the protocol.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct WatchBatch {
     /// List of file events in the batch.
     pub events: Vec<WatchEvent>,
@@ -147,7 +147,7 @@ impl WatchBatch {
 }
 
 /// Watch event payload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct WatchEvent {
     /// Event path.
     pub path: PathBuf,
@@ -180,7 +180,7 @@ impl From<FileWatchEvent> for WatchEvent {
 }
 
 /// Watch event kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum WatchEventKind {
     /// Created event.
     Created,
@@ -221,7 +221,7 @@ impl From<WatchEventKind> for FileWatchEventKind {
 }
 
 /// Watch status update.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum WatchStatus {
     /// Watcher is ready.
     Ready { roots: Vec<PathBuf> },

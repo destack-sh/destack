@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::GlobalNodeIdAny;
 
 /// Elaborated type guard checks.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct GuardTable {
     /// The module id of the guard table.
     pub module_id: ModuleId,
@@ -35,7 +35,7 @@ impl GuardTable {
 }
 
 /// Runtime check selected for one elaborated type guard.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum GuardEntry {
     /// The runtime check was reduced to a constant.
     Constant(bool),

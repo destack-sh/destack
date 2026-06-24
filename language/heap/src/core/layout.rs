@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::cmp::Ordering;
 
 use destack_mir::{TraceId, TraceMap};
@@ -26,7 +26,7 @@ pub struct AllocationShape<'a> {
 }
 
 /// One explicit allocation site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct AllocationSite {
     /// The exact payload byte length.
     pub byte_len: usize,
@@ -118,7 +118,7 @@ impl<'a> AllocationShape<'a> {
 }
 
 /// One allocator-ready allocation class.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum AllocationClass {
     /// One block backed by a small-span slot.
     Small(SmallAllocationPlan),
@@ -164,7 +164,7 @@ impl<'a> AllocationPlan<'a> {
 }
 
 /// One explicit small allocation site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SmallAllocationSite {
     /// The exact payload byte length.
     pub byte_len: usize,
@@ -181,7 +181,7 @@ impl SmallAllocationSite {
 }
 
 /// Dense mutator cache index for one small allocation site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub(crate) struct SmallCacheIndex(usize);
 
 impl SmallCacheIndex {
@@ -199,7 +199,7 @@ impl SmallCacheIndex {
 }
 
 /// One allocator-ready small allocation plan.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SmallAllocationPlan {
     /// The exact mutator-cache index for this class.
     pub(crate) cache_index: SmallCacheIndex,
@@ -210,7 +210,7 @@ pub struct SmallAllocationPlan {
 }
 
 /// One small-span size and scan class.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct SmallSpanClass {
     /// The slot payload size in bytes.
     pub(crate) size_class: usize,

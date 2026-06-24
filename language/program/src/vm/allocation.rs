@@ -3,13 +3,13 @@ use destack_heap::{
     SmallAllocationSite as HeapSmallAllocationSite,
 };
 use destack_mir::{TraceId, TraceMap};
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::{AllocationSiteId, Edge, SliceProjectionId};
 
 /// The allocation site consumed by heap allocation instructions.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct AllocationSite {
     /// The heap-ready allocation site.
     pub heap: HeapAllocationSite,
@@ -18,7 +18,7 @@ pub struct AllocationSite {
 }
 
 /// The small allocation site consumed by small heap allocation instructions.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SmallAllocationSite {
     /// The full heap-ready allocation site for cold allocation.
     pub heap: HeapAllocationSite,
@@ -29,7 +29,7 @@ pub struct SmallAllocationSite {
 }
 
 /// Branching allocation consumed by fallible heap allocation instructions.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct AllocationBranch {
     /// The destination frame offset.
     pub destination: u32,
@@ -42,7 +42,7 @@ pub struct AllocationBranch {
 }
 
 /// Branching slice allocation consumed by fallible slice allocation instructions.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SliceAllocationBranch {
     /// The destination frame offset.
     pub destination: u32,

@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +7,7 @@ use crate::{GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, StringId, VarianceMod
 /// Unique identifier for generic templates.
 #[repr(transparent)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub struct LocalGenericTemplateId(pub u32);
 
@@ -28,7 +28,7 @@ impl LocalGenericTemplateId {
 
 /// Global generic template id across modules.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
 pub struct GlobalGenericTemplateId {
     /// The module id of the global generic template.
@@ -61,7 +61,7 @@ impl From<GlobalGenericTemplateId> for LocalGenericTemplateId {
 /// Unique identifier for generic parameters.
 #[repr(transparent)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub struct LocalGenericParameterId(pub u32);
 
@@ -82,7 +82,7 @@ impl LocalGenericParameterId {
 
 /// Global generic parameter id across modules.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
 pub struct GlobalGenericParameterId {
     /// The module id of the global generic parameter.
@@ -113,7 +113,7 @@ impl From<GlobalGenericParameterId> for LocalGenericParameterId {
 }
 
 /// Source that introduced one generic parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum GenericParameterOrigin {
     /// The parameter was written in source, like the `T` in `<T extends Clone>`.
     Explicit,
@@ -123,7 +123,7 @@ pub enum GenericParameterOrigin {
 }
 
 /// Reason one generic parameter was induced.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum GenericParameterInduction {
     /// A parameter type induced a hidden constrained type parameter:
     /// `function write(writer: Writer)` generalizes to `<T0 extends Writer>`.
@@ -139,7 +139,7 @@ pub enum GenericParameterInduction {
 }
 
 /// User-visible key of one generic parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum GenericParameterKey {
     /// Explicit source symbol, like the `T` in `<T>`.
     Symbol(GlobalSymbolId),
@@ -154,7 +154,7 @@ pub enum GenericParameterKey {
 /// class Box<T> { ... }            // one template with one parameter
 /// function zip<A, B>(...) { ... } // one template with two parameters
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct GenericTemplate {
     /// The source node that declares this template.
     pub source: GlobalNodeIdAny,
@@ -189,7 +189,7 @@ impl GenericTemplate {
 /// <T extends Serializable = string>
 /// <comptime Size: usize>
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GenericParameterBinding {
     /// The generic template that owns this parameter.
     pub template: LocalGenericTemplateId,

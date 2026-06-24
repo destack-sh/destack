@@ -1,5 +1,5 @@
 use core::fmt;
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::borrow::Borrow;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
@@ -8,7 +8,7 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 /// A generic URI.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub struct Uri(String);
 
 impl Uri {

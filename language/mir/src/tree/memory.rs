@@ -1,11 +1,11 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::fmt;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
 /// Set of backing memory spaces that an operation may access.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct SpaceSet(
     /// Bitset describing accessible memory spaces.
     u16,
@@ -79,7 +79,7 @@ impl TryFrom<&str> for SpaceSet {
 }
 
 /// Memory ordering for atomic operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum MemoryOrdering {
     /// No ordering constraints (weakest).
     Relaxed,
@@ -144,7 +144,7 @@ impl TryFrom<&str> for MemoryOrdering {
 }
 
 /// Read-modify-write operator for atomic memory operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum AtomicRmwOperator {
     /// Swap the memory value with the new value.
     Exchange,
@@ -230,7 +230,7 @@ impl FromStr for AtomicRmwOperator {
 }
 
 /// Synchronization scope for atomic operations and fences.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum SyncScope {
     /// One invocation or thread.
     Invocation,
@@ -295,7 +295,7 @@ impl TryFrom<&str> for SyncScope {
 }
 
 /// Memory scope for fences.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum MemoryScope {
     /// One invocation or thread.
     Invocation,
@@ -360,7 +360,7 @@ impl TryFrom<&str> for MemoryScope {
 }
 
 /// Memory flags for fences.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct MemoryFlags {
     /// The memory spaces affected by the fence.
     pub spaces: SpaceSet,
@@ -404,7 +404,7 @@ impl Default for MemoryFlags {
 }
 
 /// Atomic ordering and scope for one memory operation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct AtomicAccess {
     /// The memory ordering.
     pub ordering: MemoryOrdering,
@@ -437,7 +437,7 @@ impl Default for AtomicAccess {
 }
 
 /// Access for one compare exchange operation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct CompareExchangeAccess {
     /// Access used when the comparison succeeds.
     pub success: AtomicAccess,
@@ -481,7 +481,7 @@ impl Default for CompareExchangeAccess {
 }
 
 /// Fence ordering, scope, and memory visibility.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct FenceAccess {
     /// The memory ordering.
     pub ordering: MemoryOrdering,

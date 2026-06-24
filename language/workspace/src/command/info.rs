@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -12,14 +12,14 @@ use super::context::CommandContext;
 use super::outcome::CommandOutcome;
 use super::targets::TargetEntry;
 /// Options for the info command.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
 pub struct InfoOptions {
     /// Whether to include all workspace packages.
     pub all: bool,
 }
 
 /// Workspace info for info command output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct InfoWorkspace {
     /// Workspace root path.
     pub root: String,
@@ -30,7 +30,7 @@ pub struct InfoWorkspace {
 }
 
 /// Payload for info command output.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct InfoPayload {
     /// Workspace metadata.
     pub workspace: InfoWorkspace,
@@ -43,7 +43,7 @@ pub struct InfoPayload {
 }
 
 /// Request to return workspace information.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct InfoInput {
     /// Revision selected for this info request.
     pub revision: CommandRevision,

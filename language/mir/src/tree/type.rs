@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use destack_core::{FloatFormat, StringId};
@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// Mutability of a storage binding.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Mutability {
     /// Immutable (const).
     Immutable,
@@ -17,7 +17,7 @@ pub enum Mutability {
 }
 
 /// Access exposed by a reference-like value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum Access {
     /// Readonly access.
     Readonly,
@@ -41,7 +41,7 @@ impl Access {
 }
 
 /// Space for a reference.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum Space {
     /// Local runtime storage.
     #[default]
@@ -83,7 +83,7 @@ impl Space {
 }
 
 /// Kind of reference in MIR.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ReferenceKind {
     /// GC-managed reference.
     Managed,
@@ -108,7 +108,7 @@ impl ReferenceKind {
 }
 
 /// Invalid-value niches carried by pointer-like values.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum Nullability {
     /// No nullish values are allowed.
     #[default]
@@ -142,7 +142,7 @@ impl Nullability {
 }
 
 /// Copyability of a type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Copy {
     /// Value can be copied freely.
     Yes,
@@ -171,7 +171,7 @@ impl Copy {
 }
 
 /// Dimension order for dense tensor storage.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TensorDimensionOrder {
     /// Last dimension is contiguous.
     RowMajor,
@@ -180,7 +180,7 @@ pub enum TensorDimensionOrder {
 }
 
 /// Format for an owning tensor value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TensorFormat {
     /// Dense contiguous format.
     Dense {
@@ -199,7 +199,7 @@ impl TensorFormat {
 }
 
 /// Format descriptor for a tensor view.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TensorViewFormat {
     /// Dense contiguous view.
     Dense {
@@ -228,7 +228,7 @@ impl TensorViewFormat {
 }
 
 /// Placement descriptor for tensor storage.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TensorSharding {
     /// Tensor storage is not partitioned across a mesh.
     Unsharded,
@@ -247,7 +247,7 @@ impl TensorSharding {
 }
 
 /// Per-axis placement descriptor for a sharded tensor.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TensorShardingAxis {
     /// Split one tensor axis across one mesh axis.
     Shard {
@@ -264,7 +264,7 @@ pub enum TensorShardingAxis {
 }
 
 /// Reduction used when partial tensor shards are combined.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TensorReduction {
     /// Add partial values.
     Add,
@@ -281,7 +281,7 @@ pub enum TensorReduction {
 }
 
 /// Dimension size for tensor shapes and formats.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TensorDimension {
     /// Compile time static dimension size.
     Static(u64),
@@ -299,7 +299,7 @@ impl TensorDimension {
 }
 
 /// Concrete type in MIR (post-monomorphization).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Type {
     /// Invalid type produced while recovering malformed MIR text.
     Error,
@@ -483,7 +483,7 @@ pub enum Type {
 }
 
 /// One physical tagged sum case.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct VariantCase {
     /// The tag constant selecting this case.
     pub tag: Constant,
@@ -788,7 +788,7 @@ impl Type {
 }
 
 /// A concrete MIR floating-point type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum FloatType {
     /// A 16-bit IEEE-754 binary16 float.
     Float16,
@@ -832,7 +832,7 @@ impl FloatType {
 }
 
 /// A field in a struct type.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Field {
     /// Name (optional).
     pub name: Option<StringId>,
@@ -845,7 +845,7 @@ impl Node for Field {
 }
 
 /// A named type alias in MIR text format.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeAlias {
     /// Alias name (without the leading `@`).
     pub name: StringId,

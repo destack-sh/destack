@@ -1,6 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::collections::HashSet;
 
 use destack_source::{
@@ -18,7 +18,7 @@ use crate::source::is_simple_identifier;
 use destack_dir::SymbolSpace;
 
 /// Kind of code action.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum CodeActionKind {
     /// Quick fix for a diagnostic.
     QuickFix,
@@ -37,7 +37,7 @@ pub enum CodeActionKind {
 }
 
 /// A code action (quick fix or refactoring).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CodeAction {
     /// The title shown in the UI.
     pub title: String,
@@ -103,7 +103,7 @@ impl CodeAction {
 }
 
 /// Context for code action requests.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CodeActionContext {
     /// Requested action kinds (empty = all).
     pub only: Vec<CodeActionKind>,
@@ -112,7 +112,7 @@ pub struct CodeActionContext {
 }
 
 /// Request code actions for a range in a document.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CodeActionsRequest {
     /// The queried range.
     pub range: QueryRange,
@@ -121,7 +121,7 @@ pub struct CodeActionsRequest {
 }
 
 /// Response payload for code actions queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CodeActionsResponse {
     /// Code actions.
     pub actions: Vec<CodeAction>,

@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
 ///
 /// Slots are keyed by node id relative to the tree base, the same convention the tree
 /// uses for its other dense per-node storage, so a tail tree indexes only its own nodes.
-#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct NodeParentIndex {
     /// First global node id this index covers; slots are keyed relative to it.
     base: u32,

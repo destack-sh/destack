@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use super::Op;
 
 /// One decoded program instruction.
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Instruction {
     /// The instruction operation.
     pub op: Op,

@@ -76,7 +76,6 @@ pub fn run(args: &FmtArgs) -> i32 {
             let request = FormatInput {
                 source,
                 mode,
-                selection: None,
                 ..(CommandRevision::Current, common).into()
             };
             let result = workspace

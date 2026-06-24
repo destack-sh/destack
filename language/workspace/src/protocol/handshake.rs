@@ -1,10 +1,10 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::{DEFAULT_MAX_FRAME_BYTES, DEFAULT_MAX_PAYLOAD_BYTES, ProtocolRange, ProtocolVersion};
 
 /// Negotiated protocol limits.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ProtocolLimits {
     /// Maximum frame size in bytes.
     pub max_frame_bytes: u64,
@@ -41,7 +41,7 @@ impl Default for ProtocolLimits {
 }
 
 /// Client descriptor sent during handshake negotiation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ClientDescriptor {
     /// Client name (cli, lsp, editor, etc.).
     pub name: String,
@@ -52,7 +52,7 @@ pub struct ClientDescriptor {
 }
 
 /// Server descriptor sent during handshake negotiation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ServerDescriptor {
     /// Server name.
     pub name: String,
@@ -63,7 +63,7 @@ pub struct ServerDescriptor {
 }
 
 /// Handshake request payload for protocol negotiation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct HandshakeRequest {
     /// Supported protocol range on the client.
     pub protocol: ProtocolRange,
@@ -74,7 +74,7 @@ pub struct HandshakeRequest {
 }
 
 /// Handshake response payload for protocol negotiation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct HandshakeResponse {
     /// Selected protocol version.
     pub protocol: ProtocolVersion,

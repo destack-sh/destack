@@ -1,11 +1,11 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use destack_source::{ComponentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
 
 /// Provider family for one artifact key.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub enum ArtifactProvider {
     /// Loader artifacts derived directly from repository file contents.
@@ -20,7 +20,7 @@ pub enum ArtifactProvider {
 
 /// Semantic artifact identity.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub enum ArtifactKey {
     /// Toolchain build payload for one target.

@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
@@ -24,7 +24,7 @@ pub type GlobalId = LocalNodeId<Global>;
 
 /// The type of a MIR node.
 #[derive(
-    Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub enum NodeType {
     /// A function definition.
@@ -66,7 +66,7 @@ impl NodeType {
 }
 
 /// Unique identifier for nodes with dynamic type in a local arena.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect)]
 pub struct LocalNodeIdAny {
     pub id: u32,
     pub ty: NodeType,
@@ -158,7 +158,7 @@ impl<T: Node> TryFrom<LocalNodeIdAny> for LocalNodeId<T> {
 }
 
 /// Unique identifier for nodes in a local arena, parameterized by node type.
-#[derive(Serialize, Deserialize, Schema)]
+#[derive(Serialize, Deserialize, Reflect)]
 #[serde(bound = "")]
 #[repr(transparent)]
 pub struct LocalNodeId<T: Node> {
@@ -254,7 +254,7 @@ impl<T: Node> LocalNodeId<T> {
 }
 
 /// Global node id across modules.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect)]
 #[serde(bound = "")]
 pub struct GlobalNodeId<T: Node> {
     /// The module id of the global node.
@@ -298,7 +298,7 @@ impl<T: Node> From<GlobalNodeId<T>> for LocalNodeId<T> {
 }
 
 /// Global node id across modules (untyped).
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Schema)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect)]
 pub struct GlobalNodeIdAny {
     /// The module id of the global node.
     pub module_id: ModuleId,
@@ -386,7 +386,7 @@ impl From<GlobalNodeIdAny> for LocalNodeIdAny {
 ///
 /// MIR is always generated per-target, so every MIR node has an associated target.
 /// This type carries the target needed to resolve module-local ids.
-#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Schema)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct AnchoredGlobalNodeId {
     /// The global node id.
     pub node_id: GlobalNodeIdAny,

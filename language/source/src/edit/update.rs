@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use destack_serde::Schema;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// One byte range in source text.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ByteRange {
     /// Inclusive start byte offset.
     pub start: u32,
@@ -13,7 +13,7 @@ pub struct ByteRange {
 }
 
 /// One source text replacement.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TextPatch {
     /// Replaced byte range.
     pub range: ByteRange,
@@ -22,7 +22,7 @@ pub struct TextPatch {
 }
 
 /// One source file mutation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum Edit {
     /// Replace or create one text file.
     SetText {
