@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use destack_core::{FloatFormat, StringId};
 
 use crate::{
-    Constant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType, SignatureParameter, TypeId,
+    Constant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType, SignatureParameter,
+    SpaceSet, TypeId,
 };
 
 /// Mutability of a storage binding.
@@ -78,6 +79,16 @@ impl Space {
             Space::Shared => "shared",
             Space::Frame => "frame",
             Space::Static => "static",
+        }
+    }
+
+    /// Return the backing memory space set.
+    pub fn space_set(&self) -> SpaceSet {
+        match self {
+            Space::Local => SpaceSet::LOCAL,
+            Space::Shared => SpaceSet::SHARED,
+            Space::Frame => SpaceSet::FRAME,
+            Space::Static => SpaceSet::STATIC,
         }
     }
 }

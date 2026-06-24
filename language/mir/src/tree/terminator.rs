@@ -4,7 +4,7 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{
     BinaryOperator, Block, BlockId, BlockParameter, Call, CallDispatchKind, Constant, DispatchSlot,
-    FunctionId, LocalNodeId, Node, NodeType, Tree, TypeId, Value, ValueSlice,
+    Edge, FunctionId, LocalNodeId, Node, NodeType, Successor, Tree, TypeId, Value, ValueSlice,
 };
 
 /// One control-flow edge target.
@@ -424,6 +424,117 @@ impl Node for Terminator {
 }
 
 impl Terminator {
+    /// Enumerate the control flow edges leaving this terminator.
+    pub fn edges(&self, tree: &Tree, source: BlockId) -> Vec<(Edge, BlockId)> {
+        self.targets(tree, source)
+            .into_iter()
+            .map(|(edge, _)| (edge, edge.target))
+            .collect()
+    }
+
+    /// Enumerate the control flow edges leaving this terminator with their targets.
+    pub fn targets<'a>(&'a self, tree: &'a Tree, source: BlockId) -> Vec<(Edge, &'a BlockTarget)> {
+        match self {
+            Terminator::Error => Vec::new(),
+            Terminator::Jump { target, .. } => block_edge(source, Successor::Jump, target)
+                .into_iter()
+                .collect(),
+            Terminator::Branch {
+                then_target,
+                else_target,
+                ..
+            } => [
+                block_edge(source, Successor::BranchThen, then_target),
+                block_edge(source, Successor::BranchElse, else_target),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+            Terminator::Check {
+                success, failure, ..
+            } => [
+                block_edge(source, Successor::CheckSuccess, success),
+                block_edge(source, Successor::CheckFailure, failure),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+            Terminator::NewZeroedTry {
+                success, failure, ..
+            }
+            | Terminator::NewUninitTry {
+                success, failure, ..
+            }
+            | Terminator::NewSliceZeroedTry {
+                success, failure, ..
+            }
+            | Terminator::NewSliceUninitTry {
+                success, failure, ..
+            } => [
+                block_edge(source, Successor::TrySuccess, success),
+                block_edge(source, Successor::TryFailure, failure),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+            Terminator::Switch { default, cases, .. } => {
+                let mut edges = Vec::with_capacity(cases.len() + 1);
+
+                // add the default edge first
+                edges.extend(block_edge(source, Successor::SwitchDefault, default));
+
+                // add case edges in source order
+                for case in tree.get_switch_cases(*cases) {
+                    edges.extend(block_edge(
+                        source,
+                        Successor::SwitchCase { value: case.value },
+                        &case.target,
+                    ));
+                }
+
+                edges
+            }
+            Terminator::Yield { resume, unwind, .. } => {
+                let mut edges = Vec::with_capacity(2);
+
+                // add the normal resume edge
+                edges.extend(block_edge(source, Successor::YieldResume, resume));
+
+                // add the optional unwind edge
+                if let Some(unwind) = unwind {
+                    edges.extend(block_edge(source, Successor::YieldUnwind, unwind));
+                }
+
+                edges
+            }
+            Terminator::Call { target, unwind, .. }
+            | Terminator::CallIndirect { target, unwind, .. }
+            | Terminator::CallVirtual { target, unwind, .. }
+            | Terminator::CallDynamic { target, unwind, .. } => {
+                let mut edges = Vec::with_capacity(2);
+
+                // add the normal return edge
+                edges.extend(block_edge(source, Successor::CallReturn, target));
+
+                // add the optional unwind edge
+                if let Some(unwind) = unwind {
+                    edges.extend(block_edge(source, Successor::CallUnwind, unwind));
+                }
+
+                edges
+            }
+            Terminator::Return { .. }
+            | Terminator::Panic { .. }
+            | Terminator::UnwindResume
+            | Terminator::Trap { .. }
+            | Terminator::Unreachable
+            | Terminator::TailCall { .. }
+            | Terminator::TailCallVirtual { .. }
+            | Terminator::TailCallDynamic { .. }
+            | Terminator::TailCallIndirect { .. } => Vec::new(),
+        }
+    }
+
     /// Return all successor blocks.
     pub fn successors(&self, tree: &Tree) -> SmallVec<[BlockId; 2]> {
         match self {
@@ -689,7 +800,7 @@ impl Terminator {
     }
 
     /// Return the arguments passed to one successor block.
-    pub fn arguments_for_successor<'a>(
+    pub fn successor_arguments<'a>(
         &self,
         tree: &'a Tree,
         successor: LocalNodeId<Block>,
@@ -823,12 +934,12 @@ impl Terminator {
     }
 
     /// Return successor parameters bound by explicit terminator arguments.
-    pub fn argument_parameters_for_successor<'a>(
+    pub fn successor_parameters<'a>(
         &self,
         tree: &'a Tree,
         successor: LocalNodeId<Block>,
     ) -> &'a [BlockParameter] {
-        let arguments = self.arguments_for_successor(tree, successor);
+        let arguments = self.successor_arguments(tree, successor);
         let block = tree.get(successor);
         let parameters = block.parameters.as_slice();
 
@@ -896,4 +1007,13 @@ impl Terminator {
             _ => None,
         }
     }
+}
+
+/// Pair one block target with its edge when it resolves to a concrete block.
+fn block_edge(
+    source: BlockId,
+    successor: Successor,
+    target: &BlockTarget,
+) -> Option<(Edge, &BlockTarget)> {
+    Some((Edge::new(source, successor, target.block), target))
 }

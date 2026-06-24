@@ -374,7 +374,7 @@ pub fn instruction_is_read_only_access(
     memory_ssa: &MemorySSA,
 ) -> bool {
     // load memory accesses for this instruction
-    let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
+    let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
         return false;
     };
 
@@ -1831,10 +1831,10 @@ pub fn clone_instruction_metadata(
     if let Some(accesses) = tree.metadata.memory.memory_accesses(original) {
         let mut cloned_accesses = accesses.to_vec();
         for access in &mut cloned_accesses {
-            if let mir::MemoryAccessTarget::Pointer(value) = access.target
+            if let mir::MemoryAccessTarget::Reference(value) = access.target
                 && let Some(&remapped) = value_map.get(&value)
             {
-                access.target = mir::MemoryAccessTarget::Pointer(remapped);
+                access.target = mir::MemoryAccessTarget::Reference(remapped);
             }
         }
 
@@ -1862,10 +1862,10 @@ pub fn remap_instruction_memory_accesses(
 
     let mut updated = accesses.to_vec();
     for access in &mut updated {
-        if let mir::MemoryAccessTarget::Pointer(value) = access.target
+        if let mir::MemoryAccessTarget::Reference(value) = access.target
             && let Some(&remapped) = substitutions.get(&value)
         {
-            access.target = mir::MemoryAccessTarget::Pointer(remapped);
+            access.target = mir::MemoryAccessTarget::Reference(remapped);
         }
     }
 
@@ -1883,28 +1883,6 @@ pub struct InstructionRef {
     pub block: mir::LocalNodeId<mir::Block>,
     /// The instruction index within the block.
     pub index: usize,
-}
-
-/// Build a map from values to the instructions that define them.
-pub fn build_value_definition_map(
-    function: &mir::Function,
-    tree: &mir::Tree,
-) -> HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> {
-    // collect instruction destinations
-    let mut map = HashMap::new();
-
-    // scan blocks for definitions
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        for &instruction_id in &block.instructions {
-            let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination() {
-                map.insert(destination, instruction_id);
-            }
-        }
-    }
-
-    map
 }
 
 /// Build a map from values to their defining blocks.

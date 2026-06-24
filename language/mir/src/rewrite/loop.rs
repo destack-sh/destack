@@ -3,10 +3,9 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate as mir;
 
 use crate::{
-    ControlFlowGraph, DominatorTree, MemoryAccess, MemoryAccessEffect, MemoryAccessLocation,
-    MemorySSA, clone_instruction_metadata, instruction_has_atomic_ordering,
-    instruction_is_borrow_address, instruction_is_read_only_access, instruction_is_speculatable,
-    instruction_map,
+    ControlFlowGraph, DominatorTree, MemoryAccess, MemoryAccessEffect, MemoryEffectTarget,
+    MemorySSA, clone_instruction_metadata, instruction_is_borrow_address,
+    instruction_is_read_only_access, instruction_is_speculatable, instruction_map,
 };
 
 /// Guard branch metadata for loop headers.
@@ -223,7 +222,7 @@ pub fn collect_loop_effects(
         let block = tree.get(*block_id);
         for instruction_id in &block.instructions {
             // reject ordered accesses
-            if instruction_has_atomic_ordering(tree, *instruction_id) {
+            if tree.instruction_has_atomic_ordering(*instruction_id) {
                 return None;
             }
 
@@ -242,7 +241,7 @@ pub fn collect_loop_effects(
             }
 
             // resolve memory accesses for the instruction
-            let Some(accesses) = memory_ssa.accesses_for_instruction(*instruction_id) else {
+            let Some(accesses) = memory_ssa.instruction_accesses(*instruction_id) else {
                 continue;
             };
 
@@ -259,8 +258,8 @@ pub fn collect_loop_effects(
                     return None;
                 }
 
-                // reject unknown locations
-                if effect.location == MemoryAccessLocation::Unknown {
+                // reject imprecise targets
+                if matches!(effect.location, MemoryEffectTarget::Any { .. }) {
                     return None;
                 }
 

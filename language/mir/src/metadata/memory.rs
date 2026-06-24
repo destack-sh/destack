@@ -108,8 +108,8 @@ pub enum MemoryAccessKind {
 /// Target of a memory access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum MemoryAccessTarget {
-    /// Access through a pointer value.
-    Pointer(Value),
+    /// Access through a reference value.
+    Reference(Value),
     /// Access through a local slot.
     Local(LocalNodeId<Local>),
     /// Access through a global.
