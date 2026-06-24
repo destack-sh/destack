@@ -22,7 +22,7 @@ pub(in crate::check) enum Decision {
     /// Resolved paired read-write place accessors.
     ReadWrite(dir::ReadWriteResolution),
     /// Resolved runtime predicate expression.
-    Predicate(dir::PredicateResolution),
+    Guard(dir::GuardResolution),
     /// Resolved construct expression.
     Construct(dir::ConstructResolution),
     /// Resolved pattern meaning.
@@ -31,6 +31,17 @@ pub(in crate::check) enum Decision {
     AssignPattern(dir::AssignPatternResolution),
     /// Rejected node with reported diagnostics.
     Rejected,
+}
+
+impl Decision {
+    /// Return selected generic argument bindings when the decision applies a generic target.
+    pub(in crate::check) fn generic_arguments(&self) -> Option<&[dir::GenericArgumentBinding]> {
+        match self {
+            Self::Call(resolution) => resolution.target.direct_generic_arguments(),
+            Self::Construct(resolution) => Some(resolution.target.generic_arguments()),
+            _ => None,
+        }
+    }
 }
 
 /// One node decision slot.
