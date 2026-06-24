@@ -67,7 +67,7 @@ impl Compiler {
         Ok(dependencies)
     }
 
-    /// Build checked DIR side tables for one resolved component.
+    /// Provide checked DIR side tables for one resolved component.
     pub(crate) fn provide_dir_checked_component(
         &self,
         entry: ModuleId,
@@ -114,6 +114,7 @@ impl Compiler {
         check.walk()?;
         check.propagate()?;
         check.solve()?;
+        check.check_obligations()?;
 
         // emit solver counters and optional trace sidecars
         let stats = check.stats();
@@ -290,7 +291,7 @@ struct ExternalComponents {
     modules: IndexMap<ModuleId, CheckComponentKey>,
 }
 
-/// Build one check-phase sidecar.
+/// Return one check-phase sidecar.
 fn check_sidecar(name: &str, content: String) -> ArtifactSidecar {
     ArtifactSidecar::new(
         name,
@@ -299,7 +300,7 @@ fn check_sidecar(name: &str, content: String) -> ArtifactSidecar {
     )
 }
 
-/// Build one annotated source sidecar for one member module.
+/// Return one annotated source sidecar for one member module.
 fn annotated_sidecar(source: AnnotatedSource) -> ArtifactSidecar {
     ArtifactSidecar::new(
         "annotated",
