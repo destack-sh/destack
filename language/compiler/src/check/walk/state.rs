@@ -3,7 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CheckState, Condition, Constraint, ConstraintCause, FlowState, Origin, Relation, Task, Widening,
+    CheckState, Condition, Constraint, ConstraintCause, FlowState, GenericInductionParameter,
+    Origin, Relation, Task, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -17,8 +18,21 @@ pub(in crate::check) struct WalkState<'check, 'state> {
     pub(in crate::check) module: ModuleId,
     /// The active literal widening policy.
     widening: Widening,
+    /// How elided borrow lifetimes are handled in the active type position.
+    borrow_lifetime_elision: BorrowLifetimeElision,
+    /// Elided borrow lifetime holes tracked by the active return type.
+    return_borrow_lifetimes: Vec<dir::TypeVariableId>,
     /// Flow state for the current module walk.
     flow: FlowState,
+}
+
+/// How elided borrow lifetimes are handled while walking types.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum BorrowLifetimeElision {
+    /// Elided borrow lifetimes can induce hidden generic parameters.
+    Induce,
+    /// Elided borrow lifetimes are tracked for a return type rule.
+    TrackReturn,
 }
 
 impl<'check, 'state> WalkState<'check, 'state> {
@@ -33,6 +47,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
             tree,
             module,
             widening: Widening::Preserve,
+            borrow_lifetime_elision: BorrowLifetimeElision::Induce,
+            return_borrow_lifetimes: Vec::new(),
             flow: FlowState::default(),
         }
     }
@@ -62,6 +78,52 @@ impl<'check, 'state> WalkState<'check, 'state> {
         result
     }
 
+    /// Walk one return type while tracking elided borrow lifetimes.
+    pub(in crate::check) fn walk_return_type_expression(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        has_body: bool,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let previous = self.borrow_lifetime_elision;
+        let first_tracked = self.return_borrow_lifetimes.len();
+        self.borrow_lifetime_elision = BorrowLifetimeElision::TrackReturn;
+        let result = self.walk_type_expression(id);
+        self.borrow_lifetime_elision = previous;
+        let ty = result?;
+
+        // reject bodyless borrowed returns whose lifetime has no source
+        let tracked = self.return_borrow_lifetimes.split_off(first_tracked);
+        if !has_body && !tracked.is_empty() {
+            self.check
+                .report_ambient_lifetime_elided(self.module, source);
+            for variable in tracked {
+                let error = self.push_type(dir::Type::Error, source)?;
+                self.check.set_solution(variable, error)?;
+            }
+        }
+
+        Ok(ty)
+    }
+
+    /// Record one elided borrow lifetime opened while walking a type.
+    pub(in crate::check) fn record_borrow_lifetime_elision(
+        &mut self,
+        variable: dir::TypeVariableId,
+        induction: GenericInductionParameter,
+    ) -> CompilerResult<()> {
+        match self.borrow_lifetime_elision {
+            BorrowLifetimeElision::Induce => {
+                self.check.generics.insert_induction(variable, induction)?;
+            }
+            BorrowLifetimeElision::TrackReturn => {
+                self.return_borrow_lifetimes.push(variable);
+            }
+        }
+
+        Ok(())
+    }
+
     /// Return one node's working type, opening a variable when missing.
     pub(in crate::check) fn node_type<T: dir::Node>(
         &mut self,
@@ -75,7 +137,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(ty) = self.check.node_type(node) {
+        if let Some(ty) = self.check.node_type_maybe(node) {
             return Ok(ty);
         }
 
@@ -117,14 +179,17 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.node_type(id)
     }
 
-    /// Declare one node's own type, equating against an existing type.
-    pub(in crate::check) fn declare_node_type<T: dir::Node>(
+    /// Constrain one node's own type to an exact type.
+    ///
+    /// When no node type exists yet, the exact type becomes the stable node entry.
+    /// When a node type already exists, the existing entry is equated with the exact type.
+    pub(in crate::check) fn constrain_node_type<T: dir::Node>(
         &mut self,
         id: dir::LocalNodeId<T>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let node = id.into_global_any(self.module);
-        let Some(target) = self.check.node_type(node) else {
+        let Some(target) = self.check.node_type_maybe(node) else {
             self.check.set_node_type(node, ty)?;
 
             return Ok(ty);
@@ -133,6 +198,21 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.relate_type(Origin::Node(node), Relation::Equal, target, ty);
 
         Ok(target)
+    }
+
+    /// Constrain one node's own type after applying the active widening policy.
+    pub(in crate::check) fn constrain_widened_node_type<T: dir::Node>(
+        &mut self,
+        id: dir::LocalNodeId<T>,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let source = id.into_any();
+        let ty = match self.widening {
+            Widening::Preserve => ty,
+            Widening::Widen => self.check.widen_type(self.module, source, ty)?,
+        };
+
+        self.constrain_node_type(id, ty)
     }
 
     /// Expect one node's type to flow into a contextual type.
@@ -174,19 +254,20 @@ impl<'check, 'state> WalkState<'check, 'state> {
             left,
             right,
             origin,
+            coercion_site: origin.coercion_site(),
             condition,
             cause,
         });
     }
 
-    /// Queue one node selection under the active static guard.
-    pub(in crate::check) fn queue_select(&mut self, node: dir::GlobalNodeIdAny) {
-        // record the guard context the selection must run under
+    /// Queue one node decision under the active static guard.
+    pub(in crate::check) fn queue_decide(&mut self, node: dir::GlobalNodeIdAny) {
+        // record the guard context the decision must run under
         if let Condition::When(predicates) = self.flow.active_static_guard() {
             self.check.set_node_condition(node, predicates);
         }
 
-        self.check.queue_task(Task::Select(node));
+        self.check.queue_task(Task::Decide(node));
     }
 
     /// Return one symbol's working type, opening a variable when missing.
@@ -194,7 +275,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(ty) = self.check.symbol_type(symbol) {
+        if let Some(ty) = self.check.component_symbol_type_maybe(symbol) {
             return Ok(ty);
         }
 
@@ -247,7 +328,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         symbol: dir::GlobalSymbolId,
         widening: Widening,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(ty) = self.check.symbol_type(symbol) {
+        if let Some(ty) = self.check.component_symbol_type_maybe(symbol) {
             return Ok(ty);
         }
 
@@ -265,13 +346,16 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(ty)
     }
 
-    /// Declare one symbol's type, equating against an existing type.
-    pub(in crate::check) fn declare_symbol_type(
+    /// Constrain one symbol's type to an exact type.
+    ///
+    /// When no symbol type exists yet, the exact type becomes the stable symbol entry.
+    /// When a symbol type already exists, the existing entry is equated with the exact type.
+    pub(in crate::check) fn constrain_symbol_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(existing) = self.check.symbol_type(symbol) {
+        if let Some(existing) = self.check.component_symbol_type_maybe(symbol) {
             self.relate_type(Origin::Symbol(symbol), Relation::Equal, existing, ty);
 
             return Ok(existing);
@@ -282,8 +366,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(ty)
     }
 
-    /// Declare one symbol's static value singleton type.
-    pub(in crate::check) fn declare_symbol_value(
+    /// Set one symbol's static value singleton type.
+    pub(in crate::check) fn set_symbol_value(
         &mut self,
         symbol: dir::GlobalSymbolId,
         value: dir::GlobalTypeId,

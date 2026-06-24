@@ -67,10 +67,10 @@ impl WalkState<'_, '_> {
             && let Some(expression) = block.tail_expression
         {
             let tail = self.node_type(expression)?;
-            self.declare_node_type(id, tail)?;
+            self.constrain_node_type(id, tail)?;
         } else {
             let void = self.push_type(dir::Type::Void, id.into_any())?;
-            self.declare_node_type(id, void)?;
+            self.constrain_node_type(id, void)?;
         }
 
         Ok(())

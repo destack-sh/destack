@@ -50,13 +50,17 @@ impl WalkState<'_, '_> {
         match selector {
             // case pattern if guard
             dir::MatchSelector::Pattern { pattern, guard } => {
-                // walk pattern and flow the matched value into its holes
+                // constrain pattern type from the matched value
                 self.walk_pattern(*pattern, self.tree.get(*pattern))?;
 
                 if let Some((value, path)) = value {
                     let origin = Origin::Node(pattern.into_global_any(self.module));
                     let pattern_type = self.node_type(*pattern)?;
-                    self.relate_type(origin, Relation::Assignable, value, pattern_type);
+                    let relation = match self.tree.get(*pattern) {
+                        dir::Pattern::Binding { pattern: None, .. } => Relation::Equal,
+                        _ => Relation::Assignable,
+                    };
+                    self.relate_type(origin, relation, value, pattern_type);
 
                     if let Some(path) = path {
                         self.narrow_pattern_match(path, *pattern)?;
@@ -86,5 +90,40 @@ impl WalkState<'_, '_> {
         };
 
         Ok(())
+    }
+
+    /// Return the value type that can enter the next match arm.
+    pub(in crate::check) fn next_match_input_type(
+        &mut self,
+        case: dir::LocalNodeId<dir::MatchCase>,
+        input: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let selector = match self.tree.get(case) {
+            dir::MatchCase::Expression { selector, .. }
+            | dir::MatchCase::Block { selector, .. } => selector,
+        };
+
+        match selector {
+            // default consumes every remaining value
+            dir::MatchSelector::Default => self.push_type(dir::Type::Never, case.into_any()),
+
+            // guarded arms can fail after pattern selection
+            dir::MatchSelector::Pattern { guard: Some(_), .. } => Ok(input),
+
+            // unguarded patterns remove matched values from later arms
+            dir::MatchSelector::Pattern {
+                pattern,
+                guard: None,
+            } => {
+                let pattern_type = self.node_type(*pattern)?;
+                let narrow = dir::Type::Operation(dir::TypeOperation::Narrow(dir::NarrowType {
+                    source: input,
+                    target: pattern_type,
+                    is_positive: false,
+                }));
+
+                self.push_type(narrow, pattern.into_any())
+            }
+        }
     }
 }

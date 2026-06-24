@@ -8,7 +8,7 @@ impl WalkState<'_, '_> {
     ///
     /// Every pattern node opens its own type. Matched values flow in at
     /// the match site, structural constraints carry components into the
-    /// nested pattern holes, and selection records the resolved pattern
+    /// nested pattern types, and selection records the resolved pattern
     /// once the scrutinee closes.
     ///
     /// Example:
@@ -37,25 +37,25 @@ impl WalkState<'_, '_> {
             | dir::Pattern::DereferenceOf { right: pattern } => {
                 self.walk_pattern(*pattern, self.tree.get(*pattern))?;
 
-                // forward the inner pattern type through the outer form
-                let inner = self.node_type(*pattern)?;
-                self.declare_node_type(id, inner)?;
+                // forward the child pattern type through the outer form
+                let pattern_type = self.node_type(*pattern)?;
+                self.constrain_node_type(id, pattern_type)?;
             }
             // pattern = value
             dir::Pattern::Assign { pattern, value } => {
                 self.walk_pattern(*pattern, self.tree.get(*pattern))?;
+                let pattern_type = self.node_type(*pattern)?;
+                self.constrain_node_type(id, pattern_type)?;
 
                 // check pattern default in selector context
                 let before_value = self.fork_flow();
                 self.walk_expression(*value, self.tree.get(*value))?;
                 self.restore_flow(before_value);
 
-                // defaults flow into the pattern hole
-                let inner = self.node_type(*pattern)?;
+                // flow the default into the matched pattern type
                 let default = self.node_type(*value)?;
                 let origin = Origin::Node((*value).into_global_any(self.module));
-                self.relate_type(origin, Relation::Assignable, default, inner);
-                self.declare_node_type(id, inner)?;
+                self.relate_type(origin, Relation::Assignable, default, pattern_type);
             }
             // name: pattern
             dir::Pattern::Binding {
@@ -64,10 +64,10 @@ impl WalkState<'_, '_> {
             } => {
                 self.walk_pattern(*pattern, self.tree.get(*pattern))?;
 
-                // bind the name to the inner pattern type
-                let inner = self.node_type(*pattern)?;
-                self.declare_node_type(id, inner)?;
-                self.declare_binding_pattern_symbol(id, inner)?;
+                // bind the name to the child pattern type
+                let pattern_type = self.node_type(*pattern)?;
+                self.constrain_node_type(id, pattern_type)?;
+                self.declare_binding_pattern_symbol(id, pattern_type)?;
             }
             // name
             dir::Pattern::Binding { pattern: None, .. } => {
@@ -81,8 +81,8 @@ impl WalkState<'_, '_> {
                 self.walk_expression(*value, self.tree.get(*value))?;
                 self.restore_flow(before_value);
 
-                let expected = self.node_type(*value)?;
-                self.declare_node_type(id, expected)?;
+                let pattern_type = self.node_type(*value)?;
+                self.constrain_node_type(id, pattern_type)?;
             }
             // start..end
             dir::Pattern::Range { start, end, .. } => {
@@ -117,7 +117,7 @@ impl WalkState<'_, '_> {
                 }
 
                 // the pattern matches values of its nominal tag
-                self.declare_node_type(id, tag)?;
+                self.constrain_node_type(id, tag)?;
             }
             // a | b
             dir::Pattern::Union { patterns } => {
@@ -130,7 +130,7 @@ impl WalkState<'_, '_> {
 
         // queue selection once the scrutinee type is known
         self.node_type(id)?;
-        self.queue_select(id.into_global_any(self.module));
+        self.queue_decide(id.into_global_any(self.module));
 
         Ok(())
     }
@@ -192,7 +192,7 @@ impl WalkState<'_, '_> {
         else {
             return Ok(());
         };
-        self.declare_symbol_type(symbol, ty)?;
+        self.constrain_symbol_type(symbol, ty)?;
 
         Ok(())
     }

@@ -1,6 +1,8 @@
 use destack_dir as dir;
 
-use crate::check::{GenericParameterId, GenericTemplateId, Origin, Relation, WalkState};
+use crate::check::{
+    GenericInductionParameter, GenericParameterId, GenericTemplateId, Origin, Relation, WalkState,
+};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
@@ -59,7 +61,7 @@ impl WalkState<'_, '_> {
 
         // the parameter name writes its own parameter type
         let ty = self.push_type(dir::Type::Parameter(parameter), id.into_any())?;
-        self.declare_symbol_type(symbol, ty)?;
+        self.constrain_symbol_type(symbol, ty)?;
 
         Ok(Some(parameter))
     }
@@ -136,7 +138,7 @@ impl WalkState<'_, '_> {
                         self.walk_expression(default, self.tree.get(default))?;
                         self.restore_flow(before_default);
 
-                        self.static_expression_type(default)
+                        self.walk_static_term(default)
                     })
                     .transpose()?;
 
@@ -201,38 +203,38 @@ impl WalkState<'_, '_> {
                     self.check
                         .report_missing_type_annotation(self.module, id.into_any());
                 }
-                if let Some(default) = default {
-                    // check parameter defaults in declaration context
-                    let before_default = self.fork_flow();
-                    self.walk_expression(default, self.tree.get(default))?;
-                    self.restore_flow(before_default);
-                }
 
                 let symbol = self
                     .check
                     .module(self.module)
                     .declaration_symbol(id.into_any());
-                let parameter_type = self.parameter_type(id)?;
+                let parameter_type = self.walk_parameter_type(id)?;
 
                 // bind the parameter name to its type
                 if let Some(symbol) = symbol {
                     if is_comptime {
                         self.induce_comptime_parameter(
                             template,
-                            id,
-                            symbol,
+                            id.into_any(),
+                            Some(symbol),
                             parameter_type,
                             default,
                             false,
                         )?;
                     } else if let Some(parameter_type) = parameter_type {
-                        self.declare_symbol_type(symbol, parameter_type)?;
+                        self.constrain_symbol_type(symbol, parameter_type)?;
                     }
                 }
 
-                // defaults flow into the declared type
-                if let (Some(default), Some(parameter_type)) = (default, parameter_type) {
-                    self.expect_assignable(default, parameter_type)?;
+                // check default after the parameter type is known
+                if let Some(default) = default {
+                    let before_default = self.fork_flow();
+                    self.walk_expression(default, self.tree.get(default))?;
+                    self.restore_flow(before_default);
+
+                    if let Some(parameter_type) = parameter_type {
+                        self.expect_assignable(default, parameter_type)?;
+                    }
                 }
             }
             // (...p: T)
@@ -253,21 +255,21 @@ impl WalkState<'_, '_> {
                     .check
                     .module(self.module)
                     .declaration_symbol(id.into_any());
-                let parameter_type = self.parameter_type(id)?;
+                let parameter_type = self.walk_parameter_type(id)?;
 
                 // bind the variadic parameter name to its type
                 if let Some(symbol) = symbol {
                     if is_comptime {
                         self.induce_comptime_parameter(
                             template,
-                            id,
-                            symbol,
+                            id.into_any(),
+                            Some(symbol),
                             parameter_type,
                             None,
                             true,
                         )?;
                     } else if let Some(parameter_type) = parameter_type {
-                        self.declare_symbol_type(symbol, parameter_type)?;
+                        self.constrain_symbol_type(symbol, parameter_type)?;
                     }
                 }
             }
@@ -286,21 +288,22 @@ impl WalkState<'_, '_> {
                         .report_missing_type_annotation(self.module, id.into_any());
                 }
 
-                // walk pattern and optional children
+                // constrain pattern type from the parameter type
                 self.walk_pattern(pattern, self.tree.get(pattern))?;
+                let parameter_type = self.walk_parameter_type(id)?;
+                if let Some(parameter_type) = parameter_type {
+                    let origin = Origin::Node(pattern.into_global_any(self.module));
+                    let pattern_type = self.node_type(pattern)?;
+                    self.relate_type(origin, Relation::Assignable, parameter_type, pattern_type);
+                }
+
+                // check default after the parameter type is known
                 if let Some(default) = default {
                     let before_default = self.fork_flow();
                     self.walk_expression(default, self.tree.get(default))?;
                     self.restore_flow(before_default);
-                }
 
-                // flow the parameter type into the pattern holes
-                if let Some(parameter_type) = self.parameter_type(id)? {
-                    let origin = Origin::Node(pattern.into_global_any(self.module));
-                    let pattern_type = self.node_type(pattern)?;
-                    self.relate_type(origin, Relation::Assignable, parameter_type, pattern_type);
-
-                    if let Some(default) = default {
+                    if let Some(parameter_type) = parameter_type {
                         self.expect_assignable(default, parameter_type)?;
                     }
                 }
@@ -318,9 +321,9 @@ impl WalkState<'_, '_> {
                         .report_missing_type_annotation(self.module, id.into_any());
                 }
 
-                // walk pattern and flow the parameter type into its holes
+                // constrain pattern type from the parameter type
                 self.walk_pattern(pattern, self.tree.get(pattern))?;
-                if let Some(parameter_type) = self.parameter_type(id)? {
+                if let Some(parameter_type) = self.walk_parameter_type(id)? {
                     let origin = Origin::Node(pattern.into_global_any(self.module));
                     let pattern_type = self.node_type(pattern)?;
                     self.relate_type(origin, Relation::Assignable, parameter_type, pattern_type);
@@ -333,17 +336,17 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Induce one comptime runtime parameter as a static generic parameter.
+    /// Induce one comptime parameter as a static generic parameter.
     ///
     /// Example:
     /// ```ds
     /// function repeat(value: string, comptime count: uint): [string; count]
     /// ```
-    fn induce_comptime_parameter(
+    pub(in crate::check) fn induce_comptime_parameter(
         &mut self,
         template: Option<GenericTemplateId>,
-        id: dir::LocalNodeId<dir::Parameter>,
-        symbol: dir::GlobalSymbolId,
+        source: dir::LocalNodeIdAny,
+        symbol: Option<dir::GlobalSymbolId>,
         parameter_type: Option<dir::GlobalTypeId>,
         default: Option<dir::LocalNodeId<dir::Expression>>,
         is_variadic: bool,
@@ -352,14 +355,29 @@ impl WalkState<'_, '_> {
             return Err(CompilerError::Internal {
                 message: format!(
                     "comptime parameter {:?} has no generic template",
-                    id.into_global(self.module)
+                    source.into_global(self.module)
                 ),
             });
         };
 
-        // declare the hidden static parameter
+        // declare a generated static parameter when the callable type has no label
+        let Some(symbol) = symbol else {
+            let parameter = GenericInductionParameter {
+                name_prefix: "C",
+                constraint: parameter_type,
+                is_comptime: true,
+                induction: dir::GenericParameterInduction::Comptime,
+            };
+            let parameter = self
+                .check
+                .declare_induced_generic_parameter(template, parameter)?;
+
+            return Ok(Some(parameter));
+        };
+
+        // declare the named static parameter
         let default = default
-            .map(|default| self.static_expression_type(default))
+            .map(|default| self.walk_static_term(default))
             .transpose()?;
         let binding = dir::GenericParameterBinding {
             template: template.local_id,
@@ -376,9 +394,9 @@ impl WalkState<'_, '_> {
             .check
             .declare_generic_parameter(binding, template, Some(symbol))?;
 
-        // the parameter name writes its own parameter type
-        let ty = self.push_type(dir::Type::Parameter(parameter), id.into_any())?;
-        self.declare_symbol_type(symbol, ty)?;
+        // write the parameter name as its own parameter type
+        let ty = self.push_type(dir::Type::Parameter(parameter), source)?;
+        self.constrain_symbol_type(symbol, ty)?;
 
         Ok(Some(parameter))
     }

@@ -45,10 +45,10 @@ impl WalkState<'_, '_> {
             }
         }
 
-        // tie the target node to its place type
+        // write the place type to the target node
         let place = self.record_assignment_place(id, access)?;
         if let Some(place) = place {
-            self.declare_node_type(id, place.ty)?;
+            self.constrain_node_type(id, place.ty)?;
         }
 
         Ok(place)
@@ -74,28 +74,7 @@ impl WalkState<'_, '_> {
         match self.tree.get(id) {
             // x
             dir::Expression::Identifier { .. } => {
-                let reference = self
-                    .check
-                    .module(module)
-                    .resolved
-                    .references
-                    .get(source)
-                    .cloned();
-                let symbol = match reference {
-                    Some(dir::Reference::Bound(symbols)) => {
-                        let symbols = self.check.available_symbols(&symbols);
-                        match symbols.as_slice() {
-                            [symbol] => Some(*symbol),
-                            _ => None,
-                        }
-                    }
-                    Some(dir::Reference::Missing)
-                    | Some(dir::Reference::Namespace(_))
-                    | Some(dir::Reference::Projected { .. })
-                    | Some(dir::Reference::Ambiguous(_))
-                    | None => None,
-                };
-                let Some(symbol) = symbol else {
+                let Some(symbol) = self.single_resolved_symbol(source) else {
                     return Ok(None);
                 };
                 self.capture_symbol_reference(symbol);
@@ -124,7 +103,7 @@ impl WalkState<'_, '_> {
 
                 // queue selection for the member place type
                 let ty = self.node_type(id)?;
-                self.queue_select(source);
+                self.queue_decide(source);
 
                 Ok(Some(Place::new(
                     ty,
@@ -142,7 +121,7 @@ impl WalkState<'_, '_> {
                 let index = self.node_type(*index)?;
 
                 let ty = self.node_type(id)?;
-                self.queue_select(source);
+                self.queue_decide(source);
 
                 Ok(Some(Place::new(
                     ty,
@@ -157,7 +136,7 @@ impl WalkState<'_, '_> {
             } => {
                 // queue selection for the dereferenced place type
                 let ty = self.node_type(id)?;
-                self.queue_select(source);
+                self.queue_decide(source);
 
                 Ok(Some(Place::new(ty, PlaceTarget::Dereference, source)))
             }

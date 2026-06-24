@@ -4,6 +4,29 @@ use crate::check::{Decision, WalkState};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
+    /// Return the single available symbol resolved for one source node.
+    pub(in crate::check) fn single_resolved_symbol(
+        &self,
+        source: dir::GlobalNodeIdAny,
+    ) -> Option<dir::GlobalSymbolId> {
+        let reference = self
+            .check
+            .module(source.module_id)
+            .resolved
+            .references
+            .get(source)?;
+
+        let dir::Reference::Bound(symbols) = reference else {
+            return None;
+        };
+        let symbols = self.check.available_symbols(symbols);
+        let [symbol] = symbols.as_slice() else {
+            return None;
+        };
+
+        Some(*symbol)
+    }
+
     /// Walk one identifier expression.
     ///
     /// Example:
@@ -39,7 +62,7 @@ impl WalkState<'_, '_> {
                         let ty = self.symbol_type(symbol)?;
                         // read the active flow narrowing when one exists
                         let ty = self.flow_path_narrowing(id).unwrap_or(ty);
-                        self.declare_node_type(id, ty)?;
+                        self.constrain_node_type(id, ty)?;
                     }
 
                     // overload sets resolve at their call sites
@@ -66,7 +89,7 @@ impl WalkState<'_, '_> {
                 self.check
                     .report_ambiguous_reference(self.module, id.into_any(), &path);
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.declare_node_type(id, error)?;
+                self.constrain_node_type(id, error)?;
             }
 
             // missing names fail loudly
@@ -77,16 +100,16 @@ impl WalkState<'_, '_> {
                 self.check
                     .report_unresolved_reference(self.module, id.into_any(), &path);
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.declare_node_type(id, error)?;
+                self.constrain_node_type(id, error)?;
             }
 
             // reject namespaces used directly as values
             Some(dir::Reference::Namespace(_)) => {
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.declare_node_type(id, error)?;
+                self.constrain_node_type(id, error)?;
             }
 
-            // identifiers must have a bare name reference row
+            // require resolve to write the bare name reference
             Some(dir::Reference::Projected { .. }) | None => {
                 return Err(CompilerError::Internal {
                     message: format!("identifier reference {source:?} has no resolved name"),
@@ -133,7 +156,7 @@ impl WalkState<'_, '_> {
                             Decision::Name(dir::NameResolution::new(symbol)),
                         )?;
                         let ty = self.symbol_type(symbol)?;
-                        self.declare_node_type(id, ty)?;
+                        self.constrain_node_type(id, ty)?;
                     }
                     // overload sets resolve at their call sites
                     _ => {
@@ -153,7 +176,7 @@ impl WalkState<'_, '_> {
                         .report_ambiguous_reference(self.module, id.into_any(), &path);
                 }
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.declare_node_type(id, error)?;
+                self.constrain_node_type(id, error)?;
             }
 
             // unresolved name paths fail loudly
@@ -163,19 +186,19 @@ impl WalkState<'_, '_> {
                         .report_unresolved_reference(self.module, id.into_any(), &path);
                 }
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.declare_node_type(id, error)?;
+                self.constrain_node_type(id, error)?;
             }
 
             // reject namespaces used directly as values
             Some(dir::Reference::Namespace(_)) => {
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.declare_node_type(id, error)?;
+                self.constrain_node_type(id, error)?;
             }
 
             // queue selection for value member access
             Some(dir::Reference::Projected { .. }) | None => {
                 self.node_type(id)?;
-                self.queue_select(id.into_global_any(self.module));
+                self.queue_decide(id.into_global_any(self.module));
             }
         }
 
@@ -196,12 +219,12 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         self.walk_expression(left, self.tree.get(left))?;
 
-        // walk written argument types before queuing instantiation
+        // collect written argument types for instantiation selection
         for argument in generic_arguments {
             self.walk_generic_arguments(std::slice::from_ref(argument))?;
         }
         self.node_type(id)?;
-        self.queue_select(id.into_global_any(self.module));
+        self.queue_decide(id.into_global_any(self.module));
 
         Ok(())
     }
