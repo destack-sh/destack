@@ -6,7 +6,7 @@ use crate::{LocalNodeId, Type};
 
 use super::{
     DataLayout, DispatchMetadata, DropMetadata, EffectMetadata, FrameMetadata, LayoutMetadata,
-    MemoryMetadata, TypeMetadata,
+    MemoryMetadata, ProfileMap, TypeMetadata,
 };
 
 /// Structured MIR metadata domains.
@@ -28,6 +28,8 @@ pub struct Metadata {
     pub memory: MemoryMetadata,
     /// Function and call effect metadata.
     pub effects: EffectMetadata,
+    /// Static profile counter metadata.
+    pub profile: ProfileMap,
 }
 
 impl Metadata {

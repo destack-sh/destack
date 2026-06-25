@@ -67,9 +67,8 @@ impl<N: Node, T> NodeTable<N, T> {
             .iter()
             .copied()
             .enumerate()
-            .filter_map(|(index, is_member)| {
-                is_member.then(|| (LocalNodeId::new(index as u32), &self.values[index]))
-            })
+            .filter(|(_, is_member)| *is_member)
+            .map(|(index, _)| (LocalNodeId::new(index as u32), &self.values[index]))
     }
 
     /// Return one table entry.

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Edge, Symbol};
+use crate::{CallSite, Edge, FunctionId, Instruction, LocalNodeId, Symbol, Value};
 
 /// Loaded profile-guided optimization data for a program.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
@@ -34,6 +34,99 @@ impl Profile {
     pub fn global(&self, symbol: Symbol) -> Option<&GlobalProfile> {
         self.globals.get(&symbol)
     }
+}
+
+/// Static profile counter map for one MIR module.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ProfileMap {
+    /// Per-function profile counter maps.
+    pub functions: HashMap<FunctionId, FunctionProfileMap>,
+}
+
+impl ProfileMap {
+    /// Create an empty profile map.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Return one function's profile counter map.
+    pub fn function(&self, function: FunctionId) -> Option<&FunctionProfileMap> {
+        self.functions.get(&function)
+    }
+
+    /// Insert one function's profile counter map.
+    pub fn insert_function(
+        &mut self,
+        function: FunctionId,
+        profile: FunctionProfileMap,
+    ) -> Option<FunctionProfileMap> {
+        self.functions.insert(function, profile)
+    }
+
+    /// Return one profile point's counter id.
+    pub fn counter(&self, function: FunctionId, point: &ProfilePoint) -> Option<CounterId> {
+        self.function(function)
+            .and_then(|profile| profile.counter(point))
+    }
+}
+
+/// Static profile counter map for one function.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct FunctionProfileMap {
+    /// Control-flow hash guarding against stale profile application.
+    pub hash: FunctionHash,
+    /// Profile points indexed by counter id.
+    pub points: Vec<ProfilePoint>,
+}
+
+impl FunctionProfileMap {
+    /// Create an empty function profile map.
+    pub fn new(hash: FunctionHash) -> Self {
+        Self {
+            hash,
+            points: Vec::new(),
+        }
+    }
+
+    /// Insert one profile point and return its counter id.
+    pub fn insert(&mut self, point: ProfilePoint) -> CounterId {
+        let counter = CounterId(self.points.len() as u32);
+        self.points.push(point);
+
+        counter
+    }
+
+    /// Return one profile point by counter id.
+    pub fn point(&self, counter: CounterId) -> Option<&ProfilePoint> {
+        self.points.get(counter.0 as usize)
+    }
+
+    /// Return one profile point's counter id.
+    pub fn counter(&self, point: &ProfilePoint) -> Option<CounterId> {
+        self.points
+            .iter()
+            .position(|candidate| candidate == point)
+            .map(|index| CounterId(index as u32))
+    }
+}
+
+/// Semantic meaning of one profile counter.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum ProfilePoint {
+    /// Function entry execution count.
+    Entry,
+    /// Control-flow edge count.
+    Edge(Edge),
+    /// Value distribution for one SSA value.
+    Value(Value),
+    /// Observed call target distribution for one callsite.
+    CallTarget(CallSite),
+    /// Observed receiver type distribution for one callsite.
+    ReceiverType(CallSite),
+    /// Allocation behavior for one instruction.
+    Allocation(LocalNodeId<Instruction>),
+    /// Suspension behavior for one instruction.
+    Suspension(LocalNodeId<Instruction>),
 }
 
 /// Profile data for one function, addressed by its persistent symbol.
@@ -82,6 +175,27 @@ pub struct Histogram<T> {
     pub buckets: Vec<(T, Count)>,
     /// Count attributed to entries not individually tracked.
     pub unknown: Count,
+}
+
+impl<T> Histogram<T> {
+    /// Return the total observed count.
+    pub fn total(&self) -> Count {
+        let buckets = self
+            .buckets
+            .iter()
+            .map(|(_, count)| count.get())
+            .sum::<u64>();
+
+        Count::new(buckets + self.unknown.get())
+    }
+
+    /// Return the most observed bucket when one exists.
+    pub fn dominant(&self) -> Option<(&T, Count)> {
+        self.buckets
+            .iter()
+            .max_by_key(|(_, count)| count.get())
+            .map(|(value, count)| (value, *count))
+    }
 }
 
 /// Observed allocation behavior at one allocation site.
@@ -146,7 +260,7 @@ pub struct CounterId(
 );
 
 /// Structural hash of a function's profiled control flow, for stale detection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct FunctionHash(
     /// The structural hash value.
     pub u64,
