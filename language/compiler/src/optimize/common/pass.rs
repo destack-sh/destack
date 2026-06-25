@@ -8,14 +8,12 @@ pub struct PassRequirements {
 impl PassRequirements {
     /// No special requirements.
     pub const NONE: Self = Self { bits: 0 };
-    /// Call instructions must carry call effects metadata.
-    pub const CALL_EFFECTS: Self = Self { bits: 1 << 0 };
     /// Memory access instructions must carry memory access metadata.
-    pub const MEMORY_ACCESS_METADATA: Self = Self { bits: 1 << 1 };
+    pub const MEMORY_ACCESS_METADATA: Self = Self { bits: 1 << 0 };
     /// Profile data must be present in the pipeline context.
-    pub const PROFILE_DATA: Self = Self { bits: 1 << 2 };
+    pub const PROFILE_DATA: Self = Self { bits: 1 << 1 };
     /// Aggregate types must carry layout metadata.
-    pub const TYPE_LAYOUTS: Self = Self { bits: 1 << 3 };
+    pub const TYPE_LAYOUTS: Self = Self { bits: 1 << 2 };
 
     /// Return true when no requirements are set.
     pub const fn is_empty(self) -> bool {
@@ -111,10 +109,6 @@ macro_rules! declare_pass {
 
     (@requirements $first:ident $(, $rest:ident)*) => {
         declare_pass!(@requirement $first)$(.union(declare_pass!(@requirement $rest)))*
-    };
-
-    (@requirement call_effects) => {
-        $crate::optimize::PassRequirements::CALL_EFFECTS
     };
 
     (@requirement memory_access_metadata) => {
@@ -217,7 +211,7 @@ pub fn run_function_passes(
     passes: &[&dyn FunctionPass],
 ) -> bool {
     let mut function = tree.get(function_id).clone();
-    if function.entry.is_none() {
+    if function.entry().is_none() {
         return false;
     }
 
@@ -226,6 +220,7 @@ pub fn run_function_passes(
 
     // seal the value counter once on entry; passes maintain it via next_value
     function.recompute_next_value_id(tree);
+    function.rebuild_instruction_index(tree);
 
     let mut changed = false;
     for pass in passes {
@@ -234,6 +229,7 @@ pub fn run_function_passes(
         // drop the analyses this pass's mutation invalidates
         analyses.apply(mutation);
         if !mutation.is_none() {
+            function.rebuild_instruction_index(tree);
             changed = true;
         }
     }
@@ -253,7 +249,7 @@ pub fn run_function_passes_always(
     passes: &[&dyn FunctionPass],
 ) {
     let mut function = tree.get(function_id).clone();
-    if function.entry.is_none() {
+    if function.entry().is_none() {
         return;
     }
 
@@ -262,10 +258,14 @@ pub fn run_function_passes_always(
 
     // seal the value counter once on entry; passes maintain it via next_value
     function.recompute_next_value_id(tree);
+    function.rebuild_instruction_index(tree);
 
     for pass in passes {
         let mutation = pass.run(&mut function, tree, context, &analyses);
         analyses.apply(mutation);
+        if !mutation.is_none() {
+            function.rebuild_instruction_index(tree);
+        }
     }
 
     *tree.get_mut(function_id) = function;

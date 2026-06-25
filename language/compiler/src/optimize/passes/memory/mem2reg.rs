@@ -55,7 +55,7 @@ impl FunctionPass for Mem2Reg {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip functions without locals
-        if function.locals.is_empty() {
+        if function.locals().is_empty() {
             return Mutation::NONE;
         }
 
@@ -106,7 +106,7 @@ fn run_mem2reg(
     function.recompute_next_value_id(tree);
 
     // compute dominance frontiers
-    let frontiers = compute_dominance_frontiers(&function.blocks, cfg, domtree);
+    let frontiers = compute_dominance_frontiers(function.blocks(), cfg, domtree);
 
     // find definition blocks for each promotable local
     let def_blocks = find_definition_blocks(&promotable, function, tree);
@@ -127,7 +127,7 @@ fn run_mem2reg(
     let block_params = insert_block_parameters(&param_placements, &promotable, function, tree);
 
     // rename variables: replace LocalGet/LocalSet with SSA values
-    let entry = function.entry.expect("function has no entry block");
+    let entry = function.entry().expect("function has no entry block");
     rename_variables(
         &promotable,
         &block_params,
@@ -140,9 +140,7 @@ fn run_mem2reg(
 
     // remove promoted locals from the function
     let promoted_set: HashSet<_> = promotable.keys().copied().collect();
-    function
-        .locals
-        .retain(|local| !promoted_set.contains(local));
+    function.retain_locals(|local| !promoted_set.contains(&local));
 
     true
 }
@@ -172,7 +170,8 @@ fn find_promotable_locals(
 ) -> HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal> {
     // collect locals with address taken
     let mut address_taken = HashSet::new();
-    for &block_id in &function.blocks {
+    let block_ids = function.blocks().to_vec();
+    for block_id in block_ids {
         let block = tree.get(block_id);
         for &instruction_id in &block.instructions {
             if let mir::Instruction::LocalAddr { local, .. } = tree.get(instruction_id) {
@@ -182,7 +181,7 @@ fn find_promotable_locals(
     }
 
     function
-        .locals
+        .locals()
         .iter()
         .filter(|local_id| !address_taken.contains(local_id))
         .map(|&local_id| {
@@ -205,7 +204,7 @@ fn find_definition_blocks(
         HashSet<mir::LocalNodeId<mir::Block>>,
     > = promotable.keys().map(|&k| (k, HashSet::new())).collect();
 
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
@@ -237,7 +236,7 @@ fn compute_parameter_placements(
         mir::LocalNodeId<mir::Block>,
         HashSet<mir::LocalNodeId<mir::Local>>,
     > = function
-        .blocks
+        .blocks()
         .iter()
         .map(|&b| (b, HashSet::new()))
         .collect();
@@ -292,7 +291,7 @@ fn compute_local_liveness(
     > = HashMap::new();
 
     // compute local use and def sets
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let mut seen_defs: HashSet<mir::LocalNodeId<mir::Local>> = HashSet::new();
         let mut uses: HashSet<mir::LocalNodeId<mir::Local>> = HashSet::new();
@@ -325,7 +324,7 @@ fn compute_local_liveness(
     let mut live_out: HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Local>>> =
         HashMap::new();
 
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         live_in.insert(block_id, HashSet::new());
         live_out.insert(block_id, HashSet::new());
     }
@@ -337,7 +336,7 @@ fn compute_local_liveness(
         changed = false;
 
         // update blocks in reverse order for faster convergence
-        for &block_id in function.blocks.iter().rev() {
+        for &block_id in function.blocks().iter().rev() {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
 
@@ -514,7 +513,7 @@ fn rename_variables(
             .collect();
 
         // push dominator tree children onto worklist
-        for &child_block in &function.blocks {
+        for &child_block in function.blocks() {
             if domtree.immediate_dominator(child_block) == Some(block_id) {
                 worklist.push((child_block, current_depths.clone()));
             }
@@ -522,7 +521,7 @@ fn rename_variables(
     }
 
     // apply substitutions to all remaining instructions
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let instruction_ids: Vec<_> = block.instructions.clone();
         for instruction_id in instruction_ids {
@@ -549,7 +548,8 @@ fn rename_variables(
     }
 
     // remove dead instructions
-    for &block_id in &function.blocks {
+    let block_ids = function.blocks().to_vec();
+    for block_id in block_ids {
         let block = tree.get(block_id);
         let new_instructions: Vec<_> = block
             .instructions
@@ -559,9 +559,7 @@ fn rename_variables(
             .collect();
 
         if new_instructions.len() != block.instructions.len() {
-            let mut new_block = block.clone();
-            new_block.instructions = new_instructions;
-            tree.set(block_id, new_block);
+            function.replace_block_instructions(block_id, new_instructions, tree);
         }
     }
 }

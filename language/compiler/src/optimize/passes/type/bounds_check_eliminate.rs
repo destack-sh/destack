@@ -63,7 +63,7 @@ impl FunctionPass for BoundsCheckEliminate {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        let Some(entry) = function.entry else {
+        let Some(entry) = function.entry() else {
             return Mutation::NONE;
         };
 
@@ -92,7 +92,7 @@ impl FunctionPass for BoundsCheckEliminate {
 
         // scan blocks for removable checks
         let mut changed = false;
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             // identify bounds check candidates
             let Some(candidate) = bounds_check_candidate(block_id, tree) else {
                 continue;
@@ -222,7 +222,7 @@ impl ValueDefinitions {
     fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
         // seed value definitions from parameters and instructions
         let mut definitions = HashMap::new();
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             // record block parameter definitions
             let block = tree.get(block_id);
             for (index, param) in block.parameters.iter().enumerate() {
@@ -506,12 +506,12 @@ fn build_block_constraints(
     // create dominator tree children map
     let mut children: HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> =
         HashMap::new();
-    for &block in &function.blocks {
+    for &block in function.blocks() {
         children.insert(block, Vec::new());
     }
 
     // link each block to its immediate dominator
-    for &block in &function.blocks {
+    for &block in function.blocks() {
         if let Some(idom) = domtree.immediate_dominator(block) {
             let block_children = children.get_mut(&idom).expect("missing dom child");
             block_children.push(block);

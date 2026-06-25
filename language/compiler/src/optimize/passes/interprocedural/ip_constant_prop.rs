@@ -114,7 +114,7 @@ fn run_interprocedural_constant_prop(tree: &mut mir::Tree, pointer_width_bits: u
     // scan candidate callees
     let function_ids: Vec<_> = tree
         .iter_nodes::<mir::Function>()
-        .filter_map(|(id, function)| function.entry.is_some().then_some((id, function.linkage)))
+        .filter_map(|(id, function)| function.entry().is_some().then_some((id, function.linkage)))
         .collect();
 
     for (function_id, linkage) in function_ids {
@@ -164,11 +164,11 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 
     // scan each function body for callsites
     for (caller_id, function) in tree.iter_nodes::<mir::Function>() {
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             continue;
         }
 
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
 
@@ -259,7 +259,7 @@ fn build_definition_cache(
 
     // build definition maps per function
     for (function_id, function) in tree.iter_nodes::<mir::Function>() {
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             continue;
         }
 

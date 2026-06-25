@@ -88,7 +88,7 @@ fn run_sccp(
     target_layout: TargetLayout,
 ) -> (bool, bool) {
     // skip external functions
-    let entry = match function.entry {
+    let entry = match function.entry() {
         Some(entry) => entry,
         None => return (false, false),
     };
@@ -886,7 +886,7 @@ fn apply_sccp_result(
         function_insert_block_param_constants(function, tree, result, &mut substitutions);
 
     // fold instructions and terminators in executable blocks
-    let block_ids: Vec<_> = function.blocks.clone();
+    let block_ids = function.blocks().to_vec();
     for block_id in block_ids {
         // skip non executable blocks
         if !result.is_executable(block_id) {
@@ -947,15 +947,13 @@ fn apply_sccp_result(
     }
 
     // remove unreachable blocks
-    let original_len = function.blocks.len();
+    let original_len = function.blocks().len();
 
     // retain only executable blocks
-    function
-        .blocks
-        .retain(|block_id| result.is_executable(*block_id));
+    function.retain_blocks(|block_id| result.is_executable(block_id), tree);
 
     // record cfg changes when blocks are removed
-    if function.blocks.len() != original_len {
+    if function.blocks().len() != original_len {
         cfg_changed = true;
     }
 
@@ -973,7 +971,7 @@ fn function_insert_block_param_constants(
     let mut changed = false;
 
     // scan blocks for executable constants
-    let block_ids: Vec<_> = function.blocks.clone();
+    let block_ids = function.blocks().to_vec();
     for block_id in block_ids {
         // skip non executable blocks
         if !result.is_executable(block_id) {
@@ -1029,10 +1027,10 @@ fn function_insert_block_param_constants(
         // insert constants at block entry when needed
         if !new_instructions.is_empty() {
             // insert consts at block entry
-            let block = tree.get_mut(block_id);
+            let block = tree.get(block_id);
             let mut updated = new_instructions;
             updated.extend(block.instructions.iter().copied());
-            block.instructions = updated;
+            function.replace_block_instructions(block_id, updated, tree);
             changed = true;
         }
     }
@@ -1050,7 +1048,7 @@ fn function_substitute_constant_uses(
     let mut changed = false;
 
     // rewrite constants in every block
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // snapshot instructions and terminator
         let (instruction_ids, terminator_id, terminator) = {
             let block = tree.get(block_id);

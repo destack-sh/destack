@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -60,7 +60,7 @@ declare_pass! {
 /// Base instruction budget for if conversion.
 const BASE_CONVERT_BUDGET: usize = 16;
 /// Larger budget when profile indicates balanced branches.
-const BALANCEI_CONVERT_BUDGET: usize = 48;
+const BALANCED_CONVERT_BUDGET: usize = 48;
 /// Threshold for treating a branch as highly biased.
 const BIASED_BRANCH_RATIO: f64 = 0.90;
 
@@ -74,7 +74,7 @@ impl FunctionPass for IfConvert {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -119,6 +119,20 @@ struct IfConvertCandidate {
     else_arguments: Vec<mir::Value>,
 }
 
+impl IfConvertCandidate {
+    /// Return blocks consumed by this candidate rewrite.
+    fn consumed_blocks(&self) -> [mir::BlockId; 3] {
+        [self.header, self.then_block, self.else_block]
+    }
+
+    /// Return whether this candidate overlaps already converted blocks.
+    fn overlaps(&self, converted: &HashSet<mir::BlockId>) -> bool {
+        self.consumed_blocks()
+            .iter()
+            .any(|block| converted.contains(block))
+    }
+}
+
 /// Run if conversion and return true when changes were made.
 fn run_if_convert(
     function: &mut mir::Function,
@@ -131,7 +145,7 @@ fn run_if_convert(
 
     // collect candidates before mutation
     let mut candidates = Vec::new();
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let Some(candidate) = find_if_convert_candidate(block_id, function, tree, &cfg) else {
             continue;
         };
@@ -144,10 +158,24 @@ fn run_if_convert(
         return false;
     }
 
+    let cost = analyses.get::<mir::CostModel>(function, tree);
+    let execution_counts = mir::ExecutionCounts::new(function, tree, ctx.profile(), analyses);
+    let mut converted_blocks = HashSet::new();
+
     function.recompute_next_value_id(tree);
     let mut changed = false;
     for candidate in candidates {
-        changed |= apply_if_convert(candidate, function, tree, ctx);
+        // skip stale nested diamonds consumed by an earlier rewrite
+        if candidate.overlaps(&converted_blocks) {
+            continue;
+        }
+
+        let converted =
+            apply_if_convert(&candidate, function, tree, execution_counts.edges(), &cost);
+        if converted {
+            converted_blocks.extend(candidate.consumed_blocks());
+            changed = true;
+        }
     }
 
     changed
@@ -190,7 +218,7 @@ fn find_if_convert_candidate(
     }
 
     // ensure both side blocks are within the function
-    if !function.blocks.contains(&then_block) || !function.blocks.contains(&else_block) {
+    if !function.blocks().contains(&then_block) || !function.blocks().contains(&else_block) {
         return None;
     }
 
@@ -210,7 +238,7 @@ fn find_if_convert_candidate(
     };
 
     // ensure merge block exists
-    if !function.blocks.contains(&merge_block) {
+    if !function.blocks().contains(&merge_block) {
         return None;
     }
 
@@ -245,10 +273,11 @@ fn find_if_convert_candidate(
 
 /// Apply if conversion to the candidate.
 fn apply_if_convert(
-    candidate: IfConvertCandidate,
+    candidate: &IfConvertCandidate,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    ctx: &PipelineContext<'_>,
+    edge_counts: &HashMap<mir::Edge, u64>,
+    cost: &mir::CostModel,
 ) -> bool {
     // build value maps for each branch
     let then_block = tree.get(candidate.then_block).clone();
@@ -292,21 +321,7 @@ fn apply_if_convert(
     }
 
     // check conversion cost model
-    let block_counts = mir::BlockFrequency::profile_block_counts(
-        function,
-        tree,
-        ctx.profile(),
-        &mir::FunctionAnalyses::new(),
-    );
-    let edge_counts =
-        mir::BlockFrequency::edge_counts(function, tree, ctx.profile(), &block_counts);
-    if !should_convert(
-        &candidate,
-        &then_block,
-        &else_block,
-        then_merge_args.len(),
-        &edge_counts,
-    ) {
+    if !should_convert(&candidate, then_merge_args.len(), edge_counts, cost) {
         return false;
     }
 
@@ -335,13 +350,11 @@ fn apply_if_convert(
     }
 
     // update header block
-    let mut header = tree.get(candidate.header).clone();
-    header.instructions = new_instructions;
+    function.replace_block_instructions(candidate.header, new_instructions, tree);
     let select_args = tree.add_values(&select_args);
     let new_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(candidate.merge_block, select_args),
     };
-    tree.set(candidate.header, header);
     tree.set(tree.get(candidate.header).terminator, new_terminator);
 
     true
@@ -350,14 +363,13 @@ fn apply_if_convert(
 /// Decide whether to convert a candidate based on cost and profile data.
 fn should_convert(
     candidate: &IfConvertCandidate,
-    then_block: &mir::Block,
-    else_block: &mir::Block,
     merge_args: usize,
     edge_counts: &HashMap<mir::Edge, u64>,
+    cost: &mir::CostModel,
 ) -> bool {
     // compute instruction costs for each branch
-    let then_cost = block_instruction_cost(then_block);
-    let else_cost = block_instruction_cost(else_block);
+    let then_cost = cost.block(candidate.then_block) as usize;
+    let else_cost = cost.block(candidate.else_block) as usize;
     let select_cost = merge_args;
     let total_cost = then_cost + else_cost + select_cost;
 
@@ -379,7 +391,7 @@ fn should_convert(
             && ((1.0 - BIASED_BRANCH_RATIO)..=BIASED_BRANCH_RATIO).contains(&else_ratio);
 
         if is_balanced {
-            return total_cost <= BALANCEI_CONVERT_BUDGET;
+            return total_cost <= BALANCED_CONVERT_BUDGET;
         }
 
         return total_cost <= BASE_CONVERT_BUDGET;
@@ -388,20 +400,15 @@ fn should_convert(
     // fall back to size balance when no profile data is available
     let min_cost = then_cost.min(else_cost);
     if min_cost == 0 {
-        return total_cost <= BALANCEI_CONVERT_BUDGET;
+        return total_cost <= BALANCED_CONVERT_BUDGET;
     }
 
     let size_ratio = then_cost.max(else_cost) as f64 / min_cost as f64;
     if size_ratio <= 1.25 {
-        return total_cost <= BALANCEI_CONVERT_BUDGET;
+        return total_cost <= BALANCED_CONVERT_BUDGET;
     }
 
     total_cost <= BASE_CONVERT_BUDGET
-}
-
-/// Compute the instruction cost for a block.
-fn block_instruction_cost(block: &mir::Block) -> usize {
-    block.instructions.len()
 }
 
 /// Read branch profile counts when available.
@@ -577,9 +584,9 @@ b3(v9: int32):
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let function = test.tree.get(function_id);
-        let header_block_id = function.blocks[0];
-        let then_block_id = function.blocks[1];
-        let else_block_id = function.blocks[2];
+        let header_block_id = function.block(0);
+        let then_block_id = function.block(1);
+        let else_block_id = function.block(2);
 
         let then_instruction = test.instructions_in_block(then_block_id)[0];
         let else_instruction = test.instructions_in_block(else_block_id)[0];

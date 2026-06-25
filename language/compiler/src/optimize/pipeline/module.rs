@@ -66,7 +66,7 @@ impl Pipeline for FunctionPipeline {
             let mut function = tree.get(function_id).clone();
 
             // skip imported functions (no body)
-            if function.entry.is_none() {
+            if function.entry().is_none() {
                 continue;
             }
 

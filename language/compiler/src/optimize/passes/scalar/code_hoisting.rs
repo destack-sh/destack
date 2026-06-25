@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    ControlFlowGraph, DominatorTree, ExpressionKey, Mutation,
+    ControlFlowGraph, DominatorTree, Mutation, PureExpression,
     apply_substitutions_in_dominated_blocks, build_use_def_maps, clone_instruction_metadata,
     instruction_is_speculatable, instruction_map, instruction_substitute_uses_in_tree,
 };
@@ -67,7 +67,7 @@ impl FunctionPass for CodeHoisting {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -112,7 +112,7 @@ fn run_code_hoisting(
     let mut changed = false;
 
     // scan each block for a branch candidate
-    let block_ids = function.blocks.clone();
+    let block_ids = function.blocks().to_vec();
     for block_id in block_ids {
         // load block data
         let block = tree.get(block_id);
@@ -295,15 +295,13 @@ fn hoist_common_prefix(
     }
 
     // update the header block with hoisted instructions
-    let mut header_block = tree.get(header).clone();
-    header_block.instructions = new_header_instructions;
-    tree.set(header, header_block);
+    function.replace_block_instructions(header, new_header_instructions, tree);
 
     // drop hoisted instructions from both successor blocks
     let then_trimmed = drop_instructions(&then_data, &hoisted_then_ids);
     let else_trimmed = drop_instructions(&else_data, &hoisted_else_ids);
-    tree.set(then_block, then_trimmed);
-    tree.set(else_block, else_trimmed);
+    function.replace_block_instructions(then_block, then_trimmed, tree);
+    function.replace_block_instructions(else_block, else_trimmed, tree);
 
     // apply substitutions to dominated blocks
     let then_changed = apply_substitutions_in_dominated_blocks(
@@ -399,16 +397,12 @@ fn instruction_operands_available(
 fn drop_instructions(
     block: &mir::Block,
     removed: &HashSet<mir::LocalNodeId<mir::Instruction>>,
-) -> mir::Block {
-    // clone the original block
-    let mut updated = block.clone();
-
+) -> Vec<mir::LocalNodeId<mir::Instruction>> {
     // retain instructions not removed
-    updated
-        .instructions
-        .retain(|instruction_id| !removed.contains(instruction_id));
+    let mut instructions = block.instructions.clone();
+    instructions.retain(|instruction_id| !removed.contains(instruction_id));
 
-    updated
+    instructions
 }
 
 /// Index entry for hoistable expressions.
@@ -440,7 +434,7 @@ fn build_expression_index(
     block: &mir::Block,
     value_rewrites: &HashMap<mir::Value, mir::Value>,
     tree: &mut mir::Tree,
-) -> HashMap<ExpressionKey, ExpressionEntry> {
+) -> HashMap<PureExpression, ExpressionEntry> {
     // allocate the index map
     let mut index = HashMap::new();
 
@@ -463,7 +457,7 @@ fn build_expression_index(
         let normalized = instruction_substitute_uses_in_tree(&instruction, value_rewrites, tree);
 
         // skip instructions without a stable key
-        let Some(key) = ExpressionKey::from_instruction(&normalized, tree) else {
+        let Some(key) = PureExpression::from_instruction(&normalized, tree) else {
             continue;
         };
 

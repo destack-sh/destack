@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, CallsiteHotness, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis,
-    Mutation, ScalarEvolution, Scev, ValueTypeMap, build_use_def_maps, clone_instruction_metadata,
+    Mutation, ScalarEvolution, Scev, ValueTypes, build_use_def_maps, clone_instruction_metadata,
     clone_loop_blocks, instruction_is_speculatable, instruction_map, terminator_remap,
 };
 
@@ -162,7 +162,7 @@ impl FunctionPass for LoopUnroll {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -198,7 +198,7 @@ impl FunctionPass for LoopUnrollAndJam {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -361,10 +361,10 @@ fn run_loop_unroll(
     }
 
     // collect profile data for hotness decisions
-    let block_counts =
-        mir::BlockFrequency::profile_block_counts(function, tree, ctx.profile(), analyses);
+    let execution_counts = mir::ExecutionCounts::new(function, tree, ctx.profile(), analyses);
+    let block_counts = execution_counts.blocks();
     let entry_count = function
-        .entry
+        .entry()
         .and_then(|entry| block_counts.get(&entry).copied())
         .unwrap_or(0);
 
@@ -403,9 +403,13 @@ fn run_loop_unroll(
                 continue;
             }
 
-            let Some(limits) =
-                unroll_limits_for_loop(lp.header, &block_counts, entry_count, unroll_threshold)
-            else {
+            let Some(limits) = unroll_limits_for_loop(
+                lp.header,
+                block_counts,
+                entry_count,
+                unroll_threshold,
+                ctx.hotness_thresholds(),
+            ) else {
                 continue;
             };
 
@@ -470,10 +474,10 @@ fn run_loop_unroll_and_jam(
     }
 
     // collect profile data for hotness decisions
-    let block_counts =
-        mir::BlockFrequency::profile_block_counts(function, tree, ctx.profile(), analyses);
+    let execution_counts = mir::ExecutionCounts::new(function, tree, ctx.profile(), analyses);
+    let block_counts = execution_counts.blocks();
     let entry_count = function
-        .entry
+        .entry()
         .and_then(|entry| block_counts.get(&entry).copied())
         .unwrap_or(0);
 
@@ -488,7 +492,7 @@ fn run_loop_unroll_and_jam(
         let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
         let scev = analyses.get::<ScalarEvolution>(function, tree).clone();
         let domtree = analyses.get::<DominatorTree>(function, tree).clone();
-        let value_types = ValueTypeMap::new(function, tree);
+        let value_types = analyses.get::<ValueTypes>(function, tree);
 
         // bail out when no loops exist
         if loops.num_loops() == 0 {
@@ -522,9 +526,13 @@ fn run_loop_unroll_and_jam(
             };
             let inner = &loops.loops()[inner_index];
 
-            let Some(limits) =
-                unroll_limits_for_loop(outer.header, &block_counts, entry_count, unroll_threshold)
-            else {
+            let Some(limits) = unroll_limits_for_loop(
+                outer.header,
+                block_counts,
+                entry_count,
+                unroll_threshold,
+                ctx.hotness_thresholds(),
+            ) else {
                 continue;
             };
 
@@ -1543,7 +1551,7 @@ fn unroll_and_jam_loop(
     plan: JamPlan,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
 ) -> bool {
     // reject degenerate factors
     if plan.factor < 2 {
@@ -1657,7 +1665,7 @@ fn peel_jam_remainder(
         let mut cloned_blocks: Vec<_> = block_map.values().copied().collect();
         cloned_blocks.sort();
         for block_id in cloned_blocks {
-            function.blocks.push(block_id);
+            function.add_block(block_id, tree);
         }
 
         // record peeled header and latch
@@ -1796,7 +1804,7 @@ fn rewrite_outer_latch_step(
     ctx: &PipelineContext<'_>,
     candidate: &JamCandidate,
     factor: u64,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
 ) -> bool {
     // resolve the outer induction type
     let outer_type = value_types.expect_value_type(candidate.outer_induction);
@@ -1813,7 +1821,7 @@ fn rewrite_outer_latch_step(
         None => return false,
     };
 
-    let mut latch_block = tree.get(candidate.outer_latch).clone();
+    let latch_block = tree.get(candidate.outer_latch).clone();
     let latch_terminator = tree.get(latch_block.terminator);
 
     // read the current induction value from the latch arguments
@@ -1846,8 +1854,10 @@ fn rewrite_outer_latch_step(
     let add_id = tree.insert(add_instruction);
 
     // append the update before the terminator
-    latch_block.instructions.push(const_id);
-    latch_block.instructions.push(add_id);
+    let mut latch_instructions = latch_block.instructions.clone();
+    latch_instructions.push(const_id);
+    latch_instructions.push(add_id);
+    function.replace_block_instructions(candidate.outer_latch, latch_instructions, tree);
 
     arguments[candidate.outer_param_index] = updated_value;
 
@@ -1855,8 +1865,6 @@ fn rewrite_outer_latch_step(
         target: mir::BlockTarget::new(candidate.outer_header, tree.add_values(&arguments)),
     };
     tree.set(latch_block.terminator, new_terminator);
-
-    tree.set(candidate.outer_latch, latch_block);
 
     true
 }
@@ -1869,7 +1877,7 @@ fn jam_inner_body(
     candidate: &JamCandidate,
     factor: u64,
     update_info: &InnerUpdateInfo,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
 ) -> bool {
     // resolve the outer induction type
     let outer_type = value_types.expect_value_type(candidate.outer_induction);
@@ -1933,9 +1941,7 @@ fn jam_inner_body(
     new_instructions.push(update_info.update_instruction);
     new_instructions.extend(update_info.trailing_instructions.iter().copied());
 
-    let mut latch_block = tree.get(candidate.inner_latch).clone();
-    latch_block.instructions = new_instructions;
-    tree.set(candidate.inner_latch, latch_block);
+    function.replace_block_instructions(candidate.inner_latch, new_instructions, tree);
 
     true
 }
@@ -1996,6 +2002,7 @@ fn unroll_limits_for_loop(
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     entry_count: u64,
     unroll_threshold: usize,
+    hotness: mir::HotnessThresholds,
 ) -> Option<UnrollLimits> {
     // default to base limits when no profile data exists
     if block_counts.is_empty() {
@@ -2009,7 +2016,7 @@ fn unroll_limits_for_loop(
 
     // classify loop hotness from the header count
     let header_count = block_counts.get(&header).copied().unwrap_or(0);
-    let hotness = CallsiteHotness::from_counts(header_count, entry_count);
+    let hotness = hotness.classify(header_count, entry_count);
     if matches!(hotness, CallsiteHotness::Cold) {
         return None;
     }
@@ -2125,7 +2132,7 @@ fn unroll_loop(
         let mut cloned_blocks: Vec<_> = block_map.values().copied().collect();
         cloned_blocks.sort();
         for block_id in cloned_blocks {
-            function.blocks.push(block_id);
+            function.add_block(block_id, tree);
         }
 
         // record iteration data
@@ -2203,7 +2210,7 @@ fn peel_remainder(
         let mut cloned_blocks: Vec<_> = block_map.values().copied().collect();
         cloned_blocks.sort();
         for block_id in cloned_blocks {
-            function.blocks.push(block_id);
+            function.add_block(block_id, tree);
         }
 
         // record peeled header and latch
@@ -2748,7 +2755,7 @@ impl ValueDefinitions {
         let mut definitions = HashMap::new();
 
         // scan all instruction destinations
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
@@ -3239,7 +3246,7 @@ b3(v7: int32):
         test.run_pass(&LoopSimplify);
 
         let function_id = test.entry_function_id();
-        let header = test.tree.get(function_id).blocks[1];
+        let header = test.tree.get(function_id).blocks()[1];
 
         // a cold function leaves its loops unrolled
         let mut profile = mir::Profile::new();

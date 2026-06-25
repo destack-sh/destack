@@ -5,16 +5,15 @@ use destack_mir as mir;
 
 use crate::optimize::{ModulePass, PipelineContext};
 use destack_mir::{
-    CallGraphScc, CallsiteHotness, Mutation, ValueDefinitions, ValueTypeMap,
-    clone_instruction_metadata, constant_for_value, instruction_map_with_locals,
-    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses, terminator_remap,
-    terminator_substitute_uses,
+    CallGraph, CallsiteHotness, Mutation, ValueDefinitions, ValueTypes, clone_instruction_metadata,
+    constant_for_value, instruction_map_with_locals, instruction_substitute_uses_in_tree,
+    remap_instruction_memory_accesses, terminator_remap, terminator_substitute_uses,
 };
 
 declare_pass! {
     /// Inline direct calls into their callers when the callee is small.
     ///
-    /// This pass clones callee blocks into the caller, rewires returns to a continuation block, and skips recursive SCCs and functions with tail calls.
+    /// This pass clones callee blocks into the caller, rewires returns to a continuation block, and skips recursive components and functions with tail calls.
     ///
     /// ```mir
     /// function callee(v0: int32): int32 {
@@ -100,12 +99,12 @@ const INLINE_MODULE_BUDGET_BASE: u64 = 40000;
 const INLINE_MODULE_BUDGET_ENTRY_DIVISOR: u64 = 200;
 /// Maximum inline budget for a module.
 const INLINE_MODULE_BUDGET_MAX: u64 = 120000;
-/// Base inline budget for an SCC.
-const INLINE_SCC_BUDGET_BASE: u64 = 4000;
-/// Entry count divisor for SCC budget scaling.
-const INLINE_SCC_BUDGET_ENTRY_DIVISOR: u64 = 100;
-/// Maximum inline budget for an SCC.
-const INLINE_SCC_BUDGET_MAX: u64 = 24000;
+/// Base inline budget for a component.
+const INLINE_COMPONENT_BUDGET_BASE: u64 = 4000;
+/// Entry count divisor for component budget scaling.
+const INLINE_COMPONENT_BUDGET_ENTRY_DIVISOR: u64 = 100;
+/// Maximum inline budget for a component.
+const INLINE_COMPONENT_BUDGET_MAX: u64 = 24000;
 /// Maximum instructions for cold callsites.
 const INLINE_COLD_MAX_INSTRUCTIONS: usize = 8;
 /// Maximum blocks for cold callsites.
@@ -130,19 +129,6 @@ const INLINE_BENEFIT_COUNT_DIVISOR: u64 = 50;
 const INLINE_BENEFIT_COUNT_MAX_MULTIPLIER: u64 = 8;
 /// Extra score bias for hot callsites.
 const INLINE_HOT_SCORE_BONUS: i64 = 24;
-// cost weights approximate llvm and cranelift heuristics for small inliners
-/// Cost for a simple instruction.
-const INLINE_COST_SIMPLE: u64 = 1;
-/// Cost for a memory access instruction.
-const INLINE_COST_MEMORY: u64 = 4;
-/// Cost for an allocation instruction.
-const INLINE_COST_ALLOC: u64 = 25;
-/// Cost for a call instruction.
-const INLINE_COST_CALL: u64 = 25;
-/// Cost for an indirect call instruction.
-const INLINE_COST_CALL_INDIRECT: u64 = 40;
-/// Cost per block to account for control flow overhead.
-const INLINE_COST_BLOCK: u64 = 3;
 /// Always inline when cost is below this threshold.
 const INLINE_ALWAYS_INLINE_COST: u64 = 40;
 
@@ -152,13 +138,14 @@ fn run_inline(
     ctx: &PipelineContext<'_>,
     analyses: &mir::ModuleAnalyses,
 ) -> bool {
-    // build analysis summaries for inlining
-    let scc_map = analyses.get::<CallGraphScc>(tree);
+    // load module analysis state
+    let callgraph = analyses.get::<CallGraph>(tree);
     let inline_budget_scale_percent = ctx.inline_budget_scale_percent();
     let mut module_budget =
         inline_budget_for_module(tree, ctx.profile(), inline_budget_scale_percent);
-    let mut scc_budgets =
-        inline_scc_budgets(tree, &scc_map, ctx.profile(), inline_budget_scale_percent);
+    let mut component_budgets =
+        inline_component_budgets(tree, &callgraph, ctx.profile(), inline_budget_scale_percent);
+    let mut function_analyses: HashMap<mir::FunctionId, mir::FunctionAnalyses> = HashMap::new();
 
     // collect function ids for stable iteration
     let function_ids: Vec<_> = tree
@@ -173,7 +160,7 @@ fn run_inline(
     for function_id in function_ids {
         // skip functions without bodies
         let function = tree.get(function_id);
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             continue;
         }
 
@@ -189,16 +176,14 @@ fn run_inline(
             ctx.profile(),
             inline_budget_scale_percent,
         );
-        let scc_id = scc_map.scc_id(function_id);
-        let mut scc_budget = scc_id
-            .and_then(|id| scc_budgets.get(&id).copied())
-            .unwrap_or(INLINE_SCC_BUDGET_BASE);
-        let block_counts = mir::BlockFrequency::profile_block_counts(
-            &function,
-            tree,
-            ctx.profile(),
-            &mir::FunctionAnalyses::new(),
-        );
+        let component = callgraph.component(function_id);
+        let mut component_budget = component
+            .and_then(|id| component_budgets.get(&id).copied())
+            .unwrap_or(INLINE_COMPONENT_BUDGET_BASE);
+        let analyses = function_analyses
+            .entry(function_id)
+            .or_insert_with(|| ctx.new_function_analyses());
+        let execution_counts = mir::ExecutionCounts::new(&function, tree, ctx.profile(), analyses);
 
         // iterate inline sites until the budget is exhausted
         loop {
@@ -208,24 +193,26 @@ fn run_inline(
             }
 
             // stop when no inline budget remains
-            if inline_budget == 0 || module_budget == 0 || scc_budget == 0 {
+            if inline_budget == 0 || module_budget == 0 || component_budget == 0 {
                 break;
             }
 
             // build value definitions for constant argument detection
             let value_definitions = ValueDefinitions::build(&function, tree).instruction_map();
-            let available_budget = inline_budget.min(module_budget).min(scc_budget);
+            let available_budget = inline_budget.min(module_budget).min(component_budget);
 
             // find the next candidate callsite
             let site = find_inline_site(
                 function_id,
                 &function,
                 tree,
-                &scc_map,
+                &callgraph,
+                ctx,
                 ctx.profile(),
                 inline_budget_scale_percent,
                 &value_definitions,
-                &block_counts,
+                &mut function_analyses,
+                execution_counts.blocks(),
                 available_budget,
             );
             let Some(site) = site else {
@@ -233,7 +220,8 @@ fn run_inline(
             };
 
             // attempt to inline the selected callsite
-            let did_inline = inline_callsite(&mut function, tree, &site.site);
+            let did_inline =
+                inline_callsite(&mut function, tree, &site.site, ctx, &mut function_analyses);
             if !did_inline {
                 break;
             }
@@ -242,12 +230,17 @@ fn run_inline(
             inline_count += 1;
             inline_budget = inline_budget.saturating_sub(site.cost);
             module_budget = module_budget.saturating_sub(site.cost);
-            scc_budget = scc_budget.saturating_sub(site.cost);
+            component_budget = component_budget.saturating_sub(site.cost);
+
+            // discard caller analyses invalidated by the cloned callee body
+            if let Some(analyses) = function_analyses.get(&function_id) {
+                analyses.apply(Mutation::CONTROL | Mutation::VALUE);
+            }
             changed = true;
         }
 
-        if let Some(scc_id) = scc_id {
-            scc_budgets.insert(scc_id, scc_budget);
+        if let Some(component) = component {
+            component_budgets.insert(component, component_budget);
         }
 
         // commit the updated function back into the tree
@@ -296,17 +289,19 @@ fn find_inline_site(
     function_id: mir::LocalNodeId<mir::Function>,
     function: &mir::Function,
     tree: &mir::Tree,
-    scc_map: &CallGraphScc,
+    callgraph: &CallGraph,
+    ctx: &PipelineContext<'_>,
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     inline_budget: u64,
 ) -> Option<InlineCandidate> {
     let mut best: Option<InlineCandidate> = None;
 
     // scan blocks in order for candidate callsites
-    let block_ids = function.blocks.clone();
+    let block_ids = function.blocks().to_vec();
     for block_id in block_ids {
         // load the block and clone its instruction list
         let block = tree.get(block_id);
@@ -324,11 +319,13 @@ fn find_inline_site(
                 tree,
                 function_id,
                 callee_id,
-                scc_map,
+                callgraph,
+                ctx,
                 arguments.len(),
                 profile,
                 inline_budget_scale_percent,
                 value_definitions,
+                function_analyses,
                 block_counts,
                 InlineSite {
                     block_id,
@@ -365,11 +362,13 @@ fn inline_candidate(
     tree: &mir::Tree,
     caller_id: mir::LocalNodeId<mir::Function>,
     callee_id: mir::LocalNodeId<mir::Function>,
-    scc_map: &CallGraphScc,
+    callgraph: &CallGraph,
+    ctx: &PipelineContext<'_>,
     argument_count: usize,
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     site: InlineSite,
 ) -> Option<InlineCandidate> {
@@ -378,11 +377,13 @@ fn inline_candidate(
         tree,
         caller_id,
         callee_id,
-        scc_map,
+        callgraph,
+        ctx,
         argument_count,
         profile,
         inline_budget_scale_percent,
         value_definitions,
+        function_analyses,
         block_count,
         &site.arguments,
     )?;
@@ -422,11 +423,13 @@ fn inline_score(
     tree: &mir::Tree,
     caller_id: mir::LocalNodeId<mir::Function>,
     callee_id: mir::LocalNodeId<mir::Function>,
-    scc_map: &CallGraphScc,
+    callgraph: &CallGraph,
+    ctx: &PipelineContext<'_>,
     argument_count: usize,
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
     block_count: u64,
     arguments: &[mir::Value],
 ) -> Option<InlineScore> {
@@ -437,7 +440,7 @@ fn inline_score(
 
     // hotness comes from the callsite block's frequency relative to entry
     let hotness = if profile.is_some() {
-        match CallsiteHotness::from_counts(block_count, entry_count) {
+        match ctx.hotness_thresholds().classify(block_count, entry_count) {
             CallsiteHotness::Unknown => CallsiteHotness::Cold,
             hotness => hotness,
         }
@@ -447,16 +450,16 @@ fn inline_score(
 
     // compute size metrics
     let caller = tree.get(caller_id);
-    let caller_cost = function_cost_for(tree, caller);
+    let caller_cost = function_cost_for(tree, caller_id, caller, ctx, function_analyses);
     let callee = tree.get(callee_id);
-    let callee_cost = function_cost_for(tree, callee);
+    let callee_cost = function_cost_for(tree, callee_id, callee, ctx, function_analyses);
 
     // reject callsites that do not meet heuristic thresholds
     let should_inline = should_inline(
         tree,
         caller_id,
         callee_id,
-        scc_map,
+        callgraph,
         argument_count,
         &callee_cost,
         &caller_cost,
@@ -467,9 +470,9 @@ fn inline_score(
         return None;
     }
 
-    if callee_cost.cost <= INLINE_ALWAYS_INLINE_COST {
+    if callee_cost.score <= INLINE_ALWAYS_INLINE_COST {
         return Some(InlineScore {
-            cost: callee_cost.cost,
+            cost: callee_cost.score,
             score: 0,
         });
     }
@@ -484,7 +487,7 @@ fn inline_score(
         entry_count,
         block_count,
     );
-    let mut score = benefit as i64 - callee_cost.cost as i64;
+    let mut score = benefit as i64 - callee_cost.score as i64;
 
     if matches!(hotness, CallsiteHotness::Hot) {
         score = score.saturating_add(INLINE_HOT_SCORE_BONUS);
@@ -495,7 +498,7 @@ fn inline_score(
     }
 
     Some(InlineScore {
-        cost: callee_cost.cost,
+        cost: callee_cost.score,
         score,
     })
 }
@@ -531,10 +534,10 @@ fn should_inline(
     tree: &mir::Tree,
     caller_id: mir::LocalNodeId<mir::Function>,
     callee_id: mir::LocalNodeId<mir::Function>,
-    scc_map: &CallGraphScc,
+    callgraph: &CallGraph,
     argument_count: usize,
-    callee_size: &FunctionCost,
-    caller_size: &FunctionCost,
+    callee_size: &mir::OperationCost,
+    caller_size: &mir::OperationCost,
     hotness: CallsiteHotness,
     inline_budget_scale_percent: u64,
 ) -> bool {
@@ -542,7 +545,7 @@ fn should_inline(
     let callee = tree.get(callee_id);
 
     // reject callees without bodies or with unsupported forms
-    if callee.entry.is_none() {
+    if callee.entry().is_none() {
         return false;
     }
     if callee.suspension.is_some() {
@@ -554,7 +557,7 @@ fn should_inline(
     if has_tail_calls(tree, callee) {
         return false;
     }
-    if is_recursive_call(caller_id, callee_id, scc_map) {
+    if is_recursive_call(caller_id, callee_id, callgraph) {
         return false;
     }
 
@@ -576,7 +579,7 @@ fn should_inline(
         let max_calls = scale_inline_limit(INLINE_COLD_MAX_CALLS, inline_budget_scale_percent);
         return callee_size.instructions <= max_instructions
             && callee_size.blocks <= max_blocks
-            && callee_size.calls <= max_calls;
+            && callee_size.calls() <= max_calls;
     }
 
     // select thresholds for hot or unknown callsites
@@ -594,7 +597,7 @@ fn should_inline(
         )
     };
 
-    if callee_size.calls == 0 {
+    if callee_size.calls() == 0 {
         let max_leaf =
             scale_inline_limit(INLINE_MAX_LEAF_INSTRUCTIONS, inline_budget_scale_percent);
         let limit = max_leaf.max(max_instructions);
@@ -603,14 +606,20 @@ fn should_inline(
 
     callee_size.instructions <= max_instructions
         && callee_size.blocks <= max_blocks
-        && callee_size.calls <= max_calls
+        && callee_size.calls() <= max_calls
 }
 
 /// Inline a direct callsite into the caller.
-fn inline_callsite(caller: &mut mir::Function, tree: &mut mir::Tree, site: &InlineSite) -> bool {
+fn inline_callsite(
+    caller: &mut mir::Function,
+    tree: &mut mir::Tree,
+    site: &InlineSite,
+    ctx: &PipelineContext<'_>,
+    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
+) -> bool {
     // load the callee and entry block
     let callee = tree.get(site.callee_id).clone();
-    let Some(entry_block) = callee.entry else {
+    let Some(entry_block) = callee.entry() else {
         return false;
     };
 
@@ -650,7 +659,12 @@ fn inline_callsite(caller: &mut mir::Function, tree: &mut mir::Tree, site: &Inli
 
     // clone locals and blocks before rewriting the caller
     let local_map = clone_locals(caller, tree, &callee);
-    let (block_map, value_map) = clone_callee_blocks(caller, tree, &callee, &argument_map);
+    let callee_analyses = function_analyses
+        .entry(site.callee_id)
+        .or_insert_with(|| ctx.new_function_analyses());
+    let callee_value_types = callee_analyses.get::<ValueTypes>(&callee, tree);
+    let (block_map, value_map) =
+        clone_callee_blocks(caller, tree, &callee, &argument_map, &callee_value_types);
 
     // split the caller block and jump into the inlined entry
     let inline_entry = block_map[&entry_block];
@@ -716,11 +730,11 @@ fn clone_locals(
 ) -> HashMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<mir::Local>> {
     // allocate new locals in the caller
     let mut local_map = HashMap::new();
-    for local_id in &callee.locals {
+    for local_id in callee.locals() {
         let local = tree.get(*local_id).clone();
         let new_local = tree.insert(local);
         local_map.insert(*local_id, new_local);
-        caller.locals.push(new_local);
+        caller.add_local(new_local);
     }
 
     local_map
@@ -732,6 +746,7 @@ fn clone_callee_blocks(
     tree: &mut mir::Tree,
     callee: &mir::Function,
     argument_map: &HashMap<mir::Value, mir::Value>,
+    callee_value_types: &ValueTypes,
 ) -> (
     HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     HashMap<mir::Value, mir::Value>,
@@ -740,11 +755,8 @@ fn clone_callee_blocks(
     let mut value_map = argument_map.clone();
     let mut block_map = HashMap::new();
 
-    // build value type lookup for the callee
-    let callee_value_types = ValueTypeMap::new(callee, tree);
-
     // clone each callee block and allocate new values
-    for block_id in &callee.blocks {
+    for block_id in callee.blocks() {
         // load the original callee block
         let original = tree.get(*block_id);
 
@@ -784,7 +796,7 @@ fn clone_callee_blocks(
         };
         let new_block_id = tree.insert(new_block);
         block_map.insert(*block_id, new_block_id);
-        caller.blocks.push(new_block_id);
+        caller.add_block(new_block_id, tree);
     }
 
     (block_map, value_map)
@@ -854,7 +866,7 @@ fn split_block_for_inline(
         target: mir::BlockTarget::new(inline_entry, entry_arguments),
     };
     tree.set(block.terminator, jump_terminator);
-    tree.set(block_id, block);
+    caller.replace_block_instructions(block_id, block.instructions, tree);
 
     // finish the continuation block
     continuation_block.instructions = after_instructions;
@@ -862,7 +874,7 @@ fn split_block_for_inline(
 
     // insert the continuation block into the caller
     let continuation_id = tree.insert(continuation_block);
-    caller.blocks.push(continuation_id);
+    caller.add_block(continuation_id, tree);
 
     Some(InlineSplit {
         continuation_id,
@@ -882,7 +894,7 @@ fn substitute_value_in_function(
     substitutions.insert(from, to);
 
     // update instructions and terminators across all blocks
-    for block_id in &function.blocks {
+    for block_id in function.blocks() {
         let block = tree.get(*block_id).clone();
         for instruction_id in &block.instructions {
             let instruction = tree.get(*instruction_id).clone();
@@ -909,7 +921,7 @@ fn remap_inline_blocks(
     call_source: Option<u32>,
 ) {
     // clone instruction bodies and remap terminators for each block
-    for block_id in &callee.blocks {
+    for block_id in callee.blocks() {
         // load the original and cloned blocks
         let new_block_id = block_map[block_id];
         let original_block = tree.get(*block_id);
@@ -985,7 +997,7 @@ fn rewrite_inlined_returns(
 /// Check whether a function contains tail call terminators.
 fn has_tail_calls(tree: &mir::Tree, function: &mir::Function) -> bool {
     // scan terminators for tail call forms
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
         if matches!(
@@ -999,84 +1011,45 @@ fn has_tail_calls(tree: &mir::Tree, function: &mir::Function) -> bool {
     false
 }
 
-/// Check whether a call is recursive via SCC membership.
+/// Check whether a call is recursive via component membership.
 fn is_recursive_call(
     caller: mir::LocalNodeId<mir::Function>,
     callee: mir::LocalNodeId<mir::Function>,
-    scc_map: &CallGraphScc,
+    callgraph: &CallGraph,
 ) -> bool {
-    // load the caller scc id
-    let Some(caller_scc) = scc_map.scc_id(caller) else {
+    // load the caller component
+    let Some(caller_component) = callgraph.component(caller) else {
         return false;
     };
 
-    // load the callee scc id
-    let Some(callee_scc) = scc_map.scc_id(callee) else {
+    // load the callee component
+    let Some(callee_component) = callgraph.component(callee) else {
         return false;
     };
 
-    // short circuit when the functions are in different sccs
-    if caller_scc != callee_scc {
+    // short circuit when the functions are in different components
+    if caller_component != callee_component {
         return false;
     }
 
-    // report recursion if the scc is marked recursive
-    scc_map.is_recursive_scc(caller_scc)
+    // report recursion if the component is marked recursive
+    callgraph.is_recursive_component(caller_component)
 }
 
-/// Summary of function cost for inlining decisions.
-#[derive(Debug, Clone, Copy, Default)]
-struct FunctionCost {
-    /// Instruction count for the function.
-    instructions: usize,
-    /// Block count for the function.
-    blocks: usize,
-    /// Call count for the function.
-    calls: usize,
-    /// Weighted inline cost.
-    cost: u64,
-}
+/// Compute one function's inline cost.
+fn function_cost_for(
+    tree: &mir::Tree,
+    function_id: mir::FunctionId,
+    function: &mir::Function,
+    ctx: &PipelineContext<'_>,
+    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
+) -> mir::OperationCost {
+    let analyses = function_analyses
+        .entry(function_id)
+        .or_insert_with(|| ctx.new_function_analyses());
+    let cost = analyses.get::<mir::CostModel>(function, tree);
 
-/// Compute the cost summary for a single function.
-fn function_cost_for(tree: &mir::Tree, function: &mir::Function) -> FunctionCost {
-    // count blocks, instructions, and callsites
-    let mut cost = FunctionCost {
-        blocks: function.blocks.len(),
-        cost: function.blocks.len() as u64 * INLINE_COST_BLOCK,
-        ..FunctionCost::default()
-    };
-
-    // scan all blocks for instruction and call counts
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        cost.instructions += block.instructions.len();
-
-        for &instruction_id in &block.instructions {
-            let instruction = tree.get(instruction_id);
-            cost.cost = cost
-                .cost
-                .saturating_add(instruction_cost(instruction, tree));
-
-            if matches!(
-                instruction,
-                mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. }
-            ) {
-                cost.calls += 1;
-            }
-        }
-
-        let terminator = tree.get(block.terminator);
-        cost.cost = cost.cost.saturating_add(terminator_cost(terminator));
-
-        if matches!(
-            terminator,
-            mir::Terminator::TailCall { .. } | mir::Terminator::TailCallIndirect { .. }
-        ) {
-            cost.calls += 1;
-        }
-    }
-
-    cost
+    *cost.function()
 }
 
 /// Compute the inline budget for a caller.
@@ -1145,7 +1118,7 @@ fn inline_benefit(
     arguments: &[mir::Value],
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     tree: &mir::Tree,
-    callee_cost: &FunctionCost,
+    callee_cost: &mir::OperationCost,
     entry_count: u64,
     block_count: u64,
 ) -> u64 {
@@ -1160,7 +1133,7 @@ fn inline_benefit(
 
     benefit = benefit.saturating_add(const_count * INLINE_BENEFIT_CONST_ARGUMENT);
 
-    if callee_cost.calls == 0 {
+    if callee_cost.calls() == 0 {
         benefit = benefit.saturating_add(INLINE_BENEFIT_LEAF);
     }
 
@@ -1223,180 +1196,46 @@ fn inline_budget_for_module(
     )
 }
 
-/// Compute inline budgets per SCC.
-fn inline_scc_budgets(
+/// Compute inline budgets per component.
+fn inline_component_budgets(
     tree: &mir::Tree,
-    scc_map: &CallGraphScc,
+    callgraph: &CallGraph,
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
 ) -> HashMap<usize, u64> {
-    let mut scc_entry_counts: HashMap<usize, u64> = HashMap::new();
-    let mut scc_ids = HashSet::new();
+    let mut component_entry_counts: HashMap<usize, u64> = HashMap::new();
+    let mut components = HashSet::new();
 
     for (function_id, _) in tree.iter_nodes::<mir::Function>() {
-        let Some(scc_id) = scc_map.scc_id(function_id) else {
+        let Some(component) = callgraph.component(function_id) else {
             continue;
         };
-        scc_ids.insert(scc_id);
+        components.insert(component);
 
         let entry = profile
             .and_then(|profile| profile.function(tree.get(function_id).symbol))
             .map(|function_profile| function_profile.entry.get())
             .unwrap_or(0);
-        let total = scc_entry_counts.entry(scc_id).or_insert(0);
+        let total = component_entry_counts.entry(component).or_insert(0);
         *total = total.saturating_add(entry);
     }
 
     let mut budgets = HashMap::new();
-    for scc_id in scc_ids {
-        let entry_count = scc_entry_counts.get(&scc_id).copied().unwrap_or(0);
-        let bonus = entry_count / INLINE_SCC_BUDGET_ENTRY_DIVISOR;
-        let budget = INLINE_SCC_BUDGET_BASE
+    for component in components {
+        let entry_count = component_entry_counts.get(&component).copied().unwrap_or(0);
+        let bonus = entry_count / INLINE_COMPONENT_BUDGET_ENTRY_DIVISOR;
+        let budget = INLINE_COMPONENT_BUDGET_BASE
             .saturating_add(bonus)
-            .min(INLINE_SCC_BUDGET_MAX);
-        let budget =
-            scale_inline_budget(budget, inline_budget_scale_percent, INLINE_SCC_BUDGET_MAX);
-        budgets.insert(scc_id, budget);
+            .min(INLINE_COMPONENT_BUDGET_MAX);
+        let budget = scale_inline_budget(
+            budget,
+            inline_budget_scale_percent,
+            INLINE_COMPONENT_BUDGET_MAX,
+        );
+        budgets.insert(component, budget);
     }
 
     budgets
-}
-
-/// Compute the cost for a single instruction.
-fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
-    match instruction {
-        mir::Instruction::Error => {
-            panic!("invalid MIR instruction reached optimizer");
-        }
-        mir::Instruction::Const { .. }
-        | mir::Instruction::Binary { .. }
-        | mir::Instruction::Unary { .. }
-        | mir::Instruction::Cast { .. }
-        | mir::Instruction::Select { .. }
-        | mir::Instruction::LocalGet { .. }
-        | mir::Instruction::LocalSet { .. }
-        | mir::Instruction::GlobalAddr { .. }
-        | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::FunctionBind { .. }
-        | mir::Instruction::FunctionEnvironment { .. }
-        | mir::Instruction::FunctionPointer { .. }
-        | mir::Instruction::FunctionEnvironmentCurrent { .. }
-        | mir::Instruction::LocalAddr { .. }
-        | mir::Instruction::SliceView { .. }
-        | mir::Instruction::SliceLength { .. }
-        | mir::Instruction::DynamicPayload { .. }
-        | mir::Instruction::DynamicType { .. }
-        | mir::Instruction::VariantTag { .. }
-        | mir::Instruction::VariantPayload { .. }
-        | mir::Instruction::Assume { .. }
-        | mir::Instruction::ProfileIncrement { .. }
-        | mir::Instruction::ProfileValue { .. } => INLINE_COST_SIMPLE,
-        mir::Instruction::VectorSplat { .. }
-        | mir::Instruction::VectorExtract { .. }
-        | mir::Instruction::VectorInsert { .. }
-        | mir::Instruction::VectorShuffle { .. }
-        | mir::Instruction::VectorSelect { .. }
-        | mir::Instruction::VectorReduce { .. }
-        | mir::Instruction::VectorCompare { .. }
-        | mir::Instruction::VectorConvert { .. }
-        | mir::Instruction::TensorSplat { .. }
-        | mir::Instruction::TensorExtract { .. }
-        | mir::Instruction::TensorReshape { .. }
-        | mir::Instruction::TensorBroadcast { .. }
-        | mir::Instruction::TensorTranspose { .. }
-        | mir::Instruction::TensorCast { .. }
-        | mir::Instruction::TensorView { .. }
-        | mir::Instruction::TensorSlice { .. }
-        | mir::Instruction::TensorPad { .. }
-        | mir::Instruction::TensorConcat { .. }
-        | mir::Instruction::TensorReduce { .. }
-        | mir::Instruction::TensorIndexReduce { .. }
-        | mir::Instruction::TensorDot { .. }
-        | mir::Instruction::TensorConvolution { .. }
-        | mir::Instruction::TensorGather { .. }
-        | mir::Instruction::TensorScatter { .. }
-        | mir::Instruction::TensorCompare { .. }
-        | mir::Instruction::TensorSelect { .. }
-        | mir::Instruction::TensorConvert { .. } => INLINE_COST_SIMPLE,
-        mir::Instruction::TensorLoad { .. }
-        | mir::Instruction::TensorStore { .. }
-        | mir::Instruction::TensorFill { .. }
-        | mir::Instruction::TensorCopy { .. } => INLINE_COST_MEMORY,
-        mir::Instruction::Load { .. }
-        | mir::Instruction::Store { .. }
-        | mir::Instruction::AtomicLoad { .. }
-        | mir::Instruction::AtomicStore { .. }
-        | mir::Instruction::AtomicCompareExchange { .. }
-        | mir::Instruction::AtomicRmw { .. }
-        | mir::Instruction::AtomicFence { .. }
-        | mir::Instruction::BarrierWrite { .. } => INLINE_COST_MEMORY,
-        mir::Instruction::FieldGet { .. }
-        | mir::Instruction::FieldSet { .. }
-        | mir::Instruction::FieldAddr { .. }
-        | mir::Instruction::ElementAddr { .. } => INLINE_COST_SIMPLE + 1,
-        mir::Instruction::Struct { fields, .. } => {
-            INLINE_COST_SIMPLE + tree.get_values(*fields).len() as u64
-        }
-        mir::Instruction::Tuple { elements, .. } => {
-            INLINE_COST_SIMPLE + tree.get_values(*elements).len() as u64
-        }
-        mir::Instruction::Array { elements, .. } => {
-            INLINE_COST_SIMPLE + tree.get_values(*elements).len() as u64
-        }
-        mir::Instruction::Call { .. } => INLINE_COST_CALL,
-        mir::Instruction::CallVirtual { .. } | mir::Instruction::CallDynamic { .. } => {
-            INLINE_COST_CALL_INDIRECT
-        }
-        mir::Instruction::CallIndirect { .. } => INLINE_COST_CALL_INDIRECT,
-        mir::Instruction::NewZeroed { .. }
-        | mir::Instruction::NewUninit { .. }
-        | mir::Instruction::NewComplete { .. }
-        | mir::Instruction::NewSliceZeroed { .. }
-        | mir::Instruction::NewSliceUninit { .. }
-        | mir::Instruction::Free { .. }
-        | mir::Instruction::Pin { .. }
-        | mir::Instruction::Unpin { .. }
-        | mir::Instruction::FrameAllocZeroed { .. }
-        | mir::Instruction::FrameAllocUninit { .. } => INLINE_COST_ALLOC,
-        mir::Instruction::Intrinsic { intrinsic, .. } => {
-            if intrinsic.has_memory_effects() {
-                INLINE_COST_MEMORY + 2
-            } else {
-                INLINE_COST_SIMPLE + 1
-            }
-        }
-    }
-}
-
-/// Compute the cost of a terminator.
-fn terminator_cost(terminator: &mir::Terminator) -> u64 {
-    match terminator {
-        mir::Terminator::Error => {
-            panic!("invalid MIR terminator reached optimizer");
-        }
-        mir::Terminator::Return { .. } => INLINE_COST_SIMPLE,
-        mir::Terminator::Panic { .. } | mir::Terminator::UnwindResume => INLINE_COST_SIMPLE + 1,
-        mir::Terminator::Trap { .. } => INLINE_COST_SIMPLE + 1,
-        mir::Terminator::Jump { .. } => INLINE_COST_SIMPLE,
-        mir::Terminator::Branch { .. }
-        | mir::Terminator::Check { .. }
-        | mir::Terminator::NewZeroedTry { .. }
-        | mir::Terminator::NewUninitTry { .. }
-        | mir::Terminator::NewSliceZeroedTry { .. }
-        | mir::Terminator::NewSliceUninitTry { .. }
-        | mir::Terminator::Switch { .. }
-        | mir::Terminator::Yield { .. } => INLINE_COST_SIMPLE + 1,
-        mir::Terminator::Call { .. } => INLINE_COST_CALL + 1,
-        mir::Terminator::CallIndirect { .. }
-        | mir::Terminator::CallVirtual { .. }
-        | mir::Terminator::CallDynamic { .. } => INLINE_COST_CALL_INDIRECT + 1,
-        mir::Terminator::Unreachable => 0,
-        mir::Terminator::TailCall { .. } => INLINE_COST_CALL,
-        mir::Terminator::TailCallVirtual { .. } | mir::Terminator::TailCallDynamic { .. } => {
-            INLINE_COST_CALL_INDIRECT
-        }
-        mir::Terminator::TailCallIndirect { .. } => INLINE_COST_CALL_INDIRECT,
-    }
 }
 
 #[cfg(test)]
@@ -1583,7 +1422,7 @@ entry:
         let callee = test.tree.get(callee_id);
         let mut callee_load = None;
         let mut callee_pointer = None;
-        for block_id in &callee.blocks {
+        for block_id in callee.blocks() {
             let block = test.tree.get(*block_id);
             for instruction_id in &block.instructions {
                 if let mir::Instruction::Load { pointer, .. } = test.tree.get(*instruction_id) {
@@ -1612,7 +1451,7 @@ entry:
         let caller = test.tree.get(caller_id);
         let mut inlined_load = None;
         let mut inlined_pointer = None;
-        for block_id in &caller.blocks {
+        for block_id in caller.blocks() {
             let block = test.tree.get(*block_id);
             for instruction_id in &block.instructions {
                 if let mir::Instruction::Load { pointer, .. } = test.tree.get(*instruction_id) {
@@ -1849,8 +1688,9 @@ entry0:
     /// Block profiles can classify hotness for missing callsite data.
     #[test]
     fn test_inline_hotness_from_block_count() {
-        let hot = CallsiteHotness::from_counts(100, 100);
-        let cold = CallsiteHotness::from_counts(1, 100);
+        let hotness = mir::HotnessThresholds::default();
+        let hot = hotness.classify(100, 100);
+        let cold = hotness.classify(1, 100);
 
         assert_eq!(hot, CallsiteHotness::Hot);
         assert_eq!(cold, CallsiteHotness::Cold);

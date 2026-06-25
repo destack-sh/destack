@@ -62,7 +62,7 @@ impl FunctionPass for LoadPre {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -153,7 +153,7 @@ fn run_load_pre(
     let mut changed = false;
 
     // scan each block for eligible loads
-    let block_ids = function.blocks.clone();
+    let block_ids = function.blocks().to_vec();
     for block_id in block_ids {
         // collect block parameters for edge resolution
         let block = tree.get(block_id).clone();
@@ -252,9 +252,13 @@ fn run_load_pre(
                     let load_id = tree.insert(load_instruction);
 
                     // append the new load before the terminator
-                    let mut insertion_block_data = tree.get(insertion_block).clone();
-                    insertion_block_data.instructions.push(load_id);
-                    tree.set(insertion_block, insertion_block_data);
+                    let mut insertion_instructions = tree.get(insertion_block).instructions.clone();
+                    insertion_instructions.push(load_id);
+                    function.replace_block_instructions(
+                        insertion_block,
+                        insertion_instructions,
+                        tree,
+                    );
 
                     // clone memory access metadata when present
                     clone_load_metadata(tree, load.load_id, load_id, insertion.pointer);
@@ -703,10 +707,10 @@ external function readOnly(): void
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let function = test.tree.get(function_id);
-        let join_block = function.blocks[3];
+        let join_block = function.block(3);
         let call_inst = test.instructions_in_block(join_block)[0];
         let callsite = mir::CallSite::Instruction(call_inst);
-        let metadata = test.tree.metadata.functions.call_mut(callsite);
+        let metadata = test.tree.metadata.effects.call_mut(callsite);
         metadata.memory = mir::MemoryEffect::read_only(mir::SpaceSet::ANY);
         metadata.behavior = mir::FunctionBehavior::none();
 
@@ -738,7 +742,7 @@ b3:
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let join_block = function.blocks[3];
+        let join_block = function.block(3);
         let load_inst = test.instructions_in_block(join_block)[0];
 
         test.insert_pointer_access_with_options(
@@ -778,7 +782,7 @@ b3:
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let join_block = function.blocks[3];
+        let join_block = function.block(3);
         let load_inst = test.instructions_in_block(join_block)[0];
 
         let access = mir::MemoryAccessMetadata {

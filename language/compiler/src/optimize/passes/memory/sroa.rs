@@ -61,7 +61,7 @@ impl FunctionPass for Sroa {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip empty functions
-        let entry = match function.entry {
+        let entry = match function.entry() {
             Some(entry) => entry,
             None => return Mutation::NONE,
         };
@@ -211,7 +211,7 @@ fn find_splittable_allocations_core(
     let mut candidates = Vec::new();
 
     // collect all stack allocations of aggregate types
-    let block_ids: Vec<_> = function.blocks.clone();
+    let block_ids = function.blocks().to_vec();
 
     for &block_id in &block_ids {
         let block = tree.get(block_id).clone();
@@ -341,7 +341,7 @@ fn analyze_uses(
         }
 
         // find all uses of this value
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
 
             for &inst_id in &block.instructions {
@@ -486,6 +486,7 @@ fn split_allocation(
 ) -> bool {
     // create new allocations for each element
     let mut new_allocs: Vec<mir::Value> = Vec::new();
+    let mut new_alloc_instructions: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
 
     for &elem_type in &candidate.element_types {
         let result_type = tree.insert_type(mir::Type::Reference {
@@ -508,8 +509,16 @@ fn split_allocation(
 
         // insert at the start of the entry block (after existing allocs)
         let new_inst_id = tree.insert(new_inst);
-        let entry_block = tree.get_mut(entry);
-        entry_block.instructions.insert(0, new_inst_id);
+        new_alloc_instructions.push(new_inst_id);
+    }
+
+    // prepend replacement allocations to the entry block
+    if !new_alloc_instructions.is_empty() {
+        let entry_block = tree.get(entry);
+        let mut entry_instructions = new_alloc_instructions;
+        entry_instructions.reverse();
+        entry_instructions.extend(entry_block.instructions.iter().copied());
+        function.replace_block_instructions(entry, entry_instructions, tree);
     }
 
     // build mapping from field/element index to new value
@@ -544,7 +553,7 @@ fn split_allocation(
     let base_stores: HashSet<_> = candidate.base_stores.iter().copied().collect();
 
     // rewrite instructions per block
-    let block_ids: Vec<_> = function.blocks.clone();
+    let block_ids = function.blocks().to_vec();
     for &block_id in &block_ids {
         let instruction_ids = {
             let block = tree.get(block_id);
@@ -579,10 +588,8 @@ fn split_allocation(
             new_instructions.push(instruction_id);
         }
 
-        let mut block = tree.get(block_id).clone();
-        if block.instructions != new_instructions {
-            block.instructions = new_instructions;
-            tree.set(block_id, block);
+        if tree.get(block_id).instructions != new_instructions {
+            function.replace_block_instructions(block_id, new_instructions, tree);
         }
     }
 
@@ -722,7 +729,7 @@ fn apply_substitutions(
         return;
     }
 
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // substitute in instructions
         let instruction_ids = {
             let block = tree.get(block_id);
@@ -756,7 +763,7 @@ mod tests {
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> mir::LocalNodeId<mir::Instruction> {
         let function = test.tree.get(function_id);
-        for block_id in &function.blocks {
+        for block_id in function.blocks() {
             let block = test.tree.get(*block_id);
             for &instruction_id in &block.instructions {
                 if matches!(test.tree.get(instruction_id), mir::Instruction::Load { .. }) {

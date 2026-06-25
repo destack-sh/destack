@@ -6,14 +6,14 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, AliasResult, ConstantPropagation, MemoryAccess, MemoryAccessEffect,
-    MemoryAccessId, MemoryDef, MemoryEffectTarget, MemorySSA, Mutation, ValueDefinitions,
-    ValueEquivalence, build_instruction_block_map,
+    MemoryAccessId, MemoryDef, MemoryRegion, MemorySSA, Mutation, ValueDefinitions,
+    ValueEquivalence,
 };
 
 declare_pass! {
     /// Remove redundant memory stores.
     ///
-    /// Eliminates stores that write the same value as the last clobbering definition of the same location.
+    /// Eliminates stores that write the same value as the last clobbering definition of the same region.
     /// This is distinct from dead store elimination:
     ///  the store can be removed even if the value is later read,
     ///  because the memory contents are unchanged.
@@ -54,7 +54,7 @@ impl FunctionPass for MemCse {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip empty functions
-        let _entry = match function.entry {
+        let _entry = match function.entry() {
             Some(entry) => entry,
             None => return Mutation::NONE,
         };
@@ -171,12 +171,9 @@ fn run_mem_cse(
     // build definition map for value equivalence checks
     let definitions = ValueDefinitions::build(function, tree).instruction_map();
 
-    // build instruction block map for constant lookups
-    let instruction_blocks = build_instruction_block_map(function, tree);
-
     // prepare value equivalence
     let mut equivalence =
-        ValueEquivalence::new_with_constants(tree, &definitions, constants, &instruction_blocks);
+        ValueEquivalence::new_with_constants(function, tree, &definitions, constants);
 
     // collect redundant stores
     let mut redundant = HashSet::new();
@@ -194,9 +191,10 @@ fn run_mem_cse(
     }
 
     // remove redundant instructions
-    for &block_id in &function.blocks {
-        let block = tree.get_mut(block_id);
-        block.instructions.retain(|id| !redundant.contains(id));
+    for block_id in function.blocks().to_vec() {
+        let mut instructions = tree.get(block_id).instructions.clone();
+        instructions.retain(|id| !redundant.contains(id));
+        function.replace_block_instructions(block_id, instructions, tree);
     }
 
     true
@@ -211,7 +209,7 @@ fn collect_candidates(
     let mut candidates = Vec::new();
 
     // scan blocks for store like instructions
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
 
         // scan instructions for candidates
@@ -337,11 +335,8 @@ fn candidate_is_redundant(
             return false;
         }
 
-        // confirm both defs touch the same location
-        if !candidate
-            .effect
-            .matches_location(alias, &clobber_def.effect)
-        {
+        // confirm both defs touch the same region
+        if !candidate.effect.matches_region(alias, &clobber_def.effect) {
             return false;
         }
 
@@ -494,10 +489,7 @@ fn memop_source_access(
             continue;
         };
 
-        if matches!(
-            use_access.effect.location,
-            MemoryEffectTarget::Reference { .. }
-        ) {
+        if matches!(use_access.effect.region, MemoryRegion::Reference { .. }) {
             if source_access.is_some() {
                 return None;
             }
@@ -544,20 +536,18 @@ fn memop_alias_result(
 ) -> AliasResult {
     // apply location sets
     if !dest_effect
-        .location
+        .region
         .spaces()
-        .may_alias(source_effect.location.spaces())
+        .may_alias(source_effect.region.spaces())
     {
         return AliasResult::NoAlias;
     }
 
     // ask alias analysis for reference locations
-    match (&dest_effect.location, &source_effect.location) {
+    match (&dest_effect.region, &source_effect.region) {
         (
-            MemoryEffectTarget::Reference { location: dest, .. },
-            MemoryEffectTarget::Reference {
-                location: source, ..
-            },
+            MemoryRegion::Reference { access: dest, .. },
+            MemoryRegion::Reference { access: source, .. },
         ) => alias.alias(dest, source),
         _ => AliasResult::MayAlias,
     }
@@ -778,7 +768,7 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.metadata.functions.function_mut(callee).memory =
+        test.tree.metadata.effects.function_mut(callee).memory =
             mir::MemoryEffect::read_only(mir::SpaceSet::ANY);
 
         test.run_pass(&MemCse);
@@ -809,7 +799,7 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.metadata.functions.function_mut(callee).memory =
+        test.tree.metadata.effects.function_mut(callee).memory =
             mir::MemoryEffect::read_write(mir::SpaceSet::ANY);
 
         test.run_pass(&MemCse);
@@ -856,7 +846,7 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.metadata.functions.function_mut(callee).memory =
+        test.tree.metadata.effects.function_mut(callee).memory =
             mir::MemoryEffect::write_only(mir::SpaceSet::LOCAL);
 
         test.run_pass(&MemCse);
@@ -903,7 +893,7 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.metadata.functions.function_mut(callee).memory =
+        test.tree.metadata.effects.function_mut(callee).memory =
             mir::MemoryEffect::write_only(mir::SpaceSet::SHARED);
 
         test.run_pass(&MemCse);
@@ -971,7 +961,7 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let block = test.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.block(0));
         let pointer = *test
             .frame_alloc_destinations_in_entry(function_id)
             .first()
@@ -1009,7 +999,7 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let block = test.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.block(0));
         let pointer = *test
             .frame_alloc_destinations_in_entry(function_id)
             .first()

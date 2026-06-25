@@ -5,9 +5,9 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ByteRange, MemoryAccess, MemoryAccessId, MemoryEffectTarget, MemoryPlace,
-    MemorySSA, MemoryTarget, MemoryTargetBuilder, Mutation, PostDominatorTree, RangeRelation,
-    TargetLayout, ValueDefinitions, ValueTypeMap,
+    AliasAnalysis, ByteRange, MemoryAccess, MemoryAccessId, MemoryPlace, MemoryRegion,
+    MemoryRegionBuilder, MemorySSA, Mutation, PostDominatorTree, RangeRelation, TargetLayout,
+    ValueDefinitions, ValueTypes,
 };
 
 declare_pass! {
@@ -62,7 +62,7 @@ impl FunctionPass for DeadStoreEliminate {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip empty functions
-        let _entry = match function.entry {
+        let _entry = match function.entry() {
             Some(entry) => entry,
             None => return Mutation::NONE,
         };
@@ -73,7 +73,7 @@ impl FunctionPass for DeadStoreEliminate {
         let cfg = analyses.get::<mir::ControlFlowGraph>(function, tree);
         let postdom = PostDominatorTree::build(function, tree, &cfg);
 
-        let value_types = ValueTypeMap::new(function, tree);
+        let value_types = analyses.get::<ValueTypes>(function, tree);
 
         // run dead store elimination
         let changed = run_dead_store_eliminate(
@@ -111,7 +111,7 @@ fn run_dead_store_eliminate(
     tree: &mut mir::Tree,
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
     postdom: &PostDominatorTree,
     target_layout: TargetLayout,
 ) -> bool {
@@ -155,8 +155,8 @@ fn run_dead_store_eliminate(
             continue;
         }
 
-        // skip imprecise targets
-        if matches!(store.location, MemoryEffectTarget::Any { .. }) {
+        // skip imprecise regions
+        if matches!(store.region, MemoryRegion::Any { .. }) {
             continue;
         }
 
@@ -195,9 +195,10 @@ fn run_dead_store_eliminate(
     }
 
     // remove dead stores
-    for &block_id in &function.blocks {
-        let block = tree.get_mut(block_id);
-        block.instructions.retain(|id| !dead_stores.contains(id));
+    for block_id in function.blocks().to_vec() {
+        let mut instructions = tree.get(block_id).instructions.clone();
+        instructions.retain(|id| !dead_stores.contains(id));
+        function.replace_block_instructions(block_id, instructions, tree);
     }
 
     true
@@ -217,7 +218,7 @@ struct StoreCandidate {
     /// Optional pointer for reference locations.
     pointer: Option<mir::Value>,
     /// Access location for the store.
-    location: MemoryEffectTarget,
+    region: MemoryRegion,
     /// True when the store is volatile.
     is_volatile: bool,
     /// True when the store is a barrier.
@@ -245,7 +246,7 @@ fn collect_store_candidates(
     let mut stores = Vec::new();
 
     // scan blocks for store instructions
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // read the block
         let block = tree.get(block_id);
 
@@ -281,8 +282,8 @@ fn collect_store_candidates(
                 };
 
                 // resolve reference locations when available
-                let pointer = match &def_access.effect.location {
-                    MemoryEffectTarget::Reference { location, .. } => Some(location.reference),
+                let pointer = match &def_access.effect.region {
+                    MemoryRegion::Reference { access, .. } => Some(access.reference),
                     _ => None,
                 };
 
@@ -293,7 +294,7 @@ fn collect_store_candidates(
                     block: block_id,
                     index,
                     pointer,
-                    location: def_access.effect.location.clone(),
+                    region: def_access.effect.region.clone(),
                     is_volatile: def_access.effect.is_volatile,
                     is_barrier: def_access.effect.is_barrier,
                 });
@@ -314,7 +315,7 @@ fn collect_def_accesses(
     let mut defs = Vec::new();
 
     // scan blocks for def accesses
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // read the block
         let block = tree.get(block_id);
 
@@ -354,7 +355,7 @@ fn collect_live_defs(
     let mut live_defs = HashSet::new();
 
     // scan blocks for read accesses
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // read the block
         let block = tree.get(block_id);
 
@@ -381,7 +382,7 @@ fn collect_live_defs(
 
                         // record the def that feeds the read portion
                         let clobber =
-                            memory_ssa.clobbering_read(access_id, &def_access.effect.location, aa);
+                            memory_ssa.clobbering_read(access_id, &def_access.effect.region, aa);
                         record_live_clobber(clobber, memory_ssa, &mut live_defs);
                     }
                     _ => {}
@@ -441,7 +442,7 @@ fn collect_frame_alloc_reads(
     let mut reads = HashSet::new();
 
     // scan blocks for read accesses
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // read the block
         let block = tree.get(block_id);
 
@@ -457,15 +458,14 @@ fn collect_frame_alloc_reads(
                 let MemoryAccess::Use(use_access) = memory_ssa.access(access_id) else {
                     continue;
                 };
-                let MemoryEffectTarget::Reference { location, .. } = &use_access.effect.location
-                else {
+                let MemoryRegion::Reference { access, .. } = &use_access.effect.region else {
                     continue;
                 };
 
                 // resolve stack bases for the pointer
                 let mut visited = HashSet::new();
                 definitions.collect_frame_alloc_bases(
-                    location.reference,
+                    access.reference,
                     tree,
                     frame_allocs,
                     &mut visited,
@@ -487,7 +487,7 @@ fn store_is_non_escaping_stack(
     tree: &mir::Tree,
 ) -> bool {
     // only reference locations can be stack allocations
-    let MemoryEffectTarget::Reference { .. } = store.location else {
+    let MemoryRegion::Reference { .. } = store.region else {
         return false;
     };
 
@@ -508,7 +508,6 @@ fn store_is_non_escaping_stack(
     non_escaping_frame_allocs.contains(&base)
 }
 
-/// Return true when a later clobbering def postdominates the store.
 /// Return true when the store is postdominated by a clobbering access.
 fn store_is_postdominated_by_clobber(
     store: &StoreCandidate,
@@ -519,10 +518,10 @@ fn store_is_postdominated_by_clobber(
     function: &mir::Function,
     tree: &mir::Tree,
     definitions: &ValueDefinitions,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
     target_layout: TargetLayout,
 ) -> bool {
-    let mut targets = MemoryTargetBuilder::new(
+    let mut regions = MemoryRegionBuilder::new(
         definitions,
         tree,
         &function.parameters,
@@ -555,7 +554,7 @@ fn store_is_postdominated_by_clobber(
 
         // return once a clobbering def is found
         if let Some(overwrites) =
-            def_fully_overwrites_store(&def_access.effect.location, &store.location, &mut targets)
+            def_fully_overwrites_store(&def_access.effect.region, &store.region, &mut regions)
         {
             if overwrites && memory_ssa.def_clobbers_access(def.access, store.access, aa) {
                 return true;
@@ -564,7 +563,7 @@ fn store_is_postdominated_by_clobber(
             continue;
         }
 
-        if matches!(store.location, MemoryEffectTarget::Local(_))
+        if matches!(store.region, MemoryRegion::Local(_))
             && memory_ssa.def_clobbers_access(def.access, store.access, aa)
         {
             return true;
@@ -576,53 +575,54 @@ fn store_is_postdominated_by_clobber(
 
 /// Return true when a def fully overwrites the store location.
 fn def_fully_overwrites_store(
-    def_location: &MemoryEffectTarget,
-    store_location: &MemoryEffectTarget,
-    targets: &mut MemoryTargetBuilder<'_>,
+    overwrite_region: &MemoryRegion,
+    store_region: &MemoryRegion,
+    regions: &mut MemoryRegionBuilder<'_>,
 ) -> Option<bool> {
-    let MemoryEffectTarget::Reference {
-        location: def_loc, ..
-    } = def_location
-    else {
-        return None;
-    };
-    let MemoryEffectTarget::Reference {
-        location: store_loc,
+    let MemoryRegion::Reference {
+        access: overwrite_access,
         ..
-    } = store_location
+    } = overwrite_region
+    else {
+        return None;
+    };
+    let MemoryRegion::Reference {
+        access: store_access,
+        ..
+    } = store_region
     else {
         return None;
     };
 
-    let def_size = def_loc.size?;
-    let store_size = store_loc.size?;
+    let overwrite_size = overwrite_access.size?;
+    let store_size = store_access.size?;
 
-    let def_target = targets.target(def_loc.reference);
-    let store_target = targets.target(store_loc.reference);
+    let overwrite_region = regions.region(overwrite_access.reference);
+    let store_region = regions.region(store_access.reference);
 
-    let MemoryTarget::Place(def_place) = def_target else {
+    let MemoryRegion::Place(overwrite_place) = overwrite_region else {
         return None;
     };
-    let MemoryTarget::Place(store_place) = store_target else {
+    let MemoryRegion::Place(store_place) = store_region else {
         return None;
     };
 
     // require constant offsets and identical field paths
-    if !place_is_constant(&def_place) || !place_is_constant(&store_place) {
+    if !place_is_constant(&overwrite_place) || !place_is_constant(&store_place) {
         return None;
     }
-    if def_place.fields != store_place.fields {
+    if overwrite_place.fields != store_place.fields {
         return None;
     }
 
     // disjoint identified storage cannot overwrite
-    if def_place.storage != store_place.storage {
+    if overwrite_place.root != store_place.root {
         return Some(false);
     }
 
-    let def_range = ByteRange::new(def_place.const_offset, def_size);
+    let overwrite_range = ByteRange::new(overwrite_place.const_offset, overwrite_size);
     let store_range = ByteRange::new(store_place.const_offset, store_size);
-    let relation = def_range.relation(store_range);
+    let relation = overwrite_range.relation(store_range);
 
     match relation {
         RangeRelation::Equal | RangeRelation::Contains => Some(true),
@@ -854,7 +854,7 @@ entry:
         };
 
         let call = mir::CallSite::Instruction(call_inst);
-        let metadata = test.tree.metadata.functions.call_mut(call);
+        let metadata = test.tree.metadata.effects.call_mut(call);
         metadata.memory = mir::MemoryEffect::none();
         metadata.arguments = vec![arg0];
 
@@ -1313,7 +1313,7 @@ entry(v0: ref<Point, raw, mutable>):
     /// Cross-block dead store: store overwritten in successor block.
     ///
     /// When a store is followed by an unconditional jump to a block that
-    /// overwrites the same location before any read, the first store is dead.
+    /// overwrites the same region before any read, the first store is dead.
     #[test]
     fn test_cross_block_overwritten() {
         let input = r#"

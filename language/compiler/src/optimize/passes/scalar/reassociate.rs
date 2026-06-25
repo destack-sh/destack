@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    ConstantMap, ConstantPropagation, InstructionRef, Mutation, ValueTypeMap,
+    ConstantMap, ConstantPropagation, InstructionRef, Mutation, ValueTypes,
     build_value_instruction_refs, fold_binary,
 };
 
@@ -56,9 +56,10 @@ impl FunctionPass for Reassociate {
     ) -> Mutation {
         // collect constant propagation state
         let constants = { analyses.get::<ConstantPropagation>(function, tree).clone() };
+        let value_types = analyses.get::<ValueTypes>(function, tree);
 
         // run reassociation
-        let changed = run_reassociate(function, tree, &constants);
+        let changed = run_reassociate(function, tree, &constants, &value_types);
 
         // report what this pass changed
         if changed {
@@ -82,18 +83,16 @@ fn run_reassociate(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     constants: &ConstantPropagation,
+    value_types: &ValueTypes,
 ) -> bool {
     // build lookup for value definitions
     let mut value_to_instruction = build_value_instruction_refs(function, tree);
-
-    // build value type lookup
-    let value_types = ValueTypeMap::new(function, tree);
 
     // track whether any changes were made
     let mut changed = false;
 
     // walk blocks in order
-    let block_ids = function.blocks.clone();
+    let block_ids = function.blocks().to_vec();
     for block_id in block_ids {
         // seed constant map for this block
         let mut block_constants = constants.entry(block_id).clone();
@@ -230,9 +229,7 @@ fn run_reassociate(
 
         // update block instructions when needed
         if new_instructions != block.instructions {
-            let mut updated_block = block.clone();
-            updated_block.instructions = new_instructions;
-            tree.set(block_id, updated_block);
+            function.replace_block_instructions(block_id, new_instructions, tree);
             changed = true;
         }
     }

@@ -101,11 +101,11 @@ fn collect_used_globals(tree: &mir::Tree) -> HashSet<mir::LocalNodeId<mir::Globa
     let mut used = HashSet::new();
 
     for (_, function) in tree.iter_nodes::<mir::Function>() {
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             continue;
         }
 
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
 
             for &instruction_id in &block.instructions {

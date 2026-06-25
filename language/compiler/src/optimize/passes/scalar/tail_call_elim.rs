@@ -64,7 +64,7 @@ fn run_tail_call_elimination(tree: &mut mir::Tree, strings: &StringPool) -> bool
         let function = tree.get(function_id);
 
         // skip imported functions
-        let Some(entry_block) = function.entry else {
+        let Some(entry_block) = function.entry() else {
             continue;
         };
 
@@ -78,7 +78,7 @@ fn run_tail_call_elimination(tree: &mut mir::Tree, strings: &StringPool) -> bool
         }
 
         // phase 2: transform self-recursive tail calls to jumps
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             if transform_self_recursive_tail_call(block_id, function_id, entry_block, tree) {
                 changed = true;
             }
@@ -86,7 +86,7 @@ fn run_tail_call_elimination(tree: &mut mir::Tree, strings: &StringPool) -> bool
 
         // phase 3: transform sibling tail calls (calls to OTHER functions)
         // These become TailCall terminators for codegen optimization
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             if transform_sibling_tail_call(block_id, function_id, tree) {
                 changed = true;
             }
@@ -344,7 +344,7 @@ fn clone_function_as_impl(
         HashMap::new();
 
     // clone all blocks
-    for &old_block_id in &original.blocks {
+    for &old_block_id in original.blocks() {
         // clone block first to release borrow on tree
         let old_block = tree.get(old_block_id).clone();
 
@@ -379,9 +379,9 @@ fn clone_function_as_impl(
     }
 
     // create impl function
-    let impl_entry = block_map[&original.entry.unwrap()];
-    let impl_blocks: Vec<_> = original.blocks.iter().map(|id| block_map[id]).collect();
-    let mut impl_function = mir::Function::local(
+    let impl_entry = block_map[&original.entry().unwrap()];
+    let impl_blocks: Vec<_> = original.blocks().iter().map(|id| block_map[id]).collect();
+    let mut impl_function = mir::Function::define(
         impl_name,
         original.lifetimes.clone(),
         original.parameters.clone(),
@@ -391,9 +391,9 @@ fn clone_function_as_impl(
     impl_function.linkage = mir::Linkage::Local;
     impl_function.allocation = original.allocation;
     impl_function.suspension = original.suspension;
-    impl_function.locals = original.locals.clone();
-    impl_function.blocks = impl_blocks;
-    impl_function.value_types = original.value_types.clone();
+    impl_function.replace_locals(original.locals().to_vec());
+    impl_function.replace_blocks(impl_blocks, tree);
+    impl_function.replace_value_types(original.value_types().to_vec());
 
     // recompute next_value_id after cloning
     impl_function.recompute_next_value_id(tree);
@@ -665,7 +665,7 @@ fn rewrite_as_wrapper(
     tree.set(entry_block, new_entry);
 
     // clear other blocks from function (they're now orphaned, DCE will clean up)
-    function.blocks = vec![entry_block];
+    function.replace_blocks(vec![entry_block], tree);
 }
 
 /// Information about a call site that needs to be updated.
@@ -694,12 +694,12 @@ fn find_external_call_sites(
     // scan all functions in the module
     for (func_id, func) in tree.iter_nodes::<mir::Function>() {
         // skip imported functions (no body)
-        let Some(_entry) = func.entry else {
+        let Some(_entry) = func.entry() else {
             continue;
         };
 
         // check all blocks in this function
-        for &block_id in &func.blocks {
+        for &block_id in func.blocks() {
             // skip the recursive call blocks (they become jumps)
             if func_id == target_function_id && recursive_call_blocks.contains(&block_id) {
                 continue;
@@ -786,9 +786,7 @@ fn update_call_site(
         }
     }
 
-    let mut new_block = block;
-    new_block.instructions = new_instructions;
-    tree.set(call_site.block_id, new_block);
+    tree.replace_block_instructions(call_site.function_id, call_site.block_id, new_instructions);
 }
 
 /// Check if an operator is associative (and commutative for safety).
@@ -855,7 +853,7 @@ fn find_accumulator_patterns(
 ) -> Vec<AccumulatorPattern> {
     let mut patterns = Vec::new();
 
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         if let Some(pattern) = detect_accumulator_pattern(block_id, tree, current_function_id) {
             patterns.push(pattern);
         }
@@ -1010,7 +1008,7 @@ fn find_base_case_blocks(
 ) -> Vec<(mir::LocalNodeId<mir::Block>, bool)> {
     let mut base_cases = Vec::new();
 
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
 
@@ -1051,7 +1049,7 @@ fn is_value_identity(
     tree: &mir::Tree,
 ) -> bool {
     // search all blocks for the defining instruction
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         for &instr_id in &block.instructions {
             let instr = tree.get(instr_id);
@@ -1120,11 +1118,9 @@ fn transform_accumulator_block(
     };
 
     // replace the block
-    let block = tree.get(pattern.block_id);
-    let mut new_block = block.clone();
-    new_block.instructions = new_instructions;
-    tree.set(new_block.terminator, new_terminator);
-    tree.set(pattern.block_id, new_block);
+    let terminator_id = tree.get(pattern.block_id).terminator;
+    function.replace_block_instructions(pattern.block_id, new_instructions, tree);
+    tree.set(terminator_id, new_terminator);
 
     // old instructions become orphaned (not referenced by any block)
     // they will be cleaned up by DCE or tree compaction
@@ -1155,12 +1151,10 @@ fn transform_base_case_block(
 
     if is_identity {
         // just return the accumulator
-        let new_block = block;
         let new_terminator = mir::Terminator::Return {
             value: Some(acc_value),
         };
-        tree.set(new_block.terminator, new_terminator);
-        tree.set(block_id, new_block);
+        tree.set(block.terminator, new_terminator);
     } else {
         // return OP(acc, original_value)
         let acc_type = function.return_type;
@@ -1174,13 +1168,14 @@ fn transform_base_case_block(
         };
         let combine_id = tree.insert(combine_instr);
 
-        let mut new_block = block;
-        new_block.instructions.push(combine_id);
+        let mut instructions = block.instructions.clone();
+        instructions.push(combine_id);
         let new_terminator = mir::Terminator::Return {
             value: Some(result_val),
         };
-        tree.set(new_block.terminator, new_terminator);
-        tree.set(block_id, new_block);
+        let terminator_id = block.terminator;
+        function.replace_block_instructions(block_id, instructions, tree);
+        tree.set(terminator_id, new_terminator);
     }
 }
 
@@ -1252,10 +1247,8 @@ fn transform_self_recursive_tail_call(
         target: mir::BlockTarget::new(entry_block, jump_arguments),
     };
 
-    let mut new_block = tree.get(block_id).clone();
-    new_block.instructions = new_instructions;
     tree.set(terminator_id, new_terminator);
-    tree.set(block_id, new_block);
+    tree.replace_block_instructions(current_function_id, block_id, new_instructions);
 
     true
 }
@@ -1329,10 +1322,8 @@ fn transform_sibling_tail_call(
                 call: mir::Call::new(call_args, signature),
             };
 
-            let mut new_block = tree.get(block_id).clone();
-            new_block.instructions = new_instructions;
             tree.set(terminator_id, new_terminator);
-            tree.set(block_id, new_block);
+            tree.replace_block_instructions(current_function_id, block_id, new_instructions);
 
             true
         }
@@ -1371,10 +1362,8 @@ fn transform_sibling_tail_call(
                 call: mir::Call::new(call_args, signature),
             };
 
-            let mut new_block = tree.get(block_id).clone();
-            new_block.instructions = new_instructions;
             tree.set(terminator_id, new_terminator);
-            tree.set(block_id, new_block);
+            tree.replace_block_instructions(current_function_id, block_id, new_instructions);
 
             true
         }

@@ -45,7 +45,7 @@ impl FunctionPass for ValueRangePropagation {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -84,7 +84,7 @@ fn run_value_range_propagation(
     let mut changed = false;
 
     // walk blocks and fold constant range results
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // read block ranges and instructions
         let block = tree.get(block_id);
         let exit_ranges = ranges.exit(block_id);

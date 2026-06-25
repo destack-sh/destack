@@ -29,30 +29,19 @@ fn test_target_id_for_package(package_id: PackageId, name: &str) -> TargetId {
     TargetId::new(package_id, name)
 }
 
-/// Format one MIR fixture into canonical text.
-fn canonical_mir_text(source: &str) -> String {
-    let (tree, strings) = match mir::parse::Parser::parse(
-        FileId::new(0),
-        source,
-        mir::parse::ParseOptions::default(),
-    )
-    .finish()
+/// Validate one expected MIR fixture and return its literal text.
+fn expected_mir_text(source: &str) -> String {
+    match mir::parse::Parser::parse(FileId::new(0), source, mir::parse::ParseOptions::default())
+        .finish()
     {
-        Ok(parsed) => parsed,
+        Ok(_) => {}
         Err(error) => {
             eprintln!("===EXPECTED_BEGIN===\n{source}\n===EXPECTED_END===");
             panic!("expected MIR fixture is unparseable: {error:?}");
         }
     };
-    let formatted = match mir::format_mir(&tree, &strings, mir::MirFormatOptions::default()) {
-        Ok(formatted) => formatted,
-        Err(error) => {
-            eprintln!("===EXPECTED_BEGIN===\n{source}\n===EXPECTED_END===");
-            panic!("expected MIR fixture failed to format: {error:?}");
-        }
-    };
 
-    formatted.trim().to_string()
+    source.trim().to_string()
 }
 
 /// Require one MIR fixture to parse.
@@ -134,7 +123,7 @@ impl TestProgram {
         self.tree
             .iter_nodes::<mir::Function>()
             .find(|(_, function)| {
-                function.entry.is_some() && self.strings.get(function.name) == "test"
+                function.entry().is_some() && self.strings.get(function.name) == "test"
             })
             .map(|(function_id, _)| function_id)
             .expect("missing test function")
@@ -158,12 +147,12 @@ impl TestProgram {
         let function = self.tree.get(function_id);
 
         // use the explicit entry when present
-        if let Some(entry) = function.entry {
+        if let Some(entry) = function.entry() {
             return entry;
         }
 
         // fall back to the first block when no entry exists
-        *function.blocks.first().expect("missing block")
+        *function.blocks().first().expect("missing block")
     }
 
     /// Return the first intrinsic instruction in a function.
@@ -176,7 +165,7 @@ impl TestProgram {
         let function = self.tree.get(function_id);
 
         // scan blocks in order
-        for block_id in &function.blocks {
+        for block_id in function.blocks() {
             let block = self.tree.get(*block_id);
             for instruction_id in &block.instructions {
                 if matches!(
@@ -241,7 +230,7 @@ impl TestProgram {
         let function = self.tree.get(function_id);
         let mut call_ids = Vec::new();
 
-        for block_id in &function.blocks {
+        for block_id in function.blocks() {
             let block = self.tree.get(*block_id);
             for instruction_id in &block.instructions {
                 if matches!(
@@ -384,7 +373,7 @@ impl TestProgram {
     ) {
         // read the entry block for the function
         let function = self.tree.get(function_id);
-        let block = self.tree.get(function.blocks[0]);
+        let block = self.tree.get(function.block(0));
 
         // locate the first call instruction
         let call_inst = block
@@ -456,7 +445,7 @@ impl TestProgram {
             let mut function = self.tree.get(function_id).clone();
 
             // skip imported functions (no body)
-            if function.entry.is_none() {
+            if function.entry().is_none() {
                 continue;
             }
 
@@ -505,7 +494,7 @@ impl TestProgram {
         function: &mir::Function,
     ) -> (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>) {
         // read the entry block
-        let entry = function.entry.expect("missing entry block");
+        let entry = function.entry().expect("missing entry block");
         let entry_block = self.tree.get(entry);
         let terminator = self.tree.get(entry_block.terminator);
 
@@ -574,7 +563,7 @@ impl TestProgram {
         let (_, function) = self
             .tree
             .iter_nodes::<mir::Function>()
-            .find(|(_, function)| function.blocks.contains(&block))
+            .find(|(_, function)| function.blocks().contains(&block))
             .expect("missing function for profiled block");
 
         // fetch the profile entry created by record_function_entry
@@ -745,7 +734,7 @@ impl TestProgram {
     #[track_caller]
     pub(crate) fn assert_output(&self, expected: &str) {
         let actual = self.format();
-        let expected = canonical_mir_text(expected);
+        let expected = expected_mir_text(expected);
         let actual = actual.trim();
 
         assert_parseable_mir_text(actual);
@@ -820,7 +809,7 @@ impl TestProgram {
     }
 
     // ================================================================================
-    // legacy compatibility
+    // old pass helpers
     // ================================================================================
 
     /// Apply a function pass and return any errors emitted.
@@ -1128,13 +1117,6 @@ entry:
     }
 
     declare_pass! {
-        /// Require call effect metadata for validation in tests.
-        #[pass(id = "test-call-effects", requires(call_effects))]
-        pub(super) TestCallEffectsPass,
-        "Test call effect requirement enforcement"
-    }
-
-    declare_pass! {
         /// Require memory access metadata for validation in tests.
         #[pass(id = "test-memory-access", requires(memory_access_metadata))]
         pub(super) TestMemoryAccessPass,
@@ -1153,21 +1135,6 @@ entry:
         #[pass(id = "test-layout", requires(type_layouts))]
         pub(super) TestLayoutPass,
         "Test layout requirement enforcement"
-    }
-
-    impl ModulePass for TestCallEffectsPass {
-        fn run(
-            &self,
-            _tree: &mut mir::Tree,
-            _ctx: &PipelineContext<'_>,
-            _analyses: &ModuleAnalyses,
-        ) -> Mutation {
-            Mutation::NONE
-        }
-
-        fn name(&self) -> &'static str {
-            "TestCallEffectsPass"
-        }
     }
 
     impl FunctionPass for TestMemoryAccessPass {
@@ -1214,28 +1181,6 @@ entry:
         fn name(&self) -> &'static str {
             "TestLayoutPass"
         }
-    }
-
-    /// Emits an error when call effects metadata is missing.
-    #[test]
-    fn test_requirements_call_effects() {
-        let input = r#"
-function callee(v0: int32): int32 {
-entry(v0: int32):
-    return v0
-}
-
-function root(): int32 {
-entry:
-    v0: int32 = 1
-    v1: int32 = call callee(v0)
-    return v1
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_module_pass(&TestCallEffectsPass);
-        test.assert_error(|e| matches!(e, OptimizeError::MissingRequiredMetadata { .. }));
     }
 
     /// Emits an error when memory access metadata is missing.
@@ -1297,12 +1242,7 @@ entry(v0: int32, v1: int32):
                 _ => None,
             })
             .unwrap_or_else(|| panic!("missing struct type"));
-        let _ = test
-            .tree
-            .metadata
-            .layout
-            .layout_by_type
-            .remove(&struct_type_id);
+        let _ = test.tree.metadata.layouts.types.remove(&struct_type_id);
 
         test.run_module_pass(&TestLayoutPass);
         test.assert_error(|e| matches!(e, OptimizeError::MissingRequiredMetadata { .. }));

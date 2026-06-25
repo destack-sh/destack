@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, Mutation, RangeAnalysis, ScalarEvolution,
-    Scev, TargetLayout, ValueRange, ValueTypeMap, clone_instruction_metadata, constant_is_zero,
+    Scev, TargetLayout, ValueRange, ValueTypes, clone_instruction_metadata, constant_is_zero,
     instruction_is_speculatable, instruction_map, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
@@ -72,7 +72,7 @@ impl FunctionPass for LoopStrengthReduce {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -82,7 +82,7 @@ impl FunctionPass for LoopStrengthReduce {
         let domtree = analyses.get::<DominatorTree>(function, tree).clone();
         let scev = analyses.get::<ScalarEvolution>(function, tree).clone();
         let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
-        let value_types = ValueTypeMap::new(function, tree);
+        let value_types = analyses.get::<ValueTypes>(function, tree);
 
         // skip when no loops are present
         if loops.num_loops() == 0 {
@@ -189,7 +189,7 @@ impl ValueDefinitions {
         let mut definitions = HashMap::new();
 
         // scan blocks for definitions
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             // record block parameters
             let block = tree.get(block_id);
             for param in block.parameters.iter() {
@@ -244,7 +244,7 @@ impl ValueUses {
         let mut uses: HashMap<mir::Value, HashSet<mir::LocalNodeId<mir::Block>>> = HashMap::new();
 
         // scan blocks for uses
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
 
             // scan instructions for uses
@@ -289,7 +289,7 @@ struct StrengthReduceContext<'a> {
     /// Scalar evolution analysis.
     scev: &'a ScalarEvolution,
     /// Value type lookup for the function.
-    value_types: &'a ValueTypeMap,
+    value_types: &'a ValueTypes,
     /// Range analysis for loop invariants.
     ranges: &'a RangeAnalysis,
     /// Type context for layout sensitive operations.
@@ -309,7 +309,7 @@ struct CandidateContext<'a> {
     /// Scalar evolution analysis.
     scev: &'a ScalarEvolution,
     /// Value type lookup for the function.
-    value_types: &'a ValueTypeMap,
+    value_types: &'a ValueTypes,
     /// Value definition metadata.
     definitions: &'a ValueDefinitions,
     /// Value use metadata.
@@ -559,7 +559,7 @@ fn run_loop_strength_reduce(
     let substitutions = resolve_substitution_chains(substitutions);
 
     // apply substitutions to instructions
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // collect instruction ids to avoid borrow issues
         let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
 
@@ -578,7 +578,7 @@ fn run_loop_strength_reduce(
     }
 
     // apply substitutions to terminators
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // read the current block
         let terminator_id = tree.get(block_id).terminator;
         let terminator = tree.get(terminator_id).clone();
@@ -601,7 +601,7 @@ fn apply_candidates_for_loop(
     tree: &mut mir::Tree,
     candidates: &[StrengthReductionCandidate],
     definitions: &ValueDefinitions,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
     ranges: &RangeAnalysis,
     domtree: &DominatorTree,
     target_layout: TargetLayout,
@@ -700,10 +700,8 @@ fn apply_candidates_for_loop(
     }
     tree.set(header, header_block);
 
-    // insert latch updates
-    let mut latch_block = latch_block;
-
     // insert recurrence updates into the latch
+    let mut latch_instructions = latch_block.instructions.clone();
     for item in &plan_items {
         let instruction = mir::Instruction::Binary {
             destination: item.next_value,
@@ -712,12 +710,12 @@ fn apply_candidates_for_loop(
             right: item.step_value,
         };
         let instruction_id = tree.insert(instruction);
-        latch_block.instructions.push(instruction_id);
+        latch_instructions.push(instruction_id);
     }
+    function.replace_block_instructions(latch, latch_instructions, tree);
 
     // install latch terminator
     tree.set(latch_block.terminator, latch_terminator);
-    tree.set(latch, latch_block);
 
     // install preheader terminator
     if preheader_terminator != preheader_current_terminator {
@@ -774,7 +772,7 @@ fn division_is_safe(
     right: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
     ranges: &RangeAnalysis,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
     pointer_width_bits: u16,
     tree: &mir::Tree,
 ) -> bool {
@@ -803,7 +801,7 @@ fn signed_division_is_safe(
     right: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
     ranges: &RangeAnalysis,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
     pointer_width_bits: u16,
     tree: &mir::Tree,
 ) -> bool {
@@ -934,7 +932,7 @@ fn integer_range_excludes_minus_one(range: &IntegerRange) -> bool {
 /// Extract the signed minimum for a value type.
 fn signed_min_for_value(
     value: mir::Value,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
     pointer_width_bits: u16,
     tree: &mir::Tree,
 ) -> Option<i128> {
@@ -1218,7 +1216,7 @@ struct ScevMaterializer<'a> {
     /// Value definitions for the function.
     definitions: &'a ValueDefinitions,
     /// Value type lookup for the function.
-    value_types: &'a ValueTypeMap,
+    value_types: &'a ValueTypes,
     /// Range analysis for invariant checks.
     ranges: &'a RangeAnalysis,
     /// Dominator tree for availability checks.
@@ -1236,7 +1234,6 @@ struct ScevMaterializer<'a> {
     /// Type context for layout sensitive operations.
     target_layout: TargetLayout,
 }
-
 impl<'a> ScevMaterializer<'a> {
     /// Create a new materializer for the preheader.
     fn new(
@@ -1244,7 +1241,7 @@ impl<'a> ScevMaterializer<'a> {
         preheader: mir::LocalNodeId<mir::Block>,
         loop_blocks: &'a HashSet<mir::LocalNodeId<mir::Block>>,
         definitions: &'a ValueDefinitions,
-        value_types: &'a ValueTypeMap,
+        value_types: &'a ValueTypes,
         ranges: &'a RangeAnalysis,
         domtree: &'a DominatorTree,
         target_layout: TargetLayout,
@@ -1504,7 +1501,7 @@ impl<'a> ScevMaterializer<'a> {
             destination,
             value: constant.clone(),
         };
-        self.insert_instruction(instruction);
+        self.insert_instruction(function, instruction);
         self.constant_cache.push((constant.clone(), destination));
 
         Some(destination)
@@ -1617,7 +1614,7 @@ impl<'a> ScevMaterializer<'a> {
         let cloned = instruction_map(instruction, &value_map, self.tree);
 
         // insert the cloned instruction in the preheader
-        let cloned_id = self.insert_instruction(cloned);
+        let cloned_id = self.insert_instruction(function, cloned);
         clone_instruction_metadata(self.tree, instruction_id, cloned_id, &value_map);
 
         Some(destination)
@@ -1639,7 +1636,7 @@ impl<'a> ScevMaterializer<'a> {
             left,
             right,
         };
-        self.insert_instruction(instruction);
+        self.insert_instruction(function, instruction);
         destination
     }
 
@@ -1657,7 +1654,7 @@ impl<'a> ScevMaterializer<'a> {
             operator,
             argument,
         };
-        self.insert_instruction(instruction);
+        self.insert_instruction(function, instruction);
         destination
     }
 
@@ -1677,20 +1674,21 @@ impl<'a> ScevMaterializer<'a> {
             argument,
             to_type,
         };
-        self.insert_instruction(instruction);
+        self.insert_instruction(function, instruction);
         destination
     }
 
     /// Insert an instruction into the preheader block.
     fn insert_instruction(
         &mut self,
+        function: &mut mir::Function,
         instruction: mir::Instruction,
     ) -> mir::LocalNodeId<mir::Instruction> {
         // append the instruction to the preheader
         let instruction_id = self.tree.insert(instruction);
-        let mut preheader_block = self.tree.get(self.preheader).clone();
-        preheader_block.instructions.push(instruction_id);
-        self.tree.set(self.preheader, preheader_block);
+        let mut instructions = self.tree.get(self.preheader).instructions.clone();
+        instructions.push(instruction_id);
+        function.replace_block_instructions(self.preheader, instructions, self.tree);
         instruction_id
     }
 

@@ -8,7 +8,7 @@ use crate::optimize::passes::scalar::{
 };
 use crate::optimize::{ModulePass, PipelineContext, run_function_passes_always};
 use destack_mir::{
-    CallGraphScc, CallsiteHotness, ConstantPropagation, Mutation, ParameterRemap, SignatureKey,
+    CallGraph, CallsiteHotness, ConstantPropagation, Mutation, ParameterRemap, SignatureKey,
     apply_constant_parameters, clone_instruction_metadata, constant_arguments_for_parameters,
     instruction_map_with_locals, terminator_remap,
 };
@@ -160,8 +160,8 @@ fn run_argument_specialize(
     // collect callsite information
     let call_data = collect_call_data(tree);
 
-    // collect call graph sccs for recursion checks
-    let scc_map = analyses.get::<CallGraphScc>(tree);
+    // collect call graph components for recursion checks
+    let callgraph = analyses.get::<CallGraph>(tree);
 
     // build constant propagation maps for callers
     let constants_by_function = build_constant_maps(tree, ctx.target_layout());
@@ -172,20 +172,18 @@ fn run_argument_specialize(
         HashMap::new();
     let mut specialization_counts: HashMap<mir::LocalNodeId<mir::Function>, usize> = HashMap::new();
     let mut total_specializations = 0usize;
-    let mut caller_block_counts: HashMap<
-        mir::LocalNodeId<mir::Function>,
-        HashMap<mir::LocalNodeId<mir::Block>, u64>,
-    > = HashMap::new();
+    let mut function_analyses: HashMap<mir::FunctionId, mir::FunctionAnalyses> = HashMap::new();
+    let mut caller_counts: HashMap<mir::FunctionId, mir::ExecutionCounts> = HashMap::new();
 
     // process callsites for specialization
     for callsite in &call_data.callsites {
         // skip recursive callees
-        if scc_map.is_recursive_function(callsite.callee) {
+        if callgraph.is_recursive_function(callsite.callee) {
             continue;
         }
 
         // skip external callees
-        if tree.get(callsite.callee).entry.is_none() {
+        if tree.get(callsite.callee).entry().is_none() {
             continue;
         }
 
@@ -201,27 +199,20 @@ fn run_argument_specialize(
         }
 
         // skip cold callsites when profile data is present
-        caller_block_counts
-            .entry(callsite.caller)
-            .or_insert_with(|| {
-                mir::BlockFrequency::profile_block_counts(
-                    tree.get(callsite.caller),
-                    tree,
-                    ctx.profile(),
-                    &mir::FunctionAnalyses::new(),
-                )
-            });
+        caller_counts.entry(callsite.caller).or_insert_with(|| {
+            let analyses = function_analyses
+                .entry(callsite.caller)
+                .or_insert_with(|| ctx.new_function_analyses());
+            mir::ExecutionCounts::new(tree.get(callsite.caller), tree, ctx.profile(), analyses)
+        });
         let entry_count = ctx
             .profile()
             .and_then(|profile| profile.function(tree.get(callsite.caller).symbol))
             .map(|function_profile| function_profile.entry.get())
             .unwrap_or(0);
-        let block_count = caller_block_counts[&callsite.caller]
-            .get(&callsite.block)
-            .copied()
-            .unwrap_or(0);
+        let block_count = caller_counts[&callsite.caller].block(callsite.block);
         if ctx.profile().is_some() {
-            match CallsiteHotness::from_counts(block_count, entry_count) {
+            match ctx.hotness_thresholds().classify(block_count, entry_count) {
                 CallsiteHotness::Hot => {}
                 CallsiteHotness::Unknown | CallsiteHotness::Cold => continue,
             }
@@ -280,11 +271,11 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
     // scan each function body for callsites
     for (caller_id, function) in tree.iter_nodes::<mir::Function>() {
         // skip external functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             continue;
         }
 
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
 
             for &instruction_id in &block.instructions {
@@ -335,7 +326,7 @@ fn build_constant_maps(
 
     // build a constant propagation analysis per function
     for (function_id, function) in tree.iter_nodes::<mir::Function>() {
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             continue;
         }
 
@@ -474,7 +465,7 @@ fn clone_function(
     // clone locals for the function
     let mut local_map = HashMap::new();
     let mut new_locals = Vec::new();
-    for local_id in &original.locals {
+    for local_id in original.locals() {
         let local = tree.get(*local_id).clone();
         let new_local = tree.insert(local);
         local_map.insert(*local_id, new_local);
@@ -483,7 +474,7 @@ fn clone_function(
 
     // create block placeholders
     let mut block_map = HashMap::new();
-    for block_id in &original.blocks {
+    for block_id in original.blocks() {
         let block = tree.get(*block_id);
         let name = block.name;
         let parameters = block.parameters.clone();
@@ -501,7 +492,7 @@ fn clone_function(
 
     // clone instructions into new blocks
     let value_map = HashMap::new();
-    for block_id in &original.blocks {
+    for block_id in original.blocks() {
         let new_block_id = block_map[block_id];
         let instruction_ids = tree.get(*block_id).instructions.clone();
         let mut new_instructions = Vec::with_capacity(instruction_ids.len());
@@ -525,7 +516,7 @@ fn clone_function(
     }
 
     // remap terminators with new block ids
-    for block_id in &original.blocks {
+    for block_id in original.blocks() {
         let new_block_id = block_map[block_id];
         let terminator_id = tree.get(new_block_id).terminator;
         let mut terminator = tree.get(terminator_id).clone();
@@ -537,13 +528,18 @@ fn clone_function(
     let mut new_function = original.clone();
     new_function.name = name;
     new_function.linkage = mir::Linkage::Local;
-    new_function.locals = new_locals;
-    new_function.blocks = original
-        .blocks
-        .iter()
-        .map(|block_id| block_map[block_id])
-        .collect();
-    new_function.entry = original.entry.map(|entry| block_map[&entry]);
+    new_function.replace_locals(new_locals);
+    new_function.replace_blocks(
+        original
+            .blocks()
+            .iter()
+            .map(|block_id| block_map[block_id])
+            .collect(),
+        tree,
+    );
+    if let Some(entry) = original.entry() {
+        new_function.set_entry(block_map[&entry]);
+    }
 
     // insert the specialized function
     let new_function_id = tree.insert(new_function);
@@ -562,7 +558,7 @@ fn removable_constant_parameters(
     tree: &mir::Tree,
 ) -> Vec<usize> {
     // collect required parameter indices
-    let metadata = tree.metadata.functions.function(function_id);
+    let metadata = tree.metadata.effects.function(function_id);
     let required = ParameterRemap::required_indices(function, metadata, tree);
 
     // collect removable indices
@@ -594,11 +590,11 @@ fn apply_parameter_removals(
     let entry_id = {
         let function = tree.get_mut(function_id);
         function.parameters = remap.filter_by_index(&function.parameters);
-        function.entry.expect("defined function has entry block")
+        function.entry().expect("defined function has entry block")
     };
 
     // update function metadata
-    if let Some(metadata) = tree.metadata.functions.functions.get_mut(&function_id) {
+    if let Some(metadata) = tree.metadata.effects.functions.get_mut(&function_id) {
         metadata.allocation_size = remap.remap_allocation_size(metadata.allocation_size);
     }
 
@@ -652,7 +648,7 @@ fn update_callsite(
     tree.set(callsite.call_instruction, updated);
 
     let callsite_id = mir::CallSite::Instruction(callsite.call_instruction);
-    if let Some(metadata) = tree.metadata.functions.calls.get_mut(&callsite_id) {
+    if let Some(metadata) = tree.metadata.effects.calls.get_mut(&callsite_id) {
         metadata.arguments = remap.filter_by_index(&metadata.arguments);
         metadata.allocation_size = remap.remap_allocation_size(metadata.allocation_size);
         metadata.target = Some(new_callee);
@@ -757,7 +753,7 @@ entry:
         let root_id = test.function_id_by_name("root");
         let (call_id, _callee_id) = test.first_call_in_entry(root_id);
         let callsite = mir::CallSite::Instruction(call_id);
-        test.tree.metadata.functions.call_mut(callsite).arguments =
+        test.tree.metadata.effects.call_mut(callsite).arguments =
             vec![mir::CallArgumentEffect::default(); 2];
 
         test.run_module_pass(&ArgumentSpecialize);
@@ -769,7 +765,7 @@ entry:
         let metadata = test
             .tree
             .metadata
-            .functions
+            .effects
             .call(callsite)
             .expect("missing call metadata");
         let instruction = test.tree.get(call_id);
@@ -819,7 +815,7 @@ entry:
         let callee = test.tree.get(callee_id);
         let mut callee_load = None;
         let mut callee_pointer = None;
-        for block_id in &callee.blocks {
+        for block_id in callee.blocks() {
             let block = test.tree.get(*block_id);
             for instruction_id in &block.instructions {
                 if let mir::Instruction::Load { pointer, .. } = test.tree.get(*instruction_id) {
@@ -856,7 +852,7 @@ entry:
         let specialized = test.tree.get(specialized_id);
         let mut specialized_load = None;
         let mut specialized_pointer = None;
-        for block_id in &specialized.blocks {
+        for block_id in specialized.blocks() {
             let block = test.tree.get(*block_id);
             for instruction_id in &block.instructions {
                 if let mir::Instruction::Load { pointer, .. } = test.tree.get(*instruction_id) {
@@ -1032,7 +1028,7 @@ entry(v0: int32):
         let callee_id = test.function_id_by_name("callee");
         test.tree
             .metadata
-            .functions
+            .effects
             .function_mut(callee_id)
             .allocation_size = Some(mir::AllocationSize::new(0, None));
 

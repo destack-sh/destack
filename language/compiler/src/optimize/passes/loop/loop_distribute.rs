@@ -6,10 +6,10 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, MemoryAccess,
-    MemoryAccessEffect, MemoryEffectTarget, MemorySSA, Mutation, ValueDefinitions,
-    block_is_speculatable_no_reads, build_instruction_block_map,
-    clone_loop_blocks_with_instructions, control_instructions_for_latch,
-    instruction_is_speculatable, loop_guard_branch, loop_preheader, terminator_remap,
+    MemoryAccessEffect, MemoryRegion, MemorySSA, Mutation, ValueDefinitions,
+    block_is_speculatable_no_reads, clone_loop_blocks_with_instructions,
+    control_instructions_for_latch, instruction_is_speculatable, loop_guard_branch, loop_preheader,
+    terminator_remap,
 };
 
 declare_pass! {
@@ -164,19 +164,18 @@ fn run_loop_distribute(
 ) -> bool {
     // build value definition info
     let definitions = ValueDefinitions::build(function, tree).instruction_map();
-    let instruction_blocks = build_instruction_block_map(function, tree);
 
     // select a candidate loop
     let candidate = loops.loops().iter().find_map(|lp| {
         build_candidate(
             lp,
+            function,
             tree,
             cfg,
             domtree,
             memory_ssa,
             alias,
             &definitions,
-            &instruction_blocks,
         )
     });
     let Some(candidate) = candidate else {
@@ -190,13 +189,13 @@ fn run_loop_distribute(
 /// Build a distribution candidate for a loop.
 fn build_candidate(
     lp: &Loop,
+    function: &mir::Function,
     tree: &mir::Tree,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
 ) -> Option<DistributeCandidate> {
     // require a single latch and exit
     if !lp.has_single_latch() || !lp.has_single_exit() {
@@ -250,16 +249,16 @@ fn build_candidate(
 
     // collect control instructions in the latch
     let control_instructions =
-        control_instructions_for_latch(lp.header, latch, tree, definitions, instruction_blocks);
+        control_instructions_for_latch(function, lp.header, latch, tree, definitions);
 
     // collect store groups in the latch
     let groups = collect_store_groups(
+        function,
         latch,
         tree,
         memory_ssa,
         alias,
         definitions,
-        instruction_blocks,
         &control_instructions,
     )?;
 
@@ -282,12 +281,12 @@ fn build_candidate(
 
 /// Collect store groups within a latch block.
 fn collect_store_groups(
+    function: &mir::Function,
     latch: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
     control_instructions: &HashSet<mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<Vec<StoreGroup>> {
     // set up latch scanning state
@@ -349,9 +348,9 @@ fn collect_store_groups(
             pointer.copied(),
             *value,
             latch,
+            function,
             tree,
             definitions,
-            instruction_blocks,
             control_instructions,
         )?;
 
@@ -410,9 +409,9 @@ fn collect_group_instructions(
     pointer: Option<mir::Value>,
     value: mir::Value,
     latch: mir::LocalNodeId<mir::Block>,
+    function: &mir::Function,
     tree: &mir::Tree,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
     control_instructions: &HashSet<mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<HashSet<mir::LocalNodeId<mir::Instruction>>> {
     // seed the worklist with store operands
@@ -433,7 +432,7 @@ fn collect_group_instructions(
         };
 
         // skip values defined outside the latch
-        if instruction_blocks.get(definition) != Some(&latch) {
+        if function.instruction_block(*definition) != Some(latch) {
             continue;
         }
 
@@ -498,8 +497,8 @@ fn collect_group_effects(
                 return None;
             }
 
-            // require a known location
-            if matches!(effect.location, MemoryEffectTarget::Any { .. }) {
+            // require a known region
+            if matches!(effect.region, MemoryRegion::Any { .. }) {
                 return None;
             }
 
@@ -588,7 +587,7 @@ fn apply_distribution(
         let mut cloned_blocks: Vec<_> = block_map.values().copied().collect();
         cloned_blocks.sort();
         for block_id in cloned_blocks {
-            function.blocks.push(block_id);
+            function.add_block(block_id, tree);
         }
 
         loop_instances.push(LoopInstance {
@@ -607,7 +606,7 @@ fn apply_distribution(
             return false;
         };
 
-        prune_latch_instructions(tree, instance.latch, &keep_set);
+        prune_latch_instructions(function, tree, instance.latch, &keep_set);
     }
 
     // chain loop exits together
@@ -677,24 +676,24 @@ fn map_keep_set(
 
 /// Remove instructions not in the keep set.
 fn prune_latch_instructions(
+    function: &mut mir::Function,
     tree: &mut mir::Tree,
     latch: mir::LocalNodeId<mir::Block>,
     keep: &HashSet<mir::LocalNodeId<mir::Instruction>>,
 ) {
     // filter instruction ids
-    let mut block = tree.get(latch).clone();
+    let instruction_ids = tree.get(latch).instructions.clone();
     let mut filtered = Vec::new();
-    for instruction_id in &block.instructions {
-        if keep.contains(instruction_id) {
-            filtered.push(*instruction_id);
+    for instruction_id in instruction_ids {
+        if keep.contains(&instruction_id) {
+            filtered.push(instruction_id);
         } else {
-            tree.metadata.memory.remove_memory_accesses(*instruction_id);
+            tree.metadata.memory.remove_memory_accesses(instruction_id);
         }
     }
 
     // commit the filtered latch
-    block.instructions = filtered;
-    tree.set(latch, block);
+    function.replace_block_instructions(latch, filtered, tree);
 }
 
 /// Update the header terminator to chain loop exits.

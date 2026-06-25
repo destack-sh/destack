@@ -65,7 +65,7 @@ impl FunctionPass for CorrelatedValueProp {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -112,7 +112,7 @@ fn run_correlated_value_prop(
     let mut changed = false;
 
     // scan each block for equality conditions
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // read the terminator to find a branch or check
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
@@ -152,7 +152,7 @@ fn run_correlated_value_prop(
                     Some((canonical, replace))
                 } else {
                     choose_replacement(
-                        function.entry,
+                        function.entry(),
                         equality.left,
                         equality.right,
                         equality_block,
@@ -526,7 +526,7 @@ fn apply_range_constraint(
 ) -> bool {
     // collect dominated blocks
     let mut blocks = Vec::new();
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // record blocks dominated by the root
         if domtree.dominates(root, block_id) {
             blocks.push(block_id);

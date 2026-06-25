@@ -2,7 +2,7 @@ use crate::CompositePipeline;
 use crate::optimize::passes::{
     ArgumentSpecialize, BoundsCheckEliminate, CfgLayout, CodeHoisting, ConstantFold, CopyPropagate,
     CorrelatedValueProp, DeadArgEliminate, DeadCodeEliminate, DeadFunctionEliminate,
-    DeadStoreEliminate, FunctionAttrs, GlobalOpt, GlobalValueNumbering, GuardEliminate, IfConvert,
+    DeadStoreEliminate, GlobalOpt, GlobalValueNumbering, GuardEliminate, IfConvert,
     InductionVariableSimplify, Inline, InstructionCombine, InterproceduralConstantPropagation,
     InterproceduralDceCleanup, InterproceduralSccp, Licm, LoadPre, LoadStoreForward, LocalCse,
     LoopBoundsCheckEliminate, LoopDelete, LoopDistribute, LoopFusion, LoopIdiomRecognize,
@@ -230,8 +230,7 @@ fn o2_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         )
         // drop functions no root reaches (whole-program scope at this level)
         .module_pass(DeadFunctionEliminate)
-        // interprocedural inlining and attribute inference
-        .module_pass(FunctionAttrs)
+        // propagate interprocedural constants before inlining
         .module_pass(InterproceduralConstantPropagation)
         .module_pass(InterproceduralSccp)
         .module_pass(DeadArgEliminate)
@@ -275,8 +274,7 @@ fn o3_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         )
         // drop functions no root reaches (whole-program scope at this level)
         .module_pass(DeadFunctionEliminate)
-        // interprocedural inlining and attribute inference
-        .module_pass(FunctionAttrs)
+        // propagate interprocedural constants before inlining
         .module_pass(InterproceduralConstantPropagation)
         .module_pass(InterproceduralSccp)
         .module_pass(ArgumentSpecialize)
@@ -324,8 +322,7 @@ fn o4_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         )
         // drop functions no root reaches (whole-program scope at this level)
         .module_pass(DeadFunctionEliminate)
-        // interprocedural inlining and attribute inference
-        .module_pass(FunctionAttrs)
+        // propagate interprocedural constants before inlining
         .module_pass(InterproceduralConstantPropagation)
         .module_pass(InterproceduralSccp)
         .module_pass(ArgumentSpecialize)

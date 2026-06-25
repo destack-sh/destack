@@ -100,7 +100,7 @@ fn run_dead_arg_eliminate(tree: &mut mir::Tree) -> bool {
     // scan each defined function for unused parameters
     let function_ids: Vec<_> = tree
         .iter_nodes::<mir::Function>()
-        .filter_map(|(id, function)| function.entry.is_some().then_some((id, function.linkage)))
+        .filter_map(|(id, function)| function.entry().is_some().then_some((id, function.linkage)))
         .collect();
 
     for (function_id, linkage) in function_ids {
@@ -144,11 +144,11 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 
     // scan each function body for calls
     for (_function_id, function) in tree.iter_nodes::<mir::Function>() {
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             continue;
         }
 
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
 
             for &instruction_id in &block.instructions {
@@ -229,7 +229,7 @@ fn unused_parameter_indices(
     let use_def = build_use_def_maps(function, tree);
 
     // collect parameters that are required by metadata
-    let metadata = tree.metadata.functions.function(function_id);
+    let metadata = tree.metadata.effects.function(function_id);
     let required = ParameterRemap::required_indices(function, metadata, tree);
 
     // collect parameters that have no uses
@@ -262,15 +262,14 @@ fn apply_parameter_removals(
     let entry_id = {
         let function = tree.get_mut(function_id);
         function.parameters = remap.filter_by_index(&function.parameters);
-        let entry_id = function
-            .entry
-            .unwrap_or_else(|| panic!("missing entry for rewritten function: {function_id:?}"));
 
-        entry_id
+        function
+            .entry()
+            .unwrap_or_else(|| panic!("missing entry for rewritten function: {function_id:?}"))
     };
 
     // update function metadata
-    if let Some(metadata) = tree.metadata.functions.functions.get_mut(&function_id) {
+    if let Some(metadata) = tree.metadata.effects.functions.get_mut(&function_id) {
         metadata.allocation_size = remap.remap_allocation_size(metadata.allocation_size);
     }
 
@@ -332,7 +331,7 @@ fn update_call_sites(
                 *tree.get_mut(instruction_id) = updated;
 
                 // preserve metadata when the callsite carries it
-                if let Some(metadata) = tree.metadata.functions.calls.get_mut(&callsite) {
+                if let Some(metadata) = tree.metadata.effects.calls.get_mut(&callsite) {
                     metadata.arguments = remap.filter_by_index(&metadata.arguments);
                     metadata.allocation_size =
                         remap.remap_allocation_size(metadata.allocation_size);
@@ -393,7 +392,7 @@ fn update_call_sites(
 
                 // preserve metadata when the terminator carries it
                 let callsite = mir::CallSite::Terminator(block_id);
-                if let Some(metadata) = tree.metadata.functions.calls.get_mut(&callsite) {
+                if let Some(metadata) = tree.metadata.effects.calls.get_mut(&callsite) {
                     metadata.arguments = remap.filter_by_index(&metadata.arguments);
                     metadata.allocation_size =
                         remap.remap_allocation_size(metadata.allocation_size);
@@ -604,7 +603,7 @@ entry(v0: int32):
             .expect("missing call instruction");
 
         let callsite = mir::CallSite::Instruction(call_id);
-        test.tree.metadata.functions.call_mut(callsite).arguments = vec![
+        test.tree.metadata.effects.call_mut(callsite).arguments = vec![
             mir::CallArgumentEffect::default(),
             mir::CallArgumentEffect::default(),
         ];
@@ -615,7 +614,7 @@ entry(v0: int32):
         let metadata = test
             .tree
             .metadata
-            .functions
+            .effects
             .call(callsite)
             .expect("missing call metadata");
         assert_eq!(metadata.arguments.len(), 1);
@@ -638,14 +637,14 @@ entry(v0: int32, v1: int32, v2: int32):
 "#;
 
         let expected = r#"
-function callee(v0: int32, v2: int32): int32 {
-entry(v0: int32, v2: int32):
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
     return v0
 }
 
-function root(v0: int32, v2: int32): int32 {
-entry(v0: int32, v2: int32):
-    v3: int32 = call callee(v0, v2)
+function root(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v3: int32 = call callee(v0, v1)
     return v3
 }
 "#;
@@ -654,7 +653,7 @@ entry(v0: int32, v2: int32):
         let callee_id = test.function_id_by_name("callee");
         test.tree
             .metadata
-            .functions
+            .effects
             .function_mut(callee_id)
             .allocation_size = Some(mir::AllocationSize::new(2, Some(0)));
 
@@ -664,7 +663,7 @@ entry(v0: int32, v2: int32):
         let metadata = test
             .tree
             .metadata
-            .functions
+            .effects
             .function(callee_id)
             .expect("missing function metadata");
         assert_eq!(
@@ -687,7 +686,7 @@ entry(v0: int32, v1: int32):
         let callee_id = test.function_id_by_name("callee");
         test.tree
             .metadata
-            .functions
+            .effects
             .function_mut(callee_id)
             .allocation_size = Some(mir::AllocationSize::new(1, None));
 
@@ -696,7 +695,7 @@ entry(v0: int32, v1: int32):
         let metadata = test
             .tree
             .metadata
-            .functions
+            .effects
             .function(callee_id)
             .expect("missing function metadata");
         assert_eq!(
@@ -750,7 +749,7 @@ entry(v0: int32):
         let callsite = mir::CallSite::Instruction(call_id);
         test.tree
             .metadata
-            .functions
+            .effects
             .call_mut(callsite)
             .allocation_size = Some(mir::AllocationSize::new(2, Some(0)));
 
@@ -759,7 +758,7 @@ entry(v0: int32):
         let metadata = test
             .tree
             .metadata
-            .functions
+            .effects
             .call(callsite)
             .expect("missing call metadata");
         assert_eq!(metadata.allocation_size, None);
