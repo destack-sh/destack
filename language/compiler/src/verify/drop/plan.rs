@@ -44,7 +44,7 @@ impl<'a> DropPlan<'a> {
         let mut plan = Self {
             function,
             tree,
-            owned: OwnedValues::new(function.value_types.len()),
+            owned: OwnedValues::new(function.value_types().len()),
             drop_receiver,
             liveness,
             available_at_entry: HashMap::new(),
@@ -59,7 +59,7 @@ impl<'a> DropPlan<'a> {
 
     /// Collect move-only values that need explicit drop.
     fn collect_owned_values(&self) -> OwnedValues {
-        let mut owned = OwnedValues::new(self.function.value_types.len());
+        let mut owned = OwnedValues::new(self.function.value_types().len());
 
         // seed parameters owned at function entry
         for parameter in &self.function.parameters {
@@ -74,7 +74,7 @@ impl<'a> DropPlan<'a> {
         }
 
         // track instruction destinations by value type
-        for (index, ty) in self.function.value_types.iter().enumerate() {
+        for (index, ty) in self.function.value_types().iter().enumerate() {
             let value = mir::Value::new(index as u32);
             if Some(value) == self.drop_receiver {
                 continue;
@@ -93,7 +93,7 @@ impl<'a> DropPlan<'a> {
 
     /// Compute available owned values at each block entry.
     fn compute_available_entries(&self) -> HashMap<mir::LocalNodeId<mir::Block>, DropState> {
-        let Some(entry) = self.function.entry else {
+        let Some(entry) = self.function.entry() else {
             return HashMap::new();
         };
 
@@ -140,7 +140,7 @@ impl<'a> DropPlan<'a> {
         entries: &HashMap<mir::LocalNodeId<mir::Block>, DropState>,
         exits: &HashMap<mir::LocalNodeId<mir::Block>, DropState>,
     ) -> DropState {
-        if Some(block_id) == self.function.entry {
+        if Some(block_id) == self.function.entry() {
             return entries
                 .get(&block_id)
                 .cloned()
@@ -236,7 +236,7 @@ impl<'a> DropPlan<'a> {
 
     /// Plan drops for every reachable block.
     fn plan_blocks(&mut self) {
-        for &block_id in &self.function.blocks {
+        for &block_id in self.function.blocks() {
             let Some(mut available) = self.available_at_entry.get(&block_id).cloned() else {
                 continue;
             };
@@ -340,7 +340,7 @@ impl<'a> DropPlan<'a> {
 
     /// Return owned values used by one instruction.
     fn owned_instruction_uses(&self, instruction: &mir::Instruction) -> OwnedValues {
-        let mut values = OwnedValues::new(self.function.value_types.len());
+        let mut values = OwnedValues::new(self.function.value_types().len());
 
         for value in instruction.reads(self.tree) {
             values.insert_reference(value, &self.owned);
@@ -351,7 +351,7 @@ impl<'a> DropPlan<'a> {
 
     /// Return owned values consumed by one instruction.
     fn consumed_by_instruction(&self, instruction: &mir::Instruction) -> OwnedValues {
-        let mut values = OwnedValues::new(self.function.value_types.len());
+        let mut values = OwnedValues::new(self.function.value_types().len());
 
         for value in instruction.consumes(self.tree) {
             values.insert_reference(value, &self.owned);
@@ -397,7 +397,7 @@ impl<'a> DropPlan<'a> {
 
     /// Return owned values consumed by one terminator.
     fn consumed_by_terminator(&self, terminator: &mir::Terminator) -> OwnedValues {
-        let mut values = OwnedValues::new(self.function.value_types.len());
+        let mut values = OwnedValues::new(self.function.value_types().len());
 
         for value in terminator.consumes(self.tree) {
             values.insert_reference(value, &self.owned);
@@ -412,7 +412,7 @@ impl<'a> DropPlan<'a> {
         terminator: &mir::Terminator,
         available: &DropState,
     ) -> OwnedValues {
-        let mut carried = OwnedValues::new(self.function.value_types.len());
+        let mut carried = OwnedValues::new(self.function.value_types().len());
 
         // keep edge argument ownership alive in successor parameters
         for successor in terminator.successors(self.tree) {

@@ -112,7 +112,7 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Class dispatch slots keyed by method symbol.
     pub(crate) virtual_method_slots_by_key: HashMap<(dir::GlobalSymbolId, MethodKey), u32>,
 
-    /// Ordered list of class symbols that require vtables.
+    /// Ordered list of class symbols that require virtual tables.
     pub(crate) vtable_class_symbols: Vec<dir::GlobalSymbolId>,
     /// Predeclared vtable globals keyed by class symbol.
     pub(crate) vtable_globals_by_symbol: HashMap<dir::GlobalSymbolId, DispatchTableGlobal>,
@@ -696,7 +696,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Insert a vtable global for a class symbol.
-    pub(crate) fn insert_vtable_global(
+    pub(crate) fn insert_virtual_table_global(
         &mut self,
         symbol: dir::GlobalSymbolId,
         vtable: DispatchTableGlobal,

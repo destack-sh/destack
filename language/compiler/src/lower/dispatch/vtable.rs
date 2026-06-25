@@ -139,11 +139,11 @@ impl ModuleLowerer<'_> {
 
         // build vtable entries with fixed prefix
         let mut entries = Vec::with_capacity(virtual_slots.len() + 2);
-        entries.push(mir::VtableEntry::TypeDescriptor);
-        entries.push(mir::VtableEntry::Destructor { function: None });
+        entries.push(mir::VirtualEntry::TypeDescriptor);
+        entries.push(mir::VirtualEntry::Destructor { function: None });
         for method in virtual_slots {
             let function = self.method_function_id(method.member_id, method.symbol)?;
-            entries.push(mir::VtableEntry::Method { function });
+            entries.push(mir::VirtualEntry::Method { function });
         }
 
         // table metadata and static storage
@@ -157,13 +157,13 @@ impl ModuleLowerer<'_> {
                     module: self.module_id,
                     message: format!("missing vtable global for class {symbol:?}"),
                 })?;
-            let initializer = vtable_initializer(&entries);
+            let initializer = virtual_table_initializer(&entries);
             self.builder
                 .tree_mut()
                 .get_mut(vtable_global.global_id)
                 .initializer = Some(initializer);
 
-            let table = mir::Vtable {
+            let table = mir::VirtualTable {
                 ty: mir_type,
                 global: vtable_global.global_id,
                 entries,
@@ -172,7 +172,7 @@ impl ModuleLowerer<'_> {
                 .tree_mut()
                 .metadata
                 .dispatch
-                .insert_vtable(table);
+                .insert_virtual_table(table);
         }
 
         // lowered table guard
@@ -397,16 +397,16 @@ impl ModuleLowerer<'_> {
     }
 }
 
-/// Build the static initializer for one vtable.
-fn vtable_initializer(entries: &[mir::VtableEntry]) -> mir::GlobalInitializer {
+/// Build the static initializer for one virtual table.
+fn virtual_table_initializer(entries: &[mir::VirtualEntry]) -> mir::GlobalInitializer {
     let elements = entries
         .iter()
         .map(|entry| match entry {
-            mir::VtableEntry::Method { function }
-            | mir::VtableEntry::Destructor {
+            mir::VirtualEntry::Method { function }
+            | mir::VirtualEntry::Destructor {
                 function: Some(function),
             } => mir::GlobalInitializer::function_address((*function).into()),
-            mir::VtableEntry::TypeDescriptor | mir::VtableEntry::Destructor { function: None } => {
+            mir::VirtualEntry::TypeDescriptor | mir::VirtualEntry::Destructor { function: None } => {
                 mir::GlobalInitializer::zero()
             }
         })

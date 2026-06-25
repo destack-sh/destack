@@ -41,9 +41,9 @@ type String {
     }
 
     /// Collect virtual dispatch tables from a MIR tree.
-    pub(crate) fn class_dispatch_tables<'a>(&self, tree: &'a mir::Tree) -> Vec<&'a mir::Vtable> {
-        // collect class vtables
-        tree.metadata.dispatch.vtables.iter().collect()
+    pub(crate) fn class_dispatch_tables<'a>(&self, tree: &'a mir::Tree) -> Vec<&'a mir::VirtualTable> {
+        // collect class virtual tables
+        tree.metadata.dispatch.virtual_tables.iter().collect()
     }
 
     /// Collect dynamic dispatch tables from a MIR tree.
@@ -90,31 +90,31 @@ type String {
     }
 
     /// Assert that a vtable has the fixed prefix slots.
-    pub(crate) fn assert_vtable_prefix(&self, table: &mir::Vtable) {
+    pub(crate) fn assert_vtable_prefix(&self, table: &mir::VirtualTable) {
         // require the type descriptor slot
-        assert!(matches!(table.entries[0], mir::VtableEntry::TypeDescriptor));
+        assert!(matches!(table.entries[0], mir::VirtualEntry::TypeDescriptor));
 
         // require the destructor slot
         assert!(matches!(
             table.entries[1],
-            mir::VtableEntry::Destructor { .. }
+            mir::VirtualEntry::Destructor { .. }
         ));
     }
 
     /// Count method slots in a class vtable.
-    pub(crate) fn count_vtable_methods(&self, table: &mir::Vtable) -> usize {
+    pub(crate) fn count_vtable_methods(&self, table: &mir::VirtualTable) -> usize {
         // count method slots
         table
             .entries
             .iter()
-            .filter(|slot| matches!(slot, mir::VtableEntry::Method { .. }))
+            .filter(|slot| matches!(slot, mir::VirtualEntry::Method { .. }))
             .count()
     }
 
     /// Collect method names from a class vtable in slot order.
     pub(crate) fn vtable_method_names(
         &self,
-        table: &mir::Vtable,
+        table: &mir::VirtualTable,
         tree: &mir::Tree,
         strings: &StringPool,
     ) -> Vec<String> {
@@ -122,7 +122,7 @@ type String {
             .entries
             .iter()
             .filter_map(|slot| {
-                let mir::VtableEntry::Method { function } = slot else {
+                let mir::VirtualEntry::Method { function } = slot else {
                     return None;
                 };
                 Some(strings.get(tree.get(*function).name).to_string())
@@ -138,15 +138,15 @@ type String {
         strings: &StringPool,
         name: &str,
     ) -> Option<u32> {
-        let shape = tree.metadata.dispatch.dynamic_shape(table.constraint)?;
+        let layout = tree.metadata.dispatch.dynamic_layout(table.constraint)?;
 
-        // scan field slots by dynamic shape
+        // scan field slots by dynamic layout
         for (index, slot) in table.entries.iter().enumerate() {
             if let mir::DynamicEntry::Field { offset } = slot
                 && let Some(mir::DynamicSlot::Field {
                     name: slot_name,
                     ..
-                }) = shape.slots.get(index)
+                }) = layout.slots.get(index)
                 && strings.get(*slot_name) == name
             {
                 return Some(*offset);
@@ -176,12 +176,12 @@ type String {
         strings: &StringPool,
         method_name: &str,
     ) -> Option<String> {
-        let shape = tree.metadata.dispatch.dynamic_shape(table.constraint)?;
+        let layout = tree.metadata.dispatch.dynamic_layout(table.constraint)?;
 
-        // scan method slots by dynamic shape
+        // scan method slots by dynamic layout
         for (index, slot) in table.entries.iter().enumerate() {
             if let mir::DynamicEntry::Method { function } = slot
-                && let Some(mir::DynamicSlot::Method { name, .. }) = shape.slots.get(index)
+                && let Some(mir::DynamicSlot::Method { name, .. }) = layout.slots.get(index)
                 && strings.get(*name) == method_name
             {
                 let target_name = strings.get(tree.get(*function).name);
@@ -259,14 +259,14 @@ type String {
     }
 
     /// Resolve a vtable for a type or panic.
-    pub(crate) fn type_vtable<'a>(
+    pub(crate) fn type_virtual_table<'a>(
         &self,
         tree: &'a mir::Tree,
         type_id: mir::LocalNodeId<mir::Type>,
-    ) -> &'a mir::Vtable {
+    ) -> &'a mir::VirtualTable {
         tree.metadata
             .dispatch
-            .vtable(type_id)
+            .virtual_table(type_id)
             .unwrap_or_else(|| panic!("missing vtable for '{type_id:?}'"))
     }
 
@@ -371,8 +371,8 @@ type String {
         })?;
 
         // resolve the layout metadata for offsets
-        let layout_id = tree.metadata.layout.layout_id(struct_type)?;
-        let layout = tree.metadata.layout.layout_table.layout(layout_id);
+        let layout_id = tree.metadata.layouts.layout_id(struct_type)?;
+        let layout = tree.metadata.layouts.table.layout(layout_id);
         layout
             .shape
             .fields()
@@ -501,7 +501,7 @@ type String {
     ) -> Option<DynamicCall> {
         // scan call instructions for dynamic dispatch
         let function = tree.get(function_id);
-        for block_id in &function.blocks {
+        for block_id in function.blocks() {
             let block = tree.get(*block_id);
             for instruction_id in &block.instructions {
                 if let mir::Instruction::CallDynamic {
@@ -531,7 +531,7 @@ type String {
     ) -> Option<ClassCall> {
         // scan call instructions for virtual dispatch
         let function = tree.get(function_id);
-        for block_id in &function.blocks {
+        for block_id in function.blocks() {
             let block = tree.get(*block_id);
             for instruction_id in &block.instructions {
                 if let mir::Instruction::CallVirtual {

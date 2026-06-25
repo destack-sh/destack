@@ -36,12 +36,12 @@ impl VerifyState<'_> {
                 roots.push(environment);
             }
 
-            for local in &function.locals {
+            for local in function.locals() {
                 let local = self.tree.get(*local);
                 roots.push(local.ty);
             }
 
-            for ty in function.value_types.iter().flatten() {
+            for ty in function.value_types().iter().flatten() {
                 roots.push(*ty);
             }
         }
@@ -74,7 +74,7 @@ impl VerifyState<'_> {
         building: &mut HashSet<mir::LocalNodeId<mir::Type>>,
     ) -> Option<mir::LocalNodeId<mir::Function>> {
         // reuse already generated glue
-        if let Some(glue) = self.tree.metadata.drop.drop_glue(ty) {
+        if let Some(glue) = self.tree.metadata.drops.drop_glue(ty) {
             return glue.function();
         }
 
@@ -87,7 +87,7 @@ impl VerifyState<'_> {
         let function = self.declare_drop_glue(ty)?;
         self.tree
             .metadata
-            .drop
+            .drops
             .set_drop_glue(ty, mir::DropGlue::Generated { function });
 
         // build the body once per active recursion chain
@@ -106,7 +106,7 @@ impl VerifyState<'_> {
         if self.tree.get(ty).copy().is_yes() {
             return false;
         }
-        if self.tree.metadata.drop.drop_hook(ty).is_some() {
+        if self.tree.metadata.drops.drop_hook(ty).is_some() {
             return true;
         }
 
@@ -378,7 +378,7 @@ impl VerifyState<'_> {
         let value = builder.function_parameter(0);
 
         // call the user hook before structural field drops
-        if let Some(hook) = builder.tree().metadata.drop.drop_hook(ty).cloned() {
+        if let Some(hook) = builder.tree().metadata.drops.drop_hook(ty).cloned() {
             let void = builder.tree_mut().void_type();
             let signature = builder
                 .tree_mut()
@@ -587,7 +587,7 @@ fn emit_drop_contents(
     ty: mir::LocalNodeId<mir::Type>,
     value: mir::Value,
 ) {
-    if let Some(glue) = builder.tree().metadata.drop.drop_glue(ty).cloned() {
+    if let Some(glue) = builder.tree().metadata.drops.drop_glue(ty).cloned() {
         emit_drop_glue(builder, ty, value, glue);
         return;
     }
@@ -653,7 +653,7 @@ fn emit_unique_reference_contents(
 fn type_emits_drop_code(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> bool {
     if tree
         .metadata
-        .drop
+        .drops
         .drop_glue(ty)
         .is_some_and(|glue| !matches!(glue, mir::DropGlue::None))
     {

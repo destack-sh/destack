@@ -101,7 +101,7 @@ impl ModuleLowerer<'_> {
 
         // build dynamic slots and table entries
         let mut entries = Vec::with_capacity(dynamic_members.len());
-        let mut shape_slots = Vec::with_capacity(dynamic_members.len());
+        let mut layout_slots = Vec::with_capacity(dynamic_members.len());
 
         // append dynamic slots
         for member in dynamic_members {
@@ -120,7 +120,7 @@ impl ModuleLowerer<'_> {
                         declaration_id,
                     )?;
                     entries.push(mir::DynamicEntry::Field { offset });
-                    shape_slots.push(mir::DynamicSlot::Field { field, name });
+                    layout_slots.push(mir::DynamicSlot::Field { field, name });
                 }
                 DynamicMember::Getter {
                     name,
@@ -134,7 +134,7 @@ impl ModuleLowerer<'_> {
                     entries.push(mir::DynamicEntry::Getter {
                         function: target_method,
                     });
-                    shape_slots.push(mir::DynamicSlot::Getter { name, signature });
+                    layout_slots.push(mir::DynamicSlot::Getter { name, signature });
                 }
                 DynamicMember::Setter {
                     name,
@@ -148,7 +148,7 @@ impl ModuleLowerer<'_> {
                     entries.push(mir::DynamicEntry::Setter {
                         function: target_method,
                     });
-                    shape_slots.push(mir::DynamicSlot::Setter { name, signature });
+                    layout_slots.push(mir::DynamicSlot::Setter { name, signature });
                 }
                 DynamicMember::Method {
                     name,
@@ -163,7 +163,7 @@ impl ModuleLowerer<'_> {
                     entries.push(mir::DynamicEntry::Method {
                         function: target_method,
                     });
-                    shape_slots.push(mir::DynamicSlot::Method { name, signature });
+                    layout_slots.push(mir::DynamicSlot::Method { name, signature });
                 }
                 DynamicMember::Call {
                     signature,
@@ -180,29 +180,29 @@ impl ModuleLowerer<'_> {
                     entries.push(mir::DynamicEntry::Call {
                         function: target_method,
                     });
-                    shape_slots.push(mir::DynamicSlot::Call { signature });
+                    layout_slots.push(mir::DynamicSlot::Call { signature });
                 }
             }
         }
 
-        // register the canonical dynamic shape
+        // register the canonical dynamic layout
         let dispatch_table = &mut self.builder.tree_mut().metadata.dispatch;
-        let shape = mir::DynamicShape {
+        let layout = mir::DynamicLayout {
             constraint: constraint_mir_type,
-            slots: shape_slots,
+            slots: layout_slots,
         };
-        match dispatch_table.dynamic_shape(constraint_mir_type) {
-            Some(existing_shape) => {
-                if existing_shape != &shape {
+        match dispatch_table.dynamic_layout(constraint_mir_type) {
+            Some(existing_layout) => {
+                if existing_layout != &layout {
                     return Err(LowerError::UnsupportedConstruct {
                         anchor: self.diagnostic_anchor(declaration_id),
-                        message: "inconsistent dynamic shape".to_string(),
+                        message: "inconsistent dynamic layout".to_string(),
                     }
                     .into());
                 }
             }
             None => {
-                dispatch_table.insert_dynamic_shape(constraint_mir_type, shape);
+                dispatch_table.insert_dynamic_layout(constraint_mir_type, layout);
             }
         }
 

@@ -136,7 +136,7 @@ impl TestProgram {
             slot: mir::DispatchSlot::new(0),
         };
 
-        self.tree.metadata.drop.set_drop_glue(ty, glue);
+        self.tree.metadata.drops.set_drop_glue(ty, glue);
     }
 
     /// Mark one type as having a custom drop hook.
@@ -152,7 +152,7 @@ impl TestProgram {
             .unwrap_or_else(|| panic!("missing MIR function {function_name}"));
         let hook = mir::DropHook { function };
 
-        self.tree.metadata.drop.set_drop_hook(ty, hook);
+        self.tree.metadata.drops.set_drop_hook(ty, hook);
     }
 
     /// Assert no ownership errors.
