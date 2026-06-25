@@ -43,6 +43,8 @@ pub(in crate::check) struct GenericInductionParameter {
 pub(in crate::check) enum GenericArgumentMode {
     /// Infer omitted arguments from surrounding constraints.
     Infer,
+    /// Match omitted arguments exactly from an already-formed type.
+    Match,
     /// Fill omitted arguments from declared defaults.
     Default,
 }
@@ -134,14 +136,6 @@ impl GenericIndex {
     ) -> Option<GenericInductionParameter> {
         self.inductions.get(&variable).copied()
     }
-
-    /// Remove the generic parameter induced by one variable.
-    pub(in crate::check) fn remove_induction(
-        &mut self,
-        variable: dir::TypeVariableId,
-    ) -> Option<GenericInductionParameter> {
-        self.inductions.shift_remove(&variable)
-    }
 }
 
 impl CheckState<'_> {
@@ -202,7 +196,15 @@ impl CheckState<'_> {
     }
 
     /// Return the inference widening policy for one generic parameter.
-    pub(in crate::check) fn generic_parameter_widening(&self, id: GenericParameterId) -> Widening {
+    pub(in crate::check) fn generic_parameter_widening(
+        &self,
+        id: GenericParameterId,
+        mode: GenericArgumentMode,
+    ) -> Widening {
+        if mode == GenericArgumentMode::Match {
+            return Widening::Preserve;
+        }
+
         let Some(parameter) = self.generic_parameter(id) else {
             return Widening::Preserve;
         };
@@ -228,6 +230,52 @@ impl CheckState<'_> {
             .iter()
             .map(|parameter| parameter.into_global(id.module_id))
             .collect()
+    }
+
+    /// Return selected generic argument bindings for one ordered parameter list.
+    pub(in crate::check) fn generic_argument_bindings(
+        &self,
+        parameters: &[GenericParameterId],
+        arguments: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
+        if parameters.len() != arguments.len() {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "generic argument count {} does not match parameter count {}",
+                    arguments.len(),
+                    parameters.len(),
+                ),
+            });
+        }
+
+        let bindings = parameters
+            .iter()
+            .copied()
+            .zip(arguments.iter().copied())
+            .map(|(parameter, argument)| dir::GenericArgumentBinding::new(parameter, argument))
+            .collect();
+
+        Ok(bindings)
+    }
+
+    /// Return selected generic argument bindings for one symbol template.
+    pub(in crate::check) fn symbol_generic_argument_bindings(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        arguments: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
+        let Some(template) = self.symbol_template(symbol) else {
+            if arguments.is_empty() {
+                return Ok(Vec::new());
+            }
+
+            return Err(CompilerError::Internal {
+                message: format!("nongeneric symbol {symbol:?} has selected generic arguments"),
+            });
+        };
+        let parameters = self.generic_template_parameters(template);
+
+        self.generic_argument_bindings(&parameters, arguments)
     }
 
     /// Return one generic parameter's default after earlier arguments apply.
@@ -258,8 +306,8 @@ impl CheckState<'_> {
         Ok(Some(default))
     }
 
-    /// Return the generic template declared at one source node, declaring it once.
-    pub(in crate::check) fn declare_generic_template(
+    /// Open the generic template at one source node.
+    pub(in crate::check) fn open_generic_template(
         &mut self,
         source: dir::GlobalNodeIdAny,
         parent: Option<GenericTemplateId>,
@@ -301,8 +349,8 @@ impl CheckState<'_> {
         Ok(id)
     }
 
-    /// Declare one generic parameter on its template.
-    pub(in crate::check) fn declare_generic_parameter(
+    /// Push one generic parameter onto its template.
+    pub(in crate::check) fn push_generic_parameter(
         &mut self,
         binding: dir::GenericParameterBinding,
         template: GenericTemplateId,
@@ -326,8 +374,8 @@ impl CheckState<'_> {
         Ok(id)
     }
 
-    /// Declare one induced generic parameter.
-    pub(in crate::check) fn declare_induced_generic_parameter(
+    /// Push one induced generic parameter.
+    pub(in crate::check) fn push_induced_generic_parameter(
         &mut self,
         template: GenericTemplateId,
         parameter: GenericInductionParameter,
@@ -353,7 +401,7 @@ impl CheckState<'_> {
             is_comptime: parameter.is_comptime,
         };
 
-        self.declare_generic_parameter(binding, template, None)
+        self.push_generic_parameter(binding, template, None)
     }
 }
 
@@ -431,12 +479,12 @@ impl CheckState<'_> {
 
                         default
                     }
-                    GenericArgumentMode::Infer => {
-                        let widening = self.generic_parameter_widening(parameter);
+                    GenericArgumentMode::Infer | GenericArgumentMode::Match => {
+                        let widening = self.generic_parameter_widening(parameter, mode);
                         let variable = self.allocate_variable(origin.module(), origin, widening);
                         let ty = self.push_variable_type(variable, source)?;
 
-                        // seed declared constraints as upper bounds
+                        // add declared constraints as upper bounds
                         let constraint = self
                             .generic_parameter(parameter)
                             .and_then(|binding| binding.constraint);
