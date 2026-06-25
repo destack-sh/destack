@@ -103,6 +103,10 @@ pub struct Parser {
     pub(super) field_intern: HashMap<FieldKey, LocalNodeId<Field>>,
     /// The function currently being parsed.
     pub(super) current_function: Option<LocalNodeId<Function>>,
+    /// Optional explicit SSA value names for the current function.
+    pub(super) value_names: Vec<Option<destack_core::StringId>>,
+    /// SSA value types for the current function.
+    pub(super) value_types: Vec<Option<LocalNodeId<Type>>>,
     /// The next SSA value id for the current function.
     pub(super) next_value_id: u32,
     /// The number of blocks parsed in the current function so far.
@@ -136,6 +140,8 @@ impl Parser {
             type_intern: HashMap::new(),
             field_intern: HashMap::new(),
             current_function: None,
+            value_names: Vec::new(),
+            value_types: Vec::new(),
             next_value_id: 0,
             parsed_block_count: 0,
             lifetime_scopes: Vec::new(),
@@ -304,9 +310,8 @@ impl Parser {
         value: Value,
         ty: LocalNodeId<Type>,
     ) -> ParseResult<()> {
-        if let Some(function_id) = self.current_function {
-            let function = self.tree.get_mut(function_id);
-            let existing = function.value_type(value);
+        if self.current_function.is_some() {
+            let existing = self.value_types.get(value.0 as usize).copied().flatten();
             if let Some(existing) = existing {
                 if existing != ty {
                     return Err(ParseError::new(
@@ -317,10 +322,25 @@ impl Parser {
                 return Ok(());
             }
 
-            function.set_value_type(value, ty);
+            self.resize_value_slots(value);
+            self.value_types[value.0 as usize] = Some(ty);
         }
 
         Ok(())
+    }
+
+    /// Resize current function SSA side tables for one value.
+    pub(super) fn resize_value_slots(&mut self, value: Value) {
+        let index = value.0 as usize;
+        let value_count = index + 1;
+
+        if self.value_types.len() < value_count {
+            self.value_types.resize(value_count, None);
+        }
+
+        if self.value_names.len() < value_count {
+            self.value_names.resize(value_count, None);
+        }
     }
 
     /// Reset per-function parse state.
@@ -329,6 +349,8 @@ impl Parser {
         self.predeclared_blocks.clear();
         self.value_name_map.clear();
         self.local_name_map.clear();
+        self.value_names.clear();
+        self.value_types.clear();
         self.next_value_id = 0;
         self.parsed_block_count = 0;
     }

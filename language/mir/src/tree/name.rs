@@ -11,7 +11,7 @@ pub(crate) fn finalize_function_names(
     let function = tree.get(function_id).clone();
 
     // block names
-    for (block_index, block_id) in function.blocks.iter().enumerate() {
+    for (block_index, block_id) in function.blocks().iter().enumerate() {
         let block = tree.get(*block_id);
         if block.name.is_some() {
             continue;
@@ -30,7 +30,12 @@ pub(crate) fn finalize_function_names(
     for (parameter_index, parameter) in function.parameters.iter().enumerate() {
         let value = parameter.value;
 
-        if tree.get(function_id).value_name(value).is_some() {
+        if tree
+            .get(function_id)
+            .parameter_names
+            .get(parameter_index)
+            .is_some_and(Option::is_some)
+        {
             continue;
         }
 
@@ -45,11 +50,15 @@ pub(crate) fn finalize_function_names(
 
         let name = strings.intern(&format!("{prefix}{}", value.0));
         let function = tree.get_mut(function_id);
-        set_value_name(function, value, name);
+        function.parameter_names[parameter_index] = Some(name);
+    }
+
+    if function.body().is_none() {
+        return;
     }
 
     // block parameters and instruction destinations
-    for block_id in &function.blocks {
+    for block_id in function.blocks() {
         let block = tree.get(*block_id).clone();
 
         for parameter in &block.parameters {
@@ -83,12 +92,11 @@ pub(crate) fn finalize_function_names(
 
 /// Set the explicit name for one SSA value.
 fn set_value_name(function: &mut Function, value: Value, name: StringId) {
-    let index = value.0 as usize;
-    if index >= function.value_names.len() {
-        function.value_names.resize(index + 1, None);
-    }
+    let Some(body) = function.body_mut() else {
+        unreachable!("cannot set SSA value name on a function without a body");
+    };
 
-    function.value_names[index] = Some(name);
+    body.set_value_name(value, name);
 }
 
 /// Normalize one authored identifier into a generated-name prefix.

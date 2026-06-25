@@ -135,7 +135,7 @@ entry:
     let (function_id, function) = tree.iter_nodes::<Function>().next().unwrap();
 
     // // head and // tail
-    assert_node!(tree, function.blocks[0], Block { terminator, .. } => {
+    assert_node!(tree, function.block(0), Block { terminator, .. } => {
         let leading_comments = tree.leading_comments(function_id);
         let terminator_span = tree.get_span(*terminator).unwrap();
         let trailing_comments = tree.comments_between(terminator_span.end, u32::MAX);
@@ -204,7 +204,7 @@ entry:
     let (_, function) = tree.iter_nodes::<Function>().next().unwrap();
 
     // no terminator leading comments
-    assert_node!(tree, function.blocks[0], Block { terminator, .. } => {
+    assert_node!(tree, function.block(0), Block { terminator, .. } => {
         let leading = tree.leading_comments(*terminator);
 
         assert!(leading.is_empty());
@@ -228,7 +228,7 @@ b1:
     // parse
     let tree = TestParser::new(source).tree();
     let (_, function) = tree.iter_nodes::<Function>().next().unwrap();
-    let leading = tree.leading_comments(function.blocks[1]);
+    let leading = tree.leading_comments(function.block(1));
 
     // // next
     assert_eq!(comment_texts(&leading), vec!["// next"]);
@@ -248,7 +248,7 @@ entry:
     // parse
     let tree = TestParser::new(source).tree();
     let (_, function) = tree.iter_nodes::<Function>().next().unwrap();
-    let leading = tree.leading_comments(function.blocks[0]);
+    let leading = tree.leading_comments(function.block(0));
 
     // // body
     assert_eq!(comment_texts(&leading), vec!["// body"]);
@@ -270,7 +270,7 @@ entry:
     let (_, function) = tree.iter_nodes::<Function>().next().unwrap();
 
     // // tail
-    assert_node!(tree, function.blocks[0], Block { terminator, .. } => {
+    assert_node!(tree, function.block(0), Block { terminator, .. } => {
         let leading = tree.leading_comments(*terminator);
 
         assert_eq!(comment_texts(&leading), vec!["// tail"]);
@@ -293,7 +293,7 @@ entry:
     let (_, function) = tree.iter_nodes::<Function>().next().unwrap();
 
     // // tail
-    assert_node!(tree, function.blocks[0], Block { terminator, .. } => {
+    assert_node!(tree, function.block(0), Block { terminator, .. } => {
         let terminator_span = tree.get_span(*terminator).unwrap();
         let comments = tree.comments_between(terminator_span.end, u32::MAX);
 

@@ -67,11 +67,11 @@ pub fn walk_function<V: NodeVisitor + ?Sized>(
     function: &Function,
 ) {
     visitor.visit_any(tree, NodeType::Function, id.id);
-    for local_id in &function.locals {
+    for local_id in function.locals() {
         let local = tree.get(*local_id);
         visitor.visit_local(tree, *local_id, local);
     }
-    for block_id in &function.blocks {
+    for block_id in function.blocks() {
         let block = tree.get(*block_id);
         visitor.visit_block(tree, *block_id, block);
     }

@@ -28,7 +28,7 @@ impl Parser {
             self.attach_leading_comments(&body_anchor_ids, function_span.start);
 
             // blocks
-            let block_ids = self.tree.get(function_id).blocks.clone();
+            let block_ids = self.tree.get(function_id).blocks().to_vec();
             for block_id in block_ids {
                 let Some(block_span) = self.tree.get_span(block_id) else {
                     continue;
@@ -56,10 +56,10 @@ impl Parser {
         let function = self.tree.get(function_id);
         self.sorted_anchor_ids(
             function
-                .locals
+                .locals()
                 .iter()
                 .map(|id| id.id)
-                .chain(function.blocks.iter().map(|id| id.id)),
+                .chain(function.blocks().iter().map(|id| id.id)),
         )
     }
 

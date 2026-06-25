@@ -22,7 +22,7 @@ entry:
     let (type_alias_id, _) = tree.iter_nodes::<TypeAlias>().next().unwrap();
     let (global_id, _) = tree.iter_nodes::<Global>().next().unwrap();
     let (function_id, function) = tree.iter_nodes::<Function>().next().unwrap();
-    let block_id = function.blocks[0];
+    let block_id = function.block(0);
 
     assert_eq!(
         tree.get_main_span(type_alias_id),
@@ -94,7 +94,7 @@ entry(input0: int32):
 
     let (_, function) = tree.iter_nodes::<Function>().next().unwrap();
 
-    assert_node!(tree, function.blocks[0], Block { instructions, terminator, .. } => {
+    assert_node!(tree, function.block(0), Block { instructions, terminator, .. } => {
         let instruction_id = instructions[0];
 
         assert_eq!(

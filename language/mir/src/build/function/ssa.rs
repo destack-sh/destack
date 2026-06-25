@@ -80,7 +80,7 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Seal all blocks.
     pub fn seal_all_blocks(&mut self) {
-        let blocks: Vec<_> = self.blocks.clone();
+        let blocks = self.blocks.clone();
         for block in blocks {
             self.seal_block(block);
         }

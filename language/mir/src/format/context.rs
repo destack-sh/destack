@@ -247,18 +247,22 @@ fn build_unique_block_names(
 
     // build names independently per function
     for (_, function) in tree.iter_nodes::<Function>() {
-        let names = function.blocks.iter().enumerate().map(|(index, block_id)| {
-            let block = tree.get(*block_id);
-            let name = if let Some(name) = block.name {
-                strings.get(name).to_string()
-            } else if index == 0 {
-                "entry".to_string()
-            } else {
-                format!("b{index}")
-            };
+        let names = function
+            .blocks()
+            .iter()
+            .enumerate()
+            .map(|(index, block_id)| {
+                let block = tree.get(*block_id);
+                let name = if let Some(name) = block.name {
+                    strings.get(name).to_string()
+                } else if index == 0 {
+                    "entry".to_string()
+                } else {
+                    format!("b{index}")
+                };
 
-            (*block_id, name)
-        });
+                (*block_id, name)
+            });
 
         names_by_id.extend(build_unique_names(names));
     }

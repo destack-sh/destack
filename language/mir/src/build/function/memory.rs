@@ -25,8 +25,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Create a local variable (stack slot).
     pub fn local(&mut self, ty: LocalNodeId<Type>, mutability: Mutability) -> LocalNodeId<Local> {
         let local = self.tree.insert(Local::new(ty, mutability));
-        let function = self.tree.get_mut(self.function_id);
-        function.locals.push(local);
+        self.locals.push(local);
         local
     }
 

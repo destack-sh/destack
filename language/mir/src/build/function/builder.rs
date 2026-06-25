@@ -3,9 +3,9 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::build::{BuildError, BuildResult, FunctionHeader, Variable};
 use crate::{
-    AllocationMode, AllocationSize, Block, Function, FunctionBehavior, FunctionParameter,
-    Instruction, Linkage, LocalNodeId, MemoryEffect, Symbol, Tree, Type, TypeId, Value,
-    finalize_function_names,
+    AllocationMode, AllocationSize, Block, Function, FunctionBehavior, FunctionBody,
+    FunctionParameter, Instruction, Linkage, LocalNodeId, MemoryEffect, Symbol, Tree, Type, TypeId,
+    Value, finalize_function_names,
 };
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
@@ -43,6 +43,12 @@ pub struct FunctionBuilder<'a> {
     pub(super) function_id: LocalNodeId<Function>,
     /// Current block we're inserting into.
     pub(super) current_block: Option<LocalNodeId<Block>>,
+    /// Locals built for this function body.
+    pub(super) locals: Vec<LocalNodeId<crate::Local>>,
+    /// Optional explicit SSA value names keyed by value id.
+    pub(super) value_names: Vec<Option<destack_core::StringId>>,
+    /// SSA value types keyed by value id.
+    pub(super) value_types: Vec<Option<LocalNodeId<Type>>>,
 
     // ssa construction state
     /// Next SSA value id to allocate.
@@ -78,27 +84,21 @@ impl<'a> FunctionBuilder<'a> {
         // create parameter values
         let parameter_count = parameters.len();
         let parameters = FunctionHeader::parameters_from_types(parameters);
-        let (_, value_types) = Function::parameter_state(&parameters);
-        let next_value_id = value_types.len() as u32;
+        let (next_value_id, value_types) = Function::parameter_state(&parameters);
 
-        // blank function (entry will be set in finish())
+        // insert a signature-only function until finish commits the body
         let function = Function {
             name,
             symbol: Symbol(name),
             parameters,
             lifetimes,
             parameter_names: vec![None; parameter_count],
-            value_names: vec![None; next_value_id as usize],
-            value_types,
             return_type: TypeId::from(result),
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
             suspension: None,
             environment: None,
-            locals: Vec::new(),
-            blocks: Vec::new(),
-            entry: None,
-            next_value_id,
+            body: None,
         };
         let function_id = tree.insert(function);
 
@@ -107,6 +107,9 @@ impl<'a> FunctionBuilder<'a> {
             strings,
             function_id,
             current_block: None,
+            locals: Vec::new(),
+            value_names: vec![None; next_value_id as usize],
+            value_types,
             next_value_id,
             next_variable_id: 0,
             variable_definitions: IndexMap::new(),
@@ -125,22 +128,27 @@ impl<'a> FunctionBuilder<'a> {
         function_id: LocalNodeId<Function>,
     ) -> BuildResult<Self> {
         // validate the declared function is still empty
-        let next_value_id = {
+        let (next_value_id, value_types) = {
             let function = tree.get(function_id);
-            if function.entry.is_some() || !function.blocks.is_empty() {
+            if function.body().is_some() {
                 return Err(BuildError::FunctionAlreadyHasBody {
                     function: function_id,
                 });
             }
 
-            function.next_value_id
+            Function::parameter_state(&function.parameters)
         };
+
+        let value_names = vec![None; next_value_id as usize];
 
         Ok(Self {
             tree,
             strings,
             function_id,
             current_block: None,
+            locals: Vec::new(),
+            value_names,
+            value_types,
             next_value_id,
             next_variable_id: 0,
             variable_definitions: IndexMap::new(),
@@ -219,14 +227,22 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Record the type for a value produced by an instruction.
     pub(super) fn define_value(&mut self, value: Value, ty: LocalNodeId<Type>) {
-        let function = self.tree.get_mut(self.function_id);
-        function.set_value_type(value, ty);
+        let index = self.resize_value_slots(value);
+
+        if let Some(existing) = self.value_types[index] {
+            if existing != ty {
+                unreachable!("value {value:?} has mismatched types {existing:?} and {ty:?}");
+            }
+
+            return;
+        }
+
+        self.value_types[index] = Some(ty);
     }
 
     /// Get the type of an existing SSA value.
     pub(super) fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
-        let function = self.tree.get(self.function_id);
-        function.value_type(value)
+        self.value_types.get(value.0 as usize).copied().flatten()
     }
 
     /// Require the type of an SSA value.
@@ -244,6 +260,22 @@ impl<'a> FunctionBuilder<'a> {
     /// Unwrap one builder result for an infallible builder operation.
     pub(super) fn expect_build<T>(&self, result: BuildResult<T>) -> T {
         result.unwrap_or_else(|error| unreachable!("{error}"))
+    }
+
+    /// Resize SSA side tables for one value.
+    fn resize_value_slots(&mut self, value: Value) -> usize {
+        let index = value.0 as usize;
+        let value_count = index + 1;
+
+        if self.value_types.len() < value_count {
+            self.value_types.resize(value_count, None);
+        }
+
+        if self.value_names.len() < value_count {
+            self.value_names.resize(value_count, None);
+        }
+
+        index
     }
 
     /// Record that `from_block` is a predecessor of `to_block`.
@@ -305,11 +337,18 @@ impl<'a> FunctionBuilder<'a> {
             return Err(BuildError::EntryParameterMismatch);
         }
 
-        // update function
+        // commit the complete body
+        let body = FunctionBody::new(
+            entry_block,
+            self.blocks,
+            self.locals,
+            self.value_names,
+            self.value_types,
+            self.next_value_id,
+            self.tree,
+        );
         let function = self.tree.get_mut(self.function_id);
-        function.entry = Some(entry_block);
-        function.blocks = self.blocks;
-        function.next_value_id = self.next_value_id;
+        function.set_body(body);
 
         // finalize generated names before formatting
         finalize_function_names(self.tree, self.strings, self.function_id);

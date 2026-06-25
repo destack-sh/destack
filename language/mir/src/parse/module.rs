@@ -2,9 +2,8 @@ use crate::source::TokenType;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
-    AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, Copy, Function, Global,
-    GlobalInitializer, Linkage, LocalNodeId, Mutability, Symbol, Type, TypeAlias,
-    TypeDeclarationSpans, TypeId,
+    Attribute, AttributeArgs, AttributeIdentifier, Copy, Function, Global, GlobalInitializer,
+    Linkage, LocalNodeId, Mutability, Symbol, Type, TypeAlias, TypeDeclarationSpans, TypeId,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -135,24 +134,8 @@ impl Parser {
                 {
                     let name_id = self.strings.intern(&name);
                     let void_type = self.tree.insert_type(Type::Void);
-                    let placeholder = Function {
-                        name: name_id,
-                        symbol: Symbol(name_id),
-                        parameters: Vec::new(),
-                        lifetimes: Vec::new(),
-                        parameter_names: Vec::new(),
-                        value_names: Vec::new(),
-                        value_types: Vec::new(),
-                        return_type: TypeId::from(void_type),
-                        linkage: Linkage::Local,
-                        allocation: AllocationMode::Any,
-                        suspension: None,
-                        environment: None,
-                        locals: Vec::new(),
-                        blocks: Vec::new(),
-                        entry: None,
-                        next_value_id: 0,
-                    };
+                    let placeholder =
+                        Function::declare(name_id, Vec::new(), Vec::new(), TypeId::from(void_type));
                     let function_id = self.tree.insert(placeholder);
                     self.function_map.insert(name, function_id);
                 }

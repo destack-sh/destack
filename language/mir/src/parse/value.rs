@@ -61,14 +61,10 @@ impl Parser {
                 self.next_value_id += 1;
                 self.value_name_map.insert(name.clone(), value);
 
-                if let Some(function_id) = self.current_function {
+                if self.current_function.is_some() {
                     let name_id = self.strings.intern(&name);
-                    let function = self.tree.get_mut(function_id);
-                    let index = value.0 as usize;
-                    if index >= function.value_names.len() {
-                        function.value_names.resize(index + 1, None);
-                    }
-                    function.value_names[index] = Some(name_id);
+                    self.resize_value_slots(value);
+                    self.value_names[value.0 as usize] = Some(name_id);
                 }
 
                 Ok((value, span))

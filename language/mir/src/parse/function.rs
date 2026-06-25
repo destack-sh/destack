@@ -4,9 +4,9 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::source::{Token, TokenType};
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeValue, Block, BlockParameter, BlockTarget,
-    Call, CheckConstraint, Function, FunctionHeaderSpans, FunctionParameter, Instruction, Linkage,
-    Local, LocalNodeId, Mutability, SwitchCase, Terminator, TrapKind, TypeId, TypedValueSpan,
-    Value,
+    Call, CheckConstraint, Function, FunctionBody, FunctionHeaderSpans, FunctionParameter,
+    Instruction, Linkage, Local, LocalNodeId, Mutability, SwitchCase, Terminator, TrapKind, TypeId,
+    TypedValueSpan, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -157,7 +157,7 @@ impl Parser {
 
         // function metadata
         let environment_type = self.resolve_function_attributes(&attributes)?;
-        let parameter_names = self.header_parameter_names(function_id, &header.parameters);
+        let parameter_names = self.header_parameter_names(&header.parameters);
 
         // external function body
         if linkage.is_import() {
@@ -225,7 +225,12 @@ impl Parser {
         self.tree
             .set_function_parameter_spans(id, header.parameter_spans);
         let parameters = header.parameters;
-        let (_, value_types) = Function::parameter_state(&parameters);
+        let (next_value_id, value_types) = Function::parameter_state(&parameters);
+
+        // start body value tables without signature parameter names
+        self.value_names = vec![None; next_value_id as usize];
+        self.value_types = value_types;
+        self.next_value_id = next_value_id;
 
         // populate signature fields
         let function = self.tree.get_mut(id);
@@ -233,7 +238,6 @@ impl Parser {
         function.parameters = parameters;
         function.lifetimes = header.lifetimes;
         function.parameter_names = parameter_names;
-        function.value_types = value_types;
         function.return_type = header.return_type;
         function.linkage = linkage;
         function.environment = environment_type;
@@ -295,11 +299,16 @@ impl Parser {
             .copied()
             .ok_or_else(|| ParseError::new("function must have at least one block", self.pos()))?;
 
-        let function = self.tree.get_mut(id);
-        function.locals = locals;
-        function.blocks = blocks;
-        function.entry = Some(entry);
-        function.next_value_id = function.value_types.len() as u32;
+        let body = FunctionBody::new(
+            entry,
+            blocks,
+            locals,
+            std::mem::take(&mut self.value_names),
+            std::mem::take(&mut self.value_types),
+            self.next_value_id,
+            &self.tree,
+        );
+        self.tree.get_mut(id).set_body(body);
 
         self.current_function = None;
         self.pop_lifetime_scope();
@@ -458,14 +467,15 @@ impl Parser {
     }
 
     /// Return the parsed parameter names in value order.
-    fn header_parameter_names(
-        &self,
-        function_id: LocalNodeId<Function>,
-        parameters: &[FunctionParameter],
-    ) -> Vec<Option<StringId>> {
+    fn header_parameter_names(&self, parameters: &[FunctionParameter]) -> Vec<Option<StringId>> {
         parameters
             .iter()
-            .map(|parameter| self.tree.get(function_id).value_name(parameter.value))
+            .map(|parameter| {
+                self.value_names
+                    .get(parameter.value.0 as usize)
+                    .copied()
+                    .flatten()
+            })
             .collect()
     }
 
