@@ -1496,7 +1496,7 @@ Compound assignment operators like `+=` are desugared into their component opera
 | `[]` | `a[i]` | `Index<I>` |
 | `[] =` | `a[i] = v` | `IndexSet<I, V>` |
 | `*` | `*a` | `Dereference<"readonly">` |
-| `* =` | `*a = v` | `Dereference<"exclusive">` |
+| `* =` | `*a = v` | `Dereference<"mutable"> & T extends OverwriteStable` or `Dereference<"exclusive">` |
 
 Equality `==` / `!=` follows Rust's split between "partial" and "total" equality:
 - Equality operators `==` and `!=` dispatch through `PartialEqual<T>.equal`
@@ -1523,7 +1523,7 @@ extension<T, comptime A: Access = "readonly"> of Box<T> implements Dereference<A
 }
 ```
 
-For example, `*box` flows through `Dereference<"readonly">`, while assignment through `*box` needs `Dereference<"exclusive">`.
+For example, `*box` flows via `Dereference<"readonly">`, while assignment through `*box` requires `Dereference<"mutable">` when the value is `OverwriteStable` and `Dereference<"exclusive">` otherwise.
 Importantly, member lookup and method calls may auto-dereference transparently through `Dereference` without any special syntax - this is what enables ergonomic access to smart pointer like wrappers and guards.
 
 ### Arithmetic
