@@ -3,23 +3,6 @@ use destack_artifact::{ArtifactEvent, ArtifactEventLog};
 use crate::check::{CheckEvent, DumpContext};
 
 impl CheckEvent {
-    /// Render this event as one timestamped plain text line.
-    pub(in crate::check) fn render_plain_at(
-        &self,
-        context: &DumpContext<'_, '_>,
-        timestamp: usize,
-    ) -> String {
-        let mut log = ArtifactEventLog::new();
-        self.render(context, &mut log);
-
-        let Some(mut event) = log.events.into_iter().next() else {
-            return String::new();
-        };
-        event.timestamp = timestamp;
-
-        event.render_plain()
-    }
-
     /// Render this event into an artifact event log.
     pub(in crate::check) fn render(
         &self,
@@ -27,6 +10,14 @@ impl CheckEvent {
         log: &mut ArtifactEventLog,
     ) {
         let event = match self {
+            Self::VariableAllocated { variable, widening } => {
+                ArtifactEvent::new("variable.allocated")
+                    .debug()
+                    .text("variable", context.variable_label(*variable))
+                    .text("origin", context.variable_origin_label(*variable))
+                    .text("at", context.variable_source_label(*variable))
+                    .text("widening", context.widening_label(*widening))
+            }
             Self::SolveStarted { tasks, variables } => ArtifactEvent::new("solve.started")
                 .info()
                 .usize("tasks", *tasks)
@@ -46,7 +37,7 @@ impl CheckEvent {
             Self::RelationChecked {
                 constraint,
                 is_finished,
-            } => match context.check.constraints.get(*constraint) {
+            } => match context.check.solver.constraints.get(*constraint) {
                 Ok(relation) => relation.render_event(*constraint, *is_finished, context),
                 Err(_) => ArtifactEvent::new("relation.checked")
                     .debug()
@@ -56,7 +47,7 @@ impl CheckEvent {
             Self::ObligationChecked {
                 obligation,
                 is_finished,
-            } => match context.check.obligations.get(*obligation) {
+            } => match context.check.solver.obligations.get(*obligation) {
                 Ok(obligation_state) => {
                     obligation_state.render_event(*obligation, *is_finished, context)
                 }
@@ -71,11 +62,15 @@ impl CheckEvent {
                 .text("at", context.node_source_label(*node)),
             Self::VariableSolved {
                 variable,
+                bounds,
                 solution,
                 waiters,
             } => ArtifactEvent::new("variable.solved")
                 .debug()
                 .text("variable", context.variable_label(*variable))
+                .text("lower", context.type_list_label(&bounds.lower))
+                .text("upper", context.type_list_label(&bounds.upper))
+                .text("default", context.optional_type_label(bounds.default))
                 .text("solution", context.type_label(*solution))
                 .usize("waiters", *waiters),
             Self::VariableBlocked {

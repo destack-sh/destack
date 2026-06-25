@@ -2,7 +2,8 @@ use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
 use crate::check::{
-    CheckState, ConstraintCause, ConstraintId, Dependency, ObligationId, Origin, Relation,
+    CheckState, ConstraintId, ConstraintRole, Dependency, ObligationId, Origin, Relation,
+    SelectionId, Widening,
 };
 
 /// Rendering context for check trace values.
@@ -27,9 +28,16 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         format!("o{}", id.index())
     }
 
+    /// Return a compact selection label.
+    pub(in crate::check) fn selection_label(&self, id: SelectionId) -> String {
+        format!("s{}", id.index())
+    }
+
     /// Return a compact type variable label.
     pub(in crate::check) fn variable_label(&self, id: dir::TypeVariableId) -> String {
-        format!("v{}", id.index)
+        let module = self.module_label(id.module_id);
+
+        format!("{module}:v{}", id.index)
     }
 
     /// Return a compact node label.
@@ -83,6 +91,14 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             .unwrap_or_else(|| "none".to_string())
     }
 
+    /// Return a compact widening policy label.
+    pub(in crate::check) fn widening_label(&self, widening: Widening) -> &'static str {
+        match widening {
+            Widening::Preserve => "preserve",
+            Widening::Widen => "widen",
+        }
+    }
+
     /// Return a compact dependency label.
     pub(in crate::check) fn dependency_label(&self, dependency: Dependency) -> String {
         match dependency {
@@ -102,6 +118,73 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             .map(|dependency| self.dependency_label(*dependency))
             .collect::<Vec<_>>()
             .join(", ")
+    }
+
+    /// Return dependency labels with available solver state.
+    pub(in crate::check) fn dependency_state_list_label(
+        &self,
+        dependencies: &[Dependency],
+    ) -> String {
+        if dependencies.is_empty() {
+            return "none".to_string();
+        }
+
+        dependencies
+            .iter()
+            .map(|dependency| self.dependency_state_label(*dependency))
+            .collect::<Vec<_>>()
+            .join("; ")
+    }
+
+    /// Return one dependency label with available solver state.
+    fn dependency_state_label(&self, dependency: Dependency) -> String {
+        match dependency {
+            Dependency::Variable(variable) => self.variable_state_label(variable),
+            Dependency::Decision(node) => {
+                format!(
+                    "{} at {}",
+                    self.node_label(node),
+                    self.node_source_label(node)
+                )
+            }
+        }
+    }
+
+    /// Return one variable label with current bounds.
+    fn variable_state_label(&self, variable: dir::TypeVariableId) -> String {
+        let label = self.variable_label(variable);
+        let Ok(state) = self.check.solver.variable(variable) else {
+            return label;
+        };
+
+        format!(
+            "{} origin={} at={} lower={} upper={} default={} solution={}",
+            label,
+            self.origin_label(state.origin),
+            self.origin_source_label(state.origin),
+            self.type_list_label(&state.lower),
+            self.type_list_label(&state.upper),
+            self.optional_type_label(state.default),
+            self.optional_type_label(state.solution),
+        )
+    }
+
+    /// Return one variable's origin label.
+    pub(in crate::check) fn variable_origin_label(&self, variable: dir::TypeVariableId) -> String {
+        let Ok(state) = self.check.solver.variable(variable) else {
+            return "unknown".to_string();
+        };
+
+        self.origin_label(state.origin)
+    }
+
+    /// Return one variable's source location.
+    pub(in crate::check) fn variable_source_label(&self, variable: dir::TypeVariableId) -> String {
+        let Ok(state) = self.check.solver.variable(variable) else {
+            return "unknown".to_string();
+        };
+
+        self.origin_source_label(state.origin)
     }
 
     /// Return a compact static key label.
@@ -146,14 +229,14 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         }
     }
 
-    /// Return a compact constraint cause label.
-    pub(in crate::check) fn cause_label(&self, cause: ConstraintCause) -> &'static str {
-        match cause {
-            ConstraintCause::General => "general",
-            ConstraintCause::Argument => "argument",
-            ConstraintCause::Return => "return",
-            ConstraintCause::Yield => "yield",
-            ConstraintCause::Condition => "condition",
+    /// Return a compact constraint role label.
+    pub(in crate::check) fn role_label(&self, role: ConstraintRole) -> &'static str {
+        match role {
+            ConstraintRole::Check => "check",
+            ConstraintRole::Value => "value",
+            ConstraintRole::Argument => "argument",
+            ConstraintRole::Output => "output",
+            ConstraintRole::Condition => "condition",
         }
     }
 

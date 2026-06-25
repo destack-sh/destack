@@ -3,6 +3,7 @@ use destack_dir as dir;
 
 use crate::check::{
     DumpContext, MatchCase, Obligation, ObligationId, PatternCoverage, PlaceTarget,
+    TryPropagationTarget, TryPropagationValue,
 };
 
 impl Obligation {
@@ -33,20 +34,14 @@ impl Obligation {
                     pattern_coverage_label(&obligation.coverage, context),
                 ),
             Self::TryPropagation(obligation) => event
-                .text("value", context.type_label(obligation.value))
-                .text(
-                    "return",
-                    obligation
-                        .return_type
-                        .map(|ty| context.type_label(ty))
-                        .unwrap_or_else(|| "none".to_string()),
-                ),
+                .text("value", try_value_label(obligation.value, context))
+                .text("target", try_target_label(obligation.target, context)),
             Self::WritablePlace(obligation) => event
                 .text(
                     "place",
                     place_target_label(&obligation.place.target, context),
                 )
-                .text("type", context.type_label(obligation.place.ty)),
+                .text("source", context.node_label(obligation.place.source)),
             Self::Representation(obligation) => {
                 event.text("type", context.type_label(obligation.ty))
             }
@@ -57,6 +52,7 @@ impl Obligation {
                 "predicate",
                 runtime_predicate_label(&obligation.predicate, context),
             ),
+            Self::ForInSource(obligation) => event.text("type", context.type_label(obligation.ty)),
             Self::ExtensionConformance(obligation) => {
                 event.text("symbol", context.symbol_label(obligation.symbol))
             }
@@ -78,6 +74,7 @@ impl Obligation {
             Self::Representation(_) => "representation",
             Self::AutoInterface(_) => "auto.interface",
             Self::RuntimePredicate(_) => "runtime.predicate",
+            Self::ForInSource(_) => "for.in.source",
             Self::ExtensionConformance(_) => "extension.conformance",
             Self::ImplementationCoherence(_) => "implementation.coherence",
             Self::DeclarationHeritage(_) => "declaration.heritage",
@@ -140,6 +137,24 @@ fn pattern_coverage_label(coverage: &PatternCoverage, context: &DumpContext<'_, 
         PatternCoverage::Catch { pattern } => {
             format!("catch({})", context.node_label(pattern.into_any()))
         }
+    }
+}
+
+/// Render one try propagation value.
+fn try_value_label(value: TryPropagationValue, context: &DumpContext<'_, '_>) -> String {
+    match value {
+        TryPropagationValue::Type(ty) => context.type_label(ty),
+        TryPropagationValue::Node(node) => context.node_label(node),
+    }
+}
+
+/// Render one try propagation target.
+fn try_target_label(target: TryPropagationTarget, context: &DumpContext<'_, '_>) -> String {
+    match target {
+        TryPropagationTarget::Failure { ty } => format!("failure({})", context.type_label(ty)),
+        TryPropagationTarget::Return { ty } => ty
+            .map(|ty| format!("return({})", context.type_label(ty)))
+            .unwrap_or_else(|| "return(none)".to_string()),
     }
 }
 
