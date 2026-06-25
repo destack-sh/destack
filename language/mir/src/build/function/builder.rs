@@ -165,7 +165,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn set_memory_effect(&mut self, effect: MemoryEffect) {
         self.tree
             .metadata
-            .functions
+            .effects
             .function_mut(self.function_id)
             .memory = effect;
     }
@@ -174,7 +174,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn set_function_behavior(&mut self, behavior: FunctionBehavior) {
         self.tree
             .metadata
-            .functions
+            .effects
             .function_mut(self.function_id)
             .behavior = behavior;
     }
@@ -183,7 +183,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn set_allocation_size(&mut self, allocation_size: AllocationSize) {
         self.tree
             .metadata
-            .functions
+            .effects
             .function_mut(self.function_id)
             .allocation_size = Some(allocation_size);
     }

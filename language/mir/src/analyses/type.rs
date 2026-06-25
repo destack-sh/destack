@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use crate as mir;
 use destack_core::StringId;
 
-use super::ValueTypeMap;
+use super::ValueTypes;
 
 /// Structural type representation for CSE matching.
 ///
@@ -406,7 +406,7 @@ impl TypeKey {
     }
 }
 
-impl ValueTypeMap {
+impl ValueTypes {
     /// Return the unsigned integer width for a value when it is known.
     pub fn unsigned_int_width(
         &self,

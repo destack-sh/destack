@@ -168,7 +168,7 @@ impl ParameterRemap {
     /// Collect parameter indices that must be preserved by metadata.
     pub fn required_indices(
         function: &mir::Function,
-        metadata: Option<&mir::FunctionMetadata>,
+        metadata: Option<&mir::FunctionEffect>,
         tree: &mir::Tree,
     ) -> HashSet<usize> {
         let mut required = HashSet::new();

@@ -10,18 +10,18 @@ use crate::{Field, Function, Global, LocalNodeId, Type};
 /// Canonical dispatch metadata for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
 pub struct DispatchMetadata {
-    /// Class dispatch tables.
-    pub vtables: Vec<Vtable>,
-    /// Class dispatch table vector index keyed by type id.
+    /// Virtual dispatch tables.
+    pub virtual_tables: Vec<VirtualTable>,
+    /// Virtual dispatch table vector index keyed by type id.
     #[serde(skip, default)]
-    pub(crate) vtable_indices: HashMap<LocalNodeId<Type>, usize>,
+    pub(crate) virtual_table_indices: HashMap<LocalNodeId<Type>, usize>,
     /// Dynamic dispatch tables.
     pub dynamic_tables: Vec<DynamicTable>,
     /// Dynamic table vector index keyed by concrete type id, then constraint type id.
     #[serde(skip, default)]
     pub(crate) dynamic_table_indices: HashMap<LocalNodeId<Type>, HashMap<LocalNodeId<Type>, usize>>,
-    /// Dynamic slot layouts keyed by constraint type id.
-    pub dynamic_shapes: HashMap<LocalNodeId<Type>, DynamicShape>,
+    /// Dynamic dispatch layouts keyed by constraint type id.
+    pub dynamic_layouts: HashMap<LocalNodeId<Type>, DynamicLayout>,
 }
 
 impl DispatchMetadata {
@@ -32,8 +32,8 @@ impl DispatchMetadata {
 
     /// Copy dispatch metadata from one type id to another.
     pub fn copy_type_metadata(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
-        if let Some(index) = self.vtable_index(from) {
-            self.vtable_indices.insert(to, index);
+        if let Some(index) = self.virtual_table_index(from) {
+            self.virtual_table_indices.insert(to, index);
         }
 
         let dynamic_tables = self
@@ -50,23 +50,23 @@ impl DispatchMetadata {
         }
     }
 
-    /// Insert a vtable.
-    pub fn insert_vtable(&mut self, table: Vtable) {
-        let index = self.vtables.len();
-        self.vtable_indices.insert(table.ty, index);
-        self.vtables.push(table);
+    /// Insert a virtual table.
+    pub fn insert_virtual_table(&mut self, table: VirtualTable) {
+        let index = self.virtual_tables.len();
+        self.virtual_table_indices.insert(table.ty, index);
+        self.virtual_tables.push(table);
     }
 
-    /// Return the vtable for a type when present.
-    pub fn vtable(&self, ty: LocalNodeId<Type>) -> Option<&Vtable> {
-        let index = self.vtable_index(ty)?;
+    /// Return the virtual table for a type when present.
+    pub fn virtual_table(&self, ty: LocalNodeId<Type>) -> Option<&VirtualTable> {
+        let index = self.virtual_table_index(ty)?;
 
-        self.vtables.get(index)
+        self.virtual_tables.get(index)
     }
 
-    /// Iterate all vtables.
-    pub fn iter_vtables(&self) -> impl Iterator<Item = &Vtable> {
-        self.vtables.iter()
+    /// Iterate all virtual tables.
+    pub fn iter_virtual_tables(&self) -> impl Iterator<Item = &VirtualTable> {
+        self.virtual_tables.iter()
     }
 
     /// Insert a dynamic table.
@@ -92,27 +92,27 @@ impl DispatchMetadata {
         self.dynamic_tables.iter()
     }
 
-    /// Return dynamic shape metadata for a constraint type id.
-    pub fn dynamic_shape(&self, constraint: LocalNodeId<Type>) -> Option<&DynamicShape> {
-        self.dynamic_shapes.get(&constraint)
+    /// Return dynamic layout metadata for a constraint type id.
+    pub fn dynamic_layout(&self, constraint: LocalNodeId<Type>) -> Option<&DynamicLayout> {
+        self.dynamic_layouts.get(&constraint)
     }
 
-    /// Insert dynamic shape metadata for a constraint type id.
-    pub fn insert_dynamic_shape(
+    /// Insert dynamic layout metadata for a constraint type id.
+    pub fn insert_dynamic_layout(
         &mut self,
         constraint: LocalNodeId<Type>,
-        shape: DynamicShape,
-    ) -> Option<DynamicShape> {
-        self.dynamic_shapes.insert(constraint, shape)
+        layout: DynamicLayout,
+    ) -> Option<DynamicLayout> {
+        self.dynamic_layouts.insert(constraint, layout)
     }
 
     /// Rebuild dispatch lookup indexes from canonical tables.
     pub fn rebuild_indices(&mut self) {
-        self.vtable_indices.clear();
+        self.virtual_table_indices.clear();
         self.dynamic_table_indices.clear();
 
-        for (index, vtable) in self.vtables.iter().enumerate() {
-            self.vtable_indices.insert(vtable.ty, index);
+        for (index, table) in self.virtual_tables.iter().enumerate() {
+            self.virtual_table_indices.insert(table.ty, index);
         }
 
         let table_entries = self
@@ -140,12 +140,12 @@ impl DispatchMetadata {
             .insert(constraint, index);
     }
 
-    /// Return the vtable vector index for one type.
-    fn vtable_index(&self, ty: LocalNodeId<Type>) -> Option<usize> {
-        self.vtable_indices
+    /// Return the virtual table vector index for one type.
+    fn virtual_table_index(&self, ty: LocalNodeId<Type>) -> Option<usize> {
+        self.virtual_table_indices
             .get(&ty)
             .copied()
-            .or_else(|| self.vtables.iter().position(|vtable| vtable.ty == ty))
+            .or_else(|| self.virtual_tables.iter().position(|table| table.ty == ty))
     }
 
     /// Return the dynamic table vector index for one concrete and constraint pair.
@@ -166,15 +166,15 @@ impl DispatchMetadata {
     }
 }
 
-/// Metadata for a class vtable.
+/// Metadata for one class virtual table.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct Vtable {
+pub struct VirtualTable {
     /// The class type owning this table.
     pub ty: LocalNodeId<Type>,
     /// The static global containing this table.
     pub global: LocalNodeId<Global>,
     /// Entries in declaration order.
-    pub entries: Vec<VtableEntry>,
+    pub entries: Vec<VirtualEntry>,
 }
 
 /// Metadata for one concrete implementation of one dynamic constraint.
@@ -186,7 +186,7 @@ pub struct DynamicTable {
     pub constraint: LocalNodeId<Type>,
     /// The static global containing this table.
     pub global: LocalNodeId<Global>,
-    /// Slots in dynamic shape order.
+    /// Entries in dynamic layout order.
     pub entries: Vec<DynamicEntry>,
 }
 
@@ -204,16 +204,16 @@ impl DynamicTable {
 
 /// Slot layout for one dynamic constraint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct DynamicShape {
-    /// The dynamic constraint type owning this shape.
+pub struct DynamicLayout {
+    /// The dynamic constraint type owning this layout.
     pub constraint: LocalNodeId<Type>,
     /// Slots in declaration order.
     pub slots: Vec<DynamicSlot>,
 }
 
-/// Entry in a class vtable.
+/// Entry in a class virtual table.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum VtableEntry {
+pub enum VirtualEntry {
     /// Slot containing the runtime type descriptor.
     TypeDescriptor,
     /// Slot containing a drop glue function.

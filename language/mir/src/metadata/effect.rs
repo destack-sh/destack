@@ -1,62 +1,170 @@
 use destack_serde::Reflect;
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
-use crate::SpaceSet;
+use crate::{AllocationSize, CallArgumentEffect, CallSite, Function, LocalNodeId, SpaceSet};
 
-/// Memory effect summary for a call or operation.
+/// Function and call effect metadata for one MIR module.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct EffectMetadata {
+    /// Effects keyed by function id.
+    pub functions: HashMap<LocalNodeId<Function>, FunctionEffect>,
+    /// Effects keyed by callsite.
+    pub calls: HashMap<CallSite, CallEffect>,
+}
+
+impl EffectMetadata {
+    /// Return function effects when present.
+    pub fn function(&self, function: LocalNodeId<Function>) -> Option<&FunctionEffect> {
+        self.functions.get(&function)
+    }
+
+    /// Return mutable function effects, inserting unknown effects when absent.
+    pub fn function_mut(&mut self, function: LocalNodeId<Function>) -> &mut FunctionEffect {
+        self.functions.entry(function).or_default()
+    }
+
+    /// Return call effects when present.
+    pub fn call(&self, callsite: CallSite) -> Option<&CallEffect> {
+        self.calls.get(&callsite)
+    }
+
+    /// Return mutable call effects, inserting unknown effects when absent.
+    pub fn call_mut(&mut self, callsite: CallSite) -> &mut CallEffect {
+        self.calls.entry(callsite).or_default()
+    }
+}
+
+/// Effects for one function body or declaration.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct FunctionEffect {
+    /// Memory touched by this function.
+    pub memory: MemoryEffect,
+    /// Behavioral effects of this function.
+    pub behavior: FunctionBehavior,
+    /// Allocation result size relation when known.
+    pub allocation_size: Option<AllocationSize>,
+}
+
+impl FunctionEffect {
+    /// Create an effect with no memory access or special behavior.
+    pub fn none() -> Self {
+        Self {
+            memory: MemoryEffect::none(),
+            behavior: FunctionBehavior::none(),
+            allocation_size: None,
+        }
+    }
+
+    /// Create an effect with only memory access.
+    pub fn memory(memory: MemoryEffect) -> Self {
+        Self {
+            memory,
+            behavior: FunctionBehavior::none(),
+            allocation_size: None,
+        }
+    }
+
+    /// Create an unknown effect.
+    pub fn unknown() -> Self {
+        Self {
+            memory: MemoryEffect::unknown(),
+            behavior: FunctionBehavior::unknown(),
+            allocation_size: None,
+        }
+    }
+}
+
+/// Effects for one callsite.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct CallEffect {
+    /// Memory touched by this call.
+    pub memory: MemoryEffect,
+    /// Behavioral effects of this call.
+    pub behavior: FunctionBehavior,
+    /// Allocation result size relation when known.
+    pub allocation_size: Option<AllocationSize>,
+    /// Resolved direct target when dispatch analysis proves one.
+    pub target: Option<LocalNodeId<Function>>,
+    /// Argument memory behavior when known.
+    pub arguments: Vec<CallArgumentEffect>,
+}
+
+/// Memory access effect for a call or operation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct MemoryEffect {
-    /// Whether the operation may read memory.
-    pub reads: bool,
-    /// Whether the operation may write memory.
-    pub writes: bool,
-    /// The memory spaces that may be accessed.
-    pub spaces: SpaceSet,
+    /// Memory spaces this operation may read.
+    pub read: SpaceSet,
+    /// Memory spaces this operation may write.
+    pub write: SpaceSet,
 }
 
 impl MemoryEffect {
     /// Create an effect with no memory access.
     pub const fn none() -> Self {
         Self {
-            reads: false,
-            writes: false,
-            spaces: SpaceSet::NONE,
+            read: SpaceSet::NONE,
+            write: SpaceSet::NONE,
         }
     }
 
     /// Create a read only effect over the provided spaces.
     pub const fn read_only(spaces: SpaceSet) -> Self {
         Self {
-            reads: true,
-            writes: false,
-            spaces,
+            read: spaces,
+            write: SpaceSet::NONE,
         }
     }
 
     /// Create a write only effect over the provided spaces.
     pub const fn write_only(spaces: SpaceSet) -> Self {
         Self {
-            reads: false,
-            writes: true,
-            spaces,
+            read: SpaceSet::NONE,
+            write: spaces,
         }
     }
 
     /// Create a read write effect over the provided spaces.
     pub const fn read_write(spaces: SpaceSet) -> Self {
         Self {
-            reads: true,
-            writes: true,
-            spaces,
+            read: spaces,
+            write: spaces,
         }
     }
 
-    /// Create a conservative unknown effect.
+    /// Create an unknown effect.
     pub const fn unknown() -> Self {
         Self {
-            reads: true,
-            writes: true,
-            spaces: SpaceSet::ANY,
+            read: SpaceSet::ANY,
+            write: SpaceSet::ANY,
+        }
+    }
+
+    /// Return true when this effect may read memory.
+    pub fn reads(&self) -> bool {
+        !self.read.is_empty()
+    }
+
+    /// Return true when this effect may write memory.
+    pub fn writes(&self) -> bool {
+        !self.write.is_empty()
+    }
+
+    /// Return all memory spaces touched by this effect.
+    pub fn spaces(&self) -> SpaceSet {
+        self.read.union(self.write)
+    }
+
+    /// Return this effect constrained to the given spaces.
+    pub fn with_spaces(self, spaces: SpaceSet) -> Self {
+        Self {
+            read: if self.reads() { spaces } else { SpaceSet::NONE },
+            write: if self.writes() {
+                spaces
+            } else {
+                SpaceSet::NONE
+            },
         }
     }
 }
@@ -180,7 +288,7 @@ impl FunctionBehavior {
         }
     }
 
-    /// Create a conservative unknown behavior.
+    /// Create an unknown behavior.
     pub const fn unknown() -> Self {
         Self {
             determinism: Determinism::NonDeterministic,
@@ -193,7 +301,7 @@ impl FunctionBehavior {
         }
     }
 
-    /// Create a pure behavior summary.
+    /// Create pure behavior.
     pub const fn pure() -> Self {
         Self {
             determinism: Determinism::Deterministic,

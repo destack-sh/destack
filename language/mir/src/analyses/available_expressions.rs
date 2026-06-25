@@ -3,15 +3,15 @@ use std::sync::OnceLock;
 
 use crate as mir;
 
-use crate::{ControlFlowGraph, ExpressionKey, NodeTable};
+use crate::{ControlFlowGraph, NodeTable, PureExpression};
 
 use super::{DataflowResult, Lattice};
 
 /// Set of expressions available at a test point.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct AvailableExpressionSet {
-    /// Expression keys available on all paths.
-    expressions: HashSet<ExpressionKey>,
+    /// Pure expressions available on all paths.
+    expressions: HashSet<PureExpression>,
 }
 
 impl AvailableExpressionSet {
@@ -23,19 +23,19 @@ impl AvailableExpressionSet {
         Self { expressions }
     }
 
-    /// Insert an available expression key.
-    pub fn insert(&mut self, key: ExpressionKey) {
+    /// Insert an available pure expression.
+    pub fn insert(&mut self, key: PureExpression) {
         // record the available expression
         self.expressions.insert(key);
     }
 
-    /// Check whether an expression key is available.
-    pub fn contains(&self, key: &ExpressionKey) -> bool {
+    /// Check whether a pure expression is available.
+    pub fn contains(&self, key: &PureExpression) -> bool {
         self.expressions.contains(key)
     }
 
-    /// Iterate over available expression keys.
-    pub fn iter(&self) -> impl Iterator<Item = &ExpressionKey> {
+    /// Iterate over available pure expressions.
+    pub fn iter(&self) -> impl Iterator<Item = &PureExpression> {
         self.expressions.iter()
     }
 
@@ -60,7 +60,7 @@ impl Lattice for AvailableExpressionSet {
 
 /// Available expressions analysis for pure computations.
 ///
-/// Only instructions that produce an ExpressionKey are tracked.
+/// Only instructions that produce a pure expression are tracked.
 /// Memory loads and other side effects are intentionally excluded.
 #[derive(Debug)]
 pub struct AvailableExpressions {
@@ -115,7 +115,7 @@ impl AvailableExpressions {
         // extend the set with expressions in the block prefix
         for &instruction_id in block_data.instructions.iter().take(instruction_index) {
             let instruction = tree.get(instruction_id);
-            if let Some(key) = ExpressionKey::from_instruction(instruction, tree) {
+            if let Some(key) = PureExpression::from_instruction(instruction, tree) {
                 state.insert(key);
             }
         }
@@ -140,7 +140,7 @@ impl AvailableExpressions {
         if let Some(&instruction_id) = tree.get(block).instructions.get(instruction_index) {
             let instruction = tree.get(instruction_id);
 
-            if let Some(key) = ExpressionKey::from_instruction(instruction, tree) {
+            if let Some(key) = PureExpression::from_instruction(instruction, tree) {
                 state.insert(key);
             }
         }
@@ -161,7 +161,7 @@ fn transfer_block(
     // extend the available set with block expressions
     for &instruction_id in &block_data.instructions {
         let instruction = tree.get(instruction_id);
-        if let Some(key) = ExpressionKey::from_instruction(instruction, tree) {
+        if let Some(key) = PureExpression::from_instruction(instruction, tree) {
             state.insert(key);
         }
     }
@@ -186,7 +186,7 @@ mod tests {
     fn first_expression_key(
         block: mir::LocalNodeId<mir::Block>,
         tree: &mir::Tree,
-    ) -> ExpressionKey {
+    ) -> PureExpression {
         // read the block data
         let block_data = tree.get(block);
 
@@ -194,7 +194,7 @@ mod tests {
         for &instruction_id in &block_data.instructions {
             let instruction = tree.get(instruction_id);
 
-            if let Some(key) = ExpressionKey::from_instruction(instruction, tree) {
+            if let Some(key) = PureExpression::from_instruction(instruction, tree) {
                 return key;
             }
         }
@@ -404,10 +404,10 @@ entry(v0: int32, v1: int32, v2: int32):
         let entry_block = function.entry.expect("missing entry block");
         let block_data = test.tree.get(entry_block);
         let first_key =
-            ExpressionKey::from_instruction(test.tree.get(block_data.instructions[0]), &test.tree)
+            PureExpression::from_instruction(test.tree.get(block_data.instructions[0]), &test.tree)
                 .expect("missing first expression");
         let second_key =
-            ExpressionKey::from_instruction(test.tree.get(block_data.instructions[1]), &test.tree)
+            PureExpression::from_instruction(test.tree.get(block_data.instructions[1]), &test.tree)
                 .expect("missing second expression");
 
         // confirm no expressions are available before the first instruction

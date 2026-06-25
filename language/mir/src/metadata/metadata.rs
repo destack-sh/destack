@@ -1,10 +1,11 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+
+use destack_serde::Reflect;
 
 use crate::{LocalNodeId, Type};
 
 use super::{
-    DataLayout, DispatchMetadata, DropMetadata, FrameTable, FunctionMetadataTable, LayoutMetadata,
+    DataLayout, DispatchMetadata, DropMetadata, EffectMetadata, FrameMetadata, LayoutMetadata,
     MemoryMetadata, TypeMetadata,
 };
 
@@ -16,25 +17,25 @@ pub struct Metadata {
     /// Canonical type metadata.
     pub types: TypeMetadata,
     /// Canonical layout metadata.
-    pub layout: LayoutMetadata,
+    pub layouts: LayoutMetadata,
     /// Canonical dispatch metadata.
     pub dispatch: DispatchMetadata,
     /// Canonical drop metadata.
-    pub drop: DropMetadata,
+    pub drops: DropMetadata,
     /// Canonical frame metadata.
-    pub frame: FrameTable,
-    /// Derived function and call metadata.
-    pub functions: FunctionMetadataTable,
+    pub frames: FrameMetadata,
     /// Memory and alias metadata.
     pub memory: MemoryMetadata,
+    /// Function and call effect metadata.
+    pub effects: EffectMetadata,
 }
 
 impl Metadata {
     /// Copy type-owned metadata from one type id to another.
     pub fn copy_type_metadata(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
         self.types.copy_type_metadata(from, to);
-        self.layout.copy_type_metadata(from, to);
+        self.layouts.copy_type_metadata(from, to);
         self.dispatch.copy_type_metadata(from, to);
-        self.drop.copy_type_metadata(from, to);
+        self.drops.copy_type_metadata(from, to);
     }
 }

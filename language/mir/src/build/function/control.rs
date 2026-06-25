@@ -222,7 +222,7 @@ impl<'a> FunctionBuilder<'a> {
         if let Some(target) = target {
             self.tree
                 .metadata
-                .functions
+                .effects
                 .call_mut(CallSite::Terminator(block_id))
                 .target = Some(target);
         }
@@ -305,7 +305,7 @@ impl<'a> FunctionBuilder<'a> {
         if let Some(target) = target {
             self.tree
                 .metadata
-                .functions
+                .effects
                 .call_mut(CallSite::Terminator(block_id))
                 .target = Some(target);
         }

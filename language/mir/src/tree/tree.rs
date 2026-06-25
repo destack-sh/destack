@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::source::{Token, TokenType};
 use crate::{
-    Access, Attribute, Block, BorrowedPath, CommentSpan, DynamicShape, DynamicTable, ExtentSlice,
+    Access, Attribute, Block, BorrowedPath, CommentSpan, DynamicLayout, DynamicTable, ExtentSlice,
     Field, FieldSpan, FlagSlice, FloatType, Function, FunctionHeaderSpans, Global, IndexSlice,
     Instruction, Layout, LayoutId, Lifetime, LifetimeParameter, LifetimeTerm, Local, LocalNodeId,
     MemoryAccessKind, Metadata, Node, NodeType, Nullability, Origin, OriginTable, Path, Projection,
@@ -16,7 +16,7 @@ use crate::{
     TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
     TensorImmediate, TensorImmediateId, TensorScatterDimensionNumbers, Terminator, Type, TypeAlias,
     TypeDeclarationSpans, TypeId, TypeLineage, TypeMetadata, TypedValueSpan, Value, ValueSlice,
-    Vtable,
+    VirtualTable,
 };
 
 #[inline]
@@ -898,13 +898,13 @@ impl Tree {
 
     /// Return the layout id for a type when present.
     pub fn type_layout_id(&self, ty: LocalNodeId<Type>) -> Option<LayoutId> {
-        self.metadata.layout.layout_id(ty)
+        self.metadata.layouts.layout_id(ty)
     }
 
     /// Return the concrete layout for a type when present.
     pub fn type_layout(&self, ty: LocalNodeId<Type>) -> Option<&Layout> {
         let layout_id = self.type_layout_id(ty)?;
-        Some(self.metadata.layout.layout_table.layout(layout_id))
+        Some(self.metadata.layouts.table.layout(layout_id))
     }
 
     /// Return the type descriptor global for a type when present.
@@ -912,9 +912,9 @@ impl Tree {
         self.metadata.types.descriptor_global(ty)
     }
 
-    /// Return the vtable metadata for a type when present.
-    pub fn type_vtable(&self, ty: LocalNodeId<Type>) -> Option<&Vtable> {
-        self.metadata.dispatch.vtable(ty)
+    /// Return the virtual table metadata for a type when present.
+    pub fn type_virtual_table(&self, ty: LocalNodeId<Type>) -> Option<&VirtualTable> {
+        self.metadata.dispatch.virtual_table(ty)
     }
 
     /// Return the dynamic table for a concrete type and constraint when present.
@@ -931,9 +931,9 @@ impl Tree {
         self.metadata.types.display_name(ty)
     }
 
-    /// Return the dynamic shape when present.
-    pub fn dynamic_shape(&self, constraint: LocalNodeId<Type>) -> Option<&DynamicShape> {
-        self.metadata.dispatch.dynamic_shape(constraint)
+    /// Return the dynamic layout when present.
+    pub fn dynamic_layout(&self, constraint: LocalNodeId<Type>) -> Option<&DynamicLayout> {
+        self.metadata.dispatch.dynamic_layout(constraint)
     }
 
     /// Return the usize type id.

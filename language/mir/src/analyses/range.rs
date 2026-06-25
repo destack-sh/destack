@@ -5,13 +5,10 @@ use destack_core::{float_from_bits, float_to_bits};
 
 use crate::{
     Analysis, AnalysisId, ControlFlowGraph, EdgeArguments, FunctionAnalyses, FunctionAnalysis,
-    NodeTable, TargetLayout, fold_binary, fold_cast, fold_unary,
+    NodeTable, RangeOptions, TargetLayout, fold_binary, fold_cast, fold_unary,
 };
 
 use super::Lattice;
-
-// limit block refinement iterations before widening
-const RANGE_WIDEN_THRESHOLD: u32 = 32;
 
 /// Range information for a value.
 #[derive(Debug, Clone, PartialEq)]
@@ -449,6 +446,7 @@ impl RangeAnalysis {
         tree: &mir::Tree,
         cfg: &ControlFlowGraph,
         target_layout: TargetLayout,
+        options: RangeOptions,
     ) -> Self {
         let Some(entry) = function.entry else {
             return Self {
@@ -517,7 +515,7 @@ impl RangeAnalysis {
             if entry_changed || block_id == entry {
                 if entry_changed {
                     *update_counts.get_mut(block_id) += 1;
-                    if *update_counts.get(block_id) > RANGE_WIDEN_THRESHOLD {
+                    if *update_counts.get(block_id) > options.widen_threshold {
                         entry_state.widen_all();
                     }
                 }
@@ -589,7 +587,13 @@ impl Analysis for RangeAnalysis {
 impl FunctionAnalysis for RangeAnalysis {
     fn compute(function: &mir::Function, tree: &mir::Tree, analyses: &FunctionAnalyses) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>(function, tree);
-        Self::build(function, tree, &cfg, analyses.target_layout())
+        Self::build(
+            function,
+            tree,
+            &cfg,
+            analyses.target_layout(),
+            analyses.options().range,
+        )
     }
 }
 

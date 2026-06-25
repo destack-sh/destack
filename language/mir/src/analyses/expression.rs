@@ -6,20 +6,20 @@ use crate::ConstantPropagation;
 
 use super::TypeKey;
 
-/// Hashable key for identifying equivalent expressions in value numbering.
+/// Canonical pure expression for value numbering.
 ///
-/// Two instructions with the same key compute the same value, assuming no
+/// Two instructions with the same expression compute the same value, assuming no
 /// intervening side effects. Used by local CSE and global value numbering to
 /// detect redundant computations.
 ///
-/// Keys are designed for use in hash maps: they implement `Hash` and `Eq` based
-/// on structural equivalence rather than identity. For example, two casts to
-/// structurally identical types will have equal keys even if the types have
+/// Pure expressions are designed for use in hash maps: they implement `Hash` and `Eq`
+/// based on structural equivalence rather than identity. For example, two casts to
+/// structurally identical types will have equal expressions even if the types have
 /// different node IDs in the tree.
 ///
 /// Commutative operations are canonicalized so operand order doesn't matter.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum ExpressionKey {
+pub enum PureExpression {
     /// Binary operation with operator and operands.
     Binary {
         operator: mir::BinaryOperator,
@@ -47,8 +47,8 @@ pub enum ExpressionKey {
     FieldGet { aggregate: mir::Value, index: u32 },
 }
 
-impl ExpressionKey {
-    /// Try to create an expression key for an instruction.
+impl PureExpression {
+    /// Try to create a pure expression for an instruction.
     ///
     /// Returns `None` for instructions with side effects such as calls and stores.
     /// Returns `None` for instructions that are not pure computations like loads.
@@ -145,7 +145,7 @@ impl ExpressionKey {
                 index: *index,
             }),
 
-            // side effects and unstable reads are not expression keys
+            // side effects and unstable reads are not pure expressions
             mir::Instruction::Const { .. }
             | mir::Instruction::Call { .. }
             | mir::Instruction::CallVirtual { .. }
@@ -226,7 +226,7 @@ impl ExpressionKey {
         }
     }
 
-    /// Apply value substitutions to this expression key.
+    /// Apply value substitutions to this pure expression.
     pub fn substitute(self, substitutions: &HashMap<mir::Value, mir::Value>) -> Self {
         match self {
             Self::Binary {
@@ -688,28 +688,6 @@ pub fn resolve_substitution_chains(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// Commutative operators are correctly identified.
-    #[test]
-    fn test_is_commutative() {
-        // commutative
-        assert!(mir::BinaryOperator::Add.is_commutative());
-        assert!(mir::BinaryOperator::Multiply.is_commutative());
-        assert!(mir::BinaryOperator::FloatAdd.is_commutative());
-        assert!(mir::BinaryOperator::FloatMultiply.is_commutative());
-        assert!(mir::BinaryOperator::And.is_commutative());
-        assert!(mir::BinaryOperator::Or.is_commutative());
-        assert!(mir::BinaryOperator::Xor.is_commutative());
-        assert!(mir::BinaryOperator::Equal.is_commutative());
-        assert!(mir::BinaryOperator::NotEqual.is_commutative());
-
-        // non commutative
-        assert!(!mir::BinaryOperator::Subtract.is_commutative());
-        assert!(!mir::BinaryOperator::SignedDivide.is_commutative());
-        assert!(!mir::BinaryOperator::UnsignedDivide.is_commutative());
-        assert!(!mir::BinaryOperator::SignedLessThan.is_commutative());
-        assert!(!mir::BinaryOperator::ShiftLeft.is_commutative());
-    }
 
     /// Substitution chains are resolved transitively.
     #[test]

@@ -4,14 +4,13 @@ use crate as mir;
 
 use crate::{AliasResult, TargetLayout};
 
-use super::{TypeKey, ValueDefinitions, ValueTypeMap};
+use super::{TypeKey, ValueDefinitions, ValueTypes};
 
-/// A memory location being accessed.
+/// A reference-backed memory location.
 ///
-/// Represents a specific space of memory with an optional known size and type.
-/// This is the fundamental unit for alias queries: "do these two locations overlap?"
+/// Alias queries compare these locations to decide whether accesses overlap.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct MemoryLocation {
+pub struct ReferenceLocation {
     /// The reference value being dereferenced.
     pub reference: mir::Value,
     /// Size of the access in bytes, if known.
@@ -71,7 +70,7 @@ impl ValueDefinitions {
                         // capture call effects for escape checks
                         let argument_effects = tree
                             .metadata
-                            .functions
+                            .effects
                             .call(mir::CallSite::Instruction(instruction_id))
                             .map(|metadata| metadata.arguments.as_slice());
 
@@ -344,7 +343,7 @@ fn record_stack_escape_value(
     escaping.extend(bases);
 }
 
-impl MemoryLocation {
+impl ReferenceLocation {
     /// Create a location from just a reference with unknown size.
     pub fn from_reference(reference: mir::Value) -> Self {
         Self {
@@ -401,8 +400,16 @@ impl MemoryLocation {
         }
     }
 
+    /// Return the memory spaces this location can touch.
+    pub fn spaces(&self) -> mir::SpaceSet {
+        self.reference_space
+            .as_ref()
+            .map(mir::Space::space_set)
+            .unwrap_or(mir::SpaceSet::ANY)
+    }
+
     /// Return aliasing for another location with the same reference value.
-    pub fn alias_same_reference(&self, other: &MemoryLocation) -> AliasResult {
+    pub fn alias_same_reference(&self, other: &ReferenceLocation) -> AliasResult {
         match (self.size, other.size) {
             (Some(left), Some(right)) if left == right => AliasResult::MustAlias,
             (Some(_), Some(_)) => AliasResult::PartialAlias,
@@ -411,7 +418,7 @@ impl MemoryLocation {
     }
 
     /// Return whether both locations are compatible for value forwarding.
-    pub fn is_compatible_with(&self, other: &MemoryLocation) -> bool {
+    pub fn is_compatible_with(&self, other: &ReferenceLocation) -> bool {
         // compare byte sizes when both sides know them
         if let (Some(left_size), Some(right_size)) = (self.size, other.size)
             && left_size != right_size
@@ -430,11 +437,20 @@ impl MemoryLocation {
     }
 }
 
-/// Memory target touched by one reference-like value.
+/// Memory region touched by one reference-like value or memory access.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum MemoryTarget {
+pub enum MemoryRegion {
+    /// Reference based memory access.
+    Reference {
+        /// The reference access payload.
+        access: ReferenceLocation,
+        /// The memory spaces the reference may touch.
+        spaces: mir::SpaceSet,
+    },
     /// A precise memory place.
     Place(MemoryPlace),
+    /// Local slot access.
+    Local(mir::LocalNodeId<mir::Local>),
     /// Any memory in the given spaces.
     Any {
         /// The memory spaces that may be touched.
@@ -442,47 +458,126 @@ pub enum MemoryTarget {
     },
 }
 
-impl MemoryTarget {
-    /// Create an imprecise target for all memory spaces.
+impl MemoryRegion {
+    /// Create an imprecise region for all memory spaces.
     pub fn any() -> Self {
         Self::Any {
             spaces: mir::SpaceSet::ANY,
         }
     }
 
-    /// Create an imprecise target for one memory space.
+    /// Create an imprecise region for a set of memory spaces.
+    pub fn any_spaces(spaces: mir::SpaceSet) -> Self {
+        Self::Any { spaces }
+    }
+
+    /// Create an imprecise region for one memory space.
     pub fn any_space(space: mir::Space) -> Self {
         Self::Any {
             spaces: space.space_set(),
         }
     }
 
-    /// Return the memory spaces covered by this target.
-    pub fn spaces(&self, tree: &mir::Tree) -> mir::SpaceSet {
-        match self {
-            MemoryTarget::Place(place) => place.storage.spaces(tree),
-            MemoryTarget::Any { spaces } => *spaces,
+    /// Create a reference access with optional access type and inferred size.
+    pub fn from_reference(
+        reference: mir::Value,
+        access_type: Option<TypeKey>,
+        reference_kind: Option<mir::ReferenceKind>,
+        reference_space: Option<mir::Space>,
+        pointer_width_bits: u16,
+    ) -> Self {
+        Self::from_reference_with_size(
+            reference,
+            access_type,
+            reference_kind,
+            reference_space,
+            None,
+            pointer_width_bits,
+        )
+    }
+
+    /// Create a reference access with an explicit size override.
+    pub fn from_reference_with_size(
+        reference: mir::Value,
+        access_type: Option<TypeKey>,
+        reference_kind: Option<mir::ReferenceKind>,
+        reference_space: Option<mir::Space>,
+        size: Option<u64>,
+        pointer_width_bits: u16,
+    ) -> Self {
+        let inferred_size = size.or_else(|| {
+            access_type
+                .as_ref()
+                .and_then(|access_type| access_type.byte_size(pointer_width_bits))
+        });
+
+        Self::Reference {
+            access: ReferenceLocation::new(
+                reference,
+                inferred_size,
+                access_type,
+                reference_kind,
+                reference_space,
+            ),
+            spaces: mir::SpaceSet::ANY,
         }
     }
 
-    /// Return whether this target may touch one storage root.
-    pub fn may_touch_storage(&self, storage: &Storage, tree: &mir::Tree) -> bool {
+    /// Return the reference location when this is reference backed.
+    pub fn reference_location(&self) -> Option<&ReferenceLocation> {
         match self {
-            MemoryTarget::Place(place) => !place.storage.is_disjoint_from(storage),
-            MemoryTarget::Any { spaces } => !spaces.is_disjoint(storage.spaces(tree)),
+            Self::Reference { access, .. } => Some(access),
+            _ => None,
+        }
+    }
+
+    /// Return the memory spaces covered by this region.
+    pub fn spaces(&self) -> mir::SpaceSet {
+        match self {
+            MemoryRegion::Reference { spaces, .. } => *spaces,
+            MemoryRegion::Place(place) => place.root.spaces(),
+            MemoryRegion::Local(_) => mir::SpaceSet::FRAME,
+            MemoryRegion::Any { spaces } => *spaces,
+        }
+    }
+
+    /// Set spaces on imprecise or reference regions.
+    pub fn set_spaces(&mut self, new_spaces: mir::SpaceSet) {
+        match self {
+            Self::Reference { spaces, .. } | Self::Any { spaces } => {
+                *spaces = new_spaces;
+            }
+            Self::Place(_) | Self::Local(_) => {}
+        }
+    }
+
+    /// Return whether this region may touch one storage root.
+    pub fn may_touch_root(&self, storage: &StorageRoot) -> bool {
+        match self {
+            MemoryRegion::Place(place) => !place.root.is_disjoint_from(storage),
+            MemoryRegion::Local(local) => {
+                !storage.is_disjoint_from(&StorageRoot::LocalSlot(*local))
+            }
+            MemoryRegion::Any { spaces } => !spaces.is_disjoint(storage.spaces()),
+            MemoryRegion::Reference { spaces, .. } => !spaces.is_disjoint(storage.spaces()),
         }
     }
 }
 
 /// Identified storage root for one memory place.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Storage {
+pub enum StorageRoot {
     /// Frame allocation instruction.
     FrameAllocation(mir::LocalNodeId<mir::Instruction>),
     /// Local slot address.
     LocalSlot(mir::LocalNodeId<mir::Local>),
     /// Static storage address.
-    Static(mir::LocalNodeId<mir::Global>),
+    Static {
+        /// The static global.
+        global: mir::LocalNodeId<mir::Global>,
+        /// The static storage space.
+        space: mir::Space,
+    },
     /// Heap allocation instruction.
     Allocation {
         /// The allocation instruction.
@@ -505,12 +600,12 @@ pub enum Storage {
     },
 }
 
-impl Storage {
+impl StorageRoot {
     /// Return true if this parameter is exclusive.
     pub fn is_exclusive_parameter(&self) -> bool {
         matches!(
             self,
-            Storage::Parameter {
+            StorageRoot::Parameter {
                 access: mir::Access::Exclusive,
                 ..
             }
@@ -518,33 +613,38 @@ impl Storage {
     }
 
     /// Return whether two identified storage roots are disjoint.
-    pub fn is_disjoint_from(&self, other: &Storage) -> bool {
+    pub fn is_disjoint_from(&self, other: &StorageRoot) -> bool {
         match (self, other) {
-            (Storage::FrameAllocation(left), Storage::FrameAllocation(right)) => left != right,
-            (Storage::LocalSlot(left), Storage::LocalSlot(right)) => left != right,
-            (Storage::Static(left), Storage::Static(right)) => left != right,
+            (StorageRoot::FrameAllocation(left), StorageRoot::FrameAllocation(right)) => {
+                left != right
+            }
+            (StorageRoot::LocalSlot(left), StorageRoot::LocalSlot(right)) => left != right,
             (
-                Storage::Allocation {
+                StorageRoot::Static { global: left, .. },
+                StorageRoot::Static { global: right, .. },
+            ) => left != right,
+            (
+                StorageRoot::Allocation {
                     instruction: left, ..
                 },
-                Storage::Allocation {
+                StorageRoot::Allocation {
                     instruction: right, ..
                 },
             ) => left != right,
-            (Storage::Parameter { .. }, _) | (_, Storage::Parameter { .. }) => false,
+            (StorageRoot::Parameter { .. }, _) | (_, StorageRoot::Parameter { .. }) => false,
             _ => true,
         }
     }
 
-    /// Return whether exclusive parameter facts prove disjointness.
-    pub fn exclusive_parameters_are_disjoint(&self, other: &Storage) -> bool {
+    /// Return whether exclusive parameter constraints prove disjointness.
+    pub fn exclusive_parameters_are_disjoint(&self, other: &StorageRoot) -> bool {
         match (self, other) {
             (
-                Storage::Parameter {
+                StorageRoot::Parameter {
                     access: mir::Access::Exclusive,
                     ..
                 },
-                Storage::Parameter {
+                StorageRoot::Parameter {
                     access: mir::Access::Exclusive,
                     ..
                 },
@@ -554,15 +654,11 @@ impl Storage {
     }
 
     /// Return the memory spaces covered by this storage root.
-    pub fn spaces(&self, tree: &mir::Tree) -> mir::SpaceSet {
+    pub fn spaces(&self) -> mir::SpaceSet {
         match self {
-            Storage::FrameAllocation(_) | Storage::LocalSlot(_) => mir::SpaceSet::FRAME,
-            Storage::Static(global) => {
-                let global = tree.get(*global);
-
-                global.space.space_set()
-            }
-            Storage::Allocation { space, .. } | Storage::Parameter { space, .. } => {
+            StorageRoot::FrameAllocation(_) | StorageRoot::LocalSlot(_) => mir::SpaceSet::FRAME,
+            StorageRoot::Static { space, .. } => space.space_set(),
+            StorageRoot::Allocation { space, .. } | StorageRoot::Parameter { space, .. } => {
                 space.space_set()
             }
         }
@@ -582,7 +678,7 @@ pub struct IndexedOffset {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MemoryPlace {
     /// The identified storage root.
-    pub storage: Storage,
+    pub root: StorageRoot,
     /// Constant byte offset from storage root.
     pub const_offset: i64,
     /// Indexed offsets with their scales.
@@ -593,9 +689,9 @@ pub struct MemoryPlace {
 
 impl MemoryPlace {
     /// Create a memory place from one storage root.
-    pub fn from_storage(storage: Storage) -> Self {
+    pub fn from_root(root: StorageRoot) -> Self {
         Self {
-            storage,
+            root,
             const_offset: 0,
             fields: Vec::new(),
             indexed_offsets: Vec::new(),
@@ -625,9 +721,9 @@ impl MemoryPlace {
     /// Return aliasing with another place under known access locations.
     pub fn alias_with(
         &self,
-        location: &MemoryLocation,
+        location: &ReferenceLocation,
         other: &MemoryPlace,
-        other_location: &MemoryLocation,
+        other_location: &ReferenceLocation,
     ) -> AliasResult {
         // disjoint field paths cannot alias
         if self.fields_are_disjoint_from(other) {
@@ -705,31 +801,31 @@ impl MemoryPlace {
     }
 }
 
-/// Builder for resolving memory targets by walking the def chain.
+/// Builder for resolving memory regions by walking the def chain.
 #[derive(Debug)]
 #[allow(dead_code)]
-pub struct MemoryTargetBuilder<'a> {
-    /// Cached target results.
-    cache: HashMap<mir::Value, MemoryTarget>,
+pub struct MemoryRegionBuilder<'a> {
+    /// Cached region results.
+    cache: HashMap<mir::Value, MemoryRegion>,
     /// Value definitions for reference provenance.
     definitions: &'a ValueDefinitions,
     /// The MIR tree.
     tree: &'a mir::Tree,
-    /// Function parameters for parameter targets.
+    /// Function parameters for parameter regions.
     parameters: &'a [mir::FunctionParameter],
     /// Value type map for element sizing.
-    value_types: &'a ValueTypeMap,
+    value_types: &'a ValueTypes,
     /// Type context for layout sensitive operations.
     target_layout: TargetLayout,
 }
 
-impl<'a> MemoryTargetBuilder<'a> {
-    /// Create a new target builder.
+impl<'a> MemoryRegionBuilder<'a> {
+    /// Create a new region builder.
     pub fn new(
         definitions: &'a ValueDefinitions,
         tree: &'a mir::Tree,
         parameters: &'a [mir::FunctionParameter],
-        value_types: &'a ValueTypeMap,
+        value_types: &'a ValueTypes,
         target_layout: TargetLayout,
     ) -> Self {
         Self {
@@ -742,41 +838,41 @@ impl<'a> MemoryTargetBuilder<'a> {
         }
     }
 
-    /// Resolve a reference value to a memory target.
-    pub fn target(&mut self, reference: mir::Value) -> MemoryTarget {
+    /// Resolve a reference value to a memory region.
+    pub fn region(&mut self, reference: mir::Value) -> MemoryRegion {
         // check cache
         if let Some(cached) = self.cache.get(&reference) {
             return cached.clone();
         }
 
-        let result = self.target_impl(reference);
+        let result = self.region_impl(reference);
         self.cache.insert(reference, result.clone());
         result
     }
 
-    /// Resolve a reference value to a memory target.
-    fn target_impl(&mut self, reference: mir::Value) -> MemoryTarget {
+    /// Resolve a reference value to a memory region.
+    fn region_impl(&mut self, reference: mir::Value) -> MemoryRegion {
         // check if it's a parameter
         for (index, parameter) in self.parameters.iter().enumerate() {
-            if Some(parameter.value) == Some(reference) {
-                return self.parameter_target(index, parameter);
+            if parameter.value == reference {
+                return self.parameter_region(index, parameter);
             }
         }
 
         // check if it's defined by an instruction
         let Some(instruction_id) = self.definitions.instruction(reference) else {
-            return self.any_target(reference);
+            return self.any_region(reference);
         };
 
-        let inst = self.tree.get(instruction_id);
+        let instruction = self.tree.get(instruction_id);
 
-        match inst {
+        match instruction {
             // identify fresh allocation storage
             mir::Instruction::FrameAllocZeroed { destination, .. }
             | mir::Instruction::FrameAllocUninit { destination, .. }
                 if *destination == reference =>
             {
-                MemoryTarget::Place(MemoryPlace::from_storage(Storage::FrameAllocation(
+                MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::FrameAllocation(
                     instruction_id,
                 )))
             }
@@ -784,20 +880,20 @@ impl<'a> MemoryTargetBuilder<'a> {
             | mir::Instruction::NewUninit { destination, .. }
                 if *destination == reference =>
             {
-                self.allocation_target(instruction_id, reference)
+                self.allocation_region(instruction_id, reference)
             }
             mir::Instruction::NewSliceZeroed { destination, .. }
             | mir::Instruction::NewSliceUninit { destination, .. }
                 if *destination == reference =>
             {
-                self.allocation_target(instruction_id, reference)
+                self.allocation_region(instruction_id, reference)
             }
             mir::Instruction::NewComplete {
                 destination, value, ..
             } if *destination == reference => {
                 let value = *value;
 
-                self.target(value)
+                self.region(value)
             }
 
             // identify static storage
@@ -806,15 +902,21 @@ impl<'a> MemoryTargetBuilder<'a> {
                 global,
                 ..
             } if *destination == reference => {
-                MemoryTarget::Place(MemoryPlace::from_storage(Storage::Static(*global)))
+                let global_id = *global;
+                let global = self.tree.get(global_id);
+
+                MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Static {
+                    global: global_id,
+                    space: global.space.clone(),
+                }))
             }
             mir::Instruction::LocalAddr {
                 destination, local, ..
             } if *destination == reference => {
-                MemoryTarget::Place(MemoryPlace::from_storage(Storage::LocalSlot(*local)))
+                MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::LocalSlot(*local)))
             }
 
-            // extend precise target with a field path
+            // extend precise region with a field path
             mir::Instruction::FieldAddr {
                 destination,
                 aggregate,
@@ -823,15 +925,15 @@ impl<'a> MemoryTargetBuilder<'a> {
             } if *destination == reference => {
                 let aggregate = *aggregate;
 
-                let mut target = self.target(aggregate);
-                if let MemoryTarget::Place(place) = &mut target {
+                let mut region = self.region(aggregate);
+                if let MemoryRegion::Place(place) = &mut region {
                     place.add_field(*index);
                 }
 
-                target
+                region
             }
 
-            // extend precise target with an indexed offset
+            // extend precise region with an indexed offset
             mir::Instruction::ElementAddr {
                 destination,
                 array,
@@ -841,14 +943,14 @@ impl<'a> MemoryTargetBuilder<'a> {
                 let array = *array;
                 let index = *index;
 
-                let mut target = self.target(array);
+                let mut region = self.region(array);
 
                 let scale = self.expect_element_size(array);
-                if let MemoryTarget::Place(place) = &mut target {
+                if let MemoryRegion::Place(place) = &mut region {
                     place.add_indexed_offset(index, scale);
                 }
 
-                target
+                region
             }
 
             // casts preserve provenance
@@ -859,16 +961,16 @@ impl<'a> MemoryTargetBuilder<'a> {
             } if *destination == reference => {
                 let argument = *argument;
 
-                self.target(argument)
+                self.region(argument)
             }
 
             // anything else is imprecise
-            _ => self.any_target(reference),
+            _ => self.any_region(reference),
         }
     }
 
-    /// Return a target for a parameter reference.
-    fn parameter_target(&self, index: usize, parameter: &mir::FunctionParameter) -> MemoryTarget {
+    /// Return a region for a parameter reference.
+    fn parameter_region(&self, index: usize, parameter: &mir::FunctionParameter) -> MemoryRegion {
         let ty = self.tree.get(parameter.ty);
 
         match ty {
@@ -889,22 +991,22 @@ impl<'a> MemoryTargetBuilder<'a> {
                 space,
                 access,
                 ..
-            } => MemoryTarget::Place(MemoryPlace::from_storage(Storage::Parameter {
+            } => MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Parameter {
                 index: index as u32,
                 space: space.clone(),
                 kind: *kind,
                 access: *access,
             })),
-            _ => MemoryTarget::any(),
+            _ => MemoryRegion::any(),
         }
     }
 
-    /// Return a target for a heap allocation.
-    fn allocation_target(
+    /// Return a region for a heap allocation.
+    fn allocation_region(
         &self,
         instruction: mir::LocalNodeId<mir::Instruction>,
         reference: mir::Value,
-    ) -> MemoryTarget {
+    ) -> MemoryRegion {
         let ty_id = self.value_type(reference);
         let ty = self.tree.get(ty_id);
 
@@ -912,26 +1014,26 @@ impl<'a> MemoryTargetBuilder<'a> {
             mir::Type::Reference { kind, space, .. }
             | mir::Type::Slice { kind, space, .. }
             | mir::Type::TensorView { kind, space, .. } => {
-                MemoryTarget::Place(MemoryPlace::from_storage(Storage::Allocation {
+                MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Allocation {
                     instruction,
                     space: space.clone(),
                     kind: *kind,
                 }))
             }
-            _ => MemoryTarget::any(),
+            _ => MemoryRegion::any(),
         }
     }
 
-    /// Return an imprecise target bounded by a reference type when possible.
-    fn any_target(&self, reference: mir::Value) -> MemoryTarget {
+    /// Return an imprecise region bounded by a reference type when possible.
+    fn any_region(&self, reference: mir::Value) -> MemoryRegion {
         let ty_id = self.value_type(reference);
         let ty = self.tree.get(ty_id);
 
         match ty {
             mir::Type::Reference { space, .. }
             | mir::Type::Slice { space, .. }
-            | mir::Type::TensorView { space, .. } => MemoryTarget::any_space(space.clone()),
-            _ => MemoryTarget::any(),
+            | mir::Type::TensorView { space, .. } => MemoryRegion::any_space(space.clone()),
+            _ => MemoryRegion::any(),
         }
     }
 
@@ -1095,32 +1197,31 @@ mod tests {
     /// Storage roots expose their memory spaces.
     #[test]
     fn test_storage_spaces() {
-        let tree = mir::Tree::new();
-        let stack = Storage::FrameAllocation(mir::LocalNodeId::new(0));
-        let local = Storage::LocalSlot(mir::LocalNodeId::new(0));
-        let allocation = Storage::Allocation {
+        let stack = StorageRoot::FrameAllocation(mir::LocalNodeId::new(0));
+        let local = StorageRoot::LocalSlot(mir::LocalNodeId::new(0));
+        let allocation = StorageRoot::Allocation {
             instruction: mir::LocalNodeId::new(1),
             space: mir::Space::Shared,
             kind: mir::ReferenceKind::Managed,
         };
-        let parameter = Storage::Parameter {
+        let parameter = StorageRoot::Parameter {
             index: 0,
             space: mir::Space::Local,
             kind: mir::ReferenceKind::Borrowed,
             access: mir::Access::Mutable,
         };
 
-        assert_eq!(stack.spaces(&tree), mir::SpaceSet::FRAME);
-        assert_eq!(local.spaces(&tree), mir::SpaceSet::FRAME);
-        assert_eq!(allocation.spaces(&tree), mir::SpaceSet::SHARED);
-        assert_eq!(parameter.spaces(&tree), mir::SpaceSet::LOCAL);
+        assert_eq!(stack.spaces(), mir::SpaceSet::FRAME);
+        assert_eq!(local.spaces(), mir::SpaceSet::FRAME);
+        assert_eq!(allocation.spaces(), mir::SpaceSet::SHARED);
+        assert_eq!(parameter.spaces(), mir::SpaceSet::LOCAL);
     }
 
     /// Memory places track constant and indexed offsets.
     #[test]
     fn test_memory_place_const_offset() {
         let mut place =
-            MemoryPlace::from_storage(Storage::FrameAllocation(mir::LocalNodeId::new(0)));
+            MemoryPlace::from_root(StorageRoot::FrameAllocation(mir::LocalNodeId::new(0)));
         assert!(place.is_constant_offset());
 
         place.add_const_offset(16);
@@ -1131,84 +1232,33 @@ mod tests {
         assert!(!place.is_constant_offset());
     }
 
-    /// Memory location constructors fill the expected fields.
-    #[test]
-    fn test_memory_location_constructors() {
-        let loc1 = MemoryLocation::from_reference(mir::Value::new(0));
-        assert_eq!(loc1.reference, mir::Value::new(0));
-        assert!(loc1.size.is_none());
-        assert!(loc1.access_type.is_none());
-
-        let loc2 = MemoryLocation::with_size(mir::Value::new(1), 8);
-        assert_eq!(loc2.reference, mir::Value::new(1));
-        assert_eq!(loc2.size, Some(8));
-        assert!(loc2.access_type.is_none());
-
-        let ty = TypeKey::Int {
-            width: 32,
-            signed: true,
-        };
-        let loc3 = MemoryLocation::with_type(mir::Value::new(2), ty.clone());
-        assert_eq!(loc3.reference, mir::Value::new(2));
-        assert!(loc3.size.is_none());
-        assert_eq!(loc3.access_type, Some(ty.clone()));
-
-        let loc4 = MemoryLocation::new(mir::Value::new(3), Some(4), Some(ty.clone()), None, None);
-        assert_eq!(loc4.reference, mir::Value::new(3));
-        assert_eq!(loc4.size, Some(4));
-        assert_eq!(loc4.access_type, Some(ty));
-    }
-
     /// Exclusive parameters are reported as exclusive.
     #[test]
     fn test_storage_is_exclusive_parameter() {
-        let exclusive_parameter = Storage::Parameter {
+        let exclusive_parameter = StorageRoot::Parameter {
             index: 0,
             space: mir::Space::Local,
             kind: mir::ReferenceKind::Borrowed,
             access: mir::Access::Exclusive,
         };
-        let mutable_parameter = Storage::Parameter {
+        let mutable_parameter = StorageRoot::Parameter {
             index: 1,
             space: mir::Space::Local,
             kind: mir::ReferenceKind::Borrowed,
             access: mir::Access::Mutable,
         };
-        let stack = Storage::FrameAllocation(mir::LocalNodeId::new(0));
+        let stack = StorageRoot::FrameAllocation(mir::LocalNodeId::new(0));
 
         assert!(exclusive_parameter.is_exclusive_parameter());
         assert!(!mutable_parameter.is_exclusive_parameter());
         assert!(!stack.is_exclusive_parameter());
     }
 
-    /// Imprecise memory targets carry space information.
-    #[test]
-    fn test_memory_target_any_spaces() {
-        let tree = mir::Tree::new();
-        let target = MemoryTarget::any_space(mir::Space::Shared);
-
-        assert_eq!(target.spaces(&tree), mir::SpaceSet::SHARED);
-    }
-
-    /// Precise memory targets expose their storage spaces.
-    #[test]
-    fn test_memory_target_place_spaces() {
-        let tree = mir::Tree::new();
-        let place = MemoryPlace::from_storage(Storage::Allocation {
-            instruction: mir::LocalNodeId::new(0),
-            space: mir::Space::Local,
-            kind: mir::ReferenceKind::Managed,
-        });
-        let target = MemoryTarget::Place(place);
-
-        assert_eq!(target.spaces(&tree), mir::SpaceSet::LOCAL);
-    }
-
     /// Field paths are captured by memory places.
     #[test]
     fn test_memory_place_fields() {
         let mut place =
-            MemoryPlace::from_storage(Storage::FrameAllocation(mir::LocalNodeId::new(0)));
+            MemoryPlace::from_root(StorageRoot::FrameAllocation(mir::LocalNodeId::new(0)));
         assert!(place.fields.is_empty());
 
         place.add_field(0);
@@ -1223,7 +1273,7 @@ mod tests {
     /// Multiple indexed offsets are tracked.
     #[test]
     fn test_memory_place_multiple_indexed_offsets() {
-        let mut place = MemoryPlace::from_storage(Storage::Allocation {
+        let mut place = MemoryPlace::from_root(StorageRoot::Allocation {
             instruction: mir::LocalNodeId::new(0),
             space: mir::Space::Local,
             kind: mir::ReferenceKind::Unique,
@@ -1243,7 +1293,10 @@ mod tests {
     /// Constant offsets accumulate.
     #[test]
     fn test_memory_place_const_offset_accumulation() {
-        let mut place = MemoryPlace::from_storage(Storage::Static(mir::LocalNodeId::new(0)));
+        let mut place = MemoryPlace::from_root(StorageRoot::Static {
+            global: mir::LocalNodeId::new(0),
+            space: mir::Space::Static,
+        });
 
         place.add_const_offset(8);
         place.add_const_offset(16);
@@ -1255,7 +1308,7 @@ mod tests {
     #[test]
     fn test_memory_place_negative_offset() {
         let mut place =
-            MemoryPlace::from_storage(Storage::FrameAllocation(mir::LocalNodeId::new(0)));
+            MemoryPlace::from_root(StorageRoot::FrameAllocation(mir::LocalNodeId::new(0)));
 
         place.add_const_offset(-8);
         assert_eq!(place.const_offset, -8);

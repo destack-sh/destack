@@ -190,7 +190,7 @@ impl Function {
         (next_value_id, value_types)
     }
 
-    /// Create one function from its signature facts.
+    /// Create one function from its signature.
     fn with_signature(
         name: StringId,
         lifetimes: Vec<LifetimeParameter>,

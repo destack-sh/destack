@@ -14,7 +14,7 @@ pub struct CallEdge {
     /// The callee function id.
     pub callee: mir::LocalNodeId<mir::Function>,
     /// The callsite that performs the call.
-    pub callsite: CallSiteRef,
+    pub callsite: mir::CallSite,
     /// The dispatch kind for this callsite.
     pub dispatch: mir::CallDispatchKind,
 }
@@ -26,26 +26,17 @@ impl CallEdge {
     }
 }
 
-/// Callsite that does not have a resolved target.
+/// Callsite whose target set is not closed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct UnknownCallSite {
+pub struct OpenCallSite {
     /// The caller function id.
     pub caller: mir::LocalNodeId<mir::Function>,
     /// The callsite that performs the call.
-    pub callsite: CallSiteRef,
+    pub callsite: mir::CallSite,
     /// The dispatch kind for this callsite.
     pub dispatch: mir::CallDispatchKind,
-    /// The declared callee when known.
-    pub callee: Option<mir::LocalNodeId<mir::Function>>,
-}
-
-/// Callsite reference for module call graphs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum CallSiteRef {
-    /// Callsite is an instruction.
-    Instruction(mir::LocalNodeId<mir::Instruction>),
-    /// Callsite is a terminator in the block.
-    Terminator(mir::LocalNodeId<mir::Block>),
+    /// The known target when one has been resolved.
+    pub known_target: Option<mir::LocalNodeId<mir::Function>>,
 }
 
 /// Module scoped call graph.
@@ -55,8 +46,12 @@ pub struct CallGraph {
     outgoing: HashMap<mir::LocalNodeId<mir::Function>, Vec<CallEdge>>,
     /// Incoming edges by callee.
     incoming: HashMap<mir::LocalNodeId<mir::Function>, Vec<CallEdge>>,
-    /// Unresolved callsites by caller.
-    unknown: HashMap<mir::LocalNodeId<mir::Function>, Vec<UnknownCallSite>>,
+    /// Open callsites by caller.
+    open_callsites: HashMap<mir::LocalNodeId<mir::Function>, Vec<OpenCallSite>>,
+    /// Component id by dense function id.
+    function_component: Vec<u32>,
+    /// Components that are recursive.
+    recursive_components: BitSet,
 }
 
 impl CallGraph {
@@ -78,13 +73,34 @@ impl CallGraph {
             .unwrap_or(&EMPTY)
     }
 
-    /// Get unresolved callsites for a function.
-    pub fn unknown_calls(&self, caller: mir::LocalNodeId<mir::Function>) -> &[UnknownCallSite] {
-        const EMPTY: [UnknownCallSite; 0] = [];
-        self.unknown
+    /// Get open callsites for a function.
+    pub fn open_callsites(&self, caller: mir::LocalNodeId<mir::Function>) -> &[OpenCallSite] {
+        const EMPTY: [OpenCallSite; 0] = [];
+        self.open_callsites
             .get(&caller)
             .map(Vec::as_slice)
             .unwrap_or(&EMPTY)
+    }
+
+    /// Return the call graph component for a function.
+    pub fn component(&self, function_id: mir::LocalNodeId<mir::Function>) -> Option<usize> {
+        self.function_component
+            .get(function_id.get())
+            .map(|component| *component as usize)
+    }
+
+    /// Return true when a component is recursive.
+    pub fn is_recursive_component(&self, component: usize) -> bool {
+        component < self.recursive_components.len() && self.recursive_components.contains(component)
+    }
+
+    /// Return true when the function is part of a recursive component.
+    pub fn is_recursive_function(&self, function_id: mir::LocalNodeId<mir::Function>) -> bool {
+        let Some(component) = self.component(function_id) else {
+            return false;
+        };
+
+        self.is_recursive_component(component)
     }
 
     /// Build a call graph for the given module.
@@ -92,7 +108,9 @@ impl CallGraph {
         let mut graph = Self {
             outgoing: HashMap::new(),
             incoming: HashMap::new(),
-            unknown: HashMap::new(),
+            open_callsites: HashMap::new(),
+            function_component: Vec::new(),
+            recursive_components: BitSet::new(0),
         };
 
         // scan each function for call instructions
@@ -109,30 +127,34 @@ impl CallGraph {
                 for &instruction_id in &block.instructions {
                     let instruction = tree.get(instruction_id);
 
-                    let Some(callsite) =
-                        CallSite::from_instruction(function_id, instruction_id, instruction, tree)
-                    else {
+                    let Some(callsite) = ScannedCallSite::from_instruction(
+                        function_id,
+                        instruction_id,
+                        instruction,
+                        tree,
+                    ) else {
                         continue;
                     };
 
-                    graph.insert_callsite(callsite);
+                    graph.insert_call(callsite);
                 }
 
                 if let Some(callsite) =
-                    CallSite::from_terminator(function_id, *block_id, terminator, tree)
+                    ScannedCallSite::from_terminator(function_id, *block_id, terminator, tree)
                 {
-                    graph.insert_callsite(callsite);
+                    graph.insert_call(callsite);
                 }
             }
         }
 
+        graph.build_components(tree);
         graph
     }
 
-    /// Insert a callsite into the graph.
-    fn insert_callsite(&mut self, callsite: CallSite) {
+    /// Insert one observed call into the graph.
+    fn insert_call(&mut self, callsite: ScannedCallSite) {
         // record resolved edges when a target is known
-        if let Some(callee) = callsite.callee {
+        if let Some(callee) = callsite.known_target {
             let edge = CallEdge {
                 caller: callsite.caller,
                 callee,
@@ -143,49 +165,27 @@ impl CallGraph {
             self.outgoing.entry(callsite.caller).or_default().push(edge);
             self.incoming.entry(callee).or_default().push(edge);
 
-            if callsite.is_precise {
+            if callsite.is_closed {
                 return;
             }
         }
 
-        // record unresolved or partially resolved callsites
-        let unknown = UnknownCallSite {
+        // record open callsites
+        let open_callsite = OpenCallSite {
             caller: callsite.caller,
             callsite: callsite.callsite,
             dispatch: callsite.dispatch,
-            callee: callsite.callee,
+            known_target: callsite.known_target,
         };
 
-        self.unknown
+        self.open_callsites
             .entry(callsite.caller)
             .or_default()
-            .push(unknown);
+            .push(open_callsite);
     }
-}
 
-impl Analysis for CallGraph {
-    const ID: AnalysisId = AnalysisId("callgraph");
-}
-
-impl ModuleAnalysis for CallGraph {
-    /// Compute the module call graph.
-    fn compute(tree: &mir::Tree, _analyses: &ModuleAnalyses) -> Self {
-        Self::build(tree)
-    }
-}
-
-/// Strongly connected components for a module call graph.
-#[derive(Debug, Default)]
-pub struct CallGraphScc {
-    /// Component id by dense function id.
-    function_scc: Vec<u32>,
-    /// SCCs that are recursive.
-    recursive_sccs: BitSet,
-}
-
-impl CallGraphScc {
-    /// Build strongly connected components for one call graph.
-    fn build(tree: &mir::Tree, callgraph: &CallGraph) -> Self {
+    /// Build direct-call recursion components.
+    fn build_components(&mut self, tree: &mir::Tree) {
         // size the dense graph from the function arena ids
         let function_count = tree
             .iter_nodes::<mir::Function>()
@@ -197,8 +197,11 @@ impl CallGraphScc {
         let mut edge_offsets = vec![0u32; function_count + 1];
         for (function_id, _) in tree.iter_nodes::<mir::Function>() {
             let source = function_id.get();
-            let count = callgraph
-                .outgoing(function_id)
+            let count = self
+                .outgoing
+                .get(&function_id)
+                .map(Vec::as_slice)
+                .unwrap_or(&[])
                 .iter()
                 .filter(|edge| edge.is_direct())
                 .count();
@@ -214,7 +217,7 @@ impl CallGraphScc {
         let mut edge_targets = Vec::with_capacity(edge_offsets[function_count] as usize);
         for source in 0..function_count {
             let function_id = mir::LocalNodeId::<mir::Function>::new(source as u32);
-            for edge in callgraph.outgoing(function_id) {
+            for edge in self.outgoing(function_id) {
                 if edge.is_direct() {
                     edge_targets.push(edge.callee.get() as u32);
                 }
@@ -233,81 +236,55 @@ impl CallGraphScc {
         }
 
         // map each function to its component
-        let mut scc_map = CallGraphScc {
-            function_scc: vec![0; function_count],
-            recursive_sccs: BitSet::new(component_count),
-        };
+        self.function_component = vec![0; function_count];
+        self.recursive_components = BitSet::new(component_count);
         for (function_id, _) in tree.iter_nodes::<mir::Function>() {
             let component = partition.component(function_id.get()) as usize;
-            scc_map.function_scc[function_id.get()] = component as u32;
+            self.function_component[function_id.get()] = component as u32;
         }
 
         // mark recursive components from cycles or direct self-calls
         for (function_id, _) in tree.iter_nodes::<mir::Function>() {
             let component = partition.component(function_id.get()) as usize;
             let is_cycle = component_sizes[component] > 1;
-            let is_self_call = callgraph
+            let is_self_call = self
                 .outgoing(function_id)
                 .iter()
                 .any(|edge| edge.is_direct() && edge.callee == function_id);
 
             if is_cycle || is_self_call {
-                scc_map.recursive_sccs.insert(component);
+                self.recursive_components.insert(component);
             }
         }
-
-        scc_map
-    }
-
-    /// Return the SCC id for a function.
-    pub fn scc_id(&self, function_id: mir::LocalNodeId<mir::Function>) -> Option<usize> {
-        self.function_scc
-            .get(function_id.get())
-            .map(|component| *component as usize)
-    }
-
-    /// Return true when the SCC is recursive.
-    pub fn is_recursive_scc(&self, scc_id: usize) -> bool {
-        scc_id < self.recursive_sccs.len() && self.recursive_sccs.contains(scc_id)
-    }
-
-    /// Return true when the function is part of a recursive SCC.
-    pub fn is_recursive_function(&self, function_id: mir::LocalNodeId<mir::Function>) -> bool {
-        let Some(scc_id) = self.scc_id(function_id) else {
-            return false;
-        };
-
-        self.is_recursive_scc(scc_id)
     }
 }
 
-impl Analysis for CallGraphScc {
-    const ID: AnalysisId = AnalysisId("callgraph-scc");
+impl Analysis for CallGraph {
+    const ID: AnalysisId = AnalysisId("callgraph");
 }
 
-impl ModuleAnalysis for CallGraphScc {
-    /// Compute the SCCs for the module call graph.
-    fn compute(tree: &mir::Tree, analyses: &ModuleAnalyses) -> Self {
-        let callgraph = analyses.get::<CallGraph>(tree);
-        Self::build(tree, &callgraph)
+impl ModuleAnalysis for CallGraph {
+    /// Compute the module call graph.
+    fn compute(tree: &mir::Tree, _analyses: &ModuleAnalyses) -> Self {
+        Self::build(tree)
     }
 }
 
-/// Resolved callsite data for call graph construction.
-struct CallSite {
+/// Callsite scanned during call graph construction.
+struct ScannedCallSite {
     /// The caller function id.
     caller: mir::LocalNodeId<mir::Function>,
-    /// The callsite reference.
-    callsite: CallSiteRef,
+    /// The callsite identity.
+    callsite: mir::CallSite,
     /// Dispatch kind for the callsite.
     dispatch: mir::CallDispatchKind,
-    /// Resolved callee when known.
-    callee: Option<mir::LocalNodeId<mir::Function>>,
-    /// True when the dispatch is fully resolved.
-    is_precise: bool,
+    /// Resolved target when known.
+    known_target: Option<mir::LocalNodeId<mir::Function>>,
+    /// True when the dispatch target set is closed.
+    is_closed: bool,
 }
 
-impl CallSite {
+impl ScannedCallSite {
     /// Build a callsite from an instruction when it represents a call.
     fn from_instruction(
         caller: mir::LocalNodeId<mir::Function>,
@@ -316,15 +293,15 @@ impl CallSite {
         tree: &mir::Tree,
     ) -> Option<Self> {
         let dispatch = instruction.call_dispatch_kind()?;
-        let callee = Self::instruction_target(instruction_id, instruction, tree);
-        let is_precise = matches!(dispatch, mir::CallDispatchKind::Direct);
+        let known_target = Self::instruction_target(instruction_id, instruction, tree);
+        let is_closed = matches!(dispatch, mir::CallDispatchKind::Direct);
 
         Some(Self {
             caller,
-            callsite: CallSiteRef::Instruction(instruction_id),
+            callsite: mir::CallSite::Instruction(instruction_id),
             dispatch,
-            callee,
-            is_precise,
+            known_target,
+            is_closed,
         })
     }
 
@@ -335,64 +312,64 @@ impl CallSite {
         terminator: &mir::Terminator,
         tree: &mir::Tree,
     ) -> Option<Self> {
-        let callsite = CallSiteRef::Terminator(block_id);
+        let callsite = mir::CallSite::Terminator(block_id);
 
         match terminator {
             mir::Terminator::Call { function, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Direct,
-                callee: Some(*function),
-                is_precise: true,
+                known_target: Some(*function),
+                is_closed: true,
             }),
             mir::Terminator::CallIndirect { .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Indirect,
-                callee: None,
-                is_precise: false,
+                known_target: None,
+                is_closed: false,
             }),
             mir::Terminator::CallVirtual { slot, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Virtual { slot: *slot },
-                callee: Self::terminator_target(block_id, terminator, tree),
-                is_precise: false,
+                known_target: Self::terminator_target(block_id, terminator, tree),
+                is_closed: false,
             }),
             mir::Terminator::CallDynamic { slot, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Dynamic { slot: *slot },
-                callee: Self::terminator_target(block_id, terminator, tree),
-                is_precise: false,
+                known_target: Self::terminator_target(block_id, terminator, tree),
+                is_closed: false,
             }),
             mir::Terminator::TailCall { function, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Direct,
-                callee: Some(*function),
-                is_precise: true,
+                known_target: Some(*function),
+                is_closed: true,
             }),
             mir::Terminator::TailCallIndirect { .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Indirect,
-                callee: None,
-                is_precise: false,
+                known_target: None,
+                is_closed: false,
             }),
             mir::Terminator::TailCallVirtual { slot, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Virtual { slot: *slot },
-                callee: Self::terminator_target(block_id, terminator, tree),
-                is_precise: false,
+                known_target: Self::terminator_target(block_id, terminator, tree),
+                is_closed: false,
             }),
             mir::Terminator::TailCallDynamic { slot, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Dynamic { slot: *slot },
-                callee: Self::terminator_target(block_id, terminator, tree),
-                is_precise: false,
+                known_target: Self::terminator_target(block_id, terminator, tree),
+                is_closed: false,
             }),
             _ => None,
         }
@@ -406,7 +383,7 @@ impl CallSite {
     ) -> Option<mir::LocalNodeId<mir::Function>> {
         instruction.call_direct_target().or_else(|| {
             tree.metadata
-                .functions
+                .effects
                 .call(mir::CallSite::Instruction(instruction_id))
                 .and_then(|metadata| metadata.target)
         })
@@ -420,7 +397,7 @@ impl CallSite {
     ) -> Option<mir::LocalNodeId<mir::Function>> {
         terminator.call_direct_target().or_else(|| {
             tree.metadata
-                .functions
+                .effects
                 .call(mir::CallSite::Terminator(block_id))
                 .and_then(|metadata| metadata.target)
         })
@@ -465,12 +442,12 @@ entry:
         assert!(outgoing[0].is_direct());
         assert_eq!(outgoing[0].callee, callee_id);
         assert_eq!(incoming[0].caller, test_id);
-        assert!(callgraph.unknown_calls(test_id).is_empty());
+        assert!(callgraph.open_callsites(test_id).is_empty());
     }
 
-    /// Call graph SCCs detect recursive functions.
+    /// Call graph components detect recursive functions.
     #[test]
-    fn test_call_graph_scc_recursion() {
+    fn test_call_graph_component_recursion() {
         let test = TestProgram::new(
             r#"
 function alpha(): void {
@@ -504,17 +481,17 @@ entry:
         let d_id = test.function_id_by_name("delta");
 
         let analyses = ModuleAnalyses::new();
-        let scc = analyses.get::<CallGraphScc>(&test.tree);
+        let callgraph = analyses.get::<CallGraph>(&test.tree);
 
-        assert!(scc.is_recursive_function(a_id));
-        assert!(scc.is_recursive_function(b_id));
-        assert!(scc.is_recursive_function(c_id));
-        assert!(!scc.is_recursive_function(d_id));
+        assert!(callgraph.is_recursive_function(a_id));
+        assert!(callgraph.is_recursive_function(b_id));
+        assert!(callgraph.is_recursive_function(c_id));
+        assert!(!callgraph.is_recursive_function(d_id));
     }
 
-    /// Indirect calls without metadata remain unresolved.
+    /// Indirect calls without metadata stay open.
     #[test]
-    fn test_call_graph_indirect_unknown() {
+    fn test_call_graph_indirect_open() {
         let test = TestProgram::new(
             r#"
 function test(v0: fn(int32) => int32, v1: int32): int32 {
@@ -531,9 +508,9 @@ entry(v0: fn(int32) => int32, v1: int32):
         let callgraph = analyses.get::<CallGraph>(&test.tree);
 
         assert!(callgraph.outgoing(test_id).is_empty());
-        assert_eq!(callgraph.unknown_calls(test_id).len(), 1);
+        assert_eq!(callgraph.open_callsites(test_id).len(), 1);
         assert_eq!(
-            callgraph.unknown_calls(test_id)[0].dispatch,
+            callgraph.open_callsites(test_id)[0].dispatch,
             mir::CallDispatchKind::Indirect
         );
     }
@@ -564,12 +541,12 @@ entry(v0: int32):
         let outgoing = callgraph.outgoing(test_id);
         assert_eq!(outgoing.len(), 1);
         assert_eq!(outgoing[0].callee, callee_id);
-        assert!(matches!(outgoing[0].callsite, CallSiteRef::Terminator(_)));
+        assert!(matches!(outgoing[0].callsite, mir::CallSite::Terminator(_)));
     }
 
-    /// Tailcall.indirect remains unresolved without metadata.
+    /// Tailcall.indirect remains open without metadata.
     #[test]
-    fn test_call_graph_tailcall_indirect_unknown() {
+    fn test_call_graph_tailcall_indirect_open() {
         let test = TestProgram::new(
             r#"
 function test(v0: fn(int32) => int32, v1: int32): int32 {
@@ -584,15 +561,18 @@ entry(v0: fn(int32) => int32, v1: int32):
         let analyses = ModuleAnalyses::new();
         let callgraph = analyses.get::<CallGraph>(&test.tree);
 
-        let unknown = callgraph.unknown_calls(test_id);
-        assert_eq!(unknown.len(), 1);
-        assert_eq!(unknown[0].dispatch, mir::CallDispatchKind::Indirect);
-        assert!(matches!(unknown[0].callsite, CallSiteRef::Terminator(_)));
+        let open_callsite = callgraph.open_callsites(test_id);
+        assert_eq!(open_callsite.len(), 1);
+        assert_eq!(open_callsite[0].dispatch, mir::CallDispatchKind::Indirect);
+        assert!(matches!(
+            open_callsite[0].callsite,
+            mir::CallSite::Terminator(_)
+        ));
     }
 
-    /// Call.indirect remains unresolved without a declared target.
+    /// Call.indirect remains open without a known target.
     #[test]
-    fn test_call_graph_call_indirect_unknown() {
+    fn test_call_graph_call_indirect_open() {
         let test = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
@@ -613,9 +593,9 @@ entry(v0: fn(int32) => int32, v1: int32):
         let analyses = ModuleAnalyses::new();
         let callgraph = analyses.get::<CallGraph>(&test.tree);
 
-        let unknown = callgraph.unknown_calls(test_id);
-        assert_eq!(unknown.len(), 1);
-        assert_eq!(unknown[0].dispatch, mir::CallDispatchKind::Indirect);
+        let open_callsite = callgraph.open_callsites(test_id);
+        assert_eq!(open_callsite.len(), 1);
+        assert_eq!(open_callsite[0].dispatch, mir::CallDispatchKind::Indirect);
     }
 
     /// Direct call terminators produce precise call edges.
@@ -651,11 +631,11 @@ b2(v2: ref<int32, managed, readonly>):
         assert_eq!(outgoing.len(), 1);
         assert_eq!(outgoing[0].callee, callee_id);
         assert_eq!(outgoing[0].dispatch, mir::CallDispatchKind::Direct);
-        assert!(matches!(outgoing[0].callsite, CallSiteRef::Terminator(_)));
-        assert!(callgraph.unknown_calls(test_id).is_empty());
+        assert!(matches!(outgoing[0].callsite, mir::CallSite::Terminator(_)));
+        assert!(callgraph.open_callsites(test_id).is_empty());
     }
 
-    /// Class dispatch keeps a call edge and records an unknown target.
+    /// Class dispatch keeps a call edge and records an open target.
     #[test]
     fn test_call_graph_virtual_dispatch_is_partial() {
         let mut test = TestProgram::new(
@@ -667,7 +647,7 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call.virtual v0, int32, 1(v0): (int32) => int32
+    v1: int32 = call.virtual v0, int32, 2(v0): (int32) => int32
     return v1
 }
 "#,
@@ -697,7 +677,7 @@ entry(v0: int32):
 
         test.tree
             .metadata
-            .functions
+            .effects
             .call_mut(mir::CallSite::Instruction(call_id))
             .target = Some(callee_id);
 
@@ -709,14 +689,17 @@ entry(v0: int32):
         assert_eq!(
             callgraph.outgoing(test_id)[0].dispatch,
             mir::CallDispatchKind::Virtual {
-                slot: mir::DispatchSlot::new(1),
+                slot: mir::DispatchSlot::new(2),
             }
         );
-        assert_eq!(callgraph.unknown_calls(test_id).len(), 1);
-        assert_eq!(callgraph.unknown_calls(test_id)[0].callee, Some(callee_id));
+        assert_eq!(callgraph.open_callsites(test_id).len(), 1);
+        assert_eq!(
+            callgraph.open_callsites(test_id)[0].known_target,
+            Some(callee_id)
+        );
     }
 
-    /// Class call terminators keep the declared target and unknown edge.
+    /// Class call terminators keep the known target and open callsite.
     #[test]
     fn test_call_graph_call_virtual_terminator_is_partial() {
         let mut test = TestProgram::new(
@@ -728,7 +711,7 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    call.virtual v0, int32, 1(v0): (int32) => int32 => b1
+    call.virtual v0, int32, 2(v0): (int32) => int32 => b1
 
 b1(v1: int32):
     return v1
@@ -746,7 +729,7 @@ b2(v2: ref<int32, managed, readonly>):
 
         test.tree
             .metadata
-            .functions
+            .effects
             .call_mut(mir::CallSite::Terminator(block_id))
             .target = Some(callee_id);
 
@@ -759,11 +742,14 @@ b2(v2: ref<int32, managed, readonly>):
         assert_eq!(
             outgoing[0].dispatch,
             mir::CallDispatchKind::Virtual {
-                slot: mir::DispatchSlot::new(1),
+                slot: mir::DispatchSlot::new(2),
             }
         );
-        assert!(matches!(outgoing[0].callsite, CallSiteRef::Terminator(_)));
-        assert_eq!(callgraph.unknown_calls(test_id).len(), 1);
-        assert_eq!(callgraph.unknown_calls(test_id)[0].callee, Some(callee_id));
+        assert!(matches!(outgoing[0].callsite, mir::CallSite::Terminator(_)));
+        assert_eq!(callgraph.open_callsites(test_id).len(), 1);
+        assert_eq!(
+            callgraph.open_callsites(test_id)[0].known_target,
+            Some(callee_id)
+        );
     }
 }

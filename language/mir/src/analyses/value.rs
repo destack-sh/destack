@@ -325,10 +325,7 @@ impl ValueDefinitions {
 
         // pair target arguments with the destination block parameters
         for (parameter, argument) in parameters.iter().zip(arguments) {
-            values
-                .entry(parameter.value)
-                .or_insert_with(Vec::new)
-                .push(*argument);
+            values.entry(parameter.value).or_default().push(*argument);
         }
     }
 }
@@ -346,15 +343,15 @@ impl FunctionAnalysis for ValueDefinitions {
 
 /// Value and local type lookup for a MIR function.
 #[derive(Debug, Clone)]
-pub struct ValueTypeMap {
+pub struct ValueTypes {
     /// SSA value types indexed by value id.
     values: Vec<Option<mir::LocalNodeId<mir::Type>>>,
     /// Local types indexed by local id.
     locals: Vec<Option<mir::LocalNodeId<mir::Type>>>,
 }
 
-impl ValueTypeMap {
-    /// Build a value type map for a function.
+impl ValueTypes {
+    /// Build value types for a function.
     pub fn new(function: &mir::Function, tree: &mir::Tree) -> Self {
         // seed value types from the function table
         let values = function.value_types.clone();
@@ -452,6 +449,17 @@ impl ValueTypeMap {
     /// Return the raw value type table.
     pub fn values(&self) -> &[Option<mir::LocalNodeId<mir::Type>>] {
         &self.values
+    }
+}
+
+impl Analysis for ValueTypes {
+    const ID: AnalysisId = AnalysisId("value-types");
+    const INVALIDATED_BY: Mutation = Mutation::VALUE;
+}
+
+impl FunctionAnalysis for ValueTypes {
+    fn compute(function: &mir::Function, tree: &mir::Tree, _analyses: &FunctionAnalyses) -> Self {
+        Self::new(function, tree)
     }
 }
 

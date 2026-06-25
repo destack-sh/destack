@@ -11,10 +11,10 @@ use crate::{LocalNodeId, TensorFormat, TensorSharding, TensorViewFormat, TraceMa
 /// Canonical layout metadata for one MIR module.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct LayoutMetadata {
-    /// Layout metadata table for aggregate types.
-    pub layout_table: LayoutTable,
-    /// Concrete layout ids keyed by type id.
-    pub layout_by_type: HashMap<LocalNodeId<Type>, LayoutId>,
+    /// Layout entries for aggregate types.
+    pub table: LayoutTable,
+    /// Layout ids keyed by type id.
+    pub types: HashMap<LocalNodeId<Type>, LayoutId>,
 }
 
 impl LayoutMetadata {
@@ -25,13 +25,13 @@ impl LayoutMetadata {
 
     /// Return the layout entry for a type id when available.
     pub fn type_layout(&self, ty: LocalNodeId<Type>) -> Option<&Layout> {
-        let layout_id = self.layout_by_type.get(&ty)?;
-        self.layout_table.layouts.get(layout_id.index())
+        let layout_id = self.types.get(&ty)?;
+        self.table.entries.get(layout_id.index())
     }
 
     /// Return the layout id for a type when present.
     pub fn layout_id(&self, ty: LocalNodeId<Type>) -> Option<LayoutId> {
-        self.layout_by_type.get(&ty).copied()
+        self.types.get(&ty).copied()
     }
 
     /// Record the layout id for a type.
@@ -40,7 +40,7 @@ impl LayoutMetadata {
         ty: LocalNodeId<Type>,
         layout_id: LayoutId,
     ) -> Option<LayoutId> {
-        self.layout_by_type.insert(ty, layout_id)
+        self.types.insert(ty, layout_id)
     }
 
     /// Copy structural layout metadata from one type id to another.
@@ -55,7 +55,7 @@ impl LayoutMetadata {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct LayoutTable {
     /// Layout entries indexed by LayoutId.
-    pub layouts: Vec<Layout>,
+    pub entries: Vec<Layout>,
 }
 
 impl LayoutTable {
@@ -66,16 +66,16 @@ impl LayoutTable {
 
     /// Insert a layout entry and return its id.
     pub fn insert(&mut self, layout: Layout) -> LayoutId {
-        let next_index = self.layouts.len() + 1;
+        let next_index = self.entries.len() + 1;
         let id = LayoutId::new(next_index as u32);
-        self.layouts.push(layout);
+        self.entries.push(layout);
         id
     }
 
     /// Return a layout entry for an id.
     pub fn layout(&self, id: LayoutId) -> &Layout {
         let index = id.index();
-        self.layouts
+        self.entries
             .get(index)
             .unwrap_or_else(|| unreachable!("missing layout entry {index}"))
     }

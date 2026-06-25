@@ -6,31 +6,12 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CompareExchangeAccess, Constant,
-    CounterId, DispatchSlot, FenceAccess, FunctionId, GlobalId, IndexSlice, Intrinsic, LocalId,
-    Node, NodeType, TensorConvertMode, TensorImmediateId, TensorIndexReduceOperator,
+    AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CallDispatchKind, CompareExchangeAccess,
+    Constant, CounterId, DispatchSlot, FenceAccess, FunctionId, GlobalId, IndexSlice, Intrinsic,
+    LocalId, Node, NodeType, TensorConvertMode, TensorImmediateId, TensorIndexReduceOperator,
     TensorIndexTieBreak, TensorReduceOperator, TensorScatterMode, Tree, TypeId, UnaryOperator,
     Value, ValueSlice, VectorConvertMode, VectorReduceOperator,
 };
-
-/// Dispatch kind for a call instruction.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum CallDispatchKind {
-    /// Direct function call.
-    Direct,
-    /// Virtual call through an object dispatch slot.
-    Virtual {
-        /// The dispatch slot for the method.
-        slot: DispatchSlot,
-    },
-    /// Dynamic call through an erased dispatch table slot.
-    Dynamic {
-        /// The dispatch slot for the method.
-        slot: DispatchSlot,
-    },
-    /// Indirect call through a function pointer.
-    Indirect,
-}
 
 /// Instructions produce SSA values and perform "operations".
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]

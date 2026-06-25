@@ -3,9 +3,9 @@ use std::collections::HashSet;
 use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
 use crate::{Block, Function, Instruction, Local, LocalNodeId, NodeTable, Tree, Value};
 
-/// Per-block use and def facts for liveness.
+/// Per-block local use and definition sets for liveness.
 #[derive(Debug, Default)]
-struct BlockLivenessFacts {
+struct BlockLiveness {
     /// Values used before local definition in the block.
     value_use: HashSet<Value>,
     /// Values defined in the block.
@@ -32,55 +32,52 @@ pub struct FunctionLiveness {
 impl FunctionLiveness {
     /// Build liveness for one MIR function.
     pub fn build(function: &Function, tree: &Tree) -> Self {
-        // block facts
-        let facts = Self::collect_block_facts(function, tree);
+        // collect local block liveness
+        let blocks = Self::collect_blocks(function, tree);
 
         // initial state
         let mut liveness = Self::initialize(function);
 
         // fixed point
-        Self::propagate_to_fixed_point(&mut liveness, function, tree, &facts);
+        Self::propagate_to_fixed_point(&mut liveness, function, tree, &blocks);
 
         liveness
     }
 
-    /// Collect local use and def facts for each block.
-    fn collect_block_facts(
-        function: &Function,
-        tree: &Tree,
-    ) -> NodeTable<Block, BlockLivenessFacts> {
-        let mut facts = NodeTable::from_nodes(&function.blocks, BlockLivenessFacts::default);
+    /// Collect local use and def sets for each block.
+    fn collect_blocks(function: &Function, tree: &Tree) -> NodeTable<Block, BlockLiveness> {
+        let mut blocks = NodeTable::from_nodes(&function.blocks, BlockLiveness::default);
 
-        // per block facts
+        // scan each block independently
         for &block_id in &function.blocks {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
             let mut seen_value_defs = HashSet::new();
             let mut seen_local_defs = HashSet::new();
-            let mut block_facts = BlockLivenessFacts::default();
+            let mut block_liveness = BlockLiveness::default();
 
             // block parameters
             for parameter in &block.parameters {
                 seen_value_defs.insert(parameter.value);
-                block_facts.value_def.insert(parameter.value);
+                block_liveness.value_def.insert(parameter.value);
             }
 
             // instructions
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
                 Self::record_instruction_value_uses(
-                    &mut block_facts,
+                    &mut block_liveness,
                     &seen_value_defs,
                     instruction,
                     tree,
                 );
                 Self::record_instruction_local_uses(
-                    &mut block_facts,
+                    &mut block_liveness,
                     &seen_local_defs,
                     instruction,
                 );
                 Self::record_instruction_defs(
-                    &mut block_facts,
+                    &mut block_liveness,
                     &mut seen_value_defs,
                     &mut seen_local_defs,
                     instruction,
@@ -90,69 +87,69 @@ impl FunctionLiveness {
             // terminator uses
             for used in terminator.uses(tree) {
                 if !seen_value_defs.contains(&used) {
-                    block_facts.value_use.insert(used);
+                    block_liveness.value_use.insert(used);
                 }
             }
 
-            *facts.get_mut(block_id) = block_facts;
+            *blocks.get_mut(block_id) = block_liveness;
         }
 
-        facts
+        blocks
     }
 
-    /// Record instruction value uses in one block fact set.
+    /// Record instruction value uses in one block liveness set.
     fn record_instruction_value_uses(
-        facts: &mut BlockLivenessFacts,
+        liveness: &mut BlockLiveness,
         seen_value_defs: &HashSet<Value>,
         instruction: &Instruction,
         tree: &Tree,
     ) {
         for used in instruction.uses() {
             if !seen_value_defs.contains(&used) {
-                facts.value_use.insert(used);
+                liveness.value_use.insert(used);
             }
         }
 
         if let Some(arguments) = instruction.argument_slice() {
             for &argument in tree.get_values(arguments) {
                 if !seen_value_defs.contains(&argument) {
-                    facts.value_use.insert(argument);
+                    liveness.value_use.insert(argument);
                 }
             }
         }
     }
 
-    /// Record instruction local uses in one block fact set.
+    /// Record instruction local uses in one block liveness set.
     fn record_instruction_local_uses(
-        facts: &mut BlockLivenessFacts,
+        liveness: &mut BlockLiveness,
         seen_local_defs: &HashSet<LocalNodeId<Local>>,
         instruction: &Instruction,
     ) {
         match instruction {
             Instruction::LocalGet { local, .. } | Instruction::LocalAddr { local, .. } => {
                 if !seen_local_defs.contains(local) {
-                    facts.local_use.insert(*local);
+                    liveness.local_use.insert(*local);
                 }
             }
             _ => {}
         }
     }
 
-    /// Record instruction defs in one block fact set.
+    /// Record instruction defs in one block liveness set.
     fn record_instruction_defs(
-        facts: &mut BlockLivenessFacts,
+        liveness: &mut BlockLiveness,
         seen_value_defs: &mut HashSet<Value>,
         seen_local_defs: &mut HashSet<LocalNodeId<Local>>,
         instruction: &Instruction,
     ) {
         if let Some(destination) = instruction.destination() {
             seen_value_defs.insert(destination);
-            facts.value_def.insert(destination);
+            liveness.value_def.insert(destination);
         }
 
         if let Instruction::LocalSet { local, .. } = instruction {
             seen_local_defs.insert(*local);
-            facts.local_def.insert(*local);
+            liveness.local_def.insert(*local);
         }
     }
 
@@ -171,7 +168,7 @@ impl FunctionLiveness {
         liveness: &mut Self,
         function: &Function,
         tree: &Tree,
-        facts: &NodeTable<Block, BlockLivenessFacts>,
+        blocks: &NodeTable<Block, BlockLiveness>,
     ) {
         let mut changed = true;
 
@@ -179,7 +176,7 @@ impl FunctionLiveness {
             changed = false;
 
             for &block_id in function.blocks.iter().rev() {
-                if Self::propagate_block(liveness, block_id, tree, facts) {
+                if Self::propagate_block(liveness, block_id, tree, blocks) {
                     changed = true;
                 }
             }
@@ -191,11 +188,11 @@ impl FunctionLiveness {
         liveness: &mut Self,
         block_id: LocalNodeId<Block>,
         tree: &Tree,
-        facts: &NodeTable<Block, BlockLivenessFacts>,
+        blocks: &NodeTable<Block, BlockLiveness>,
     ) -> bool {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
-        let facts = facts.get(block_id);
+        let block_liveness = blocks.get(block_id);
 
         // successor live-out
         let mut next_value_live_out = HashSet::new();
@@ -211,16 +208,16 @@ impl FunctionLiveness {
 
         // block live-in
         let mut next_value_live_in: HashSet<Value> = next_value_live_out
-            .difference(&facts.value_def)
+            .difference(&block_liveness.value_def)
             .copied()
             .collect();
-        next_value_live_in.extend(facts.value_use.iter().copied());
+        next_value_live_in.extend(block_liveness.value_use.iter().copied());
 
         let mut next_local_live_in: HashSet<LocalNodeId<Local>> = next_local_live_out
-            .difference(&facts.local_def)
+            .difference(&block_liveness.local_def)
             .copied()
             .collect();
-        next_local_live_in.extend(facts.local_use.iter().copied());
+        next_local_live_in.extend(block_liveness.local_use.iter().copied());
 
         let mut changed = false;
 
