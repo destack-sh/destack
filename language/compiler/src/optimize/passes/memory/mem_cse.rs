@@ -346,7 +346,10 @@ fn candidate_is_redundant(
         }
 
         // classify the clobbering definition
-        let Some(clobber_kind) = def_kind_for_instruction(tree, tree.get(clobber_def.instruction))
+        let Some(clobber_instruction) = clobber_def.instruction() else {
+            return false;
+        };
+        let Some(clobber_kind) = def_kind_for_instruction(tree, tree.get(clobber_instruction))
         else {
             return false;
         };
@@ -446,8 +449,10 @@ fn def_kinds_equivalent(
                 return false;
             };
 
-            let Some(clobber_source) = memop_source_access(memory_ssa, clobber_def.instruction)
-            else {
+            let Some(clobber_instruction) = clobber_def.instruction() else {
+                return false;
+            };
+            let Some(clobber_source) = memop_source_access(memory_ssa, clobber_instruction) else {
                 return false;
             };
 

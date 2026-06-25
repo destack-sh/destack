@@ -6,8 +6,8 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, ConstantPropagation, DominatorTree, Loop, LoopAnalysis, MemoryAccess,
-    MemoryAccessId, MemoryEffectTarget, MemorySSA, Mutation, RangeAnalysis, ValueRange,
-    build_instruction_block_map, instruction_allows_read_only_motion,
+    MemoryAccessId, MemoryAccessSource, MemoryEffectTarget, MemorySSA, Mutation, RangeAnalysis,
+    ValueRange, build_instruction_block_map, instruction_allows_read_only_motion,
     instruction_is_read_only_access, instruction_is_speculatable,
 };
 
@@ -594,11 +594,17 @@ fn load_is_hoistable(
     match memory_ssa.access(clobber) {
         MemoryAccess::LiveOnEntry => true,
         MemoryAccess::Def(def_access) => {
-            let Some(block_id) = instruction_blocks.get(&def_access.instruction) else {
-                return false;
+            let block_id = match def_access.source {
+                MemoryAccessSource::Instruction(instruction) => {
+                    let Some(block_id) = instruction_blocks.get(&instruction) else {
+                        return false;
+                    };
+                    *block_id
+                }
+                MemoryAccessSource::Terminator(block) => block,
             };
 
-            !loop_blocks.contains(block_id)
+            !loop_blocks.contains(&block_id)
         }
         _ => false,
     }
@@ -630,6 +636,16 @@ fn loop_clobbers_access(
                 if memory_ssa.def_clobbers_access(*access_id, use_access, alias) {
                     return true;
                 }
+            }
+        }
+
+        let Some(accesses) = memory_ssa.terminator_accesses(*block_id) else {
+            continue;
+        };
+
+        for access_id in accesses {
+            if memory_ssa.def_clobbers_access(*access_id, use_access, alias) {
+                return true;
             }
         }
     }
@@ -690,10 +706,16 @@ fn read_only_access_is_hoistable(
         match memory_ssa.access(clobber) {
             MemoryAccess::LiveOnEntry => {}
             MemoryAccess::Def(def_access) => {
-                let Some(block_id) = instruction_blocks.get(&def_access.instruction) else {
-                    return false;
+                let block_id = match def_access.source {
+                    MemoryAccessSource::Instruction(instruction) => {
+                        let Some(block_id) = instruction_blocks.get(&instruction) else {
+                            return false;
+                        };
+                        *block_id
+                    }
+                    MemoryAccessSource::Terminator(block) => block,
                 };
-                if loop_blocks.contains(block_id) {
+                if loop_blocks.contains(&block_id) {
                     return false;
                 }
             }
