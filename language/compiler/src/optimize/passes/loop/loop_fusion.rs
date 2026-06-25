@@ -21,8 +21,8 @@ declare_pass! {
     /// ```mir
     /// function before(v0: uint32): void {
     /// b0(v0: uint32):
-    ///     v1 = frame.alloc.zeroed int32 -> ref<int32, raw, space(frame)>
-    ///     v2 = frame.alloc.zeroed int32 -> ref<int32, raw, space(frame)>
+    ///     v1 = frame.alloc.zeroed [int32; 16] -> ref<[int32; 16], raw, mutable, space(frame)>
+    ///     v2 = frame.alloc.zeroed [int32; 16] -> ref<[int32; 16], raw, mutable, space(frame)>
     ///     v3 = 0uint32
     ///     v4 = 1uint32
     ///     jump b1(v3)
@@ -30,7 +30,7 @@ declare_pass! {
     ///     v6 = int.lt.u v5, v0
     ///     branch v6, b2(v5), b3
     /// b2(v7: uint32):
-    ///     v8 = element.address v1, v7 -> ref<int32, raw, space(frame)>
+    ///     v8 = element.address v1, v7 -> ref<int32, raw, mutable, space(frame)>
     ///     v9 = 1int32
     ///     store v8, v9
     ///     v10 = int.add v7, v4
@@ -41,7 +41,7 @@ declare_pass! {
     ///     v12 = int.lt.u v11, v0
     ///     branch v12, b5(v11), b6
     /// b5(v13: uint32):
-    ///     v14 = element.address v2, v13 -> ref<int32, raw, space(frame)>
+    ///     v14 = element.address v2, v13 -> ref<int32, raw, mutable, space(frame)>
     ///     v15 = 2int32
     ///     store v14, v15
     ///     v16 = int.add v13, v4
@@ -54,8 +54,8 @@ declare_pass! {
     /// ```mir
     /// function after(v0: uint32): void {
     /// b0(v0: uint32):
-    ///     v1 = frame.alloc.zeroed int32 -> ref<int32, raw, space(frame)>
-    ///     v2 = frame.alloc.zeroed int32 -> ref<int32, raw, space(frame)>
+    ///     v1 = frame.alloc.zeroed [int32; 16] -> ref<[int32; 16], raw, mutable, space(frame)>
+    ///     v2 = frame.alloc.zeroed [int32; 16] -> ref<[int32; 16], raw, mutable, space(frame)>
     ///     v3 = 0uint32
     ///     v4 = 1uint32
     ///     jump b1(v3)
@@ -63,10 +63,10 @@ declare_pass! {
     ///     v6 = int.lt.u v5, v0
     ///     branch v6, b2(v5), b6
     /// b2(v7: uint32):
-    ///     v8 = element.address v1, v7 -> ref<int32, raw, space(frame)>
+    ///     v8 = element.address v1, v7 -> ref<int32, raw, mutable, space(frame)>
     ///     v9 = 1int32
     ///     store v8, v9
-    ///     v14 = element.address v2, v7 -> ref<int32, raw, space(frame)>
+    ///     v14 = element.address v2, v7 -> ref<int32, raw, mutable, space(frame)>
     ///     v15 = 2int32
     ///     store v14, v15
     ///     v10 = int.add v7, v4
@@ -914,8 +914,8 @@ mod tests {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
     v3: uint32 = 0
     v4: uint32 = 1
     jump b1(v3)
@@ -925,7 +925,7 @@ b1(v5: uint32):
     branch v6, b2(v5), b3
 
 b2(v7: uint32):
-    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v8: ref<int32, raw, mutable, space(frame)> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
     v10: uint32 = int.add v7, v4
@@ -939,7 +939,7 @@ b4(v11: uint32):
     branch v12, b5(v11), b6
 
 b5(v13: uint32):
-    v14: ref<int32, raw, space(frame)> = element.address v2, v13
+    v14: ref<int32, raw, mutable, space(frame)> = element.address v2, v13
     v15: int32 = 2
     store v14, v15
     v16: uint32 = int.add v13, v4
@@ -953,8 +953,8 @@ b6:
         let expected = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
     v3: uint32 = 0
     v4: uint32 = 1
     jump b1(v3)
@@ -964,10 +964,10 @@ b1(v5: uint32):
     branch v6, b2(v5), b6
 
 b2(v7: uint32):
-    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v8: ref<int32, raw, mutable, space(frame)> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
-    v17: ref<int32, raw, space(frame)> = element.address v2, v7
+    v17: ref<int32, raw, mutable, space(frame)> = element.address v2, v7
     v18: int32 = 2
     store v17, v18
     v10: uint32 = int.add v7, v4
@@ -989,8 +989,8 @@ b6:
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
     v3: uint32 = 0
     v4: uint32 = 1
     v5: uint32 = 7
@@ -1001,7 +1001,7 @@ b1(v6: uint32, v7: uint32):
     branch v8, b2(v6, v7), b3
 
 b2(v9: uint32, v10: uint32):
-    v11: ref<int32, raw, space(frame)> = element.address v1, v9
+    v11: ref<int32, raw, mutable, space(frame)> = element.address v1, v9
     store v11, v10
     v12: uint32 = int.add v9, v4
     jump b1(v12, v10)
@@ -1014,7 +1014,7 @@ b4(v13: uint32, v14: uint32):
     branch v15, b5(v13, v14), b6
 
 b5(v16: uint32, v17: uint32):
-    v18: ref<int32, raw, space(frame)> = element.address v2, v16
+    v18: ref<int32, raw, mutable, space(frame)> = element.address v2, v16
     store v18, v17
     v19: uint32 = int.add v16, v4
     jump b4(v19, v17)
@@ -1027,8 +1027,8 @@ b6:
         let expected = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
     v3: uint32 = 0
     v4: uint32 = 1
     v5: uint32 = 7
@@ -1039,9 +1039,9 @@ b1(v6: uint32, v7: uint32):
     branch v8, b2(v6, v7), b6
 
 b2(v9: uint32, v10: uint32):
-    v11: ref<int32, raw, space(frame)> = element.address v1, v9
+    v11: ref<int32, raw, mutable, space(frame)> = element.address v1, v9
     store v11, v10
-    v20: ref<int32, raw, space(frame)> = element.address v2, v9
+    v20: ref<int32, raw, mutable, space(frame)> = element.address v2, v9
     store v20, v10
     v12: uint32 = int.add v9, v4
     jump b1(v12, v10)
@@ -1062,7 +1062,7 @@ b6:
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
     v2: uint32 = 0
     v3: uint32 = 1
     jump b1(v2)
@@ -1072,7 +1072,7 @@ b1(v4: uint32):
     branch v5, b2(v4), b3
 
 b2(v6: uint32):
-    v7: ref<int32, raw, space(frame)> = element.address v1, v6
+    v7: ref<int32, raw, mutable, space(frame)> = element.address v1, v6
     v8: int32 = 1
     store v7, v8
     v9: uint32 = int.add v6, v3
@@ -1086,7 +1086,7 @@ b4(v10: uint32):
     branch v11, b5(v10), b6
 
 b5(v12: uint32):
-    v13: ref<int32, raw, space(frame)> = element.address v1, v12
+    v13: ref<int32, raw, mutable, space(frame)> = element.address v1, v12
     v14: int32 = 2
     store v13, v14
     v15: uint32 = int.add v12, v3
@@ -1108,8 +1108,8 @@ b6:
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
     v3: uint32 = 0
     v4: uint32 = 1
     jump b1(v3)
@@ -1119,7 +1119,7 @@ b1(v5: uint32):
     branch v6, b2(v5), b3
 
 b2(v7: uint32):
-    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v8: ref<int32, raw, mutable, space(frame)> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
     v10: uint32 = int.add v7, v4
@@ -1134,7 +1134,7 @@ b4(v12: uint32):
     branch v13, b5(v12), b6
 
 b5(v14: uint32):
-    v15: ref<int32, raw, space(frame)> = element.address v2, v14
+    v15: ref<int32, raw, mutable, space(frame)> = element.address v2, v14
     v16: int32 = 2
     store v15, v16
     v17: uint32 = int.add v14, v4
@@ -1156,8 +1156,8 @@ b6:
         let input = r#"
 function test(v0: uint32, v1: uint32): void {
 entry(v0: uint32, v1: uint32):
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v3: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v3: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
     v4: uint32 = 0
     v5: uint32 = 1
     jump b1(v4)
@@ -1167,7 +1167,7 @@ b1(v6: uint32):
     branch v7, b2(v6), b3
 
 b2(v8: uint32):
-    v9: ref<int32, raw, space(frame)> = element.address v2, v8
+    v9: ref<int32, raw, mutable, space(frame)> = element.address v2, v8
     v10: int32 = 1
     store v9, v10
     v11: uint32 = int.add v8, v5
@@ -1181,7 +1181,7 @@ b4(v12: uint32):
     branch v13, b5(v12), b6
 
 b5(v14: uint32):
-    v15: ref<int32, raw, space(frame)> = element.address v3, v14
+    v15: ref<int32, raw, mutable, space(frame)> = element.address v3, v14
     v16: int32 = 2
     store v15, v16
     v17: uint32 = int.add v14, v5
@@ -1203,8 +1203,8 @@ b6:
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
     v3: uint32 = 0
     v4: uint32 = 1
     jump b1(v3)
@@ -1214,7 +1214,7 @@ b1(v5: uint32):
     branch v6, b2(v5), b3
 
 b2(v7: uint32):
-    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v8: ref<int32, raw, mutable, space(frame)> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
     v10: uint32 = int.add v7, v4
@@ -1229,7 +1229,7 @@ b4(v11: uint32):
     branch v13, b5(v11), b6
 
 b5(v14: uint32):
-    v15: ref<int32, raw, space(frame)> = element.address v2, v14
+    v15: ref<int32, raw, mutable, space(frame)> = element.address v2, v14
     v16: int32 = 2
     store v15, v16
     v17: uint32 = int.add v14, v4
@@ -1251,8 +1251,8 @@ b6:
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
     v3: uint32 = 0
     v4: uint32 = 1
     jump b1(v3)
@@ -1262,7 +1262,7 @@ b1(v5: uint32):
     branch v6, b2(v5), b3
 
 b2(v7: uint32):
-    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v8: ref<int32, raw, mutable, space(frame)> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
     v10: uint32 = int.add v7, v4
@@ -1277,7 +1277,7 @@ b4(v11: uint32):
     branch v13, b5(v11), b6
 
 b5(v14: uint32):
-    v15: ref<int32, raw, space(frame)> = element.address v2, v14
+    v15: ref<int32, raw, mutable, space(frame)> = element.address v2, v14
     v16: int32 = 2
     store v15, v16
     v17: uint32 = int.add v12, v4
@@ -1299,8 +1299,8 @@ b6:
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
     v3: uint32 = 0
     v4: uint32 = 1
     jump b1(v3)
@@ -1310,7 +1310,7 @@ b1(v5: uint32):
     branch v6, b2(v5), b3
 
 b2(v7: uint32):
-    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v8: ref<int32, raw, mutable, space(frame)> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
     v10: uint32 = int.add v7, v4
@@ -1325,7 +1325,7 @@ b4(v11: uint32):
 
 b5(v13: uint32):
     call touch(v13)
-    v14: ref<int32, raw, space(frame)> = element.address v2, v13
+    v14: ref<int32, raw, mutable, space(frame)> = element.address v2, v13
     v15: int32 = 2
     store v14, v15
     v16: uint32 = int.add v13, v4
@@ -1352,8 +1352,8 @@ entry(v0: uint32):
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
     v3: uint32 = 0
     v4: uint32 = 1
     jump b1(v3)
@@ -1363,7 +1363,7 @@ b1(v5: uint32):
     branch v6, b2(v5), b3
 
 b2(v7: uint32):
-    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v8: ref<int32, raw, mutable, space(frame)> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
     v10: uint32 = int.add v7, v4
@@ -1380,7 +1380,7 @@ b5(v12: uint32):
     branch v13, b6(v12), b7
 
 b6(v14: uint32):
-    v15: ref<int32, raw, space(frame)> = element.address v2, v14
+    v15: ref<int32, raw, mutable, space(frame)> = element.address v2, v14
     v16: int32 = 2
     store v15, v16
     v17: uint32 = int.add v14, v4
@@ -1402,8 +1402,8 @@ b7:
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
     v3: uint32 = 0
     v4: uint32 = 1
     v5: uint32 = 10
@@ -1415,7 +1415,7 @@ b1(v7: uint32, v8: uint32):
     branch v9, b2(v7, v8), b3
 
 b2(v10: uint32, v11: uint32):
-    v12: ref<int32, raw, space(frame)> = element.address v1, v10
+    v12: ref<int32, raw, mutable, space(frame)> = element.address v1, v10
     v13: int32 = 1
     store v12, v13
     v14: uint32 = int.add v10, v4
@@ -1429,7 +1429,7 @@ b4(v15: uint32, v16: uint32):
     branch v17, b5(v15, v16), b6
 
 b5(v18: uint32, v19: uint32):
-    v20: ref<int32, raw, space(frame)> = element.address v2, v18
+    v20: ref<int32, raw, mutable, space(frame)> = element.address v2, v18
     v21: int32 = 2
     store v20, v21
     v22: uint32 = int.add v18, v4
@@ -1451,8 +1451,8 @@ b6:
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
     v3: uint32 = 0
     v4: uint32 = 1
     v5: uint32 = 2
@@ -1463,7 +1463,7 @@ b1(v6: uint32):
     branch v7, b2(v6), b3
 
 b2(v8: uint32):
-    v9: ref<int32, raw, space(frame)> = element.address v1, v8
+    v9: ref<int32, raw, mutable, space(frame)> = element.address v1, v8
     v10: int32 = 1
     store v9, v10
     v11: uint32 = int.add v8, v4
@@ -1477,7 +1477,7 @@ b4(v12: uint32):
     branch v13, b5(v12), b6
 
 b5(v14: uint32):
-    v15: ref<int32, raw, space(frame)> = element.address v2, v14
+    v15: ref<int32, raw, mutable, space(frame)> = element.address v2, v14
     v16: int32 = 2
     store v15, v16
     v17: uint32 = int.add v14, v5

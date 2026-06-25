@@ -18,7 +18,7 @@ declare_pass! {
     /// ```mir
     /// function before(v0: boolean): int32 {
     /// b0(v0: boolean):
-    ///     v1 = frame.alloc.zeroed int32 -> ref<int32, raw, space(frame)>
+    ///     v1 = frame.alloc.zeroed int32 -> ref<int32, raw, mutable, space(frame)>
     ///     v2 = 7int32
     ///     store v1, v2
     ///     branch v0, b1, b2
@@ -33,7 +33,7 @@ declare_pass! {
     /// ```mir
     /// function after(v0: boolean): int32 {
     /// b0(v0: boolean):
-    ///     v1 = frame.alloc.zeroed int32 -> ref<int32, raw, space(frame)>
+    ///     v1 = frame.alloc.zeroed int32 -> ref<int32, raw, mutable, space(frame)>
     ///     v2 = 7int32
     ///     branch v0, b1, b2
     /// b1:
@@ -44,7 +44,7 @@ declare_pass! {
     ///     return v2
     /// }
     /// ```
-    #[pass(id = "store-sink", requires(call_effects, memory_access_metadata))]
+    #[pass(id = "store-sink")]
     pub StoreSink,
     "Sink stores to the edges that require them"
 }
@@ -486,7 +486,7 @@ mod tests {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 7
     store v1, v2
     branch v0, b1, b2
@@ -503,7 +503,7 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 7
     branch v0, b1, b2
 
@@ -531,7 +531,7 @@ b2:
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 7
     store v1, v2
     branch v0, b1, b2
@@ -555,8 +555,8 @@ b2:
     #[test]
     fn test_store_sink_skips_escaping_store() {
         let input = r#"
-function test(v0: boolean, v1: ref<int32, raw, space(static)>): void {
-entry(v0: boolean, v1: ref<int32, raw, space(static)>):
+function test(v0: boolean, v1: ref<int32, raw, mutable, space(static)>): void {
+entry(v0: boolean, v1: ref<int32, raw, mutable, space(static)>):
     v2: int32 = 1
     store v1, v2
     branch v0, b1, b2

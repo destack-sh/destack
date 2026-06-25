@@ -395,7 +395,7 @@ impl<'a> SccpState<'a> {
         // mark edges based on terminator kind
         match terminator {
             mir::Terminator::Error => {
-                panic!("recovered MIR terminator reached optimizer");
+                panic!("invalid MIR terminator reached optimizer");
             }
             mir::Terminator::Jump { target } => {
                 let target_block = target.block;

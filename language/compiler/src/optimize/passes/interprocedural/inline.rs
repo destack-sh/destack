@@ -42,7 +42,7 @@ declare_pass! {
     ///     return v4
     /// }
     /// ```
-    #[pass(id = "inline", requires(call_effects))]
+    #[pass(id = "inline")]
     pub Inline,
     "Inline direct calls"
 }
@@ -772,7 +772,7 @@ fn clone_callee_blocks(
         for &instruction_id in &original.instructions {
             let instruction = tree.get(instruction_id);
             if let Some(destination) = instruction.destination() {
-                let destination_type = callee_value_types.require_value_type(destination);
+                let destination_type = callee_value_types.expect_value_type(destination);
                 let new_value = caller.next_typed_value(destination_type);
                 value_map.insert(destination, new_value);
             }
@@ -1272,7 +1272,7 @@ fn inline_scc_budgets(
 fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
     match instruction {
         mir::Instruction::Error => {
-            panic!("recovered MIR instruction reached optimizer");
+            panic!("invalid MIR instruction reached optimizer");
         }
         mir::Instruction::Const { .. }
         | mir::Instruction::Binary { .. }
@@ -1378,7 +1378,7 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
 fn terminator_cost(terminator: &mir::Terminator) -> u64 {
     match terminator {
         mir::Terminator::Error => {
-            panic!("recovered MIR terminator reached optimizer");
+            panic!("invalid MIR terminator reached optimizer");
         }
         mir::Terminator::Return { .. } => INLINE_COST_SIMPLE,
         mir::Terminator::Panic { .. } | mir::Terminator::UnwindResume => INLINE_COST_SIMPLE + 1,
@@ -1571,7 +1571,7 @@ function callee(): int32 {
     local l0: int32
 
 entry:
-    v0: ref<int32, borrowed, space(frame)> = local.address l0
+    v0: ref<int32, borrowed, mutable, space(frame)> = local.address l0
     v1: int32 = load v0
     return v1
 }

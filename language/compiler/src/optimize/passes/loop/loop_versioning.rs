@@ -655,7 +655,7 @@ b2:
     check bounds.u v5, v1, v0 => b3, b4
 
 b3:
-    v8: ref<uint8, borrowed> = element.address v0, v5
+    v8: ref<uint8, borrowed, mutable> = element.address v0, v5
     v9: uint8 = 1
     store v8, v9
     v10: uint32 = int.add v5, v4
@@ -686,7 +686,7 @@ b2:
     check bounds.u v5, v1, v0 => b3, b4
 
 b3:
-    v8: ref<uint8, borrowed> = element.address v0, v5
+    v8: ref<uint8, borrowed, mutable> = element.address v0, v5
     v9: uint8 = 1
     store v8, v9
     v10: uint32 = int.add v5, v4
@@ -707,7 +707,7 @@ b7:
     jump b8
 
 b8:
-    v15: ref<uint8, borrowed> = element.address v0, v12
+    v15: ref<uint8, borrowed, mutable> = element.address v0, v12
     v16: uint8 = 1
     store v15, v16
     v17: uint32 = int.add v12, v4
@@ -739,7 +739,7 @@ b2:
     check bounds.u v5, v1, v0 => b3, b4
 
 b3:
-    v8: ref<uint8, borrowed> = element.address v0, v5
+    v8: ref<uint8, borrowed, mutable> = element.address v0, v5
     v9: uint8 = 1
     store v8, v9
     v10: uint32 = int.add v5, v4
@@ -770,7 +770,7 @@ b2:
     check bounds.u v5, v1, v0 => b3, b4
 
 b3:
-    v8: ref<uint8, borrowed> = element.address v0, v5
+    v8: ref<uint8, borrowed, mutable> = element.address v0, v5
     v9: uint8 = 1
     store v8, v9
     v10: uint32 = int.add v5, v4
@@ -791,7 +791,7 @@ b7:
     jump b8
 
 b8:
-    v15: ref<uint8, borrowed> = element.address v0, v12
+    v15: ref<uint8, borrowed, mutable> = element.address v0, v12
     v16: uint8 = 1
     store v15, v16
     v17: uint32 = int.add v12, v4
@@ -826,7 +826,7 @@ b3:
     return
 
 b4:
-    v8: ref<int32, borrowed> = element.address v0, v5
+    v8: ref<int32, borrowed, mutable> = element.address v0, v5
     v9: int32 = 1
     store v8, v9
     v10: int32 = int.add v5, v4
@@ -864,7 +864,7 @@ b3:
     return
 
 b4:
-    v8: ref<uint8, borrowed> = element.address v0, v5
+    v8: ref<uint8, borrowed, mutable> = element.address v0, v5
     v9: uint8 = 1
     store v8, v9
     v10: uint32 = int.add v5, v4
@@ -899,7 +899,7 @@ b2:
     check bounds.u v5, v1, v0 => b3, b4
 
 b3:
-    v8: ref<uint8, borrowed> = element.address v0, v5
+    v8: ref<uint8, borrowed, mutable> = element.address v0, v5
     v9: uint8 = 1
     store v8, v9
     v10: uint32 = int.add v5, v4
@@ -930,7 +930,7 @@ b2:
     check bounds.u v5, v1, v0 => b3, b4
 
 b3:
-    v8: ref<uint8, borrowed> = element.address v0, v5
+    v8: ref<uint8, borrowed, mutable> = element.address v0, v5
     v9: uint8 = 1
     store v8, v9
     v10: uint32 = int.add v5, v4
@@ -951,7 +951,7 @@ b7:
     jump b8
 
 b8:
-    v15: ref<uint8, borrowed> = element.address v0, v12
+    v15: ref<uint8, borrowed, mutable> = element.address v0, v12
     v16: uint8 = 1
     store v15, v16
     v17: uint32 = int.add v12, v4
@@ -983,7 +983,7 @@ b2:
     check bounds.u v5, v1, v0 => b3, b4
 
 b3:
-    v8: ref<uint8, borrowed> = element.address v0, v5
+    v8: ref<uint8, borrowed, mutable> = element.address v0, v5
     v9: uint8 = 1
     store v8, v9
     v10: uint32 = int.add v5, v4

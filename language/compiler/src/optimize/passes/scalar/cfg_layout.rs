@@ -597,8 +597,7 @@ fn insert_block_after(
         return;
     }
 
-    // fallback to appending when the predecessor is not found
-    function.blocks.push(block);
+    panic!("missing predecessor block in function layout: {predecessor:?}");
 }
 
 /// Rewrite a hot edge target to the duplicated block.

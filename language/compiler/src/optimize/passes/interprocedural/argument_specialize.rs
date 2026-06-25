@@ -61,7 +61,7 @@ declare_pass! {
     ///     return v2
     /// }
     /// ```
-    #[pass(id = "argument-specialize", requires(call_effects))]
+    #[pass(id = "argument-specialize")]
     pub ArgumentSpecialize,
     "Clone functions for constant argument callsites"
 }
@@ -640,17 +640,6 @@ fn update_callsite(
         Some(SignatureKey::insert_function_type(new_callee, tree))
     };
 
-    let callsite_id = mir::CallSite::Instruction(callsite.call_instruction);
-    let mut metadata = tree
-        .metadata
-        .functions
-        .call(callsite_id)
-        .cloned()
-        .unwrap_or_default();
-    metadata.arguments = remap.filter_by_index(&metadata.arguments);
-    metadata.allocation_size = remap.remap_allocation_size(metadata.allocation_size);
-    metadata.target = Some(new_callee);
-
     let mut call = call;
     call.arguments = new_slice;
     call.signature = signature_type.unwrap_or(call.signature);
@@ -661,7 +650,13 @@ fn update_callsite(
         call,
     };
     tree.set(callsite.call_instruction, updated);
-    *tree.metadata.functions.call_mut(callsite_id) = metadata;
+
+    let callsite_id = mir::CallSite::Instruction(callsite.call_instruction);
+    if let Some(metadata) = tree.metadata.functions.calls.get_mut(&callsite_id) {
+        metadata.arguments = remap.filter_by_index(&metadata.arguments);
+        metadata.allocation_size = remap.remap_allocation_size(metadata.allocation_size);
+        metadata.target = Some(new_callee);
+    }
 
     true
 }
@@ -805,7 +800,7 @@ function callee(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
-    v1: ref<int32, borrowed, space(frame)> = local.address l0
+    v1: ref<int32, borrowed, mutable, space(frame)> = local.address l0
     v2: int32 = load v1
     return v2
 }

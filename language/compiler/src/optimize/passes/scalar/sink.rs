@@ -433,8 +433,8 @@ b2:
     #[test]
     fn test_preserve_side_effects() {
         let input = r#"
-function test(v0: ref<int32, unique>, v1: boolean): int32 {
-entry(v0: ref<int32, unique>, v1: boolean):
+function test(v0: ref<int32, unique, mutable>, v1: boolean): int32 {
+entry(v0: ref<int32, unique, mutable>, v1: boolean):
     v2: int32 = 1
     free v0
     branch v1, b1, b2
@@ -449,8 +449,8 @@ b2:
 "#;
         // free must stay ordered, but v2 can sink because it has no dependency
         let expected = r#"
-function test(v0: ref<int32, unique>, v1: boolean): int32 {
-entry(v0: ref<int32, unique>, v1: boolean):
+function test(v0: ref<int32, unique, mutable>, v1: boolean): int32 {
+entry(v0: ref<int32, unique, mutable>, v1: boolean):
     free v0
     branch v1, b1, b2
 
@@ -535,7 +535,7 @@ b1:
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = load v1
     branch v0, b1, b2
 
@@ -772,8 +772,8 @@ b3:
     #[test]
     fn test_preserve_load_with_intervening_store() {
         let input = r#"
-function test(v0: ref<int32, raw>, v1: boolean, v2: int32): int32 {
-entry(v0: ref<int32, raw>, v1: boolean, v2: int32):
+function test(v0: ref<int32, raw, mutable>, v1: boolean, v2: int32): int32 {
+entry(v0: ref<int32, raw, mutable>, v1: boolean, v2: int32):
     v3: int32 = load v0
     store v0, v2
     branch v1, b1, b2
@@ -797,8 +797,8 @@ b2:
     #[test]
     fn test_sink_load_no_intervening_ops() {
         let input = r#"
-function test(v0: ref<int32, raw>, v1: boolean): int32 {
-entry(v0: ref<int32, raw>, v1: boolean):
+function test(v0: ref<int32, raw, mutable>, v1: boolean): int32 {
+entry(v0: ref<int32, raw, mutable>, v1: boolean):
     v2: int32 = load v0
     v3: int32 = 0
     branch v1, b1, b2
@@ -814,8 +814,8 @@ b2:
         // v3 (const) is only used in b2
         // both are sunk to their respective successors
         let expected = r#"
-function test(v0: ref<int32, raw>, v1: boolean): int32 {
-entry(v0: ref<int32, raw>, v1: boolean):
+function test(v0: ref<int32, raw, mutable>, v1: boolean): int32 {
+entry(v0: ref<int32, raw, mutable>, v1: boolean):
     branch v1, b1, b2
 
 b1:
@@ -836,8 +836,8 @@ b2:
     #[test]
     fn test_sink_pure_past_store() {
         let input = r#"
-function test(v0: int32, v1: ref<int32, raw>, v2: boolean): int32 {
-entry(v0: int32, v1: ref<int32, raw>, v2: boolean):
+function test(v0: int32, v1: ref<int32, raw, mutable>, v2: boolean): int32 {
+entry(v0: int32, v1: ref<int32, raw, mutable>, v2: boolean):
     v3: int32 = 1
     v4: int32 = int.add v0, v3
     store v1, v0
@@ -853,8 +853,8 @@ b2:
         // v4 is a pure computation (int.add) used only in b1
         // it can be sunk past the store since it doesn't read memory
         let expected = r#"
-function test(v0: int32, v1: ref<int32, raw>, v2: boolean): int32 {
-entry(v0: int32, v1: ref<int32, raw>, v2: boolean):
+function test(v0: int32, v1: ref<int32, raw, mutable>, v2: boolean): int32 {
+entry(v0: int32, v1: ref<int32, raw, mutable>, v2: boolean):
     v3: int32 = 1
     store v1, v0
     branch v2, b1, b2

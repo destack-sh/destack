@@ -47,7 +47,7 @@ declare_pass! {
     ///     return v3
     /// }
     /// ```
-    #[pass(id = "dse", requires(call_effects, memory_access_metadata))]
+    #[pass(id = "dse")]
     pub DeadStoreEliminate,
     "Remove dead stores"
 }
@@ -682,7 +682,7 @@ mod tests {
         let input = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1
     store v0, v1
     v2: int32 = 2
@@ -694,7 +694,7 @@ entry:
         let expected = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1
     v2: int32 = 2
     store v0, v2
@@ -716,7 +716,7 @@ entry:
         let input = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1
     store v0, v1
     v2: int32 = load v0
@@ -740,7 +740,7 @@ entry:
         let input = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 42
     store v0, v1
     v2: int32 = 0
@@ -750,7 +750,7 @@ entry:
         let expected = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 42
     v2: int32 = 0
     return v2
@@ -768,7 +768,7 @@ entry:
         let input = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1
     store v0, v1
     v2: int32 = 2
@@ -799,11 +799,11 @@ entry:
     #[test]
     fn test_preserve_escaping_store() {
         let input = r#"
-external function imported(ref<int32, raw>): void
+external function imported(ref<int32, raw, mutable>): void
 
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 42
     store v0, v1
     call imported(v0)
@@ -820,11 +820,11 @@ entry:
     #[test]
     fn test_remove_store_before_nonescaping_no_memory_call() {
         let input = r#"
-external function imported(ref<int32, raw>): void
+external function imported(ref<int32, raw, mutable>): void
 
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 42
     store v0, v1
     call imported(v0)
@@ -833,11 +833,11 @@ entry:
 }
 "#;
         let expected = r#"
-external function imported(ref<int32, raw>): void
+external function imported(ref<int32, raw, mutable>): void
 
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 42
     call imported(v0)
     v2: int32 = 0
@@ -873,7 +873,7 @@ entry:
         let input = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1
     store v0, v1
     v2: int32 = 2
@@ -887,7 +887,7 @@ entry:
         let expected = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1
     v2: int32 = 2
     v3: int32 = 3
@@ -928,8 +928,8 @@ entry:
         let input = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 1
     store v0, v2
     v3: int32 = 2
@@ -948,16 +948,16 @@ entry:
 
     /// Store before call that may read is preserved.
     ///
-    /// Calls conservatively clobber memory state (for now?), so stores before calls
-    /// must be preserved if the location may be read by the callee.
+    /// Calls conservatively clobber memory state, so stores before calls must be preserved if the
+    /// location may be read by the callee.
     #[test]
     fn test_preserve_store_before_call() {
         let input = r#"
-external function readValue(ref<int32, raw>): int32
+external function readValue(ref<int32, raw, mutable>): int32
 
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 42
     store v0, v1
     v2: int32 = call readValue(v0)
@@ -981,7 +981,7 @@ external function sideEffect(): void
 
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     call sideEffect()
     v1: int32 = 1
     store v0, v1
@@ -996,7 +996,7 @@ external function sideEffect(): void
 
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     call sideEffect()
     v1: int32 = 1
     v2: int32 = 2
@@ -1017,9 +1017,9 @@ entry:
     #[test]
     fn test_preserve_store_to_returned() {
         let input = r#"
-function test(): ref<int32, raw> {
+function test(): ref<int32, raw, mutable> {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 42
     store v0, v1
     return v0
@@ -1035,13 +1035,13 @@ entry:
     #[test]
     fn test_preserve_store_returned_aggregate() {
         let input = r#"
-function test(): (ref<int32, raw>, int32) {
+function test(): (ref<int32, raw, mutable>, int32) {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 42
     store v0, v1
     v2: int32 = 0
-    v3: (ref<int32, raw>, int32) = tuple (ref<int32, raw>, int32) (v0, v2)
+    v3: (ref<int32, raw, mutable>, int32) = tuple (ref<int32, raw, mutable>, int32) (v0, v2)
     return v3
 }
 "#;
@@ -1060,10 +1060,10 @@ type Pair {
     int32;
 }
 
-function test(v0: ref<Pair, raw>): void {
-entry(v0: ref<Pair, raw>):
-    v1: ref<int32, borrowed> = field.address v0, 0
-    v2: ref<int32, borrowed> = field.address v0, 1
+function test(v0: ref<Pair, raw, mutable>): void {
+entry(v0: ref<Pair, raw, mutable>):
+    v1: ref<int32, borrowed, mutable> = field.address v0, 0
+    v2: ref<int32, borrowed, mutable> = field.address v0, 1
     v3: int32 = 1
     v4: int32 = 2
     store v1, v3
@@ -1081,9 +1081,9 @@ entry(v0: ref<Pair, raw>):
     #[test]
     fn test_preserve_partial_overwrite() {
         let input = r#"
-function test(): ref<int64, raw> {
+function test(): ref<int64, raw, mutable> {
 entry:
-    v0: ref<int64, raw, space(frame)> = frame.alloc.zeroed int64
+    v0: ref<int64, raw, mutable, space(frame)> = frame.alloc.zeroed int64
     v1: int64 = 0
     store v0, v1
     v2: int32 = 1
@@ -1112,7 +1112,7 @@ entry:
         let input = r#"
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int8 = 0
     v2: int64 = 4
     intrinsic.memory.raw.setBytes(v0, v1, v2)
@@ -1122,7 +1122,7 @@ entry:
         let expected = r#"
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int8 = 0
     v2: int64 = 4
     return
@@ -1140,7 +1140,7 @@ entry:
         let input = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int8 = 0
     v2: int64 = 4
     intrinsic.memory.raw.setBytes(v0, v1, v2)
@@ -1162,8 +1162,8 @@ entry:
         let input = r#"
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int64 = 4
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     return
@@ -1172,8 +1172,8 @@ entry:
         let expected = r#"
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int64 = 4
     return
 }
@@ -1192,8 +1192,8 @@ entry:
         let input = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int64 = 4
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     v3: int32 = load v0
@@ -1215,8 +1215,8 @@ entry:
         let input = r#"
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int64 = 4
     intrinsic.memory.raw.moveBytes(v0, v1, v2)
     return
@@ -1225,8 +1225,8 @@ entry:
         let expected = r#"
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int64 = 4
     return
 }
@@ -1245,8 +1245,8 @@ entry:
         let input = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int64 = 4
     intrinsic.memory.raw.moveBytes(v0, v1, v2)
     v3: int32 = load v0
@@ -1271,8 +1271,8 @@ type Point {
     int32;
 }
 
-function test(v0: ref<Point, raw>): void {
-entry(v0: ref<Point, raw>):
+function test(v0: ref<Point, raw, mutable>): void {
+entry(v0: ref<Point, raw, mutable>):
     v1: int32 = 1
     v2: int32 = 2
     v3: Point = struct Point (v1, v2)
@@ -1321,7 +1321,7 @@ entry(v0: ref<Point, raw>):
         let input = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1
     store v0, v1
     jump b1
@@ -1336,7 +1336,7 @@ b1:
         let expected = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1
     jump b1
 
@@ -1361,7 +1361,7 @@ b1:
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 1
     store v1, v2
     branch v0, b1, b2
@@ -1392,12 +1392,12 @@ b2:
         let input = r#"
 function test(v0: int32): void {
 entry(v0: int32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 42
     store v1, v2
     switch v0, b1(v1), 0 => b2
 
-b1(v3: ref<int32, raw>):
+b1(v3: ref<int32, raw, mutable>):
     return
 
 b2:

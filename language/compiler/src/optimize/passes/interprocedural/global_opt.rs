@@ -12,21 +12,21 @@ declare_pass! {
     /// This pass promotes mutable globals to immutable when they are never written.
     ///
     /// ```mir
-    /// global value: int32 = 42int32
+    /// global value: int32 = 42
     /// function root(): int32 {
-    /// b0:
-    ///     v0 = global.address value -> ref<int32, raw>
-    ///     v1 = load v0 -> int32
+    /// entry:
+    ///     v0: ref<int32, raw, mutable> = global.address value
+    ///     v1: int32 = load v0
     ///     return v1
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// readonly global value: int32 = 42int32
+    /// readonly global value: int32 = 42
     /// function root(): int32 {
-    /// b0:
-    ///     v0 = global.address value -> ref<int32, raw>
-    ///     v1 = load v0 -> int32
+    /// entry:
+    ///     v0: ref<int32, raw, mutable> = global.address value
+    ///     v1: int32 = load v0
     ///     return v1
     /// }
     /// ```
@@ -99,9 +99,12 @@ fn run_global_opt(tree: &mut mir::Tree) -> bool {
 
         // ensure all global.address uses are direct loads
         if !addr_entries.iter().all(|entry| {
-            let Some(uses) = use_maps.get(&entry.function_id) else {
-                return true;
-            };
+            let uses = use_maps.get(&entry.function_id).unwrap_or_else(|| {
+                panic!(
+                    "missing global address use map for function: {:?}",
+                    entry.function_id
+                )
+            });
 
             if uses.terminator_uses.contains(&entry.destination) {
                 return false;
@@ -566,7 +569,7 @@ global value: int32 = 42
 
 function root(): int32 {
 entry:
-    v0: ref<int32, raw> = global.address value
+    v0: ref<int32, raw, mutable> = global.address value
     v1: int32 = load v0
     return v1
 }
@@ -577,7 +580,7 @@ readonly global value: int32 = 42
 
 function root(): int32 {
 entry:
-    v0: ref<int32, raw> = global.address value
+    v0: ref<int32, raw, mutable> = global.address value
     v1: int32 = load v0
     return v1
 }
@@ -596,7 +599,7 @@ global value: int32 = 0
 
 function root(): void {
 entry:
-    v0: ref<int32, raw> = global.address value
+    v0: ref<int32, raw, mutable> = global.address value
     v1: int32 = 1
     store v0, v1
     return
@@ -616,8 +619,8 @@ global value: int32 = 0
 
 function root(): void {
 entry:
-    v0: ref<int32, raw> = global.address value
-    v1: ref<int32, raw> = intrinsic.space.cast(v0)
+    v0: ref<int32, raw, mutable> = global.address value
+    v1: ref<int32, raw, mutable> = intrinsic.space.cast(v0)
     v2: int32 = 1
     store v1, v2
     return
@@ -635,9 +638,9 @@ entry:
         let input = r#"
 global value: int32 = 42
 
-function root(): ref<int32, raw> {
+function root(): ref<int32, raw, mutable> {
 entry:
-    v0: ref<int32, raw> = global.address value
+    v0: ref<int32, raw, mutable> = global.address value
     return v0
 }
 "#;
@@ -653,8 +656,8 @@ entry:
         let input = r#"
 global value: int32 = 0
 
-function write(v0: ref<int32, raw>): void {
-entry(v0: ref<int32, raw>):
+function write(v0: ref<int32, raw, mutable>): void {
+entry(v0: ref<int32, raw, mutable>):
     v1: int32 = 1
     store v0, v1
     return
@@ -662,7 +665,7 @@ entry(v0: ref<int32, raw>):
 
 function root(v0: ref<void, managed, readonly>): void {
 entry(v0: ref<void, managed, readonly>):
-    v1: ref<int32, raw> = global.address value
+    v1: ref<int32, raw, mutable> = global.address value
     call write(v1) => b1
 
 b1:

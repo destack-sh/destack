@@ -46,7 +46,7 @@ declare_pass! {
     ///     return v2
     /// }
     /// ```
-    #[pass(id = "ip-constant-prop", requires(call_effects))]
+    #[pass(id = "ip-constant-prop")]
     pub InterproceduralConstantPropagation,
     "Propagate constants across callsites"
 }
@@ -124,9 +124,7 @@ fn run_interprocedural_constant_prop(tree: &mut mir::Tree, pointer_width_bits: u
         }
 
         let function = tree.get(function_id);
-        let Some(signature) = SignatureKey::from_function(tree, function) else {
-            continue;
-        };
+        let signature = SignatureKey::from_function(tree, function);
 
         // skip functions reachable through indirect calls
         if call_data.indirect_signatures.contains(&signature) {

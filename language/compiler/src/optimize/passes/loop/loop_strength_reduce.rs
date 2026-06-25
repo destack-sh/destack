@@ -399,7 +399,7 @@ impl<'a> CandidateContext<'a> {
                     }
 
                     // require an integer type for the value
-                    let value_type = self.value_types.require_value_type(destination);
+                    let value_type = self.value_types.expect_value_type(destination);
                     if !type_is_integer(
                         value_type,
                         self.target_layout.pointer_width_bits,
@@ -940,7 +940,7 @@ fn signed_min_for_value(
     pointer_width_bits: u16,
     tree: &mir::Tree,
 ) -> Option<i128> {
-    let ty = value_types.require_value_type(value);
+    let ty = value_types.expect_value_type(value);
     let (width, is_signed) = tree
         .get(ty)
         .int_info_with_pointer_width(pointer_width_bits)?;
@@ -1733,7 +1733,7 @@ impl<'a> ScevMaterializer<'a> {
     /// Determine signedness for a truncate operation.
     fn truncate_signedness(&self, argument: mir::Value) -> Option<bool> {
         // read the argument type
-        let ty_id = self.value_types.require_value_type(argument);
+        let ty_id = self.value_types.expect_value_type(argument);
         let ty = self.tree.get(ty_id);
         let (_, signed) = ty.int_info_with_pointer_width(self.target_layout.pointer_width_bits)?;
         Some(signed)

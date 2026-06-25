@@ -697,7 +697,7 @@ fn choose_replacement(
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     domtree: &DominatorTree,
 ) -> Option<(mir::Value, mir::Value)> {
-    // resolve definition blocks with entry fallback
+    // treat parameters as available at function entry
     let entry_block = entry?;
     let left_def = def_blocks.get(&left).copied().unwrap_or(entry_block);
     let right_def = def_blocks.get(&right).copied().unwrap_or(entry_block);
