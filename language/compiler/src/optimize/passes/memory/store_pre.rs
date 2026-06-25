@@ -529,8 +529,12 @@ fn incoming_def_matches(
         return false;
     }
 
+    // require an instruction backed definition
+    let Some(def_instruction) = def_access.instruction() else {
+        return false;
+    };
+
     // require the instruction to match the store kind
-    let def_instruction = def_access.instruction;
     if tree.instruction_has_atomic_ordering(def_instruction) {
         return false;
     }
