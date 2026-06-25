@@ -76,14 +76,14 @@ impl<'a> LayoutTable<'a> {
             .enumerate()
             .flat_map(move |(segment_index, segment)| {
                 segment
-                    .type_layouts
+                    .layout_by_type_id
                     .iter()
                     .filter_map(move |(type_id, layout_id)| {
                         let is_shadowed = self
                             .segments
                             .iter()
                             .skip(segment_index + 1)
-                            .any(|segment| segment.type_layouts.contains_key(type_id));
+                            .any(|segment| segment.layout_by_type_id.contains_key(type_id));
 
                         (!is_shadowed).then_some((*type_id, *layout_id))
                     })
@@ -138,7 +138,7 @@ pub struct LayoutSegment {
     /// Concrete layouts.
     pub(crate) layouts: Arena<Layout>,
     /// Layout ids keyed by canonical type id.
-    pub(crate) type_layouts: IndexMap<GlobalTypeId, LocalLayoutId>,
+    pub(crate) layout_by_type_id: IndexMap<GlobalTypeId, LocalLayoutId>,
 }
 
 impl LayoutSegment {
@@ -148,7 +148,7 @@ impl LayoutSegment {
             module_id,
             first_layout_id: 0,
             layouts: Arena::new(),
-            type_layouts: IndexMap::new(),
+            layout_by_type_id: IndexMap::new(),
         }
     }
 
@@ -158,7 +158,7 @@ impl LayoutSegment {
             module_id: base.module_id,
             first_layout_id: base.layout_count(),
             layouts: Arena::new(),
-            type_layouts: IndexMap::new(),
+            layout_by_type_id: IndexMap::new(),
         }
     }
 
@@ -172,24 +172,24 @@ impl LayoutSegment {
 
     /// Bind one type to a layout.
     pub fn set_type_layout(&mut self, type_id: GlobalTypeId, layout_id: LocalLayoutId) {
-        self.type_layouts.insert(type_id, layout_id);
+        self.layout_by_type_id.insert(type_id, layout_id);
     }
 
     /// Return the layout id for one type.
     pub fn layout_id_for_type(&self, type_id: GlobalTypeId) -> Option<LocalLayoutId> {
-        self.type_layouts.get(&type_id).copied()
+        self.layout_by_type_id.get(&type_id).copied()
     }
 
     /// Iterate type layout bindings.
     pub fn type_layouts(&self) -> impl Iterator<Item = (GlobalTypeId, LocalLayoutId)> + '_ {
-        self.type_layouts
+        self.layout_by_type_id
             .iter()
             .map(|(type_id, layout_id)| (*type_id, *layout_id))
     }
 
     /// Return the number of type layout bindings.
     pub fn type_layout_count(&self) -> usize {
-        self.type_layouts.len()
+        self.layout_by_type_id.len()
     }
 
     /// Get a layout by id.
@@ -211,9 +211,16 @@ impl LayoutSegment {
         self.first_layout_id + self.layouts.len() as u32
     }
 
+    /// Drop the youngest layouts down to one count.
+    pub fn truncate_layouts(&mut self, count: u32, type_layout_count: usize) {
+        let keep = count.saturating_sub(self.first_layout_id) as usize;
+        self.layouts.truncate(keep);
+        self.layout_by_type_id.truncate(type_layout_count);
+    }
+
     /// Return whether this segment has no layouts.
     pub fn is_empty(&self) -> bool {
-        self.layouts.is_empty() && self.type_layouts.is_empty()
+        self.layouts.is_empty() && self.layout_by_type_id.is_empty()
     }
 
     /// Get a layout owned by this table segment.
