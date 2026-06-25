@@ -2,7 +2,9 @@ use destack_artifact::{ArtifactEvent, ArtifactEventLog};
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, ConstraintId, Dependency, DumpContext, ObligationId, Task};
+use crate::check::{
+    CheckState, ConstraintId, Dependency, DumpContext, ObligationId, Task, Widening,
+};
 
 /// Derived size counters for one checked component.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,6 +39,13 @@ pub(in crate::check) struct VariableBounds {
 /// One event emitted by check.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::check) enum CheckEvent {
+    /// One variable was allocated.
+    VariableAllocated {
+        /// The allocated variable.
+        variable: dir::TypeVariableId,
+        /// The literal widening policy applied when solving.
+        widening: Widening,
+    },
     /// The solver started.
     SolveStarted {
         /// The number of queued tasks.
@@ -81,6 +90,8 @@ pub(in crate::check) enum CheckEvent {
     VariableSolved {
         /// The solved variable.
         variable: dir::TypeVariableId,
+        /// The bounds present when the variable solved.
+        bounds: VariableBounds,
         /// The solution type.
         solution: dir::GlobalTypeId,
         /// The number of tasks woken by this solution.
@@ -118,13 +129,6 @@ impl CheckState<'_> {
             return;
         }
 
-        if cfg!(debug_assertions) {
-            let context = DumpContext::new(self);
-            let timestamp = self.events.len();
-
-            eprintln!("{}", event.render_plain_at(&context, timestamp));
-        }
-
         self.events.push(event);
     }
 
@@ -152,7 +156,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn stats(&self) -> CheckStats {
         let mut bounds = 0;
         let mut solutions = 0;
-        for (_, state) in self.variables.iter() {
+        for (_, state) in self.solver.variables() {
             bounds += state.lower.len() + state.upper.len();
             solutions += usize::from(state.solution.is_some());
         }
@@ -163,13 +167,13 @@ impl CheckState<'_> {
             .sum();
 
         CheckStats {
-            variables: self.variables.count(),
-            constraints: self.constraints.count(),
-            obligations: self.obligations.count(),
+            variables: self.solver.variable_count(),
+            constraints: self.solver.constraint_count(),
+            obligations: self.solver.obligation_count(),
             types,
             solutions,
             bounds,
-            decisions: self.decisions.count(),
+            decisions: self.solver.decision_count(),
         }
     }
 }

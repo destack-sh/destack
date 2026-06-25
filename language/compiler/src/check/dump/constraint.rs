@@ -18,7 +18,7 @@ impl Constraint {
             .text("right", context.type_label(self.right))
             .text("origin", context.origin_label(self.origin))
             .text("at", context.origin_source_label(self.origin))
-            .text("cause", context.cause_label(self.cause))
+            .text("role", context.role_label(self.role))
             .text("condition", condition_label(&self.condition, context))
             .bool("finished", finished)
     }
