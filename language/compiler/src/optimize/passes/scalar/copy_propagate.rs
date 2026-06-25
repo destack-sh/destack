@@ -79,12 +79,13 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
     > = HashMap::new();
 
     // initialize all blocks with empty predecessor lists
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         predecessors.insert(block_id, Vec::new());
     }
 
     // collect predecessors and their arguments
-    for &block_id in &function.blocks {
+    let block_ids = function.blocks().to_vec();
+    for block_id in block_ids {
         let block = tree.get(block_id).clone();
         let terminator = tree.get(block.terminator);
         let mut record_predecessor = |target: &mir::BlockTarget| {
@@ -168,9 +169,9 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
     // find copy parameters
     let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
     let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // skip entry block parameters
-        if function.entry == Some(block_id) {
+        if function.entry() == Some(block_id) {
             continue;
         }
 
@@ -209,7 +210,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
     }
 
     // collect select based copies
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
@@ -239,7 +240,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
 
     // collect removed indices
     let mut removed_indices: HashMap<mir::LocalNodeId<mir::Block>, Vec<usize>> = HashMap::new();
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let indices: Vec<usize> = block
             .parameters
@@ -260,7 +261,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
     }
 
     // apply substitutions to instructions
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
         for instruction_id in instruction_ids {
             // skip instructions that will be removed
@@ -281,7 +282,8 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
     }
 
     // apply substitutions to terminators and parameters
-    for &block_id in &function.blocks {
+    let block_ids = function.blocks().to_vec();
+    for block_id in block_ids {
         let block = tree.get(block_id).clone();
         let terminator_id = block.terminator;
         let parameters = block.parameters.clone();
@@ -311,11 +313,9 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
             || new_parameters.len() != parameters.len()
             || new_instructions.len() != instructions.len()
         {
-            let mut new_block = block;
-            new_block.parameters = new_parameters;
-            new_block.instructions = new_instructions;
             tree.set(terminator_id, new_terminator);
-            tree.set(block_id, new_block);
+            function.replace_block_instructions(block_id, new_instructions, tree);
+            tree.get_mut(block_id).parameters = new_parameters;
         }
     }
 

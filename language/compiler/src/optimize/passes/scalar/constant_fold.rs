@@ -72,7 +72,7 @@ impl FunctionPass for ConstantFold {
 
 /// Core constant folding logic. Returns true if changes were made.
 fn run_constant_fold(
-    function: &mir::Function,
+    function: &mut mir::Function,
     tree: &mut mir::Tree,
     constants: &ConstantPropagation,
     target_layout: TargetLayout,
@@ -83,7 +83,7 @@ fn run_constant_fold(
     let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
 
     // fold instructions with local constants
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // seed constants for this block
         let mut block_constants = constants.entry(block_id).clone();
         let block = tree.get(block_id);
@@ -271,7 +271,7 @@ fn run_constant_fold(
         // resolve transitive substitutions
         let substitutions = resolve_substitution_chains(substitutions);
 
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
             for instruction_id in instruction_ids {
                 // skip instructions that will be removed
@@ -291,7 +291,8 @@ fn run_constant_fold(
             }
         }
 
-        for &block_id in &function.blocks {
+        let block_ids = function.blocks().to_vec();
+        for block_id in block_ids {
             let (terminator_id, instructions) = {
                 let block = tree.get(block_id);
                 (block.terminator, block.instructions.clone())
@@ -306,10 +307,8 @@ fn run_constant_fold(
 
             // rewrite blocks when instructions or terminators change
             if new_terminator != terminator || new_instructions.len() != instructions.len() {
-                let mut new_block = tree.get(block_id).clone();
-                new_block.instructions = new_instructions;
                 tree.set(terminator_id, new_terminator);
-                tree.set(block_id, new_block);
+                function.replace_block_instructions(block_id, new_instructions, tree);
             }
         }
 
@@ -332,7 +331,7 @@ fn fold_terminators(
     let mut changed = false;
 
     // scan blocks for foldable terminators
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
         let exit_constants = constants.exit(block_id);

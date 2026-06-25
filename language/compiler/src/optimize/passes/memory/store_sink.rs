@@ -59,7 +59,7 @@ impl FunctionPass for StoreSink {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -197,7 +197,7 @@ fn run_store_sink(
                 &mut changed,
             );
 
-            let store_id = insert_store_for_candidate(tree, insertion_block, &candidate);
+            let store_id = insert_store_for_candidate(function, tree, insertion_block, &candidate);
             clone_store_metadata(tree, candidate.instruction, store_id, candidate.pointer);
         }
 
@@ -211,9 +211,10 @@ fn run_store_sink(
     }
 
     // remove sunk stores
-    for &block_id in &function.blocks {
-        let block = tree.get_mut(block_id);
-        block.instructions.retain(|id| !to_remove.contains(id));
+    for block_id in function.blocks().to_vec() {
+        let mut instructions = tree.get(block_id).instructions.clone();
+        instructions.retain(|id| !to_remove.contains(id));
+        function.replace_block_instructions(block_id, instructions, tree);
     }
 
     // drop memory metadata for removed stores
@@ -235,7 +236,7 @@ fn collect_store_candidates(
     // scan blocks for store candidates
     let mut candidates = Vec::new();
 
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // read the block
         let block = tree.get(block_id);
 
@@ -370,7 +371,7 @@ fn collect_use_blocks_by_def(
     // collect clobbering use blocks
     let mut blocks_by_def: HashMap<_, HashSet<_>> = HashMap::new();
 
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
 
         for &instruction_id in &block.instructions {
@@ -424,6 +425,7 @@ fn successor_reaches_use(
 
 /// Insert a store instruction for a candidate.
 fn insert_store_for_candidate(
+    function: &mut mir::Function,
     tree: &mut mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     candidate: &StoreCandidate,
@@ -442,9 +444,9 @@ fn insert_store_for_candidate(
 
     // insert the instruction in the edge block
     let instruction_id = tree.insert(instruction);
-    let mut block = tree.get(block_id).clone();
-    block.instructions.push(instruction_id);
-    tree.set(block_id, block);
+    let mut instructions = tree.get(block_id).instructions.clone();
+    instructions.push(instruction_id);
+    function.replace_block_instructions(block_id, instructions, tree);
     instruction_id
 }
 

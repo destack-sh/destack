@@ -7,7 +7,7 @@ use destack_mir::{Mutation, RangeAnalysis};
 declare_pass! {
     /// Eliminate redundant guard checks when conditions are proven.
     ///
-    /// Uses control flow facts, assume instructions, and range analysis to
+    /// Uses control flow state, assume instructions, and range analysis to
     /// remove checks that are guaranteed to take one edge.
     ///
     /// ```mir
@@ -56,7 +56,7 @@ impl FunctionPass for GuardEliminate {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        let Some(_entry) = function.entry else {
+        let Some(_entry) = function.entry() else {
             return Mutation::NONE;
         };
 
@@ -65,7 +65,7 @@ impl FunctionPass for GuardEliminate {
 
         // scan blocks for eliminable checks
         let mut changed = false;
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             // read the terminator
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator).clone();
@@ -244,7 +244,7 @@ b2:
         test.assert_output(expected);
     }
 
-    /// Negated conditions are resolved using edge facts.
+    /// Negated conditions are resolved using edge constraints.
     #[test]
     fn test_guard_eliminate_negated_condition() {
         let input = r#"
@@ -293,7 +293,7 @@ b4:
         test.assert_output(expected);
     }
 
-    /// Condition facts transfer through block parameters.
+    /// Condition constraints transfer through block parameters.
     #[test]
     fn test_guard_eliminate_block_param_condition() {
         let input = r#"
@@ -340,7 +340,7 @@ b4:
         test.assert_output(expected);
     }
 
-    /// Check edges propagate condition facts to successors.
+    /// Check edges propagate condition constraints to successors.
     #[test]
     fn test_guard_eliminate_check_edge_fact() {
         let input = r#"

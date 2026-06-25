@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ExpressionKey, MemoryLocation, Mutation, instruction_has_side_effects,
-    instruction_may_affect_memory, instruction_substitute_uses_in_tree,
+    AliasAnalysis, MemorySSA, Mutation, PureExpression, ReferenceLocation,
+    instruction_has_side_effects, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
 
@@ -50,11 +50,12 @@ impl FunctionPass for LocalCse {
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
-        // build alias analysis
+        // build memory analyses
         let alias = analyses.get::<AliasAnalysis>(function, tree);
+        let memory_ssa = analyses.get::<MemorySSA>(function, tree);
 
         // run local CSE
-        let changed = run_local_cse(function, tree, &alias);
+        let changed = run_local_cse(function, tree, &alias, &memory_ssa);
 
         // report what this pass changed
         if changed {
@@ -78,13 +79,16 @@ fn run_local_cse(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     alias: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
 ) -> bool {
     // track whether any block changes
     let mut changed = false;
 
     // run local CSE per block
-    for &block_id in &function.blocks {
-        changed |= eliminate_common_subexpressions_in_block(block_id, tree, alias);
+    let block_ids = function.blocks().to_vec();
+    for block_id in block_ids {
+        changed |=
+            eliminate_common_subexpressions_in_block(function, block_id, tree, alias, memory_ssa);
     }
     changed
 }
@@ -93,12 +97,14 @@ fn run_local_cse(
 ///
 /// Returns true if any changes were made.
 fn eliminate_common_subexpressions_in_block(
+    function: &mut mir::Function,
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mut mir::Tree,
     alias: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
 ) -> bool {
     // expression table: key -> defining value
-    let mut expression_table: HashMap<ExpressionKey, mir::Value> = HashMap::new();
+    let mut expression_table: HashMap<PureExpression, mir::Value> = HashMap::new();
 
     // substitutions to apply: old value -> new value
     let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
@@ -158,7 +164,7 @@ fn eliminate_common_subexpressions_in_block(
             let destination = *destination;
             let pointer = *pointer;
 
-            let location = MemoryLocation::from_reference(pointer);
+            let location = ReferenceLocation::from_reference(pointer);
             if let Some(existing) = find_load_redundancy(&load_table, &location, alias) {
                 substitutions.insert(destination, existing);
                 to_remove.insert(instruction_id);
@@ -172,8 +178,8 @@ fn eliminate_common_subexpressions_in_block(
         }
 
         // invalidate load entries on memory clobbers
-        if instruction_may_clobber_memory(instruction, instruction_id, &load_table, alias) {
-            load_table = prune_load_table(instruction_id, &load_table, alias);
+        if instruction_may_clobber_memory(instruction_id, &load_table, alias, memory_ssa) {
+            load_table = prune_load_table(instruction_id, &load_table, alias, memory_ssa);
         }
 
         // skip instructions with side effects (don't CSE across side effects)
@@ -182,7 +188,7 @@ fn eliminate_common_subexpressions_in_block(
         }
 
         // try to get an expression key for this instruction
-        let Some(key) = ExpressionKey::from_instruction(instruction, tree) else {
+        let Some(key) = PureExpression::from_instruction(instruction, tree) else {
             continue;
         };
 
@@ -238,9 +244,9 @@ fn eliminate_common_subexpressions_in_block(
     let new_terminator = terminator_substitute_uses(tree, &terminator, &substitutions);
 
     // update block: remove redundant instructions and update terminator
-    let mut new_block = tree.get(block_id).clone();
-    new_block.instructions.retain(|id| !to_remove.contains(id));
-    tree.set(block_id, new_block);
+    let mut instructions = tree.get(block_id).instructions.clone();
+    instructions.retain(|id| !to_remove.contains(id));
+    function.replace_block_instructions(block_id, instructions, tree);
     tree.set(terminator_id, new_terminator);
 
     true
@@ -250,7 +256,7 @@ fn eliminate_common_subexpressions_in_block(
 #[derive(Clone)]
 struct LoadEntry {
     /// Memory location for the load.
-    location: MemoryLocation,
+    location: ReferenceLocation,
     /// The value produced by the load.
     value: mir::Value,
 }
@@ -258,7 +264,7 @@ struct LoadEntry {
 /// Find a redundant load using alias analysis.
 fn find_load_redundancy(
     load_table: &[LoadEntry],
-    location: &MemoryLocation,
+    location: &ReferenceLocation,
     alias: &AliasAnalysis,
 ) -> Option<mir::Value> {
     // scan load table from most recent to oldest
@@ -284,19 +290,17 @@ fn find_load_redundancy(
 
 /// Check if an instruction may clobber any tracked load.
 fn instruction_may_clobber_memory(
-    instruction: &mir::Instruction,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     load_table: &[LoadEntry],
     alias: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
 ) -> bool {
-    // skip instructions that do not touch memory
-    if !instruction_may_affect_memory(instruction) {
-        return false;
-    }
-
     // check if any tracked load is clobbered
     for entry in load_table {
-        if alias.may_clobber(instruction_id, &entry.location) {
+        let is_clobbered = memory_ssa
+            .instruction_effects(instruction_id)
+            .any(|effect| effect.clobbers_location(&entry.location, alias));
+        if is_clobbered {
             return true;
         }
     }
@@ -309,11 +313,16 @@ fn prune_load_table(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     load_table: &[LoadEntry],
     alias: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
 ) -> Vec<LoadEntry> {
     // retain only loads not clobbered by the instruction
     load_table
         .iter()
-        .filter(|entry| !alias.may_clobber(instruction_id, &entry.location))
+        .filter(|entry| {
+            memory_ssa
+                .instruction_effects(instruction_id)
+                .all(|effect| !effect.clobbers_location(&entry.location, alias))
+        })
         .cloned()
         .collect()
 }
@@ -724,7 +733,7 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let block = test.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.block(0));
         let volatile_id = block.instructions[1];
 
         test.insert_pointer_access_with_options(

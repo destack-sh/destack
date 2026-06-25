@@ -118,7 +118,7 @@ fn run_instruction_combine(
     let mut field_gets: HashMap<mir::Value, FieldGetEntry> = HashMap::new();
 
     // scan all blocks for aggregate definitions and value maps
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // load the block instructions
         let block = tree.get(block_id);
 
@@ -194,7 +194,7 @@ fn run_instruction_combine(
     let mut changed = false;
 
     // apply simplifications
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // seed constants and ranges for the block
         let mut block_constants = constants.entry(block_id).clone();
         let block_ranges = ranges.exit(block_id).clone();
@@ -297,7 +297,7 @@ fn run_instruction_combine(
 
     // apply substitutions
     if !substitutions.is_empty() {
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
             for instruction_id in instruction_ids {
                 // skip removed instructions
@@ -316,7 +316,8 @@ fn run_instruction_combine(
             }
         }
 
-        for &block_id in &function.blocks {
+        let block_ids = function.blocks().to_vec();
+        for block_id in block_ids {
             let block = tree.get(block_id).clone();
             let terminator_id = block.terminator;
             let terminator = tree.get(terminator_id).clone();
@@ -330,10 +331,8 @@ fn run_instruction_combine(
 
             // replace the block when terminators or instructions change
             if new_terminator != terminator || filtered.len() != block.instructions.len() {
-                let mut new_block = block;
-                new_block.instructions = filtered;
-                tree.set(block_id, new_block);
                 tree.set(terminator_id, new_terminator);
+                function.replace_block_instructions(block_id, filtered, tree);
             }
         }
     }

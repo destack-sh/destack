@@ -67,7 +67,7 @@ impl FunctionPass for LoopPeel {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -170,7 +170,7 @@ fn run_loop_peel(
         let mut cloned_blocks: Vec<_> = block_map.values().copied().collect();
         cloned_blocks.sort();
         for block_id in cloned_blocks {
-            function.blocks.push(block_id);
+            function.add_block(block_id, tree);
         }
 
         changed = true;

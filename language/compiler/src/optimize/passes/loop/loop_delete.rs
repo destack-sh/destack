@@ -56,7 +56,7 @@ impl FunctionPass for LoopDelete {
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -189,7 +189,7 @@ fn find_deletable_loop(
     }
 
     // second, check direct uses in blocks outside the loop
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         if lp.blocks.contains(&block_id) {
             continue;
         }
@@ -358,9 +358,7 @@ fn delete_loop(function: &mut mir::Function, tree: &mut mir::Tree, candidate: &D
     tree.set(tree.get(candidate.preheader).terminator, new_terminator);
 
     // remove loop blocks from function (they're now unreachable)
-    function
-        .blocks
-        .retain(|b| !candidate.loop_blocks.contains(b));
+    function.retain_blocks(|block| !candidate.loop_blocks.contains(&block), tree);
 }
 
 #[cfg(test)]

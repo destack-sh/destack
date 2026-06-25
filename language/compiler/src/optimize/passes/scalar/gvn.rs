@@ -5,10 +5,9 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ConstantPropagation, DominatorTree, ExpressionKey, MemoryAccess,
-    MemoryAccessEffect, MemoryAccessId, MemoryEffectTarget, MemorySSA, Mutation, TargetLayout,
-    ValueTypeMap, apply_substitutions_in_function, instruction_has_side_effects,
-    resolve_substitution_chains,
+    AliasAnalysis, ConstantPropagation, DominatorTree, MemoryAccess, MemoryAccessEffect,
+    MemoryAccessId, MemoryRegion, MemorySSA, Mutation, PureExpression, TargetLayout, ValueTypes,
+    apply_substitutions_in_function, instruction_has_side_effects, resolve_substitution_chains,
 };
 
 declare_pass! {
@@ -62,7 +61,7 @@ impl FunctionPass for GlobalValueNumbering {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip empty functions
-        let entry = match function.entry {
+        let entry = match function.entry() {
             Some(entry) => entry,
             None => return Mutation::NONE,
         };
@@ -73,7 +72,7 @@ impl FunctionPass for GlobalValueNumbering {
         let memory_ssa = analyses.get::<MemorySSA>(function, tree);
         let constants = analyses.get::<ConstantPropagation>(function, tree);
         let dom_children = build_dominator_children(function, domtree.as_ref());
-        let value_types = ValueTypeMap::new(function, tree);
+        let value_types = analyses.get::<ValueTypes>(function, tree);
 
         // run GVN
         let changed = run_gvn(
@@ -108,13 +107,13 @@ impl FunctionPass for GlobalValueNumbering {
 /// Core GVN logic. Returns true if changes were made.
 fn run_gvn(
     entry: mir::LocalNodeId<mir::Block>,
-    function: &mir::Function,
+    function: &mut mir::Function,
     tree: &mut mir::Tree,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     constants: &ConstantPropagation,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
     target_layout: TargetLayout,
 ) -> bool {
     // run GVN using dominator tree traversal
@@ -149,12 +148,12 @@ fn build_dominator_children(
     let mut children: HashMap<_, Vec<_>> = HashMap::new();
 
     // initialize all blocks with empty children lists
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         children.insert(block_id, Vec::new());
     }
 
     // build parent to children mapping from idom relationships
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // skip the root without a dominator
         if let Some(idom) = domtree.immediate_dominator(block_id) {
             children.get_mut(&idom).unwrap().push(block_id);
@@ -170,7 +169,7 @@ fn build_dominator_children(
 /// Lookups search from innermost to outermost scope.
 struct ScopedValueTable {
     /// Stack of scopes, each mapping expression keys to values.
-    scopes: Vec<HashMap<ExpressionKey, mir::Value>>,
+    scopes: Vec<HashMap<PureExpression, mir::Value>>,
     /// Stack of scopes for aggregate operands (value -> operand list).
     aggregate_scopes: Vec<HashMap<mir::Value, Vec<mir::Value>>>,
     /// Stack of scopes for load forwarding.
@@ -185,7 +184,7 @@ struct MemoryEntry {
     /// Clobbering access id for the memory state.
     clobber: MemoryAccessId,
     /// Memory location accessed by the load.
-    location: MemoryEffectTarget,
+    region: MemoryRegion,
     /// Value produced by the load.
     value: mir::Value,
 }
@@ -223,7 +222,7 @@ impl ScopedValueTable {
     }
 
     /// Look up an expression in all scopes (from innermost to outermost).
-    fn get(&self, key: &ExpressionKey) -> Option<mir::Value> {
+    fn get(&self, key: &PureExpression) -> Option<mir::Value> {
         // search from innermost to outermost scope
         for scope in self.scopes.iter().rev() {
             if let Some(&value) = scope.get(key) {
@@ -234,7 +233,7 @@ impl ScopedValueTable {
     }
 
     /// Insert an expression into the current (innermost) scope.
-    fn insert(&mut self, key: ExpressionKey, value: mir::Value) {
+    fn insert(&mut self, key: PureExpression, value: mir::Value) {
         // insert into the current scope when available
         if let Some(scope) = self.scopes.last_mut() {
             scope.insert(key, value);
@@ -286,10 +285,10 @@ impl ScopedValueTable {
         use_effect: &MemoryAccessEffect,
         alias: &AliasAnalysis,
     ) -> Option<mir::Value> {
-        let location = &use_effect.location;
+        let region = &use_effect.region;
 
-        // skip imprecise targets
-        if matches!(location, MemoryEffectTarget::Any { .. }) {
+        // skip imprecise regions
+        if matches!(region, MemoryRegion::Any { .. }) {
             return None;
         }
 
@@ -302,24 +301,20 @@ impl ScopedValueTable {
                     continue;
                 }
 
-                if !entry
-                    .location
-                    .spaces()
-                    .may_alias(use_effect.location.spaces())
-                {
+                if !entry.region.spaces().may_alias(use_effect.region.spaces()) {
                     continue;
                 }
 
                 // compare matching locations
-                match (&entry.location, location) {
-                    (MemoryEffectTarget::Local(a), MemoryEffectTarget::Local(b)) => {
+                match (&entry.region, region) {
+                    (MemoryRegion::Local(a), MemoryRegion::Local(b)) => {
                         if a == b {
                             return Some(entry.value);
                         }
                     }
                     (
-                        MemoryEffectTarget::Reference { location: a, .. },
-                        MemoryEffectTarget::Reference { location: b, .. },
+                        MemoryRegion::Reference { access: a, .. },
+                        MemoryRegion::Reference { access: b, .. },
                     ) => {
                         if a.reference == b.reference {
                             if a.is_compatible_with(b) {
@@ -371,7 +366,7 @@ fn find_redundant_expressions(
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     constants: &ConstantPropagation,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
     target_layout: TargetLayout,
 ) -> (
     HashMap<mir::Value, mir::Value>,
@@ -440,7 +435,7 @@ fn process_block(
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     _constants: &ConstantPropagation,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
     _target_layout: TargetLayout,
     value_table: &mut ScopedValueTable,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
@@ -561,8 +556,8 @@ fn process_block(
                 continue;
             }
 
-            // skip imprecise targets
-            if matches!(use_access.effect.location, MemoryEffectTarget::Any { .. }) {
+            // skip imprecise regions
+            if matches!(use_access.effect.region, MemoryRegion::Any { .. }) {
                 continue;
             }
 
@@ -581,7 +576,7 @@ fn process_block(
             } else {
                 value_table.insert_memory(MemoryEntry {
                     clobber,
-                    location: use_access.effect.location.clone(),
+                    region: use_access.effect.region.clone(),
                     value: destination,
                 });
             }
@@ -594,7 +589,7 @@ fn process_block(
         }
 
         // try to get an expression key
-        let Some(key) = ExpressionKey::from_instruction(instruction, tree) else {
+        let Some(key) = PureExpression::from_instruction(instruction, tree) else {
             continue;
         };
 
@@ -1412,7 +1407,7 @@ entry:
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
         let callsite = mir::CallSite::Instruction(call_inst);
-        test.tree.metadata.functions.call_mut(callsite).memory = mir::MemoryEffect::none();
+        test.tree.metadata.effects.call_mut(callsite).memory = mir::MemoryEffect::none();
 
         test.run_pass(&GlobalValueNumbering);
         test.assert_output(expected);

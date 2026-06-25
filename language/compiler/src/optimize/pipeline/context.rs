@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 
 use crate::optimize::{DiagnosticEmitter, ModuleWorkItem, PackageWorkset, PassMetadata};
 use crate::{DiagnosticAnchor, OptimizeError, OptimizeWarning};
-use destack_mir::{AnalysisOptions, FunctionAnalyses, TargetLayout};
+use destack_mir::{AnalysisOptions, FunctionAnalyses, HotnessThresholds, TargetLayout};
 
 /// Shared diagnostics state for pipeline contexts.
 #[derive(Debug)]
@@ -84,8 +84,8 @@ impl Default for PipelineDiagnostics {
 pub struct PipelineOptions {
     /// Maximum array elements for SROA to split (larger arrays are left intact).
     pub sroa_max_array_elements: usize,
-    /// Type context for layout sensitive optimizations.
-    pub target_layout: TargetLayout,
+    /// MIR analysis options for this pipeline run.
+    pub analysis: AnalysisOptions,
     /// Loop unroll threshold in instructions.
     pub unroll_threshold: usize,
     /// Inline budget scaling for this optimization level.
@@ -96,7 +96,7 @@ impl Default for PipelineOptions {
     fn default() -> Self {
         Self {
             sroa_max_array_elements: 8,
-            target_layout: TargetLayout::default(),
+            analysis: AnalysisOptions::default(),
             unroll_threshold: 200,
             inline_budget_scale_percent: 100,
         }
@@ -106,7 +106,12 @@ impl Default for PipelineOptions {
 impl PipelineOptions {
     /// Return the target layout for this pipeline run.
     pub fn target_layout(&self) -> TargetLayout {
-        self.target_layout
+        self.analysis.target_layout
+    }
+
+    /// Return profile hotness thresholds for this pipeline run.
+    pub fn hotness_thresholds(&self) -> HotnessThresholds {
+        self.analysis.hotness
     }
 
     /// Return the loop unroll threshold for this pipeline run.
@@ -278,13 +283,17 @@ impl<'a> PipelineContext<'a> {
     /// The pipeline holds one cache per function across that function's pass
     /// sequence and queries it with the function and tree at each access.
     pub fn new_function_analyses(&self) -> FunctionAnalyses {
-        let options = AnalysisOptions::new(self.options.target_layout);
-        FunctionAnalyses::with_options(options)
+        FunctionAnalyses::with_options(self.options.analysis)
     }
 
     /// Return the target layout for this pipeline run.
     pub fn target_layout(&self) -> TargetLayout {
-        self.options.target_layout
+        self.options.target_layout()
+    }
+
+    /// Return profile hotness thresholds for this pipeline run.
+    pub fn hotness_thresholds(&self) -> HotnessThresholds {
+        self.options.hotness_thresholds()
     }
 
     /// Emit an optimization error.

@@ -25,12 +25,6 @@ pub(crate) fn enforce_function_requirements(
     let mut ok = true;
     if metadata
         .requirements
-        .contains(PassRequirements::CALL_EFFECTS)
-    {
-        ok &= enforce_call_effects(ctx, metadata, function, tree);
-    }
-    if metadata
-        .requirements
         .contains(PassRequirements::MEMORY_ACCESS_METADATA)
     {
         ok &= enforce_memory_metadata(ctx, metadata, function, tree);
@@ -76,62 +70,6 @@ pub(crate) fn enforce_module_requirements(
     ok
 }
 
-/// Enforce call effects metadata for a function.
-fn enforce_call_effects(
-    ctx: &PipelineContext<'_>,
-    metadata: &PassMetadata,
-    function: &mir::Function,
-    tree: &mir::Tree,
-) -> bool {
-    // skip imported functions
-    if function.entry.is_none() {
-        return true;
-    }
-
-    // scan call instructions
-    let mut ok = true;
-    for block_id in &function.blocks {
-        let block = tree.get(*block_id);
-        for instruction_id in &block.instructions {
-            let instruction = tree.get(*instruction_id);
-            if !instruction_is_call(instruction) {
-                continue;
-            }
-
-            let callsite = mir::CallSite::Instruction(*instruction_id);
-            if tree.metadata.functions.call(callsite).is_none() {
-                emit_missing_requirement(
-                    ctx,
-                    metadata,
-                    tree,
-                    instruction_id.into_any(),
-                    "call memory effects",
-                );
-                ok = false;
-            }
-        }
-
-        let terminator = tree.get(block.terminator);
-        if !terminator_is_call(terminator) {
-            continue;
-        }
-
-        let callsite = mir::CallSite::Terminator(*block_id);
-        if tree.metadata.functions.call(callsite).is_none() {
-            emit_missing_requirement(
-                ctx,
-                metadata,
-                tree,
-                block.terminator.into_any(),
-                "call memory effects",
-            );
-            ok = false;
-        }
-    }
-
-    ok
-}
-
 /// Enforce memory access metadata for a function.
 fn enforce_memory_metadata(
     ctx: &PipelineContext<'_>,
@@ -140,13 +78,13 @@ fn enforce_memory_metadata(
     tree: &mir::Tree,
 ) -> bool {
     // skip imported functions
-    if function.entry.is_none() {
+    if function.entry().is_none() {
         return true;
     }
 
     // scan memory access instructions
     let mut ok = true;
-    for block_id in &function.blocks {
+    for block_id in function.blocks() {
         let block = tree.get(*block_id);
         for instruction_id in &block.instructions {
             let instruction = tree.get(*instruction_id);
@@ -210,7 +148,7 @@ fn enforce_profile_data(
 
     // emit an error when profile data is missing
     let node = function
-        .entry
+        .entry()
         .map(|entry| entry.into_any())
         .unwrap_or_else(|| function_id.into_any());
     let anchor = ctx.anchor(tree, node);
@@ -229,7 +167,7 @@ fn enforce_type_layouts(
 ) -> bool {
     let diagnostics = ctx.diagnostics();
     let anchor = function
-        .entry
+        .entry()
         .map(|entry| entry.into_any())
         .unwrap_or_else(|| function_id.into_any());
 
@@ -245,12 +183,12 @@ fn enforce_type_layouts(
             continue;
         }
 
-        let Some(layout_id) = tree.metadata.layout.layout_id(type_id) else {
+        let Some(layout_id) = tree.metadata.layouts.layout_id(type_id) else {
             emit_missing_type_layout(ctx, metadata, tree, anchor, "type layout");
             ok = false;
             continue;
         };
-        if !layout_exists(&tree.metadata.layout.layout_table, layout_id) {
+        if !layout_exists(&tree.metadata.layouts.table, layout_id) {
             emit_missing_type_layout(ctx, metadata, tree, anchor, "type layout entry");
             ok = false;
         }
@@ -285,32 +223,6 @@ fn emit_missing_type_layout(
     let anchor = ctx.anchor(tree, node);
     let message = format!("{} requires {requirement}", metadata.id);
     ctx.emit_error(OptimizeError::MissingRequiredMetadata { anchor, message });
-}
-
-/// Check if an instruction is a call instruction.
-fn instruction_is_call(instruction: &mir::Instruction) -> bool {
-    matches!(
-        instruction,
-        mir::Instruction::Call { .. }
-            | mir::Instruction::CallVirtual { .. }
-            | mir::Instruction::CallDynamic { .. }
-            | mir::Instruction::CallIndirect { .. }
-    )
-}
-
-/// Check if a terminator is a call terminator.
-fn terminator_is_call(terminator: &mir::Terminator) -> bool {
-    matches!(
-        terminator,
-        mir::Terminator::Call { .. }
-            | mir::Terminator::CallVirtual { .. }
-            | mir::Terminator::CallDynamic { .. }
-            | mir::Terminator::CallIndirect { .. }
-            | mir::Terminator::TailCall { .. }
-            | mir::Terminator::TailCallVirtual { .. }
-            | mir::Terminator::TailCallDynamic { .. }
-            | mir::Terminator::TailCallIndirect { .. }
-    )
 }
 
 /// Check if an instruction is a memory access instruction.
@@ -348,5 +260,5 @@ fn type_requires_layout(ty: &mir::Type) -> bool {
 
 /// Return true when a layout entry exists in the layout table.
 fn layout_exists(layout_table: &mir::LayoutTable, layout_id: mir::LayoutId) -> bool {
-    layout_id.index() < layout_table.layouts.len()
+    layout_id.index() < layout_table.entries.len()
 }

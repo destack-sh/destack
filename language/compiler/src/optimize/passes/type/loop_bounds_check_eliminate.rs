@@ -75,7 +75,7 @@ impl FunctionPass for LoopBoundsCheckEliminate {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -155,7 +155,7 @@ impl ValueDefinitions {
         let mut definitions = HashMap::new();
 
         // scan blocks for definitions
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
 
             // record block parameters

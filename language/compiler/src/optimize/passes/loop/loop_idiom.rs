@@ -7,7 +7,7 @@ use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, BlockParamForwarding, ControlFlowGraph, DominatorTree, LoopAnalysis, Mutation,
     RangeAnalysis, ScalarEvolution, Scev, TypeKey, UseDefMaps, ValueDefinitions, ValueRange,
-    ValueTypeMap, build_use_def_maps, build_value_use_counts, constant_for_value, constant_is_zero,
+    ValueTypes, build_use_def_maps, build_value_use_counts, constant_for_value, constant_is_zero,
     instruction_has_side_effects, instruction_is_borrow_address, instruction_is_speculatable,
 };
 
@@ -76,7 +76,7 @@ impl FunctionPass for LoopIdiomRecognize {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -135,7 +135,7 @@ fn run_loop_idiom(
         let use_def = build_use_def_maps(function, tree);
         let value_definitions = ValueDefinitions::build(function, tree).instruction_map();
         let use_counts = build_value_use_counts(function, tree);
-        let value_types = ValueTypeMap::new(function, tree);
+        let value_types = analyses.get::<ValueTypes>(function, tree);
 
         // refresh value ids and track per iteration changes
         let mut changed_this_iteration = false;
@@ -276,7 +276,7 @@ fn run_loop_idiom(
                         instructions: Vec::new(),
                         terminator,
                     });
-                    function.blocks.push(mem_block);
+                    function.add_block(mem_block, tree);
                     mem_block
                 } else {
                     preheader
@@ -312,18 +312,18 @@ fn run_loop_idiom(
                 let mem_terminator = mir::Terminator::Jump {
                     target: mir::BlockTarget::new(exit_block, mir::ValueSlice::default()),
                 };
-                tree.set(mem_block, mem_block_data);
+                let mem_instructions = mem_block_data.instructions;
+                function.replace_block_instructions(mem_block, mem_instructions, tree);
                 tree.set(tree.get(mem_block).terminator, mem_terminator);
 
                 // bypass the original loop body
-                let mut preheader_block = tree.get(preheader).clone();
                 if should_guard {
                     let guard_inst = insert_bound_guard(
                         start_value,
                         bound_value,
                         function,
                         tree,
-                        &mut preheader_block,
+                        preheader,
                         mem_block,
                         exit_block,
                     );
@@ -334,9 +334,8 @@ fn run_loop_idiom(
                     let preheader_terminator = mir::Terminator::Jump {
                         target: mir::BlockTarget::new(exit_block, mir::ValueSlice::default()),
                     };
-                    tree.set(preheader_block.terminator, preheader_terminator);
+                    tree.set(tree.get(preheader).terminator, preheader_terminator);
                 }
-                tree.set(preheader, preheader_block);
 
                 // preserve original loop blocks now unreachable
                 changed = true;
@@ -427,7 +426,7 @@ fn run_loop_idiom(
                     instructions: Vec::new(),
                     terminator,
                 });
-                function.blocks.push(mem_block);
+                function.add_block(mem_block, tree);
                 mem_block
             } else {
                 preheader
@@ -474,17 +473,17 @@ fn run_loop_idiom(
             let mem_terminator = mir::Terminator::Jump {
                 target: mir::BlockTarget::new(exit_block, mir::ValueSlice::default()),
             };
-            tree.set(mem_block, mem_block_data);
+            let mem_instructions = mem_block_data.instructions;
+            function.replace_block_instructions(mem_block, mem_instructions, tree);
             tree.set(tree.get(mem_block).terminator, mem_terminator);
 
-            let mut preheader_block = tree.get(preheader).clone();
             if should_guard {
                 let guard_inst = insert_bound_guard(
                     start_value,
                     bound_value,
                     function,
                     tree,
-                    &mut preheader_block,
+                    preheader,
                     mem_block,
                     exit_block,
                 );
@@ -495,9 +494,8 @@ fn run_loop_idiom(
                 let preheader_terminator = mir::Terminator::Jump {
                     target: mir::BlockTarget::new(exit_block, mir::ValueSlice::default()),
                 };
-                tree.set(preheader_block.terminator, preheader_terminator);
+                tree.set(tree.get(preheader).terminator, preheader_terminator);
             }
-            tree.set(preheader, preheader_block);
 
             changed = true;
             changed_this_iteration = true;
@@ -742,7 +740,7 @@ fn element_addr_for_pointer(
 }
 
 /// Check whether the array element type is u8.
-fn array_is_u8(array: mir::Value, value_types: &ValueTypeMap, tree: &mir::Tree) -> bool {
+fn array_is_u8(array: mir::Value, value_types: &ValueTypes, tree: &mir::Tree) -> bool {
     // resolve the array element type
     let Some(element) = array_element_type(array, value_types, tree) else {
         return false;
@@ -760,7 +758,7 @@ fn array_is_u8(array: mir::Value, value_types: &ValueTypeMap, tree: &mir::Tree) 
 /// Return the element type for an array or array reference value.
 fn array_element_type(
     array: mir::Value,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
     tree: &mir::Tree,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
     // resolve the fixed array type
@@ -781,7 +779,7 @@ fn array_element_type(
 fn arrays_are_value_types(
     dest_array: mir::Value,
     src_array: mir::Value,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
     tree: &mir::Tree,
 ) -> bool {
     if dest_array == src_array {
@@ -851,7 +849,7 @@ fn insert_bound_guard(
     bound: mir::Value,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    preheader_block: &mut mir::Block,
+    preheader: mir::LocalNodeId<mir::Block>,
     success_target: mir::LocalNodeId<mir::Block>,
     failure_target: mir::LocalNodeId<mir::Block>,
 ) -> Option<mir::LocalNodeId<mir::Instruction>> {
@@ -863,7 +861,9 @@ fn insert_bound_guard(
         left: start,
         right: bound,
     });
-    preheader_block.instructions.push(guard_inst);
+    let mut instructions = tree.get(preheader).instructions.clone();
+    instructions.push(guard_inst);
+    function.replace_block_instructions(preheader, instructions, tree);
 
     // branch on the guard to the fast path or exit
     let guard_value = tree.get(guard_inst).destination()?;
@@ -872,7 +872,7 @@ fn insert_bound_guard(
         then_target: mir::BlockTarget::new(success_target, mir::ValueSlice::default()),
         else_target: mir::BlockTarget::new(failure_target, mir::ValueSlice::default()),
     };
-    tree.set(preheader_block.terminator, guard_terminator);
+    tree.set(tree.get(preheader).terminator, guard_terminator);
 
     Some(guard_inst)
 }
@@ -1481,7 +1481,7 @@ b3:
 
         let mut store_id = None;
         let mut store_reference = None;
-        for block_id in &function.blocks {
+        for block_id in function.blocks() {
             let block = test.tree.get(*block_id);
             for instruction_id in &block.instructions {
                 if let mir::Instruction::Store { pointer, .. } = test.tree.get(*instruction_id) {

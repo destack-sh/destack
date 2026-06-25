@@ -5,9 +5,9 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis, MemoryLocation, Mutation,
-    ValueDefinitions, build_instruction_block_map, build_use_def_maps, instruction_is_memory_read,
-    instruction_is_speculatable, instruction_may_affect_memory,
+    AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis, MemorySSA, Mutation,
+    ReferenceLocation, ValueDefinitions, build_use_def_maps, instruction_is_memory_read,
+    instruction_is_speculatable,
 };
 
 declare_pass! {
@@ -49,9 +49,7 @@ declare_pass! {
     /// - Does not sink from outside a loop to inside (would increase execution frequency)
     /// - Does not sink into blocks with multiple predecessors
     ///
-    /// Loads can be sunk when there are no intervening stores, calls, or other
-    /// memory-affecting operations between the load and the branch. This is safe
-    /// without alias analysis because the memory state cannot change.
+    /// Loads can be sunk when intervening memory effects cannot clobber the read location.
     #[pass(id = "sink")]
     pub Sink,
     "Code sinking"
@@ -67,7 +65,7 @@ impl FunctionPass for Sink {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip empty functions
-        let entry = match function.entry {
+        let entry = match function.entry() {
             Some(entry) => entry,
             None => return Mutation::NONE,
         };
@@ -77,9 +75,19 @@ impl FunctionPass for Sink {
         let domtree = analyses.get::<DominatorTree>(function, tree).clone();
         let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
         let alias = analyses.get::<AliasAnalysis>(function, tree);
+        let memory_ssa = analyses.get::<MemorySSA>(function, tree);
 
         // run sink
-        let changed = run_sink(entry, function, tree, &cfg, &domtree, &loops, &alias);
+        let changed = run_sink(
+            entry,
+            function,
+            tree,
+            &cfg,
+            &domtree,
+            &loops,
+            &alias,
+            &memory_ssa,
+        );
 
         // report what this pass changed
         if changed {
@@ -109,6 +117,7 @@ fn run_sink(
     domtree: &DominatorTree,
     loops: &LoopAnalysis,
     alias: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
 ) -> bool {
     // collect all blocks that are in any loop
     let loop_blocks: HashSet<mir::LocalNodeId<mir::Block>> = loops
@@ -120,12 +129,11 @@ fn run_sink(
     // build value->uses map and value->defining-block map
     let use_def = build_use_def_maps(function, tree);
     let definition_map = ValueDefinitions::build(function, tree).instruction_map();
-    let instruction_blocks = build_instruction_block_map(function, tree);
 
     // collect sinking work
     let mut work: Vec<SinkWork> = Vec::new();
 
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // load the block and its successors
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
@@ -151,7 +159,7 @@ fn run_sink(
                 true
             } else if instruction_is_memory_read(instruction) {
                 // memory reads can be sunk if intervening operations do not clobber
-                memory_read_can_sink(block, idx, tree, alias)
+                memory_read_can_sink(block, idx, tree, alias, memory_ssa)
             } else {
                 // other instructions (stores, calls, etc.) cannot be sunk
                 false
@@ -240,7 +248,7 @@ fn run_sink(
                 let operand_value = operand;
 
                 if let Some(def_id) = definition_map.get(&operand_value)
-                    && instruction_blocks.get(def_id) == Some(&successor)
+                    && function.instruction_block(*def_id) == Some(successor)
                 {
                     return false;
                 }
@@ -296,17 +304,17 @@ fn run_sink(
         }
 
         // remove from source block
-        let mut from = tree.get(from_block).clone();
+        let mut from_instructions = tree.get(from_block).instructions.clone();
         for w in &work_items {
-            from.instructions.remove(w.instruction_idx);
+            from_instructions.remove(w.instruction_idx);
         }
-        tree.set(from_block, from);
+        function.replace_block_instructions(from_block, from_instructions, tree);
 
         // insert at beginning of target blocks
         for (instruction_id, to_block) in to_sink {
-            let mut to = tree.get(to_block).clone();
-            to.instructions.insert(0, instruction_id);
-            tree.set(to_block, to);
+            let mut to_instructions = tree.get(to_block).instructions.clone();
+            to_instructions.insert(0, instruction_id);
+            function.replace_block_instructions(to_block, to_instructions, tree);
         }
     }
 
@@ -319,6 +327,7 @@ fn memory_read_can_sink(
     index: usize,
     tree: &mir::Tree,
     alias: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
 ) -> bool {
     // load the instruction to sink
     let instruction_id = block.instructions[index];
@@ -327,10 +336,12 @@ fn memory_read_can_sink(
     match instruction {
         mir::Instruction::Load { pointer, .. } => {
             // check for clobbering memory operations
-            let location = MemoryLocation::from_reference(*pointer);
+            let location = ReferenceLocation::from_reference(*pointer);
             for &later_id in &block.instructions[index + 1..] {
-                let later = tree.get(later_id);
-                if instruction_may_affect_memory(later) && alias.may_clobber(later_id, &location) {
+                let is_clobbered = memory_ssa
+                    .instruction_effects(later_id)
+                    .any(|effect| effect.clobbers_location(&location, alias));
+                if is_clobbered {
                     return false;
                 }
             }

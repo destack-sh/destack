@@ -86,7 +86,7 @@ pub(crate) fn run_dead_function_eliminate(tree: &mut mir::Tree, program: &Progra
     let dead: Vec<_> = tree
         .iter_nodes::<mir::Function>()
         .filter_map(|(id, function)| {
-            (function.entry.is_some() && !program.is_live(function.symbol)).then_some(id)
+            (function.entry().is_some() && !program.is_live(function.symbol)).then_some(id)
         })
         .collect();
 
@@ -104,14 +104,12 @@ pub(crate) fn strip_function_body(
     tree: &mut mir::Tree,
 ) {
     // collect blocks and instructions before stripping the body
-    let block_ids = tree.get(function_id).blocks.clone();
+    let block_ids = tree.get(function_id).blocks().to_vec();
 
     // convert the definition into an import declaration
     let function = tree.get_mut(function_id);
     function.linkage = mir::Linkage::Import;
-    function.locals.clear();
-    function.blocks.clear();
-    function.entry = None;
+    function.clear_body();
 
     // remove instruction metadata tied to stripped blocks
     for block_id in &block_ids {
@@ -174,9 +172,9 @@ entry:
 
         // reachable functions keep their bodies; the unreachable one is externalized
         assert!(changed);
-        assert!(test.tree.get(root_id).entry.is_some());
-        assert!(test.tree.get(live_id).entry.is_some());
-        assert!(test.tree.get(dead_id).entry.is_none());
+        assert!(test.tree.get(root_id).entry().is_some());
+        assert!(test.tree.get(live_id).entry().is_some());
+        assert!(test.tree.get(dead_id).entry().is_none());
         assert_eq!(test.tree.get(dead_id).linkage, mir::Linkage::Import);
     }
 }

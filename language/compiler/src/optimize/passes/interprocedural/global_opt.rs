@@ -4,7 +4,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{ModulePass, PipelineContext};
-use destack_mir::{Mutation, ValueDefinitions};
+use destack_mir::{FunctionEffectAnalysis, Mutation, ValueDefinitions};
 
 declare_pass! {
     /// Mark private globals readonly when no write can reach them.
@@ -30,7 +30,7 @@ declare_pass! {
     ///     return v1
     /// }
     /// ```
-    #[pass(id = "global-opt", requires(call_effects))]
+    #[pass(id = "global-opt")]
     pub GlobalOpt,
     "Optimize immutable globals"
 }
@@ -41,9 +41,10 @@ impl ModulePass for GlobalOpt {
         &self,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
-        _analyses: &mir::ModuleAnalyses,
+        analyses: &mir::ModuleAnalyses,
     ) -> Mutation {
-        let changed = run_global_opt(tree);
+        let effects = analyses.get::<FunctionEffectAnalysis>(tree);
+        let changed = run_global_opt(tree, &effects);
 
         // report what this pass changed
         if changed {
@@ -66,13 +67,13 @@ impl ModulePass for GlobalOpt {
 }
 
 /// Run global optimizations over the module.
-fn run_global_opt(tree: &mut mir::Tree) -> bool {
+fn run_global_opt(tree: &mut mir::Tree, effects: &FunctionEffectAnalysis) -> bool {
     // collect global address definitions and pointer uses
     let addr_info = collect_global_addr_info(tree);
     let use_maps = build_value_use_maps(tree);
 
     // identify globals that are written
-    let written_globals = collect_written_globals(tree, &addr_info);
+    let written_globals = collect_written_globals(tree, &addr_info, effects);
 
     // track whether anything changed
     let mut changed = false;
@@ -154,11 +155,11 @@ fn collect_global_addr_info(tree: &mir::Tree) -> GlobalAddrInfo {
 
     // scan function bodies for global.address
     for (function_id, function) in tree.iter_nodes::<mir::Function>() {
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             continue;
         }
 
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
 
             for &instruction_id in &block.instructions {
@@ -197,14 +198,14 @@ fn build_value_use_maps(
 
     // build use maps per function
     for (function_id, function) in tree.iter_nodes::<mir::Function>() {
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             continue;
         }
 
         let mut uses: HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Instruction>>> = HashMap::new();
         let mut terminator_uses = HashSet::new();
 
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
 
             for &instruction_id in &block.instructions {
@@ -253,19 +254,20 @@ struct ValueUseInfo {
 fn collect_written_globals(
     tree: &mir::Tree,
     addr_info: &GlobalAddrInfo,
+    effects: &FunctionEffectAnalysis,
 ) -> HashSet<mir::LocalNodeId<mir::Global>> {
     // prepare the written set
     let mut written = HashSet::new();
 
     // scan each function for writes
     for (_function_id, function) in tree.iter_nodes::<mir::Function>() {
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             continue;
         }
 
         let definitions = ValueDefinitions::build(function, tree).instruction_map();
 
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
 
             for &instruction_id in &block.instructions {
@@ -319,7 +321,7 @@ fn collect_written_globals(
                 if let mir::Instruction::Call { call, .. }
                 | mir::Instruction::CallVirtual { call, .. }
                 | mir::Instruction::CallDynamic { call, .. } = instruction
-                    && call_writes_memory(tree, instruction_id, instruction)
+                    && call_writes_memory(tree, instruction_id, instruction, effects)
                     && any_argument_global(&call.arguments, &definitions, addr_info, tree)
                 {
                     written.extend(globals_from_arguments(
@@ -332,7 +334,7 @@ fn collect_written_globals(
                 }
 
                 if let mir::Instruction::CallIndirect { call, .. } = instruction
-                    && call_writes_memory(tree, instruction_id, instruction)
+                    && call_writes_memory(tree, instruction_id, instruction, effects)
                     && any_argument_global(&call.arguments, &definitions, addr_info, tree)
                 {
                     written.extend(globals_from_arguments(
@@ -347,7 +349,8 @@ fn collect_written_globals(
 
             // detect call terminators that may write memory
             let terminator = tree.get(block.terminator);
-            let terminator_arguments = terminator_write_arguments(tree, block_id, terminator);
+            let terminator_arguments =
+                terminator_write_arguments(tree, block_id, terminator, effects);
             if let Some(arguments) = terminator_arguments
                 && any_argument_global_values(&arguments, &definitions, addr_info, tree)
             {
@@ -484,17 +487,24 @@ fn call_writes_memory(
     tree: &mir::Tree,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &mir::Instruction,
+    effects: &FunctionEffectAnalysis,
 ) -> bool {
     let callsite = mir::CallSite::Instruction(instruction_id);
-    if let Some(metadata) = tree.metadata.functions.call(callsite) {
-        return metadata.memory.writes;
+    let metadata = tree.metadata.effects.call(callsite);
+    if let Some(metadata) = metadata
+        && metadata.memory != mir::MemoryEffect::unknown()
+    {
+        return metadata.memory.writes();
     }
 
-    let Some(function) = instruction.call_direct_target() else {
+    let function = instruction
+        .call_direct_target()
+        .or_else(|| metadata.and_then(|metadata| metadata.target));
+    let Some(function) = function else {
         return true;
     };
 
-    function_memory_writes_from_tree(tree, function)
+    function_memory_writes(effects, function)
 }
 
 /// Return terminator arguments when the terminator may write memory.
@@ -502,12 +512,11 @@ fn terminator_write_arguments(
     tree: &mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     terminator: &mir::Terminator,
+    effects: &FunctionEffectAnalysis,
 ) -> Option<Vec<mir::Value>> {
     match terminator {
-        mir::Terminator::Call { function, call, .. } => {
-            function_memory_writes_from_tree(tree, *function)
-                .then(|| tree.get_values(call.arguments).to_vec())
-        }
+        mir::Terminator::Call { function, call, .. } => function_memory_writes(effects, *function)
+            .then(|| tree.get_values(call.arguments).to_vec()),
         mir::Terminator::CallIndirect { call, .. } => {
             Some(tree.get_values(call.arguments).to_vec())
         }
@@ -517,12 +526,12 @@ fn terminator_write_arguments(
         | mir::Terminator::TailCallDynamic { receiver, call, .. } => {
             let target = tree
                 .metadata
-                .functions
+                .effects
                 .call(mir::CallSite::Terminator(block_id))
                 .and_then(|metadata| metadata.target);
 
             let may_write = target
-                .map(|function| function_memory_writes_from_tree(tree, function))
+                .map(|function| function_memory_writes(effects, function))
                 .unwrap_or(true);
 
             if !may_write {
@@ -534,7 +543,7 @@ fn terminator_write_arguments(
             Some(values)
         }
         mir::Terminator::TailCall { function, call, .. } => {
-            function_memory_writes_from_tree(tree, *function)
+            function_memory_writes(effects, *function)
                 .then(|| tree.get_values(call.arguments).to_vec())
         }
         mir::Terminator::TailCallIndirect { call, .. } => {
@@ -544,15 +553,14 @@ fn terminator_write_arguments(
     }
 }
 
-/// Return true when a function summary may write memory.
-fn function_memory_writes_from_tree(
-    tree: &mir::Tree,
+/// Return true when a function effect may write memory.
+fn function_memory_writes(
+    effects: &FunctionEffectAnalysis,
     function: mir::LocalNodeId<mir::Function>,
 ) -> bool {
-    tree.metadata
-        .functions
+    effects
         .function(function)
-        .map(|metadata| metadata.memory.writes)
+        .map(|effect| effect.memory.writes())
         .unwrap_or(true)
 }
 

@@ -6,10 +6,10 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, ConstantPropagation, ControlFlowGraph, DominatorTree, EdgeSplitPolicy,
-    MemoryAccess, MemoryAccessEffect, MemoryAccessId, MemoryEffectTarget, MemorySSA, Mutation,
-    ValueDefinitions, ValueEquivalence, build_instruction_block_map, build_use_def_maps,
-    ensure_edge_block, instruction_is_read_only_access, instruction_is_speculatable,
-    resolve_edge_value, value_available_in_block,
+    MemoryAccess, MemoryAccessEffect, MemoryAccessId, MemoryRegion, MemorySSA, Mutation,
+    ValueDefinitions, ValueEquivalence, build_use_def_maps, ensure_edge_block,
+    instruction_is_read_only_access, instruction_is_speculatable, resolve_edge_value,
+    value_available_in_block,
 };
 
 declare_pass! {
@@ -64,7 +64,7 @@ impl FunctionPass for StorePre {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -150,7 +150,6 @@ fn run_store_pre(
     // build value definition info
     let use_def = build_use_def_maps(function, tree);
     let definitions = ValueDefinitions::build(function, tree).instruction_map();
-    let instruction_blocks = build_instruction_block_map(function, tree);
     let function_params: HashSet<_> = function
         .parameters
         .iter()
@@ -166,7 +165,7 @@ fn run_store_pre(
     let mut changed = false;
 
     // scan each block for eligible stores
-    let block_ids = function.blocks.clone();
+    let block_ids = function.blocks().to_vec();
     for block_id in block_ids {
         // collect block parameters for edge resolution
         let block = tree.get(block_id).clone();
@@ -212,10 +211,10 @@ fn run_store_pre(
             // build edge insertions for each predecessor
             let edge_plan = {
                 let mut equivalence = ValueEquivalence::new_with_constants(
+                    function,
                     tree,
                     &definitions,
                     constants.as_ref(),
-                    &instruction_blocks,
                 );
 
                 collect_edge_insertions(
@@ -260,7 +259,8 @@ fn run_store_pre(
                 );
 
                 // insert a new store at the edge block
-                let store_id = insert_store_for_plan(tree, insertion_block, plan, candidate.kind);
+                let store_id =
+                    insert_store_for_plan(function, tree, insertion_block, plan, candidate.kind);
                 clone_store_metadata(tree, candidate.instruction, store_id, plan.pointer);
             }
 
@@ -275,9 +275,10 @@ fn run_store_pre(
     }
 
     // remove original stores
-    for &block_id in &function.blocks {
-        let block = tree.get_mut(block_id);
-        block.instructions.retain(|id| !to_remove.contains(id));
+    for block_id in function.blocks().to_vec() {
+        let mut instructions = tree.get(block_id).instructions.clone();
+        instructions.retain(|id| !to_remove.contains(id));
+        function.replace_block_instructions(block_id, instructions, tree);
     }
 
     // drop memory metadata for removed stores
@@ -323,15 +324,12 @@ fn store_access_info(
     // ensure the effect location matches the store kind
     match kind {
         StoreKind::Store => {
-            if !matches!(
-                def_access.effect.location,
-                MemoryEffectTarget::Reference { .. }
-            ) {
+            if !matches!(def_access.effect.region, MemoryRegion::Reference { .. }) {
                 return None;
             }
         }
         StoreKind::LocalSet => {
-            if !matches!(def_access.effect.location, MemoryEffectTarget::Local(_)) {
+            if !matches!(def_access.effect.region, MemoryRegion::Local(_)) {
                 return None;
             }
         }
@@ -521,8 +519,8 @@ fn incoming_def_matches(
         return false;
     }
 
-    // require the same location metadata
-    if !store.effect.matches_location(alias, &def_access.effect) {
+    // require the same region metadata
+    if !store.effect.matches_region(alias, &def_access.effect) {
         return false;
     }
 
@@ -568,6 +566,7 @@ fn incoming_def_matches(
 
 /// Insert a store instruction for the plan.
 fn insert_store_for_plan(
+    function: &mut mir::Function,
     tree: &mut mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     plan: &EdgeStorePlan,
@@ -587,9 +586,9 @@ fn insert_store_for_plan(
 
     // insert the instruction in the edge block
     let instruction_id = tree.insert(instruction);
-    let mut block = tree.get(block_id).clone();
-    block.instructions.push(instruction_id);
-    tree.set(block_id, block);
+    let mut instructions = tree.get(block_id).instructions.clone();
+    instructions.push(instruction_id);
+    function.replace_block_instructions(block_id, instructions, tree);
     instruction_id
 }
 

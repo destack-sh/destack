@@ -62,7 +62,7 @@ impl FunctionPass for InductionVariableSimplify {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -287,11 +287,9 @@ fn run_induction_simplify(
                 continue;
             }
 
-            let mut header_block = tree.get(header_id).clone();
             let mut new_instructions = inserts;
-            new_instructions.extend(header_block.instructions.iter().copied());
-            header_block.instructions = new_instructions;
-            tree.set(header_id, header_block);
+            new_instructions.extend(tree.get(header_id).instructions.iter().copied());
+            function.replace_block_instructions(header_id, new_instructions, tree);
         }
     }
 
@@ -305,7 +303,7 @@ fn run_induction_simplify(
 
     // collect removed parameter indices
     let mut removed_indices: HashMap<mir::LocalNodeId<mir::Block>, Vec<usize>> = HashMap::new();
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // collect indices for parameters that will be removed
         let block = tree.get(block_id).clone();
         let indices: Vec<usize> = block
@@ -328,7 +326,7 @@ fn run_induction_simplify(
     }
 
     // apply substitutions to instructions
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // collect instruction ids to avoid borrow issues
         let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
 
@@ -347,7 +345,7 @@ fn run_induction_simplify(
     }
 
     // apply substitutions to terminators and parameters
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // read the current block
         let block = tree.get(block_id).clone();
         let terminator_id = block.terminator;
@@ -1059,7 +1057,7 @@ b2(v8: int32):
         let cfg = analyses.get::<ControlFlowGraph>(function, &test.tree);
         let loops = analyses.get::<LoopAnalysis>(function, &test.tree);
         let forwarding = BlockParamForwarding::build(function, &test.tree, &cfg);
-        let header = function.blocks[1];
+        let header = function.block(1);
         let header_block = test.tree.get(header);
         let param_left = &header_block.parameters[0];
         let param_right = &header_block.parameters[1];

@@ -4,7 +4,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
-use destack_mir::{Mutation, RangeAnalysis, RangeMap, ValueRange, ValueTypeMap};
+use destack_mir::{Mutation, RangeAnalysis, RangeMap, ValueRange, ValueTypes};
 
 /// Integer widths supported by the textual MIR primitive type grammar.
 const SUPPORTED_INTEGER_WIDTHS: [u16; 6] = [8, 16, 32, 64, 128, 256];
@@ -47,13 +47,13 @@ impl FunctionPass for Narrow {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
         // gather analyses
         let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
-        let value_types = ValueTypeMap::new(function, tree);
+        let value_types = analyses.get::<ValueTypes>(function, tree);
 
         // apply narrowing
         let changed = run_narrow(function, tree, &ranges, &value_types);
@@ -91,7 +91,7 @@ fn run_narrow(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     ranges: &RangeAnalysis,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
 ) -> bool {
     // refresh value ids before inserting casts
     function.recompute_next_value_id(tree);
@@ -100,7 +100,7 @@ fn run_narrow(
     let mut changed = false;
 
     // iterate blocks in function order
-    let block_ids = function.blocks.clone();
+    let block_ids = function.blocks().to_vec();
     for block_id in block_ids {
         // snapshot block state and range info
         let block = tree.get(block_id).clone();
@@ -211,10 +211,9 @@ fn run_narrow(
 
         // update the block when instruction or terminator changed
         if new_instructions != block.instructions || new_terminator != terminator {
-            let mut updated_block = block;
-            updated_block.instructions = new_instructions;
-            tree.set(updated_block.terminator, new_terminator);
-            tree.set(block_id, updated_block);
+            let terminator_id = block.terminator;
+            function.replace_block_instructions(block_id, new_instructions, tree);
+            tree.set(terminator_id, new_terminator);
             changed = true;
         }
     }
@@ -272,7 +271,7 @@ fn supported_integer_width(required_width: u16, original_width: u16) -> Option<u
 fn integer_info_for_value(
     value: mir::Value,
     ranges: &RangeMap,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
     tree: &mut mir::Tree,
 ) -> Option<IntegerInfo> {
     // fetch the integer range for this value
@@ -327,7 +326,7 @@ fn narrow_pair(
     type_cache: &mut HashMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
     value_cast_width: &mut HashMap<mir::Value, u16>,
     ranges: &RangeMap,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
 ) -> Option<(mir::Value, mir::Value)> {
     // compute range info for both operands
     let left_info = integer_info_for_value(left, ranges, value_types, tree)?;

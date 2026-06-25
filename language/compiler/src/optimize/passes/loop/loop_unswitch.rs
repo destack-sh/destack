@@ -78,7 +78,7 @@ impl FunctionPass for LoopUnswitch {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip empty functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -130,7 +130,13 @@ fn run_loop_unswitch(
         };
 
         // compute profile driven heuristics
-        let heuristics = UnswitchHeuristics::new(function, tree, ctx.profile(), analyses);
+        let heuristics = UnswitchHeuristics::new(
+            function,
+            tree,
+            ctx.profile(),
+            analyses,
+            ctx.hotness_thresholds(),
+        );
 
         // stop when there are no loops to process
         if loops.num_loops() == 0 {
@@ -250,6 +256,8 @@ struct UnswitchHeuristics {
     block_counts: HashMap<mir::LocalNodeId<mir::Block>, u64>,
     /// Entry count for the function.
     entry_count: u64,
+    /// Profile hotness thresholds.
+    hotness: mir::HotnessThresholds,
 }
 
 impl UnswitchHeuristics {
@@ -259,18 +267,20 @@ impl UnswitchHeuristics {
         tree: &mir::Tree,
         profile: Option<&mir::Profile>,
         analyses: &mir::FunctionAnalyses,
+        hotness: mir::HotnessThresholds,
     ) -> Self {
         // compute block counts from profile data
-        let block_counts =
-            mir::BlockFrequency::profile_block_counts(function, tree, profile, analyses);
+        let execution_counts = mir::ExecutionCounts::new(function, tree, profile, analyses);
+        let block_counts = execution_counts.blocks().clone();
         let entry_count = function
-            .entry
+            .entry()
             .and_then(|entry| block_counts.get(&entry).copied())
             .unwrap_or(0);
 
         Self {
             block_counts,
             entry_count,
+            hotness,
         }
     }
 
@@ -285,7 +295,7 @@ impl UnswitchHeuristics {
             return CallsiteHotness::Unknown;
         };
 
-        CallsiteHotness::from_counts(count, self.entry_count)
+        self.hotness.classify(count, self.entry_count)
     }
 
     /// Return the loop size limit for a header block.
@@ -474,7 +484,7 @@ fn collect_base_invariant_values(
     }
 
     // values from blocks outside the loop
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         if lp.blocks.contains(&block_id) {
             continue;
         }
@@ -647,7 +657,7 @@ fn unswitch_loop(
     tree.set(cloned_branch_block, cloned);
 
     // modify preheader: branch based on condition
-    let mut preheader = tree.get(candidate.preheader).clone();
+    let preheader = tree.get(candidate.preheader).clone();
     let condition_value = if let Some(hoisted) = &candidate.hoisted_condition {
         // hoist invariant condition into the preheader
         let mut value_map = hoisted.value_map.clone();
@@ -658,7 +668,9 @@ fn unswitch_loop(
             instruction_map_with_locals(&hoisted.instruction, &value_map, &local_map, tree);
         let hoisted_id = tree.insert(hoisted_inst);
         clone_instruction_metadata(tree, hoisted.instruction_id, hoisted_id, &value_map);
-        preheader.instructions.push(hoisted_id);
+        let mut instructions = preheader.instructions.clone();
+        instructions.push(hoisted_id);
+        function.replace_block_instructions(candidate.preheader, instructions, tree);
         new_value
     } else {
         candidate.condition
@@ -675,7 +687,6 @@ fn unswitch_loop(
         ),
     };
     tree.set(preheader.terminator, preheader_terminator);
-    tree.set(candidate.preheader, preheader);
 
     // remap terminators in cloned blocks (except the branch block which we already handled)
     for (&original, &cloned_id) in &block_map {
@@ -693,7 +704,7 @@ fn unswitch_loop(
     let mut cloned_blocks: Vec<_> = block_map.values().copied().collect();
     cloned_blocks.sort();
     for cloned_block in cloned_blocks {
-        function.blocks.push(cloned_block);
+        function.add_block(cloned_block, tree);
     }
 }
 

@@ -4,7 +4,9 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
-use destack_mir::{AliasAnalysis, MemoryLocation, Mutation, instruction_has_side_effects};
+use destack_mir::{
+    AliasAnalysis, MemorySSA, Mutation, ReferenceLocation, instruction_has_side_effects,
+};
 
 declare_pass! {
     /// Aggressive Dead Code Elimination (ADCE).
@@ -44,11 +46,12 @@ impl FunctionPass for DeadCodeEliminate {
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
-        // build alias analysis for local dead store elimination
+        // build memory analyses for local dead store elimination
         let alias = analyses.get::<AliasAnalysis>(function, tree);
+        let memory_ssa = analyses.get::<MemorySSA>(function, tree);
 
         // run dead code elimination
-        let changed = run_dead_code_elimination(function, tree, &alias);
+        let changed = run_dead_code_elimination(function, tree, &alias, &memory_ssa);
 
         // report what this pass changed
         if changed {
@@ -72,14 +75,15 @@ fn run_dead_code_elimination(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     alias: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
 ) -> bool {
     // drop dead stores before liveness
-    let mut changed = remove_dead_stores(function, tree, alias);
+    let mut changed = remove_dead_stores(function, tree, alias, memory_ssa);
 
     // build value to defining instruction map
     let mut value_to_instruction: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> =
         HashMap::new();
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // scan block instructions for definitions
         let block = tree.get(block_id);
         for &instruction_id in &block.instructions {
@@ -97,7 +101,8 @@ fn run_dead_code_elimination(
     let mut live: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
     let mut worklist: VecDeque<mir::LocalNodeId<mir::Instruction>> = VecDeque::new();
 
-    for &block_id in &function.blocks {
+    let block_ids = function.blocks().to_vec();
+    for block_id in block_ids {
         let block = tree.get(block_id);
 
         // record side effecting instructions as live
@@ -148,7 +153,8 @@ fn run_dead_code_elimination(
     }
 
     // remove dead instructions from blocks
-    for &block_id in &function.blocks {
+    let block_ids = function.blocks().to_vec();
+    for block_id in block_ids {
         let block = tree.get(block_id);
         let original_len = block.instructions.len();
         let live_instructions: Vec<_> = block
@@ -160,9 +166,7 @@ fn run_dead_code_elimination(
 
         // rewrite the block when instructions are removed
         if live_instructions.len() != original_len {
-            let mut new_block = block.clone();
-            new_block.instructions = live_instructions;
-            tree.set(block_id, new_block);
+            function.replace_block_instructions(block_id, live_instructions, tree);
             changed = true;
         }
     }
@@ -172,13 +176,15 @@ fn run_dead_code_elimination(
 
 /// Remove dead stores and return true when changes are made.
 fn remove_dead_stores(
-    function: &mir::Function,
+    function: &mut mir::Function,
     tree: &mut mir::Tree,
     alias: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
 ) -> bool {
     // collect locals that are read anywhere
     let mut locals_read = HashSet::new();
-    for &block_id in &function.blocks {
+    let block_ids = function.blocks().to_vec();
+    for block_id in block_ids {
         let block = tree.get(block_id);
         for &instruction_id in &block.instructions {
             if let mir::Instruction::LocalGet { local, .. } = tree.get(instruction_id) {
@@ -189,7 +195,7 @@ fn remove_dead_stores(
 
     // find dead store instructions
     let mut dead_stores = HashSet::new();
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let instruction_ids = block.instructions.clone();
 
@@ -214,7 +220,14 @@ fn remove_dead_stores(
                         continue;
                     }
 
-                    if store_overwritten_in_block(&instruction_ids, index, pointer, tree, alias) {
+                    if store_overwritten_in_block(
+                        &instruction_ids,
+                        index,
+                        pointer,
+                        tree,
+                        alias,
+                        memory_ssa,
+                    ) {
                         dead_stores.insert(instruction_id);
                     }
                 }
@@ -229,14 +242,13 @@ fn remove_dead_stores(
     }
 
     // remove dead stores from blocks
-    for &block_id in &function.blocks {
+    let block_ids = function.blocks().to_vec();
+    for block_id in block_ids {
         let block = tree.get(block_id);
         if block.instructions.iter().any(|id| dead_stores.contains(id)) {
-            let mut new_block = block.clone();
-            new_block
-                .instructions
-                .retain(|id| !dead_stores.contains(id));
-            tree.set(block_id, new_block);
+            let mut instructions = block.instructions.clone();
+            instructions.retain(|id| !dead_stores.contains(id));
+            function.replace_block_instructions(block_id, instructions, tree);
         }
     }
 
@@ -279,9 +291,10 @@ fn store_overwritten_in_block(
     pointer: mir::Value,
     tree: &mir::Tree,
     alias: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
 ) -> bool {
     // build a memory location for the stored pointer
-    let location = MemoryLocation::from_reference(pointer);
+    let location = ReferenceLocation::from_reference(pointer);
 
     // scan later instructions in the block
     for instruction_id in instruction_ids.iter().skip(start + 1).copied() {
@@ -293,7 +306,7 @@ fn store_overwritten_in_block(
             ..
         } = instruction
         {
-            let other_loc = MemoryLocation::from_reference(*other_reference);
+            let other_loc = ReferenceLocation::from_reference(*other_reference);
             let alias_result = alias.alias(&location, &other_loc);
 
             if alias_result.is_must_alias() || location.reference == other_loc.reference {
@@ -305,9 +318,11 @@ fn store_overwritten_in_block(
             continue;
         }
 
-        // stop when any instruction may read or write the location
-        let effect = alias.memory_effect(instruction_id, &location);
-        if effect.reads() || effect.writes() {
+        // stop when any later memory effect can observe or clobber the store
+        let touches_location = memory_ssa
+            .instruction_effects(instruction_id)
+            .any(|effect| effect.may_touch_location(&location, alias));
+        if touches_location {
             return false;
         }
     }

@@ -17,7 +17,7 @@ use super::{
     OptimizationLevel, OptimizeState, Pipeline, PipelineContext, PipelineOptions, default_pipeline,
 };
 use crate::CompilerError;
-use destack_mir::TargetLayout;
+use destack_mir::{AnalysisOptions, TargetLayout};
 
 impl Compiler {
     /// Collect inputs for optimized MIR of one module and target.
@@ -180,7 +180,7 @@ impl Compiler {
         let inline_budget_scale_percent = Self::inline_budget_scale_percent_for_level(level);
 
         PipelineOptions {
-            target_layout: TargetLayout { pointer_width_bits },
+            analysis: AnalysisOptions::new(TargetLayout { pointer_width_bits }),
             unroll_threshold,
             inline_budget_scale_percent,
             ..Default::default()

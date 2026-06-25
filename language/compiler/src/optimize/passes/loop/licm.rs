@@ -6,9 +6,9 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, ConstantPropagation, DominatorTree, Loop, LoopAnalysis, MemoryAccess,
-    MemoryAccessId, MemoryAccessSource, MemoryEffectTarget, MemorySSA, Mutation, RangeAnalysis,
-    ValueRange, build_instruction_block_map, instruction_allows_read_only_motion,
-    instruction_is_read_only_access, instruction_is_speculatable,
+    MemoryAccessId, MemoryAccessSource, MemoryRegion, MemorySSA, Mutation, RangeAnalysis,
+    ValueRange, instruction_allows_read_only_motion, instruction_is_read_only_access,
+    instruction_is_speculatable,
 };
 
 declare_pass! {
@@ -66,7 +66,7 @@ impl FunctionPass for Licm {
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
-        let entry = match function.entry {
+        let entry = match function.entry() {
             Some(entry) => entry,
             None => return Mutation::NONE,
         };
@@ -121,7 +121,7 @@ impl FunctionPass for Licm {
 /// Core LICM logic. Returns true if changes were made.
 fn run_licm(
     entry: mir::LocalNodeId<mir::Block>,
-    function: &mir::Function,
+    function: &mut mir::Function,
     tree: &mut mir::Tree,
     loops: &LoopAnalysis,
     domtree: &DominatorTree,
@@ -133,9 +133,6 @@ fn run_licm(
     // order loops from inner to outer
     let mut loop_order: Vec<&Loop> = loops.loops().iter().collect();
     loop_order.sort_by(|a, b| b.depth.cmp(&a.depth).then(a.header.cmp(&b.header)));
-
-    // build instruction to block mapping
-    let instruction_blocks = build_instruction_block_map(function, tree);
 
     // build dominator preorder index
     let block_order = build_dominator_preorder(entry, function, domtree);
@@ -195,12 +192,12 @@ fn run_licm(
                     let can_hoist = instruction_is_hoistable(
                         instruction_id,
                         instruction,
+                        function,
                         &lp.blocks,
                         &guaranteed_blocks,
                         tree,
                         alias,
                         memory_ssa,
-                        &instruction_blocks,
                         block_id,
                         ranges,
                         constants,
@@ -240,12 +237,12 @@ fn run_licm(
                 let can_hoist = instruction_is_hoistable(
                     instruction_id,
                     instruction,
+                    function,
                     &lp.blocks,
                     &guaranteed_blocks,
                     tree,
                     alias,
                     memory_ssa,
-                    &instruction_blocks,
                     block_id,
                     ranges,
                     constants,
@@ -293,18 +290,17 @@ fn run_licm(
     }
 
     // remove hoisted instructions
-    for &block_id in &function.blocks {
-        let block = tree.get_mut(block_id);
-        block.instructions.retain(|id| !to_remove.contains(id));
+    for block_id in function.blocks().to_vec() {
+        let mut instructions = tree.get(block_id).instructions.clone();
+        instructions.retain(|id| !to_remove.contains(id));
+        function.replace_block_instructions(block_id, instructions, tree);
     }
 
     // insert instructions into preheaders
     for (preheader_id, instructions) in insertion_by_preheader {
-        let mut preheader = tree.get(preheader_id).clone();
-        for instruction_id in instructions {
-            preheader.instructions.push(instruction_id);
-        }
-        tree.set(preheader_id, preheader);
+        let mut preheader_instructions = tree.get(preheader_id).instructions.clone();
+        preheader_instructions.extend(instructions);
+        function.replace_block_instructions(preheader_id, preheader_instructions, tree);
     }
 
     true
@@ -319,7 +315,7 @@ fn collect_loop_blocks(
     let mut blocks = Vec::new();
 
     // scan blocks in function order
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         if !lp.blocks.contains(&block_id) {
             continue;
         }
@@ -353,7 +349,7 @@ fn collect_invariant_seed_values(
     }
 
     // include values defined outside the loop
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         if loop_blocks.contains(&block_id) {
             continue;
         }
@@ -418,12 +414,12 @@ fn build_dominator_preorder(
         HashMap::new();
 
     // prepare empty child lists
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         children.insert(block_id, Vec::new());
     }
 
     // build the idom child mapping
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         if let Some(idom) = domtree.immediate_dominator(block_id) {
             children.entry(idom).or_default().push(block_id);
         }
@@ -463,12 +459,12 @@ fn build_dominator_preorder(
 fn instruction_is_hoistable(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &mir::Instruction,
+    function: &mir::Function,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     guaranteed_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::Tree,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
-    instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
     block_id: mir::LocalNodeId<mir::Block>,
     ranges: &RangeAnalysis,
     constants: &ConstantPropagation,
@@ -490,11 +486,11 @@ fn instruction_is_hoistable(
     ) {
         return load_is_hoistable(
             instruction_id,
+            function,
             loop_blocks,
             tree,
             alias,
             memory_ssa,
-            instruction_blocks,
         );
     }
 
@@ -506,11 +502,11 @@ fn instruction_is_hoistable(
 
         return read_only_access_is_hoistable(
             instruction_id,
+            function,
             loop_blocks,
             tree,
             alias,
             memory_ssa,
-            instruction_blocks,
         );
     }
 
@@ -545,11 +541,11 @@ fn instruction_is_hoistable(
 /// Return true when a loop invariant load is not clobbered in the loop.
 fn load_is_hoistable(
     load_id: mir::LocalNodeId<mir::Instruction>,
+    function: &mir::Function,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::Tree,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
-    instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // read memory ssa access for the load
     let Some(accesses) = memory_ssa.instruction_accesses(load_id) else {
@@ -578,7 +574,7 @@ fn load_is_hoistable(
         return false;
     }
 
-    if matches!(use_access.effect.location, MemoryEffectTarget::Any { .. }) {
+    if matches!(use_access.effect.region, MemoryRegion::Any { .. }) {
         return false;
     }
 
@@ -594,10 +590,10 @@ fn load_is_hoistable(
         MemoryAccess::Def(def_access) => {
             let block_id = match def_access.source {
                 MemoryAccessSource::Instruction(instruction) => {
-                    let Some(block_id) = instruction_blocks.get(&instruction) else {
+                    let Some(block_id) = function.instruction_block(instruction) else {
                         return false;
                     };
-                    *block_id
+                    block_id
                 }
                 MemoryAccessSource::Terminator(block) => block,
             };
@@ -654,11 +650,11 @@ fn loop_clobbers_access(
 /// Return true when a loop invariant read only access is not clobbered in the loop.
 fn read_only_access_is_hoistable(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
+    function: &mir::Function,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::Tree,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
-    instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // read memory ssa access for the instruction
     let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
@@ -673,7 +669,7 @@ fn read_only_access_is_hoistable(
                 if use_access.effect.is_volatile || use_access.effect.is_barrier {
                     return false;
                 }
-                if matches!(use_access.effect.location, MemoryEffectTarget::Any { .. }) {
+                if matches!(use_access.effect.region, MemoryRegion::Any { .. }) {
                     return false;
                 }
                 use_accesses.push(*access_id);
@@ -706,10 +702,10 @@ fn read_only_access_is_hoistable(
             MemoryAccess::Def(def_access) => {
                 let block_id = match def_access.source {
                     MemoryAccessSource::Instruction(instruction) => {
-                        let Some(block_id) = instruction_blocks.get(&instruction) else {
+                        let Some(block_id) = function.instruction_block(instruction) else {
                             return false;
                         };
-                        *block_id
+                        block_id
                     }
                     MemoryAccessSource::Terminator(block) => block,
                 };
@@ -780,7 +776,7 @@ fn integer_range_for_value(
     ranges: &RangeAnalysis,
     constants: &ConstantPropagation,
 ) -> Option<IntegerRange> {
-    // prefer constant propagation facts
+    // prefer constant propagation state
     let constant = constants
         .constant_at_exit(block_id, value)
         .or_else(|| constants.constant_at_entry(block_id, value));
@@ -788,7 +784,7 @@ fn integer_range_for_value(
         return integer_range_from_constant(constant);
     }
 
-    // fall back to range analysis facts
+    // fall back to range analysis state
     if let Some(range) = ranges.exit(block_id).get(value)
         && let Some(int_range) = integer_range_from_value_range(range)
     {

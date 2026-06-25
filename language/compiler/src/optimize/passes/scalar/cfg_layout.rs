@@ -55,7 +55,7 @@ impl FunctionPass for CfgLayout {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        let Some(entry) = function.entry else {
+        let Some(entry) = function.entry() else {
             return Mutation::NONE;
         };
 
@@ -115,25 +115,32 @@ fn run_cfg_layout(
     tree: &mut mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
     profile: &mir::Profile,
-    _ctx: &PipelineContext<'_>,
+    ctx: &PipelineContext<'_>,
     analyses: &mir::FunctionAnalyses,
 ) -> bool {
     // derive block counts and hotness
-    let mut block_counts =
-        mir::BlockFrequency::profile_block_counts(function, tree, Some(profile), analyses);
+    let execution_counts = mir::ExecutionCounts::new(function, tree, Some(profile), analyses);
+    let mut block_counts = execution_counts.blocks().clone();
     if block_counts.is_empty() {
         return false;
     }
 
     let entry_count = block_counts.get(&entry).copied().unwrap_or(0);
-    let mut cold_blocks = classify_cold_blocks(&block_counts, entry_count);
+    let mut cold_blocks =
+        classify_cold_blocks(&block_counts, entry_count, ctx.hotness_thresholds());
     cold_blocks.remove(&entry);
 
     // fetch required analyses
     let domtree = analyses.get::<DominatorTree>(function, tree).clone();
 
     // duplicate hot edges into small blocks
-    let duplicated = duplicate_hot_edges(function, tree, profile, &domtree, &mut block_counts);
+    let duplicated = duplicate_hot_edges(
+        function,
+        tree,
+        execution_counts.edges(),
+        &domtree,
+        &mut block_counts,
+    );
 
     // rebuild cfg after duplication for cold edge outlining
     let cfg = ControlFlowGraph::build(function, tree);
@@ -146,7 +153,8 @@ fn run_cfg_layout(
     let reachable_set: HashSet<_> = reachable.iter().copied().collect();
 
     // compute edge weights
-    let edge_weights = compute_edge_weights(function, tree, profile, &block_counts);
+    let edge_weights =
+        compute_edge_weights(function, tree, execution_counts.edges(), &block_counts);
 
     // build a hot trace layout
     let mut placed = HashSet::new();
@@ -216,7 +224,7 @@ fn run_cfg_layout(
     ordered.extend(cold_remaining);
 
     // append unreachable blocks in original order
-    for block_id in &function.blocks {
+    for block_id in function.blocks() {
         // keep unreachable blocks after reachable layout
         if !reachable_set.contains(block_id) {
             ordered.push(*block_id);
@@ -224,11 +232,11 @@ fn run_cfg_layout(
     }
 
     // skip when the layout is unchanged
-    if ordered == function.blocks {
+    if ordered == function.blocks() {
         return outlined || duplicated;
     }
 
-    function.blocks = ordered;
+    function.replace_blocks(ordered, tree);
     true
 }
 
@@ -236,15 +244,13 @@ fn run_cfg_layout(
 fn classify_cold_blocks(
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     entry_count: u64,
+    hotness: mir::HotnessThresholds,
 ) -> HashSet<mir::LocalNodeId<mir::Block>> {
     // collect blocks classified as cold
     let mut cold = HashSet::new();
     for (&block, &count) in block_counts {
         // record blocks below cold thresholds
-        if matches!(
-            CallsiteHotness::from_counts(count, entry_count),
-            CallsiteHotness::Cold
-        ) {
+        if matches!(hotness.classify(count, entry_count), CallsiteHotness::Cold) {
             cold.insert(block);
         }
     }
@@ -265,7 +271,7 @@ fn outline_cold_edges(
     let mut changed = false;
 
     // scan edges from warm to cold blocks
-    let block_ids = function.blocks.clone();
+    let block_ids = function.blocks().to_vec();
     for block_id in block_ids {
         // skip edges from cold blocks
         if cold_blocks.contains(&block_id) {
@@ -312,19 +318,18 @@ fn outline_cold_edges(
 fn duplicate_hot_edges(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    profile: &mir::Profile,
+    edge_counts: &HashMap<mir::Edge, u64>,
     domtree: &DominatorTree,
     block_counts: &mut HashMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> bool {
     // build definition metadata
     let use_def = build_use_def_maps(function, tree);
     let value_def_blocks = &use_def.def_block;
-    let edge_counts = mir::BlockFrequency::edge_counts(function, tree, Some(profile), block_counts);
 
     // collect edge predecessors keyed by target
     let mut predecessors: HashMap<mir::LocalNodeId<mir::Block>, Vec<EdgePredecessor>> =
         HashMap::new();
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
 
@@ -393,7 +398,7 @@ fn duplicate_hot_edges(
         }
 
         // skip entry blocks
-        if function.entry == Some(target) {
+        if function.entry() == Some(target) {
             continue;
         }
 
@@ -507,7 +512,7 @@ fn duplicate_hot_edges(
             new_block.instructions = new_instructions;
 
             let new_block_id = tree.insert(new_block);
-            insert_block_after(function, pred.pred, new_block_id);
+            insert_block_after(function, pred.pred, new_block_id, tree);
 
             // rewrite the predecessor edge to the duplicated block
             let pred_block = tree.get(pred.pred).clone();
@@ -590,14 +595,13 @@ fn insert_block_after(
     function: &mut mir::Function,
     predecessor: mir::LocalNodeId<mir::Block>,
     block: mir::LocalNodeId<mir::Block>,
+    tree: &mir::Tree,
 ) {
-    // insert directly after the predecessor when it exists
-    if let Some(index) = function.blocks.iter().position(|id| *id == predecessor) {
-        function.blocks.insert(index + 1, block);
-        return;
+    if function.blocks().contains(&predecessor) {
+        function.insert_block_after(predecessor, block, tree);
+    } else {
+        panic!("missing predecessor block in function layout: {predecessor:?}");
     }
-
-    panic!("missing predecessor block in function layout: {predecessor:?}");
 }
 
 /// Rewrite a hot edge target to the duplicated block.
@@ -766,14 +770,13 @@ fn sort_blocks_by_hotness(
 fn compute_edge_weights(
     function: &mir::Function,
     tree: &mir::Tree,
-    profile: &mir::Profile,
+    edge_counts: &HashMap<mir::Edge, u64>,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> HashMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>), u64> {
     let mut weights = HashMap::new();
-    let edge_counts = mir::BlockFrequency::edge_counts(function, tree, Some(profile), block_counts);
 
     // compute a weight per edge using profile data when possible
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // read terminator edge list
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
@@ -834,7 +837,7 @@ b2:
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
-        let entry = test.tree.get(function_id).entry.unwrap();
+        let entry = test.tree.get(function_id).entry().unwrap();
 
         // weight the else arm (b2) hot
         test.record_function_entry(&mut profile, function_id, 100);
@@ -908,7 +911,7 @@ b3:
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
-        let entry = test.tree.get(function_id).entry.unwrap();
+        let entry = test.tree.get(function_id).entry().unwrap();
 
         // weight the else arm (b2) hot and the then arm (b1) cold
         test.record_function_entry(&mut profile, function_id, 100);
@@ -957,7 +960,7 @@ b3:
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
-        let entry = test.tree.get(function_id).entry.unwrap();
+        let entry = test.tree.get(function_id).entry().unwrap();
 
         // weight the case target (b2) hot over the default (b1)
         test.record_function_entry(&mut profile, function_id, 100);
@@ -1010,7 +1013,7 @@ b3:
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
-        let entry = test.tree.get(function_id).entry.unwrap();
+        let entry = test.tree.get(function_id).entry().unwrap();
 
         // weight the success target (b2) hot over the failure (b1)
         test.record_function_entry(&mut profile, function_id, 100);
@@ -1056,7 +1059,7 @@ b1:
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
-        let entry = test.tree.get(function_id).entry.unwrap();
+        let entry = test.tree.get(function_id).entry().unwrap();
 
         // the else arm (b2) carries most of the edge frequency
         test.record_function_entry(&mut profile, function_id, 100);
@@ -1086,25 +1089,25 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b3, b1
+    branch v0, b1, b1_1
 
 b1:
-    jump b2
+    v2: int32 = 1
+    return v2
 
 b2:
     v1: int32 = 1
     return v1
 
-b3:
-    v2: int32 = 1
-    return v2
+b1_1:
+    jump b2
 }
 "#;
 
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
-        let entry = test.tree.get(function_id).entry.unwrap();
+        let entry = test.tree.get(function_id).entry().unwrap();
 
         // the then edge into b2 is hot, so b2 is duplicated onto it
         test.record_function_entry(&mut profile, function_id, 100);
@@ -1158,7 +1161,7 @@ b2:
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
-        let entry = test.tree.get(function_id).entry.unwrap();
+        let entry = test.tree.get(function_id).entry().unwrap();
 
         // b1 is the hot arm; the unreachable b2 stays last
         test.record_function_entry(&mut profile, function_id, 100);

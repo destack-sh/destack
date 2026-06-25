@@ -7,9 +7,9 @@ use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, BlockParamForwarding, ConstantPropagation, ControlFlowGraph, DominatorTree,
     LoopAnalysis, LoopEffectPolicy, MemoryAccessEffect, MemorySSA, Mutation, ValueDefinitions,
-    ValueEquivalence, block_is_speculatable_no_reads, build_instruction_block_map,
-    clone_instruction_metadata, collect_loop_effects, control_instructions_for_latch,
-    instruction_is_speculatable, instruction_map, loop_guard_branch, loop_preheader,
+    ValueEquivalence, block_is_speculatable_no_reads, clone_instruction_metadata,
+    collect_loop_effects, control_instructions_for_latch, instruction_is_speculatable,
+    instruction_map, loop_guard_branch, loop_preheader,
 };
 
 declare_pass! {
@@ -183,17 +183,17 @@ fn run_loop_fusion(
 ) -> bool {
     // build definition maps
     let definitions = ValueDefinitions::build(function, tree).instruction_map();
-    let instruction_blocks = build_instruction_block_map(function, tree);
     let forwarding = BlockParamForwarding::build(function, tree, cfg);
 
     // locate a fusion candidate
     let mut equivalence =
-        ValueEquivalence::new_with_constants(tree, &definitions, constants, &instruction_blocks);
+        ValueEquivalence::new_with_constants(function, tree, &definitions, constants);
 
     let candidate = loops.loops().iter().enumerate().find_map(|(index, lp)| {
         build_fusion_candidate(
             index,
             lp,
+            function,
             loops,
             tree,
             cfg,
@@ -203,7 +203,6 @@ fn run_loop_fusion(
             constants,
             &forwarding,
             &definitions,
-            &instruction_blocks,
             &mut equivalence,
         )
     });
@@ -212,20 +211,14 @@ fn run_loop_fusion(
     };
 
     // apply the fusion
-    apply_fusion(
-        function,
-        tree,
-        cfg,
-        &candidate,
-        &definitions,
-        &instruction_blocks,
-    )
+    apply_fusion(function, tree, cfg, &candidate, &definitions)
 }
 
 /// Build a fusion candidate from a loop.
 fn build_fusion_candidate(
     loop_index: usize,
     lp: &mir::Loop,
+    function: &mir::Function,
     loops: &LoopAnalysis,
     tree: &mir::Tree,
     cfg: &ControlFlowGraph,
@@ -235,7 +228,6 @@ fn build_fusion_candidate(
     constants: &ConstantPropagation,
     forwarding: &BlockParamForwarding,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
     equivalence: &mut ValueEquivalence<'_>,
 ) -> Option<FusionCandidate> {
     // require a single latch and exit
@@ -278,7 +270,7 @@ fn build_fusion_candidate(
 
     // collect loop body data
     let control_instructions =
-        control_instructions_for_latch(lp.header, latch, tree, definitions, instruction_blocks);
+        control_instructions_for_latch(function, lp.header, latch, tree, definitions);
     let body_instructions = latch_body_instructions(latch, tree, &control_instructions);
     let body_effects =
         collect_loop_effects(&lp.blocks, tree, memory_ssa, LoopEffectPolicy::ReadWrite)?;
@@ -378,11 +370,11 @@ fn build_fusion_candidate(
 
     // collect second loop body data
     let second_control = control_instructions_for_latch(
+        function,
         second_loop.header,
         *second_loop.latches.first()?,
         tree,
         definitions,
-        instruction_blocks,
     );
     let second_body = latch_body_instructions(*second_loop.latches.first()?, tree, &second_control);
     let second_effects = collect_loop_effects(
@@ -737,7 +729,6 @@ fn apply_fusion(
     cfg: &ControlFlowGraph,
     candidate: &FusionCandidate,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // prepare new values
     function.recompute_next_value_id(tree);
@@ -811,23 +802,22 @@ fn apply_fusion(
                 continue;
             };
 
-            if instruction_blocks.get(definition) == Some(&candidate.second.header) {
+            if function.instruction_block(*definition) == Some(candidate.second.header) {
                 return false;
             }
         }
     }
 
     // locate the insertion point in the latch
-    let mut latch_block = tree.get(candidate.first.latch).clone();
-    let insertion_index = latch_block
-        .instructions
+    let latch_instructions = tree.get(candidate.first.latch).instructions.clone();
+    let insertion_index = latch_instructions
         .iter()
         .position(|id| candidate.first.control_instructions.contains(id))
-        .unwrap_or(latch_block.instructions.len());
+        .unwrap_or(latch_instructions.len());
 
     // build the new instruction list prefix
     let mut new_instructions = Vec::new();
-    for &instruction_id in latch_block.instructions.iter().take(insertion_index) {
+    for &instruction_id in latch_instructions.iter().take(insertion_index) {
         new_instructions.push(instruction_id);
     }
 
@@ -841,13 +831,12 @@ fn apply_fusion(
     }
 
     // append the original control instructions
-    for &instruction_id in latch_block.instructions.iter().skip(insertion_index) {
+    for &instruction_id in latch_instructions.iter().skip(insertion_index) {
         new_instructions.push(instruction_id);
     }
 
     // commit the rewritten latch
-    latch_block.instructions = new_instructions;
-    tree.set(candidate.first.latch, latch_block);
+    function.replace_block_instructions(candidate.first.latch, new_instructions, tree);
 
     // update loop1 header exit to loop2 exit
     let header_block = tree.get(candidate.first.header).clone();
@@ -894,9 +883,7 @@ fn apply_fusion(
     }
 
     // prune removed blocks from the function
-    function
-        .blocks
-        .retain(|block_id| !to_remove.contains(block_id));
+    function.retain_blocks(|block_id| !to_remove.contains(&block_id), tree);
 
     true
 }

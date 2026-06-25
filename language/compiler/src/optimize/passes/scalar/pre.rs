@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AvailableExpressions, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, ExpressionKey,
-    Mutation, UseDefMaps, ValueTypeMap, append_edge_arguments, apply_substitutions_in_function,
+    AvailableExpressions, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, Mutation,
+    PureExpression, UseDefMaps, ValueTypes, append_edge_arguments, apply_substitutions_in_function,
     build_use_def_maps, collect_reachable_blocks, compute_dominance_frontiers, ensure_edge_block,
     instruction_has_side_effects, instruction_is_speculatable,
 };
@@ -62,7 +62,7 @@ impl FunctionPass for PartialRedundancyElim {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        let Some(entry) = function.entry else {
+        let Some(entry) = function.entry() else {
             return Mutation::NONE;
         };
 
@@ -70,7 +70,7 @@ impl FunctionPass for PartialRedundancyElim {
         let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
         let domtree = analyses.get::<DominatorTree>(function, tree).clone();
         let available = AvailableExpressions::build(function, tree, &cfg);
-        let value_types = ValueTypeMap::new(function, tree);
+        let value_types = analyses.get::<ValueTypes>(function, tree);
 
         // run PRE
         let changed = run_pre(
@@ -115,7 +115,7 @@ struct ExpressionOccurrence {
 #[derive(Debug, Clone)]
 struct PhiPlacement {
     /// The expression key this phi represents.
-    key: ExpressionKey,
+    key: PureExpression,
     /// The block parameter inserted for the expression.
     param: mir::BlockParameter,
     /// The ordering index used for insertion.
@@ -148,7 +148,7 @@ fn run_pre(
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     available: &AvailableExpressions,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
 ) -> bool {
     // collect reachable blocks
     let reachable = collect_reachable_blocks(function, tree, entry);
@@ -157,13 +157,13 @@ fn run_pre(
     }
 
     // collect expression occurrences and templates
-    let mut occurrences: HashMap<ExpressionKey, Vec<ExpressionOccurrence>> = HashMap::new();
-    let mut templates: HashMap<ExpressionKey, ExpressionTemplate> = HashMap::new();
-    let mut key_types: HashMap<ExpressionKey, mir::LocalNodeId<mir::Type>> = HashMap::new();
-    let mut speculatable_keys: HashMap<ExpressionKey, bool> = HashMap::new();
+    let mut occurrences: HashMap<PureExpression, Vec<ExpressionOccurrence>> = HashMap::new();
+    let mut templates: HashMap<PureExpression, ExpressionTemplate> = HashMap::new();
+    let mut key_types: HashMap<PureExpression, mir::LocalNodeId<mir::Type>> = HashMap::new();
+    let mut speculatable_keys: HashMap<PureExpression, bool> = HashMap::new();
 
     let mut order = 0usize;
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // skip unreachable blocks when collecting occurrences
         if !reachable.contains(&block_id) {
             continue;
@@ -176,7 +176,7 @@ fn run_pre(
                 continue;
             }
 
-            let Some(key) = ExpressionKey::from_instruction(instruction, tree) else {
+            let Some(key) = PureExpression::from_instruction(instruction, tree) else {
                 continue;
             };
             let Some(destination) = instruction.destination() else {
@@ -308,14 +308,16 @@ fn run_pre(
     let dom_children = build_dominator_children(function, domtree);
     let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
     let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
-    let mut exit_values: HashMap<mir::LocalNodeId<mir::Block>, HashMap<ExpressionKey, mir::Value>> =
-        HashMap::new();
+    let mut exit_values: HashMap<
+        mir::LocalNodeId<mir::Block>,
+        HashMap<PureExpression, mir::Value>,
+    > = HashMap::new();
     let mut edge_blocks: HashMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
         mir::LocalNodeId<mir::Block>,
     > = HashMap::new();
 
-    let mut current: HashMap<ExpressionKey, Vec<mir::Value>> = HashMap::new();
+    let mut current: HashMap<PureExpression, Vec<mir::Value>> = HashMap::new();
     rename_block(
         entry,
         tree,
@@ -428,17 +430,17 @@ fn template_from_instruction(instruction: &mir::Instruction) -> ExpressionTempla
 }
 
 /// Return the operand values used by an expression key.
-fn expression_operands(key: &ExpressionKey) -> Vec<mir::Value> {
+fn expression_operands(key: &PureExpression) -> Vec<mir::Value> {
     match key {
-        ExpressionKey::Binary { left, right, .. } => vec![*left, *right],
-        ExpressionKey::Unary { argument, .. } => vec![*argument],
-        ExpressionKey::Cast { argument, .. } => vec![*argument],
-        ExpressionKey::Select {
+        PureExpression::Binary { left, right, .. } => vec![*left, *right],
+        PureExpression::Unary { argument, .. } => vec![*argument],
+        PureExpression::Cast { argument, .. } => vec![*argument],
+        PureExpression::Select {
             condition,
             then_value,
             else_value,
         } => vec![*condition, *then_value, *else_value],
-        ExpressionKey::FieldGet { aggregate, .. } => vec![*aggregate],
+        PureExpression::FieldGet { aggregate, .. } => vec![*aggregate],
     }
 }
 
@@ -457,7 +459,7 @@ fn phi_is_useful(
 /// Decide whether all phi operands can be filled on incoming edges.
 fn phi_is_fillable(
     block: &mir::LocalNodeId<mir::Block>,
-    key: &ExpressionKey,
+    key: &PureExpression,
     function: &mir::Function,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
@@ -480,7 +482,7 @@ fn phi_is_fillable(
 
 /// Check that all operands are available at the end of a block.
 fn operands_available_in_block(
-    key: &ExpressionKey,
+    key: &PureExpression,
     block: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
     domtree: &DominatorTree,
@@ -533,12 +535,12 @@ fn build_dominator_children(
     let mut children: HashMap<_, Vec<_>> = HashMap::new();
 
     // initialize child lists
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         children.insert(block_id, Vec::new());
     }
 
     // build parent to children mapping
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         if let Some(idom) = domtree.immediate_dominator(block_id) {
             children.get_mut(&idom).unwrap().push(block_id);
         }
@@ -553,13 +555,13 @@ fn rename_block(
     tree: &mir::Tree,
     phi_map: &HashMap<mir::LocalNodeId<mir::Block>, Vec<PhiPlacement>>,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
-    current: &mut HashMap<ExpressionKey, Vec<mir::Value>>,
+    current: &mut HashMap<PureExpression, Vec<mir::Value>>,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
     to_remove: &mut HashSet<mir::LocalNodeId<mir::Instruction>>,
-    exit_values: &mut HashMap<mir::LocalNodeId<mir::Block>, HashMap<ExpressionKey, mir::Value>>,
+    exit_values: &mut HashMap<mir::LocalNodeId<mir::Block>, HashMap<PureExpression, mir::Value>>,
 ) {
     // track pushed keys to pop on exit
-    let mut pushed_keys: Vec<ExpressionKey> = Vec::new();
+    let mut pushed_keys: Vec<PureExpression> = Vec::new();
 
     // register phi parameters as available values
     if let Some(placements) = phi_map.get(&block_id) {
@@ -580,7 +582,7 @@ fn rename_block(
             continue;
         }
 
-        let Some(key) = ExpressionKey::from_instruction(instruction, tree) else {
+        let Some(key) = PureExpression::from_instruction(instruction, tree) else {
             continue;
         };
         let Some(destination) = instruction.destination() else {
@@ -638,7 +640,7 @@ fn rename_block(
 fn insert_expression_in_block(
     availability_block: mir::LocalNodeId<mir::Block>,
     insert_block: mir::LocalNodeId<mir::Block>,
-    key: ExpressionKey,
+    key: PureExpression,
     value_type: mir::LocalNodeId<mir::Type>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
@@ -660,22 +662,22 @@ fn insert_expression_in_block(
     let instruction_id = tree.insert(instruction);
 
     // insert into the block before the terminator
-    let mut block = tree.get(insert_block).clone();
-    block.instructions.push(instruction_id);
-    tree.set(insert_block, block);
+    let mut instructions = tree.get(insert_block).instructions.clone();
+    instructions.push(instruction_id);
+    function.replace_block_instructions(insert_block, instructions, tree);
 
     Some(destination)
 }
 
 /// Rebuild an instruction for the given expression key.
 fn build_instruction_from_key(
-    key: &ExpressionKey,
+    key: &PureExpression,
     template: &ExpressionTemplate,
     destination: mir::Value,
 ) -> mir::Instruction {
     // rebuild the instruction for the given expression key
     match (key, template) {
-        (ExpressionKey::Binary { left, right, .. }, ExpressionTemplate::Binary { operator }) => {
+        (PureExpression::Binary { left, right, .. }, ExpressionTemplate::Binary { operator }) => {
             mir::Instruction::Binary {
                 destination,
                 operator: *operator,
@@ -683,14 +685,14 @@ fn build_instruction_from_key(
                 right: (*right),
             }
         }
-        (ExpressionKey::Unary { argument, .. }, ExpressionTemplate::Unary { operator }) => {
+        (PureExpression::Unary { argument, .. }, ExpressionTemplate::Unary { operator }) => {
             mir::Instruction::Unary {
                 destination,
                 operator: *operator,
                 argument: (*argument),
             }
         }
-        (ExpressionKey::Cast { argument, .. }, ExpressionTemplate::Cast { operator, to_type }) => {
+        (PureExpression::Cast { argument, .. }, ExpressionTemplate::Cast { operator, to_type }) => {
             mir::Instruction::Cast {
                 destination,
                 operator: *operator,
@@ -699,7 +701,7 @@ fn build_instruction_from_key(
             }
         }
         (
-            ExpressionKey::Select {
+            PureExpression::Select {
                 condition,
                 then_value,
                 else_value,
@@ -711,7 +713,7 @@ fn build_instruction_from_key(
             then_value: (*then_value),
             else_value: (*else_value),
         },
-        (ExpressionKey::FieldGet { aggregate, .. }, ExpressionTemplate::FieldGet { index }) => {
+        (PureExpression::FieldGet { aggregate, .. }, ExpressionTemplate::FieldGet { index }) => {
             mir::Instruction::FieldGet {
                 destination,
                 aggregate: (*aggregate),

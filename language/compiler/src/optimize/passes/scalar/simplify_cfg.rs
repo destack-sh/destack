@@ -38,7 +38,7 @@ declare_pass! {
     ///
     /// This pass performs several CFG simplifications:
     /// 1. Branch folding: converts `branch cond, A, B` to `jump` when cond is constant or range proven
-    /// 2. Path sensitive threading: threads edges using edge specific range facts
+    /// 2. Path sensitive threading: threads edges using edge specific range state
     /// 3. Jump threading: threads jumps through empty or passthrough blocks
     /// 4. Return canonicalization: merges empty return blocks into one
     /// 5. Switch canonicalization: folds constant/range switches and lowers single case switches
@@ -135,7 +135,7 @@ fn run_simplify_cfg(
     // keep track of profile guided tail duplication targets
     let mut profiled_tail_dup_targets: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
 
-    // invalidate cached facts after each internal rewrite
+    // invalidate cached analysis state after each internal rewrite
     let rewrite_mutation = Mutation::CONTROL | Mutation::VALUE;
 
     // run until fixed point or iteration cap
@@ -162,7 +162,7 @@ fn run_simplify_cfg(
             fold_branches(function, tree, &constants, &ranges, &loop_blocks);
 
         // phase 2: path sensitive jump threading
-        // threads edges using edge specific range facts
+        // thread edges using edge specific range state
         changed_this_round |=
             thread_edge_conditions(function, tree, &constants, &ranges, &domtree, &loop_blocks);
 
@@ -194,7 +194,7 @@ fn run_simplify_cfg(
 
         // phase 7: block merging
         // merges blocks with single predecessor/successor
-        if let Some(entry) = function.entry
+        if let Some(entry) = function.entry()
             && merge_blocks(function, tree, entry, &domtree)
         {
             changed = true;
@@ -209,7 +209,7 @@ fn run_simplify_cfg(
         }
 
         // phase 8: eliminate unreachable blocks
-        if let Some(entry) = function.entry
+        if let Some(entry) = function.entry()
             && eliminate_unreachable_blocks(function, tree, entry)
         {
             changed = true;
@@ -228,6 +228,7 @@ fn run_simplify_cfg(
             function,
             tree,
             profile,
+            analyses,
             &domtree,
             &mut profiled_tail_dup_targets,
         ) {
@@ -268,7 +269,7 @@ fn fold_branches(
     let value_definitions = build_value_instruction_map(function, tree);
 
     // snapshot block list to avoid borrow conflicts
-    let block_ids = function.blocks.clone();
+    let block_ids = function.blocks().to_vec();
 
     // fold branches with constant or range proven conditions
     for block_id in block_ids {
@@ -356,7 +357,6 @@ fn fold_branches(
                 if let Some(new_terminator) =
                     fold_switch(tree, *value, default, &cases, constant_value, range_value)
                 {
-                    let mut new_block = block.clone();
                     if let mir::Terminator::Switch {
                         value,
                         default,
@@ -368,7 +368,6 @@ fn fold_branches(
                         if let Some(lowered) =
                             lower_boolean_switch(*value, default, &cases, is_boolean_value)
                         {
-                            tree.set(block_id, new_block);
                             tree.set(terminator_id, lowered);
                             changed = true;
                             continue;
@@ -383,7 +382,9 @@ fn fold_branches(
                             &cases,
                             range_value,
                         ) {
-                            new_block.instructions.extend(new_instructions);
+                            let mut instructions = block.instructions.clone();
+                            instructions.extend(new_instructions);
+                            function.replace_block_instructions(block_id, instructions, tree);
                             tree.set(terminator_id, lowered);
                         } else {
                             tree.set(terminator_id, new_terminator);
@@ -391,7 +392,6 @@ fn fold_branches(
                     } else {
                         tree.set(terminator_id, new_terminator);
                     }
-                    tree.set(block_id, new_block);
                     changed = true;
                     continue;
                 }
@@ -400,8 +400,6 @@ fn fold_branches(
                 if let Some(new_terminator) =
                     lower_boolean_switch(*value, default, &cases, is_boolean_value)
                 {
-                    let new_block = block.clone();
-                    tree.set(block_id, new_block);
                     tree.set(terminator_id, new_terminator);
                     changed = true;
                     continue;
@@ -411,9 +409,9 @@ fn fold_branches(
                 if let Some((new_instructions, new_terminator)) =
                     lower_single_case_switch(function, tree, *value, default, &cases, range_value)
                 {
-                    let mut new_block = block.clone();
-                    new_block.instructions.extend(new_instructions);
-                    tree.set(block_id, new_block);
+                    let mut instructions = block.instructions.clone();
+                    instructions.extend(new_instructions);
+                    function.replace_block_instructions(block_id, instructions, tree);
                     tree.set(terminator_id, new_terminator);
                     changed = true;
                 }
@@ -425,7 +423,7 @@ fn fold_branches(
     changed
 }
 
-/// Thread edges through empty or condition only blocks using edge specific facts.
+/// Thread edges through empty or condition only blocks using edge specific state.
 fn thread_edge_conditions(
     function: &mir::Function,
     tree: &mut mir::Tree,
@@ -445,7 +443,7 @@ fn thread_edge_conditions(
     let mut changed = false;
 
     // scan blocks for edge threading opportunities
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         if loop_blocks.contains(&block_id) {
             continue;
         }
@@ -572,7 +570,7 @@ fn resolve_edge_if_available(
     Some(resolved)
 }
 
-/// Resolve a single edge to a threaded target using edge specific facts.
+/// Resolve a single edge to a threaded target using edge specific state.
 fn resolve_edge_target(
     source_block: mir::LocalNodeId<mir::Block>,
     condition: mir::Value,
@@ -836,7 +834,7 @@ fn resolve_condition_value(
     constants: &ConstantPropagation,
     value_definitions: &HashMap<mir::Value, mir::Instruction>,
 ) -> Option<bool> {
-    // check constant propagation facts
+    // check constant propagation state
     let constant = constants
         .constant_at_entry(block_id, condition)
         .or_else(|| constants.constant_at_exit(block_id, condition));
@@ -1398,7 +1396,7 @@ fn function_has_remappable_return_edges(
     is_void_return: bool,
 ) -> bool {
     // scan blocks for return targets that can be remapped
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // read the terminator for the current block
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
@@ -1481,7 +1479,7 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
     let is_void_return = matches!(return_type, mir::Type::Void);
 
     // scan blocks for empty return and unreachable terminators
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
 
@@ -1529,9 +1527,7 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
             .collect();
 
         changed |= remap_block_targets(function, tree, &redirects);
-        function
-            .blocks
-            .retain(|block_id| !redirects.contains_key(block_id));
+        function.retain_blocks(|block_id| !redirects.contains_key(&block_id), tree);
     }
 
     // skip when there is nothing to canonicalize
@@ -1549,7 +1545,7 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
         let terminator = tree.insert(mir::Terminator::Return { value: None });
         let block = mir::Block::new(terminator);
         let canonical_id = tree.insert(block);
-        function.blocks.push(canonical_id);
+        function.add_block(canonical_id, tree);
         canonical_id
     } else {
         let return_value = function.next_typed_value(return_type_id);
@@ -1562,7 +1558,7 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
         });
         let block = mir::Block::with_parameters(vec![param], terminator);
         let canonical_id = tree.insert(block);
-        function.blocks.push(canonical_id);
+        function.add_block(canonical_id, tree);
         canonical_id
     };
 
@@ -1574,7 +1570,7 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
     let return_ids: HashSet<_> = return_blocks.keys().copied().collect();
 
     // rewrite terminators to target the canonical return block
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let terminator_id = block.terminator;
         let terminator = tree.get(block.terminator).clone();
@@ -1595,7 +1591,7 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
     }
 
     // recompute referenced return blocks
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
         for successor in terminator.successors(tree) {
@@ -1606,31 +1602,34 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
     }
 
     // remove unreachable return blocks
-    let entry = function.entry;
-    function.blocks.retain(|block_id| {
-        // keep the entry block
-        if Some(*block_id) == entry {
-            return true;
-        }
+    let entry = function.entry();
+    function.retain_blocks(
+        |block_id| {
+            // keep the entry block
+            if Some(block_id) == entry {
+                return true;
+            }
 
-        // keep the canonical return block
-        if *block_id == canonical_return {
-            return true;
-        }
+            // keep the canonical return block
+            if block_id == canonical_return {
+                return true;
+            }
 
-        // keep non return blocks
-        if !return_ids.contains(block_id) {
-            return true;
-        }
+            // keep non return blocks
+            if !return_ids.contains(&block_id) {
+                return true;
+            }
 
-        // keep return blocks that could not be remapped
-        if kept_returns.contains(block_id) {
-            return true;
-        }
+            // keep return blocks that could not be remapped
+            if kept_returns.contains(&block_id) {
+                return true;
+            }
 
-        // keep return blocks that remain referenced
-        referenced_returns.contains(block_id)
-    });
+            // keep return blocks that remain referenced
+            referenced_returns.contains(&block_id)
+        },
+        tree,
+    );
 
     changed
 }
@@ -1816,7 +1815,7 @@ fn remap_block_targets(
     let mut changed = false;
     let value_map: HashMap<mir::Value, mir::Value> = HashMap::new();
 
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         if redirects.contains_key(&block_id) {
             continue;
         }
@@ -1843,7 +1842,7 @@ fn fold_redundant_edges(function: &mir::Function, tree: &mut mir::Tree) -> bool 
     let mut changed = false;
 
     // simplify terminators with identical targets
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let terminator_id = block.terminator;
         let terminator = tree.get(terminator_id).clone();
@@ -1911,7 +1910,7 @@ fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::Tree)
     let mut changed = false;
 
     // snapshot blocks to avoid borrowing conflicts with value allocation
-    let block_ids = function.blocks.clone();
+    let block_ids = function.blocks().to_vec();
 
     for block_id in block_ids {
         // read the block
@@ -1941,7 +1940,7 @@ fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::Tree)
 
         // build new arguments using selects when needed
         let mut new_arguments = Vec::with_capacity(then_arguments.len());
-        let mut new_block = block.clone();
+        let mut new_instructions = block.instructions.clone();
         let mut inserted_select = false;
 
         for (then_arg, else_arg) in then_arguments.iter().zip(else_arguments.iter()) {
@@ -1960,7 +1959,7 @@ fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::Tree)
                 else_value: *else_arg,
             };
             let instruction_id = tree.insert(instruction);
-            new_block.instructions.push(instruction_id);
+            new_instructions.push(instruction_id);
             new_arguments.push(destination);
             inserted_select = true;
         }
@@ -1975,8 +1974,8 @@ fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::Tree)
         let new_terminator = mir::Terminator::Jump {
             target: mir::BlockTarget::new(then_target.block, new_arguments),
         };
-        tree.set(new_block.terminator, new_terminator);
-        tree.set(block_id, new_block);
+        tree.set(block.terminator, new_terminator);
+        function.replace_block_instructions(block_id, new_instructions, tree);
         changed = true;
     }
 
@@ -1997,26 +1996,21 @@ fn tail_duplicate_blocks(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     profile: Option<&mir::Profile>,
+    analyses: &mir::FunctionAnalyses,
     domtree: &DominatorTree,
     profiled_targets: &mut HashSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // build definition metadata
     let use_def = build_use_def_maps(function, tree);
     let value_def_blocks = &use_def.def_block;
-    let block_counts = mir::BlockFrequency::profile_block_counts(
-        function,
-        tree,
-        profile,
-        &mir::FunctionAnalyses::new(),
-    );
-    let edge_counts = mir::BlockFrequency::edge_counts(function, tree, profile, &block_counts);
+    let execution_counts = mir::ExecutionCounts::new(function, tree, profile, analyses);
 
     // collect predecessor counts and jump predecessors
     let mut predecessor_counts: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();
     let mut jump_predecessors: HashMap<mir::LocalNodeId<mir::Block>, Vec<JumpPredecessor>> =
         HashMap::new();
 
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
         for successor in terminator.successors(tree) {
@@ -2035,7 +2029,7 @@ fn tail_duplicate_blocks(
     }
 
     // snapshot block ids to avoid mutation during iteration
-    let block_ids = function.blocks.clone();
+    let block_ids = function.blocks().to_vec();
     let mut changed = false;
 
     for block_id in block_ids {
@@ -2059,7 +2053,7 @@ fn tail_duplicate_blocks(
         let block = tree.get(block_id).clone();
 
         // skip entry blocks
-        if function.entry == Some(block_id) {
+        if function.entry() == Some(block_id) {
             continue;
         }
 
@@ -2100,7 +2094,8 @@ fn tail_duplicate_blocks(
             continue;
         }
 
-        let candidates = select_tail_dup_predecessors(block_id, jump_preds, &edge_counts);
+        let candidates =
+            select_tail_dup_predecessors(block_id, jump_preds, execution_counts.edges());
         if candidates.is_empty() {
             continue;
         }
@@ -2183,7 +2178,7 @@ fn tail_duplicate_blocks(
 
             // insert the duplicated block
             let new_block_id = tree.insert(new_block);
-            insert_block_after(function, pred.pred, new_block_id);
+            insert_block_after(function, pred.pred, new_block_id, tree);
 
             // rewrite the predecessor jump to target the duplicated block
             let pred_block = tree.get(pred.pred).clone();
@@ -2290,15 +2285,14 @@ fn insert_block_after(
     function: &mut mir::Function,
     after: mir::LocalNodeId<mir::Block>,
     block: mir::LocalNodeId<mir::Block>,
+    tree: &mir::Tree,
 ) {
     // insert next to the requested block when possible
-    if let Some(index) = function.blocks.iter().position(|id| *id == after) {
-        function.blocks.insert(index + 1, block);
-        return;
+    if function.blocks().contains(&after) {
+        function.insert_block_after(after, block, tree);
+    } else {
+        function.add_block(block, tree);
     }
-
-    // fall back to appending when the block is missing
-    function.blocks.push(block);
 }
 
 /// Split critical edges into their own blocks.
@@ -2310,7 +2304,7 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::Tree) -> b
     > = HashMap::new();
     let mut successor_counts: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();
 
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
 
@@ -2330,7 +2324,7 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::Tree) -> b
     }
 
     // snapshot original blocks for iteration
-    let original_blocks = function.blocks.clone();
+    let original_blocks = function.blocks().to_vec();
 
     // track split blocks and changes
     let mut split_cache: HashMap<
@@ -2545,7 +2539,7 @@ fn split_critical_edge_target(
 
     // insert the block and record it for reuse
     let new_block_id = tree.insert(new_block);
-    insert_block_after(function, source, new_block_id);
+    insert_block_after(function, source, new_block_id, tree);
     split_cache.insert((source, target_block_id), new_block_id);
 
     Some(mir::BlockTarget::new(new_block_id, target.arguments))
@@ -2567,7 +2561,7 @@ fn merge_blocks(
 
     // build predecessor count for each block
     let mut predecessor_count: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         predecessor_count.entry(block_id).or_insert(0);
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
@@ -2583,13 +2577,14 @@ fn merge_blocks(
     loop {
         let mut merged_this_round = false;
 
-        for &block_id in &function.blocks {
+        let block_ids = function.blocks().to_vec();
+        for block_id in block_ids {
             if merged_away.contains(&block_id) {
                 continue;
             }
 
             // extract info from block without holding borrow
-            let (target, arguments, block_clone) = {
+            let (target, arguments, block_instructions, block_terminator) = {
                 let block = tree.get(block_id);
                 let terminator = tree.get(block.terminator);
                 let mir::Terminator::Jump { target } = terminator else {
@@ -2597,7 +2592,12 @@ fn merge_blocks(
                 };
                 let target_block = target.block;
                 let target_arguments = target.arguments(tree).to_vec();
-                (target_block, target_arguments, block.clone())
+                (
+                    target_block,
+                    target_arguments,
+                    block.instructions.clone(),
+                    block.terminator,
+                )
             };
 
             // don't merge into ourselves
@@ -2664,18 +2664,17 @@ fn merge_blocks(
             };
 
             // merge: append target's instructions and replace our terminator
-            let mut new_block = block_clone;
-            let terminator_id = new_block.terminator;
+            let mut instructions = block_instructions;
 
             // copy and substitute instructions from target
             for instruction_id in target_instructions {
                 let instruction = tree.get(instruction_id).clone();
                 let new_id = tree.insert(instruction);
-                new_block.instructions.push(new_id);
+                instructions.push(new_id);
             }
 
-            tree.set(block_id, new_block);
-            tree.set(terminator_id, target_terminator);
+            function.replace_block_instructions(block_id, instructions, tree);
+            tree.set(block_terminator, target_terminator);
 
             // mark target as merged away
             merged_away.insert(target);
@@ -2690,9 +2689,7 @@ fn merge_blocks(
 
     // remove merged blocks from function
     if !merged_away.is_empty() {
-        function
-            .blocks
-            .retain(|block_id| !merged_away.contains(block_id));
+        function.retain_blocks(|block_id| !merged_away.contains(&block_id), tree);
     }
 
     changed
@@ -2725,12 +2722,10 @@ fn eliminate_unreachable_blocks(
     }
 
     // remove unreachable blocks from the function
-    let original_len = function.blocks.len();
-    function
-        .blocks
-        .retain(|&block_id| reachable.contains(&block_id));
+    let original_len = function.blocks().len();
+    function.retain_blocks(|block_id| reachable.contains(&block_id), tree);
 
-    function.blocks.len() != original_len
+    function.blocks().len() != original_len
 }
 
 #[cfg(test)]
@@ -3788,7 +3783,7 @@ b3(v5: int32):
         // gather the function and its entry branch
         let function_id = test.first_function_id();
         let mut function = test.tree.get(function_id).clone();
-        let entry_block = function.entry.unwrap();
+        let entry_block = function.entry().unwrap();
 
         // build dominance data for tail duplication
         let analyses = test.function_analyses();
@@ -3806,6 +3801,7 @@ b3(v5: int32):
             &mut function,
             &mut test.tree,
             Some(&profile),
+            &analyses,
             &domtree,
             &mut profiled_targets,
         );
@@ -4270,7 +4266,7 @@ entry:
     fn collect_argument_mismatches(function: &mir::Function, tree: &mir::Tree) -> Vec<String> {
         let mut mismatches = Vec::new();
 
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
             let check_edge = |target: mir::LocalNodeId<mir::Block>,
@@ -4378,7 +4374,7 @@ entry:
     fn collect_undefined_uses(function: &mir::Function, tree: &mir::Tree) -> Vec<String> {
         let mut defined_values: HashSet<mir::Value> = HashSet::new();
 
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
             for param in &block.parameters {
                 defined_values.insert(param.value);
@@ -4394,7 +4390,7 @@ entry:
 
         let mut undefined = Vec::new();
 
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
 

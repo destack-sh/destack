@@ -40,7 +40,7 @@ impl FunctionPass for LoopSimplify {
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
-        let entry = match function.entry {
+        let entry = match function.entry() {
             Some(entry) => entry,
             None => return Mutation::NONE,
         };
@@ -323,23 +323,25 @@ fn insert_preheader(
     };
     let preheader_id = tree.insert(preheader);
 
-    // keep textual entry order aligned with function.entry
+    // keep textual entry order aligned with function.entry()
     if is_entry_header {
         let Some(entry_index) = function
-            .blocks
+            .blocks()
             .iter()
             .position(|block_id| *block_id == header)
         else {
             return false;
         };
-        function.blocks.insert(entry_index, preheader_id);
+        let mut blocks = function.blocks().to_vec();
+        blocks.insert(entry_index, preheader_id);
+        function.replace_blocks(blocks, tree);
     } else {
-        function.blocks.push(preheader_id);
+        function.add_block(preheader_id, tree);
     }
 
     // redirect all outside predecessors to preheader
     let mut redirected = false;
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // skip preheader itself and blocks inside the loop
         if block_id == preheader_id || loop_blocks.contains(&block_id) {
             continue;
@@ -355,7 +357,7 @@ fn insert_preheader(
 
     // if header was the entry, preheader becomes entry
     if is_entry_header {
-        function.entry = Some(preheader_id);
+        function.set_entry(preheader_id);
         redirected = true;
     }
 
@@ -612,7 +614,7 @@ fn merge_latches(
         terminator: latch_terminator,
     };
     let new_latch_id = tree.insert(new_latch);
-    function.blocks.push(new_latch_id);
+    function.add_block(new_latch_id, tree);
 
     // redirect all original latches to the new merged latch
     for &latch_id in latches {
@@ -667,7 +669,7 @@ fn insert_dedicated_exit(
         terminator: dedicated_terminator,
     };
     let dedicated_id = tree.insert(dedicated_exit);
-    function.blocks.push(dedicated_id);
+    function.add_block(dedicated_id, tree);
 
     // redirect exiting blocks to the dedicated exit
     let mut redirected = false;
@@ -788,8 +790,8 @@ b1:
         // verify entry changed to preheader
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        assert_eq!(function.entry.unwrap(), function.blocks[0]);
-        assert_ne!(function.entry.unwrap(), function.blocks[1]);
+        assert_eq!(function.entry().unwrap(), function.block(0));
+        assert_ne!(function.entry().unwrap(), function.block(1));
     }
 
     /// Single predecessor with branch still gets preheader.
@@ -966,8 +968,8 @@ entry_1(v1: boolean):
         // verify entry changed to preheader
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        assert_eq!(function.entry.unwrap(), function.blocks[0]);
-        assert_ne!(function.entry.unwrap(), function.blocks[1]);
+        assert_eq!(function.entry().unwrap(), function.block(0));
+        assert_ne!(function.entry().unwrap(), function.block(1));
     }
 
     /// Multiple latches are merged into single latch.

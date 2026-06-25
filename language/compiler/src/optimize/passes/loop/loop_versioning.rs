@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, ControlFlowGraph, LoopAnalysis, Mutation, RangeAnalysis, ScalarEvolution,
-    Scev, UseDefMaps, ValueRange, ValueTypeMap, build_use_def_maps, clone_loop_blocks,
+    Scev, UseDefMaps, ValueRange, ValueTypes, build_use_def_maps, clone_loop_blocks,
     terminator_remap,
 };
 
@@ -91,7 +91,7 @@ impl FunctionPass for LoopVersioning {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip imported functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Mutation::NONE;
         }
 
@@ -146,7 +146,7 @@ fn run_loop_versioning(
 
     // track whether we rewrote any loops
     let use_def = build_use_def_maps(function, tree);
-    let value_types = ValueTypeMap::new(function, tree);
+    let value_types = analyses.get::<ValueTypes>(function, tree);
     let mut changed = false;
     function.recompute_next_value_id(tree);
 
@@ -274,9 +274,11 @@ fn run_loop_versioning(
         );
 
         // update the preheader to emit guard instructions and branch between fast and slow loops
-        let mut preheader_block = tree.get(preheader).clone();
-        preheader_block.instructions.extend(guard_instructions);
-        preheader_block.instructions.push(fast_guard);
+        let preheader_block = tree.get(preheader).clone();
+        let mut preheader_instructions = preheader_block.instructions.clone();
+        preheader_instructions.extend(guard_instructions);
+        preheader_instructions.push(fast_guard);
+        function.replace_block_instructions(preheader, preheader_instructions, tree);
         let Some(condition) = tree.get(fast_guard).destination() else {
             continue;
         };
@@ -287,13 +289,12 @@ fn run_loop_versioning(
             else_target: mir::BlockTarget::new(header, preheader_args),
         };
         tree.set(preheader_block.terminator, preheader_terminator);
-        tree.set(preheader, preheader_block);
 
         // append cloned blocks
         let mut cloned_blocks: Vec<_> = block_map.values().copied().collect();
         cloned_blocks.sort();
         for block_id in cloned_blocks {
-            function.blocks.push(block_id);
+            function.add_block(block_id, tree);
         }
 
         changed = true;

@@ -5,9 +5,9 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, DominatorTree, MemoryAccess, MemoryAccessEffect, MemoryAccessId,
-    MemoryEffectTarget, MemorySSA, Mutation, TargetLayout, ValueTypeMap,
-    apply_substitutions_in_function, resolve_substitution_chains,
+    AliasAnalysis, DominatorTree, MemoryAccess, MemoryAccessEffect, MemoryAccessId, MemoryRegion,
+    MemorySSA, Mutation, TargetLayout, ValueTypes, apply_substitutions_in_function,
+    resolve_substitution_chains,
 };
 
 declare_pass! {
@@ -16,7 +16,7 @@ declare_pass! {
     /// This pass performs three optimizations:
     /// 1) **Store to load forwarding**: When a store is followed by a load from the same
     /// location (with no intervening clobbers), replace the load with the stored value.
-    /// 2) **Load to load forwarding**: When the same location is loaded twice with no
+    /// 2) **Load to load forwarding**: When the same region is loaded twice with no
     /// intervening clobbers, replace the second load with the first load's result.
     /// 3) **Cross block forwarding**: Forward values across basic blocks when the store
     /// or load dominates the use with no intervening clobbers.
@@ -60,7 +60,7 @@ struct MemoryEntry {
     /// The clobbering access id for the memory state.
     clobber: MemoryAccessId,
     /// The accessed memory location.
-    location: MemoryEffectTarget,
+    region: MemoryRegion,
     /// The available value.
     value: mir::Value,
 }
@@ -74,7 +74,7 @@ impl FunctionPass for LoadStoreForward {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // skip empty functions
-        let entry = match function.entry {
+        let entry = match function.entry() {
             Some(entry) => entry,
             None => return Mutation::NONE,
         };
@@ -88,7 +88,7 @@ impl FunctionPass for LoadStoreForward {
             (aa, memory_ssa, dom_children)
         };
 
-        let value_types = ValueTypeMap::new(function, tree);
+        let value_types = analyses.get::<ValueTypes>(function, tree);
 
         // run load store forwarding
         let changed = run_load_store_forward(
@@ -122,12 +122,12 @@ impl FunctionPass for LoadStoreForward {
 /// Core load store forwarding logic. Returns true if changes were made.
 fn run_load_store_forward(
     entry: mir::LocalNodeId<mir::Block>,
-    function: &mir::Function,
+    function: &mut mir::Function,
     tree: &mut mir::Tree,
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
     target_layout: TargetLayout,
 ) -> bool {
     // run forwarding using dominator tree traversal
@@ -164,12 +164,12 @@ fn build_dominator_children(
     let mut children: HashMap<_, Vec<_>> = HashMap::new();
 
     // initialize all blocks with empty children lists
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         children.insert(block_id, Vec::new());
     }
 
     // build parent to children mapping from idom relationships
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         if let Some(idom) = domtree.immediate_dominator(block_id) {
             children.get_mut(&idom).unwrap().push(block_id);
         }
@@ -220,7 +220,7 @@ impl AvailableMemory {
             return None;
         }
 
-        let location = &use_effect.location;
+        let region = &use_effect.region;
 
         // search from innermost to outermost scope
         for scope in self.scopes.iter().rev() {
@@ -231,24 +231,20 @@ impl AvailableMemory {
                     continue;
                 }
 
-                if !entry
-                    .location
-                    .spaces()
-                    .may_alias(use_effect.location.spaces())
-                {
+                if !entry.region.spaces().may_alias(use_effect.region.spaces()) {
                     continue;
                 }
 
                 // compare matching locations
-                match (&entry.location, location) {
-                    (MemoryEffectTarget::Local(a), MemoryEffectTarget::Local(b)) => {
+                match (&entry.region, region) {
+                    (MemoryRegion::Local(a), MemoryRegion::Local(b)) => {
                         if a == b {
                             return Some(entry.value);
                         }
                     }
                     (
-                        MemoryEffectTarget::Reference { location: a, .. },
-                        MemoryEffectTarget::Reference { location: b, .. },
+                        MemoryRegion::Reference { access: a, .. },
+                        MemoryRegion::Reference { access: b, .. },
                     ) => {
                         if a.reference == b.reference {
                             if a.is_compatible_with(b) {
@@ -305,7 +301,7 @@ fn find_forwardable_loads(
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
     target_layout: TargetLayout,
 ) -> (
     HashMap<mir::Value, mir::Value>,
@@ -368,7 +364,7 @@ fn process_block(
     tree: &mir::Tree,
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
-    value_types: &ValueTypeMap,
+    value_types: &ValueTypes,
     _target_layout: TargetLayout,
     available: &mut AvailableMemory,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
@@ -405,7 +401,7 @@ fn process_block(
                 // record the available value
                 available.insert(MemoryEntry {
                     clobber: def_access_id,
-                    location: def_access.effect.location.clone(),
+                    region: def_access.effect.region.clone(),
                     value,
                 });
             }
@@ -443,7 +439,7 @@ fn process_block(
                 } else {
                     available.insert(MemoryEntry {
                         clobber,
-                        location: use_access.effect.location.clone(),
+                        region: use_access.effect.region.clone(),
                         value: destination,
                     });
                 }
@@ -482,7 +478,7 @@ fn process_block(
                 } else {
                     available.insert(MemoryEntry {
                         clobber,
-                        location: use_access.effect.location.clone(),
+                        region: use_access.effect.region.clone(),
                         value: destination,
                     });
                 }
@@ -910,7 +906,7 @@ entry:
         test.assert_output(expected);
     }
 
-    /// Load followed by another load from same location uses first result.
+    /// Load followed by another load from same region uses first result.
     #[test]
     fn test_load_to_load_forwarding() {
         let input = r#"
@@ -1212,7 +1208,7 @@ entry:
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
         let callsite = mir::CallSite::Instruction(call_inst);
-        test.tree.metadata.functions.call_mut(callsite).memory = mir::MemoryEffect::none();
+        test.tree.metadata.effects.call_mut(callsite).memory = mir::MemoryEffect::none();
 
         test.run_pass(&LoadStoreForward);
         test.assert_output(expected);
@@ -1276,7 +1272,7 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let block = test.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.block(0));
         let volatile_load = block.instructions[2];
         test.insert_pointer_access_with_options(
             volatile_load,
@@ -1322,7 +1318,7 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let block = test.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.block(0));
         let volatile_store = block.instructions[3];
         test.insert_pointer_access_with_options(
             volatile_store,

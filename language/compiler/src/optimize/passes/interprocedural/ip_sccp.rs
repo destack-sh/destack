@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::passes::scalar::{SimplifyCfg, SparseConditionalConstantPropagation};
 use crate::optimize::{ModulePass, PipelineContext, run_function_passes};
 use destack_mir::{
-    ConstantPropagation, Mutation, SignatureKey, apply_constant_parameters,
+    ConstantPropagation, FunctionEffectAnalysis, Mutation, SignatureKey, apply_constant_parameters,
     constant_arguments_for_parameters, constant_matches_type, constant_type_of,
 };
 
@@ -53,10 +53,11 @@ impl ModulePass for InterproceduralSccp {
         &self,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
-        _analyses: &mir::ModuleAnalyses,
+        analyses: &mir::ModuleAnalyses,
     ) -> Mutation {
         // run the interprocedural pass
-        let changed = run_interprocedural_sccp(tree, ctx);
+        let effects = analyses.get::<FunctionEffectAnalysis>(tree);
+        let changed = run_interprocedural_sccp(tree, ctx, &effects);
 
         // report what this pass changed
         if changed {
@@ -135,14 +136,18 @@ struct CallData {
 }
 
 /// Run interprocedural SCCP over the module.
-fn run_interprocedural_sccp(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> bool {
+fn run_interprocedural_sccp(
+    tree: &mut mir::Tree,
+    ctx: &PipelineContext<'_>,
+    effects: &FunctionEffectAnalysis,
+) -> bool {
     // collect callsite information up front
     let call_data = collect_call_data(tree);
 
     // collect functions with bodies
     let function_ids: Vec<_> = tree
         .iter_nodes::<mir::Function>()
-        .filter_map(|(id, function)| function.entry.is_some().then_some((id, function.linkage)))
+        .filter_map(|(id, function)| function.entry().is_some().then_some((id, function.linkage)))
         .collect();
 
     // seed lattice state for each function
@@ -196,7 +201,7 @@ fn run_interprocedural_sccp(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> 
     }
 
     // replace pure constant calls with literals
-    if replace_constant_calls(tree, &call_data, &states, ctx.target_layout()) {
+    if replace_constant_calls(tree, &call_data, &states, ctx.target_layout(), effects) {
         for callsite in &call_data.callsites {
             cleanup_functions.insert(callsite.caller);
         }
@@ -416,7 +421,7 @@ fn return_state_for_function(
     let mut merged = LatticeConstant::Unknown;
 
     // scan return terminators
-    for block_id in &function.blocks {
+    for block_id in function.blocks() {
         let block = tree.get(*block_id);
         let terminator = tree.get(block.terminator);
 
@@ -523,6 +528,7 @@ fn replace_constant_calls(
     call_data: &CallData,
     states: &HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
     target_layout: mir::TargetLayout,
+    effects: &FunctionEffectAnalysis,
 ) -> bool {
     // track whether any calls were replaced
     let mut changed = false;
@@ -557,8 +563,9 @@ fn replace_constant_calls(
         let Some(destination) = destination else {
             continue;
         };
+
         // skip calls that are not pure
-        if !call_is_pure(tree, call_instruction, function) {
+        if !call_is_pure(tree, call_instruction, function, effects) {
             continue;
         }
 
@@ -599,11 +606,11 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
     // scan each function body for callsites
     for (caller_id, function) in tree.iter_nodes::<mir::Function>() {
         // skip external functions
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             continue;
         }
 
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
 
@@ -706,20 +713,26 @@ fn call_is_pure(
     tree: &mir::Tree,
     call_instruction: mir::LocalNodeId<mir::Instruction>,
     callee: mir::LocalNodeId<mir::Function>,
+    effects: &FunctionEffectAnalysis,
 ) -> bool {
     // resolve callsite effects when present
     let callsite = mir::CallSite::Instruction(call_instruction);
-    let call_metadata = tree.metadata.functions.call(callsite);
-    let function_metadata = tree.metadata.functions.function(callee);
-    let effects = call_metadata
+    let call_metadata = tree.metadata.effects.call(callsite);
+    let function_effect = effects.function(callee);
+    let function_metadata = tree.metadata.effects.function(callee);
+    let memory = call_metadata
+        .filter(|metadata| metadata.memory != mir::MemoryEffect::unknown())
         .map(|metadata| metadata.memory.clone())
+        .or_else(|| function_effect.map(|effect| effect.memory.clone()))
         .or_else(|| function_metadata.map(|metadata| metadata.memory.clone()));
     let behavior = call_metadata
+        .filter(|metadata| metadata.behavior != mir::FunctionBehavior::unknown())
         .map(|metadata| metadata.behavior.clone())
+        .or_else(|| function_effect.map(|effect| effect.behavior.clone()))
         .or_else(|| function_metadata.map(|metadata| metadata.behavior.clone()));
 
     // reject calls with no effect metadata
-    let Some(effects) = effects else {
+    let Some(memory) = memory else {
         return false;
     };
     let Some(behavior) = behavior else {
@@ -727,7 +740,7 @@ fn call_is_pure(
     };
 
     // reject reads or writes
-    if effects.reads || effects.writes {
+    if memory.reads() || memory.writes() {
         return false;
     }
 
@@ -748,9 +761,9 @@ mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
 
-    /// Constant arguments are propagated into the callee.
+    /// Constant call arguments can produce constant call results.
     #[test]
-    fn test_ip_sccp_inserts_constants() {
+    fn test_ip_sccp_replaces_constant_argument_call() {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -775,7 +788,7 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 7
-    v1: int32 = call callee(v0)
+    v1: int32 = 7
     return v1
 }
 "#;
@@ -817,11 +830,6 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        let callee_id = test.function_id_by_name("pure");
-        let metadata = test.tree.metadata.functions.function_mut(callee_id);
-        metadata.memory = mir::MemoryEffect::none();
-        metadata.behavior = mir::FunctionBehavior::none();
-
         test.run_module_pass(&InterproceduralSccp);
         test.assert_output(expected);
     }
@@ -979,28 +987,6 @@ b2(v2: ref<int32, managed, readonly>):
         let mut test = TestProgram::new(input);
         test.run_module_pass(&InterproceduralSccp);
         test.assert_output(expected);
-    }
-
-    /// Calls without effect metadata are not replaced.
-    #[test]
-    fn test_ip_sccp_skips_call_without_metadata() {
-        let input = r#"
-function pure(): int32 {
-entry:
-    v0: int32 = 9
-    return v0
-}
-
-function root(): int32 {
-entry:
-    v0: int32 = call pure()
-    return v0
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralSccp);
-        test.assert_output(input);
     }
 
     /// Indirect signatures mark callees as exposed.
