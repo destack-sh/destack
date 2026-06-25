@@ -30,7 +30,7 @@ pub struct Program {
     /// Runtime layouts keyed by layout id.
     pub layouts: mir::LayoutTable,
     /// Runtime frame metadata.
-    pub frames: mir::FrameTable,
+    pub frames: mir::FrameMetadata,
     /// Runtime function metadata.
     pub functions: FunctionTable,
     /// Canonical trace table used by heap metadata.
@@ -55,7 +55,7 @@ impl Program {
         header: ProgramHeader,
         types: TypeTable,
         layouts: mir::LayoutTable,
-        frames: mir::FrameTable,
+        frames: mir::FrameMetadata,
         functions: FunctionTable,
         constant_space: StaticSpace,
         shared_static_space: StaticSpace,
@@ -160,7 +160,7 @@ impl Program {
 
     /// Return the heap allocation shape for one layout id.
     pub fn allocation_shape(&self, layout_id: LayoutId) -> Result<heap::AllocationShape<'_>> {
-        let Some(layout) = self.layouts().layouts.get(layout_id.index()) else {
+        let Some(layout) = self.layouts().entries.get(layout_id.index()) else {
             return Err(Error::internal(format!("missing MIR layout {layout_id:?}")));
         };
 
