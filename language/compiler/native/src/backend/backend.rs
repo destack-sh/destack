@@ -84,8 +84,8 @@ impl CodegenCraneliftBackend {
             OptimizeLevel::O0 => "none",
             OptimizeLevel::O1 => "speed",
             OptimizeLevel::O2 => "speed",
-            OptimizeLevel::O3 => "speed_and_size",
-            OptimizeLevel::O4 => "speed_and_size",
+            OptimizeLevel::O3 => "speed",
+            OptimizeLevel::O4 => "speed",
         };
         flags_builder
             .set("opt_level", opt_level)

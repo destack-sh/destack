@@ -7,11 +7,10 @@ use crate::optimize::{ModulePass, PipelineContext, declare_pass};
 declare_pass! {
     /// Remove functions the analysis scope cannot reach.
     ///
-    /// Scope-agnostic: with a module-scoped program analysis it drops module-dead
-    /// functions, with a whole-program analysis it drops program-dead functions. A
-    /// function survives only when some root reaches it over call or address edges; a
-    /// never-address-taken function is dead even amid unknown indirect calls, since no
-    /// pointer to it can exist.
+    /// Scope-agnostic: with module analysis it drops module-dead functions, with program
+    /// analysis it drops program-dead functions. A function survives only when some root
+    /// reaches it over call or address edges; a never-address-taken function is dead even
+    /// amid unknown indirect calls, since no pointer to it can exist.
     ///
     /// ```mir
     /// export function root(): void {
