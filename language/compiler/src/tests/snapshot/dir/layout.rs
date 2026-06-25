@@ -51,7 +51,7 @@ fn add_type_layout_rows(
         .optional_field("rank", tensor_rank_label(&layout.shape))
         .optional_field("format", tensor_format_label(&layout.shape))
         .optional_field("sharding", tensor_sharding_label(&layout.shape))
-        .optional_field("backing", newtype_backing_label(layouts, &layout.shape));
+        .optional_field("backing", backing_label(builder, layouts, &layout.shape));
     builder.push(row);
 
     match &layout.shape {
@@ -82,6 +82,7 @@ fn add_type_layout_rows(
         | dir::LayoutShape::Vector(_)
         | dir::LayoutShape::Tensor(_)
         | dir::LayoutShape::TensorView(_)
+        | dir::LayoutShape::Enum(_)
         | dir::LayoutShape::Dynamic
         | dir::LayoutShape::Function
         | dir::LayoutShape::Newtype(_)
@@ -231,13 +232,21 @@ fn tensor_view_format_name(format: dir::TensorViewFormat) -> &'static str {
     }
 }
 
-/// Return the backing layout label for a newtype layout.
-fn newtype_backing_label(layouts: &dir::LayoutSegment, shape: &dir::LayoutShape) -> Option<String> {
-    let dir::LayoutShape::Newtype(layout) = shape else {
-        return None;
+/// Return the backing layout label for a nominal layout.
+fn backing_label(
+    builder: &DirSnapshotBuilder<'_>,
+    layouts: &dir::LayoutSegment,
+    shape: &dir::LayoutShape,
+) -> Option<String> {
+    let backing_layout = match shape {
+        dir::LayoutShape::Enum(layout) => {
+            return Some(builder.global_type_label(layout.backing_type));
+        }
+        dir::LayoutShape::Newtype(layout) => layout.backing_layout,
+        _ => return None,
     };
 
-    let backing = layouts.get_layout(layout.backing_layout);
+    let backing = layouts.get_layout(backing_layout);
     let shape = DirSnapshotBuilder::layout_shape_label(&backing.shape);
     let size = backing.size;
     let align = backing.alignment;

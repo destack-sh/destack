@@ -663,6 +663,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             dir::LayoutShape::Tensor(_) => "tensor".to_string(),
             dir::LayoutShape::TensorView(_) => "tensorView".to_string(),
             dir::LayoutShape::Variant(_) => "variant".to_string(),
+            dir::LayoutShape::Enum(_) => "enum".to_string(),
             dir::LayoutShape::Object(_) => "object".to_string(),
             dir::LayoutShape::Dynamic => "dynamic".to_string(),
             dir::LayoutShape::Function => "function".to_string(),
