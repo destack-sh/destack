@@ -166,7 +166,6 @@ impl OutputLayout {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 impl<'a> JsLinker<'a> {
     /// Return one stable content hash for one source-backed module.
     fn source_hash(&self, module_id: ModuleId) -> LinkResult<String> {

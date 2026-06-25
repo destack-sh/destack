@@ -596,7 +596,6 @@ fn run_loop_strength_reduce(
 }
 
 /// Apply candidates for a single loop and return substitutions.
-#[allow(clippy::too_many_arguments)]
 fn apply_candidates_for_loop(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
@@ -769,7 +768,6 @@ fn type_is_integer(
 }
 
 /// Check whether a division or remainder is safe to eliminate.
-#[allow(clippy::too_many_arguments)]
 fn division_is_safe(
     operator: mir::BinaryOperator,
     left: mir::Value,
@@ -1239,7 +1237,6 @@ struct ScevMaterializer<'a> {
     target_layout: TargetLayout,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl<'a> ScevMaterializer<'a> {
     /// Create a new materializer for the preheader.
     fn new(

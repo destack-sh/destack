@@ -8,7 +8,6 @@ use dir::{
 use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateError, ElaborateResult};
 
-#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Transform `match` expressions into decision trees (if else chains).
     ///

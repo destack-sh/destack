@@ -7,7 +7,6 @@ use crate::{
     CheckError, CheckWarning, CompilerResult, DiagnosticAnchor, diagnostic_suggestion_distance,
 };
 
-#[allow(clippy::too_many_arguments)]
 impl CheckState<'_> {
     /// Report a missing annotation at one source node.
     pub(in crate::check) fn report_missing_type_annotation(

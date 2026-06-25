@@ -37,7 +37,6 @@ pub(crate) struct ElaborateState<'a> {
 
 impl<'a> ElaborateState<'a> {
     /// Construct mutable elaborate state.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         provider: &'a dyn ProviderContext,
         artifacts: &'a ArtifactReader<'a>,

@@ -879,7 +879,6 @@ fn insert_bound_guard(
 
 /// Emit an intrinsic.memory.raw.setBytes for the loop idiom.
 // allow explicit context parameters for memset emission
-#[allow(clippy::too_many_arguments)]
 fn emit_memset(
     array: mir::Value,
     element_addr_type: mir::LocalNodeId<mir::Type>,
@@ -930,7 +929,6 @@ fn emit_memset(
 
 /// Emit memcpy or memmove for the loop idiom.
 // allow explicit context parameters for copy emission
-#[allow(clippy::too_many_arguments)]
 fn emit_memcpy_or_memmove(
     intrinsic: mir::Intrinsic,
     dest_array: mir::Value,
@@ -1027,7 +1025,6 @@ fn unsigned_bounds_for_value(
 
 /// Emit a byte length value for memset, memcpy, or memmove.
 // allow explicit context parameters for length materialization
-#[allow(clippy::too_many_arguments)]
 fn emit_copy_length(
     bound: mir::Value,
     start: mir::Value,

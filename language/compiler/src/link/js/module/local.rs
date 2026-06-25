@@ -8,7 +8,6 @@ use destack_source::{ModuleId, PackageId, TargetId};
 
 use crate::{JsLinker, LinkError, LinkResult};
 
-#[allow(clippy::too_many_arguments)]
 impl JsLinker<'_> {
     /// Rewrite one same-output resource import into local bindings.
     pub(crate) fn resource_import_replacement(

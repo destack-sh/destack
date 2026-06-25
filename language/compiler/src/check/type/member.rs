@@ -60,7 +60,6 @@ pub(in crate::check) struct MemberCandidate {
     pub(in crate::check) value_type: Option<dir::GlobalTypeId>,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl CheckState<'_> {
     /// Project one type-level member access through its owner.
     /// Returns ready none when the projection must stay symbolic.

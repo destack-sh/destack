@@ -509,8 +509,6 @@ fn store_is_non_escaping_stack(
 }
 
 /// Return true when a later clobbering def postdominates the store.
-// allow extra context parameters for clarity
-#[allow(clippy::too_many_arguments)]
 /// Return true when the store is postdominated by a clobbering access.
 fn store_is_postdominated_by_clobber(
     store: &StoreCandidate,

@@ -289,7 +289,6 @@ fn run_store_pre(
 }
 
 /// Return MemorySSA data when a store is eligible for PRE.
-#[allow(clippy::too_many_arguments)]
 fn store_access_info(
     block_id: mir::LocalNodeId<mir::Block>,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
@@ -403,7 +402,6 @@ fn store_can_move_to_entry(
 }
 
 /// Collect edge insertions for each predecessor of the store block.
-#[allow(clippy::too_many_arguments)]
 fn collect_edge_insertions(
     store: &StoreCandidate,
     cfg: &ControlFlowGraph,
@@ -498,7 +496,6 @@ fn collect_edge_insertions(
 }
 
 /// Return true when an incoming def is an equivalent store.
-#[allow(clippy::too_many_arguments)]
 fn incoming_def_matches(
     store: &StoreCandidate,
     incoming_access: MemoryAccessId,

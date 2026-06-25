@@ -39,7 +39,6 @@ pub(crate) struct FunctionLowerer<'a> {
     environment_param: Option<cir::Value>,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl<'a> FunctionLowerer<'a> {
     /// Create a new function lowerer.
     pub(crate) fn new(

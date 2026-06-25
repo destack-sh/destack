@@ -4,7 +4,6 @@ use dir::{Asynchrony, Block, Expression, LocalNodeId, Mutability, NodeType};
 use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
-#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Split multi-declarator let statements into individual let statements.
     ///

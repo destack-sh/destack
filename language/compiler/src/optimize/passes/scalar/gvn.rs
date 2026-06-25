@@ -106,7 +106,6 @@ impl FunctionPass for GlobalValueNumbering {
 }
 
 /// Core GVN logic. Returns true if changes were made.
-#[allow(clippy::too_many_arguments)]
 fn run_gvn(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
@@ -365,7 +364,6 @@ impl ScopedValueTable {
 /// Find redundant expressions by walking the dominator tree.
 ///
 /// Returns a tuple of (substitutions, instructions_to_remove).
-#[allow(clippy::too_many_arguments)]
 fn find_redundant_expressions(
     entry: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
@@ -436,7 +434,6 @@ fn find_redundant_expressions(
 }
 
 /// Process a single block, recording expressions and finding redundancies.
-#[allow(clippy::too_many_arguments)]
 fn process_block(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,

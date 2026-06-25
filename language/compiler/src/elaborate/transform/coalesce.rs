@@ -21,7 +21,6 @@ struct CoalesceBindingState {
     condition: LocalNodeId<Expression>,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Normalize nested coalesce expressions inside one assignment pattern.
     fn normalize_nested_coalesce_in_assign_pattern(

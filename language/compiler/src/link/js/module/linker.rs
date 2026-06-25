@@ -13,7 +13,6 @@ use crate::link::TargetLocation;
 /// One source module and rewritten JS module pair inside one output.
 pub(super) type OutputModule = (ModuleId, js::Module);
 
-#[allow(clippy::too_many_arguments)]
 impl<'a> JsLinker<'a> {
     /// Return the local binding and source identity for one import item.
     fn import_binding(

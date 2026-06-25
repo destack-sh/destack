@@ -5,7 +5,6 @@ use destack_repository::ProfileId;
 use {destack_dir as dir, destack_program as program, destack_heap as heap, destack_vm as vm};
 
 #[allow(dead_code)]
-#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Convert a static term into an engine boundary value.
     pub(crate) fn static_term_to_value(&self, value: &dir::StaticTerm) -> Option<program::Value> {

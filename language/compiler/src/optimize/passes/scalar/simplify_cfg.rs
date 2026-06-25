@@ -537,7 +537,6 @@ fn thread_edge_conditions(
 }
 
 /// Resolve a single edge and ensure its arguments are available.
-#[allow(clippy::too_many_arguments)]
 fn resolve_edge_if_available(
     source_block: mir::LocalNodeId<mir::Block>,
     condition: mir::Value,
@@ -574,7 +573,6 @@ fn resolve_edge_if_available(
 }
 
 /// Resolve a single edge to a threaded target using edge specific facts.
-#[allow(clippy::too_many_arguments)]
 fn resolve_edge_target(
     source_block: mir::LocalNodeId<mir::Block>,
     condition: mir::Value,

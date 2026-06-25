@@ -759,7 +759,6 @@ fn nearest_nested_loop(loops: &LoopAnalysis, outer_index: usize) -> Option<usize
 
 /// Find a perfectly nested loop candidate for unroll and jam.
 // allow many arguments to keep loop selection explicit
-#[allow(clippy::too_many_arguments)]
 fn find_jam_candidate(
     outer_index: usize,
     outer: &Loop,
@@ -1195,7 +1194,6 @@ fn outer_step_from_latch(
 
 /// Resolve a trip count using the loop header arguments.
 // allow many arguments to keep trip count extraction explicit
-#[allow(clippy::too_many_arguments)]
 fn trip_count_from_header(
     guard: &GuardComparison,
     outer: &Loop,
@@ -1240,7 +1238,6 @@ fn trip_count_from_header(
 
 /// Check if the inner loop body can be safely jammed.
 // allow many arguments to keep jamming checks explicit
-#[allow(clippy::too_many_arguments)]
 fn inner_body_is_jammable(
     outer: &Loop,
     inner: &Loop,
@@ -1341,7 +1338,6 @@ fn inner_body_is_jammable(
 
 /// Check whether a set of uses is safe for jamming.
 // allow many arguments to keep dependency checks explicit
-#[allow(clippy::too_many_arguments)]
 fn inner_uses_are_safe(
     uses: &[mir::Value],
     inner: &Loop,
@@ -1539,7 +1535,6 @@ fn select_jam_plan(
 
 /// Apply loop unroll and jam for the candidate.
 // allow extra arguments to keep loop state explicit
-#[allow(clippy::too_many_arguments)]
 fn unroll_and_jam_loop(
     function: &mut mir::Function,
     tree: &mut mir::Tree,

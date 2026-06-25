@@ -228,7 +228,6 @@ fn try_accumulator_transform(
 ///
 /// Creates an internal `func_impl` with the accumulator parameter,
 /// and rewrites the original exported function as a thin wrapper.
-#[allow(clippy::too_many_arguments)]
 fn try_accumulator_transform_exported(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
