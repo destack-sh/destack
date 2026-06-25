@@ -1,10 +1,9 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 use indexmap::IndexMap;
 
 use crate::check::{
-    CheckState, Condition, Constraint, ConstraintCause, GenericInductionParameter,
-    GenericInductionSite, GenericTemplateId, Origin, Receiver, Relation, WalkState, Widening,
+    CheckState, GenericInductionParameter, GenericInductionSite, GenericTemplateId, Origin,
+    Receiver, Relation, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -80,13 +79,13 @@ impl WalkState<'_, '_> {
             .and_then(|symbol| self.check.generics.template_by_symbol(symbol))
     }
 
-    /// Declare one generic template header with its parameter identities.
+    /// Open one generic template header with its parameter identities.
     ///
     /// Example:
     /// ```ds
     /// class Box<T> {}
     /// ```
-    pub(in crate::check) fn declare_generic_template(
+    pub(in crate::check) fn open_generic_template(
         &mut self,
         source: dir::GlobalNodeIdAny,
         parent: Option<GenericTemplateId>,
@@ -101,19 +100,17 @@ impl WalkState<'_, '_> {
                 message: format!("generic template source {source:?} is outside the walked module"),
             });
         }
-        let template = self
-            .check
-            .declare_generic_template(source, parent, symbol)?;
+        let template = self.check.open_generic_template(source, parent, symbol)?;
 
-        // declare parameter identities before walking any bounds
+        // open parameter identities before walking any bounds
         for parameter in parameters {
-            self.declare_generic_parameter(template, *parameter, self.tree.get(*parameter))?;
+            self.open_generic_parameter(template, *parameter, self.tree.get(*parameter))?;
         }
 
         Ok(Some(template))
     }
 
-    /// Declare one generic template and walk its parameter bounds.
+    /// Open one generic template and walk its parameter bounds.
     pub(in crate::check) fn walk_generic_template(
         &mut self,
         source: dir::GlobalNodeIdAny,
@@ -121,8 +118,7 @@ impl WalkState<'_, '_> {
         symbol: Option<dir::GlobalSymbolId>,
         parameters: &[dir::LocalNodeId<dir::GenericParameter>],
     ) -> CompilerResult<Option<GenericTemplateId>> {
-        let Some(template) = self.declare_generic_template(source, parent, symbol, parameters)?
-        else {
+        let Some(template) = self.open_generic_template(source, parent, symbol, parameters)? else {
             return Ok(None);
         };
 
@@ -191,20 +187,18 @@ impl WalkState<'_, '_> {
 
     /// Return whether one written type induces a generic parameter.
     fn induces_generic_parameter(
-        &self,
+        &mut self,
         ty: dir::GlobalTypeId,
         position: GenericInductionPosition,
     ) -> CompilerResult<bool> {
         let symbol = match self.check.ty(ty)? {
-            dir::Type::Instance(instance) => {
-                if self.check.is_transparent_intrinsic_alias(instance.symbol) {
-                    return Ok(false);
-                }
-
-                instance.symbol
-            }
+            dir::Type::Instance(instance) => instance.symbol,
             _ => return Ok(false),
         };
+        if self.check.is_transparent_intrinsic_alias(symbol)? {
+            return Ok(false);
+        }
+
         let kind = self.check.symbol_kind(symbol);
 
         let induces = match (position, kind) {
@@ -227,10 +221,7 @@ impl CheckState<'_> {
     ///
     /// Inducible holes still reachable from recorded declaration types
     /// become generated generic parameters on their declarations.
-    pub(in crate::check) fn propagate_induced_generics(
-        &mut self,
-        modules: &[ModuleId],
-    ) -> CompilerResult<()> {
+    pub(in crate::check) fn propagate_induced_generics(&mut self) -> CompilerResult<()> {
         let sites = self.generics.induction_sites().cloned().collect::<Vec<_>>();
 
         // collect all generated parameters before mutating generic tables;
@@ -238,7 +229,7 @@ impl CheckState<'_> {
         let mut induced = IndexMap::new();
         for site in sites {
             for variable in self.type_variables(site.ty)? {
-                let representative = self.variables.representative(variable)?;
+                let representative = self.solver.representative(variable)?;
                 let Some(parameter) = self.generics.induction(representative) else {
                     continue;
                 };
@@ -258,8 +249,8 @@ impl CheckState<'_> {
         induced.sort_by_key(|(variable, _)| (variable.module_id, variable.index));
 
         for (variable, (declaration, parent, symbol, induction)) in induced {
-            let template = self.declare_generic_template(declaration, parent, symbol)?;
-            let parameter = self.declare_induced_generic_parameter(template, induction)?;
+            let template = self.open_generic_template(declaration, parent, symbol)?;
+            let parameter = self.push_induced_generic_parameter(template, induction)?;
             let source = self.origin_source_node(Origin::Node(declaration))?;
             let solution = self.push_type(
                 declaration.module_id,
@@ -267,59 +258,6 @@ impl CheckState<'_> {
                 source,
             )?;
             self.set_solution(variable, solution)?;
-        }
-
-        // write declaration symbols as declaration references
-        for module in modules {
-            self.declare_module_reference_types(*module)?;
-        }
-
-        Ok(())
-    }
-
-    /// Tie each type declaration symbol to its declaration reference.
-    fn declare_module_reference_types(&mut self, module: ModuleId) -> CompilerResult<()> {
-        let binding_table = self.module(module).binding_table();
-        let symbols = binding_table
-            .symbol_ids()
-            .map(|symbol: dir::LocalSymbolId| symbol.into_global(module))
-            .filter(|symbol| {
-                let kind = self.symbol_kind(*symbol);
-
-                kind.is_type_definition() && !kind.is_type_alias()
-            })
-            .collect::<Vec<_>>();
-
-        for symbol in symbols {
-            self.declare_symbol_reference(symbol)?;
-        }
-
-        Ok(())
-    }
-
-    /// Tie one declaration symbol to its declaration reference.
-    fn declare_symbol_reference(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<()> {
-        let origin = Origin::Symbol(symbol);
-        let source = self.origin_source_node(origin)?;
-        let reference = self.push_type(
-            symbol.module_id,
-            dir::Type::Reference(dir::TypeReference { symbol }),
-            source,
-        )?;
-
-        // bind or equate the declaration's recorded type
-        if let Some(existing) = self.component_symbol_type_maybe(symbol) {
-            self.push_constraint(Constraint {
-                relation: Relation::Equal,
-                left: existing,
-                right: reference,
-                origin,
-                coercion_site: None,
-                condition: Condition::Always,
-                cause: ConstraintCause::General,
-            });
-        } else {
-            self.set_symbol_type(symbol, reference)?;
         }
 
         Ok(())

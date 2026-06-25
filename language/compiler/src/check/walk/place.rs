@@ -45,13 +45,7 @@ impl WalkState<'_, '_> {
             }
         }
 
-        // write the place type to the target node
-        let place = self.record_assignment_place(id, access)?;
-        if let Some(place) = place {
-            self.constrain_node_type(id, place.ty)?;
-        }
-
-        Ok(place)
+        self.record_assignment_place(id, access)
     }
 
     /// Record one writable place from an expression.
@@ -81,12 +75,12 @@ impl WalkState<'_, '_> {
                 self.check
                     .record_decision(source, Decision::Name(dir::NameResolution::new(symbol)))?;
                 let ty = self.symbol_type(symbol)?;
+                self.bind_node_type(id, ty)?;
+                if access != PlaceAccess::Write {
+                    self.check_assigned_read(id.into_any(), symbol);
+                }
 
-                Ok(Some(Place::new(
-                    ty,
-                    PlaceTarget::Binding { symbol },
-                    source,
-                )))
+                Ok(Some(Place::new(PlaceTarget::Binding { symbol }, source)))
             }
             // value.member
             dir::Expression::Member {
@@ -101,15 +95,9 @@ impl WalkState<'_, '_> {
                 let owner = self.node_type(*left)?;
                 let key = dir::StaticKey::Name(*name);
 
-                // queue selection for the member place type
-                let ty = self.node_type(id)?;
-                self.queue_decide(source);
+                self.queue_decision(source)?;
 
-                Ok(Some(Place::new(
-                    ty,
-                    PlaceTarget::Member { owner, key },
-                    source,
-                )))
+                Ok(Some(Place::new(PlaceTarget::Member { owner, key }, source)))
             }
             // value[index]
             dir::Expression::Index {
@@ -120,11 +108,9 @@ impl WalkState<'_, '_> {
                 let receiver = self.node_type(*left)?;
                 let index = self.node_type(*index)?;
 
-                let ty = self.node_type(id)?;
-                self.queue_decide(source);
+                self.queue_decision(source)?;
 
                 Ok(Some(Place::new(
-                    ty,
                     PlaceTarget::Index { receiver, index },
                     source,
                 )))
@@ -134,11 +120,9 @@ impl WalkState<'_, '_> {
                 operator: dir::UnaryOperator::Dereference,
                 ..
             } => {
-                // queue selection for the dereferenced place type
-                let ty = self.node_type(id)?;
-                self.queue_decide(source);
+                self.queue_decision(source)?;
 
-                Ok(Some(Place::new(ty, PlaceTarget::Dereference, source)))
+                Ok(Some(Place::new(PlaceTarget::Dereference, source)))
             }
             // reject expressions that cannot be assigned
             _ => {

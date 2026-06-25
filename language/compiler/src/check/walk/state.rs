@@ -16,8 +16,6 @@ pub(in crate::check) struct WalkState<'check, 'state> {
     pub(in crate::check) tree: dir::View<'check>,
     /// The module being walked.
     pub(in crate::check) module: ModuleId,
-    /// The active literal widening policy.
-    widening: Widening,
     /// How elided borrow lifetimes are handled in the active type position.
     borrow_lifetime_elision: BorrowLifetimeElision,
     /// Elided borrow lifetime holes tracked by the active return type.
@@ -46,7 +44,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
             check,
             tree,
             module,
-            widening: Widening::Preserve,
             borrow_lifetime_elision: BorrowLifetimeElision::Induce,
             return_borrow_lifetimes: Vec::new(),
             flow: FlowState::default(),
@@ -61,21 +58,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// Return mutable flow state for the active module.
     pub(in crate::check) fn flow_mut(&mut self) -> &mut FlowState {
         &mut self.flow
-    }
-
-    /// Walk one expression under one widening policy.
-    pub(in crate::check) fn walk_expression_with_widening(
-        &mut self,
-        id: dir::LocalNodeId<dir::Expression>,
-        expression: &dir::Expression,
-        widening: Widening,
-    ) -> CompilerResult<()> {
-        let previous = self.widening;
-        self.widening = widening;
-        let result = self.walk_expression(id, expression);
-        self.widening = previous;
-
-        result
     }
 
     /// Walk one return type while tracking elided borrow lifetimes.
@@ -124,36 +106,49 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(())
     }
 
-    /// Return one node's working type, opening a variable when missing.
+    /// Return one node's checked type, opening a slot when selection will fill it later.
     pub(in crate::check) fn node_type<T: dir::Node>(
         &mut self,
         id: dir::LocalNodeId<T>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.node_type_any(id.into_global_any(self.module))
-    }
-
-    /// Return one node's working type by any id, opening a variable when missing.
-    pub(in crate::check) fn node_type_any(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<dir::GlobalTypeId> {
+        let node = id.into_global_any(self.module);
         if let Some(ty) = self.check.node_type_maybe(node) {
             return Ok(ty);
         }
 
-        // open a fresh variable carrying the node origin; node types
-        // state what an expression is, only bindings widen
+        self.open_inferred_node_type(id, Widening::Preserve)
+    }
+
+    /// Open one inferred type as one node's checked type.
+    pub(in crate::check) fn open_inferred_node_type<T: dir::Node>(
+        &mut self,
+        id: dir::LocalNodeId<T>,
+        widening: Widening,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.open_inferred_node_type_any(id.into_any(), widening)
+    }
+
+    /// Open one inferred type as one node's checked type.
+    pub(in crate::check) fn open_inferred_node_type_any(
+        &mut self,
+        id: dir::LocalNodeIdAny,
+        widening: Widening,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let node = id.into_global(self.module);
+        if let Some(ty) = self.check.node_type_maybe(node) {
+            return Ok(ty);
+        }
+
+        // create the explicitly requested node hole
         let origin = Origin::Node(node);
-        let variable = self
-            .check
-            .allocate_variable(self.module, origin, Widening::Preserve);
-        let ty = self.check.push_variable_type(variable, node.local_id)?;
+        let variable = self.check.allocate_variable(self.module, origin, widening);
+        let ty = self.check.push_variable_type(variable, id)?;
         self.check.set_node_type(node, ty)?;
 
         Ok(ty)
     }
 
-    /// Open one fresh inference type at a source node.
+    /// Open one inference type at a source node.
     pub(in crate::check) fn open_type(
         &mut self,
         source: dir::LocalNodeIdAny,
@@ -161,7 +156,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let origin = Origin::Node(source.into_global(self.module));
         let variable = self
             .check
-            .allocate_variable(self.module, origin, self.widening);
+            .allocate_variable(self.module, origin, Widening::Preserve);
 
         self.check.push_variable_type(variable, source)
     }
@@ -179,11 +174,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.node_type(id)
     }
 
-    /// Constrain one node's own type to an exact type.
+    /// Bind one node's own type to an exact type.
     ///
     /// When no node type exists yet, the exact type becomes the stable node entry.
     /// When a node type already exists, the existing entry is equated with the exact type.
-    pub(in crate::check) fn constrain_node_type<T: dir::Node>(
+    pub(in crate::check) fn bind_node_type<T: dir::Node>(
         &mut self,
         id: dir::LocalNodeId<T>,
         ty: dir::GlobalTypeId,
@@ -200,19 +195,16 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(target)
     }
 
-    /// Constrain one node's own type after applying the active widening policy.
-    pub(in crate::check) fn constrain_widened_node_type<T: dir::Node>(
+    /// Copy one checked node type into another node.
+    pub(in crate::check) fn copy_node_type<T: dir::Node, U: dir::Node>(
         &mut self,
-        id: dir::LocalNodeId<T>,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let source = id.into_any();
-        let ty = match self.widening {
-            Widening::Preserve => ty,
-            Widening::Widen => self.check.widen_type(self.module, source, ty)?,
-        };
+        target: dir::LocalNodeId<T>,
+        source: dir::LocalNodeId<U>,
+    ) -> CompilerResult<()> {
+        let ty = self.node_type(source)?;
+        self.bind_node_type(target, ty)?;
 
-        self.constrain_node_type(id, ty)
+        Ok(())
     }
 
     /// Expect one node's type to flow into a contextual type.
@@ -222,8 +214,14 @@ impl<'check, 'state> WalkState<'check, 'state> {
         expected: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let node = id.into_global_any(self.module);
-        let target = self.node_type_any(node)?;
-        self.relate_type(Origin::Node(node), Relation::Assignable, target, expected);
+        let target = self.node_type(id)?;
+        self.push_relation(
+            Origin::Node(node),
+            ConstraintCause::Annotation,
+            Relation::Assignable,
+            target,
+            expected,
+        );
 
         Ok(target)
     }
@@ -236,7 +234,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) {
-        self.push_relation(origin, ConstraintCause::General, relation, left, right);
+        self.push_relation(origin, ConstraintCause::Inference, relation, left, right);
     }
 
     /// Collect one relation constraint with its failure context.
@@ -254,59 +252,78 @@ impl<'check, 'state> WalkState<'check, 'state> {
             left,
             right,
             origin,
-            coercion_site: origin.coercion_site(),
             condition,
             cause,
         });
     }
 
     /// Queue one node decision under the active static guard.
-    pub(in crate::check) fn queue_decide(&mut self, node: dir::GlobalNodeIdAny) {
+    pub(in crate::check) fn queue_decision(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<()> {
         // record the guard context the decision must run under
         if let Condition::When(predicates) = self.flow.active_static_guard() {
             self.check.set_node_condition(node, predicates);
         }
 
         self.check.queue_task(Task::Decide(node));
+
+        Ok(())
     }
 
-    /// Return one symbol's working type, opening a variable when missing.
+    /// Return one symbol's checked type, opening a slot for local forward references.
     pub(in crate::check) fn symbol_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(ty) = self.check.component_symbol_type_maybe(symbol) {
+        if let Some(ty) = self.check.symbol_type_maybe(symbol) {
             return Ok(ty);
         }
 
-        // external symbols follow their re-export to the origin, then read committed types
-        if !self.check.is_component_module(symbol.module_id) {
-            let symbol = self.check.resolve_external_alias(symbol)?;
-            self.check.import_external_module(symbol.module_id)?;
-            let committed = self
-                .check
-                .external_modules
-                .get(&symbol.module_id)
-                .and_then(|external| external.types.get_symbol_type_id(symbol));
-            let Some(ty) = committed else {
-                return Err(CompilerError::Internal {
-                    message: format!("external symbol {symbol:?} has no imported type"),
-                });
-            };
-
-            return Ok(ty);
+        // read committed symbols from imported components
+        let ty = if !self.check.is_component_module(symbol.module_id) {
+            self.external_symbol_type(symbol)?
         }
-        if self
+        // local variables use body-owned binding types
+        else if self.check.symbol_kind(symbol) == dir::SymbolKind::Variable {
+            self.binding_type(symbol, Widening::Preserve)?
+        }
+        // local declarations use stable declaration types
+        else {
+            self.declaration_type(symbol)?
+        };
+
+        Ok(ty)
+    }
+
+    /// Return one imported symbol's committed type.
+    fn external_symbol_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let symbol = self.check.resolve_symbol_alias(symbol)?;
+        self.check.import_external_module(symbol.module_id)?;
+        let committed = self
             .check
-            .module(symbol.module_id)
-            .is_import_alias(symbol.local_id)
-        {
+            .external_modules
+            .get(&symbol.module_id)
+            .and_then(|external| external.types.get_symbol_type_id(symbol));
+        let Some(ty) = committed else {
             return Err(CompilerError::Internal {
-                message: format!("import alias {symbol:?} reached type creation"),
+                message: format!("external symbol {symbol:?} has no imported type"),
             });
-        }
+        };
 
-        // open source declaration types on first use
+        Ok(ty)
+    }
+
+    /// Return one declaration type, opening a slot for recursive and forward references.
+    fn declaration_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // open declaration types on demand for recursive and forward references
         let origin = Origin::Symbol(symbol);
         let source = self
             .check
@@ -316,7 +333,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .check
             .allocate_variable(symbol.module_id, origin, Widening::Preserve);
         let ty = self.check.push_variable_type(variable, source)?;
-        self.check.set_symbol_type(symbol, ty)?;
+        self.check.set_declaration_type(symbol, ty)?;
 
         Ok(ty)
     }
@@ -328,7 +345,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         symbol: dir::GlobalSymbolId,
         widening: Widening,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(ty) = self.check.component_symbol_type_maybe(symbol) {
+        if let Some(ty) = self.check.binding_type_maybe(symbol) {
             return Ok(ty);
         }
 
@@ -341,38 +358,49 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .check
             .allocate_variable(symbol.module_id, origin, widening);
         let ty = self.check.push_variable_type(variable, source)?;
-        self.check.set_symbol_type(symbol, ty)?;
+        self.check.set_binding_type(symbol, ty)?;
 
         Ok(ty)
     }
 
-    /// Constrain one symbol's type to an exact type.
+    /// Bind one symbol's type to an exact type.
     ///
     /// When no symbol type exists yet, the exact type becomes the stable symbol entry.
     /// When a symbol type already exists, the existing entry is equated with the exact type.
-    pub(in crate::check) fn constrain_symbol_type(
+    pub(in crate::check) fn bind_symbol_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(existing) = self.check.component_symbol_type_maybe(symbol) {
+        let is_binding = self.check.symbol_kind(symbol) == dir::SymbolKind::Variable;
+        let existing = if is_binding {
+            self.check.binding_type_maybe(symbol)
+        } else {
+            self.check.declaration_type_maybe(symbol)
+        };
+
+        if let Some(existing) = existing {
             self.relate_type(Origin::Symbol(symbol), Relation::Equal, existing, ty);
 
             return Ok(existing);
         }
 
-        self.check.set_symbol_type(symbol, ty)?;
+        if is_binding {
+            self.check.set_binding_type(symbol, ty)?;
+        } else {
+            self.check.set_declaration_type(symbol, ty)?;
+        }
 
         Ok(ty)
     }
 
     /// Set one symbol's static value singleton type.
-    pub(in crate::check) fn set_symbol_value(
+    pub(in crate::check) fn set_static_value(
         &mut self,
         symbol: dir::GlobalSymbolId,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        self.check.set_symbol_value(symbol, value)
+        self.check.set_static_value(symbol, value)
     }
 
     /// Push one working type at a source node.
@@ -384,6 +412,15 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.check.push_type(self.module, ty, source)
     }
 
+    /// Return a normalized union type.
+    pub(in crate::check) fn union_type(
+        &mut self,
+        elements: impl IntoIterator<Item = dir::GlobalTypeId>,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.check.union_type(self.module, elements, source)
+    }
+
     /// Return a reference type for one well-known library declaration.
     pub(in crate::check) fn language_type_reference(
         &mut self,
@@ -391,10 +428,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         item: dir::LanguageItem,
         arguments: Vec<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let symbol = self.check.language_symbol(item);
-        let reference = dir::Type::Instance(dir::GenericInstance { symbol, arguments });
-
-        self.push_type(reference, source)
+        self.check
+            .push_language_type(self.module, source, item, arguments)
     }
 
     /// Return a value type with `undefined` included.
@@ -404,11 +439,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let undefined = self.push_type(dir::Type::Undefined, source)?;
-        let union = dir::Type::Union(dir::UnionType {
-            elements: vec![ty, undefined],
-        });
 
-        self.push_type(union, source)
+        self.union_type([ty, undefined], source)
     }
 
     /// Return the predicates of the active static guard.

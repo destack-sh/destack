@@ -128,9 +128,9 @@ impl WalkState<'_, '_> {
                     .module(self.module)
                     .declaration_symbol(id.into_any());
 
-                // declare signature parameters before building the method type
+                // open signature parameters before building the method type
                 let source = id.into_global_any(self.module);
-                let template = self.declare_signature_template(source, None, symbol, signature)?;
+                let template = self.open_signature_template(source, None, symbol, signature)?;
                 self.walk_function_signature(template, signature)?;
                 let result = self.walk_function_result_type(id.into_any(), signature, body)?;
 
@@ -143,7 +143,7 @@ impl WalkState<'_, '_> {
                     result,
                 )?;
                 if let Some(symbol) = symbol {
-                    self.constrain_symbol_type(symbol, method)?;
+                    self.bind_symbol_type(symbol, method)?;
                 }
 
                 // walk method body after its result exists
@@ -242,7 +242,7 @@ impl WalkState<'_, '_> {
                 if let (Some(value), Some(symbol)) = (value, symbol) {
                     let induction = GenericInductionDeclaration::new(source, parent, Some(symbol));
                     self.record_type_induction_site(induction, value);
-                    self.constrain_symbol_type(symbol, value)?;
+                    self.bind_symbol_type(symbol, value)?;
                 }
 
                 let Some(symbol) = symbol else {
@@ -293,13 +293,13 @@ impl WalkState<'_, '_> {
                         Some(declared) => declared,
                         None => self.symbol_type(symbol)?,
                     };
-                    self.constrain_symbol_type(symbol, ty)?;
+                    self.bind_symbol_type(symbol, ty)?;
 
                     if let Some(written) = written {
                         // the written value flows into the declared type
                         let origin = Origin::Node(id.into_global_any(self.module));
                         self.relate_type(origin, Relation::Assignable, written, ty);
-                        self.set_symbol_value(symbol, written)?;
+                        self.set_static_value(symbol, written)?;
                     }
                 }
 
@@ -373,7 +373,7 @@ impl WalkState<'_, '_> {
                     if let Some(induction) = induction_declaration {
                         self.record_type_induction_site(induction, field_type);
                     }
-                    self.constrain_symbol_type(symbol, field_type)?;
+                    self.bind_symbol_type(symbol, field_type)?;
                 }
 
                 // check defaults after the field type is known
@@ -435,11 +435,10 @@ impl WalkState<'_, '_> {
                 let receiver_owner = member_receiver.and_then(|scope| scope.owner);
                 let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
                 let source = id.into_global_any(self.module);
-                let template =
-                    self.declare_signature_template(source, parent, symbol, signature)?;
+                let template = self.open_signature_template(source, parent, symbol, signature)?;
                 let captured_template = template.or(parent);
 
-                // declare signature parameters before building the method type
+                // open signature parameters before building the method type
                 self.walk_function_signature(template, signature)?;
                 if body.is_none() && !is_ambient && !abstraction.is_abstract() {
                     let member = self.method_body_name(key, signature);
@@ -470,7 +469,7 @@ impl WalkState<'_, '_> {
 
                 // write the method symbol type
                 if let Some(symbol) = symbol {
-                    self.constrain_symbol_type(symbol, method)?;
+                    self.bind_symbol_type(symbol, method)?;
                 }
 
                 // walk method body after its result exists
@@ -573,7 +572,7 @@ impl WalkState<'_, '_> {
                     .module(self.module)
                     .declaration_symbol(id.into_any());
                 if let Some(symbol) = symbol {
-                    self.constrain_symbol_type(symbol, written)?;
+                    self.bind_symbol_type(symbol, written)?;
                 }
 
                 let (Some(symbol), Some(key)) = (symbol, key.direct_static_key()) else {
@@ -609,11 +608,10 @@ impl WalkState<'_, '_> {
                     .module(self.module)
                     .declaration_symbol(id.into_any());
                 let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
-                let template =
-                    self.declare_signature_template(source, parent, symbol, signature)?;
+                let template = self.open_signature_template(source, parent, symbol, signature)?;
                 let captured_template = template.or(parent);
 
-                // declare signature parameters before building the method type
+                // open signature parameters before building the method type
                 self.walk_function_signature(template, signature)?;
                 let result = self.walk_function_result_type(id.into_any(), signature, body)?;
                 let receiver_type = receiver_scope
@@ -629,7 +627,7 @@ impl WalkState<'_, '_> {
 
                 // write the method symbol type
                 if let Some(symbol) = symbol {
-                    self.constrain_symbol_type(symbol, method)?;
+                    self.bind_symbol_type(symbol, method)?;
                 }
 
                 // walk default method bodies
@@ -743,7 +741,7 @@ impl WalkState<'_, '_> {
 
                 // write the member symbol type
                 if let (Some(value), Some(symbol)) = (value, symbol) {
-                    self.constrain_symbol_type(symbol, value)?;
+                    self.bind_symbol_type(symbol, value)?;
                 }
 
                 let Some(symbol) = symbol else {
@@ -788,14 +786,14 @@ impl WalkState<'_, '_> {
                     .declaration_symbol(id.into_any());
                 if let Some(symbol) = symbol {
                     if let Some(declared) = declared {
-                        self.constrain_symbol_type(symbol, declared)?;
+                        self.bind_symbol_type(symbol, declared)?;
                     }
                     if let Some(written) = written {
                         if let Some(declared) = declared {
                             let origin = Origin::Node(source);
                             self.relate_type(origin, Relation::Assignable, written, declared);
                         }
-                        self.set_symbol_value(symbol, written)?;
+                        self.set_static_value(symbol, written)?;
                     }
                 }
 

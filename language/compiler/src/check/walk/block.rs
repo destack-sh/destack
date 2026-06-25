@@ -66,11 +66,10 @@ impl WalkState<'_, '_> {
         if block.context == dir::BlockContext::Expression
             && let Some(expression) = block.tail_expression
         {
-            let tail = self.node_type(expression)?;
-            self.constrain_node_type(id, tail)?;
+            self.copy_node_type(id, expression)?;
         } else {
             let void = self.push_type(dir::Type::Void, id.into_any())?;
-            self.constrain_node_type(id, void)?;
+            self.bind_node_type(id, void)?;
         }
 
         Ok(())

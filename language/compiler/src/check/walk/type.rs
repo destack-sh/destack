@@ -29,7 +29,7 @@ impl WalkState<'_, '_> {
         }
 
         let ty = self.walk_type_expression_node(id)?;
-        self.check.set_node_type(node, ty)?;
+        self.bind_node_type(id, ty)?;
 
         Ok(ty)
     }
@@ -210,12 +210,7 @@ impl WalkState<'_, '_> {
                 let target = self.walk_type_expression(*target_type)?;
                 let null = self.push_type(dir::Type::Null, source)?;
                 let undefined = self.push_type(dir::Type::Undefined, source)?;
-                let nullish = self.push_type(
-                    dir::Type::Union(dir::UnionType {
-                        elements: vec![null, undefined],
-                    }),
-                    source,
-                )?;
+                let nullish = self.union_type([null, undefined], source)?;
                 let never = self.push_type(dir::Type::Never, source)?;
 
                 self.push_type(
@@ -323,12 +318,7 @@ impl WalkState<'_, '_> {
                     element_types.push(self.walk_type_expression(element)?);
                 }
 
-                self.push_type(
-                    dir::Type::Union(dir::UnionType {
-                        elements: element_types,
-                    }),
-                    source,
-                )
+                self.union_type(element_types, source)
             }
             // A & B
             dir::TypeExpression::Intersection { elements } => {
@@ -442,21 +432,7 @@ impl WalkState<'_, '_> {
 
                 match form {
                     // open a widening variable for anonymous holes
-                    dir::InferForm::Hole => {
-                        let node = id.into_global_any(self.module);
-                        if let Some(ty) = self.check.node_type_maybe(node) {
-                            return Ok(ty);
-                        }
-                        let variable = self.check.allocate_variable(
-                            self.module,
-                            Origin::Node(node),
-                            Widening::Widen,
-                        );
-                        let ty = self.check.push_variable_type(variable, source)?;
-                        self.check.set_node_type(node, ty)?;
-
-                        Ok(ty)
-                    }
+                    dir::InferForm::Hole => self.open_inferred_node_type(id, Widening::Widen),
                     // keep infer bindings symbolic for conditional probes
                     dir::InferForm::Infer => {
                         let constraint = match constraint {
@@ -1028,7 +1004,7 @@ impl WalkState<'_, '_> {
         let binder = match self.check.generics.parameter_by_symbol(symbol) {
             Some(binder) => binder,
             None => {
-                let template = self.check.declare_generic_template(
+                let template = self.check.open_generic_template(
                     parameter.into_global_any(self.module),
                     None,
                     None,
@@ -1046,11 +1022,11 @@ impl WalkState<'_, '_> {
                 };
 
                 self.check
-                    .declare_generic_parameter(binding, template, Some(symbol))?
+                    .push_generic_parameter(binding, template, Some(symbol))?
             }
         };
         let ty = self.push_type(dir::Type::Parameter(binder), parameter.into_any())?;
-        self.constrain_symbol_type(symbol, ty)?;
+        self.bind_symbol_type(symbol, ty)?;
 
         let key_remap = match key_remap {
             Some(key_remap) => Some(self.walk_type_expression(key_remap)?),

@@ -67,7 +67,7 @@ impl WalkState<'_, '_> {
         &mut self,
         declarator: dir::LocalNodeId<dir::Declarator>,
     ) -> CompilerResult<()> {
-        self.mark_declarator_assigned(self.tree.get(declarator));
+        self.mark_declarator_assigned(self.tree.get(declarator), false);
         self.narrow_declarator_match(declarator)
     }
 

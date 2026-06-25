@@ -6,13 +6,13 @@ use crate::check::{
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
-    /// Declare one generic parameter header.
+    /// Open one generic parameter header.
     ///
     /// Example:
     /// ```ds
     /// <T extends Serializable = string>
     /// ```
-    pub(in crate::check) fn declare_generic_parameter(
+    pub(in crate::check) fn open_generic_parameter(
         &mut self,
         template: GenericTemplateId,
         id: dir::LocalNodeId<dir::GenericParameter>,
@@ -57,11 +57,11 @@ impl WalkState<'_, '_> {
         };
         let parameter = self
             .check
-            .declare_generic_parameter(binding, template, Some(symbol))?;
+            .push_generic_parameter(binding, template, Some(symbol))?;
 
         // the parameter name writes its own parameter type
         let ty = self.push_type(dir::Type::Parameter(parameter), id.into_any())?;
-        self.constrain_symbol_type(symbol, ty)?;
+        self.bind_symbol_type(symbol, ty)?;
 
         Ok(Some(parameter))
     }
@@ -81,8 +81,7 @@ impl WalkState<'_, '_> {
         let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
             return Ok(());
         };
-        let Some(parameter) = self.declare_generic_parameter(template, id, generic_parameter)?
-        else {
+        let Some(parameter) = self.open_generic_parameter(template, id, generic_parameter)? else {
             return Ok(());
         };
 
@@ -222,7 +221,7 @@ impl WalkState<'_, '_> {
                             false,
                         )?;
                     } else if let Some(parameter_type) = parameter_type {
-                        self.constrain_symbol_type(symbol, parameter_type)?;
+                        self.bind_symbol_type(symbol, parameter_type)?;
                     }
                 }
 
@@ -269,7 +268,7 @@ impl WalkState<'_, '_> {
                             true,
                         )?;
                     } else if let Some(parameter_type) = parameter_type {
-                        self.constrain_symbol_type(symbol, parameter_type)?;
+                        self.bind_symbol_type(symbol, parameter_type)?;
                     }
                 }
             }
@@ -360,7 +359,7 @@ impl WalkState<'_, '_> {
             });
         };
 
-        // declare a generated static parameter when the callable type has no label
+        // open a generated static parameter when the callable type has no label
         let Some(symbol) = symbol else {
             let parameter = GenericInductionParameter {
                 name_prefix: "C",
@@ -370,12 +369,12 @@ impl WalkState<'_, '_> {
             };
             let parameter = self
                 .check
-                .declare_induced_generic_parameter(template, parameter)?;
+                .push_induced_generic_parameter(template, parameter)?;
 
             return Ok(Some(parameter));
         };
 
-        // declare the named static parameter
+        // open the named static parameter
         let default = default
             .map(|default| self.walk_static_term(default))
             .transpose()?;
@@ -392,11 +391,11 @@ impl WalkState<'_, '_> {
         };
         let parameter = self
             .check
-            .declare_generic_parameter(binding, template, Some(symbol))?;
+            .push_generic_parameter(binding, template, Some(symbol))?;
 
         // write the parameter name as its own parameter type
         let ty = self.push_type(dir::Type::Parameter(parameter), source)?;
-        self.constrain_symbol_type(symbol, ty)?;
+        self.bind_symbol_type(symbol, ty)?;
 
         Ok(Some(parameter))
     }

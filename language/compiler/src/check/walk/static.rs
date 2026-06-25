@@ -242,12 +242,18 @@ impl WalkState<'_, '_> {
         if let Some(term) = evaluated
             && let Some(literal) = self.static_term_literal(term)
         {
-            return self.push_type(dir::Type::Literal(literal), source);
+            let ty = self.push_type(dir::Type::Literal(literal), source)?;
+
+            return self.bind_static_term(expression, ty);
         }
 
         match self.tree.get(expression) {
             // (C)
-            dir::Expression::Parenthesized { expression } => self.walk_static_term(*expression),
+            dir::Expression::Parenthesized { expression: nested } => {
+                let ty = self.walk_static_term(*nested)?;
+
+                self.bind_static_term(expression, ty)
+            }
             // type
             dir::Expression::Type { value } => {
                 if let dir::TypeExpression::Infer {
@@ -255,17 +261,29 @@ impl WalkState<'_, '_> {
                     ..
                 } = self.tree.get(*value)
                 {
-                    return self.node_type_any((*value).into_global_any(self.module));
+                    let ty = self
+                        .check
+                        .require_node_type((*value).into_global_any(self.module))?;
+
+                    return self.bind_static_term(expression, ty);
                 }
 
-                self.walk_type_expression(*value)
+                let ty = self.walk_type_expression(*value)?;
+
+                self.bind_static_term(expression, ty)
             }
             // 1
             dir::Expression::ScalarLiteral(value) => {
-                self.push_type(dir::Type::Literal(*value), source)
+                let ty = self.push_type(dir::Type::Literal(*value), source)?;
+
+                self.bind_static_term(expression, ty)
             }
             // this
-            dir::Expression::This => self.push_type(dir::Type::This, source),
+            dir::Expression::This => {
+                let ty = self.push_type(dir::Type::This, source)?;
+
+                self.bind_static_term(expression, ty)
+            }
             // resolve names to comptime parameters and static constants
             dir::Expression::Identifier { .. } => {
                 let reference = self
@@ -308,15 +326,22 @@ impl WalkState<'_, '_> {
                 // comptime parameters write their parameter type so
                 // instantiation substitution reaches the predicate
                 if let Some(parameter) = self.check.generics.parameter_by_symbol(symbol) {
-                    return self.push_type(dir::Type::Parameter(parameter), source);
+                    let ty = self.push_type(dir::Type::Parameter(parameter), source)?;
+
+                    return self.bind_static_term(expression, ty);
+                }
+
+                if let Some(value) = self.check.static_value(symbol) {
+                    return self.bind_static_term(expression, value);
                 }
 
                 let reference = dir::Type::Instance(dir::GenericInstance {
                     symbol,
                     arguments: Vec::new(),
                 });
+                let ty = self.push_type(reference, source)?;
 
-                self.push_type(reference, source)
+                self.bind_static_term(expression, ty)
             }
             // C == D, N * 2
             dir::Expression::Binary {
@@ -326,11 +351,12 @@ impl WalkState<'_, '_> {
             } => {
                 let Ok(operator) = dir::StaticBinaryOperator::try_from(*operator) else {
                     self.check.report_invalid_static_guard(self.module, source);
-
-                    return self.push_type(
+                    let ty = self.push_type(
                         dir::Type::Literal(dir::ScalarLiteral::Boolean(false)),
                         source,
-                    );
+                    )?;
+
+                    return self.bind_static_term(expression, ty);
                 };
                 let left = self.walk_static_term(*left)?;
                 let right = self.walk_static_term(*right)?;
@@ -339,24 +365,27 @@ impl WalkState<'_, '_> {
                     left,
                     right,
                 });
+                let ty = self.push_type(dir::Type::Operation(operation), source)?;
 
-                self.push_type(dir::Type::Operation(operation), source)
+                self.bind_static_term(expression, ty)
             }
             // !C
             dir::Expression::Unary { operator, right } => {
                 let Ok(operator) = dir::StaticUnaryOperator::try_from(*operator) else {
                     self.check.report_invalid_static_guard(self.module, source);
-
-                    return self.push_type(
+                    let ty = self.push_type(
                         dir::Type::Literal(dir::ScalarLiteral::Boolean(false)),
                         source,
-                    );
+                    )?;
+
+                    return self.bind_static_term(expression, ty);
                 };
                 let target = self.walk_static_term(*right)?;
                 let operation =
                     dir::TypeOperation::StaticUnary(dir::StaticUnaryType { operator, target });
+                let ty = self.push_type(dir::Type::Operation(operation), source)?;
 
-                self.push_type(dir::Type::Operation(operation), source)
+                self.bind_static_term(expression, ty)
             }
             // member chains project static members off their owners
             dir::Expression::Member {
@@ -369,18 +398,29 @@ impl WalkState<'_, '_> {
                     key: dir::StaticKey::Name(*name),
                     arguments: Vec::new(),
                 });
+                let ty = self.push_type(member, source)?;
 
-                self.push_type(member, source)
+                self.bind_static_term(expression, ty)
             }
             _ => {
                 self.check.report_invalid_static_guard(self.module, source);
-
-                self.push_type(
+                let ty = self.push_type(
                     dir::Type::Literal(dir::ScalarLiteral::Boolean(false)),
                     source,
-                )
+                )?;
+
+                self.bind_static_term(expression, ty)
             }
         }
+    }
+
+    /// Bind one static expression node to its static term type.
+    fn bind_static_term(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.bind_node_type(expression, ty)
     }
 
     /// Return one eagerly evaluated static term as a scalar literal.

@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{Decision, WalkState};
+use crate::check::{Decision, WalkState, Widening};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
@@ -59,10 +59,18 @@ impl WalkState<'_, '_> {
                             source,
                             Decision::Name(dir::NameResolution::new(symbol)),
                         )?;
-                        let ty = self.symbol_type(symbol)?;
+                        let declared = match self.check.static_value(symbol) {
+                            Some(value) => value,
+                            None => self.symbol_type(symbol)?,
+                        };
+                        self.check_assigned_read(id.into_any(), symbol);
+
                         // read the active flow narrowing when one exists
-                        let ty = self.flow_path_narrowing(id).unwrap_or(ty);
-                        self.constrain_node_type(id, ty)?;
+                        if let Some(narrowed) = self.flow_path_narrowing(id) {
+                            self.bind_node_type(id, narrowed)?;
+                        } else {
+                            self.bind_reference_node_type(id, symbol, declared)?;
+                        }
                     }
 
                     // overload sets resolve at their call sites
@@ -74,9 +82,6 @@ impl WalkState<'_, '_> {
                             source,
                             Decision::Name(dir::NameResolution::from_symbols(symbols.to_vec())),
                         )?;
-
-                        // open the node type for call selection
-                        self.node_type(id)?;
                     }
                 }
             }
@@ -89,7 +94,7 @@ impl WalkState<'_, '_> {
                 self.check
                     .report_ambiguous_reference(self.module, id.into_any(), &path);
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.constrain_node_type(id, error)?;
+                self.bind_node_type(id, error)?;
             }
 
             // missing names fail loudly
@@ -100,13 +105,13 @@ impl WalkState<'_, '_> {
                 self.check
                     .report_unresolved_reference(self.module, id.into_any(), &path);
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.constrain_node_type(id, error)?;
+                self.bind_node_type(id, error)?;
             }
 
             // reject namespaces used directly as values
             Some(dir::Reference::Namespace(_)) => {
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.constrain_node_type(id, error)?;
+                self.bind_node_type(id, error)?;
             }
 
             // require resolve to write the bare name reference
@@ -156,7 +161,8 @@ impl WalkState<'_, '_> {
                             Decision::Name(dir::NameResolution::new(symbol)),
                         )?;
                         let ty = self.symbol_type(symbol)?;
-                        self.constrain_node_type(id, ty)?;
+                        self.check_assigned_read(id.into_any(), symbol);
+                        self.bind_reference_node_type(id, symbol, ty)?;
                     }
                     // overload sets resolve at their call sites
                     _ => {
@@ -164,7 +170,6 @@ impl WalkState<'_, '_> {
                             source,
                             Decision::Name(dir::NameResolution::from_symbols(symbols.to_vec())),
                         )?;
-                        self.node_type(id)?;
                     }
                 }
             }
@@ -176,7 +181,7 @@ impl WalkState<'_, '_> {
                         .report_ambiguous_reference(self.module, id.into_any(), &path);
                 }
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.constrain_node_type(id, error)?;
+                self.bind_node_type(id, error)?;
             }
 
             // unresolved name paths fail loudly
@@ -186,19 +191,18 @@ impl WalkState<'_, '_> {
                         .report_unresolved_reference(self.module, id.into_any(), &path);
                 }
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.constrain_node_type(id, error)?;
+                self.bind_node_type(id, error)?;
             }
 
             // reject namespaces used directly as values
             Some(dir::Reference::Namespace(_)) => {
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.constrain_node_type(id, error)?;
+                self.bind_node_type(id, error)?;
             }
 
             // queue selection for value member access
             Some(dir::Reference::Projected { .. }) | None => {
-                self.node_type(id)?;
-                self.queue_decide(id.into_global_any(self.module));
+                self.queue_decision(id.into_global_any(self.module))?;
             }
         }
 
@@ -223,8 +227,31 @@ impl WalkState<'_, '_> {
         for argument in generic_arguments {
             self.walk_generic_arguments(std::slice::from_ref(argument))?;
         }
-        self.node_type(id)?;
-        self.queue_decide(id.into_global_any(self.module));
+        self.queue_decision(id.into_global_any(self.module))?;
+
+        Ok(())
+    }
+
+    /// Bind one reference occurrence to its declaration type.
+    fn bind_reference_node_type(
+        &mut self,
+        id: dir::LocalNodeId<dir::Expression>,
+        symbol: dir::GlobalSymbolId,
+        declared: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        if self.check.symbol_template(symbol).is_none() {
+            self.bind_node_type(id, declared)?;
+
+            return Ok(());
+        }
+
+        let slot = self.open_inferred_node_type(id, Widening::Preserve)?;
+        let Some(variable) = self.check.root_variable(slot)? else {
+            return Err(CompilerError::Internal {
+                message: format!("generic reference {symbol:?} did not open an inference slot"),
+            });
+        };
+        self.check.set_variable_default(variable, declared)?;
 
         Ok(())
     }

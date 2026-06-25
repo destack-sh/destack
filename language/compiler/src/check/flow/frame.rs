@@ -56,6 +56,6 @@ pub(in crate::check) struct ControlTarget {
 pub(in crate::check) struct TryTarget {
     /// The result type receiving propagated failures.
     pub(in crate::check::flow) failure: dir::GlobalTypeId,
-    /// Failure values collected while walking the try body.
-    pub(in crate::check::flow) failures: Vec<dir::GlobalTypeId>,
+    /// Whether the try body propagated at least one failure.
+    pub(in crate::check::flow) has_failure: bool,
 }

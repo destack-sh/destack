@@ -3,6 +3,7 @@ use destack_dir as dir;
 use crate::CompilerResult;
 use crate::check::{
     GenericInductionPosition, GenericTemplateId, Origin, ReceiverBinding, Relation, WalkState,
+    Widening,
 };
 
 impl<'check, 'state> WalkState<'check, 'state> {
@@ -203,7 +204,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         let source = source.into_global(self.module);
         let template = if generic_parameters.is_empty() {
-            self.check.declare_generic_template(source, parent, None)?
+            self.check.open_generic_template(source, parent, None)?
         } else {
             let Some(template) =
                 self.walk_generic_template(source, parent, None, generic_parameters)?
@@ -424,7 +425,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             parameter => parameter.declared_type(),
         };
         let Some(declared_type) = declared_type else {
-            return Ok(Some(self.node_type(id)?));
+            return Ok(Some(self.open_inferred_node_type(id, Widening::Preserve)?));
         };
 
         let is_optional = self.tree.get(id).is_optional();
@@ -439,7 +440,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         } else {
             written
         };
-        self.constrain_node_type(id, written)?;
+        self.bind_node_type(id, written)?;
 
         Ok(Some(written))
     }

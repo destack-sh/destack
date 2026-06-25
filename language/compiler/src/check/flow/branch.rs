@@ -48,7 +48,7 @@ impl WalkState<'_, '_> {
             return;
         };
 
-        // seed merge with the first branch
+        // restore the first branch as the initial merge state
         self.restore_flow_branch(checkpoint, first);
 
         // intersect each remaining branch into the current flow

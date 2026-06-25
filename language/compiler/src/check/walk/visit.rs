@@ -5,26 +5,26 @@ use crate::CompilerResult;
 use crate::check::{CheckState, WalkState};
 
 impl CheckState<'_> {
-    /// Declare DIR headers needed before body checking.
+    /// Walk DIR headers needed before body checking.
     ///
     /// Example:
     /// ```ds
     /// class Box<T> {}
     /// ```
-    pub(in crate::check) fn declare_module_headers(
-        &mut self,
-        module: ModuleId,
-    ) -> CompilerResult<()> {
+    pub(in crate::check) fn walk_module_headers(&mut self, module: ModuleId) -> CompilerResult<()> {
         let input = self.module(module);
         let parsed = input.parsed.clone();
         let expanded = input.expanded.clone();
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
 
+        // bind nominal references before bodies can read them
+        self.bind_module_reference_types(module)?;
+
         let mut walk = WalkState::new(module, tree, self);
 
-        // declare generic headers before bodies
+        // walk generic headers before bodies
         for root in &expanded.roots {
-            walk.declare_expression_header(*root, tree.get(*root))?;
+            walk.walk_expression_header(*root, tree.get(*root))?;
         }
 
         Ok(())
