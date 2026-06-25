@@ -1,10 +1,11 @@
 use destack_dir as dir;
+use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 use crate::check::{Origin, Relation};
 use crate::{CompilerError, CompilerResult};
 
-/// Component-valid index of one collected constraint.
+/// Component-global id of one collected constraint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) struct ConstraintId(u32);
 
@@ -31,27 +32,60 @@ pub(in crate::check) struct Constraint {
     pub(in crate::check) right: dir::GlobalTypeId,
     /// The source that produced the constraint.
     pub(in crate::check) origin: Origin,
-    /// The value expression that receives an implicit coercion.
-    pub(in crate::check) coercion_site: Option<dir::GlobalNodeIdAny>,
     /// The condition gating the constraint.
     pub(in crate::check) condition: Condition,
-    /// The source context that failures report under.
-    pub(in crate::check) cause: ConstraintCause,
+    /// The checker role of this relation.
+    pub(in crate::check) role: ConstraintRole,
 }
 
-/// Source context that produced one constraint.
-/// Failures pick their diagnostic from the relation and this context.
+/// Role one constraint plays in the checker.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum ConstraintCause {
-    /// Plain value or annotation flow.
-    General,
-    /// Argument flowing into a parameter.
+pub(in crate::check) enum ConstraintRole {
+    /// Relation checked at its origin without creating an implicit coercion.
+    ///
+    /// Examples:
+    /// ```ds
+    /// value satisfies Display
+    /// value as int32
+    /// function value<T: Display>(input: T) {}
+    /// ```
+    Check,
+
+    /// Runtime expression assigned into a storage or pattern target.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const value: int32 = 1
+    /// target = source
+    /// const [first] = values
+    /// ```
+    Value,
+
+    /// Runtime argument assigned into a call or subscript parameter.
+    ///
+    /// Examples:
+    /// ```ds
+    /// print(value)
+    /// list[index]
+    /// ```
     Argument,
-    /// Returned or completed value flowing into a result type.
-    Return,
-    /// Yielded value flowing into a generator channel.
-    Yield,
-    /// Runtime condition requiring a boolean.
+
+    /// Function body value assigned into a return or yield channel.
+    ///
+    /// Examples:
+    /// ```ds
+    /// return value
+    /// yield value
+    /// ```
+    Output,
+
+    /// Control-flow condition assigned to boolean.
+    ///
+    /// Examples:
+    /// ```ds
+    /// if (condition) {}
+    /// while (condition) {}
+    /// ```
     Condition,
 }
 
@@ -84,37 +118,65 @@ impl Condition {
     }
 }
 
-/// Collected constraints with completion tracking.
+/// Solved state of one constraint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum ConstraintState {
+    /// The constraint has not finished solving.
+    Pending,
+    /// The constraint relation holds.
+    Holds,
+    /// The constraint relation failed and reported its diagnostic.
+    Fails,
+    /// The constraint guard decided false.
+    Skipped,
+}
+
+impl ConstraintState {
+    /// Return whether the constraint is done.
+    pub(in crate::check) fn is_done(self) -> bool {
+        !matches!(self, Self::Pending)
+    }
+}
+
+/// Collected constraints with solver state.
 #[derive(Debug)]
 pub(in crate::check) struct ConstraintTable {
-    /// The collected constraints in allocation order.
-    constraints: Vec<Constraint>,
-    /// Whether each constraint finished solving.
-    completed: Vec<bool>,
+    /// The collected constraints keyed by absolute constraint id.
+    constraints: IndexMap<ConstraintId, Constraint>,
+    /// Constraint states keyed by absolute constraint id.
+    states: IndexMap<ConstraintId, ConstraintState>,
 }
 
 impl ConstraintTable {
     /// Create an empty constraint table.
     pub(in crate::check) fn new() -> Self {
         Self {
-            constraints: Vec::new(),
-            completed: Vec::new(),
+            constraints: IndexMap::new(),
+            states: IndexMap::new(),
         }
     }
 
-    /// Allocate one constraint.
-    pub(in crate::check) fn allocate(&mut self, constraint: Constraint) -> ConstraintId {
-        let id = ConstraintId(self.constraints.len() as u32);
-        self.constraints.push(constraint);
-        self.completed.push(false);
+    /// Insert one exact constraint id.
+    pub(in crate::check) fn insert(&mut self, id: ConstraintId, constraint: Constraint) {
+        self.constraints.insert(id, constraint);
+        self.states.insert(id, ConstraintState::Pending);
+    }
 
-        id
+    /// Remove one exact constraint id.
+    pub(in crate::check) fn remove(
+        &mut self,
+        id: ConstraintId,
+    ) -> (Option<Constraint>, Option<ConstraintState>) {
+        let constraint = self.constraints.swap_remove(&id);
+        let state = self.states.swap_remove(&id);
+
+        (constraint, state)
     }
 
     /// Return one constraint.
     pub(in crate::check) fn get(&self, id: ConstraintId) -> CompilerResult<&Constraint> {
         self.constraints
-            .get(id.index())
+            .get(&id)
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check constraint {id:?} is not allocated"),
             })
@@ -124,33 +186,31 @@ impl ConstraintTable {
     pub(in crate::check) fn iter(&self) -> impl Iterator<Item = (ConstraintId, &Constraint)> {
         self.constraints
             .iter()
-            .enumerate()
-            .map(|(index, constraint)| (ConstraintId::at(index), constraint))
+            .map(|(id, constraint)| (*id, constraint))
     }
 
-    /// Mark one constraint as finished.
-    pub(in crate::check) fn complete(&mut self, id: ConstraintId) {
-        self.completed[id.index()] = true;
+    /// Return one constraint state.
+    pub(in crate::check) fn state(&self, id: ConstraintId) -> CompilerResult<ConstraintState> {
+        self.states
+            .get(&id)
+            .copied()
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("check constraint {id:?} has no solver state"),
+            })
     }
 
-    /// Reopen one constraint during probe rollback.
-    pub(in crate::check) fn reopen(&mut self, id: ConstraintId) {
-        self.completed[id.index()] = false;
+    /// Set one constraint state.
+    pub(in crate::check) fn set_state(&mut self, id: ConstraintId, state: ConstraintState) {
+        self.states.insert(id, state);
     }
 
     /// Return whether one constraint finished solving.
     pub(in crate::check) fn is_complete(&self, id: ConstraintId) -> bool {
-        self.completed[id.index()]
+        self.state(id).is_ok_and(ConstraintState::is_done)
     }
 
     /// Return the number of collected constraints.
     pub(in crate::check) fn count(&self) -> usize {
         self.constraints.len()
-    }
-
-    /// Truncate to a previous constraint count.
-    pub(in crate::check) fn truncate(&mut self, count: usize) {
-        self.constraints.truncate(count);
-        self.completed.truncate(count);
     }
 }

@@ -3,22 +3,21 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckEvent, CheckState, Condition, Constraint, ConstraintCause, Dependency, Mutation,
-    Origin, Relation, Task, VariableBounds, Widening, answer,
+    Answer, CheckEvent, CheckState, Condition, Constraint, ConstraintRole, Dependency, Origin,
+    Relation, Task, VariableBounds, Widening, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Allocate one journaled inference variable.
+    /// Allocate one inference variable.
     pub(in crate::check) fn allocate_variable(
         &mut self,
         module: ModuleId,
         origin: Origin,
         widening: Widening,
     ) -> dir::TypeVariableId {
-        let variable = self.variables.allocate(module, origin, widening);
-        self.journal
-            .record(Mutation::VariableAllocated { variable });
+        let variable = self.solver.allocate_variable(module, origin, widening);
+        self.record_event(CheckEvent::VariableAllocated { variable, widening });
 
         variable
     }
@@ -29,8 +28,8 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
         default: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let representative = self.variables.representative(variable)?;
-        let state = self.variables.get_mut(representative)?;
+        let representative = self.solver.representative(variable)?;
+        let state = self.solver.variable_mut(representative)?;
         let previous = state.default;
         if previous == Some(default) {
             return Ok(());
@@ -41,10 +40,6 @@ impl CheckState<'_> {
             });
         }
         state.default = Some(default);
-        self.journal.record_with(|| Mutation::VariableDefaultSet {
-            variable: representative,
-            previous,
-        });
         self.wait_for_bound_variables(representative, default)?;
         self.queue_task(Task::Solve(representative));
 
@@ -56,19 +51,40 @@ impl CheckState<'_> {
         &mut self,
         variable: dir::TypeVariableId,
     ) -> CompilerResult<Answer<()>> {
-        let representative = self.variables.representative(variable)?;
+        match self.solve_variable(variable)? {
+            Answer::Ready(_) => Ok(Answer::Ready(())),
+            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+        }
+    }
+
+    /// Solve one variable from its bounds.
+    pub(in crate::check) fn solve_variable(
+        &mut self,
+        variable: dir::TypeVariableId,
+    ) -> CompilerResult<Answer<bool>> {
+        let representative = self.solver.representative(variable)?;
 
         // skip solved variables
-        if self.variables.get(representative)?.solution.is_some() {
-            return Ok(Answer::Ready(()));
+        if self.solver.variable(representative)?.solution.is_some() {
+            return Ok(Answer::Ready(true));
         }
 
         // wait for open variables inside the collected bounds
-        let state = self.variables.get(representative)?;
+        let state = self.solver.variable(representative)?;
         let widening = state.widening;
         let default = state.default;
         let lower = state.lower.clone();
         let upper = state.upper.clone();
+
+        // propagate errors before waiting on contextual holes
+        for bound in &lower {
+            if self.ty(*bound)?.is_error() {
+                self.set_solution(representative, *bound)?;
+
+                return Ok(Answer::Ready(true));
+            }
+        }
+
         let blockers = self.bound_blockers(representative, &lower, &upper, default)?;
         if !blockers.is_empty() {
             self.record_event(CheckEvent::VariableBlocked {
@@ -85,7 +101,7 @@ impl CheckState<'_> {
         }
 
         // solve from lower bounds, falling back to contextual upper bounds
-        let origin = self.variables.get(representative)?.origin;
+        let origin = self.solver.variable(representative)?.origin;
         let (solution, check_upper) = if !lower.is_empty() {
             let joined = self.best_common(representative, &lower)?;
 
@@ -114,10 +130,11 @@ impl CheckState<'_> {
                 },
             });
 
-            return Ok(Answer::Ready(()));
+            return Ok(Answer::Ready(true));
         };
         let solution = answer!(self.evaluate_root(origin, solution)?);
         self.set_solution(representative, solution)?;
+        let mut bounds_hold = true;
 
         // check inferred solutions against their contextual upper bounds
         if check_upper {
@@ -134,21 +151,21 @@ impl CheckState<'_> {
                 )? {
                     Answer::Ready(true) => {}
                     Answer::Ready(false) | Answer::Pending(_) => {
+                        bounds_hold = false;
                         self.push_constraint(Constraint {
                             relation: Relation::Assignable,
                             left: solution,
                             right: bound,
                             origin,
-                            coercion_site: None,
                             condition: Condition::Always,
-                            cause: ConstraintCause::General,
+                            role: ConstraintRole::Check,
                         });
                     }
                 }
             }
         }
 
-        Ok(Answer::Ready(()))
+        Ok(Answer::Ready(bounds_hold))
     }
 
     /// Return open variables that one variable currently depends on.
@@ -163,7 +180,10 @@ impl CheckState<'_> {
         let bounds = lower.iter().chain(upper.iter()).chain(default.iter());
         for bound in bounds {
             for open in self.type_variables(*bound)? {
-                if open != variable && !blockers.contains(&Dependency::Variable(open)) {
+                if open != variable
+                    && self.solver.variable(open).is_ok()
+                    && !blockers.contains(&Dependency::Variable(open))
+                {
                     blockers.push(Dependency::Variable(open));
                 }
             }
@@ -182,7 +202,7 @@ impl CheckState<'_> {
         // them would let resolution chains cycle through solutions
         let solution = self.settled_root(solution)?;
         if let Some(target) = self.root_variable(solution)? {
-            let representative = self.variables.representative(variable)?;
+            let representative = self.solver.representative(variable)?;
             if target != representative {
                 return self.alias_variables(representative, target);
             }
@@ -191,8 +211,8 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        let representative = self.variables.representative(variable)?;
-        let state = self.variables.get_mut(representative)?;
+        let representative = self.solver.representative(variable)?;
+        let state = self.solver.variable_mut(representative)?;
 
         // require exactly one solution per variable
         if let Some(previous) = state.solution {
@@ -204,20 +224,22 @@ impl CheckState<'_> {
 
             return Ok(());
         }
+        let bounds = VariableBounds {
+            lower: state.lower.clone(),
+            upper: state.upper.clone(),
+            default: state.default,
+        };
         state.solution = Some(solution);
 
         // wake parked waiters
         let waiters = std::mem::take(&mut state.waiters);
-        self.journal.record_with(|| Mutation::SolutionSet {
-            variable: representative,
-            waiters: waiters.clone(),
-        });
         for waiter in waiters.iter().copied() {
             self.queue_task(waiter);
         }
 
         self.record_event(CheckEvent::VariableSolved {
             variable: representative,
+            bounds,
             solution,
             waiters: waiters.len(),
         });
@@ -231,8 +253,8 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
         target: dir::TypeVariableId,
     ) -> CompilerResult<()> {
-        let variable = self.variables.representative(variable)?;
-        let target = self.variables.representative(target)?;
+        let variable = self.solver.representative(variable)?;
+        let target = self.solver.representative(target)?;
 
         // aliasing a variable to itself is complete
         if variable == target {
@@ -240,19 +262,13 @@ impl CheckState<'_> {
         }
 
         // move bounds and waiters onto the representative
-        let state = self.variables.get_mut(variable)?;
+        let state = self.solver.variable_mut(variable)?;
         let lower = std::mem::take(&mut state.lower);
         let upper = std::mem::take(&mut state.upper);
         let waiters = std::mem::take(&mut state.waiters);
         state.alias = Some(target);
-        self.journal.record_with(|| Mutation::AliasSet {
-            variable,
-            lower: lower.clone(),
-            upper: upper.clone(),
-            waiters: waiters.clone(),
-        });
 
-        // push moved bounds through the journaled paths
+        // push moved bounds through the checked paths
         for bound in lower {
             self.push_lower_bound(target, bound)?;
         }
@@ -260,11 +276,9 @@ impl CheckState<'_> {
             self.push_upper_bound(target, bound)?;
         }
         for waiter in waiters {
-            let target_state = self.variables.get_mut(target)?;
+            let target_state = self.solver.variable_mut(target)?;
             if !target_state.waiters.contains(&waiter) {
                 target_state.waiters.push(waiter);
-                self.journal
-                    .record(Mutation::WaiterPushed { variable: target });
             }
         }
 
@@ -282,37 +296,32 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
         bound: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let representative = self.variables.representative(variable)?;
-        let bound = match self.variables.get(representative)?.widening {
-            Widening::Preserve => self.const_asserted_bound(bound)?,
-            Widening::Widen => bound,
-        };
+        let representative = self.solver.representative(variable)?;
+        if self.root_variable(bound)? == Some(representative) {
+            return Ok(());
+        }
 
         // late bounds against a solved variable become relation checks
-        if let Some(solution) = self.variables.get(representative)?.solution {
-            let origin = self.variables.get(representative)?.origin;
+        if let Some(solution) = self.solver.variable(representative)?.solution {
+            let origin = self.solver.variable(representative)?.origin;
             self.push_constraint(Constraint {
                 relation: Relation::Assignable,
                 left: bound,
                 right: solution,
                 origin,
-                coercion_site: None,
                 condition: Condition::Always,
-                cause: ConstraintCause::General,
+                role: ConstraintRole::Check,
             });
 
             return Ok(());
         }
 
         let pushed = {
-            let state = self.variables.get_mut(representative)?;
+            let state = self.solver.variable_mut(representative)?;
             if state.lower.contains(&bound) {
                 false
             } else {
                 state.lower.push(bound);
-                self.journal.record(Mutation::LowerBoundPushed {
-                    variable: representative,
-                });
                 true
             }
         };
@@ -330,11 +339,14 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
         bound: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let representative = self.variables.representative(variable)?;
+        let representative = self.solver.representative(variable)?;
+        if self.root_variable(bound)? == Some(representative) {
+            return Ok(());
+        }
 
         // late bounds against a solved variable become relation checks
-        if let Some(solution) = self.variables.get(representative)?.solution {
-            let origin = self.variables.get(representative)?.origin;
+        if let Some(solution) = self.solver.variable(representative)?.solution {
+            let origin = self.solver.variable(representative)?.origin;
             let source = self
                 .origin_source_node(origin)?
                 .into_global(origin.module());
@@ -352,9 +364,8 @@ impl CheckState<'_> {
                         left: solution,
                         right: bound,
                         origin,
-                        coercion_site: None,
                         condition: Condition::Always,
-                        cause: ConstraintCause::General,
+                        role: ConstraintRole::Check,
                     });
                 }
             }
@@ -363,14 +374,11 @@ impl CheckState<'_> {
         }
 
         let pushed = {
-            let state = self.variables.get_mut(representative)?;
+            let state = self.solver.variable_mut(representative)?;
             if state.upper.contains(&bound) {
                 false
             } else {
                 state.upper.push(bound);
-                self.journal.record(Mutation::UpperBoundPushed {
-                    variable: representative,
-                });
                 true
             }
         };

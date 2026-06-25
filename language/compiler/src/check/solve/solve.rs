@@ -1,24 +1,17 @@
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckEvent, CheckState, Condition, Constraint, ConstraintId, Dependency, Mutation,
-    Task, answer,
+    Answer, CheckEvent, CheckState, Condition, Constraint, ConstraintId, ConstraintState,
+    Dependency, Task, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Solve collected component constraints to a fixed point.
     pub(in crate::check) fn solve(&mut self) -> CompilerResult<()> {
-        // the journal records only while a probe is active
-        if self.journal.is_active() {
-            return Err(CompilerError::Internal {
-                message: "solver cannot drain work while a probe is active".into(),
-            });
-        }
-
         self.record_event(CheckEvent::SolveStarted {
-            tasks: self.queue.len(),
-            variables: self.variables.count(),
+            tasks: self.solver.queue.len(),
+            variables: self.solver.variable_count(),
         });
 
         let mut steps = 0usize;
@@ -36,7 +29,7 @@ impl CheckState<'_> {
 
         self.record_event(CheckEvent::SolveFinished {
             iterations: steps,
-            variables: self.variables.count(),
+            variables: self.solver.variable_count(),
         });
 
         Ok(())
@@ -46,20 +39,21 @@ impl CheckState<'_> {
     fn run_task(&mut self, task: Task) -> CompilerResult<Answer<()>> {
         match task {
             Task::Relate(constraint) => self.run_relate(constraint),
-            Task::Decide(node) => self.run_decide(node),
+            Task::Select(selection) => self.run_select(selection),
+            Task::Oblige(obligation) => self.run_obligation(obligation),
             Task::Solve(variable) => self.run_solve(variable),
         }
     }
 
     /// Solve one relation constraint once.
     fn run_relate(&mut self, id: ConstraintId) -> CompilerResult<Answer<()>> {
-        if self.constraints.is_complete(id) {
+        if self.solver.constraints.is_complete(id) {
             return Ok(Answer::Ready(()));
         }
 
         // copy the relation before solver calls can mutate state
-        let (relation, cause, left, right, origin, coercion_site, predicates) = {
-            let constraint = self.constraints.get(id)?;
+        let (relation, role, left, right, origin, predicates) = {
+            let constraint = self.solver.constraints.get(id)?;
             let predicates = match &constraint.condition {
                 Condition::Always => SmallVec::new(),
                 Condition::When(predicates) => predicates.clone(),
@@ -67,11 +61,10 @@ impl CheckState<'_> {
 
             (
                 constraint.relation,
-                constraint.cause,
+                constraint.role,
                 constraint.left,
                 constraint.right,
                 constraint.origin,
-                constraint.coercion_site,
                 predicates,
             )
         };
@@ -83,28 +76,28 @@ impl CheckState<'_> {
             answer!(self.decide_condition(&predicates)?)
         };
         if !is_active {
-            self.complete_constraint(id);
+            self.set_constraint_state(id, ConstraintState::Skipped)?;
 
             return Ok(Answer::Ready(()));
         }
 
         // solve active relations under their guard assumptions
         let mark = self.assume(&predicates)?;
-        let answer = self.relate(origin, relation, cause, left, right);
+        let answer = self.constrain(origin, relation, left, right);
         self.release_assumptions(mark);
 
         match answer? {
-            Answer::Ready(()) => {
-                answer!(self.insert_implicit_coercion(
-                    origin,
-                    relation,
-                    left,
-                    right,
-                    coercion_site,
-                    &predicates,
-                )?);
+            Answer::Ready(holds) => {
+                if !holds {
+                    self.report_relation_failure(origin, relation, role, left, right)?;
+                }
 
-                self.complete_constraint(id);
+                let state = if holds {
+                    ConstraintState::Holds
+                } else {
+                    ConstraintState::Fails
+                };
+                self.set_constraint_state(id, state)?;
                 self.record_event(CheckEvent::RelationChecked {
                     constraint: id,
                     is_finished: true,
@@ -126,28 +119,28 @@ impl CheckState<'_> {
         }
     }
 
-    /// Collect one journaled constraint and schedule it.
+    /// Collect one constraint and schedule it.
     pub(in crate::check) fn push_constraint(&mut self, constraint: Constraint) -> ConstraintId {
-        let id = self.constraints.allocate(constraint);
-        self.journal.record(Mutation::ConstraintAllocated);
+        let id = self.solver.allocate_constraint(constraint);
         self.queue_task(Task::Relate(id));
 
         id
     }
 
+    /// Collect one selection and schedule it.
+    pub(in crate::check) fn push_selection(&mut self, selection: crate::check::Selection) {
+        let id = self.solver.allocate_selection(selection);
+        self.queue_task(Task::Select(id));
+    }
+
     /// Queue one solver task.
     pub(in crate::check) fn queue_task(&mut self, task: Task) {
-        self.queue.push(task);
-        self.journal.record(Mutation::TaskQueued { task });
+        self.solver.push_task(task);
     }
 
     /// Pop the next solver task.
     fn pop_task(&mut self) -> Option<Task> {
-        let task = self.queue.pop();
-
-        if let Some(task) = task {
-            self.journal.record(Mutation::TaskPopped { task });
-        }
+        let task = self.solver.pop_task();
 
         task
     }
@@ -162,20 +155,16 @@ impl CheckState<'_> {
             match *blocker {
                 // park on the variable representative
                 Dependency::Variable(variable) => {
-                    let representative = self.variables.representative(variable)?;
-                    let state = self.variables.get_mut(representative)?;
+                    let representative = self.solver.representative(variable)?;
+                    let state = self.solver.variable_mut(representative)?;
 
                     if !state.waiters.contains(&task) {
                         state.waiters.push(task);
-                        self.journal.record(Mutation::WaiterPushed {
-                            variable: representative,
-                        });
                     }
                 }
                 // park on the undecided node
                 Dependency::Decision(node) => {
-                    self.decisions.wait(node, task);
-                    self.journal.record(Mutation::DecisionWaiterPushed { node });
+                    self.solver.wait_for_decision(node, task);
                 }
             }
         }
@@ -183,10 +172,12 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Mark one constraint complete.
-    pub(in crate::check) fn complete_constraint(&mut self, id: ConstraintId) {
-        self.constraints.complete(id);
-        self.journal
-            .record(Mutation::ConstraintCompleted { constraint: id });
+    /// Set one constraint state.
+    pub(in crate::check) fn set_constraint_state(
+        &mut self,
+        id: ConstraintId,
+        state: ConstraintState,
+    ) -> CompilerResult<()> {
+        self.solver.set_constraint_state(id, state)
     }
 }

@@ -1,17 +1,25 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckState, Decision, Dependency, Origin, Widening};
+use crate::check::{
+    Answer, CheckState, ConstraintRole, Decision, Dependency, GenericArgumentMode, Origin,
+    Relation, Selection, SelectionId, SelectionState, answer,
+};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Select the meaning of one source node once its inputs allow.
-    pub(in crate::check) fn run_select(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Answer<()>> {
-        // skip nodes that already decided
-        if self.decisions.get(node).is_some() {
+    /// Select one semantic operation once its inputs allow.
+    pub(in crate::check) fn run_select(&mut self, id: SelectionId) -> CompilerResult<Answer<()>> {
+        if self.solver.selections.is_complete(id) {
+            return Ok(Answer::Ready(()));
+        }
+
+        // copy the selection before selector calls mutate solver state
+        let selection = self.solver.selections.get(id)?.clone();
+        let node = selection.node();
+        if self.solver.decision(node).is_some() {
+            self.solver.set_selection_state(id, SelectionState::Done)?;
+
             return Ok(Answer::Ready(()));
         }
 
@@ -23,126 +31,99 @@ impl CheckState<'_> {
             .collect::<SmallVec<[_; 2]>>();
         let mark = self.assume(&predicates)?;
 
-        // narrow the queue currency to the node's typed kind
-        let answer = match node.local_id.ty {
-            dir::NodeType::Expression => self.select_expression(node.into_typed()),
-            dir::NodeType::Pattern => self.select_pattern(node.into_typed()),
-            other => Err(CompilerError::Internal {
-                message: format!("check node {node:?} has no selector for {other:?}"),
-            }),
-        };
+        // run the selected operation
+        let answer = self.select(selection);
         self.release_assumptions(mark);
 
-        answer
+        match answer? {
+            Answer::Ready(()) => {
+                self.solver.set_selection_state(id, SelectionState::Done)?;
+
+                Ok(Answer::Ready(()))
+            }
+            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+        }
     }
 
-    /// Select the meaning of one expression node by its syntactic shape.
-    fn select_expression(
-        &mut self,
-        node: dir::GlobalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<()>> {
-        let module = node.module_id;
-
-        // read each shape's payload once and dispatch with it
-        let view = self.module(module).view();
-        match view.get(node.local_id) {
-            dir::Expression::Member { left, name } => {
-                let (left, name) = (*left, *name);
-
-                self.select_member(node, left, name)
-            }
-            dir::Expression::ObjectExpression { properties } => {
-                let properties = properties.iter().copied().collect::<SmallVec<[_; 4]>>();
+    /// Select the meaning of one queued semantic operation.
+    fn select(&mut self, selection: Selection) -> CompilerResult<Answer<()>> {
+        match selection {
+            Selection::Member { node, left, name } => self.select_member(node, left, name),
+            Selection::ObjectMerge { node, properties } => {
+                let properties = properties.into_iter().collect::<SmallVec<[_; 4]>>();
 
                 self.select_property_merge(node, &properties, None)
             }
-            dir::Expression::StructExpression { properties, .. } => {
-                let properties = properties.iter().copied().collect::<SmallVec<[_; 4]>>();
-                let Some(target) = self.node_type(node.into_any()) else {
-                    return Err(CompilerError::Internal {
-                        message: format!("struct literal {node:?} has no declared target"),
-                    });
-                };
+            Selection::StructMerge { node, properties } => {
+                let properties = properties.into_iter().collect::<SmallVec<[_; 4]>>();
+                let target = answer!(self.node_type_answer(node.into_any())?);
 
                 self.select_property_merge(node, &properties, Some(target))
             }
-            dir::Expression::Call {
-                left, arguments, ..
-            } => {
-                let callee = *left;
-                let arguments = arguments.iter().copied().collect::<SmallVec<[_; 4]>>();
-
-                self.select_call(node, callee, &arguments)
-            }
-            dir::Expression::Binary {
-                left,
-                operator,
-                right,
-            } => {
-                let (operator, left, right) = (*operator, *left, *right);
-
-                self.select_binary_operator(node, operator, left, right)
-            }
-            dir::Expression::Unary { operator, right } => {
-                let (operator, operand) = (*operator, *right);
-
-                self.select_unary_operator(node, operator, operand)
-            }
-            dir::Expression::New { ty, arguments }
-            | dir::Expression::NewMaybe { ty, arguments } => {
-                let ty = *ty;
-                let arguments = arguments.iter().copied().collect::<SmallVec<[_; 4]>>();
-
-                self.select_construct(node, ty, &arguments)
-            }
-            dir::Expression::Index { left, index, .. } => {
-                let (left, index) = (*left, *index);
-
-                self.select_index(node, left, index)
-            }
-            dir::Expression::Instantiation {
-                left,
+            Selection::Call {
+                node,
+                callee,
                 generic_arguments,
+                arguments,
             } => {
-                let left = *left;
-                let arguments = generic_arguments
-                    .iter()
-                    .copied()
-                    .collect::<SmallVec<[_; 2]>>();
+                let generic_arguments = generic_arguments.into_iter().collect::<SmallVec<[_; 2]>>();
+                let arguments = arguments.into_iter().collect::<SmallVec<[_; 4]>>();
+
+                self.select_call(node, callee, &generic_arguments, &arguments)
+            }
+            Selection::MemberPredicate { node, left, right } => {
+                self.select_member_predicate(node, left, right)
+            }
+            Selection::BinaryOperator {
+                node,
+                operator,
+                left,
+                right,
+            } => self.select_binary_operator(node, operator, left, right),
+            Selection::TypePredicate {
+                node,
+                value,
+                target,
+            } => self.select_type_predicate(node, value, target),
+            Selection::ClassPredicate {
+                node,
+                value,
+                target,
+            } => self.select_class_predicate(node, value, target),
+            Selection::UnaryOperator {
+                node,
+                operator,
+                operand,
+                use_,
+            } => self.select_unary_operator_with_use(node, operator, operand, use_),
+            Selection::Construct {
+                node,
+                ty,
+                arguments,
+                result,
+            } => {
+                let arguments = arguments.into_iter().collect::<SmallVec<[_; 4]>>();
+
+                self.select_construct(node, ty, &arguments, result)
+            }
+            Selection::Subscript {
+                node,
+                left,
+                index,
+                use_,
+            } => self.select_index_with_use(node, left, index, use_),
+            Selection::Instantiation {
+                node,
+                left,
+                arguments,
+            } => {
+                let arguments = arguments.into_iter().collect::<SmallVec<[_; 2]>>();
 
                 self.select_instantiation(node, left, &arguments)
             }
-            dir::Expression::TaggedTemplateExpression { tag, .. } => {
-                let tag = *tag;
-
-                self.select_tagged_template(node, tag)
-            }
-            dir::Expression::TreeExpression { .. } => self.select_tree(node),
-            // compound assignments resolve their operator over the
-            // place's read type and the written value
-            dir::Expression::Assign {
-                left,
-                operator,
-                right,
-            } => {
-                let (left, operator, right) = (*left, *operator, *right);
-                let Some(binary) = operator.binary_operator() else {
-                    return Err(CompilerError::Internal {
-                        message: format!("assign node {node:?} queued without a compound operator"),
-                    });
-                };
-                let dir::AssignPattern::Expression { value: target } = view.get(left) else {
-                    return Err(CompilerError::Internal {
-                        message: format!("compound assignment {node:?} has no place target"),
-                    });
-                };
-                let target = *target;
-
-                self.select_binary_operator(node, binary, target, right)
-            }
-            other => Err(CompilerError::Internal {
-                message: format!("check expression {node:?} has no selector: {other:?}"),
-            }),
+            Selection::TaggedTemplate { node, tag } => self.select_tagged_template(node, tag),
+            Selection::Tree { node } => self.select_tree(node),
+            Selection::Pattern { node } => self.select_pattern(node),
         }
     }
 
@@ -160,11 +141,18 @@ impl CheckState<'_> {
 
         // read the decided target name
         let left_node = left.into_global_any(module);
-        let symbol = match self.decisions.get(left_node) {
+        let symbol = match self.solver.decision(left_node) {
             Some(Decision::Name(resolution)) => match resolution.symbols() {
                 [symbol] => *symbol,
-                // overloaded instantiations stay for their call sites
                 _ => {
+                    let Some(path) = self.module(module).view().tree().reference_path(left) else {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "overloaded instantiation target {left_node:?} has no reference path"
+                            ),
+                        });
+                    };
+                    self.report_ambiguous_reference(module, left.into_any(), &path);
                     self.record_decision(node, Decision::Rejected)?;
 
                     return Ok(Answer::Ready(()));
@@ -187,64 +175,101 @@ impl CheckState<'_> {
         let mut applied = SmallVec::<[dir::GlobalTypeId; 2]>::new();
         for argument in arguments {
             let argument = argument.into_global_any(module);
-            let Some(ty) = self.node_type(argument) else {
-                return Err(CompilerError::Internal {
-                    message: format!("generic argument {argument:?} has no input type"),
-                });
-            };
+            let ty = answer!(self.node_type_answer(argument)?);
             applied.push(ty);
         }
 
-        // reject applications with more arguments than parameters
-        let parameters = self
-            .generics
-            .template_by_symbol(symbol)
-            .map(|template| self.generic_template_parameters(template))
-            .unwrap_or_default();
-        if applied.len() > parameters.len() {
+        // read the selected declaration template
+        let template = self.symbol_template(symbol);
+        if template.is_none() && !applied.is_empty() {
             let name = self.format_symbol(symbol);
-            let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-            let error = crate::CheckError::WrongGenericArity {
-                anchor,
-                module,
-                name,
-                expected: parameters.len(),
-                supplied: applied.len(),
-            };
-            self.module_mut(module).diagnostics.push(error.into());
+            self.report_wrong_generic_arity(module, source, name, 0, applied.len());
             self.record_decision(node, Decision::Rejected)?;
 
             return Ok(Answer::Ready(()));
         }
 
-        // fill declared positions, opening holes for missing arguments
-        let mut canonical = Vec::with_capacity(parameters.len().max(applied.len()));
-        let mut written = applied.iter().copied();
-        for _parameter in &parameters {
-            let argument = match written.next() {
-                Some(argument) => argument,
-                None => {
-                    let variable = self.allocate_variable(module, origin, Widening::Preserve);
+        // specialize the selected value type by the applied arguments
+        let declared = self
+            .symbol_type_maybe(symbol)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("instantiated symbol {symbol:?} has no declared type"),
+            })?;
+        let specialized = match template {
+            Some(template) => {
+                let parameters = self.generic_template_parameters(template);
+                let Some(substitution) = self.instantiate_template(
+                    origin,
+                    template,
+                    &applied,
+                    GenericArgumentMode::Default,
+                )?
+                else {
+                    let name = self.format_symbol(symbol);
+                    self.report_wrong_generic_arity(
+                        module,
+                        source,
+                        name,
+                        parameters.len(),
+                        applied.len(),
+                    );
+                    self.record_decision(node, Decision::Rejected)?;
 
-                    self.push_variable_type(variable, source)?
+                    return Ok(Answer::Ready(()));
+                };
+
+                // check written arguments against declared constraints
+                for (parameter, argument) in parameters
+                    .iter()
+                    .copied()
+                    .zip(substitution.arguments.iter().copied())
+                {
+                    let constraint = self
+                        .generic_parameter(parameter)
+                        .and_then(|binding| binding.constraint);
+                    let Some(constraint) = constraint else {
+                        continue;
+                    };
+                    let constraint =
+                        self.fold_type(module, source, constraint, substitution.rewrite())?;
+                    let condition = self.node_static_condition(node);
+
+                    if !answer!(self.constrain_generic_argument(
+                        origin, node, condition, argument, constraint
+                    )?) {
+                        self.relate(
+                            origin,
+                            Relation::Assignable,
+                            ConstraintRole::Check,
+                            argument,
+                            constraint,
+                        )?;
+                        self.record_decision(node, Decision::Rejected)?;
+
+                        return Ok(Answer::Ready(()));
+                    }
                 }
-            };
-            canonical.push(argument);
-        }
 
-        // write the applied reference and record the selection
-        let reference = self.push_type(
-            module,
-            dir::Type::Reference(dir::GenericInstance {
-                symbol,
-                arguments: canonical,
-            }),
-            source,
-        )?;
-        self.record_decision(node, Decision::Name(dir::NameResolution::new(symbol)))?;
-        if let Some(variable) = self.node_variable(node)? {
-            self.push_lower_bound(variable, reference)?;
-        }
+                match self.ty(declared)? {
+                    dir::Type::Reference(reference) if reference.symbol == symbol => self
+                        .push_type(
+                            module,
+                            dir::Type::Instance(dir::GenericInstance {
+                                symbol,
+                                arguments: substitution.arguments.to_vec(),
+                            }),
+                            source,
+                        )?,
+                    _ => self.fold_type(module, source, declared, substitution.rewrite())?,
+                }
+            }
+            None => declared,
+        };
+
+        let arguments = self.symbol_generic_argument_bindings(symbol, &applied)?;
+        let resolution = dir::InstantiationResolution::new(symbol, arguments);
+        self.record_decision(node, Decision::Instantiation(resolution))?;
+        self.bind_node_type(node, specialized)?;
 
         Ok(Answer::Ready(()))
     }
@@ -262,25 +287,24 @@ impl CheckState<'_> {
 
         // close the tag's callable shape
         let tag_node = tag.into_global_any(module);
-        let Some(tag_type) = self.node_type(tag_node) else {
-            return Err(CompilerError::Internal {
-                message: format!("template tag {tag_node:?} has no input type"),
-            });
+        let tag_type = answer!(self.node_type_answer(tag_node)?);
+        let tag_type = answer!(self.evaluate_root(origin, tag_type)?);
+        let signature = match self.ty(tag_type)? {
+            dir::Type::FunctionSignature(_) => Some(tag_type),
+            _ => self.callable_signature(tag_type)?,
         };
-        let tag_type = match self.evaluate_root(origin, tag_type)? {
-            Answer::Ready(tag_type) => tag_type,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        let Some(signature) = signature else {
+            self.report_not_callable(origin, tag_type)?;
+            self.record_decision(node, Decision::Rejected)?;
+
+            return Ok(Answer::Ready(()));
         };
-        let return_type = match self.ty(tag_type)? {
+        let return_type = match self.ty(signature)? {
             dir::Type::FunctionSignature(function) => function.return_type,
             _ => {
-                let ty = self.format_type(tag_type);
-                let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-                let error = crate::CheckError::NotCallable { anchor, module, ty };
-                self.module_mut(module).diagnostics.push(error.into());
-                self.record_decision(node, Decision::Rejected)?;
-
-                return Ok(Answer::Ready(()));
+                return Err(CompilerError::Internal {
+                    message: format!("tagged template signature {signature:?} is not callable"),
+                });
             }
         };
 
@@ -291,15 +315,15 @@ impl CheckState<'_> {
         };
         let resolution = dir::CallResolution::new(
             dir::CallTarget::Expression {
-                arguments: Vec::new(),
+                generic_arguments: Vec::new(),
             },
+            Some(signature),
+            Vec::new(),
             Vec::new(),
             result,
         );
         self.record_decision(node, Decision::Call(resolution))?;
-        if let Some(variable) = self.node_variable(node)? {
-            self.push_lower_bound(variable, result)?;
-        }
+        self.bind_node_type(node, result)?;
 
         Ok(Answer::Ready(()))
     }
