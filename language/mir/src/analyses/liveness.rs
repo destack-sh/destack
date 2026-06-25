@@ -46,10 +46,10 @@ impl FunctionLiveness {
 
     /// Collect local use and def sets for each block.
     fn collect_blocks(function: &Function, tree: &Tree) -> NodeTable<Block, BlockLiveness> {
-        let mut blocks = NodeTable::from_nodes(&function.blocks, BlockLiveness::default);
+        let mut blocks = NodeTable::from_nodes(function.blocks(), BlockLiveness::default);
 
         // scan each block independently
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
             let mut seen_value_defs = HashSet::new();
@@ -156,10 +156,10 @@ impl FunctionLiveness {
     /// Initialize empty liveness state for all blocks.
     fn initialize(function: &Function) -> Self {
         Self {
-            value_live_in: NodeTable::from_nodes(&function.blocks, HashSet::new),
-            value_live_out: NodeTable::from_nodes(&function.blocks, HashSet::new),
-            local_live_in: NodeTable::from_nodes(&function.blocks, HashSet::new),
-            local_live_out: NodeTable::from_nodes(&function.blocks, HashSet::new),
+            value_live_in: NodeTable::from_nodes(function.blocks(), HashSet::new),
+            value_live_out: NodeTable::from_nodes(function.blocks(), HashSet::new),
+            local_live_in: NodeTable::from_nodes(function.blocks(), HashSet::new),
+            local_live_out: NodeTable::from_nodes(function.blocks(), HashSet::new),
         }
     }
 
@@ -175,7 +175,7 @@ impl FunctionLiveness {
         while changed {
             changed = false;
 
-            for &block_id in function.blocks.iter().rev() {
+            for &block_id in function.blocks().iter().rev() {
                 if Self::propagate_block(liveness, block_id, tree, blocks) {
                     changed = true;
                 }
@@ -413,7 +413,7 @@ entry:
         let function = tree.get(function_id);
         let liveness = FunctionLiveness::build(function, &tree);
 
-        let entry = function.entry.expect("missing entry");
+        let entry = function.entry().expect("missing entry");
 
         assert!(!liveness.is_value_live_in(entry, Value::new(0)));
         assert!(!liveness.is_value_live_in(entry, Value::new(1)));
@@ -445,8 +445,8 @@ b2:
         let function = tree.get(function_id);
         let liveness = FunctionLiveness::build(function, &tree);
 
-        let block1 = function.blocks[1];
-        let block2 = function.blocks[2];
+        let block1 = function.block(1);
+        let block2 = function.block(2);
 
         assert!(liveness.is_value_live_in(block1, Value::new(1)));
         assert!(!liveness.is_value_live_in(block2, Value::new(1)));
@@ -475,8 +475,8 @@ b2:
         let function = tree.get(function_id);
         let liveness = FunctionLiveness::build(function, &tree);
 
-        let block1 = function.blocks[1];
-        let block2 = function.blocks[2];
+        let block1 = function.block(1);
+        let block2 = function.block(2);
 
         assert!(!liveness.is_value_live_in(block1, Value::new(2)));
         assert!(liveness.is_value_live_in(block1, Value::new(0)));
@@ -500,7 +500,7 @@ entry:
         let function = tree.get(function_id);
         let liveness = FunctionLiveness::build(function, &tree);
 
-        let entry = function.entry.expect("missing entry");
+        let entry = function.entry().expect("missing entry");
 
         assert!(!liveness.is_value_live_after_instruction(entry, 0, Value::new(0), &tree));
     }

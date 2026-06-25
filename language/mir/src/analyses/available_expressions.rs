@@ -226,8 +226,8 @@ b1:
         let available = AvailableExpressions::build(function, &test.tree, &cfg);
 
         // capture the expression key and successor block
-        let block0 = function.blocks[0];
-        let block1 = function.blocks[1];
+        let block0 = function.block(0);
+        let block1 = function.block(1);
         let expression_key = first_expression_key(block0, &test.tree);
 
         // confirm entry block starts empty
@@ -267,8 +267,8 @@ b3:
         let available = AvailableExpressions::build(function, &test.tree, &cfg);
 
         // capture the expression key and merge block
-        let block1 = function.blocks[1];
-        let merge_block = function.blocks[3];
+        let block1 = function.block(1);
+        let merge_block = function.block(3);
         let expression_key = first_expression_key(block1, &test.tree);
 
         // confirm the expression is not available at the merge
@@ -306,8 +306,8 @@ b3:
         let available = AvailableExpressions::build(function, &test.tree, &cfg);
 
         // capture the expression key and merge block
-        let block1 = function.blocks[1];
-        let merge_block = function.blocks[3];
+        let block1 = function.block(1);
+        let merge_block = function.block(3);
         let expression_key = first_expression_key(block1, &test.tree);
 
         // confirm the expression is available at the merge
@@ -337,7 +337,7 @@ entry(v0: int32):
         let available = AvailableExpressions::build(function, &test.tree, &cfg);
 
         // confirm the exit set is empty
-        let entry_block = function.entry.expect("missing entry block");
+        let entry_block = function.entry().expect("missing entry block");
         assert!(available.exit(entry_block).is_empty());
     }
 
@@ -372,8 +372,8 @@ b3:
         let available = AvailableExpressions::build(function, &test.tree, &cfg);
 
         // capture the expression key and merge block
-        let block1 = function.blocks[1];
-        let merge_block = function.blocks[3];
+        let block1 = function.block(1);
+        let merge_block = function.block(3);
         let expression_key = first_expression_key(block1, &test.tree);
 
         // confirm the commutative expression is available at the merge
@@ -401,7 +401,7 @@ entry(v0: int32, v1: int32, v2: int32):
         let available = AvailableExpressions::build(function, &test.tree, &cfg);
 
         // capture the expression keys
-        let entry_block = function.entry.expect("missing entry block");
+        let entry_block = function.entry().expect("missing entry block");
         let block_data = test.tree.get(entry_block);
         let first_key =
             PureExpression::from_instruction(test.tree.get(block_data.instructions[0]), &test.tree)
@@ -453,7 +453,7 @@ b2:
         let available = AvailableExpressions::build(function, &test.tree, &cfg);
 
         // confirm unreachable block has empty entry
-        let unreachable_block = function.blocks[2];
+        let unreachable_block = function.block(2);
         assert!(available.entry(unreachable_block).is_empty());
     }
 }

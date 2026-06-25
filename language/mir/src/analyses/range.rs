@@ -448,7 +448,7 @@ impl RangeAnalysis {
         target_layout: TargetLayout,
         options: RangeOptions,
     ) -> Self {
-        let Some(entry) = function.entry else {
+        let Some(entry) = function.entry() else {
             return Self {
                 block_entry: NodeTable::new(),
                 block_exit: NodeTable::new(),
@@ -456,16 +456,16 @@ impl RangeAnalysis {
         };
 
         // init state maps
-        let mut block_entry = NodeTable::from_nodes(&function.blocks, || None);
-        let mut block_exit = NodeTable::from_nodes(&function.blocks, || None);
+        let mut block_entry = NodeTable::from_nodes(function.blocks(), || None);
+        let mut block_exit = NodeTable::from_nodes(function.blocks(), || None);
 
         // seed entry state
         *block_entry.get_mut(entry) = Some(RangeMap::new());
 
         // init worklist
         let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
-        let mut in_worklist = NodeTable::from_nodes(&function.blocks, || false);
-        let mut update_counts = NodeTable::from_nodes(&function.blocks, || 0u32);
+        let mut in_worklist = NodeTable::from_nodes(function.blocks(), || false);
+        let mut update_counts = NodeTable::from_nodes(function.blocks(), || 0u32);
         worklist.push_back(entry);
         *in_worklist.get_mut(entry) = true;
 
@@ -2484,7 +2484,7 @@ entry(v0: int32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[0];
         let instruction = test.tree.get(instruction_id);
@@ -2531,7 +2531,7 @@ b3(v3: int32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let merge_block = function.blocks[3];
+        let merge_block = function.block(3);
         let merge = test.tree.get(merge_block);
         let param_value = merge.parameters[0].value;
 
@@ -2574,7 +2574,7 @@ b2:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let success = function.blocks[1];
+        let success = function.block(1);
         let success_block = test.tree.get(success);
         let argument = success_block.parameters[1].value;
         let range = ranges.entry(success).get(argument);
@@ -2617,7 +2617,7 @@ b3(v3: int32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let merge_block = function.blocks[3];
+        let merge_block = function.block(3);
         let merge = test.tree.get(merge_block);
         let param_value = merge.parameters[0].value;
 
@@ -2655,7 +2655,7 @@ b3(v3: int32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
         let instruction = test.tree.get(instruction_id);
@@ -2705,7 +2705,7 @@ b3(v3: int32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
         let instruction = test.tree.get(instruction_id);
@@ -2741,7 +2741,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[0];
         let instruction = test.tree.get(instruction_id);
@@ -2791,7 +2791,7 @@ b3(v3: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
         let instruction = test.tree.get(instruction_id);
@@ -2843,7 +2843,7 @@ b3(v5: float32, v6: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let block = test.tree.get(block3);
         let instruction_id = block.instructions[0];
         let instruction = test.tree.get(instruction_id);
@@ -2884,7 +2884,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
         let instruction = test.tree.get(instruction_id);
@@ -2936,7 +2936,7 @@ b3(v5: float32, v6: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let block = test.tree.get(block3);
         let instruction_id = block.instructions[0];
         let instruction = test.tree.get(instruction_id);
@@ -2977,7 +2977,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
         let instruction = test.tree.get(instruction_id);
@@ -3028,7 +3028,7 @@ b3(v3: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
         let instruction = test.tree.get(instruction_id);
@@ -3068,7 +3068,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[4];
         let instruction = test.tree.get(instruction_id);
@@ -3118,7 +3118,7 @@ b6(v8: float32, v9: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block6 = function.blocks[6];
+        let block6 = function.block(6);
         let block = test.tree.get(block6);
         let instruction_id = block.instructions[0];
         let instruction = test.tree.get(instruction_id);
@@ -3172,7 +3172,7 @@ b3(v3: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
         let instruction = test.tree.get(instruction_id);
@@ -3226,7 +3226,7 @@ b3(v3: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
         let instruction = test.tree.get(instruction_id);
@@ -3277,7 +3277,7 @@ b3(v3: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
         let instruction = test.tree.get(instruction_id);
@@ -3329,7 +3329,7 @@ b3(v5: float32, v6: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let block = test.tree.get(block3);
         let instruction_id = block.instructions[0];
         let instruction = test.tree.get(instruction_id);
@@ -3380,7 +3380,7 @@ b3(v3: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
         let instruction = test.tree.get(instruction_id);
@@ -3432,7 +3432,7 @@ b3(v5: float32, v6: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let block = test.tree.get(block3);
         let instruction_id = block.instructions[0];
         let instruction = test.tree.get(instruction_id);
@@ -3473,7 +3473,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
         let instruction = test.tree.get(instruction_id);
@@ -3514,7 +3514,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
         let instruction = test.tree.get(instruction_id);
@@ -3555,7 +3555,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
         let instruction = test.tree.get(instruction_id);
@@ -3598,7 +3598,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[4];
         let instruction = test.tree.get(instruction_id);
@@ -3638,7 +3638,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[1];
         let instruction = test.tree.get(instruction_id);
@@ -3687,7 +3687,7 @@ b3(v3: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let block = test.tree.get(block3);
         let instruction_id = block.instructions[0];
         let instruction = test.tree.get(instruction_id);
@@ -3727,7 +3727,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
         let instruction = test.tree.get(instruction_id);
@@ -3766,7 +3766,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[1];
         let instruction = test.tree.get(instruction_id);
@@ -3806,7 +3806,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[1];
         let instruction = test.tree.get(instruction_id);
@@ -3856,7 +3856,7 @@ b3(v4: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let merge_block = function.blocks[3];
+        let merge_block = function.block(3);
         let merge = test.tree.get(merge_block);
         let param_value = merge.parameters[0].value;
 
@@ -3896,7 +3896,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[3];
         let instruction = test.tree.get(instruction_id);
@@ -3932,7 +3932,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
         let instruction = test.tree.get(instruction_id);
@@ -3968,7 +3968,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
         let instruction = test.tree.get(instruction_id);
@@ -4005,7 +4005,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[3];
         let instruction = test.tree.get(instruction_id);
@@ -4052,7 +4052,7 @@ b3(v4: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
         let instruction = test.tree.get(instruction_id);
@@ -4090,7 +4090,7 @@ b3(v3: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let merge_block = function.blocks[3];
+        let merge_block = function.block(3);
         let merge = test.tree.get(merge_block);
         let param_value = merge.parameters[0].value;
 
@@ -4138,7 +4138,7 @@ b3(v3: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let block = test.tree.get(block3);
         let instruction_id = block.instructions[0];
         let instruction = test.tree.get(instruction_id);
@@ -4167,7 +4167,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[1];
         let instruction = test.tree.get(instruction_id);
@@ -4206,7 +4206,7 @@ b3(v3: float32):
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let block = test.tree.get(block3);
         let instruction_id = block.instructions[0];
         let instruction = test.tree.get(instruction_id);
@@ -4235,7 +4235,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[1];
         let instruction = test.tree.get(instruction_id);
@@ -4265,7 +4265,7 @@ entry:
         let analyses = test.function_analyses();
         let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
         let instruction = test.tree.get(instruction_id);

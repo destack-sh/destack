@@ -16,7 +16,7 @@ pub struct PostDominatorTree {
 impl PostDominatorTree {
     /// Build the postdominator tree for one function.
     pub fn build(function: &Function, tree: &Tree, cfg: &ControlFlowGraph) -> Self {
-        let Some(entry) = function.entry else {
+        let Some(entry) = function.entry() else {
             return Self {
                 immediate_postdominators: NodeTable::new(),
                 preorder: NodeTable::new(),
@@ -29,22 +29,22 @@ impl PostDominatorTree {
         let has_exits = !exit_blocks.is_empty();
 
         if !has_exits {
-            exit_blocks = function.blocks.iter().copied().collect();
+            exit_blocks = function.blocks().iter().copied().collect();
         }
 
-        let mut block_index = NodeTable::from_nodes(&function.blocks, || None);
+        let mut block_index = NodeTable::from_nodes(function.blocks(), || None);
 
         // block indices
-        for (index, &block) in function.blocks.iter().enumerate() {
+        for (index, &block) in function.blocks().iter().enumerate() {
             *block_index.get_mut(block) = Some(index);
         }
 
-        let virtual_root = function.blocks.len();
-        let mut successors = vec![Vec::new(); function.blocks.len() + 1];
-        let mut predecessors = vec![Vec::new(); function.blocks.len() + 1];
+        let virtual_root = function.blocks().len();
+        let mut successors = vec![Vec::new(); function.blocks().len() + 1];
+        let mut predecessors = vec![Vec::new(); function.blocks().len() + 1];
 
         // reverse edges
-        for &block in &function.blocks {
+        for &block in function.blocks() {
             let index = block_index.expect(block);
 
             for predecessor in cfg.predecessors(block) {
@@ -61,7 +61,7 @@ impl PostDominatorTree {
             predecessors[exit_index].push(virtual_root);
         }
 
-        let mut immediate_postdominators = NodeTable::from_nodes(&function.blocks, || None);
+        let mut immediate_postdominators = NodeTable::from_nodes(function.blocks(), || None);
 
         // postdominator edges
         if has_exits {
@@ -71,21 +71,21 @@ impl PostDominatorTree {
                 virtual_root,
             );
 
-            for &block in &function.blocks {
+            for &block in function.blocks() {
                 let index = block_index.expect(block);
                 if let Some(ipdom_index) = result.immediate_dominators[index] {
                     if ipdom_index == virtual_root {
                         continue;
                     }
 
-                    let ipdom_block = function.blocks[ipdom_index];
+                    let ipdom_block = function.block(ipdom_index);
                     *immediate_postdominators.get_mut(block) = Some(ipdom_block);
                 }
             }
         }
 
         let (preorder, preorder_max) =
-            Self::compute_preorder(&function.blocks, &immediate_postdominators, entry);
+            Self::compute_preorder(function.blocks(), &immediate_postdominators, entry);
 
         Self {
             immediate_postdominators,
@@ -123,7 +123,7 @@ impl PostDominatorTree {
         let mut exits = HashSet::new();
 
         // terminators with no successors
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
 
@@ -235,9 +235,9 @@ b2:
         let cfg = ControlFlowGraph::build(function, &tree);
         let postdom = PostDominatorTree::build(function, &tree, &cfg);
 
-        let block0 = function.blocks[0];
-        let block1 = function.blocks[1];
-        let block2 = function.blocks[2];
+        let block0 = function.block(0);
+        let block1 = function.block(1);
+        let block2 = function.block(2);
 
         assert_eq!(postdom.immediate_postdominator(block2), None);
         assert_eq!(postdom.immediate_postdominator(block1), Some(block2));

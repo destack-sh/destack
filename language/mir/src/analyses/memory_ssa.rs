@@ -452,7 +452,7 @@ impl MemorySSA {
         target_layout: TargetLayout,
     ) -> Self {
         // handle imported functions
-        let entry = match function.entry {
+        let entry = match function.entry() {
             Some(entry) => entry,
             None => {
                 let live_on_entry = MemoryAccessId::from_index(0);
@@ -489,7 +489,7 @@ impl MemorySSA {
         let live_on_entry = MemoryAccessId::from_index(0);
 
         // create block phis
-        let mut block_phis = NodeTable::from_nodes(&function.blocks, || None);
+        let mut block_phis = NodeTable::from_nodes(function.blocks(), || None);
         for block in &phi_blocks {
             let phi_id = MemoryAccessId::from_index(accesses.len());
             accesses.push(MemoryAccess::Phi(MemoryPhi {
@@ -501,13 +501,13 @@ impl MemorySSA {
 
         // create instruction memory accesses
         let instructions = function
-            .blocks
+            .blocks()
             .iter()
             .flat_map(|block| tree.get(*block).instructions.iter().copied())
             .collect::<Vec<_>>();
         let mut instruction_access = NodeTable::from_nodes(&instructions, Vec::new);
-        let mut terminator_access = NodeTable::from_nodes(&function.blocks, Vec::new);
-        let mut block_accesses = NodeTable::from_nodes(&function.blocks, Vec::new);
+        let mut terminator_access = NodeTable::from_nodes(function.blocks(), Vec::new);
+        let mut block_accesses = NodeTable::from_nodes(function.blocks(), Vec::new);
 
         for &block in &collected.reachable_blocks {
             let access_list = collected.block_accesses.get(block);
@@ -923,7 +923,7 @@ impl<'a> MemoryAccessCollector<'a> {
         let reachable: HashSet<_> = reachable_blocks.iter().copied().collect();
 
         // collect memory accesses per block
-        let mut block_accesses = NodeTable::from_nodes(&self.function.blocks, Vec::new);
+        let mut block_accesses = NodeTable::from_nodes(self.function.blocks(), Vec::new);
         let mut def_blocks = HashSet::new();
 
         // scan reachable blocks
@@ -2086,7 +2086,7 @@ entry(v0: ref<int32, raw, mutable>):
         let memory_ssa = memory_ssa.as_ref();
 
         // find memory accesses
-        let block = test.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.block(0));
         let store_id = block.instructions[1];
         let load_id = block.instructions[2];
 
@@ -2140,7 +2140,7 @@ b3:
         let memory_ssa = memory_ssa.as_ref();
 
         // fetch join block phi
-        let join_block = function.blocks[3];
+        let join_block = function.block(3);
         let phi_id = memory_ssa
             .block_phi(join_block)
             .expect("missing memory phi at join");
@@ -2186,7 +2186,7 @@ entry:
         let alias = analyses.get::<AliasAnalysis>(function, &test.tree);
 
         // locate accesses
-        let block = test.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.block(0));
         let store_v0 = block.instructions[3];
         let load_v0 = block.instructions[6];
 
@@ -2387,7 +2387,7 @@ entry:
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
 
         // locate local access
-        let block = test.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.block(0));
         let store_inst = block.instructions[1];
         let load_inst = block.instructions[2];
 
@@ -2618,7 +2618,7 @@ entry:
         let function = test.tree.get(function_id);
 
         // locate volatile instructions
-        let block = test.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.block(0));
         let volatile_load = block.instructions[1];
         let volatile_store = block.instructions[2];
 
@@ -2681,7 +2681,7 @@ entry:
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 
-        let block = test.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.block(0));
         let atomic_load = block.instructions[1];
         let atomic_store = block.instructions[2];
 
@@ -2720,7 +2720,7 @@ entry:
         let memory_ssa = memory_ssa.as_ref();
 
         // locate fence instruction
-        let block = test.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.block(0));
         let fence_inst = block.instructions[0];
         let fence_access = memory_ssa
             .instruction_access(fence_inst)
@@ -2751,7 +2751,7 @@ entry(v0: ref<int32, raw, mutable>):
         let function_id = test
             .tree
             .iter_nodes::<mir::Function>()
-            .find(|(_, function)| function.entry.is_some())
+            .find(|(_, function)| function.entry().is_some())
             .expect("missing function")
             .0;
         let function = test.tree.get(function_id);
@@ -2760,7 +2760,7 @@ entry(v0: ref<int32, raw, mutable>):
         let memory_ssa = memory_ssa.as_ref();
 
         // locate call instruction
-        let block = test.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.block(0));
         let call_inst = block.instructions[0];
         let call_access = memory_ssa
             .instruction_access(call_inst)
@@ -2797,8 +2797,8 @@ b1:
         let memory_ssa = memory_ssa.as_ref();
 
         // locate the call terminator and continuation load
-        let entry = function.blocks[0];
-        let continuation = function.blocks[1];
+        let entry = function.block(0);
+        let continuation = function.block(1);
         let load = test.tree.get(continuation).instructions[0];
 
         let call_accesses = terminator_accesses(memory_ssa, entry);
@@ -2973,7 +2973,7 @@ b3:
         let memory_ssa = memory_ssa.as_ref();
 
         // find phi for loop header
-        let header_block = function.blocks[1];
+        let header_block = function.block(1);
         let phi_id = memory_ssa
             .block_phi(header_block)
             .expect("missing loop header phi");
@@ -2983,9 +2983,9 @@ b3:
         };
 
         let incoming_blocks: HashSet<_> = phi.incoming.iter().map(|(block, _)| *block).collect();
-        let body_block = function.blocks[2];
+        let body_block = function.block(2);
 
-        assert!(incoming_blocks.contains(&function.blocks[0]));
+        assert!(incoming_blocks.contains(&function.block(0)));
         assert!(incoming_blocks.contains(&body_block));
     }
 
@@ -3015,7 +3015,7 @@ b1:
         let memory_ssa = memory_ssa.as_ref();
 
         // locate store in unreachable block
-        let unreachable_block = function.blocks[1];
+        let unreachable_block = function.block(1);
         let block = test.tree.get(unreachable_block);
         let store_inst = block.instructions[2];
 

@@ -116,11 +116,11 @@ impl CallGraph {
         // scan each function for call instructions
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
             // skip functions without bodies
-            if function.entry.is_none() {
+            if function.entry().is_none() {
                 continue;
             }
 
-            for block_id in &function.blocks {
+            for block_id in function.blocks() {
                 let block = tree.get(*block_id);
                 let terminator = tree.get(block.terminator);
 
@@ -658,7 +658,7 @@ entry(v0: int32):
 
         let function = test.tree.get(test_id);
         let mut call_id = None;
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = test.tree.get(block_id);
             for &instruction_id in &block.instructions {
                 if matches!(
@@ -725,7 +725,7 @@ b2(v2: ref<int32, managed, readonly>):
         let callee_id = test.function_id_by_name("callee");
         let test_id = test.function_id_by_name("test");
         let function = test.tree.get(test_id);
-        let block_id = *function.blocks.first().expect("missing entry block");
+        let block_id = *function.blocks().first().expect("missing entry block");
 
         test.tree
             .metadata

@@ -100,7 +100,7 @@ impl LoopAnalysis {
         domtree: &DominatorTree,
     ) -> Self {
         // handle functions without bodies (imports)
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Self {
                 loops: Vec::new(),
                 header_to_loop: NodeTable::new(),
@@ -119,7 +119,7 @@ impl LoopAnalysis {
         Self::compute_nesting(&mut loops, &header_to_loop, domtree);
 
         // map each block to its innermost containing loop
-        let block_to_loop = Self::build_block_map(&function.blocks, &loops);
+        let block_to_loop = Self::build_block_map(function.blocks(), &loops);
 
         Self {
             loops,
@@ -139,7 +139,7 @@ impl LoopAnalysis {
             Vec<mir::LocalNodeId<mir::Block>>,
         > = HashMap::new();
 
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
 
@@ -167,7 +167,7 @@ impl LoopAnalysis {
         domtree: &DominatorTree,
     ) -> (Vec<Loop>, NodeTable<mir::Block, Option<usize>>) {
         let mut loops = Vec::new();
-        let mut header_to_loop = NodeTable::from_nodes(&function.blocks, || None);
+        let mut header_to_loop = NodeTable::from_nodes(function.blocks(), || None);
 
         // sort by header block ID for deterministic iteration order
         let mut sorted_entries: Vec<_> = back_edges_by_header.into_iter().collect();
@@ -445,7 +445,7 @@ b1:
         assert_eq!(analysis.num_loops(), 1);
 
         let lp = &analysis.loops()[0];
-        assert_eq!(lp.header, function.blocks[0]);
+        assert_eq!(lp.header, function.block(0));
         assert_eq!(lp.latches.len(), 1);
         assert_eq!(lp.blocks.len(), 1);
         assert_eq!(lp.depth, 0);
@@ -477,8 +477,8 @@ b2:
 
         assert_eq!(analysis.num_loops(), 1);
 
-        let block0 = function.blocks[0];
-        let block1 = function.blocks[1];
+        let block0 = function.block(0);
+        let block1 = function.block(1);
 
         let lp = analysis.header_loop(block1).unwrap();
         assert!(lp.contains(block1));
@@ -513,8 +513,8 @@ b3:
 
         assert_eq!(analysis.num_loops(), 1);
 
-        let block1 = function.blocks[1];
-        let block2 = function.blocks[2];
+        let block1 = function.block(1);
+        let block2 = function.block(2);
 
         let lp = analysis.header_loop(block1).unwrap();
 
@@ -561,9 +561,9 @@ b4:
 
         assert_eq!(analysis.num_loops(), 2);
 
-        let block1 = function.blocks[1];
-        let block2 = function.blocks[2];
-        let block3 = function.blocks[3];
+        let block1 = function.block(1);
+        let block2 = function.block(2);
+        let block3 = function.block(3);
 
         let outer = analysis.header_loop(block1).unwrap();
         let inner = analysis.header_loop(block2).unwrap();
@@ -609,10 +609,10 @@ b3:
         let analyses = test.function_analyses();
         let analysis = analyses.get::<LoopAnalysis>(function, &test.tree);
 
-        let block0 = function.blocks[0];
-        let block1 = function.blocks[1];
-        let block2 = function.blocks[2];
-        let block3 = function.blocks[3];
+        let block0 = function.block(0);
+        let block1 = function.block(1);
+        let block2 = function.block(2);
+        let block3 = function.block(3);
 
         // blocks outside loops have depth 0
         assert_eq!(analysis.loop_depth(block0), 0);
@@ -658,7 +658,7 @@ b3:
         assert_eq!(analysis.num_loops(), 0);
         assert!(analysis.loops().is_empty());
 
-        for &block in &function.blocks {
+        for &block in function.blocks() {
             assert!(!analysis.is_in_loop(block));
             assert_eq!(analysis.loop_depth(block), 0);
         }
@@ -693,7 +693,7 @@ b3:
         assert_eq!(analysis.num_loops(), 1);
 
         let lp = &analysis.loops()[0];
-        assert_eq!(lp.header, function.blocks[1]);
+        assert_eq!(lp.header, function.block(1));
         assert_eq!(lp.latches.len(), 2);
         assert!(!lp.has_single_latch());
     }
@@ -730,10 +730,10 @@ b4:
         assert_eq!(analysis.num_loops(), 1);
 
         let lp = &analysis.loops()[0];
-        let block1 = function.blocks[1];
-        let block2 = function.blocks[2];
-        let block3 = function.blocks[3];
-        let block4 = function.blocks[4];
+        let block1 = function.block(1);
+        let block2 = function.block(2);
+        let block3 = function.block(3);
+        let block4 = function.block(4);
 
         // two exiting blocks: block1 and block2
         assert_eq!(lp.exiting_blocks.len(), 2);
@@ -774,8 +774,8 @@ b3:
         let analyses = test.function_analyses();
         let analysis = analyses.get::<LoopAnalysis>(function, &test.tree);
 
-        let block1 = function.blocks[1];
-        let block2 = function.blocks[2];
+        let block1 = function.block(1);
+        let block2 = function.block(2);
 
         // block2's innermost loop has block2 as header
         let inner = analysis.innermost_loop(block2).unwrap();
@@ -844,7 +844,7 @@ b3:
         let analyses = test.function_analyses();
         let analysis = analyses.get::<LoopAnalysis>(function, &test.tree);
 
-        let block1 = function.blocks[1];
+        let block1 = function.block(1);
         let outer_index = analysis.loop_index(block1).unwrap();
 
         let children: Vec<_> = analysis.child_loops(outer_index).collect();

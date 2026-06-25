@@ -131,7 +131,7 @@ impl LinkGraph {
     /// Approximate a function's inline cost as its instruction count.
     fn function_inline_cost(function: &Function, tree: &Tree) -> u32 {
         let mut count = 0usize;
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             count += tree.get(block_id).instructions.len();
         }
 
@@ -434,7 +434,7 @@ impl ModuleAnalysis for LinkGraph {
         // record each defined function with its attributes and outgoing references
         for (function_id, function) in tree.iter_nodes::<Function>() {
             // skip declarations without a body
-            if function.entry.is_none() {
+            if function.entry().is_none() {
                 continue;
             }
 
@@ -466,7 +466,7 @@ impl ModuleAnalysis for LinkGraph {
             }
 
             // address-of edges from instruction operands
-            for &block_id in &function.blocks {
+            for &block_id in function.blocks() {
                 let block = tree.get(block_id);
                 for &instruction_id in &block.instructions {
                     if let Some(target) =

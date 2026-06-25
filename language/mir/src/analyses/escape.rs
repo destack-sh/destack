@@ -102,7 +102,7 @@ impl<'a, 'b> EscapePropagation<'a, 'b> {
             changed = false;
 
             // propagate through each block
-            for &block_id in &self.function.blocks {
+            for &block_id in self.function.blocks() {
                 changed |= self.propagate_block(block_id);
             }
         }
@@ -267,7 +267,7 @@ struct EscapeMarker<'a, 'b> {
 impl<'a, 'b> EscapeMarker<'a, 'b> {
     /// Mark escaping roots in one function.
     fn mark_function(&mut self, function: &mir::Function) {
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             self.mark_block(block_id);
         }
     }

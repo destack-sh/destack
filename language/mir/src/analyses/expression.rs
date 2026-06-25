@@ -293,15 +293,14 @@ impl PureExpression {
 /// Cached value equivalence for pure expressions.
 #[derive(Debug)]
 pub struct ValueEquivalence<'a> {
+    /// MIR function when block ownership is needed.
+    function: Option<&'a mir::Function>,
     /// MIR tree.
     tree: &'a mir::Tree,
     /// Map from values to their defining instructions.
     definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     /// Constant propagation results when available.
     constants: Option<&'a ConstantPropagation>,
-    /// Instruction to block ownership for constant lookup.
-    instruction_blocks:
-        Option<&'a HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>>,
     /// Cache of pairwise equivalence results.
     cache: HashMap<(mir::Value, mir::Value), bool>,
     /// Cached type keys.
@@ -315,10 +314,10 @@ impl<'a> ValueEquivalence<'a> {
         definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     ) -> Self {
         Self {
+            function: None,
             tree,
             definitions,
             constants: None,
-            instruction_blocks: None,
             cache: HashMap::new(),
             type_keys: HashMap::new(),
         }
@@ -326,19 +325,16 @@ impl<'a> ValueEquivalence<'a> {
 
     /// Create a new value equivalence cache with constant propagation support.
     pub fn new_with_constants(
+        function: &'a mir::Function,
         tree: &'a mir::Tree,
         definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
         constants: &'a ConstantPropagation,
-        instruction_blocks: &'a HashMap<
-            mir::LocalNodeId<mir::Instruction>,
-            mir::LocalNodeId<mir::Block>,
-        >,
     ) -> Self {
         Self {
+            function: Some(function),
             tree,
             definitions,
             constants: Some(constants),
-            instruction_blocks: Some(instruction_blocks),
             cache: HashMap::new(),
             type_keys: HashMap::new(),
         }
@@ -644,18 +640,18 @@ impl<'a> ValueEquivalence<'a> {
         left: mir::Value,
         right: mir::Value,
     ) -> Option<(&mir::Constant, &mir::Constant)> {
+        let function = self.function?;
         let constants = self.constants?;
-        let instruction_blocks = self.instruction_blocks?;
         let left_inst_id = self.definitions.get(&left)?;
         let right_inst_id = self.definitions.get(&right)?;
-        let left_block = instruction_blocks.get(left_inst_id)?;
-        let right_block = instruction_blocks.get(right_inst_id)?;
+        let left_block = function.instruction_block(*left_inst_id)?;
+        let right_block = function.instruction_block(*right_inst_id)?;
         let left_constant = constants
-            .constant_at_exit(*left_block, left)
-            .or_else(|| constants.constant_at_entry(*left_block, left))?;
+            .constant_at_exit(left_block, left)
+            .or_else(|| constants.constant_at_entry(left_block, left))?;
         let right_constant = constants
-            .constant_at_exit(*right_block, right)
-            .or_else(|| constants.constant_at_entry(*right_block, right))?;
+            .constant_at_exit(right_block, right)
+            .or_else(|| constants.constant_at_entry(right_block, right))?;
         Some((left_constant, right_constant))
     }
 }
