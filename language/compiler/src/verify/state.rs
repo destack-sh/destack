@@ -65,7 +65,7 @@ impl<'a> VerifyState<'a> {
 
     /// Create a source anchor for one MIR node.
     pub(crate) fn anchor(&self, tree: &mir::Tree, node: mir::LocalNodeIdAny) -> DiagnosticAnchor {
-        if let Some(span) = tree.get_span_by_id(node.id) {
+        if let Some(span) = tree.source_span_by_id(node.id) {
             DiagnosticAnchor::Span(span)
         } else {
             DiagnosticAnchor::Module(self.module)
