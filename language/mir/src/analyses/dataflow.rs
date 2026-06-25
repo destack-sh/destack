@@ -1,6 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use crate as mir;
+use crate::NodeTable;
 
 use super::ControlFlowGraph;
 
@@ -27,66 +28,55 @@ pub trait Lattice: Clone + PartialEq {
 #[derive(Debug, Clone)]
 pub struct DataflowResult<S> {
     /// State at entry indexed by block id.
-    block_entry: Vec<Option<S>>,
+    block_entry: NodeTable<mir::Block, Option<S>>,
     /// State at exit indexed by block id.
-    block_exit: Vec<Option<S>>,
+    block_exit: NodeTable<mir::Block, Option<S>>,
 }
 
 impl<S> DataflowResult<S> {
     /// Create an empty result.
     pub fn new() -> Self {
         Self {
-            block_entry: Vec::new(),
-            block_exit: Vec::new(),
+            block_entry: NodeTable::new(),
+            block_exit: NodeTable::new(),
         }
     }
 
     /// Create a result large enough for one function.
     pub fn for_function(function: &mir::Function) -> Self {
-        let block_count = function
-            .blocks
-            .iter()
-            .map(|block| block.id as usize + 1)
-            .max()
-            .unwrap_or(0);
-
-        let mut block_entry = Vec::with_capacity(block_count);
-        let mut block_exit = Vec::with_capacity(block_count);
-        block_entry.resize_with(block_count, || None);
-        block_exit.resize_with(block_count, || None);
-
         Self {
-            block_entry,
-            block_exit,
+            block_entry: NodeTable::from_nodes(&function.blocks, || None),
+            block_exit: NodeTable::from_nodes(&function.blocks, || None),
         }
     }
 
     /// Return the state at entry to a block.
     pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> Option<&S> {
-        self.block_entry
-            .get(block.id as usize)
-            .and_then(Option::as_ref)
+        self.block_entry.get(block).as_ref()
     }
 
     /// Return the state at exit of a block.
     pub fn exit(&self, block: mir::LocalNodeId<mir::Block>) -> Option<&S> {
-        self.block_exit
-            .get(block.id as usize)
-            .and_then(Option::as_ref)
+        self.block_exit.get(block).as_ref()
     }
 
     /// Set the state at entry to a block.
     pub fn set_entry(&mut self, block: mir::LocalNodeId<mir::Block>, state: S) {
-        self.block_entry[block.id as usize] = Some(state);
+        *self.block_entry.get_mut(block) = Some(state);
     }
 
     /// Set the state at exit of a block.
     pub fn set_exit(&mut self, block: mir::LocalNodeId<mir::Block>, state: S) {
-        self.block_exit[block.id as usize] = Some(state);
+        *self.block_exit.get_mut(block) = Some(state);
     }
 
     /// Split into entry and exit tables.
-    pub fn into_parts(self) -> (Vec<Option<S>>, Vec<Option<S>>) {
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        NodeTable<mir::Block, Option<S>>,
+        NodeTable<mir::Block, Option<S>>,
+    ) {
         (self.block_entry, self.block_exit)
     }
 }
@@ -137,7 +127,7 @@ where
                 result
                     .entry(entry)
                     .cloned()
-                    .unwrap_or_else(|| entry_state.clone())
+                    .unwrap_or_else(|| panic!("missing entry state for dataflow root: {entry:?}"))
             } else {
                 let predecessors = cfg.predecessors(block_id);
                 if predecessors.is_empty() {

@@ -5,7 +5,7 @@ use destack_core::{float_from_bits, float_to_bits};
 
 use crate::{
     Analysis, AnalysisId, ControlFlowGraph, EdgeArguments, FunctionAnalyses, FunctionAnalysis,
-    TargetLayout, fold_binary, fold_cast, fold_unary,
+    NodeTable, TargetLayout, fold_binary, fold_cast, fold_unary,
 };
 
 use super::Lattice;
@@ -437,9 +437,9 @@ impl Lattice for RangeMap {
 #[derive(Debug)]
 pub struct RangeAnalysis {
     /// Ranges available at block entry indexed by block id.
-    block_entry: Vec<Option<RangeMap>>,
+    block_entry: NodeTable<mir::Block, Option<RangeMap>>,
     /// Ranges available at block exit indexed by block id.
-    block_exit: Vec<Option<RangeMap>>,
+    block_exit: NodeTable<mir::Block, Option<RangeMap>>,
 }
 
 impl RangeAnalysis {
@@ -452,45 +452,42 @@ impl RangeAnalysis {
     ) -> Self {
         let Some(entry) = function.entry else {
             return Self {
-                block_entry: Vec::new(),
-                block_exit: Vec::new(),
+                block_entry: NodeTable::new(),
+                block_exit: NodeTable::new(),
             };
         };
 
         // init state maps
-        let mut block_entry = Vec::with_capacity(function.block_capacity());
-        let mut block_exit = Vec::with_capacity(function.block_capacity());
-        block_entry.resize_with(function.block_capacity(), || None);
-        block_exit.resize_with(function.block_capacity(), || None);
+        let mut block_entry = NodeTable::from_nodes(&function.blocks, || None);
+        let mut block_exit = NodeTable::from_nodes(&function.blocks, || None);
 
         // seed entry state
-        block_entry[entry.id as usize] = Some(RangeMap::new());
+        *block_entry.get_mut(entry) = Some(RangeMap::new());
 
         // init worklist
         let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
-        let mut in_worklist = vec![false; function.block_capacity()];
-        let mut update_counts = vec![0u32; function.block_capacity()];
+        let mut in_worklist = NodeTable::from_nodes(&function.blocks, || false);
+        let mut update_counts = NodeTable::from_nodes(&function.blocks, || 0u32);
         worklist.push_back(entry);
-        in_worklist[entry.id as usize] = true;
+        *in_worklist.get_mut(entry) = true;
 
         // process blocks until fixed point
         while let Some(block_id) = worklist.pop_front() {
             // remove block from worklist
-            in_worklist[block_id.id as usize] = false;
+            *in_worklist.get_mut(block_id) = false;
 
             // compute entry state
             let mut entry_state = if block_id == entry {
                 block_entry
-                    .get(entry.id as usize)
-                    .and_then(Option::as_ref)
+                    .get(entry)
+                    .as_ref()
                     .cloned()
-                    .unwrap_or_else(RangeMap::new)
+                    .unwrap_or_else(|| panic!("missing range entry state: {entry:?}"))
             } else {
                 // merge predecessor exits
                 let mut merged: Option<RangeMap> = None;
                 for &pred in cfg.predecessors(block_id) {
-                    let Some(pred_exit) = block_exit.get(pred.id as usize).and_then(Option::as_ref)
-                    else {
+                    let Some(pred_exit) = block_exit.get(pred).as_ref() else {
                         continue;
                     };
 
@@ -512,20 +509,20 @@ impl RangeAnalysis {
 
             // check if entry state changed
             let entry_changed = block_entry
-                .get(block_id.id as usize)
-                .and_then(Option::as_ref)
+                .get(block_id)
+                .as_ref()
                 .map(|old| old != &entry_state)
                 .unwrap_or(true);
 
             if entry_changed || block_id == entry {
                 if entry_changed {
-                    update_counts[block_id.id as usize] += 1;
-                    if update_counts[block_id.id as usize] > RANGE_WIDEN_THRESHOLD {
+                    *update_counts.get_mut(block_id) += 1;
+                    if *update_counts.get(block_id) > RANGE_WIDEN_THRESHOLD {
                         entry_state.widen_all();
                     }
                 }
 
-                block_entry[block_id.id as usize] = Some(entry_state.clone());
+                *block_entry.get_mut(block_id) = Some(entry_state.clone());
 
                 // transfer through block
                 let exit_state = transfer_block(
@@ -537,20 +534,20 @@ impl RangeAnalysis {
 
                 // check if exit state changed
                 let exit_changed = block_exit
-                    .get(block_id.id as usize)
-                    .and_then(Option::as_ref)
+                    .get(block_id)
+                    .as_ref()
                     .map(|old| old != &exit_state)
                     .unwrap_or(true);
 
                 if exit_changed {
-                    block_exit[block_id.id as usize] = Some(exit_state);
+                    *block_exit.get_mut(block_id) = Some(exit_state);
 
                     // add successors to worklist
                     let block = tree.get(block_id);
                     let terminator = tree.get(block.terminator);
                     for succ in terminator.successors(tree) {
-                        if !in_worklist[succ.id as usize] {
-                            in_worklist[succ.id as usize] = true;
+                        if !*in_worklist.get(succ) {
+                            *in_worklist.get_mut(succ) = true;
                             worklist.push_back(succ);
                         }
                     }
@@ -566,11 +563,9 @@ impl RangeAnalysis {
 
     /// Get the ranges at block entry.
     pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> &RangeMap {
-        match self
-            .block_entry
-            .get(block.id as usize)
-            .and_then(Option::as_ref)
-        {
+        let ranges = self.block_entry.get(block);
+
+        match ranges {
             Some(ranges) => ranges,
             None => empty_ranges(),
         }
@@ -578,11 +573,9 @@ impl RangeAnalysis {
 
     /// Get the ranges at block exit.
     pub fn exit(&self, block: mir::LocalNodeId<mir::Block>) -> &RangeMap {
-        match self
-            .block_exit
-            .get(block.id as usize)
-            .and_then(Option::as_ref)
-        {
+        let ranges = self.block_exit.get(block);
+
+        match ranges {
             Some(ranges) => ranges,
             None => empty_ranges(),
         }
@@ -630,7 +623,7 @@ fn apply_block_param_ranges(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
     cfg: &ControlFlowGraph,
-    block_exit: &[Option<RangeMap>],
+    block_exit: &NodeTable<mir::Block, Option<RangeMap>>,
     entry_state: &mut RangeMap,
 ) {
     // resolve ranges for block parameters
@@ -655,7 +648,7 @@ fn resolve_block_param_ranges(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
     cfg: &ControlFlowGraph,
-    block_exit: &[Option<RangeMap>],
+    block_exit: &NodeTable<mir::Block, Option<RangeMap>>,
 ) -> HashMap<mir::Value, ValueRange> {
     // early exit for blocks without parameters
     let block = tree.get(block_id);
@@ -669,7 +662,7 @@ fn resolve_block_param_ranges(
 
     // scan predecessors
     for &pred in cfg.predecessors(block_id) {
-        let Some(pred_exit) = block_exit.get(pred.id as usize).and_then(Option::as_ref) else {
+        let Some(pred_exit) = block_exit.get(pred).as_ref() else {
             continue;
         };
 

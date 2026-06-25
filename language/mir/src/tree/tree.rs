@@ -1241,6 +1241,25 @@ impl Tree {
         (span.end > span.start).then_some(span)
     }
 
+    /// Resolve the source span for one node through direct spans and MIR origins.
+    pub fn source_span_by_id(&self, id: u32) -> Option<Span> {
+        let mut current = id;
+        let mut remaining = self.node_count();
+
+        // walk primary origins until a lowered or parsed source span appears
+        while remaining > 0 && self.has_node_id(current) {
+            if let Some(span) = self.get_span_by_id(current) {
+                return Some(span);
+            }
+
+            let origin = self.origin_by_node_id.get(self.node_index(current))?;
+            current = origin.parent()?;
+            remaining -= 1;
+        }
+
+        None
+    }
+
     /// Set the span for a node.
     #[inline]
     pub fn set_span<T>(&mut self, id: LocalNodeId<T>, span: Span)

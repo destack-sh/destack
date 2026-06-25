@@ -5,8 +5,8 @@ use smallvec::SmallVec;
 
 use crate::{
     AliasAnalysis, Analysis, AnalysisId, ControlFlowGraph, DominatorTree, FunctionAnalyses,
-    FunctionAnalysis, MemoryLocation, TargetLayout, TypeKey, ValueDefinitions, ValueTypeMap,
-    collect_reachable_blocks, compute_dominance_frontiers,
+    FunctionAnalysis, MemoryLocation, NodeTable, TargetLayout, TypeKey, ValueDefinitions,
+    ValueTypeMap, collect_reachable_blocks, compute_dominance_frontiers,
 };
 
 /// Identifier for a memory access in MemorySSA.
@@ -493,13 +493,13 @@ pub struct MemorySSA {
     /// All memory accesses indexed by id.
     accesses: Vec<MemoryAccess>,
     /// Memory phi nodes indexed by block id.
-    block_phis: Vec<Option<MemoryAccessId>>,
+    block_phis: NodeTable<mir::Block, Option<MemoryAccessId>>,
     /// Memory accesses indexed by instruction id.
-    instruction_access: Vec<Vec<MemoryAccessId>>,
+    instruction_access: NodeTable<mir::Instruction, Vec<MemoryAccessId>>,
     /// Memory accesses indexed by terminator block id.
-    terminator_access: Vec<Vec<MemoryAccessId>>,
+    terminator_access: NodeTable<mir::Block, Vec<MemoryAccessId>>,
     /// Memory accesses indexed by block id.
-    block_accesses: Vec<Vec<MemoryAccessId>>,
+    block_accesses: NodeTable<mir::Block, Vec<MemoryAccessId>>,
     /// Live on entry access id.
     live_on_entry: MemoryAccessId,
 }
@@ -521,10 +521,10 @@ impl MemorySSA {
                 let live_on_entry = MemoryAccessId::from_index(0);
                 return Self {
                     accesses: vec![MemoryAccess::LiveOnEntry],
-                    block_phis: Vec::new(),
-                    instruction_access: Vec::new(),
-                    terminator_access: Vec::new(),
-                    block_accesses: Vec::new(),
+                    block_phis: NodeTable::new(),
+                    instruction_access: NodeTable::new(),
+                    terminator_access: NodeTable::new(),
+                    block_accesses: NodeTable::new(),
                     live_on_entry,
                 };
             }
@@ -552,22 +552,29 @@ impl MemorySSA {
         let live_on_entry = MemoryAccessId::from_index(0);
 
         // create block phis
-        let mut block_phis = vec![None; function.block_capacity()];
+        let mut block_phis = NodeTable::from_nodes(&function.blocks, || None);
         for block in &phi_blocks {
             let phi_id = MemoryAccessId::from_index(accesses.len());
             accesses.push(MemoryAccess::Phi(MemoryPhi {
                 block: *block,
                 incoming: Vec::new(),
             }));
-            block_phis[block.id as usize] = Some(phi_id);
+            *block_phis.get_mut(*block) = Some(phi_id);
         }
 
         // create instruction memory accesses
-        let mut instruction_access = vec![Vec::new(); function.instruction_capacity(tree)];
-        let mut terminator_access = vec![Vec::new(); function.block_capacity()];
-        let mut block_accesses = vec![Vec::new(); function.block_capacity()];
-        for (block_index, access_list) in collected.block_accesses.iter().enumerate() {
-            let Some(access_list) = access_list else {
+        let instructions = function
+            .blocks
+            .iter()
+            .flat_map(|block| tree.get(*block).instructions.iter().copied())
+            .collect::<Vec<_>>();
+        let mut instruction_access = NodeTable::from_nodes(&instructions, Vec::new);
+        let mut terminator_access = NodeTable::from_nodes(&function.blocks, Vec::new);
+        let mut block_accesses = NodeTable::from_nodes(&function.blocks, Vec::new);
+
+        for &block in &collected.reachable_blocks {
+            let access_list = collected.block_accesses.get(block);
+            if access_list.is_empty() {
                 continue;
             };
             let mut block_list = Vec::new();
@@ -583,10 +590,10 @@ impl MemorySSA {
                         }));
                         match source {
                             MemoryAccessSource::Instruction(instruction) => {
-                                instruction_access[instruction.id as usize].push(access_id);
+                                instruction_access.get_mut(*instruction).push(access_id);
                             }
                             MemoryAccessSource::Terminator(block) => {
-                                terminator_access[block.id as usize].push(access_id);
+                                terminator_access.get_mut(*block).push(access_id);
                             }
                         }
                     }
@@ -598,10 +605,10 @@ impl MemorySSA {
                         }));
                         match source {
                             MemoryAccessSource::Instruction(instruction) => {
-                                instruction_access[instruction.id as usize].push(access_id);
+                                instruction_access.get_mut(*instruction).push(access_id);
                             }
                             MemoryAccessSource::Terminator(block) => {
-                                terminator_access[block.id as usize].push(access_id);
+                                terminator_access.get_mut(*block).push(access_id);
                             }
                         }
                     }
@@ -609,7 +616,7 @@ impl MemorySSA {
                 block_list.push(access_id);
             }
 
-            block_accesses[block_index] = block_list;
+            *block_accesses.get_mut(block) = block_list;
         }
 
         // assemble memory ssa state
@@ -654,10 +661,8 @@ impl MemorySSA {
         &self,
         instruction: mir::LocalNodeId<mir::Instruction>,
     ) -> Option<&[MemoryAccessId]> {
-        self.instruction_access
-            .get(instruction.id as usize)
-            .filter(|accesses| !accesses.is_empty())
-            .map(Vec::as_slice)
+        let accesses = self.instruction_access.get(instruction);
+        (!accesses.is_empty()).then_some(accesses.as_slice())
     }
 
     /// Return the first memory use access for an instruction.
@@ -677,15 +682,13 @@ impl MemorySSA {
         &self,
         block: mir::LocalNodeId<mir::Block>,
     ) -> Option<&[MemoryAccessId]> {
-        self.terminator_access
-            .get(block.id as usize)
-            .filter(|accesses| !accesses.is_empty())
-            .map(Vec::as_slice)
+        let accesses = self.terminator_access.get(block);
+        (!accesses.is_empty()).then_some(accesses.as_slice())
     }
 
     /// Return the memory phi for a block if present.
     pub fn block_phi(&self, block: mir::LocalNodeId<mir::Block>) -> Option<MemoryAccessId> {
-        self.block_phis.get(block.id as usize).copied().flatten()
+        *self.block_phis.get(block)
     }
 
     /// Return the immediate defining access for a use or def.
@@ -918,7 +921,7 @@ enum CollectedAccess {
 /// Memory access collection results.
 struct MemoryAccessCollection {
     /// Memory accesses indexed by block id.
-    block_accesses: Vec<Option<Vec<CollectedAccess>>>,
+    block_accesses: NodeTable<mir::Block, Vec<CollectedAccess>>,
     /// Blocks that contain memory definitions.
     def_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
     /// Blocks reachable from entry.
@@ -972,7 +975,7 @@ impl<'a> MemoryAccessCollector<'a> {
         let reachable: HashSet<_> = reachable_blocks.iter().copied().collect();
 
         // collect memory accesses per block
-        let mut block_accesses = vec![None; self.function.block_capacity()];
+        let mut block_accesses = NodeTable::from_nodes(&self.function.blocks, Vec::new);
         let mut def_blocks = HashSet::new();
 
         // scan reachable blocks
@@ -1023,9 +1026,7 @@ impl<'a> MemoryAccessCollector<'a> {
             }
 
             // store collected accesses when present
-            if !accesses.is_empty() {
-                block_accesses[block_id.id as usize] = Some(accesses);
-            }
+            *block_accesses.get_mut(block_id) = accesses;
         }
 
         MemoryAccessCollection {
@@ -1050,7 +1051,7 @@ impl<'a> MemoryAccessCollector<'a> {
         // classify instruction memory effects
         match instruction {
             mir::Instruction::Error => {
-                panic!("recovered MIR instruction reached optimizer");
+                panic!("invalid MIR instruction reached optimizer");
             }
 
             // pure instructions
@@ -1352,8 +1353,11 @@ impl<'a> MemoryAccessCollector<'a> {
                 MemoryAccessEffect::read_write(MemoryEffectTarget::any(mir::SpaceSet::ANY), false),
             ),
 
-            mir::Terminator::Error
-            | mir::Terminator::Return { .. }
+            mir::Terminator::Error => {
+                panic!("invalid MIR terminator reached MemorySSA");
+            }
+
+            mir::Terminator::Return { .. }
             | mir::Terminator::Jump { .. }
             | mir::Terminator::Branch { .. }
             | mir::Terminator::Check { .. }
@@ -1898,7 +1902,7 @@ struct MemoryRenamer<'a> {
     /// Reachable block set.
     reachable: HashSet<mir::LocalNodeId<mir::Block>>,
     /// Dominator tree children.
-    children: HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
+    children: NodeTable<mir::Block, Vec<mir::LocalNodeId<mir::Block>>>,
 }
 
 impl<'a> MemoryRenamer<'a> {
@@ -1913,15 +1917,10 @@ impl<'a> MemoryRenamer<'a> {
         let reachable: HashSet<_> = reachable_blocks.iter().copied().collect();
 
         // build dominator tree children map
-        let mut children = HashMap::new();
+        let mut children = NodeTable::from_nodes(reachable_blocks, Vec::new);
         for &block in reachable_blocks {
-            children.insert(block, Vec::new());
-        }
-        for &block in reachable_blocks {
-            if let Some(idom) = domtree.immediate_dominator(block)
-                && let Some(list) = children.get_mut(&idom)
-            {
-                list.push(block);
+            if let Some(idom) = domtree.immediate_dominator(block) {
+                children.get_mut(idom).push(block);
             }
         }
 
@@ -1957,27 +1956,25 @@ impl<'a> MemoryRenamer<'a> {
 
         // push block phi if present
         let mut pushed = 0usize;
-        if let Some(phi_id) = ssa.block_phis.get(block.id as usize).copied().flatten() {
+        if let Some(phi_id) = *ssa.block_phis.get(block) {
             stack.push(phi_id);
             pushed += 1;
         }
 
         // process block accesses
-        if let Some(accesses) = ssa.block_accesses.get(block.id as usize).cloned() {
-            for access_id in accesses {
-                let current = *stack.last().expect("missing memory definition");
+        for access_id in ssa.block_accesses.get(block).clone() {
+            let current = *stack.last().expect("missing memory definition");
 
-                match ssa.accesses.get_mut(access_id.index()) {
-                    Some(MemoryAccess::Use(use_access)) => {
-                        use_access.defining_access = Some(current);
-                    }
-                    Some(MemoryAccess::Def(def_access)) => {
-                        def_access.defining_access = Some(current);
-                        stack.push(access_id);
-                        pushed += 1;
-                    }
-                    _ => {}
+            match ssa.accesses.get_mut(access_id.index()) {
+                Some(MemoryAccess::Use(use_access)) => {
+                    use_access.defining_access = Some(current);
                 }
+                Some(MemoryAccess::Def(def_access)) => {
+                    def_access.defining_access = Some(current);
+                    stack.push(access_id);
+                    pushed += 1;
+                }
+                _ => {}
             }
         }
 
@@ -1985,7 +1982,7 @@ impl<'a> MemoryRenamer<'a> {
         let block_data = self.tree.get(block);
         let terminator = self.tree.get(block_data.terminator);
         for successor in terminator.successors(self.tree) {
-            if let Some(phi_id) = ssa.block_phis.get(successor.id as usize).copied().flatten()
+            if let Some(phi_id) = *ssa.block_phis.get(successor)
                 && let Some(MemoryAccess::Phi(phi)) = ssa.accesses.get_mut(phi_id.index())
             {
                 let incoming = *stack.last().expect("missing memory definition");
@@ -1994,10 +1991,8 @@ impl<'a> MemoryRenamer<'a> {
         }
 
         // rename children
-        if let Some(children) = self.children.get(&block) {
-            for &child in children {
-                self.rename_block(ssa, child, stack);
-            }
+        for &child in self.children.get(block) {
+            self.rename_block(ssa, child, stack);
         }
 
         // pop access stack for this block

@@ -56,7 +56,7 @@ impl ExpressionKey {
     pub fn from_instruction(instruction: &mir::Instruction, tree: &mir::Tree) -> Option<Self> {
         match instruction {
             mir::Instruction::Error => {
-                panic!("recovered MIR instruction reached optimizer");
+                panic!("invalid MIR instruction reached optimizer");
             }
 
             // canonicalize commutative binary operations

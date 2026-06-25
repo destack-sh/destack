@@ -81,7 +81,7 @@ impl ValueDefinitions {
 
                             for (index, arg) in arguments.iter().copied().enumerate() {
                                 if call_argument_escapes(argument_effects, index) {
-                                    record_stack_escape_reference(
+                                    record_stack_escape(
                                         arg,
                                         self,
                                         tree,
@@ -94,13 +94,7 @@ impl ValueDefinitions {
                     }
                     mir::Instruction::Store { value, .. } => {
                         // mark stored stack references as escaping
-                        record_stack_escape_reference(
-                            *value,
-                            self,
-                            tree,
-                            &frame_allocs,
-                            &mut escaping,
-                        );
+                        record_stack_escape(*value, self, tree, &frame_allocs, &mut escaping);
                     }
                     _ => {}
                 }
@@ -109,19 +103,15 @@ impl ValueDefinitions {
             // scan terminators for escaping values
             let terminator = tree.get(block.terminator);
             match terminator {
-                mir::Terminator::Error => return HashSet::new(),
+                mir::Terminator::Error => {
+                    panic!("invalid MIR terminator reached memory analysis");
+                }
                 mir::Terminator::Return { value: Some(value) } => {
-                    record_stack_escape_reference(*value, self, tree, &frame_allocs, &mut escaping);
+                    record_stack_escape(*value, self, tree, &frame_allocs, &mut escaping);
                 }
                 mir::Terminator::Jump { target } => {
                     for arg in target.arguments(tree).iter().copied() {
-                        record_stack_escape_reference(
-                            arg,
-                            self,
-                            tree,
-                            &frame_allocs,
-                            &mut escaping,
-                        );
+                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
                     }
                 }
                 mir::Terminator::Branch {
@@ -135,13 +125,7 @@ impl ValueDefinitions {
                         .chain(else_target.arguments(tree).iter())
                         .copied()
                     {
-                        record_stack_escape_reference(
-                            arg,
-                            self,
-                            tree,
-                            &frame_allocs,
-                            &mut escaping,
-                        );
+                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
                     }
                 }
                 mir::Terminator::Check {
@@ -153,13 +137,7 @@ impl ValueDefinitions {
                         .chain(failure.arguments(tree).iter())
                         .copied()
                     {
-                        record_stack_escape_reference(
-                            arg,
-                            self,
-                            tree,
-                            &frame_allocs,
-                            &mut escaping,
-                        );
+                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
                     }
                 }
                 mir::Terminator::NewZeroedTry {
@@ -174,13 +152,7 @@ impl ValueDefinitions {
                         .chain(failure.arguments(tree).iter())
                         .copied()
                     {
-                        record_stack_escape_reference(
-                            arg,
-                            self,
-                            tree,
-                            &frame_allocs,
-                            &mut escaping,
-                        );
+                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
                     }
                 }
                 mir::Terminator::NewSliceZeroedTry {
@@ -195,13 +167,7 @@ impl ValueDefinitions {
                     failure,
                     ..
                 } => {
-                    record_stack_escape_reference(
-                        *length,
-                        self,
-                        tree,
-                        &frame_allocs,
-                        &mut escaping,
-                    );
+                    record_stack_escape(*length, self, tree, &frame_allocs, &mut escaping);
 
                     for arg in success
                         .arguments(tree)
@@ -209,34 +175,16 @@ impl ValueDefinitions {
                         .chain(failure.arguments(tree).iter())
                         .copied()
                     {
-                        record_stack_escape_reference(
-                            arg,
-                            self,
-                            tree,
-                            &frame_allocs,
-                            &mut escaping,
-                        );
+                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
                     }
                 }
                 mir::Terminator::Switch { cases, default, .. } => {
                     for arg in default.arguments(tree).iter().copied() {
-                        record_stack_escape_reference(
-                            arg,
-                            self,
-                            tree,
-                            &frame_allocs,
-                            &mut escaping,
-                        );
+                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
                     }
                     for case in tree.get_switch_cases(*cases) {
                         for arg in case.target.arguments(tree).iter().copied() {
-                            record_stack_escape_reference(
-                                arg,
-                                self,
-                                tree,
-                                &frame_allocs,
-                                &mut escaping,
-                            );
+                            record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
                         }
                     }
                 }
@@ -245,25 +193,13 @@ impl ValueDefinitions {
                     resume,
                     unwind,
                 } => {
-                    record_stack_escape_reference(*value, self, tree, &frame_allocs, &mut escaping);
+                    record_stack_escape(*value, self, tree, &frame_allocs, &mut escaping);
                     for arg in resume.arguments(tree).iter().copied() {
-                        record_stack_escape_reference(
-                            arg,
-                            self,
-                            tree,
-                            &frame_allocs,
-                            &mut escaping,
-                        );
+                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
                     }
                     if let Some(unwind) = unwind {
                         for arg in unwind.arguments(tree).iter().copied() {
-                            record_stack_escape_reference(
-                                arg,
-                                self,
-                                tree,
-                                &frame_allocs,
-                                &mut escaping,
-                            );
+                            record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
                         }
                     }
                 }
@@ -274,13 +210,7 @@ impl ValueDefinitions {
                         .chain(target.arguments(tree).iter())
                         .copied()
                     {
-                        record_stack_escape_reference(
-                            arg,
-                            self,
-                            tree,
-                            &frame_allocs,
-                            &mut escaping,
-                        );
+                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
                     }
                 }
                 mir::Terminator::CallIndirect {
@@ -289,26 +219,14 @@ impl ValueDefinitions {
                     target,
                     ..
                 } => {
-                    record_stack_escape_reference(
-                        *callee,
-                        self,
-                        tree,
-                        &frame_allocs,
-                        &mut escaping,
-                    );
+                    record_stack_escape(*callee, self, tree, &frame_allocs, &mut escaping);
                     for arg in tree
                         .get_values(call.arguments)
                         .iter()
                         .chain(target.arguments(tree).iter())
                         .copied()
                     {
-                        record_stack_escape_reference(
-                            arg,
-                            self,
-                            tree,
-                            &frame_allocs,
-                            &mut escaping,
-                        );
+                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
                     }
                 }
                 mir::Terminator::CallVirtual {
@@ -317,26 +235,14 @@ impl ValueDefinitions {
                     target,
                     ..
                 } => {
-                    record_stack_escape_reference(
-                        *receiver,
-                        self,
-                        tree,
-                        &frame_allocs,
-                        &mut escaping,
-                    );
+                    record_stack_escape(*receiver, self, tree, &frame_allocs, &mut escaping);
                     for arg in tree
                         .get_values(call.arguments)
                         .iter()
                         .chain(target.arguments(tree).iter())
                         .copied()
                     {
-                        record_stack_escape_reference(
-                            arg,
-                            self,
-                            tree,
-                            &frame_allocs,
-                            &mut escaping,
-                        );
+                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
                     }
                 }
                 mir::Terminator::CallDynamic {
@@ -345,38 +251,20 @@ impl ValueDefinitions {
                     target,
                     ..
                 } => {
-                    record_stack_escape_reference(
-                        *receiver,
-                        self,
-                        tree,
-                        &frame_allocs,
-                        &mut escaping,
-                    );
+                    record_stack_escape(*receiver, self, tree, &frame_allocs, &mut escaping);
                     for arg in tree
                         .get_values(call.arguments)
                         .iter()
                         .chain(target.arguments(tree).iter())
                         .copied()
                     {
-                        record_stack_escape_reference(
-                            arg,
-                            self,
-                            tree,
-                            &frame_allocs,
-                            &mut escaping,
-                        );
+                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
                     }
                 }
                 mir::Terminator::Trap { .. } => {}
                 mir::Terminator::Panic { payload } => {
                     if let Some(payload) = payload {
-                        record_stack_escape_reference(
-                            *payload,
-                            self,
-                            tree,
-                            &frame_allocs,
-                            &mut escaping,
-                        );
+                        record_stack_escape(*payload, self, tree, &frame_allocs, &mut escaping);
                     }
                 }
                 mir::Terminator::UnwindResume => {}
@@ -384,31 +272,13 @@ impl ValueDefinitions {
                 | mir::Terminator::TailCallVirtual { call, .. }
                 | mir::Terminator::TailCallDynamic { call, .. } => {
                     for arg in tree.get_values(call.arguments).iter().copied() {
-                        record_stack_escape_reference(
-                            arg,
-                            self,
-                            tree,
-                            &frame_allocs,
-                            &mut escaping,
-                        );
+                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
                     }
                 }
                 mir::Terminator::TailCallIndirect { callee, call, .. } => {
-                    record_stack_escape_reference(
-                        *callee,
-                        self,
-                        tree,
-                        &frame_allocs,
-                        &mut escaping,
-                    );
+                    record_stack_escape(*callee, self, tree, &frame_allocs, &mut escaping);
                     for arg in tree.get_values(call.arguments).iter().copied() {
-                        record_stack_escape_reference(
-                            arg,
-                            self,
-                            tree,
-                            &frame_allocs,
-                            &mut escaping,
-                        );
+                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
                     }
                 }
                 mir::Terminator::Unreachable | mir::Terminator::Return { value: None } => {}
@@ -425,12 +295,12 @@ impl ValueDefinitions {
 
 /// Report whether a call argument may escape.
 fn call_argument_escapes(arguments: Option<&[mir::CallArgumentEffect]>, index: usize) -> bool {
-    // default to escaping when argument metadata is missing
+    // require escape metadata before treating an argument as local
     let Some(arguments) = arguments else {
         return true;
     };
 
-    // default to escaping when argument metadata is missing
+    // require escape metadata for the specific argument
     let Some(argument) = arguments.get(index) else {
         return true;
     };
@@ -457,17 +327,6 @@ fn record_stack_escape(
         escaping,
         &mut visited,
     );
-}
-
-/// Record a stack escape for a recoverable value reference.
-fn record_stack_escape_reference(
-    value: mir::Value,
-    definitions: &ValueDefinitions,
-    tree: &mir::Tree,
-    frame_allocs: &HashSet<mir::Value>,
-    escaping: &mut HashSet<mir::Value>,
-) {
-    record_stack_escape(value, definitions, tree, frame_allocs, escaping);
 }
 
 /// Record stack escapes from a value and its derived operands.
@@ -984,7 +843,7 @@ impl<'a> MemoryTargetBuilder<'a> {
 
                 let mut target = self.target(array);
 
-                let scale = self.element_size(array).unwrap_or(1).max(1);
+                let scale = self.expect_element_size(array);
                 if let MemoryTarget::Place(place) = &mut target {
                     place.add_indexed_offset(index, scale);
                 }
@@ -1078,29 +937,37 @@ impl<'a> MemoryTargetBuilder<'a> {
 
     /// Return the value type for an SSA value.
     fn value_type(&self, value: mir::Value) -> mir::LocalNodeId<mir::Type> {
-        self.value_types.require_value_type(value)
+        self.value_types.expect_value_type(value)
     }
 
-    /// Resolve the element size for an array value when possible.
-    fn element_size(&self, array: mir::Value) -> Option<u64> {
+    /// Return the byte stride for one indexed value.
+    fn expect_element_size(&self, array: mir::Value) -> u64 {
         let ty_id = self.value_type(array);
-        let ty = self.tree.get(ty_id);
-
-        let element_id = match ty {
-            mir::Type::FixedArray { element, .. } => *element,
-            mir::Type::Reference { pointee, .. } => {
-                let pointee_ty = self.tree.get(*pointee);
-                if let mir::Type::FixedArray { element, .. } = pointee_ty {
-                    *element
-                } else {
-                    return None;
-                }
-            }
-            _ => return None,
+        let element_id = match self.tree.get(ty_id) {
+            mir::Type::FixedArray { element, .. }
+            | mir::Type::Slice { element, .. }
+            | mir::Type::Tensor { element, .. }
+            | mir::Type::TensorView { element, .. } => *element,
+            mir::Type::Reference { pointee, .. } => self.expect_pointee_element(*pointee),
+            _ => panic!("element.address requires an indexed value, got {ty_id:?}"),
         };
 
         let key = TypeKey::from_type(element_id, self.tree);
-        key.byte_size(self.target_layout.pointer_width_bits)
+        match key.byte_size(self.target_layout.pointer_width_bits) {
+            Some(size) if size > 0 => size,
+            _ => panic!("element.address requires a byte-sized element, got {element_id:?}"),
+        }
+    }
+
+    /// Return the element type for an indexed pointee.
+    fn expect_pointee_element(&self, pointee: mir::TypeId) -> mir::TypeId {
+        match self.tree.get(pointee) {
+            mir::Type::FixedArray { element, .. }
+            | mir::Type::Slice { element, .. }
+            | mir::Type::Tensor { element, .. }
+            | mir::Type::TensorView { element, .. } => *element,
+            _ => panic!("element.address requires an indexed pointee, got {pointee:?}"),
+        }
     }
 }
 

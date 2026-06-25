@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 
 use crate as mir;
 
-use crate::{ControlFlowGraph, ExpressionKey};
+use crate::{ControlFlowGraph, ExpressionKey, NodeTable};
 
 use super::{DataflowResult, Lattice};
 
@@ -65,9 +65,9 @@ impl Lattice for AvailableExpressionSet {
 #[derive(Debug)]
 pub struct AvailableExpressions {
     /// Available expressions at entry indexed by block id.
-    block_entry: Vec<Option<AvailableExpressionSet>>,
+    block_entry: NodeTable<mir::Block, Option<AvailableExpressionSet>>,
     /// Available expressions at exit indexed by block id.
-    block_exit: Vec<Option<AvailableExpressionSet>>,
+    block_exit: NodeTable<mir::Block, Option<AvailableExpressionSet>>,
 }
 
 impl AvailableExpressions {
@@ -85,11 +85,8 @@ impl AvailableExpressions {
 
     /// Get available expressions at block entry.
     pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> &AvailableExpressionSet {
-        match self
-            .block_entry
-            .get(block.id as usize)
-            .and_then(Option::as_ref)
-        {
+        let expressions = self.block_entry.get(block);
+        match expressions {
             Some(expressions) => expressions,
             None => empty_expression_set(),
         }
@@ -97,11 +94,8 @@ impl AvailableExpressions {
 
     /// Get available expressions at block exit.
     pub fn exit(&self, block: mir::LocalNodeId<mir::Block>) -> &AvailableExpressionSet {
-        match self
-            .block_exit
-            .get(block.id as usize)
-            .and_then(Option::as_ref)
-        {
+        let expressions = self.block_exit.get(block);
+        match expressions {
             Some(expressions) => expressions,
             None => empty_expression_set(),
         }

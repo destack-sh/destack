@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate as mir;
 
-use crate::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation};
+use crate::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation, NodeTable};
 
 use super::{ControlFlowGraph, DominatorTree};
 
@@ -85,10 +85,10 @@ pub struct LoopAnalysis {
     loops: Vec<Loop>,
 
     /// Map from header block to loop index.
-    header_to_loop: HashMap<mir::LocalNodeId<mir::Block>, usize>,
+    header_to_loop: NodeTable<mir::Block, Option<usize>>,
 
     /// Map from block to its innermost containing loop.
-    block_to_loop: HashMap<mir::LocalNodeId<mir::Block>, usize>,
+    block_to_loop: NodeTable<mir::Block, Option<usize>>,
 }
 
 impl LoopAnalysis {
@@ -103,8 +103,8 @@ impl LoopAnalysis {
         if function.entry.is_none() {
             return Self {
                 loops: Vec::new(),
-                header_to_loop: HashMap::new(),
-                block_to_loop: HashMap::new(),
+                header_to_loop: NodeTable::new(),
+                block_to_loop: NodeTable::new(),
             };
         }
 
@@ -113,13 +113,13 @@ impl LoopAnalysis {
 
         // build loop structures from back edges
         let (mut loops, header_to_loop) =
-            Self::build_loops(back_edges_by_header, tree, cfg, domtree);
+            Self::build_loops(function, back_edges_by_header, tree, cfg, domtree);
 
         // establish parent/child relationships and compute depths
         Self::compute_nesting(&mut loops, &header_to_loop, domtree);
 
         // map each block to its innermost containing loop
-        let block_to_loop = Self::build_block_map(&loops);
+        let block_to_loop = Self::build_block_map(&function.blocks, &loops);
 
         Self {
             loops,
@@ -157,6 +157,7 @@ impl LoopAnalysis {
 
     /// Build loop structures from back edges.
     fn build_loops(
+        function: &mir::Function,
         back_edges_by_header: HashMap<
             mir::LocalNodeId<mir::Block>,
             Vec<mir::LocalNodeId<mir::Block>>,
@@ -164,9 +165,9 @@ impl LoopAnalysis {
         tree: &mir::Tree,
         cfg: &ControlFlowGraph,
         domtree: &DominatorTree,
-    ) -> (Vec<Loop>, HashMap<mir::LocalNodeId<mir::Block>, usize>) {
+    ) -> (Vec<Loop>, NodeTable<mir::Block, Option<usize>>) {
         let mut loops = Vec::new();
-        let mut header_to_loop = HashMap::new();
+        let mut header_to_loop = NodeTable::from_nodes(&function.blocks, || None);
 
         // sort by header block ID for deterministic iteration order
         let mut sorted_entries: Vec<_> = back_edges_by_header.into_iter().collect();
@@ -189,7 +190,7 @@ impl LoopAnalysis {
                 parent: None,
                 depth: 0,
             });
-            header_to_loop.insert(header, loop_index);
+            *header_to_loop.get_mut(header) = Some(loop_index);
         }
 
         (loops, header_to_loop)
@@ -272,7 +273,7 @@ impl LoopAnalysis {
     /// Compute parent relationships and nesting depths.
     fn compute_nesting(
         loops: &mut [Loop],
-        header_to_loop: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
+        header_to_loop: &NodeTable<mir::Block, Option<usize>>,
         domtree: &DominatorTree,
     ) {
         let loop_count = loops.len();
@@ -284,7 +285,7 @@ impl LoopAnalysis {
             // walk up immediate dominators to find containing loop
             let mut current = domtree.immediate_dominator(header);
             while let Some(dominator) = current {
-                if let Some(&parent_index) = header_to_loop.get(&dominator) {
+                if let Some(parent_index) = *header_to_loop.get(dominator) {
                     // verify the header is actually in the parent's body
                     if loops[parent_index].blocks.contains(&header) {
                         loops[i].parent = Some(parent_index);
@@ -310,8 +311,11 @@ impl LoopAnalysis {
     }
 
     /// Build mapping from blocks to their innermost containing loop.
-    fn build_block_map(loops: &[Loop]) -> HashMap<mir::LocalNodeId<mir::Block>, usize> {
-        let mut block_to_loop = HashMap::new();
+    fn build_block_map(
+        blocks: &[mir::LocalNodeId<mir::Block>],
+        loops: &[Loop],
+    ) -> NodeTable<mir::Block, Option<usize>> {
+        let mut block_to_loop = NodeTable::from_nodes(blocks, || None);
 
         // process deepest loops first so innermost wins
         let mut indices: Vec<usize> = (0..loops.len()).collect();
@@ -319,7 +323,9 @@ impl LoopAnalysis {
 
         for index in indices {
             for &block in &loops[index].blocks {
-                block_to_loop.entry(block).or_insert(index);
+                if block_to_loop.get(block).is_none() {
+                    *block_to_loop.get_mut(block) = Some(index);
+                }
             }
         }
 
@@ -338,30 +344,35 @@ impl LoopAnalysis {
 
     /// Check if a block is a loop header.
     pub fn is_loop_header(&self, block: mir::LocalNodeId<mir::Block>) -> bool {
-        self.header_to_loop.contains_key(&block)
+        self.header_to_loop.get(block).is_some()
     }
 
     /// Get the loop with the given header.
     pub fn header_loop(&self, header: mir::LocalNodeId<mir::Block>) -> Option<&Loop> {
-        self.header_to_loop.get(&header).map(|&i| &self.loops[i])
+        let index = (*self.header_to_loop.get(header))?;
+
+        Some(&self.loops[index])
     }
 
     /// Get the innermost loop containing a block.
     pub fn innermost_loop(&self, block: mir::LocalNodeId<mir::Block>) -> Option<&Loop> {
-        self.block_to_loop.get(&block).map(|&i| &self.loops[i])
+        let index = (*self.block_to_loop.get(block))?;
+
+        Some(&self.loops[index])
     }
 
     /// Get the nesting depth for a block (0 if not in any loop).
     pub fn loop_depth(&self, block: mir::LocalNodeId<mir::Block>) -> u32 {
-        self.block_to_loop
-            .get(&block)
-            .map(|&i| self.loops[i].depth + 1)
-            .unwrap_or(0)
+        if let Some(index) = *self.block_to_loop.get(block) {
+            self.loops[index].depth + 1
+        } else {
+            0
+        }
     }
 
     /// Check if a block is inside any loop.
     pub fn is_in_loop(&self, block: mir::LocalNodeId<mir::Block>) -> bool {
-        self.block_to_loop.contains_key(&block)
+        self.block_to_loop.get(block).is_some()
     }
 
     /// Iterate over loops at a specific nesting depth.
@@ -389,7 +400,7 @@ impl LoopAnalysis {
 
     /// Get the loop index for a header.
     pub fn loop_index(&self, header: mir::LocalNodeId<mir::Block>) -> Option<usize> {
-        self.header_to_loop.get(&header).copied()
+        *self.header_to_loop.get(header)
     }
 }
 

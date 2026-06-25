@@ -4,7 +4,7 @@ use crate as mir;
 
 use crate::{
     Analysis, AnalysisId, ConstantLookup, EdgeArguments, FunctionAnalyses, FunctionAnalysis,
-    TargetLayout, fold_binary, fold_cast, fold_unary,
+    NodeTable, TargetLayout, fold_binary, fold_cast, fold_unary,
 };
 
 use super::{ControlFlowGraph, Lattice};
@@ -83,9 +83,9 @@ impl Lattice for ConstantMap {
 #[derive(Debug)]
 pub struct ConstantPropagation {
     /// Constants available at block entry indexed by block id.
-    block_entry: Vec<Option<ConstantMap>>,
+    block_entry: NodeTable<mir::Block, Option<ConstantMap>>,
     /// Constants available at block exit indexed by block id.
-    block_exit: Vec<Option<ConstantMap>>,
+    block_exit: NodeTable<mir::Block, Option<ConstantMap>>,
 }
 
 impl ConstantPropagation {
@@ -112,45 +112,40 @@ impl ConstantPropagation {
             Some(entry) => entry,
             None => {
                 return Self {
-                    block_entry: Vec::new(),
-                    block_exit: Vec::new(),
+                    block_entry: NodeTable::new(),
+                    block_exit: NodeTable::new(),
                 };
             }
         };
 
         // init state maps
-        let mut block_entry = Vec::with_capacity(function.block_capacity());
-        let mut block_exit = Vec::with_capacity(function.block_capacity());
-        block_entry.resize_with(function.block_capacity(), || None);
-        block_exit.resize_with(function.block_capacity(), || None);
+        let mut block_entry = NodeTable::from_nodes(&function.blocks, || None);
+        let mut block_exit = NodeTable::from_nodes(&function.blocks, || None);
 
         // seed entry state
-        block_entry[entry.id as usize] = Some(entry_constants);
+        *block_entry.get_mut(entry) = Some(entry_constants);
 
         // init worklist
         let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
-        let mut in_worklist = vec![false; function.block_capacity()];
+        let mut in_worklist = NodeTable::from_nodes(&function.blocks, || false);
         worklist.push_back(entry);
-        in_worklist[entry.id as usize] = true;
+        *in_worklist.get_mut(entry) = true;
 
         // process blocks until fixed point
         while let Some(block_id) = worklist.pop_front() {
             // remove block from worklist
-            in_worklist[block_id.id as usize] = false;
+            *in_worklist.get_mut(block_id) = false;
 
             // compute entry state
             let entry_state = if block_id == entry {
-                block_entry
-                    .get(entry.id as usize)
-                    .and_then(Option::as_ref)
-                    .cloned()
-                    .unwrap_or_else(ConstantMap::new)
+                block_entry.get(entry).as_ref().cloned().unwrap_or_else(|| {
+                    panic!("missing constant propagation entry state: {entry:?}")
+                })
             } else {
                 // merge predecessor exits
                 let mut merged: Option<ConstantMap> = None;
                 for &pred in cfg.predecessors(block_id) {
-                    let Some(pred_exit) = block_exit.get(pred.id as usize).and_then(Option::as_ref)
-                    else {
+                    let Some(pred_exit) = block_exit.get(pred).as_ref() else {
                         continue;
                     };
 
@@ -172,14 +167,14 @@ impl ConstantPropagation {
 
             // update entry state if needed
             let entry_changed = block_entry
-                .get(block_id.id as usize)
-                .and_then(Option::as_ref)
+                .get(block_id)
+                .as_ref()
                 .map(|old| old != &entry_state)
                 .unwrap_or(true);
 
             if entry_changed || block_id == entry {
                 // record entry state
-                block_entry[block_id.id as usize] = Some(entry_state.clone());
+                *block_entry.get_mut(block_id) = Some(entry_state.clone());
 
                 // compute exit state
                 let exit_state = transfer_block(
@@ -189,21 +184,21 @@ impl ConstantPropagation {
                     target_layout.pointer_width_bits,
                 );
                 let exit_changed = block_exit
-                    .get(block_id.id as usize)
-                    .and_then(Option::as_ref)
+                    .get(block_id)
+                    .as_ref()
                     .map(|old| old != &exit_state)
                     .unwrap_or(true);
 
                 if exit_changed {
                     // record exit state
-                    block_exit[block_id.id as usize] = Some(exit_state);
+                    *block_exit.get_mut(block_id) = Some(exit_state);
 
                     // enqueue successors
                     let block = tree.get(block_id);
                     let terminator = tree.get(block.terminator);
                     for succ in terminator.successors(tree) {
-                        if !in_worklist[succ.id as usize] {
-                            in_worklist[succ.id as usize] = true;
+                        if !*in_worklist.get(succ) {
+                            *in_worklist.get_mut(succ) = true;
                             worklist.push_back(succ);
                         }
                     }
@@ -219,12 +214,9 @@ impl ConstantPropagation {
 
     /// Get the constants at block entry.
     pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> &ConstantMap {
-        // read entry state
-        match self
-            .block_entry
-            .get(block.id as usize)
-            .and_then(Option::as_ref)
-        {
+        let constants = self.block_entry.get(block);
+
+        match constants {
             Some(constants) => constants,
             None => empty_map(),
         }
@@ -232,12 +224,9 @@ impl ConstantPropagation {
 
     /// Get the constants at block exit.
     pub fn exit(&self, block: mir::LocalNodeId<mir::Block>) -> &ConstantMap {
-        // read exit state
-        match self
-            .block_exit
-            .get(block.id as usize)
-            .and_then(Option::as_ref)
-        {
+        let constants = self.block_exit.get(block);
+
+        match constants {
             Some(constants) => constants,
             None => empty_map(),
         }
@@ -308,7 +297,7 @@ fn apply_block_param_constants(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
     cfg: &ControlFlowGraph,
-    block_exit: &[Option<ConstantMap>],
+    block_exit: &NodeTable<mir::Block, Option<ConstantMap>>,
     entry_state: &mut ConstantMap,
 ) {
     // resolve constants for block parameters
@@ -333,7 +322,7 @@ fn resolve_block_param_constants(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
     cfg: &ControlFlowGraph,
-    block_exit: &[Option<ConstantMap>],
+    block_exit: &NodeTable<mir::Block, Option<ConstantMap>>,
 ) -> HashMap<mir::Value, mir::Constant> {
     // early exit for blocks without parameters
     let block = tree.get(block_id);
@@ -347,7 +336,7 @@ fn resolve_block_param_constants(
 
     // scan predecessors
     for &pred in cfg.predecessors(block_id) {
-        let Some(pred_exit) = block_exit.get(pred.id as usize).and_then(Option::as_ref) else {
+        let Some(pred_exit) = block_exit.get(pred).as_ref() else {
             continue;
         };
 

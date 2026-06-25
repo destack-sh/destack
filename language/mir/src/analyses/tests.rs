@@ -54,28 +54,14 @@ impl TestProgram {
 
     /// Return the entry function id, preferring a function named `test`.
     pub(crate) fn entry_function_id(&self) -> LocalNodeId<Function> {
-        // pick the first entry as a fallback
-        let mut fallback = None;
-
-        // scan for entry functions and prefer the test entry
-        for (function_id, function) in self.tree.iter_nodes::<Function>() {
-            // skip non entry functions
-            if function.entry.is_none() {
-                continue;
-            }
-
-            // record the first entry for fallback
-            if fallback.is_none() {
-                fallback = Some(function_id);
-            }
-
-            // prefer the test entry when present
-            if self.strings.get(function.name) == "test" {
-                return function_id;
-            }
-        }
-
-        fallback.expect("missing function")
+        // require the canonical test entry
+        self.tree
+            .iter_nodes::<Function>()
+            .find(|(_, function)| {
+                function.entry.is_some() && self.strings.get(function.name) == "test"
+            })
+            .map(|(function_id, _)| function_id)
+            .expect("missing test function")
     }
 
     /// Return the stack allocation destinations in a function entry block.

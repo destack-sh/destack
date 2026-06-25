@@ -92,21 +92,46 @@ impl AliasAnalysis {
         let instruction = self.tree.get(instruction);
 
         match instruction {
+            mir::Instruction::Error => {
+                panic!("invalid MIR instruction reached alias analysis");
+            }
             mir::Instruction::Load { pointer, .. }
+            | mir::Instruction::TensorLoad { view: pointer, .. }
             | mir::Instruction::AtomicLoad { pointer, .. } => {
                 self.reference_memory_effect(*pointer, location, MemoryEffectKind::READ)
             }
             mir::Instruction::Store { pointer, .. }
+            | mir::Instruction::TensorStore { view: pointer, .. }
+            | mir::Instruction::TensorFill { view: pointer, .. }
             | mir::Instruction::AtomicStore { pointer, .. }
             | mir::Instruction::Free { value: pointer } => {
                 self.reference_memory_effect(*pointer, location, MemoryEffectKind::WRITE)
+            }
+            mir::Instruction::TensorCopy { target, source } => {
+                let target =
+                    self.reference_memory_effect(*target, location, MemoryEffectKind::WRITE);
+                let source =
+                    self.reference_memory_effect(*source, location, MemoryEffectKind::READ);
+
+                target.union(source)
             }
             mir::Instruction::AtomicCompareExchange { pointer, .. }
             | mir::Instruction::AtomicRmw { pointer, .. } => {
                 self.reference_memory_effect(*pointer, location, MemoryEffectKind::READ_WRITE)
             }
-            mir::Instruction::AtomicFence { .. } => MemoryEffectKind::NONE,
-            mir::Instruction::BarrierWrite { .. } => MemoryEffectKind::WRITE,
+            mir::Instruction::AtomicFence { .. } | mir::Instruction::BarrierWrite { .. } => {
+                MemoryEffectKind::READ_WRITE
+            }
+            mir::Instruction::LocalGet { local, .. } => self.storage_memory_effect(
+                Storage::LocalSlot(*local),
+                location,
+                MemoryEffectKind::READ,
+            ),
+            mir::Instruction::LocalSet { local, .. } => self.storage_memory_effect(
+                Storage::LocalSlot(*local),
+                location,
+                MemoryEffectKind::WRITE,
+            ),
             mir::Instruction::Call { .. }
             | mir::Instruction::CallVirtual { .. }
             | mir::Instruction::CallDynamic { .. }
@@ -124,6 +149,22 @@ impl AliasAnalysis {
             | mir::Instruction::FrameAllocUninit { .. }
             | mir::Instruction::NewComplete { .. } => MemoryEffectKind::NONE,
             _ => MemoryEffectKind::NONE,
+        }
+    }
+
+    /// Return memory behavior for one storage-root operation.
+    fn storage_memory_effect(
+        &self,
+        storage: Storage,
+        location: &MemoryLocation,
+        effect: MemoryEffectKind,
+    ) -> MemoryEffectKind {
+        let location_target = self.target(location.reference);
+
+        if location_target.may_touch_storage(&storage, &self.tree) {
+            effect
+        } else {
+            MemoryEffectKind::NONE
         }
     }
 
