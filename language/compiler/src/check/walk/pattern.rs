@@ -184,7 +184,7 @@ impl WalkState<'_, '_> {
         }
 
         // queue selection once the scrutinee type is known
-        self.queue_decision(id.into_global_any(self.module))?;
+        self.queue_selection(id.into_global_any(self.module))?;
 
         Ok(())
     }

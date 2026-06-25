@@ -210,7 +210,7 @@ impl WalkState<'_, '_> {
                 let target = self.walk_type_expression(*target_type)?;
                 let null = self.push_type(dir::Type::Null, source)?;
                 let undefined = self.push_type(dir::Type::Undefined, source)?;
-                let nullish = self.union_type([null, undefined], source)?;
+                let nullish = self.normalized_union_type([null, undefined], source)?;
                 let never = self.push_type(dir::Type::Never, source)?;
 
                 self.push_type(
@@ -318,7 +318,7 @@ impl WalkState<'_, '_> {
                     element_types.push(self.walk_type_expression(element)?);
                 }
 
-                self.union_type(element_types, source)
+                self.normalized_union_type(element_types, source)
             }
             // A & B
             dir::TypeExpression::Intersection { elements } => {

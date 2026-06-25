@@ -3,7 +3,7 @@ use std::ptr::NonNull;
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Condition, Decision, FlowState, StaticIfCondition, WalkState};
+use crate::check::{Condition, Decision, FlowState, StaticIfCondition, WalkState, Widening};
 use crate::r#static::{StaticContext, StaticError};
 
 /// One active static guard scope.
@@ -256,19 +256,15 @@ impl WalkState<'_, '_> {
             }
             // type
             dir::Expression::Type { value } => {
-                if let dir::TypeExpression::Infer {
+                let ty = if let dir::TypeExpression::Infer {
                     form: dir::InferForm::Hole,
                     ..
                 } = self.tree.get(*value)
                 {
-                    let ty = self
-                        .check
-                        .require_node_type((*value).into_global_any(self.module))?;
-
-                    return self.bind_static_term(expression, ty);
-                }
-
-                let ty = self.walk_type_expression(*value)?;
+                    self.open_inferred_node_type(*value, Widening::Preserve)?
+                } else {
+                    self.walk_type_expression(*value)?
+                };
 
                 self.bind_static_term(expression, ty)
             }
