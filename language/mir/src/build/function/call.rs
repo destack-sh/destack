@@ -64,7 +64,7 @@ impl<'a> FunctionBuilder<'a> {
         if let Some(target) = target {
             self.tree
                 .metadata
-                .functions
+                .effects
                 .call_mut(CallSite::Instruction(instruction))
                 .target = Some(target);
         }
@@ -93,7 +93,7 @@ impl<'a> FunctionBuilder<'a> {
         if let Some(target) = target {
             self.tree
                 .metadata
-                .functions
+                .effects
                 .call_mut(CallSite::Instruction(instruction))
                 .target = Some(target);
         }

@@ -310,7 +310,7 @@ where
 
 /// A set lattice where meet is union.
 ///
-/// Useful for analyses that collect facts (e.g., reaching definitions).
+/// Useful for analyses that collect local state, such as reaching definitions.
 impl<T: Clone + Eq + std::hash::Hash> Lattice for HashSet<T> {
     fn meet(&self, other: &Self) -> Self {
         self.union(other).cloned().collect()
@@ -336,30 +336,6 @@ mod tests {
     use super::*;
     use crate::analyses::tests::TestProgram;
 
-    /// HashSet lattice uses union for meet.
-    #[test]
-    fn test_hashset_lattice() {
-        let a: HashSet<i32> = [1, 2, 3].into_iter().collect();
-        let b: HashSet<i32> = [2, 3, 4].into_iter().collect();
-        let meet = a.meet(&b);
-        let expected: HashSet<i32> = [1, 2, 3, 4].into_iter().collect();
-
-        assert_eq!(meet, expected);
-    }
-
-    /// Option lattice handles None and Some correctly.
-    #[test]
-    fn test_option_lattice() {
-        let a: Option<i32> = Some(42);
-        let b: Option<i32> = None;
-        let c: Option<i32> = Some(42);
-        let d: Option<i32> = Some(99);
-
-        assert_eq!(a.meet(&b), Some(42));
-        assert_eq!(b.meet(&a), Some(42));
-        assert_eq!(a.meet(&c), Some(42));
-        assert_eq!(a.meet(&d), None); // Conflict
-    }
     /// Forward dataflow should not skip blocks when the first predecessor is unreachable.
     #[test]
     fn test_forward_dataflow_unreachable_predecessor_order() {

@@ -420,7 +420,7 @@ pub fn instruction_allows_read_only_motion(
 
     // require call metadata to be present
     let callsite = mir::CallSite::Instruction(instruction_id);
-    let Some(metadata) = tree.metadata.functions.call(callsite) else {
+    let Some(metadata) = tree.metadata.effects.call(callsite) else {
         return false;
     };
     if metadata.behavior.must_not_duplicate

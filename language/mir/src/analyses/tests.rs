@@ -197,19 +197,19 @@ impl TestProgram {
             .insert_memory_accesses(instruction, accesses);
     }
 
-    /// Attach pointer access metadata to an instruction.
-    pub(crate) fn insert_reference_access(
+    /// Attach reference-location metadata to an instruction.
+    pub(crate) fn insert_reference_location(
         &mut self,
         instruction: LocalNodeId<mir::Instruction>,
         kind: mir::MemoryAccessKind,
         pointer: mir::Value,
         size: Option<u64>,
     ) {
-        self.insert_reference_access_with_options(instruction, kind, pointer, size, false, None);
+        self.insert_reference_location_with_options(instruction, kind, pointer, size, false, None);
     }
 
-    /// Attach pointer access metadata to an instruction with flags.
-    pub(crate) fn insert_reference_access_with_options(
+    /// Attach reference-location metadata to an instruction with flags.
+    pub(crate) fn insert_reference_location_with_options(
         &mut self,
         instruction: LocalNodeId<mir::Instruction>,
         kind: mir::MemoryAccessKind,

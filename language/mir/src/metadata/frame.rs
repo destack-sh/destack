@@ -59,14 +59,14 @@ impl From<FrameSlotId> for u32 {
 
 /// Physical execution frame layout and materialization metadata.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct FrameTable {
+pub struct FrameMetadata {
     /// Frame materializations by frame state id.
     pub materializations: Vec<FrameMaterialization>,
     /// Frame layouts by id.
     pub layouts: Vec<FrameLayout>,
 }
 
-impl FrameTable {
+impl FrameMetadata {
     /// Return one frame layout by id.
     pub fn layout(&self, layout: FrameLayoutId) -> Option<&FrameLayout> {
         self.layouts.get(layout.0 as usize)

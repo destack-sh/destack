@@ -39,7 +39,7 @@ pub enum LinkNode {
         memory: MemoryEffect,
         /// Behavioral effects (unwind, determinism, allocation, and so on).
         behavior: FunctionBehavior,
-        /// Inline cost approximation.
+        /// Estimated inline cost.
         inline_cost: u32,
         /// True when the function makes indirect or virtual calls.
         indirect: bool,
@@ -439,7 +439,7 @@ impl ModuleAnalysis for LinkGraph {
             }
 
             let symbol = function.symbol;
-            let metadata = tree.metadata.functions.function(function_id);
+            let metadata = tree.metadata.effects.function(function_id);
             let memory = metadata.map(|m| m.memory.clone()).unwrap_or_default();
             let behavior = metadata.map(|m| m.behavior.clone()).unwrap_or_default();
             graph.insert(
@@ -449,7 +449,7 @@ impl ModuleAnalysis for LinkGraph {
                     memory,
                     behavior,
                     inline_cost: Self::function_inline_cost(function, tree),
-                    indirect: !call_graph.unknown_calls(function_id).is_empty(),
+                    indirect: !call_graph.open_callsites(function_id).is_empty(),
                 },
             );
 

@@ -3,9 +3,9 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate as mir;
 
 use crate::{
-    ControlFlowGraph, DominatorTree, MemoryAccess, MemoryAccessEffect, MemoryEffectTarget,
-    MemorySSA, clone_instruction_metadata, instruction_is_borrow_address,
-    instruction_is_read_only_access, instruction_is_speculatable, instruction_map,
+    ControlFlowGraph, DominatorTree, MemoryAccess, MemoryAccessEffect, MemoryRegion, MemorySSA,
+    clone_instruction_metadata, instruction_is_borrow_address, instruction_is_read_only_access,
+    instruction_is_speculatable, instruction_map,
 };
 
 /// Guard branch metadata for loop headers.
@@ -259,7 +259,7 @@ pub fn collect_loop_effects(
                 }
 
                 // reject imprecise targets
-                if matches!(effect.location, MemoryEffectTarget::Any { .. }) {
+                if matches!(effect.region, MemoryRegion::Any { .. }) {
                     return None;
                 }
 

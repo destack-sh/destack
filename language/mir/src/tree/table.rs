@@ -51,9 +51,25 @@ impl<N: Node, T> NodeTable<N, T> {
         self.values.len()
     }
 
+    /// Return whether this table has no dense entries.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+
     /// Return all dense values in this table.
     pub(crate) fn values(&self) -> &[T] {
         self.values.as_slice()
+    }
+
+    /// Iterate over node ids and values that belong to this table.
+    pub(crate) fn iter_nodes(&self) -> impl Iterator<Item = (LocalNodeId<N>, &T)> {
+        self.membership
+            .iter()
+            .copied()
+            .enumerate()
+            .filter_map(|(index, is_member)| {
+                is_member.then(|| (LocalNodeId::new(index as u32), &self.values[index]))
+            })
     }
 
     /// Return one table entry.

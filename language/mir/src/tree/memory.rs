@@ -40,6 +40,11 @@ impl SpaceSet {
         self.0 |= other.0;
     }
 
+    /// Return the union of two memory space sets.
+    pub fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+
     /// Return the intersection of two memory space sets.
     pub fn intersection(self, other: Self) -> Self {
         Self(self.0 & other.0)

@@ -18,7 +18,7 @@ impl Mutation {
     pub const MEMORY: Self = Self(1 << 2);
     /// Effect metadata changed.
     pub const EFFECT: Self = Self(1 << 3);
-    /// Layout or type representation facts changed.
+    /// Layout or type representation data changed.
     pub const LAYOUT: Self = Self(1 << 4);
     /// Profile metadata changed.
     pub const PROFILE: Self = Self(1 << 5);
