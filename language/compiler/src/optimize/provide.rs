@@ -179,15 +179,10 @@ impl Compiler {
         let unroll_threshold = unroll_threshold.min(usize::MAX as u64) as usize;
         let inline_budget_scale_percent = Self::inline_budget_scale_percent_for_level(level);
 
-        let require_optimized_metadata = matches!(
-            level,
-            OptimizationLevel::O2 | OptimizationLevel::O3 | OptimizationLevel::O4
-        );
         PipelineOptions {
             target_layout: TargetLayout { pointer_width_bits },
             unroll_threshold,
             inline_budget_scale_percent,
-            require_optimized_metadata,
             ..Default::default()
         }
     }

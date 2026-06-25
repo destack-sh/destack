@@ -11,11 +11,6 @@ pub(crate) fn enforce_function_requirements(
     function: &mir::Function,
     tree: &mir::Tree,
 ) -> bool {
-    // skip enforcement when not required
-    if !ctx.require_optimized_metadata() {
-        return true;
-    }
-
     // skip when no requirements are set
     if metadata.requirements.is_empty() {
         return true;
@@ -50,7 +45,7 @@ pub(crate) fn enforce_function_requirements(
         .requirements
         .contains(PassRequirements::TYPE_LAYOUTS)
     {
-        ok &= enforce_type_layouts(ctx, metadata, tree);
+        ok &= enforce_type_layouts(ctx, metadata, function_id, function, tree);
     }
 
     ok
@@ -62,11 +57,6 @@ pub(crate) fn enforce_module_requirements(
     metadata: &PassMetadata,
     tree: &mir::Tree,
 ) -> bool {
-    // skip enforcement when not required
-    if !ctx.require_optimized_metadata() {
-        return true;
-    }
-
     // skip when no requirements are set
     if metadata.requirements.is_empty() {
         return true;
@@ -114,11 +104,28 @@ fn enforce_call_effects(
                     ctx,
                     metadata,
                     tree,
-                    *instruction_id,
+                    instruction_id.into_any(),
                     "call memory effects",
                 );
                 ok = false;
             }
+        }
+
+        let terminator = tree.get(block.terminator);
+        if !terminator_is_call(terminator) {
+            continue;
+        }
+
+        let callsite = mir::CallSite::Terminator(*block_id);
+        if tree.metadata.functions.call(callsite).is_none() {
+            emit_missing_requirement(
+                ctx,
+                metadata,
+                tree,
+                block.terminator.into_any(),
+                "call memory effects",
+            );
+            ok = false;
         }
     }
 
@@ -152,7 +159,7 @@ fn enforce_memory_metadata(
                     ctx,
                     metadata,
                     tree,
-                    *instruction_id,
+                    instruction_id.into_any(),
                     "memory access metadata",
                 );
                 ok = false;
@@ -165,7 +172,7 @@ fn enforce_memory_metadata(
                         ctx,
                         metadata,
                         tree,
-                        *instruction_id,
+                        instruction_id.into_any(),
                         "memory access size",
                     );
                     ok = false;
@@ -176,7 +183,7 @@ fn enforce_memory_metadata(
                         ctx,
                         metadata,
                         tree,
-                        *instruction_id,
+                        instruction_id.into_any(),
                         "memory access space",
                     );
                     ok = false;
@@ -216,9 +223,15 @@ fn enforce_profile_data(
 fn enforce_type_layouts(
     ctx: &PipelineContext<'_>,
     metadata: &PassMetadata,
+    function_id: mir::LocalNodeId<mir::Function>,
+    function: &mir::Function,
     tree: &mir::Tree,
 ) -> bool {
     let diagnostics = ctx.diagnostics();
+    let anchor = function
+        .entry
+        .map(|entry| entry.into_any())
+        .unwrap_or_else(|| function_id.into_any());
 
     // skip repeated validation
     if diagnostics.type_layouts_validated() {
@@ -233,12 +246,12 @@ fn enforce_type_layouts(
         }
 
         let Some(layout_id) = tree.metadata.layout.layout_id(type_id) else {
-            emit_missing_type_layout(ctx, metadata, tree, type_id, "type layout");
+            emit_missing_type_layout(ctx, metadata, tree, anchor, "type layout");
             ok = false;
             continue;
         };
         if !layout_exists(&tree.metadata.layout.layout_table, layout_id) {
-            emit_missing_type_layout(ctx, metadata, tree, type_id, "type layout entry");
+            emit_missing_type_layout(ctx, metadata, tree, anchor, "type layout entry");
             ok = false;
         }
     }
@@ -253,10 +266,10 @@ fn emit_missing_requirement(
     ctx: &PipelineContext<'_>,
     metadata: &PassMetadata,
     tree: &mir::Tree,
-    instruction_id: mir::LocalNodeId<mir::Instruction>,
+    node: mir::LocalNodeIdAny,
     requirement: &str,
 ) {
-    let anchor = ctx.anchor(tree, instruction_id.into_any());
+    let anchor = ctx.anchor(tree, node);
     let message = format!("{} requires {requirement}", metadata.id);
     ctx.emit_error(OptimizeError::MissingRequiredMetadata { anchor, message });
 }
@@ -266,10 +279,10 @@ fn emit_missing_type_layout(
     ctx: &PipelineContext<'_>,
     metadata: &PassMetadata,
     tree: &mir::Tree,
-    type_id: mir::LocalNodeId<mir::Type>,
+    node: mir::LocalNodeIdAny,
     requirement: &str,
 ) {
-    let anchor = ctx.anchor(tree, type_id.into_any());
+    let anchor = ctx.anchor(tree, node);
     let message = format!("{} requires {requirement}", metadata.id);
     ctx.emit_error(OptimizeError::MissingRequiredMetadata { anchor, message });
 }
@@ -282,6 +295,21 @@ fn instruction_is_call(instruction: &mir::Instruction) -> bool {
             | mir::Instruction::CallVirtual { .. }
             | mir::Instruction::CallDynamic { .. }
             | mir::Instruction::CallIndirect { .. }
+    )
+}
+
+/// Check if a terminator is a call terminator.
+fn terminator_is_call(terminator: &mir::Terminator) -> bool {
+    matches!(
+        terminator,
+        mir::Terminator::Call { .. }
+            | mir::Terminator::CallVirtual { .. }
+            | mir::Terminator::CallDynamic { .. }
+            | mir::Terminator::CallIndirect { .. }
+            | mir::Terminator::TailCall { .. }
+            | mir::Terminator::TailCallVirtual { .. }
+            | mir::Terminator::TailCallDynamic { .. }
+            | mir::Terminator::TailCallIndirect { .. }
     )
 }
 

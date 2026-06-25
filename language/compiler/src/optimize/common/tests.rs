@@ -131,28 +131,14 @@ impl TestProgram {
 
     /// Return the entry function id for this program.
     pub(crate) fn entry_function_id(&self) -> mir::LocalNodeId<mir::Function> {
-        // pick the first entry as a fallback
-        let mut fallback = None;
-
-        // scan for entry functions and prefer @test
-        for (function_id, function) in self.tree.iter_nodes::<mir::Function>() {
-            // skip non entry functions
-            if function.entry.is_none() {
-                continue;
-            }
-
-            // record the first entry for fallback
-            if fallback.is_none() {
-                fallback = Some(function_id);
-            }
-
-            // prefer the test entry when present
-            if self.strings.get(function.name) == "test" {
-                return function_id;
-            }
-        }
-
-        fallback.expect("missing function")
+        // require the canonical test entry
+        self.tree
+            .iter_nodes::<mir::Function>()
+            .find(|(_, function)| {
+                function.entry.is_some() && self.strings.get(function.name) == "test"
+            })
+            .map(|(function_id, _)| function_id)
+            .expect("missing test function")
     }
 
     /// Return the function id for a named function.
@@ -875,8 +861,6 @@ mod tests {
 
     use super::*;
     use crate::OptimizeError;
-    use crate::optimize::passes::{InterproceduralSccp, LoadPre};
-
     /// Simple test analysis with no dependencies.
     struct TestAnalysisA {
         computed: bool,
@@ -1146,6 +1130,20 @@ entry:
     }
 
     declare_pass! {
+        /// Require call effect metadata for validation in tests.
+        #[pass(id = "test-call-effects", requires(call_effects))]
+        pub(super) TestCallEffectsPass,
+        "Test call effect requirement enforcement"
+    }
+
+    declare_pass! {
+        /// Require memory access metadata for validation in tests.
+        #[pass(id = "test-memory-access", requires(memory_access_metadata))]
+        pub(super) TestMemoryAccessPass,
+        "Test memory access metadata requirement enforcement"
+    }
+
+    declare_pass! {
         /// Require profile data for validation in tests.
         #[pass(id = "test-profile", requires(profile_data))]
         pub(super) TestProfilePass,
@@ -1157,6 +1155,37 @@ entry:
         #[pass(id = "test-layout", requires(type_layouts))]
         pub(super) TestLayoutPass,
         "Test layout requirement enforcement"
+    }
+
+    impl ModulePass for TestCallEffectsPass {
+        fn run(
+            &self,
+            _tree: &mut mir::Tree,
+            _ctx: &PipelineContext<'_>,
+            _analyses: &ModuleAnalyses,
+        ) -> Mutation {
+            Mutation::NONE
+        }
+
+        fn name(&self) -> &'static str {
+            "TestCallEffectsPass"
+        }
+    }
+
+    impl FunctionPass for TestMemoryAccessPass {
+        fn run(
+            &self,
+            _function: &mut mir::Function,
+            _tree: &mut mir::Tree,
+            _ctx: &PipelineContext<'_>,
+            _analyses: &FunctionAnalyses,
+        ) -> Mutation {
+            Mutation::NONE
+        }
+
+        fn name(&self) -> &'static str {
+            "TestMemoryAccessPass"
+        }
     }
 
     impl ModulePass for TestProfilePass {
@@ -1207,12 +1236,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        let options = PipelineOptions {
-            require_optimized_metadata: true,
-            ..Default::default()
-        };
-
-        test.run_module_pass_with_options(&InterproceduralSccp, options);
+        test.run_module_pass(&TestCallEffectsPass);
         test.assert_error(|e| matches!(e, OptimizeError::MissingRequiredMetadata { .. }));
     }
 
@@ -1220,20 +1244,16 @@ entry:
     #[test]
     fn test_requirements_memory_access_metadata() {
         let input = r#"
-function test(v0: ref<int32, raw>): int32 {
-entry(v0: ref<int32, raw>):
+function test(v0: ref<int32, raw, mutable>): int32 {
+entry(v0: ref<int32, raw, mutable>):
     v1: int32 = load v0
     return v1
 }
 "#;
 
         let mut test = TestProgram::new(input);
-        let options = PipelineOptions {
-            require_optimized_metadata: true,
-            ..Default::default()
-        };
 
-        test.run_pass_with_options(&LoadPre, options);
+        test.run_pass(&TestMemoryAccessPass);
         test.assert_error(|e| matches!(e, OptimizeError::MissingRequiredMetadata { .. }));
     }
 
@@ -1248,12 +1268,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        let options = PipelineOptions {
-            require_optimized_metadata: true,
-            ..Default::default()
-        };
-
-        test.run_module_pass_with_options(&TestProfilePass, options);
+        test.run_module_pass(&TestProfilePass);
         test.assert_error(|e| matches!(e, OptimizeError::MissingRequiredMetadata { .. }));
     }
 
@@ -1291,12 +1306,7 @@ entry(v0: int32, v1: int32):
             .layout_by_type
             .remove(&struct_type_id);
 
-        let options = PipelineOptions {
-            require_optimized_metadata: true,
-            ..Default::default()
-        };
-
-        test.run_module_pass_with_options(&TestLayoutPass, options);
+        test.run_module_pass(&TestLayoutPass);
         test.assert_error(|e| matches!(e, OptimizeError::MissingRequiredMetadata { .. }));
     }
 

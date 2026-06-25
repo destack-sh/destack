@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use destack_artifact::{DiagnosticBuilder, ProgramAnalysis};
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_source::{FileId, ModuleId, PackageId, ProfileId, Span, TargetId};
+use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 use parking_lot::Mutex;
 
 use crate::optimize::{DiagnosticEmitter, ModuleWorkItem, PackageWorkset, PassMetadata};
@@ -90,8 +90,6 @@ pub struct PipelineOptions {
     pub unroll_threshold: usize,
     /// Inline budget scaling for this optimization level.
     pub inline_budget_scale_percent: u64,
-    /// Enforce optimizable MIR metadata requirements.
-    pub require_optimized_metadata: bool,
 }
 
 impl Default for PipelineOptions {
@@ -101,7 +99,6 @@ impl Default for PipelineOptions {
             target_layout: TargetLayout::default(),
             unroll_threshold: 200,
             inline_budget_scale_percent: 100,
-            require_optimized_metadata: false,
         }
     }
 }
@@ -120,11 +117,6 @@ impl PipelineOptions {
     /// Return the inline budget scale percent for this pipeline run.
     pub fn inline_budget_scale_percent(&self) -> u64 {
         self.inline_budget_scale_percent
-    }
-
-    /// Return true when optimizable MIR metadata is required.
-    pub fn require_optimized_metadata(&self) -> bool {
-        self.require_optimized_metadata
     }
 }
 
@@ -254,18 +246,13 @@ impl<'a> PipelineContext<'a> {
         self.options.inline_budget_scale_percent()
     }
 
-    /// Return true when optimizable MIR metadata is required.
-    pub fn require_optimized_metadata(&self) -> bool {
-        self.options.require_optimized_metadata()
-    }
-
     /// Create a diagnostic anchor for one MIR node.
     pub fn anchor(&self, tree: &mir::Tree, node: mir::LocalNodeIdAny) -> DiagnosticAnchor {
-        let span = tree
-            .get_span_by_id(node.id)
-            .unwrap_or_else(|| Span::empty(FileId::new(0)));
-
-        DiagnosticAnchor::Span(span)
+        if let Some(span) = tree.source_span_by_id(node.id) {
+            DiagnosticAnchor::Span(span)
+        } else {
+            DiagnosticAnchor::Module(self.module_id)
+        }
     }
 
     /// Enforce metadata requirements for a function pass.

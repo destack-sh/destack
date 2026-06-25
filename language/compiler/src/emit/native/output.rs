@@ -131,11 +131,10 @@ impl<'a> NativeEmitState<'a> {
 
     /// Return the source anchor for one backend MIR node.
     fn anchor(&self, node: mir::LocalNodeIdAny) -> DiagnosticAnchor {
-        let span = self
-            .tree
-            .get_span_by_id(node.id)
-            .expect("native diagnostic node is missing a source span");
-
-        DiagnosticAnchor::Span(span)
+        if let Some(span) = self.tree.source_span_by_id(node.id) {
+            DiagnosticAnchor::Span(span)
+        } else {
+            DiagnosticAnchor::Module(self.module_id)
+        }
     }
 }
