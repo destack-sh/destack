@@ -56,6 +56,16 @@ impl CheckExternalModuleState {
 }
 
 impl CheckState<'_> {
+    /// Return the language item named by one resolved symbol.
+    pub(in crate::check) fn language_item(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<dir::LanguageItem>> {
+        let symbol = self.resolve_symbol_alias(symbol)?;
+
+        Ok(self.environment.language.item(symbol))
+    }
+
     /// Return loaded state for one external module.
     pub(in crate::check) fn external_module(&self, module: ModuleId) -> &CheckExternalModuleState {
         self.external_modules
@@ -77,8 +87,8 @@ impl CheckState<'_> {
         Ok(self.external_module(module))
     }
 
-    /// Resolve one external symbol through committed export alias chains.
-    pub(in crate::check) fn resolve_external_alias(
+    /// Resolve one symbol through import alias chains.
+    pub(in crate::check) fn resolve_symbol_alias(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalSymbolId> {
@@ -87,16 +97,24 @@ impl CheckState<'_> {
 
         // hop alias targets until a declaring symbol appears
         loop {
-            if self.is_component_module(current.module_id) {
-                return Ok(current);
-            }
             if !visited.insert(current) {
                 return Err(CompilerError::Internal {
-                    message: format!("external alias {symbol:?} forwards in a cycle"),
+                    message: format!("symbol alias {symbol:?} forwards in a cycle"),
                 });
             }
-            let external = self.import_external_module(current.module_id)?;
-            match external.resolved.imports.symbol_target(current.local_id) {
+
+            let target = if self.is_component_module(current.module_id) {
+                self.module(current.module_id)
+                    .resolved
+                    .imports
+                    .symbol_target(current.local_id)
+            } else {
+                self.import_external_module(current.module_id)?
+                    .resolved
+                    .imports
+                    .symbol_target(current.local_id)
+            };
+            match target {
                 Some(dir::ImportTarget::Symbol(target)) => current = target,
                 _ => return Ok(current),
             }

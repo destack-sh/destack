@@ -7,11 +7,10 @@ use destack_source::{ComponentId, ModuleId, ProfileId};
 use indexmap::IndexMap;
 
 use crate::check::{
-    Assumption, CheckEvent, CheckExternalModuleState, CheckModuleState, CoercionTable,
-    ConstraintTable, DecisionTable, GenericIndex, Journal, Mutation, ObligationTable, Queue,
-    RelationCache, VariableTable, VarianceEntry,
+    Assumption, CheckEvent, CheckExternalModuleState, CheckModuleState, GenericIndex, Origin,
+    Solver, VarianceEntry,
 };
-use crate::{Compiler, CompilerError, CompilerResult};
+use crate::{CheckError, Compiler, CompilerError, CompilerResult};
 
 /// Artifact coordinates for one checked component.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -44,29 +43,21 @@ pub(in crate::check) struct CheckState<'a> {
     /// Checked component artifact containing each external module.
     pub(in crate::check) external_components: IndexMap<ModuleId, CheckComponentKey>,
 
-    // speculative solver state, journaled for probe rollback
-    /// Open inference variables.
-    pub(in crate::check) variables: VariableTable,
-    /// Collected relation constraints.
-    pub(in crate::check) constraints: ConstraintTable,
-    /// Decided node meanings.
-    pub(in crate::check) decisions: DecisionTable,
-    /// Implicit coercions selected by accepted value relations.
-    pub(in crate::check) coercions: CoercionTable,
-    /// Obligated checks collected while walking.
-    pub(in crate::check) obligations: ObligationTable,
-    /// Memoized relation verdicts with the in-progress cycle guard.
-    pub(in crate::check) relations: RelationCache,
-    /// Scheduled solver work.
-    pub(in crate::check) queue: Queue,
+    // checked symbol state
+    /// Stable declaration symbol types.
+    pub(in crate::check) declaration_types: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
+    /// Body-owned binding symbol types.
+    pub(in crate::check) binding_types: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
+
+    // solver state
+    /// Active component solver state.
+    pub(in crate::check) solver: Solver,
     /// Active static guard assumptions for the running task.
     pub(in crate::check) assumptions: Vec<Assumption>,
-    /// Mutation log for speculative probes.
-    pub(in crate::check) journal: Journal,
 
-    // memoized closed facts, valid across probe rollback
-    /// Memoized closed evaluations keyed by reduced root.
-    pub(in crate::check) evaluations: IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
+    // memoized closed facts, valid across rejected probes
+    /// Memoized closed type evaluations keyed by original type.
+    pub(in crate::check) evaluated_types: IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
     /// Generic instances, argument variables, and induction bookkeeping.
     pub(in crate::check) generics: GenericIndex,
     /// Memoized layout segments per module, component and external.
@@ -101,17 +92,12 @@ impl<'a> CheckState<'a> {
             modules: IndexMap::new(),
             external_modules: IndexMap::new(),
             external_components,
-            variables: VariableTable::new(),
-            constraints: ConstraintTable::new(),
-            decisions: DecisionTable::new(),
-            coercions: CoercionTable::new(),
-            relations: RelationCache::new(),
-            evaluations: IndexMap::new(),
+            declaration_types: IndexMap::new(),
+            binding_types: IndexMap::new(),
+            solver: Solver::new(),
+            evaluated_types: IndexMap::new(),
             assumptions: Vec::new(),
-            queue: Queue::new(),
-            journal: Journal::new(),
             generics: GenericIndex::new(),
-            obligations: ObligationTable::new(),
             layouts: IndexMap::new(),
             variances: IndexMap::new(),
             events: Vec::new(),
@@ -136,9 +122,9 @@ impl<'a> CheckState<'a> {
         // import external checked artifacts
         self.import_component_external_modules()?;
 
-        // declare component headers before any body can read them
+        // walk component headers before any body can read them
         for module in modules.iter().copied() {
-            self.declare_module_headers(module)?;
+            self.walk_module_headers(module)?;
         }
 
         // walk modules in stable component order
@@ -151,8 +137,7 @@ impl<'a> CheckState<'a> {
 
     /// Complete walk-time state before solving.
     pub(in crate::check) fn propagate(&mut self) -> CompilerResult<()> {
-        let modules = self.modules.keys().copied().collect::<Vec<_>>();
-        self.propagate_induced_generics(&modules)
+        self.propagate_induced_generics()
     }
 
     /// Load one module into component state.
@@ -217,7 +202,7 @@ impl CheckState<'_> {
             module
                 .type_maybe(id.local_id)
                 .ok_or_else(|| CompilerError::Internal {
-                    message: format!("check type {id:?} is not allocated in any segment"),
+                    message: format!("check type {id:?} is not allocated"),
                 })
         }
         // read external committed tables
@@ -246,10 +231,33 @@ impl CheckState<'_> {
                 message: format!("check module {module:?} has no working types"),
             })?;
         let local = working.types.insert_type_from_any(ty, source);
-        // probe rollback reclaims speculative allocations
-        self.journal.record(Mutation::TypeAllocated { module });
 
         Ok(local.into_global(module))
+    }
+
+    /// Allocate one reference type for a language item.
+    pub(in crate::check) fn push_language_type(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        item: dir::LanguageItem,
+        arguments: Vec<dir::GlobalTypeId>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let symbol = self.language_symbol(item);
+        let ty = dir::Type::Instance(dir::GenericInstance { symbol, arguments });
+
+        self.push_type(module, ty, source)
+    }
+
+    /// Allocate one open type at the source carried by an origin.
+    pub(in crate::check) fn push_type_at_origin(
+        &mut self,
+        origin: Origin,
+        ty: dir::Type,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let source = self.origin_source_node(origin)?;
+
+        self.push_type(origin.module(), ty, source)
     }
 
     /// Allocate one open variable reference type in a module's working segment.
@@ -288,6 +296,8 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         definition: dir::Definition,
     ) -> CompilerResult<()> {
+        self.report_duplicate_definition_members(&definition);
+
         let working =
             self.modules
                 .get_mut(&symbol.module_id)
@@ -303,5 +313,34 @@ impl CheckState<'_> {
             .insert_definition(symbol, source, definition);
 
         Ok(())
+    }
+
+    /// Report duplicate non-overload member keys in one definition.
+    fn report_duplicate_definition_members(&mut self, definition: &dir::Definition) {
+        let mut seen = IndexMap::<(dir::MemberSpace, dir::StaticKey), bool>::new();
+
+        for member in definition.members() {
+            let Some(key) = member.key() else {
+                continue;
+            };
+
+            let entry = (member.space(), key);
+            let is_overloadable = member.is_overloadable();
+            if let Some(previous_is_overloadable) = seen.get(&entry) {
+                if !*previous_is_overloadable || !is_overloadable {
+                    let (module, anchor) = self.source_anchor(member.source());
+                    let member = self.format_static_key(&key);
+                    let error = CheckError::DuplicateMember {
+                        anchor,
+                        module,
+                        member,
+                    };
+
+                    self.module_mut(module).diagnostics.push(error.into());
+                }
+            } else {
+                seen.insert(entry, is_overloadable);
+            }
+        }
     }
 }
