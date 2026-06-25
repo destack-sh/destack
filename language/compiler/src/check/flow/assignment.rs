@@ -3,6 +3,26 @@ use destack_dir as dir;
 use crate::check::{Place, PlaceTarget, WalkState};
 
 impl WalkState<'_, '_> {
+    /// Check that one local binding is assigned before a read.
+    pub(in crate::check) fn check_assigned_read(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) {
+        // only local variable bindings have definite assignment state
+        if symbol.module_id != self.module
+            || self.check.symbol_kind(symbol) != dir::SymbolKind::Variable
+        {
+            return;
+        }
+
+        // report unassigned reads at the read occurrence
+        if !self.flow().is_assigned(symbol) {
+            self.check
+                .report_use_before_assigned(self.module, source, symbol);
+        }
+    }
+
     /// Mark one assigned place if it names a local binding.
     pub(in crate::check) fn mark_place_assigned(&mut self, place: Place) {
         // ignore non binding places
@@ -16,10 +36,14 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Mark bindings assigned by one initialized declarator.
-    pub(in crate::check) fn mark_declarator_assigned(&mut self, declarator: &dir::Declarator) {
-        // only initialized declarators assign their pattern
-        if declarator.value.is_some() {
+    /// Mark bindings assigned by one initialized or ambient declarator.
+    pub(in crate::check) fn mark_declarator_assigned(
+        &mut self,
+        declarator: &dir::Declarator,
+        is_ambient: bool,
+    ) {
+        // only initialized and ambient declarators assign their pattern
+        if is_ambient || declarator.value.is_some() {
             self.mark_bindings_assigned(declarator.pattern.into_any());
         }
     }

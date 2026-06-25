@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    FlowPath, Obligation, Origin, PatternCoverage, PatternCoverageObligation, Relation, WalkState,
-    Widening,
+    ConstraintCause, FlowPath, Obligation, Origin, PatternCoverage, PatternCoverageObligation,
+    Relation, WalkState, Widening,
 };
 
 impl WalkState<'_, '_> {
@@ -17,13 +17,14 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Declarator>,
         declarator: &dir::Declarator,
+        binding_kind: Option<dir::LetKind>,
     ) -> CompilerResult<()> {
         let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
             return Ok(());
         };
 
-        if let Some(symbol) = self.declarator_binding_symbol(declarator) {
-            self.walk_name_declarator(symbol, declarator)?;
+        if let Some(symbol) = self.plain_declarator_symbol(declarator) {
+            self.walk_plain_declarator(symbol, declarator, binding_kind)?;
         } else {
             self.walk_pattern_declarator(id, declarator)?;
         }
@@ -31,21 +32,39 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Walk one declarator that binds a plain name.
+    /// Walk one declarator that binds one symbol directly.
     ///
     /// Example:
     /// ```ds
     /// value = 1
     /// ```
-    fn walk_name_declarator(
+    fn walk_plain_declarator(
         &mut self,
         symbol: dir::GlobalSymbolId,
         declarator: &dir::Declarator,
+        binding_kind: Option<dir::LetKind>,
     ) -> CompilerResult<()> {
         // bind annotated declarators before checking their initializers
         if let Some(ty) = declarator.ty {
             let written = self.walk_type_expression(ty)?;
-            self.constrain_symbol_type(symbol, written)?;
+            self.bind_symbol_type(symbol, written)?;
+
+            // const unique symbols carry their declaration identity as a static value
+            if binding_kind == Some(dir::LetKind::Const)
+                && matches!(
+                    self.check.ty(written)?,
+                    dir::Type::Primitive(dir::PrimitiveType::UniqueSymbol)
+                )
+            {
+                let value = self.push_type(
+                    dir::Type::Instance(dir::GenericInstance {
+                        symbol,
+                        arguments: Vec::new(),
+                    }),
+                    ty.into_any(),
+                )?;
+                self.set_static_value(symbol, value)?;
+            }
 
             // check initializers against explicit annotations
             if let Some(value) = declarator.value {
@@ -56,17 +75,12 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
-        // settle the widening policy before walking an inferred value
-        let widening = match declarator.value {
-            Some(value) if self.should_widen_declarator_initializer(symbol, value) => {
-                Widening::Widen
-            }
-            _ => Widening::Preserve,
-        };
+        // choose the TS initializer widening rule before walking the value
+        let widening = self.declarator_initializer_widening(symbol, declarator.value);
 
-        // walk initializers under their binding policy
+        // walk the initializer as its own expression
         if let Some(value) = declarator.value {
-            self.walk_expression_with_widening(value, self.tree.get(value), widening)?;
+            self.walk_expression(value, self.tree.get(value))?;
         }
 
         // bind closed initializers directly (widened)
@@ -78,13 +92,7 @@ impl WalkState<'_, '_> {
                     Widening::Widen => self.check.widen_type(self.module, source, initializer)?,
                     Widening::Preserve => initializer,
                 };
-                self.constrain_symbol_type(symbol, bound)?;
-
-                // record contextual widening when the binding changed shape
-                if bound != initializer {
-                    let node = value.into_global_any(self.module);
-                    self.relate_type(Origin::Node(node), Relation::Assignable, initializer, bound);
-                }
+                self.bind_symbol_type(symbol, bound)?;
 
                 return Ok(());
             }
@@ -92,7 +100,13 @@ impl WalkState<'_, '_> {
             // open initializers flow into a binding variable
             let binding = self.binding_type(symbol, widening)?;
             let origin = Origin::Node(value.into_global_any(self.module));
-            self.relate_type(origin, Relation::Assignable, initializer, binding);
+            self.push_relation(
+                origin,
+                ConstraintCause::Annotation,
+                Relation::Assignable,
+                initializer,
+                binding,
+            );
 
             return Ok(());
         }
@@ -137,7 +151,13 @@ impl WalkState<'_, '_> {
         if let Some(matched) = matched {
             let origin = Origin::Node(declarator.pattern.into_global_any(self.module));
             let pattern = self.node_type(declarator.pattern)?;
-            self.relate_type(origin, Relation::Assignable, matched, pattern);
+            self.push_relation(
+                origin,
+                ConstraintCause::Annotation,
+                Relation::Assignable,
+                matched,
+                pattern,
+            );
 
             // non-matching positions must always succeed
             if self.is_irrefutable_declarator_pattern_required(id) {
@@ -158,11 +178,8 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Return the symbol bound by a plain name declarator.
-    fn declarator_binding_symbol(
-        &self,
-        declarator: &dir::Declarator,
-    ) -> Option<dir::GlobalSymbolId> {
+    /// Return the single symbol bound by a plain declarator.
+    fn plain_declarator_symbol(&self, declarator: &dir::Declarator) -> Option<dir::GlobalSymbolId> {
         match self.tree.get(declarator.pattern) {
             dir::Pattern::Binding { pattern: None, .. } => self
                 .check
@@ -172,36 +189,39 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Return whether one declarator should widen its inferred initializer type.
-    fn should_widen_declarator_initializer(
+    /// Return the widening policy for one inferred declarator initializer.
+    fn declarator_initializer_widening(
         &self,
         symbol: dir::GlobalSymbolId,
-        value: dir::LocalNodeId<dir::Expression>,
-    ) -> bool {
+        value: Option<dir::LocalNodeId<dir::Expression>>,
+    ) -> Widening {
+        let Some(value) = value else {
+            return Widening::Preserve;
+        };
         let bindings = self.check.module(symbol.module_id).binding_table();
         let binding = bindings.get_symbol(symbol.local_id);
 
         match self.tree.get(value) {
             // (value)
             dir::Expression::Parenthesized { expression } => {
-                self.should_widen_declarator_initializer(symbol, *expression)
+                self.declarator_initializer_widening(symbol, Some(*expression))
             }
             // value satisfies T
-            dir::Expression::Satisfies { .. } => false,
+            dir::Expression::Satisfies { .. } => Widening::Preserve,
             // value as const
             dir::Expression::As { target_type, .. }
                 if matches!(self.tree.get(*target_type), dir::TypeExpression::Const) =>
             {
-                false
+                Widening::Preserve
             }
             // mutable bindings widen initializers
-            _ if binding.binding_mutability != Some(dir::Mutability::Immutable) => true,
+            _ if binding.binding_mutability != Some(dir::Mutability::Immutable) => Widening::Widen,
             // immutable aggregate bindings keep mutable contents usable
             dir::Expression::ArrayExpression { .. }
             | dir::Expression::TupleExpression { .. }
-            | dir::Expression::ObjectExpression { .. } => true,
+            | dir::Expression::ObjectExpression { .. } => Widening::Widen,
             // immutable scalar bindings stay literal
-            _ => false,
+            _ => Widening::Preserve,
         }
     }
 

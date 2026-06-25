@@ -23,11 +23,11 @@ pub(in crate::check) struct FlowState {
     pub(in crate::check::flow) assigned: IndexSet<dir::GlobalSymbolId>,
     /// Narrowed type operands keyed by flow path.
     pub(in crate::check::flow) narrowings: IndexMap<FlowPath, dir::GlobalTypeId>,
-    /// Jumps that bound no target and recovered as completing statements.
+    /// Jumps that bound no target and complete as statements.
     unbound_jumps: IndexSet<dir::LocalNodeIdAny>,
 
-    /// Flow mutations made since walking started.
-    mutations: Vec<FlowMutation>,
+    /// Flow changes made since walking started.
+    changes: Vec<FlowChange>,
 }
 
 impl Default for FlowState {
@@ -42,16 +42,16 @@ impl Default for FlowState {
             assigned: IndexSet::new(),
             narrowings: IndexMap::new(),
             unbound_jumps: IndexSet::new(),
-            mutations: Vec::new(),
+            changes: Vec::new(),
         }
     }
 }
 
-/// A checkpoint in the flow mutation log.
+/// A checkpoint in the flow change log.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct FlowCheckpoint {
-    /// The number of mutations visible at the checkpoint.
-    mutation_count: usize,
+    /// The number of changes visible at the checkpoint.
+    change_count: usize,
 }
 
 /// Flow changes produced by one branch after a checkpoint.
@@ -63,9 +63,9 @@ pub(in crate::check) struct FlowBranch {
     narrowings: IndexMap<FlowPath, Option<dir::GlobalTypeId>>,
 }
 
-/// One reversible flow mutation.
+/// One reversible flow change.
 #[derive(Debug, Clone)]
-enum FlowMutation {
+enum FlowChange {
     /// One definite assignment change.
     Assign {
         /// The assigned symbol.
@@ -352,11 +352,16 @@ impl FlowState {
         // record previous assignment state for rollback
         let was_assigned = self.assigned.contains(&symbol);
 
-        self.mutations.push(FlowMutation::Assign {
+        self.changes.push(FlowChange::Assign {
             symbol,
             was_assigned,
         });
         self.assigned.insert(symbol);
+    }
+
+    /// Return whether one local symbol is definitely assigned.
+    pub(in crate::check) fn is_assigned(&self, symbol: dir::GlobalSymbolId) -> bool {
+        self.assigned.contains(&symbol)
     }
 
     /// Return the current narrowing for one flow path.
@@ -369,7 +374,7 @@ impl FlowState {
         // record previous narrowing for rollback
         let previous = self.narrowings.get(&path).copied();
 
-        self.mutations.push(FlowMutation::Narrow {
+        self.changes.push(FlowChange::Narrow {
             path: Box::new(path.clone()),
             previous,
         });
@@ -379,7 +384,7 @@ impl FlowState {
     /// Return a checkpoint for later branch rollback.
     pub(in crate::check) fn fork(&self) -> FlowCheckpoint {
         FlowCheckpoint {
-            mutation_count: self.mutations.len(),
+            change_count: self.changes.len(),
         }
     }
 
@@ -389,14 +394,14 @@ impl FlowState {
         let mut narrowing_paths = IndexSet::new();
 
         // collect flow state touched since the checkpoint
-        for change in &self.mutations[checkpoint.mutation_count..] {
+        for change in &self.changes[checkpoint.change_count..] {
             match change {
-                FlowMutation::Assign { symbol, .. } => {
+                FlowChange::Assign { symbol, .. } => {
                     if self.assigned.contains(symbol) {
                         assigned_symbols.insert(*symbol);
                     }
                 }
-                FlowMutation::Narrow { path, .. } => {
+                FlowChange::Narrow { path, .. } => {
                     narrowing_paths.insert(path.as_ref().clone());
                 }
             }
@@ -420,15 +425,15 @@ impl FlowState {
 
     /// Restore the flow state to one checkpoint.
     pub(in crate::check) fn restore(&mut self, checkpoint: FlowCheckpoint) {
-        // roll back mutations in reverse order
-        while self.mutations.len() > checkpoint.mutation_count {
-            let Some(change) = self.mutations.pop() else {
+        // roll back changes in reverse order
+        while self.changes.len() > checkpoint.change_count {
+            let Some(change) = self.changes.pop() else {
                 break;
             };
 
-            // undo the latest mutation
+            // undo the latest change
             match change {
-                FlowMutation::Assign {
+                FlowChange::Assign {
                     symbol,
                     was_assigned,
                 } => {
@@ -439,7 +444,7 @@ impl FlowState {
                         self.assigned.shift_remove(&symbol);
                     }
                 }
-                FlowMutation::Narrow { path, previous } => {
+                FlowChange::Narrow { path, previous } => {
                     // restore previous narrowing state
                     if let Some(previous) = previous {
                         self.narrowings.insert(*path, previous);
@@ -532,7 +537,7 @@ impl FlowState {
         // record previous narrowing for rollback
         let previous = self.narrowings.get(&path).copied();
 
-        self.mutations.push(FlowMutation::Narrow {
+        self.changes.push(FlowChange::Narrow {
             path: Box::new(path.clone()),
             previous,
         });

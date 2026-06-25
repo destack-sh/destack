@@ -42,15 +42,17 @@ impl WalkState<'_, '_> {
             dir::Argument::Error => None,
         };
 
-        let ty = match value {
-            Some(value) => {
-                self.walk_expression(value, self.tree.get(value))?;
+        let Some(value) = value else {
+            let error = self.push_type(dir::Type::Error, id.into_any())?;
+            self.bind_node_type(id, error)?;
 
-                self.node_type(value)?
-            }
-            None => self.push_type(dir::Type::Error, id.into_any())?,
+            return Ok(());
         };
-        self.constrain_node_type(id, ty)?;
+
+        self.walk_expression(value, self.tree.get(value))?;
+
+        // copy the value type into the argument node
+        self.copy_node_type(id, value)?;
 
         Ok(())
     }
@@ -120,7 +122,7 @@ impl WalkState<'_, '_> {
                 id.into_global_any(self.module),
             ),
         };
-        self.constrain_node_type(id, ty)?;
+        self.bind_node_type(id, ty)?;
 
         Ok(GenericArgument { name, ty, source })
     }

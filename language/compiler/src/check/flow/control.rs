@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    ControlTarget, FlowBranch, Obligation, Origin, Relation, TryPropagationObligation, TryTarget,
-    WalkState,
+    ControlTarget, FlowBranch, Obligation, Origin, Relation, TryPropagationObligation,
+    TryPropagationTarget, TryPropagationValue, TryTarget, WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -74,7 +74,7 @@ impl WalkState<'_, '_> {
         let failure = self.open_type(source)?;
         let target = TryTarget {
             failure,
-            failures: Vec::new(),
+            has_failure: false,
         };
 
         // expose target to nested try propagation
@@ -93,7 +93,7 @@ impl WalkState<'_, '_> {
         let target = self.flow_mut().pop_try();
 
         // close failure-free try bodies to never
-        if target.failures.is_empty() {
+        if !target.has_failure {
             let origin = Origin::Node(source.into_global(self.module));
             let never = self.push_type(dir::Type::Never, source)?;
 
@@ -121,7 +121,7 @@ impl WalkState<'_, '_> {
         let Some(index) = self.flow().break_target_index(label) else {
             self.check
                 .report_break_outside_control_target(self.module, source);
-            // recovered jumps complete normally instead of diverging
+            // unbound jumps already emitted diagnostics
             self.flow_mut().record_unbound_jump(source);
 
             return Ok(());
@@ -150,7 +150,7 @@ impl WalkState<'_, '_> {
         let Some(index) = self.flow().continue_target_index(label) else {
             self.check.report_continue_outside_loop(self.module, source);
 
-            // recovered jumps complete normally instead of diverging
+            // unbound jumps already emitted diagnostics
             self.flow_mut().record_unbound_jump(source);
 
             return;
@@ -174,33 +174,42 @@ impl WalkState<'_, '_> {
         source: dir::LocalNodeIdAny,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        // collect the local failure projection on the innermost try target
-        if self.flow_mut().current_try_mut().is_some() {
-            let operation = dir::TypeOperation::TryResidual { value };
-            let failure = self.push_type(dir::Type::Operation(operation), source)?;
-            let origin = Origin::Node(source.into_global(self.module));
+        self.propagate_try_value(source, TryPropagationValue::Type(value))
+    }
 
-            let mut result = None;
-            if let Some(target) = self.flow_mut().current_try_mut() {
-                target.failures.push(failure);
-                result = Some(target.failure);
-            }
-            if let Some(result) = result {
-                self.relate_type(origin, Relation::Assignable, failure, result);
-            }
+    /// Propagate one selected try result to catch or the enclosing return type.
+    pub(in crate::check) fn propagate_selected_try(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<()> {
+        let node = source.into_global(self.module);
 
-            return Ok(());
-        }
+        self.propagate_try_value(source, TryPropagationValue::Node(node))
+    }
 
-        // propagate to the enclosing function
-        let return_type = self.current_return_target();
+    /// Push one try propagation obligation.
+    fn propagate_try_value(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        value: TryPropagationValue,
+    ) -> CompilerResult<()> {
+        let source = source.into_global(self.module);
         let condition = self.flow().active_static_guard();
+        let target = if let Some(target) = self.flow_mut().current_try_mut() {
+            target.has_failure = true;
+            TryPropagationTarget::Failure { ty: target.failure }
+        } else {
+            TryPropagationTarget::Return {
+                ty: self.current_return_target(),
+            }
+        };
+
         self.check
             .push_obligation(Obligation::TryPropagation(TryPropagationObligation {
-                source: source.into_global(self.module),
+                source,
                 condition,
                 value,
-                return_type,
+                target,
             }));
 
         Ok(())

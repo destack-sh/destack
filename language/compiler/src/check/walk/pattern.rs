@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Origin, Relation, WalkState};
+use crate::check::{Origin, Relation, WalkState, Widening};
 
 impl WalkState<'_, '_> {
     /// Walk one pattern.
@@ -39,13 +39,13 @@ impl WalkState<'_, '_> {
 
                 // forward the child pattern type through the outer form
                 let pattern_type = self.node_type(*pattern)?;
-                self.constrain_node_type(id, pattern_type)?;
+                self.bind_node_type(id, pattern_type)?;
             }
             // pattern = value
             dir::Pattern::Assign { pattern, value } => {
                 self.walk_pattern(*pattern, self.tree.get(*pattern))?;
                 let pattern_type = self.node_type(*pattern)?;
-                self.constrain_node_type(id, pattern_type)?;
+                self.bind_node_type(id, pattern_type)?;
 
                 // check pattern default in selector context
                 let before_value = self.fork_flow();
@@ -66,13 +66,13 @@ impl WalkState<'_, '_> {
 
                 // bind the name to the child pattern type
                 let pattern_type = self.node_type(*pattern)?;
-                self.constrain_node_type(id, pattern_type)?;
-                self.declare_binding_pattern_symbol(id, pattern_type)?;
+                self.bind_node_type(id, pattern_type)?;
+                self.bind_pattern_symbol(id, pattern_type)?;
             }
             // name
             dir::Pattern::Binding { pattern: None, .. } => {
-                let ty = self.node_type(id)?;
-                self.declare_binding_pattern_symbol(id, ty)?;
+                let ty = self.open_inferred_node_type(id, Widening::Preserve)?;
+                self.bind_pattern_symbol(id, ty)?;
             }
             // value
             dir::Pattern::Expression { value } => {
@@ -82,7 +82,7 @@ impl WalkState<'_, '_> {
                 self.restore_flow(before_value);
 
                 let pattern_type = self.node_type(*value)?;
-                self.constrain_node_type(id, pattern_type)?;
+                self.bind_node_type(id, pattern_type)?;
             }
             // start..end
             dir::Pattern::Range { start, end, .. } => {
@@ -100,9 +100,64 @@ impl WalkState<'_, '_> {
                 }
             }
             // [a, b], [...items], { name }
-            dir::Pattern::Tuple { fields }
-            | dir::Pattern::Sequence { fields }
-            | dir::Pattern::Object { fields } => {
+            dir::Pattern::Tuple { fields } => {
+                let fields = fields.clone();
+                let mut elements = Vec::with_capacity(fields.len());
+
+                for field in fields {
+                    self.walk_pattern_field(field, self.tree.get(field))?;
+
+                    // keep positional arity explicit
+                    match self.tree.get(field) {
+                        dir::PatternField::Positional { pattern } => {
+                            let ty = self.node_type(*pattern)?;
+                            elements.push(dir::TypeElement {
+                                label: None,
+                                ty,
+                                is_optional: false,
+                                is_readonly: false,
+                                is_rest: false,
+                            });
+                        }
+                        dir::PatternField::Named { pattern, .. } => {
+                            let ty = match pattern {
+                                Some(pattern) => self.node_type(*pattern)?,
+                                None => self.node_type(field)?,
+                            };
+                            elements.push(dir::TypeElement {
+                                label: None,
+                                ty,
+                                is_optional: false,
+                                is_readonly: false,
+                                is_rest: false,
+                            });
+                        }
+                        dir::PatternField::Elision => {
+                            let ty = self.push_type(dir::Type::Unknown, field.into_any())?;
+                            elements.push(dir::TypeElement {
+                                label: None,
+                                ty,
+                                is_optional: false,
+                                is_readonly: false,
+                                is_rest: false,
+                            });
+                        }
+                        _ => {}
+                    }
+                }
+
+                // tuple patterns require tuple shaped values
+                let ty = self.push_type(
+                    dir::Type::Tuple(dir::TupleType {
+                        form: dir::TupleForm::Tuple,
+                        elements,
+                    }),
+                    id.into_any(),
+                )?;
+                self.bind_node_type(id, ty)?;
+            }
+            // [a, b], [...items], { name }
+            dir::Pattern::Sequence { fields } | dir::Pattern::Object { fields } => {
                 let fields = fields.clone();
                 for field in fields {
                     self.walk_pattern_field(field, self.tree.get(field))?;
@@ -117,7 +172,7 @@ impl WalkState<'_, '_> {
                 }
 
                 // the pattern matches values of its nominal tag
-                self.constrain_node_type(id, tag)?;
+                self.bind_node_type(id, tag)?;
             }
             // a | b
             dir::Pattern::Union { patterns } => {
@@ -129,8 +184,7 @@ impl WalkState<'_, '_> {
         }
 
         // queue selection once the scrutinee type is known
-        self.node_type(id)?;
-        self.queue_decide(id.into_global_any(self.module));
+        self.queue_decision(id.into_global_any(self.module))?;
 
         Ok(())
     }
@@ -157,8 +211,8 @@ impl WalkState<'_, '_> {
                     self.walk_pattern(pattern, self.tree.get(pattern))?;
                 } else {
                     // shorthand fields bind their own name
-                    let ty = self.node_type(id)?;
-                    self.declare_binding_pattern_symbol(id, ty)?;
+                    let ty = self.open_inferred_node_type(id, Widening::Preserve)?;
+                    self.bind_pattern_symbol(id, ty)?;
                 }
             }
             // { [key]: pattern }, [pattern]
@@ -179,8 +233,8 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Declare the symbol bound at one pattern node.
-    fn declare_binding_pattern_symbol<T: dir::Node>(
+    /// Bind the symbol bound at one pattern node.
+    fn bind_pattern_symbol<T: dir::Node>(
         &mut self,
         id: dir::LocalNodeId<T>,
         ty: dir::GlobalTypeId,
@@ -192,7 +246,7 @@ impl WalkState<'_, '_> {
         else {
             return Ok(());
         };
-        self.constrain_symbol_type(symbol, ty)?;
+        self.bind_symbol_type(symbol, ty)?;
 
         Ok(())
     }
