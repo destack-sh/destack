@@ -9,7 +9,7 @@ use destack_artifact::{
     TargetArch,
 };
 use destack_mir as mir;
-use destack_repository::{Module, OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target};
+use destack_repository::{Module, ProfileId, Target};
 use destack_source::{ModuleId, TargetId};
 use target_lexicon::Triple;
 
@@ -31,11 +31,10 @@ impl Compiler {
         let mut dependencies = ArtifactDependencySet::default();
         dependencies.require(ArtifactKey::mir_verified(module, profile, target));
 
-        // the analysis scope follows the build: whole program when interprocedural
-        // passes run, otherwise this module alone (a program of one module)
+        // resolve the optimization program scope
         let target_config = self.target_for_module(module, &target, context)?;
         let level = self.optimization_level_for_target_config(&target_config);
-        if Self::level_runs_whole_program(level) {
+        if level.uses_program_analysis() {
             dependencies.require(ArtifactKey::program_analysis(profile, target));
         } else {
             dependencies.require(ArtifactKey::mir_analyzed(module, profile, target));
@@ -96,9 +95,8 @@ impl Compiler {
             .map_err(CompilerError::from)?;
         let mut tree = verified.patch.tree.clone();
 
-        // scope the analysis to the build: the shared whole-program one when
-        // interprocedural passes run, otherwise this module as a standalone program
-        let program_analysis = if Self::level_runs_whole_program(level) {
+        // load analysis for the optimization program scope
+        let program_analysis = if level.uses_program_analysis() {
             artifacts
                 .program_analysis(profile, *target)
                 .map_err(CompilerError::from)?
@@ -143,24 +141,9 @@ impl Compiler {
         Ok(payload)
     }
 
-    /// Return whether a level runs the interprocedural passes that need program analysis.
-    fn level_runs_whole_program(level: OptimizationLevel) -> bool {
-        matches!(
-            level,
-            OptimizationLevel::O2 | OptimizationLevel::O3 | OptimizationLevel::O4
-        )
-    }
-
     /// Resolve the optimization level for a target configuration.
     fn optimization_level_for_target_config(&self, target: &Target) -> OptimizationLevel {
-        // map target optimize level to pipeline level
-        match target.compiler.optimize {
-            WorkspaceOptimizeLevel::O0 => OptimizationLevel::O0,
-            WorkspaceOptimizeLevel::O1 => OptimizationLevel::O1,
-            WorkspaceOptimizeLevel::O2 => OptimizationLevel::O2,
-            WorkspaceOptimizeLevel::O3 => OptimizationLevel::O3,
-            WorkspaceOptimizeLevel::O4 => OptimizationLevel::O4,
-        }
+        target.compiler.optimize.into()
     }
 
     /// Resolve pipeline options for a module and target.
@@ -174,38 +157,11 @@ impl Compiler {
         // resolve pointer width from target configuration
         let pointer_width_bits = self.pointer_width_bits_for_target(target);
 
-        // resolve optimization budgets
-        let unroll_threshold = Self::unroll_threshold_for_level(level);
-        let unroll_threshold = unroll_threshold.min(usize::MAX as u64) as usize;
-        let inline_budget_scale_percent = Self::inline_budget_scale_percent_for_level(level);
-
         PipelineOptions {
             analysis: AnalysisOptions::new(TargetLayout { pointer_width_bits }),
-            unroll_threshold,
-            inline_budget_scale_percent,
+            unroll_threshold: level.unroll_threshold(),
+            inline_budget_scale_percent: level.inline_budget_scale_percent(),
             ..Default::default()
-        }
-    }
-
-    /// Resolve unroll threshold from an optimization level.
-    fn unroll_threshold_for_level(level: OptimizationLevel) -> u64 {
-        match level {
-            OptimizationLevel::O0 => 0,
-            OptimizationLevel::O1 => 0,
-            OptimizationLevel::O2 => 200,
-            OptimizationLevel::O3 => 300,
-            OptimizationLevel::O4 => 400,
-        }
-    }
-
-    /// Resolve inline budget scale percent from an optimization level.
-    fn inline_budget_scale_percent_for_level(level: OptimizationLevel) -> u64 {
-        match level {
-            OptimizationLevel::O0 => 50,
-            OptimizationLevel::O1 => 75,
-            OptimizationLevel::O2 => 100,
-            OptimizationLevel::O3 => 140,
-            OptimizationLevel::O4 => 180,
         }
     }
 

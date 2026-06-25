@@ -231,7 +231,7 @@ impl<'a> PipelineContext<'a> {
         self.profile.as_deref()
     }
 
-    /// Get the whole-program analysis for this profile and target.
+    /// Return the program analysis for this optimization scope.
     pub fn program_analysis(&self) -> &ProgramAnalysis {
         &self.program_analysis
     }

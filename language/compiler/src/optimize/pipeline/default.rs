@@ -95,8 +95,8 @@ fn eliminate_redundancy() -> Vec<Box<dyn FunctionPass>> {
     ]
 }
 
-/// Lightweight scalar fixed point island.
-fn scalar_island_light() -> Vec<Box<dyn FunctionPass>> {
+/// Return lightweight scalar simplification passes.
+fn scalar_passes_light() -> Vec<Box<dyn FunctionPass>> {
     let mut passes = Vec::new();
     passes.extend(simplify());
     passes.push(Box::new(LocalCse));
@@ -104,8 +104,8 @@ fn scalar_island_light() -> Vec<Box<dyn FunctionPass>> {
     passes
 }
 
-/// Full scalar fixed point island.
-fn scalar_island_full(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
+/// Return full scalar simplification passes.
+fn scalar_passes_full(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
     let mut passes = Vec::new();
     passes.extend(eliminate_redundancy());
     passes.extend(simplify());
@@ -161,18 +161,18 @@ fn optimize_loops_post_fusion() -> Vec<Box<dyn FunctionPass>> {
     ]
 }
 
-/// Return a fixed point island for memory optimizations.
-fn memory_island() -> FunctionPipeline {
+/// Return the memory optimization pipeline.
+fn memory_pipeline() -> FunctionPipeline {
     FunctionPipeline::new(optimize_memory())
 }
 
-/// Return a fixed point island for loop optimizations before fusion.
-fn loop_island_pre_fusion(aggressive: bool) -> FunctionPipeline {
+/// Return the loop optimization pipeline before fusion.
+fn loop_pipeline_pre_fusion(aggressive: bool) -> FunctionPipeline {
     FunctionPipeline::new(optimize_loops_pre_fusion(aggressive))
 }
 
-/// Return a fixed point island for loop fusion.
-fn loop_island_post_fusion() -> FunctionPipeline {
+/// Return the loop fusion pipeline.
+fn loop_pipeline_post_fusion() -> FunctionPipeline {
     FunctionPipeline::new(optimize_loops_post_fusion())
 }
 
@@ -197,18 +197,18 @@ fn cleanup() -> Vec<Box<dyn FunctionPass>> {
     vec![Box::new(SimplifyCfg), Box::new(DeadCodeEliminate)]
 }
 
-/// O0: Verification and correctness only.
+/// O0: debug builds with canonicalization only.
 fn o0_pipeline(is_native_target: bool) -> CompositePipeline {
     PipelineBuilder::new()
         .function_passes(canonicalize(is_native_target))
         .build()
 }
 
-/// O1: Fast compilation with essential optimizations.
+/// O1: fast local optimization.
 fn o1_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
     PipelineBuilder::new()
         .function_passes(canonicalize(is_native_target))
-        .function_passes(scalar_island_light())
+        .function_passes(scalar_passes_light())
         .function_passes(optimize_types())
         .function_passes(cleanup())
         // drop functions no root reaches (module scope at this level)
@@ -216,19 +216,19 @@ fn o1_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         .build()
 }
 
-/// O2: Release builds with comprehensive optimization.
+/// O2: standard release optimization.
 ///
 /// Structure: verify -> canonicalize -> [simplify <-> optimize]* => cleanup
 /// Each major phase is followed by simplification to expose new opportunities.
 fn o2_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
     PipelineBuilder::new()
         .function_passes(canonicalize(is_native_target))
-        // early scalar fixed point island
+        // run early scalar cleanup
         .repeat(
             2,
-            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(false))),
+            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_passes_full(false))),
         )
-        // drop functions no root reaches (whole-program scope at this level)
+        // drop functions no root reaches at program scope
         .module_pass(DeadFunctionEliminate)
         // propagate interprocedural constants before inlining
         .module_pass(InterproceduralConstantPropagation)
@@ -238,21 +238,21 @@ fn o2_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         .module_pass(GlobalOpt)
         .repeat(2, interprocedural_cleanup_pipeline())
         // memory optimization
-        .repeat(2, FunctionToModuleAdaptor::new(memory_island()))
-        .function_passes(scalar_island_full(false))
+        .repeat(2, FunctionToModuleAdaptor::new(memory_pipeline()))
+        .function_passes(scalar_passes_full(false))
         // loop optimization
         .repeat(
             2,
-            FunctionToModuleAdaptor::new(loop_island_pre_fusion(false)),
+            FunctionToModuleAdaptor::new(loop_pipeline_pre_fusion(false)),
         )
-        .repeat(2, FunctionToModuleAdaptor::new(loop_island_post_fusion()))
+        .repeat(2, FunctionToModuleAdaptor::new(loop_pipeline_post_fusion()))
         .repeat(
             2,
-            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(false))),
+            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_passes_full(false))),
         )
         // type optimization
         .function_passes(optimize_types())
-        .function_passes(scalar_island_full(false))
+        .function_passes(scalar_passes_full(false))
         // late scalar
         .module_pass(TailCallElim)
         .function_passes(vec![Box::new(Sink)])
@@ -261,18 +261,18 @@ fn o2_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         .build()
 }
 
-/// O3: aggressive optimization.
+/// O3: aggressive release optimization.
 ///
 /// More iterations, aggressive loop transforms, extra cleanup rounds.
 fn o3_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
     PipelineBuilder::new()
         .function_passes(canonicalize(is_native_target))
-        // early scalar fixed point island (more iterations)
+        // run early scalar cleanup with more iterations
         .repeat(
             3,
-            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(true))),
+            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_passes_full(true))),
         )
-        // drop functions no root reaches (whole-program scope at this level)
+        // drop functions no root reaches at program scope
         .module_pass(DeadFunctionEliminate)
         // propagate interprocedural constants before inlining
         .module_pass(InterproceduralConstantPropagation)
@@ -283,23 +283,23 @@ fn o3_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         .module_pass(GlobalOpt)
         .repeat(3, interprocedural_cleanup_pipeline())
         // memory optimization
-        .repeat(3, FunctionToModuleAdaptor::new(memory_island()))
-        .function_passes(scalar_island_full(true))
+        .repeat(3, FunctionToModuleAdaptor::new(memory_pipeline()))
+        .function_passes(scalar_passes_full(true))
         // loop optimization (aggressive)
         .repeat(
             2,
-            FunctionToModuleAdaptor::new(loop_island_pre_fusion(true)),
+            FunctionToModuleAdaptor::new(loop_pipeline_pre_fusion(true)),
         )
-        .repeat(2, FunctionToModuleAdaptor::new(loop_island_post_fusion()))
+        .repeat(2, FunctionToModuleAdaptor::new(loop_pipeline_post_fusion()))
         .repeat(
             2,
-            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(true))),
+            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_passes_full(true))),
         )
         // type optimization
         .function_passes(optimize_types())
         .repeat(
             2,
-            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(true))),
+            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_passes_full(true))),
         )
         // late scalar
         .module_pass(TailCallElim)
@@ -309,18 +309,18 @@ fn o3_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         .build()
 }
 
-/// O4: maximal single module optimization.
+/// O4: maximum program optimization.
 ///
 /// This adds more fixed point iterations to expose secondary effects.
 fn o4_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
     PipelineBuilder::new()
         .function_passes(canonicalize(is_native_target))
-        // early scalar fixed point island (extra iterations)
+        // run early scalar cleanup with extra iterations
         .repeat(
             4,
-            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(true))),
+            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_passes_full(true))),
         )
-        // drop functions no root reaches (whole-program scope at this level)
+        // drop functions no root reaches at program scope
         .module_pass(DeadFunctionEliminate)
         // propagate interprocedural constants before inlining
         .module_pass(InterproceduralConstantPropagation)
@@ -331,23 +331,23 @@ fn o4_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         .module_pass(GlobalOpt)
         .repeat(4, interprocedural_cleanup_pipeline())
         // memory optimization
-        .repeat(4, FunctionToModuleAdaptor::new(memory_island()))
-        .function_passes(scalar_island_full(true))
+        .repeat(4, FunctionToModuleAdaptor::new(memory_pipeline()))
+        .function_passes(scalar_passes_full(true))
         // loop optimization (aggressive)
         .repeat(
             3,
-            FunctionToModuleAdaptor::new(loop_island_pre_fusion(true)),
+            FunctionToModuleAdaptor::new(loop_pipeline_pre_fusion(true)),
         )
-        .repeat(3, FunctionToModuleAdaptor::new(loop_island_post_fusion()))
+        .repeat(3, FunctionToModuleAdaptor::new(loop_pipeline_post_fusion()))
         .repeat(
             3,
-            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(true))),
+            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_passes_full(true))),
         )
         // type optimization
         .function_passes(optimize_types())
         .repeat(
             3,
-            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(true))),
+            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_passes_full(true))),
         )
         // late scalar
         .module_pass(TailCallElim)
