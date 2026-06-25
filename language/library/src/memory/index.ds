@@ -60,6 +60,7 @@ export {
     Copy,
     Default,
     DynamicSafe,
+    OverwriteStable,
     Send,
     Sync,
     Unpin,
