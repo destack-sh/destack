@@ -367,15 +367,6 @@ fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projecti
             projection_field_label(builder, field),
             builder.global_type_label(*ty)
         ),
-        dir::Projection::SequenceElement { index, ty } => {
-            format!(
-                "sequence.element({index}, {})",
-                builder.global_type_label(*ty)
-            )
-        }
-        dir::Projection::SequenceView { ty } => {
-            format!("sequence.view({})", builder.global_type_label(*ty))
-        }
         dir::Projection::SliceLength { ty } => {
             format!("slice.length({})", builder.global_type_label(*ty))
         }
@@ -824,7 +815,16 @@ fn add_pattern_destructure_fields(
         dir::PatternDestructureResolution::Sequence(sequence) => add_pattern_sequence_fields(
             builder,
             segment,
-            add_pattern_sequence_length_field(builder, row, &sequence.length),
+            add_pattern_sequence_arity_field(
+                row.optional_field(
+                    "element",
+                    sequence
+                        .fields
+                        .first()
+                        .map(|field| builder.global_type_label(field.ty)),
+                ),
+                &sequence.arity,
+            ),
             &sequence.fields,
             sequence.rest.as_ref(),
         ),
@@ -1206,31 +1206,31 @@ fn add_pattern_sequence_fields(
     builder: &DirSnapshotBuilder<'_>,
     segment: &dir::ResolutionSegment,
     row: SnapshotRow,
-    fields: &[dir::PatternFieldResolution],
-    rest: Option<&dir::PatternRestResolution>,
+    fields: &[dir::PatternSequenceElementResolution],
+    rest: Option<&dir::PatternSequenceRestResolution>,
 ) -> SnapshotRow {
     row.tuple_field(
         "fields",
-        pattern_positional_field_labels(builder, segment, fields),
+        pattern_sequence_field_labels(builder, segment, fields),
     )
     .optional_field(
         "rest",
-        rest.map(|rest| pattern_rest_label(builder, segment, rest)),
+        rest.map(|rest| pattern_sequence_rest_label(builder, segment, rest)),
     )
 }
 
-/// Add exact sequence length when it is statically known.
-fn add_pattern_sequence_length_field(
-    builder: &DirSnapshotBuilder<'_>,
+/// Add one sequence pattern arity requirement.
+fn add_pattern_sequence_arity_field(
     row: SnapshotRow,
-    length: &dir::PatternSequenceLength,
+    arity: &dir::PatternSequenceArity,
 ) -> SnapshotRow {
-    match length {
-        dir::PatternSequenceLength::Dynamic => row,
-        dir::PatternSequenceLength::Exact(length) => {
-            row.field("length", builder.global_type_label(*length))
-        }
-    }
+    let label = match arity.maximum {
+        Some(maximum) if maximum == arity.minimum => arity.minimum.to_string(),
+        Some(maximum) => format!("{}..{}", arity.minimum, maximum),
+        None => format!("{}..", arity.minimum),
+    };
+
+    row.field("arity", label)
 }
 
 /// Add one variant payload field list.
@@ -1273,6 +1273,17 @@ fn pattern_positional_field_labels<'a>(
     fields
         .iter()
         .map(|field| pattern_positional_field_label(builder, segment, field))
+}
+
+/// Return sequence pattern element labels.
+fn pattern_sequence_field_labels<'a>(
+    builder: &'a DirSnapshotBuilder<'_>,
+    segment: &'a dir::ResolutionSegment,
+    fields: &'a [dir::PatternSequenceElementResolution],
+) -> impl Iterator<Item = String> + 'a {
+    fields
+        .iter()
+        .map(|field| pattern_sequence_field_label(builder, segment, field))
 }
 
 /// Return one keyed pattern field group label.
@@ -1324,6 +1335,15 @@ fn pattern_positional_field_label(
     pattern_child_label(builder, segment, pattern)
 }
 
+/// Return one sequence pattern element label.
+fn pattern_sequence_field_label(
+    builder: &DirSnapshotBuilder<'_>,
+    segment: &dir::ResolutionSegment,
+    field: &dir::PatternSequenceElementResolution,
+) -> String {
+    pattern_child_label(builder, segment, field.pattern)
+}
+
 /// Return one variant payload label.
 fn pattern_variant_payload_label(fields: &[dir::PatternFieldResolution]) -> Option<&'static str> {
     if fields.is_empty() {
@@ -1345,7 +1365,7 @@ fn pattern_fields_are_positional(fields: &[dir::PatternFieldResolution]) -> bool
             dir::Projection::FieldGet {
                 field: dir::ProjectionField::Key(dir::StaticKey::Index(_)),
                 ..
-            } | dir::Projection::SequenceElement { .. }
+            }
         )
     })
 }
@@ -1357,7 +1377,6 @@ fn pattern_field_target_label(
 ) -> String {
     match projection {
         dir::Projection::FieldGet { field, .. } => projection_field_label(builder, field),
-        dir::Projection::SequenceElement { index, .. } => index.to_string(),
         _ => projection_label(builder, projection),
     }
 }
@@ -1500,11 +1519,11 @@ fn assign_pattern_place_label(
     builder.symbol_path_label(symbols[0])
 }
 
-/// Return one pattern rest label.
-fn pattern_rest_label(
+/// Return one sequence pattern rest label.
+fn pattern_sequence_rest_label(
     builder: &DirSnapshotBuilder<'_>,
     segment: &dir::ResolutionSegment,
-    rest: &dir::PatternRestResolution,
+    rest: &dir::PatternSequenceRestResolution,
 ) -> String {
     let Some(pattern) = rest.pattern else {
         return "...".to_string();
@@ -1578,6 +1597,9 @@ fn argument_binding_label(
                 .unwrap_or_else(|| builder.node_label(*node));
 
             format!("provided({source})")
+        }
+        dir::ArgumentSource::Static(ty) => {
+            format!("static({})", builder.global_type_label(*ty))
         }
         dir::ArgumentSource::Omitted => "omitted".to_string(),
         dir::ArgumentSource::Rest(nodes) => {

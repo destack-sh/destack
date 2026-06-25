@@ -11,8 +11,6 @@ use crate::{
 /// ```ds
 /// value                 // Identity
 /// point.x               // FieldGet
-/// const [head] = values // SequenceElement
-/// [...tail]             // SequenceView
 /// values.length         // SliceLength
 /// dynamic.payload       // DynamicPayload
 /// dynamic.type          // DynamicType
@@ -46,30 +44,6 @@ pub enum Projection {
         /// The selected field.
         field: ProjectionField,
         /// The projected value type.
-        ty: GlobalTypeId,
-    },
-    /// Project one statically positioned element from a sequence value.
-    ///
-    /// Examples:
-    /// ```ds
-    /// const [head] = values;
-    /// match values { [first, second] => ... }
-    /// ```
-    SequenceElement {
-        /// The selected sequence position.
-        index: usize,
-        /// The projected value type.
-        ty: GlobalTypeId,
-    },
-    /// Project one sequence range value.
-    ///
-    /// Examples:
-    /// ```ds
-    /// const [head, ...tail] = values;
-    /// match values { [first, ...rest] => ... }
-    /// ```
-    SequenceView {
-        /// The projected sequence value type.
         ty: GlobalTypeId,
     },
     /// Read the runtime length from a slice descriptor.

@@ -368,7 +368,9 @@ impl Declaration {
             Declaration::Enum(declaration) => Some(&mut declaration.generic_parameters),
             Declaration::Interface(declaration) => Some(&mut declaration.generic_parameters),
             Declaration::Extension(declaration) => Some(&mut declaration.generic_parameters),
-            Declaration::Function(declaration) => Some(&mut declaration.signature.generic_parameters),
+            Declaration::Function(declaration) => {
+                Some(&mut declaration.signature.generic_parameters)
+            }
             Declaration::Global(_) | Declaration::Module(_) => None,
         }
     }

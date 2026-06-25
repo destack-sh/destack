@@ -265,6 +265,8 @@ pub struct ArgumentBinding {
 pub enum ArgumentSource {
     /// One source argument was supplied.
     Provided(GlobalNodeIdAny),
+    /// One static argument was inserted by checking.
+    Static(GlobalTypeId),
     /// No source argument was supplied.
     Omitted,
     /// Remaining source arguments were supplied to a rest parameter.
