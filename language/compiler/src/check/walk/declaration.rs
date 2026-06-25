@@ -6,7 +6,7 @@ use crate::check::{
     GenericInductionDeclaration, GenericTemplateId, ImplementationCoherenceObligation, Obligation,
     Origin, Receiver, ReceiverBinding, Relation, RepresentationObligation, WalkState,
 };
-use crate::{CheckError, CompilerError, CompilerResult};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Bind nominal type definition symbols as declaration references.
@@ -397,14 +397,15 @@ impl WalkState<'_, '_> {
                         arguments: instance.arguments,
                     });
                 } else {
-                    self.report_implementation_target_not_interface_symbol(
-                        self.check.format_symbol(symbol),
-                        instance.symbol,
-                        source,
-                    );
+                    self.check
+                        .report_implementation_target_not_interface_symbol(
+                            self.check.format_symbol(symbol),
+                            instance.symbol,
+                            source,
+                        );
                 }
             } else {
-                self.report_implementation_target_not_interface_type(
+                self.check.report_implementation_target_not_interface_type(
                     self.check.format_symbol(symbol),
                     ty,
                     implemented_type.into_global_any(self.module),
@@ -489,10 +490,11 @@ impl WalkState<'_, '_> {
                     });
                     super_ty = Some(ty);
                 } else {
-                    self.report_does_not_extend_symbol(receiver.ty, instance.symbol, source);
+                    self.check
+                        .report_does_not_extend_symbol(receiver.ty, instance.symbol, source);
                 }
             } else {
-                self.report_does_not_extend_type(
+                self.check.report_does_not_extend_type(
                     receiver.ty,
                     ty,
                     extends_type.into_global_any(self.module),
@@ -519,14 +521,15 @@ impl WalkState<'_, '_> {
                         arguments: instance.arguments,
                     });
                 } else {
-                    self.report_implementation_target_not_interface_symbol(
-                        self.check.format_symbol(symbol),
-                        instance.symbol,
-                        source,
-                    );
+                    self.check
+                        .report_implementation_target_not_interface_symbol(
+                            self.check.format_symbol(symbol),
+                            instance.symbol,
+                            source,
+                        );
                 }
             } else {
-                self.report_implementation_target_not_interface_type(
+                self.check.report_implementation_target_not_interface_type(
                     self.check.format_symbol(symbol),
                     ty,
                     implemented_type.into_global_any(self.module),
@@ -623,14 +626,15 @@ impl WalkState<'_, '_> {
                         arguments: instance.arguments,
                     });
                 } else {
-                    self.report_implementation_target_not_interface_symbol(
-                        self.check.format_symbol(symbol),
-                        instance.symbol,
-                        source,
-                    );
+                    self.check
+                        .report_implementation_target_not_interface_symbol(
+                            self.check.format_symbol(symbol),
+                            instance.symbol,
+                            source,
+                        );
                 }
             } else {
-                self.report_implementation_target_not_interface_type(
+                self.check.report_implementation_target_not_interface_type(
                     self.check.format_symbol(symbol),
                     ty,
                     implemented_type.into_global_any(self.module),
@@ -641,7 +645,7 @@ impl WalkState<'_, '_> {
         // walk variants and members
         let mut members = Vec::new();
         for field in &declaration.fields {
-            members.extend(self.walk_enum_field(*field, self.tree.get(*field))?);
+            members.extend(self.walk_enum_field(*field, self.tree.get(*field), receiver.ty)?);
         }
         for member in &declaration.members {
             members.extend(self.walk_member(
@@ -715,14 +719,14 @@ impl WalkState<'_, '_> {
                         arguments: instance.arguments,
                     });
                 } else {
-                    self.report_interface_base_not_interface_symbol(
+                    self.check.report_interface_base_not_interface_symbol(
                         symbol,
                         instance.symbol,
                         source,
                     );
                 }
             } else {
-                self.report_interface_base_not_interface_type(
+                self.check.report_interface_base_not_interface_type(
                     symbol,
                     ty,
                     extends_type.into_global_any(self.module),
@@ -816,14 +820,15 @@ impl WalkState<'_, '_> {
                         arguments: instance.arguments,
                     });
                 } else {
-                    self.report_implementation_target_not_interface_symbol(
-                        target_name.clone(),
-                        instance.symbol,
-                        source,
-                    );
+                    self.check
+                        .report_implementation_target_not_interface_symbol(
+                            target_name.clone(),
+                            instance.symbol,
+                            source,
+                        );
                 }
             } else {
-                self.report_implementation_target_not_interface_type(
+                self.check.report_implementation_target_not_interface_type(
                     target_name.clone(),
                     ty,
                     implemented_type.into_global_any(self.module),
@@ -974,7 +979,9 @@ impl WalkState<'_, '_> {
             self.open_signature_template(source, None, Some(symbol), &declaration.signature)?;
         self.walk_function_signature(template, &declaration.signature)?;
         if declaration.body.is_none() && !declaration.is_ambient {
-            self.report_missing_declaration_body(id.into_any(), self.check.format_symbol(symbol));
+            let source = id.into_global_any(self.module);
+            self.check
+                .report_missing_declaration_body(source, self.check.format_symbol(symbol));
         }
         let result = self.walk_function_result_type(
             id.into_any(),
@@ -1023,6 +1030,7 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::EnumField>,
         enum_field: &dir::EnumField,
+        owner: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::DefinitionMember>> {
         let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
             return Ok(None);
@@ -1055,11 +1063,20 @@ impl WalkState<'_, '_> {
             return Ok(None);
         };
 
+        let ty = self.push_type(
+            dir::Type::EnumMember(dir::EnumMemberType {
+                owner,
+                member: symbol,
+            }),
+            id.into_any(),
+        )?;
+
         Ok(Some(dir::DefinitionMember::Variant(
             dir::VariantDefinition {
                 symbol,
                 source: id.into_global_any(self.module),
                 key: name.static_key(),
+                ty,
                 value: None,
                 condition,
             },
@@ -1348,122 +1365,5 @@ impl WalkState<'_, '_> {
         }
 
         Ok(dir::ExtensionTarget::Blanket { ty })
-    }
-
-    /// Report one concrete callable declaration without an implementation body.
-    pub(in crate::check) fn report_missing_declaration_body(
-        &mut self,
-        source: dir::LocalNodeIdAny,
-        member: String,
-    ) {
-        let (module, anchor) = self.check.source_anchor(source.into_global(self.module));
-        let error = CheckError::MissingDeclarationBody {
-            anchor,
-            module,
-            name: member,
-        };
-        self.check.module_mut(module).diagnostics.push(error.into());
-    }
-
-    /// Report one interface inheritance clause that names a non-interface symbol.
-    fn report_interface_base_not_interface_symbol(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        target: dir::GlobalSymbolId,
-        target_source: dir::GlobalNodeIdAny,
-    ) {
-        let (module, anchor) = self.check.source_anchor(target_source);
-        let error = CheckError::InterfaceBaseNotInterface {
-            anchor,
-            module,
-            source: self.check.format_symbol(symbol),
-            target: self.check.format_symbol(target),
-        };
-        self.check.module_mut(module).diagnostics.push(error.into());
-    }
-
-    /// Report one interface inheritance clause that names a non-interface type.
-    fn report_interface_base_not_interface_type(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        target: dir::GlobalTypeId,
-        target_source: dir::GlobalNodeIdAny,
-    ) {
-        let (module, anchor) = self.check.source_anchor(target_source);
-        let error = CheckError::InterfaceBaseNotInterface {
-            anchor,
-            module,
-            source: self.check.format_symbol(symbol),
-            target: self.check.format_type(target),
-        };
-        self.check.module_mut(module).diagnostics.push(error.into());
-    }
-
-    /// Report one implementation clause that names a non-interface symbol.
-    fn report_implementation_target_not_interface_symbol(
-        &mut self,
-        source: String,
-        target: dir::GlobalSymbolId,
-        target_source: dir::GlobalNodeIdAny,
-    ) {
-        let (module, anchor) = self.check.source_anchor(target_source);
-        let error = CheckError::ImplementationTargetNotInterface {
-            anchor,
-            module,
-            source,
-            target: self.check.format_symbol(target),
-        };
-        self.check.module_mut(module).diagnostics.push(error.into());
-    }
-
-    /// Report one implementation clause that names a non-interface type.
-    fn report_implementation_target_not_interface_type(
-        &mut self,
-        source: String,
-        target: dir::GlobalTypeId,
-        target_source: dir::GlobalNodeIdAny,
-    ) {
-        let (module, anchor) = self.check.source_anchor(target_source);
-        let error = CheckError::ImplementationTargetNotInterface {
-            anchor,
-            module,
-            source,
-            target: self.check.format_type(target),
-        };
-        self.check.module_mut(module).diagnostics.push(error.into());
-    }
-
-    /// Report one class inheritance clause that does not extend its target symbol.
-    fn report_does_not_extend_symbol(
-        &mut self,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalSymbolId,
-        target_source: dir::GlobalNodeIdAny,
-    ) {
-        let (module, anchor) = self.check.source_anchor(target_source);
-        let error = CheckError::DoesNotExtend {
-            anchor,
-            module,
-            source: self.check.format_type(source),
-            target: self.check.format_symbol(target),
-        };
-        self.check.module_mut(module).diagnostics.push(error.into());
-    }
-
-    /// Report one class inheritance clause that does not extend its target type.
-    fn report_does_not_extend_type(
-        &mut self,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-        target_source: dir::GlobalNodeIdAny,
-    ) {
-        let (module, anchor) = self.check.source_anchor(target_source);
-        let error = CheckError::DoesNotExtend {
-            anchor,
-            module,
-            source: self.check.format_type(source),
-            target: self.check.format_type(target),
-        };
-        self.check.module_mut(module).diagnostics.push(error.into());
     }
 }
