@@ -600,7 +600,7 @@ fn update_terminator_arguments(
 ) -> mir::Terminator {
     match terminator {
         mir::Terminator::Error => {
-            panic!("recovered MIR terminator reached optimizer");
+            panic!("invalid MIR terminator reached optimizer");
         }
         mir::Terminator::Jump { target } => {
             let new_args = extend_arguments(

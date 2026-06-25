@@ -36,7 +36,7 @@ declare_pass! {
     ///     return v2
     /// }
     /// ```
-    #[pass(id = "dead-arg-eliminate", requires(call_effects))]
+    #[pass(id = "dead-arg-eliminate")]
     pub DeadArgEliminate,
     "Eliminate unused function arguments"
 }
@@ -110,9 +110,7 @@ fn run_dead_arg_eliminate(tree: &mut mir::Tree) -> bool {
         }
 
         let function = tree.get(function_id);
-        let Some(signature) = SignatureKey::from_function(tree, function) else {
-            continue;
-        };
+        let signature = SignatureKey::from_function(tree, function);
 
         // skip functions that might be called indirectly
         if call_data.indirect_signatures.contains(&signature) {
@@ -264,9 +262,9 @@ fn apply_parameter_removals(
     let entry_id = {
         let function = tree.get_mut(function_id);
         function.parameters = remap.filter_by_index(&function.parameters);
-        let Some(entry_id) = function.entry else {
-            return;
-        };
+        let entry_id = function
+            .entry
+            .unwrap_or_else(|| panic!("missing entry for rewritten function: {function_id:?}"));
 
         entry_id
     };
@@ -304,7 +302,7 @@ fn update_call_sites(
                         function,
                         call,
                     } => (*destination, *function, call.arguments, call.clone()),
-                    _ => continue,
+                    _ => panic!("stale direct callsite instruction: {instruction_id:?}"),
                 };
 
                 // filter the argument list
@@ -322,15 +320,6 @@ fn update_call_sites(
                 // update the call instruction with the new argument slice
                 let new_slice = tree.add_values(&arguments);
                 let callsite = mir::CallSite::Instruction(instruction_id);
-                let mut metadata = tree
-                    .metadata
-                    .functions
-                    .call(callsite)
-                    .cloned()
-                    .unwrap_or_default();
-                metadata.arguments = remap.filter_by_index(&metadata.arguments);
-                metadata.allocation_size = remap.remap_allocation_size(metadata.allocation_size);
-
                 let mut call = call;
                 call.arguments = new_slice;
                 call.signature = signature;
@@ -341,7 +330,13 @@ fn update_call_sites(
                     call,
                 };
                 *tree.get_mut(instruction_id) = updated;
-                *tree.metadata.functions.call_mut(callsite) = metadata;
+
+                // preserve metadata when the callsite carries it
+                if let Some(metadata) = tree.metadata.functions.calls.get_mut(&callsite) {
+                    metadata.arguments = remap.filter_by_index(&metadata.arguments);
+                    metadata.allocation_size =
+                        remap.remap_allocation_size(metadata.allocation_size);
+                }
             }
             DirectCallSite::Terminator(block_id) => {
                 let block = tree.get_mut(block_id);
@@ -358,6 +353,13 @@ fn update_call_sites(
                         let mut new_call = call.clone();
                         let arguments = remap.filter_by_index(tree.get_values(call.arguments));
                         new_call.arguments = tree.add_values(&arguments);
+                        new_call.signature = if unused.is_empty() {
+                            call.signature
+                        } else {
+                            *signature_type.get_or_insert_with(|| {
+                                SignatureKey::insert_function_type(function_id, tree)
+                            })
+                        };
 
                         let new_terminator = mir::Terminator::Call {
                             function: *function,
@@ -372,6 +374,13 @@ fn update_call_sites(
                         let mut new_call = call.clone();
                         let arguments = remap.filter_by_index(tree.get_values(call.arguments));
                         new_call.arguments = tree.add_values(&arguments);
+                        new_call.signature = if unused.is_empty() {
+                            call.signature
+                        } else {
+                            *signature_type.get_or_insert_with(|| {
+                                SignatureKey::insert_function_type(function_id, tree)
+                            })
+                        };
 
                         let new_terminator = mir::Terminator::TailCall {
                             function: *function,
@@ -379,7 +388,15 @@ fn update_call_sites(
                         };
                         tree.set(terminator_id, new_terminator);
                     }
-                    _ => {}
+                    _ => panic!("stale direct callsite terminator: {block_id:?}"),
+                }
+
+                // preserve metadata when the terminator carries it
+                let callsite = mir::CallSite::Terminator(block_id);
+                if let Some(metadata) = tree.metadata.functions.calls.get_mut(&callsite) {
+                    metadata.arguments = remap.filter_by_index(&metadata.arguments);
+                    metadata.allocation_size =
+                        remap.remap_allocation_size(metadata.allocation_size);
                 }
             }
         }

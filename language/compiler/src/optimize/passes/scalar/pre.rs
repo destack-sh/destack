@@ -182,7 +182,7 @@ fn run_pre(
             let Some(destination) = instruction.destination() else {
                 continue;
             };
-            let value_type = value_types.require_value_type(destination);
+            let value_type = value_types.expect_value_type(destination);
 
             // track whether the expression can be speculated
             let is_speculatable = instruction_is_speculatable(instruction, tree);

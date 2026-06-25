@@ -1105,7 +1105,7 @@ fn evaluate_comparison(
         };
     }
 
-    // fallback to integer range comparisons
+    // compare integer ranges
     match operator {
         mir::BinaryOperator::SignedLessThan
         | mir::BinaryOperator::SignedLessEqual

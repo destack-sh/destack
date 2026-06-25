@@ -90,7 +90,7 @@ declare_pass! {
     ///     v10 = int.lt.u v9, v1
     ///     branch v10, b4(v8, v9), b5(v8)
     /// b4(v11: uint32, v12: uint32):
-    ///     v13 = element.address v2, v12 -> ref<uint32, borrowed>
+    ///     v13 = element.address v2, v12 -> ref<uint32, borrowed, mutable>
     ///     store v13, v11
     ///     v14 = int.add v12, v4
     ///     jump b3(v11, v14)
@@ -118,11 +118,11 @@ declare_pass! {
     ///     v10 = int.lt.u v9, v1
     ///     branch v10, b4(v8, v9), b5(v8)
     /// b4(v11: uint32, v12: uint32):
-    ///     v13 = element.address v2, v12 -> ref<uint32, borrowed>
+    ///     v13 = element.address v2, v12 -> ref<uint32, borrowed, mutable>
     ///     store v13, v11
     ///     v14 = 1uint32
     ///     v15 = int.add v11, v14
-    ///     v16 = element.address v2, v12 -> ref<uint32, borrowed>
+    ///     v16 = element.address v2, v12 -> ref<uint32, borrowed, mutable>
     ///     store v16, v15
     ///     v17 = int.add v12, v4
     ///     jump b3(v11, v17)
@@ -440,6 +440,9 @@ fn run_loop_unroll(
             break;
         }
 
+        // rebuild loop analyses before selecting another candidate
+        analyses.apply(Mutation::CONTROL | Mutation::VALUE);
+
         // record the successful unroll and guard the iteration count
         unrolled_headers.insert(candidate.header);
         changed = true;
@@ -567,6 +570,9 @@ fn run_loop_unroll_and_jam(
         ) {
             break;
         }
+
+        // rebuild loop analyses before selecting another candidate
+        analyses.apply(Mutation::CONTROL | Mutation::VALUE);
 
         // record the successful unroll and jam and guard the iteration count
         jammed_headers.insert(candidate.outer_header);
@@ -979,7 +985,7 @@ fn find_jam_candidate(
         trip_count_for_guard(&outer_guard, outer_index, scev, forwarding, function, tree)
             .unwrap_or(0);
     if trip_count == 0
-        && let Some(fallback) = trip_count_from_header(
+        && let Some(header_trip_count) = trip_count_from_header(
             &outer_guard,
             outer,
             outer_header,
@@ -991,7 +997,7 @@ fn find_jam_candidate(
             forwarding,
         )
     {
-        trip_count = fallback;
+        trip_count = header_trip_count;
     }
     if trip_count == 0 {
         return None;
@@ -1798,7 +1804,7 @@ fn rewrite_outer_latch_step(
     value_types: &ValueTypeMap,
 ) -> bool {
     // resolve the outer induction type
-    let outer_type = value_types.require_value_type(candidate.outer_induction);
+    let outer_type = value_types.expect_value_type(candidate.outer_induction);
 
     let pointer_width_bits = ctx.target_layout().pointer_width_bits;
     let scaled_constant = match scaled_step_constant(
@@ -1871,7 +1877,7 @@ fn jam_inner_body(
     value_types: &ValueTypeMap,
 ) -> bool {
     // resolve the outer induction type
-    let outer_type = value_types.require_value_type(candidate.outer_induction);
+    let outer_type = value_types.expect_value_type(candidate.outer_induction);
 
     let pointer_width_bits = ctx.target_layout().pointer_width_bits;
     let mut new_instructions = Vec::new();
@@ -3274,7 +3280,7 @@ b3(v8: uint32, v9: uint32):
     branch v10, b4(v8, v9), b5(v8)
 
 b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed> = element.address v0, v12
+    v13: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v13, v11
     v14: uint32 = int.add v12, v4
     jump b3(v11, v14)
@@ -3310,11 +3316,11 @@ b3(v8: uint32, v9: uint32):
     branch v10, b4(v8, v9), b5(v8)
 
 b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed> = element.address v0, v12
+    v13: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v13, v11
     v19: uint32 = 1
     v20: uint32 = int.add v8, v19
-    v21: ref<uint32, borrowed> = element.address v0, v12
+    v21: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v21, v20
     v14: uint32 = int.add v12, v4
     jump b3(v11, v14)
@@ -3362,7 +3368,7 @@ b3(v9: uint32, v10: uint32, v11: uint32):
     branch v12, b4(v9, v10, v11), b5(v9)
 
 b4(v13: uint32, v14: uint32, v15: uint32):
-    v16: ref<uint32, borrowed> = element.address v0, v15
+    v16: ref<uint32, borrowed, mutable> = element.address v0, v15
     store v16, v13
     v17: uint32 = int.add v14, v4
     jump b3(v13, v17, v15)
@@ -3409,7 +3415,7 @@ b3(v8: uint32, v9: uint32):
     branch v10, b4(v8, v9), b5(v8)
 
 b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed> = element.address v0, v12
+    v13: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v13, v11
     v14: uint32 = int.add v12, v4
     v15: uint32 = int.add v11, v4
@@ -3457,7 +3463,7 @@ b3(v8: uint32, v9: uint32):
     branch v10, b4(v8, v9), b5(v8)
 
 b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed> = element.address v0, v12
+    v13: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v13, v11
     v14: uint32 = int.add v12, v4
     v15: uint32 = int.add v14, v4
@@ -3494,11 +3500,11 @@ b3(v8: uint32, v9: uint32):
     branch v10, b4(v8, v9), b5(v8)
 
 b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed> = element.address v0, v12
+    v13: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v13, v11
     v20: uint32 = 1
     v21: uint32 = int.add v8, v20
-    v22: ref<uint32, borrowed> = element.address v0, v12
+    v22: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v22, v21
     v14: uint32 = int.add v12, v4
     v15: uint32 = int.add v14, v4
@@ -3546,7 +3552,7 @@ b3(v8: uint32, v9: uint32):
     branch v10, b4(v8, v9), b5(v8)
 
 b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed> = element.address v0, v12
+    v13: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v13, v11
     v14: uint32 = int.add v12, v4
     jump b3(v11, v14)
@@ -3581,19 +3587,19 @@ b3(v8: uint32, v9: uint32):
     branch v10, b4(v8, v9), b5(v8)
 
 b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed> = element.address v0, v12
+    v13: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v13, v11
     v31: uint32 = 1
     v32: uint32 = int.add v8, v31
-    v33: ref<uint32, borrowed> = element.address v0, v12
+    v33: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v33, v32
     v34: uint32 = 2
     v35: uint32 = int.add v8, v34
-    v36: ref<uint32, borrowed> = element.address v0, v12
+    v36: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v36, v35
     v37: uint32 = 3
     v38: uint32 = int.add v8, v37
-    v39: ref<uint32, borrowed> = element.address v0, v12
+    v39: ref<uint32, borrowed, mutable> = element.address v0, v12
     store v39, v38
     v14: uint32 = int.add v12, v4
     jump b3(v11, v14)
@@ -3620,7 +3626,7 @@ b9(v20: uint32, v21: uint32):
     branch v22, b10(v20, v21), b11(v20)
 
 b10(v23: uint32, v24: uint32):
-    v25: ref<uint32, borrowed> = element.address v0, v24
+    v25: ref<uint32, borrowed, mutable> = element.address v0, v24
     store v25, v23
     v26: uint32 = int.add v24, v4
     jump b9(v23, v26)

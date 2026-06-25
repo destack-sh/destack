@@ -420,7 +420,7 @@ fn remap_terminator_blocks(
 
     match terminator {
         mir::Terminator::Error => {
-            panic!("recovered MIR terminator reached optimizer");
+            panic!("invalid MIR terminator reached optimizer");
         }
         mir::Terminator::Jump { target } => mir::Terminator::Jump {
             target: clone_target(target),
@@ -812,7 +812,7 @@ fn identity_constant_for_operator(
 ) -> Option<mir::Constant> {
     let ty = tree.get(type_id);
 
-    // only handle integer types for now
+    // require integer identity constants
     let mir::Type::Int {
         width,
         is_signed: signed,

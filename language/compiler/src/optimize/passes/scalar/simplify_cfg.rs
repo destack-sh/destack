@@ -135,6 +135,9 @@ fn run_simplify_cfg(
     // keep track of profile guided tail duplication targets
     let mut profiled_tail_dup_targets: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
 
+    // invalidate cached facts after each internal rewrite
+    let rewrite_mutation = Mutation::CONTROL | Mutation::VALUE;
+
     // run until fixed point or iteration cap
     let mut iteration = 0;
     loop {
@@ -179,6 +182,7 @@ fn run_simplify_cfg(
         // restart after early control flow rewrites
         if changed_this_round {
             changed = true;
+            analyses.apply(rewrite_mutation);
 
             iteration += 1;
             if iteration >= MAX_SIMPLIFY_CFG_ITERATIONS {
@@ -194,6 +198,7 @@ fn run_simplify_cfg(
             && merge_blocks(function, tree, entry, &domtree)
         {
             changed = true;
+            analyses.apply(rewrite_mutation);
 
             iteration += 1;
             if iteration >= MAX_SIMPLIFY_CFG_ITERATIONS {
@@ -208,6 +213,7 @@ fn run_simplify_cfg(
             && eliminate_unreachable_blocks(function, tree, entry)
         {
             changed = true;
+            analyses.apply(rewrite_mutation);
 
             iteration += 1;
             if iteration >= MAX_SIMPLIFY_CFG_ITERATIONS {
@@ -226,6 +232,7 @@ fn run_simplify_cfg(
             &mut profiled_tail_dup_targets,
         ) {
             changed = true;
+            analyses.apply(rewrite_mutation);
 
             iteration += 1;
             if iteration >= MAX_SIMPLIFY_CFG_ITERATIONS {
@@ -4352,7 +4359,9 @@ entry:
                     check_edge(success.block, success.arguments(tree), &mut mismatches);
                     check_edge(failure.block, failure.arguments(tree), &mut mismatches);
                 }
-                mir::Terminator::Error => {}
+                mir::Terminator::Error => {
+                    panic!("invalid MIR terminator reached optimizer");
+                }
                 mir::Terminator::Return { .. }
                 | mir::Terminator::Unreachable
                 | mir::Terminator::Panic { .. }

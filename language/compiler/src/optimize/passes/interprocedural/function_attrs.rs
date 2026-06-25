@@ -240,9 +240,9 @@ fn run_function_attrs(tree: &mut mir::Tree, analyses: &mir::ModuleAnalyses) -> b
     let mut changed = false;
     for function_id in function_ids {
         // read the computed summary for this function
-        let Some(summary) = summaries.get(&function_id) else {
-            continue;
-        };
+        let summary = summaries
+            .get(&function_id)
+            .unwrap_or_else(|| panic!("missing function attribute summary: {function_id:?}"));
 
         // merge summaries with existing annotations
         let metadata = tree
@@ -869,7 +869,7 @@ entry(v0: int32):
         let input = r#"
 function alloc(): void {
 entry:
-    v0: ref<int32, unique> = new.zeroed int32
+    v0: ref<int32, unique, mutable> = new.zeroed int32
     free v0
     return
 }
@@ -1043,16 +1043,16 @@ entry(v0: fn(int32) => int32, v1: int32):
     #[test]
     fn test_function_attrs_resolved_dynamic_call_effects() {
         let input = r#"
-function callee(v0: ref<int32, raw>): int32 {
-entry(v0: ref<int32, raw>):
+function callee(v0: ref<int32, raw, mutable>): int32 {
+entry(v0: ref<int32, raw, mutable>):
     v1: int32 = 1
     store v0, v1
     return v1
 }
 
-function caller(v0: ref<int32, raw>): void {
-entry(v0: ref<int32, raw>):
-    v1: int32 = call.virtual v0, int32, 1(v0): (ref<int32, raw>) => int32
+function caller(v0: ref<int32, raw, mutable>): void {
+entry(v0: ref<int32, raw, mutable>):
+    v1: int32 = call.virtual v0, int32, 1(v0): (ref<int32, raw, mutable>) => int32
     return
 }
 "#;
@@ -1089,15 +1089,15 @@ entry(v0: ref<int32, raw>):
     #[test]
     fn test_function_attrs_call_terminator_effects() {
         let input = r#"
-function callee(v0: ref<int32, raw>): void {
-entry(v0: ref<int32, raw>):
+function callee(v0: ref<int32, raw, mutable>): void {
+entry(v0: ref<int32, raw, mutable>):
     v1: int32 = 1
     store v0, v1
     return
 }
 
-function caller(v0: ref<int32, raw>, v1: ref<void, managed, readonly>): void {
-entry(v0: ref<int32, raw>, v1: ref<void, managed, readonly>):
+function caller(v0: ref<int32, raw, mutable>, v1: ref<void, managed, readonly>): void {
+entry(v0: ref<int32, raw, mutable>, v1: ref<void, managed, readonly>):
     call callee(v0) => b1
 
 b1:

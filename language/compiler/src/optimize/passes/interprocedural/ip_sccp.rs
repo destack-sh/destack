@@ -42,7 +42,7 @@ declare_pass! {
     ///     return v1
     /// }
     /// ```
-    #[pass(id = "ip-sccp", requires(call_effects))]
+    #[pass(id = "ip-sccp")]
     pub InterproceduralSccp,
     "Interprocedural sparse conditional constant propagation"
 }
@@ -229,12 +229,10 @@ fn seed_function_states(
         // read the function signature
         let function = tree.get(*function_id);
         let signature = SignatureKey::from_function(tree, function);
-        let is_indirect = signature
-            .as_ref()
-            .is_some_and(|signature| call_data.indirect_signatures.contains(signature));
+        let is_indirect = call_data.indirect_signatures.contains(&signature);
 
         // mark functions reachable from outside or indirectly as exposed
-        let is_exposed = linkage.is_exported() || signature.is_none() || is_indirect;
+        let is_exposed = linkage.is_exported() || is_indirect;
 
         // seed parameter lattices based on exposure
         let seed_state = if is_exposed {

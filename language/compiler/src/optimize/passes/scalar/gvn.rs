@@ -1289,7 +1289,7 @@ b1:
         let input = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     jump b1
 
@@ -1302,7 +1302,7 @@ b1:
         let expected = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     jump b1
 
@@ -1323,7 +1323,7 @@ b1:
         let input = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     v2: int32 = 1
     store v0, v2
@@ -1344,8 +1344,8 @@ b1:
     #[test]
     fn test_no_forward_load_size_mismatch() {
         let input = r#"
-function test(v0: ref<int32, raw>): int32 {
-entry(v0: ref<int32, raw>):
+function test(v0: ref<int32, raw, mutable>): int32 {
+entry(v0: ref<int32, raw, mutable>):
     v1: int32 = load v0
     v2: int32 = load v0
     v3: int32 = int.add v1, v2
@@ -1384,11 +1384,11 @@ entry(v0: ref<int32, raw>):
     #[test]
     fn test_forward_loads_across_no_memory_call() {
         let input = r#"
-external function imported(ref<int32, raw>): void
+external function imported(ref<int32, raw, mutable>): void
 
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     call imported(v0)
     v2: int32 = load v0
@@ -1397,11 +1397,11 @@ entry:
 }
 "#;
         let expected = r#"
-external function imported(ref<int32, raw>): void
+external function imported(ref<int32, raw, mutable>): void
 
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     call imported(v0)
     v3: int32 = int.add v1, v1

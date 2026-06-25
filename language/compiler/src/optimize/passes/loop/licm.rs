@@ -1161,7 +1161,7 @@ b4:
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int64 = 4
     jump b1
 
@@ -1177,7 +1177,7 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int64 = 4
     v3: int32 = intrinsic.memory.raw.compareBytes(v1, v1, v2)
     jump b1
@@ -1230,12 +1230,12 @@ entry:
     #[test]
     fn test_no_hoist_alloc() {
         let input = r#"
-function test(v0: boolean): ref<int32, managed> {
+function test(v0: boolean): ref<int32, managed, mutable> {
 entry(v0: boolean):
     jump b1
 
 b1:
-    v1: ref<int32, managed> = new.zeroed int32
+    v1: ref<int32, managed, mutable> = new.zeroed int32
     branch v0, b1, b2
 
 b2:
@@ -1256,8 +1256,8 @@ b2:
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v3: int32 = 1
     store v1, v3
     jump b1
@@ -1275,8 +1275,8 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v3: int32 = 1
     store v1, v3
     v4: int32 = 2
@@ -1304,7 +1304,7 @@ b2:
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 1
     store v1, v2
     jump b1
@@ -1322,7 +1322,7 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 1
     store v1, v2
     v4: int32 = 2
@@ -1350,7 +1350,7 @@ b2:
         let input = r#"
 function test(v0: boolean, v1: boolean): int32 {
 entry(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v3: int32 = 1
     store v2, v3
     jump b1
@@ -1429,7 +1429,7 @@ b2:
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 1
     store v1, v2
     jump b1
@@ -1443,8 +1443,8 @@ b2:
     return v3
 }
 
-function touch(v0: ref<int32, raw>): void {
-entry(v0: ref<int32, raw>):
+function touch(v0: ref<int32, raw, mutable>): void {
+entry(v0: ref<int32, raw, mutable>):
     return
 }
 "#;

@@ -288,7 +288,7 @@ fn integer_info_for_value(
     };
 
     // require a matching integer type
-    let type_id = value_types.require_value_type(value);
+    let type_id = value_types.expect_value_type(value);
     let original = tree.get(type_id);
     let mir::Type::Int {
         width: original_width,

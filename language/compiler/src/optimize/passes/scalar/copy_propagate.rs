@@ -96,7 +96,9 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
         };
 
         match terminator {
-            mir::Terminator::Error => {}
+            mir::Terminator::Error => {
+                panic!("invalid MIR terminator reached optimizer");
+            }
             mir::Terminator::Jump { target } => {
                 record_predecessor(target);
             }

@@ -142,7 +142,7 @@ fn run_reassociate(
                     // resolve or insert the combined constant
                     let resolved = resolve_constant_value(
                         plan.constant.clone(),
-                        value_types.require_value_type(destination),
+                        value_types.expect_value_type(destination),
                         function,
                         tree,
                         &block_constants,
@@ -165,7 +165,7 @@ fn run_reassociate(
                         tree,
                         operator,
                         &operands,
-                        value_types.require_value_type(destination),
+                        value_types.expect_value_type(destination),
                         &mut new_instructions,
                     ) else {
                         new_instructions.push(*instruction_id);
