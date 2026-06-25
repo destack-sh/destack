@@ -202,7 +202,7 @@ impl WalkState<'_, '_> {
 
             // queue selection for value member access
             Some(dir::Reference::Projected { .. }) | None => {
-                self.queue_decision(id.into_global_any(self.module))?;
+                self.queue_selection(id.into_global_any(self.module))?;
             }
         }
 
@@ -227,7 +227,7 @@ impl WalkState<'_, '_> {
         for argument in generic_arguments {
             self.walk_generic_arguments(std::slice::from_ref(argument))?;
         }
-        self.queue_decision(id.into_global_any(self.module))?;
+        self.queue_selection(id.into_global_any(self.module))?;
 
         Ok(())
     }

@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CheckState, Condition, Constraint, ConstraintCause, FlowState, GenericInductionParameter,
-    Origin, Relation, Task, Widening,
+    CheckState, Condition, Constraint, ConstraintRole, ConstructResult, FlowState,
+    GenericInductionParameter, Origin, PlaceUse, Relation, Selection, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -217,7 +217,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let target = self.node_type(id)?;
         self.push_relation(
             Origin::Node(node),
-            ConstraintCause::Annotation,
+            ConstraintRole::Value,
             Relation::Assignable,
             target,
             expected,
@@ -234,14 +234,14 @@ impl<'check, 'state> WalkState<'check, 'state> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) {
-        self.push_relation(origin, ConstraintCause::Inference, relation, left, right);
+        self.push_relation(origin, ConstraintRole::Check, relation, left, right);
     }
 
     /// Collect one relation constraint with its failure context.
     pub(in crate::check) fn push_relation(
         &mut self,
         origin: Origin,
-        cause: ConstraintCause,
+        role: ConstraintRole,
         relation: Relation,
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
@@ -253,23 +253,180 @@ impl<'check, 'state> WalkState<'check, 'state> {
             right,
             origin,
             condition,
-            cause,
+            role,
         });
     }
 
-    /// Queue one node decision under the active static guard.
-    pub(in crate::check) fn queue_decision(
+    /// Queue one source-node selection under the active static guard.
+    pub(in crate::check) fn queue_selection(
         &mut self,
         node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<()> {
+        self.queue_selection_with_use(node, PlaceUse::Read)
+    }
+
+    /// Queue one source-node selection with an explicit place use.
+    pub(in crate::check) fn queue_selection_with_use(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        use_: PlaceUse,
     ) -> CompilerResult<()> {
         // record the guard context the decision must run under
         if let Condition::When(predicates) = self.flow.active_static_guard() {
             self.check.set_node_condition(node, predicates);
         }
 
-        self.check.queue_task(Task::Decide(node));
+        let selection = self.selection(node, use_)?;
+        self.check.push_selection(selection);
 
         Ok(())
+    }
+
+    /// Return one selection for a visible source node.
+    fn selection(&self, node: dir::GlobalNodeIdAny, use_: PlaceUse) -> CompilerResult<Selection> {
+        match node.local_id.ty {
+            dir::NodeType::Expression => self.expression_selection(node.into_typed(), use_),
+            dir::NodeType::Pattern => Ok(Selection::Pattern {
+                node: node.into_typed(),
+            }),
+            other => Err(CompilerError::Internal {
+                message: format!("check node {node:?} has no selection for {other:?}"),
+            }),
+        }
+    }
+
+    /// Return one selection for an expression node.
+    fn expression_selection(
+        &self,
+        node: dir::GlobalNodeId<dir::Expression>,
+        use_: PlaceUse,
+    ) -> CompilerResult<Selection> {
+        let selection = match self.tree.get(node.local_id) {
+            dir::Expression::Member { left, name } => Selection::Member {
+                node,
+                left: *left,
+                name: *name,
+            },
+            dir::Expression::PrivateMember { left, name } => Selection::Member {
+                node,
+                left: *left,
+                name: *name,
+            },
+            dir::Expression::ObjectExpression { properties } => Selection::ObjectMerge {
+                node,
+                properties: properties.to_vec(),
+            },
+            dir::Expression::StructExpression { properties, .. } => Selection::StructMerge {
+                node,
+                properties: properties.to_vec(),
+            },
+            dir::Expression::Call {
+                left,
+                generic_arguments,
+                arguments,
+                ..
+            } => Selection::Call {
+                node,
+                callee: *left,
+                generic_arguments: generic_arguments.to_vec(),
+                arguments: arguments.to_vec(),
+            },
+            dir::Expression::Binary {
+                left,
+                operator: dir::BinaryOperator::In,
+                right,
+            } => Selection::MemberPredicate {
+                node,
+                left: *left,
+                right: *right,
+            },
+            dir::Expression::Binary {
+                left,
+                operator,
+                right,
+            } => Selection::BinaryOperator {
+                node,
+                operator: *operator,
+                left: *left,
+                right: *right,
+            },
+            dir::Expression::Is { value, target_type } => Selection::TypePredicate {
+                node,
+                value: *value,
+                target: *target_type,
+            },
+            dir::Expression::InstanceOf { value, target } => Selection::ClassPredicate {
+                node,
+                value: *value,
+                target: *target,
+            },
+            dir::Expression::Unary { operator, right } => Selection::UnaryOperator {
+                node,
+                operator: *operator,
+                operand: *right,
+                use_,
+            },
+            dir::Expression::New { ty, arguments } => Selection::Construct {
+                node,
+                ty: *ty,
+                arguments: arguments.to_vec(),
+                result: ConstructResult::Direct,
+            },
+            dir::Expression::NewMaybe { ty, arguments } => Selection::Construct {
+                node,
+                ty: *ty,
+                arguments: arguments.to_vec(),
+                result: ConstructResult::Fallible,
+            },
+            dir::Expression::Index { left, index, .. } => Selection::Subscript {
+                node,
+                left: *left,
+                index: *index,
+                use_,
+            },
+            dir::Expression::Instantiation {
+                left,
+                generic_arguments,
+            } => Selection::Instantiation {
+                node,
+                left: *left,
+                arguments: generic_arguments.to_vec(),
+            },
+            dir::Expression::TaggedTemplateExpression { tag, .. } => {
+                Selection::TaggedTemplate { node, tag: *tag }
+            }
+            dir::Expression::TreeExpression { .. } => Selection::Tree { node },
+            dir::Expression::Assign {
+                left,
+                operator,
+                right,
+            } => {
+                let Some(operator) = operator.binary_operator() else {
+                    return Err(CompilerError::Internal {
+                        message: format!("assign node {node:?} queued without a compound operator"),
+                    });
+                };
+                let dir::AssignPattern::Expression { value } = self.tree.get(*left) else {
+                    return Err(CompilerError::Internal {
+                        message: format!("compound assignment {node:?} has no place target"),
+                    });
+                };
+
+                Selection::BinaryOperator {
+                    node,
+                    operator,
+                    left: *value,
+                    right: *right,
+                }
+            }
+            other => {
+                return Err(CompilerError::Internal {
+                    message: format!("check expression {node:?} has no selection: {other:?}"),
+                });
+            }
+        };
+
+        Ok(selection)
     }
 
     /// Return one symbol's checked type, opening a slot for local forward references.
@@ -291,7 +448,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
         // local declarations use stable declaration types
         else {
-            self.declaration_type(symbol)?
+            self.declaration_type(symbol, Widening::Preserve)?
         };
 
         Ok(ty)
@@ -319,9 +476,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
     }
 
     /// Return one declaration type, opening a slot for recursive and forward references.
-    fn declaration_type(
+    pub(in crate::check) fn declaration_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
+        widening: Widening,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // open declaration types on demand for recursive and forward references
         let origin = Origin::Symbol(symbol);
@@ -331,7 +489,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .symbol_declaration_node(symbol.local_id)?;
         let variable = self
             .check
-            .allocate_variable(symbol.module_id, origin, Widening::Preserve);
+            .allocate_variable(symbol.module_id, origin, widening);
         let ty = self.check.push_variable_type(variable, source)?;
         self.check.set_declaration_type(symbol, ty)?;
 
@@ -413,12 +571,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
     }
 
     /// Return a normalized union type.
-    pub(in crate::check) fn union_type(
+    pub(in crate::check) fn normalized_union_type(
         &mut self,
         elements: impl IntoIterator<Item = dir::GlobalTypeId>,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.union_type(self.module, elements, source)
+        self.check
+            .normalized_union_type(self.module, elements, source)
     }
 
     /// Return a reference type for one well-known library declaration.
@@ -440,7 +599,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let undefined = self.push_type(dir::Type::Undefined, source)?;
 
-        self.union_type([ty, undefined], source)
+        self.normalized_union_type([ty, undefined], source)
     }
 
     /// Return the predicates of the active static guard.

@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    ConstraintCause, FlowPath, Obligation, Origin, PatternCoverage, PatternCoverageObligation,
+    ConstraintRole, FlowPath, Obligation, Origin, PatternCoverage, PatternCoverageObligation,
     Relation, WalkState, Widening,
 };
 
@@ -68,8 +68,7 @@ impl WalkState<'_, '_> {
 
             // check initializers against explicit annotations
             if let Some(value) = declarator.value {
-                self.walk_expression(value, self.tree.get(value))?;
-                self.expect_assignable(value, written)?;
+                self.walk_expression_expected(value, self.tree.get(value), written)?;
             }
 
             return Ok(());
@@ -102,7 +101,7 @@ impl WalkState<'_, '_> {
             let origin = Origin::Node(value.into_global_any(self.module));
             self.push_relation(
                 origin,
-                ConstraintCause::Annotation,
+                ConstraintRole::Value,
                 Relation::Assignable,
                 initializer,
                 binding,
@@ -153,7 +152,7 @@ impl WalkState<'_, '_> {
             let pattern = self.node_type(declarator.pattern)?;
             self.push_relation(
                 origin,
-                ConstraintCause::Annotation,
+                ConstraintRole::Value,
                 Relation::Assignable,
                 matched,
                 pattern,

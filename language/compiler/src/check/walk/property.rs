@@ -3,8 +3,8 @@ use std::ptr::NonNull;
 
 use crate::CompilerResult;
 use crate::check::{
-    FlowState, GenericInductionDeclaration, GenericInductionPosition, Origin, Receiver,
-    ReceiverBinding, Relation, WalkState,
+    ConstraintRole, FlowState, GenericInductionDeclaration, GenericInductionPosition, Origin,
+    Receiver, ReceiverBinding, Relation, WalkState, Widening,
 };
 
 /// One active receiver scope.
@@ -332,8 +332,9 @@ impl WalkState<'_, '_> {
                 let (key, declared_type, default, is_optional, is_static) =
                     (*key, *declared_type, *default, *is_optional, *is_static);
                 let (is_abstract, is_override) = (*is_abstract, *is_override);
+                let is_inferred_field = declared_type.is_none();
 
-                if declared_type.is_none() {
+                if declared_type.is_none() && default.is_none() {
                     self.check
                         .report_missing_type_annotation(self.module, id.into_any());
                 }
@@ -344,6 +345,13 @@ impl WalkState<'_, '_> {
                     self.walk_expression(key, self.tree.get(key))?;
                     self.restore_flow(before_key);
                 }
+
+                // resolve the field symbol before inferred storage opens its slot
+                let symbol = self
+                    .check
+                    .module(self.module)
+                    .declaration_symbol(id.into_any());
+
                 // derive the declared field type
                 let field_type = match declared_type {
                     Some(declared_type) => {
@@ -361,14 +369,31 @@ impl WalkState<'_, '_> {
 
                         Some(written)
                     }
-                    None => None,
+                    None => {
+                        if let (Some(symbol), Some(default)) = (symbol, default) {
+                            let before_default = self.fork_flow();
+                            self.walk_expression(default, self.tree.get(default))?;
+                            self.restore_flow(before_default);
+
+                            let default_type = self.node_type(default)?;
+                            let field_type = self.declaration_type(symbol, Widening::Widen)?;
+                            let origin = Origin::Node(default.into_global_any(self.module));
+                            self.push_relation(
+                                origin,
+                                ConstraintRole::Value,
+                                Relation::Assignable,
+                                default_type,
+                                field_type,
+                            );
+
+                            Some(field_type)
+                        } else {
+                            None
+                        }
+                    }
                 };
 
                 // write the field symbol type
-                let symbol = self
-                    .check
-                    .module(self.module)
-                    .declaration_symbol(id.into_any());
                 if let (Some(field_type), Some(symbol)) = (field_type, symbol) {
                     if let Some(induction) = induction_declaration {
                         self.record_type_induction_site(induction, field_type);
@@ -377,7 +402,9 @@ impl WalkState<'_, '_> {
                 }
 
                 // check defaults after the field type is known
-                if let (Some(field_type), Some(default)) = (field_type, default) {
+                if let (Some(field_type), Some(default)) = (field_type, default)
+                    && !is_inferred_field
+                {
                     let before_default = self.fork_flow();
                     self.walk_expression(default, self.tree.get(default))?;
                     self.restore_flow(before_default);
@@ -442,7 +469,8 @@ impl WalkState<'_, '_> {
                 self.walk_function_signature(template, signature)?;
                 if body.is_none() && !is_ambient && !abstraction.is_abstract() {
                     let member = self.method_body_name(key, signature);
-                    self.report_missing_declaration_body(id.into_any(), member);
+                    let source = id.into_global_any(self.module);
+                    self.check.report_missing_declaration_body(source, member);
                 }
                 let implicit_receiver_scope = if is_static { None } else { receiver_scope };
                 let receiver = self.method_receiver_binding(

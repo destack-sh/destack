@@ -2,7 +2,7 @@ use destack_dir as dir;
 use indexmap::IndexSet;
 
 use crate::CompilerResult;
-use crate::check::{ConstraintCause, FunctionFrame, Origin, ReceiverBinding, Relation, WalkState};
+use crate::check::{ConstraintRole, FunctionFrame, Origin, ReceiverBinding, Relation, WalkState};
 
 impl WalkState<'_, '_> {
     /// Enter one function body while walking.
@@ -72,7 +72,7 @@ impl WalkState<'_, '_> {
 
         self.push_relation(
             origin,
-            ConstraintCause::Return,
+            ConstraintRole::Output,
             Relation::Assignable,
             value,
             return_target,
@@ -117,7 +117,7 @@ impl WalkState<'_, '_> {
 
             self.push_relation(
                 origin,
-                ConstraintCause::Yield,
+                ConstraintRole::Output,
                 Relation::Assignable,
                 value,
                 yield_target,

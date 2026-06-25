@@ -3,9 +3,9 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    ConditionBranch, ConstraintCause, Decision, FlowBranch, FlowCheckpoint, ForInSourceObligation,
-    GuardOutcome, MatchCase, Obligation, Origin, PatternCoverage, PatternCoverageObligation,
-    PlaceAccess, Relation, WalkState, Widening, WritablePlaceObligation,
+    ConditionBranch, ConstraintRole, Decision, FlowBranch, FlowCheckpoint, ForInSourceObligation,
+    GuardOutcome, MatchCase, Obligation, Origin, PatternCoverage, PatternCoverageObligation, Place,
+    PlaceUse, Relation, WalkState, Widening, WritablePlaceObligation,
 };
 
 impl WalkState<'_, '_> {
@@ -339,7 +339,7 @@ impl WalkState<'_, '_> {
                 self.walk_template_literal(value)?;
 
                 // tagged template calls resolve at selection
-                self.queue_decision(id.into_global_any(self.module))?;
+                self.queue_selection(id.into_global_any(self.module))?;
             }
             // [a, b, c]
             dir::Expression::ArrayExpression { elements } => {
@@ -391,7 +391,7 @@ impl WalkState<'_, '_> {
 
                 // queue selection when spread properties need closed source types
                 if has_spread {
-                    self.queue_decision(id.into_global_any(self.module))?;
+                    self.queue_selection(id.into_global_any(self.module))?;
                 }
                 // object literal values are managed objects
                 else {
@@ -423,7 +423,7 @@ impl WalkState<'_, '_> {
 
                 // queue selection when spread properties need closed source types
                 if has_spread {
-                    self.queue_decision(id.into_global_any(self.module))?;
+                    self.queue_selection(id.into_global_any(self.module))?;
                 }
                 // the written fields must fill the declared struct fields
                 else {
@@ -462,7 +462,7 @@ impl WalkState<'_, '_> {
                 }
 
                 // queue selection for tree construction
-                self.queue_decision(id.into_global_any(self.module))?;
+                self.queue_selection(id.into_global_any(self.module))?;
             }
             // (value)
             dir::Expression::Parenthesized { expression: child } => {
@@ -494,21 +494,22 @@ impl WalkState<'_, '_> {
                 target_type,
             } => {
                 let (child, target_type) = (*child, *target_type);
-                self.walk_expression(child, self.tree.get(child))?;
 
                 // value as const freezes the precise written type
                 if matches!(self.tree.get(target_type), dir::TypeExpression::Const) {
+                    self.walk_expression(child, self.tree.get(child))?;
                     let ty = self.node_type(child)?;
                     let asserted = self.const_asserted_type(child, ty)?;
                     self.bind_node_type(id, asserted)?;
                 } else {
                     let target = self.walk_type_expression(target_type)?;
-                    let value = self.node_type(child)?;
+                    self.walk_expression_with_relation(
+                        child,
+                        self.tree.get(child),
+                        target,
+                        Relation::Castable,
+                    )?;
                     self.bind_node_type(id, target)?;
-
-                    // require the value to be castable to the asserted type
-                    let origin = Origin::Node(id.into_global_any(self.module));
-                    self.relate_type(origin, Relation::Castable, value, target);
                 }
             }
             // value satisfies T
@@ -536,7 +537,7 @@ impl WalkState<'_, '_> {
                     id.into_any(),
                 )?;
                 self.bind_node_type(id, boolean)?;
-                self.queue_decision(id.into_global_any(self.module))?;
+                self.queue_selection(id.into_global_any(self.module))?;
             }
             // value instanceof Target
             dir::Expression::InstanceOf { value, target } => {
@@ -548,7 +549,7 @@ impl WalkState<'_, '_> {
                     id.into_any(),
                 )?;
                 self.bind_node_type(id, boolean)?;
-                self.queue_decision(id.into_global_any(self.module))?;
+                self.queue_selection(id.into_global_any(self.module))?;
             }
             // value++, --value
             dir::Expression::Unary {
@@ -562,24 +563,19 @@ impl WalkState<'_, '_> {
                 let right = *right;
 
                 // increments rewrite their place by one
-                if let Some(place) = self.walk_assignment_place(right, PlaceAccess::ReadWrite)? {
+                if let Some(place) = self.walk_assignment_place(right, PlaceUse::Update)? {
                     let value = self.node_type(id)?;
                     let target = self.node_type(right)?;
                     let origin = Origin::Node(id.into_global_any(self.module));
                     self.push_relation(
                         origin,
-                        ConstraintCause::Assignment,
+                        ConstraintRole::Value,
                         Relation::Assignable,
                         value,
                         target,
                     );
 
-                    // the place must accept writes
-                    let condition = self.active_static_guard();
-                    self.check.push_obligation(Obligation::WritablePlace(
-                        WritablePlaceObligation { condition, place },
-                    ));
-
+                    self.push_write_obligations(place, target);
                     self.mark_place_assigned(place);
                 }
 
@@ -587,7 +583,7 @@ impl WalkState<'_, '_> {
                 self.clear_mutated_expression_narrowings(right);
 
                 // queue selection for the increment operator
-                self.queue_decision(id.into_global_any(self.module))?;
+                self.queue_selection(id.into_global_any(self.module))?;
             }
             // !value, -value
             dir::Expression::Unary { right, .. } => {
@@ -595,7 +591,7 @@ impl WalkState<'_, '_> {
                 self.walk_expression(right, self.tree.get(right))?;
 
                 // queue selection for the unary operator
-                self.queue_decision(id.into_global_any(self.module))?;
+                self.queue_selection(id.into_global_any(self.module))?;
             }
             // ^value
             dir::Expression::MoveOf { right, .. } => {
@@ -642,7 +638,7 @@ impl WalkState<'_, '_> {
             dir::Expression::PrivateMember { left, .. } => {
                 self.walk_expression(*left, self.tree.get(*left))?;
 
-                self.queue_decision(id.into_global_any(self.module))?;
+                self.queue_selection(id.into_global_any(self.module))?;
             }
             // value[index]
             dir::Expression::Index { left, index, .. } => {
@@ -652,7 +648,7 @@ impl WalkState<'_, '_> {
                 }
 
                 // queue selection for the index expression
-                self.queue_decision(id.into_global_any(self.module))?;
+                self.queue_selection(id.into_global_any(self.module))?;
             }
             // value<T>
             dir::Expression::Instantiation {
@@ -680,7 +676,7 @@ impl WalkState<'_, '_> {
                 }
 
                 // queue selection for the call expression
-                self.queue_decision(id.into_global_any(self.module))?;
+                self.queue_selection(id.into_global_any(self.module))?;
             }
             // new Type<T>(argument)
             dir::Expression::New { ty, arguments } => {
@@ -691,7 +687,7 @@ impl WalkState<'_, '_> {
                 }
 
                 // queue selection for checked construction
-                self.queue_decision(id.into_global_any(self.module))?;
+                self.queue_selection(id.into_global_any(self.module))?;
             }
             // new? Type<T>(argument)
             dir::Expression::NewMaybe { ty, arguments } => {
@@ -702,7 +698,7 @@ impl WalkState<'_, '_> {
                 }
 
                 // queue selection for checked construction
-                self.queue_decision(id.into_global_any(self.module))?;
+                self.queue_selection(id.into_global_any(self.module))?;
                 self.propagate_selected_try(id.into_any())?;
             }
             // await? value
@@ -764,6 +760,60 @@ impl WalkState<'_, '_> {
         }
 
         Ok(())
+    }
+
+    /// Walk one expression against an expected value type.
+    pub(in crate::check) fn walk_expression_expected(
+        &mut self,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+        expected: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.walk_expression_with_relation(id, expression, expected, Relation::Assignable)
+    }
+
+    /// Walk one expression against a target value type and relation.
+    fn walk_expression_with_relation(
+        &mut self,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+        expected: dir::GlobalTypeId,
+        relation: Relation,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let expected_type = self.check.ty(expected)?.clone();
+
+        // let literal containers use the target representation
+        let walked = match (expression, expected_type) {
+            (dir::Expression::ArrayExpression { elements }, dir::Type::Array(array)) => {
+                let elements = elements.iter().copied().collect::<SmallVec<[_; 4]>>();
+                self.walk_array_expression_expected(id, &elements, array.element, None, relation)?
+            }
+            (dir::Expression::ArrayExpression { elements }, dir::Type::FixedArray(array)) => {
+                let elements = elements.iter().copied().collect::<SmallVec<[_; 4]>>();
+                self.walk_array_expression_expected(
+                    id,
+                    &elements,
+                    array.element,
+                    Some(array.count),
+                    relation,
+                )?
+            }
+            _ => {
+                self.walk_expression(id, expression)?;
+                self.node_type(id)?
+            }
+        };
+
+        // keep the real source-target relation for diagnostics and coercions
+        self.push_relation(
+            Origin::Node(id.into_global_any(self.module)),
+            ConstraintRole::Value,
+            relation,
+            walked,
+            expected,
+        );
+
+        Ok(walked)
     }
 
     /// Walk one labeled expression.
@@ -914,7 +964,7 @@ impl WalkState<'_, '_> {
             self.walk_expression(else_expression, self.tree.get(else_expression))?;
             let else_can_complete = self.expression_can_complete_normally(else_expression);
             let else_type = self.node_type(else_expression)?;
-            let union = self.union_type([then_type, else_type], id.into_any())?;
+            let union = self.normalized_union_type([then_type, else_type], id.into_any())?;
             self.bind_node_type(id, union)?;
 
             // collect false completion
@@ -925,7 +975,7 @@ impl WalkState<'_, '_> {
         // no false branch
         else {
             let void = self.push_type(dir::Type::Void, id.into_any())?;
-            let union = self.union_type([then_type, void], id.into_any())?;
+            let union = self.normalized_union_type([then_type, void], id.into_any())?;
             self.bind_node_type(id, union)?;
 
             // collect implicit false completion
@@ -1304,7 +1354,7 @@ impl WalkState<'_, '_> {
             Some((catch, _, _)) => {
                 let catch_body = self.tree.get(*catch).body;
                 let catch_type = self.node_type(catch_body)?;
-                let union = self.union_type([body_type, catch_type], id.into_any())?;
+                let union = self.normalized_union_type([body_type, catch_type], id.into_any())?;
                 self.bind_node_type(id, union)?;
             }
             None => {
@@ -1520,7 +1570,7 @@ impl WalkState<'_, '_> {
             }));
 
         // the match evaluates to the union of its case values
-        let union = self.union_type(result_types, id.into_any())?;
+        let union = self.normalized_union_type(result_types, id.into_any())?;
         self.bind_node_type(id, union)?;
 
         Ok(())
@@ -1664,6 +1714,54 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
+    /// Walk one array literal whose target element type is known.
+    fn walk_array_expression_expected(
+        &mut self,
+        id: dir::LocalNodeId<dir::Expression>,
+        elements: &[dir::LocalNodeId<dir::Argument>],
+        element: dir::GlobalTypeId,
+        count: Option<dir::GlobalTypeId>,
+        relation: Relation,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let mut values = SmallVec::<[_; 8]>::new();
+        for argument in elements {
+            match self.tree.get(*argument) {
+                dir::Argument::Positional { value }
+                | dir::Argument::Named { value, .. }
+                | dir::Argument::Labeled { value, .. } => values.push(*value),
+                dir::Argument::Spread { .. } | dir::Argument::Error => {
+                    self.walk_array_expression(id, elements)?;
+
+                    return self.node_type(id);
+                }
+            }
+        }
+
+        // walk each value under the expected element type
+        for value in &values {
+            self.walk_expression_with_relation(*value, self.tree.get(*value), element, relation)?;
+        }
+
+        let array = if count.is_some() {
+            let actual_count = self.push_type(
+                dir::Type::Literal(dir::ScalarLiteral::Integer(values.len() as i64)),
+                id.into_any(),
+            )?;
+
+            self.push_type(
+                dir::Type::FixedArray(dir::FixedArrayType {
+                    element,
+                    count: actual_count,
+                }),
+                id.into_any(),
+            )?
+        } else {
+            self.push_type(dir::Type::Array(dir::ArrayType { element }), id.into_any())?
+        };
+
+        self.bind_node_type(id, array)
+    }
+
     /// Walk one tuple expression.
     ///
     /// Example:
@@ -1754,13 +1852,13 @@ impl WalkState<'_, '_> {
                 id.into_any(),
             )?;
             self.bind_node_type(id, boolean)?;
-            self.queue_decision(id.into_global_any(self.module))?;
+            self.queue_selection(id.into_global_any(self.module))?;
 
             return Ok(());
         }
 
         // queue selection for the binary operator
-        self.queue_decision(id.into_global_any(self.module))?;
+        self.queue_selection(id.into_global_any(self.module))?;
 
         Ok(())
     }
@@ -1778,16 +1876,11 @@ impl WalkState<'_, '_> {
         operator: dir::AssignOperator,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
-        // walk the assigned value first
-        self.walk_expression(right, self.tree.get(right))?;
-        let value = self.node_type(right)?;
-
-        // compound assignments read and write their target place
+        // choose the place use before walking either side
         let access = match operator {
-            dir::AssignOperator::Assign => PlaceAccess::Write,
-            _ => PlaceAccess::ReadWrite,
+            dir::AssignOperator::Assign => PlaceUse::Write,
+            _ => PlaceUse::Update,
         };
-        let value_node = right.into_global_any(self.module);
 
         // queue arithmetic compound assignments as operator writes
         if operator.binary_operator().is_some()
@@ -1797,6 +1890,42 @@ impl WalkState<'_, '_> {
 
             return self.walk_compound_assignment(id, target, access);
         }
+
+        // simple place assignments contextualize the assigned value
+        if operator == dir::AssignOperator::Assign
+            && let dir::AssignPattern::Expression { value: target } = self.tree.get(left)
+        {
+            let target = *target;
+            let place = self.walk_assignment_place(target, access)?;
+            if let Some(place) = place {
+                let target_type = self.node_type(target)?;
+                let value =
+                    self.walk_expression_expected(right, self.tree.get(right), target_type)?;
+
+                self.bind_node_type(id, value)?;
+                self.push_write_obligations(place, target_type);
+                self.mark_place_assigned(place);
+
+                let resolution =
+                    dir::AssignPatternResolution::Place(dir::AssignPatternPlaceResolution {
+                        target: target.into_global_any(self.module),
+                    });
+                self.record_assign_pattern(left, resolution)?;
+            } else {
+                self.walk_expression(right, self.tree.get(right))?;
+                let value = self.node_type(right)?;
+                self.bind_node_type(id, value)?;
+            };
+
+            self.clear_mutated_expression_narrowings(target);
+
+            return Ok(());
+        }
+
+        // walk the assigned value before matching complex assignment patterns
+        self.walk_expression(right, self.tree.get(right))?;
+        let value = self.node_type(right)?;
+        let value_node = right.into_global_any(self.module);
 
         // assignment expressions evaluate to the assigned value
         self.bind_node_type(id, value)?;
@@ -1819,30 +1948,23 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
         target: dir::LocalNodeId<dir::Expression>,
-        access: PlaceAccess,
+        access: PlaceUse,
     ) -> CompilerResult<()> {
         if let Some(place) = self.walk_assignment_place(target, access)? {
             // the operator result writes back through the place
-            self.queue_decision(id.into_global_any(self.module))?;
+            self.queue_selection(id.into_global_any(self.module))?;
             let value = self.node_type(id)?;
             let target_type = self.node_type(target)?;
             let origin = Origin::Node(id.into_global_any(self.module));
             self.push_relation(
                 origin,
-                ConstraintCause::Assignment,
+                ConstraintRole::Value,
                 Relation::Assignable,
                 value,
                 target_type,
             );
 
-            // the place must accept writes
-            let condition = self.active_static_guard();
-            self.check
-                .push_obligation(Obligation::WritablePlace(WritablePlaceObligation {
-                    condition,
-                    place,
-                }));
-
+            self.push_write_obligations(place, target_type);
             self.mark_place_assigned(place);
         }
 
@@ -1997,7 +2119,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::AssignPattern>,
         value: dir::GlobalTypeId,
         value_node: dir::GlobalNodeIdAny,
-        access: PlaceAccess,
+        access: PlaceUse,
     ) -> CompilerResult<()> {
         match self.tree.get(id) {
             // x = value, obj.x = value
@@ -2009,17 +2131,12 @@ impl WalkState<'_, '_> {
                     let origin = Origin::Node(value_node);
                     self.push_relation(
                         origin,
-                        ConstraintCause::Assignment,
+                        ConstraintRole::Value,
                         Relation::Assignable,
                         value,
                         target_type,
                     );
-                    // the place must accept writes
-                    let condition = self.active_static_guard();
-                    self.check.push_obligation(Obligation::WritablePlace(
-                        WritablePlaceObligation { condition, place },
-                    ));
-
+                    self.push_write_obligations(place, target_type);
                     self.mark_place_assigned(place);
                 }
 
@@ -2169,7 +2286,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::AssignPatternField>,
         value: dir::GlobalTypeId,
         value_node: dir::GlobalNodeIdAny,
-        access: PlaceAccess,
+        access: PlaceUse,
     ) -> CompilerResult<()> {
         match self.tree.get(id) {
             dir::AssignPatternField::Named {
@@ -2216,7 +2333,7 @@ impl WalkState<'_, '_> {
         )?;
         self.push_relation(
             origin,
-            ConstraintCause::Condition,
+            ConstraintRole::Condition,
             Relation::Assignable,
             ty,
             boolean,
@@ -2301,6 +2418,17 @@ impl WalkState<'_, '_> {
         }
 
         Ok(provenance)
+    }
+
+    /// Push the obligations for one successful place write.
+    fn push_write_obligations(&mut self, place: Place, ty: dir::GlobalTypeId) {
+        let condition = self.active_static_guard();
+        self.check
+            .push_obligation(Obligation::WritablePlace(WritablePlaceObligation {
+                condition,
+                place,
+                ty,
+            }));
     }
 
     /// Return the lifetime of one identifier root place.
