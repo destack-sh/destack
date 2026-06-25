@@ -114,7 +114,6 @@ impl Compiler {
         check.walk()?;
         check.propagate()?;
         check.solve()?;
-        check.check_obligations()?;
 
         // emit solver counters and optional trace sidecars
         let stats = check.stats();
@@ -136,8 +135,8 @@ impl Compiler {
             }
         }
 
-        // finish checked DIR tables and diagnostics
-        let (modules, diagnostics) = check.finish()?;
+        // write checked DIR tables and diagnostics
+        let (modules, diagnostics) = check.write()?;
         context.emit_diagnostics(diagnostics);
         if let Some(events) = events {
             context.emit_sidecar(check_sidecar("events", events.render()));

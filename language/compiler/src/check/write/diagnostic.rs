@@ -20,8 +20,8 @@ impl CheckState<'_> {
 
         // unfinished constraints stayed parked on dependencies forever
         let mut unresolved_origins = Vec::new();
-        for (id, constraint) in self.constraints.iter() {
-            if self.constraints.is_complete(id) {
+        for (id, constraint) in self.solver.constraints.iter() {
+            if self.solver.constraints.is_complete(id) {
                 continue;
             }
 

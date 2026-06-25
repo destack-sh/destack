@@ -10,7 +10,10 @@ use destack_source::{ModuleId, Span};
 use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
 
-use crate::check::{Capture, CheckError, CheckState, CheckWarning, Condition, PlaceAccess};
+use crate::check::{
+    Answer, Capture, CheckError, CheckState, CheckWarning, Condition, Constraint, ConstraintRole,
+    Dependency, Origin, Relation,
+};
 use crate::{CompilerError, CompilerResult};
 
 /// State owned by one module inside a checked component.
@@ -35,15 +38,27 @@ pub(in crate::check) struct CheckModuleState {
     /// Out-of-component modules visible from this module.
     pub(in crate::check) external_modules: IndexSet<ModuleId>,
 
-    // open check output owned by this module
+    // open checked state owned by this module
     /// Open inference types layered over the expanded base.
     pub(in crate::check) types: dir::TypeSegment,
     /// Checked declaration definitions.
     pub(in crate::check) definitions: dir::DefinitionSegment,
     /// Induced generic templates and parameters.
     pub(in crate::check) generics: dir::GenericSegment,
-    /// Inferred static symbol values, materialized to statics at finish.
-    pub(in crate::check) values: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
+    /// Checked static values.
+    pub(in crate::check) statics: dir::StaticSegment,
+    /// Checked node resolutions.
+    pub(in crate::check) resolutions: dir::ResolutionSegment,
+    /// Checked implicit coercions.
+    pub(in crate::check) coercions: dir::CoercionSegment,
+    /// Checked layout facts.
+    pub(in crate::check) layouts: dir::LayoutSegment,
+    /// Checked capture facts.
+    pub(in crate::check) capture_segment: dir::CaptureSegment,
+    /// Checked annotations.
+    pub(in crate::check) annotations: dir::AnnotationSegment,
+    /// Inferred static symbol values, materialized to statics during write.
+    pub(in crate::check) static_values: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Captures discovered while walking this module.
     pub(in crate::check) captures: Vec<Capture>,
 
@@ -56,10 +71,7 @@ pub(in crate::check) struct CheckModuleState {
         IndexMap<dir::GlobalSymbolId, SmallVec<[dir::GlobalTypeId; 2]>>,
     /// Declarations whose guards decided statically false.
     pub(in crate::check) unavailable: IndexSet<dir::GlobalSymbolId>,
-    /// Place accesses keyed by written place node.
-    pub(in crate::check) accesses: IndexMap<dir::GlobalNodeIdAny, PlaceAccess>,
-
-    // diagnostics drained at finish
+    // diagnostics drained during write
     /// Diagnostics reported while walking this module.
     pub(in crate::check) diagnostics: Vec<DiagnosticBuilder<CheckError>>,
     /// Warnings reported while walking this module.
@@ -82,6 +94,12 @@ impl CheckModuleState {
         let types = dir::TypeSegment::from_base(&expanded.types);
         let definitions = dir::DefinitionSegment::new(module.id);
         let generics = dir::GenericSegment::new(module.id);
+        let statics = dir::StaticSegment::from_base(&expanded.statics);
+        let resolutions = dir::ResolutionSegment::new(module.id);
+        let coercions = dir::CoercionSegment::new(module.id);
+        let layouts = dir::LayoutSegment::new(module.id);
+        let capture_segment = dir::CaptureSegment::new(module.id);
+        let annotations = dir::AnnotationSegment::new(module.id);
 
         Self {
             module,
@@ -95,37 +113,21 @@ impl CheckModuleState {
             types,
             definitions,
             generics,
-            values: IndexMap::new(),
+            statics,
+            resolutions,
+            coercions,
+            layouts,
+            capture_segment,
+            annotations,
+            static_values: IndexMap::new(),
             node_conditions: IndexMap::new(),
             symbol_conditions: IndexMap::new(),
             unavailable: IndexSet::new(),
-            accesses: IndexMap::new(),
             external_modules: IndexSet::new(),
             captures: Vec::new(),
             diagnostics: Vec::new(),
             warnings: Vec::new(),
         }
-    }
-
-    /// Move this module's open type overlay out for finish, leaving it empty.
-    pub(in crate::check) fn take_types(&mut self) -> dir::TypeSegment {
-        std::mem::replace(
-            &mut self.types,
-            dir::TypeSegment::from_base(&self.expanded.types),
-        )
-    }
-
-    /// Move this module's checked definitions out for finish, leaving them empty.
-    pub(in crate::check) fn take_definitions(&mut self) -> dir::DefinitionSegment {
-        std::mem::replace(
-            &mut self.definitions,
-            dir::DefinitionSegment::new(self.module.id),
-        )
-    }
-
-    /// Move this module's induced generics out for finish, leaving them empty.
-    pub(in crate::check) fn take_generics(&mut self) -> dir::GenericSegment {
-        std::mem::replace(&mut self.generics, dir::GenericSegment::new(self.module.id))
     }
 
     /// Return the post-expansion DIR tree view visible to check.
@@ -139,11 +141,6 @@ impl CheckModuleState {
     /// Return the authored source tree used for source rendering.
     pub(in crate::check) fn source_tree(&self) -> &dir::Tree {
         &self.parsed.tree
-    }
-
-    /// Return whether one checked node was authored in source.
-    pub(in crate::check) fn is_authored(&self, node: dir::LocalNodeIdAny) -> bool {
-        self.parsed.tree.has_node_id(node.id)
     }
 
     /// Return the authored source span of one node.
@@ -280,18 +277,35 @@ impl CheckState<'_> {
         }
     }
 
+    /// Move loaded state for one module out of check state.
+    pub(in crate::check) fn take_module(&mut self, module: ModuleId) -> CheckModuleState {
+        self.modules
+            .swap_remove(&module)
+            .unwrap_or_else(|| unreachable!("check module {module:?} was not loaded"))
+    }
+
     /// Return the checked type of one source node, if present.
     pub(in crate::check) fn node_type_maybe(
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> Option<dir::GlobalTypeId> {
-        self.modules
-            .get(&node.module_id)
-            .and_then(|module| module.types.get_node_type_id(node))
+        self.solver.node_type(node)
     }
 
-    /// Return the checked type of one source node.
-    pub(in crate::check) fn node_type(
+    /// Return the checked type answer for one source node.
+    pub(in crate::check) fn node_type_answer(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        if let Some(ty) = self.node_type_maybe(node) {
+            return Ok(Answer::Ready(ty));
+        }
+
+        Ok(Answer::pending([Dependency::Decision(node)]))
+    }
+
+    /// Return the checked type required for one source node.
+    pub(in crate::check) fn require_node_type(
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -304,34 +318,98 @@ impl CheckState<'_> {
         Ok(ty)
     }
 
+    /// Bind one node to the type selected by a solver task.
+    pub(in crate::check) fn bind_node_type(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let Some(existing) = self.node_type_maybe(node) else {
+            self.set_node_type(node, ty)?;
+
+            return Ok(());
+        };
+
+        if let Some(variable) = self.root_variable(existing)? {
+            self.push_lower_bound(variable, ty)?;
+        } else if existing != ty {
+            self.push_constraint(Constraint {
+                relation: Relation::Equal,
+                left: existing,
+                right: ty,
+                origin: Origin::Node(node),
+                condition: Condition::Always,
+                role: ConstraintRole::Check,
+            });
+        }
+
+        Ok(())
+    }
+
     /// Record the inferred type of one source node.
     pub(in crate::check) fn set_node_type(
         &mut self,
         node: dir::GlobalNodeIdAny,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let types = &mut self.module_mut(node.module_id).types;
-        if types
-            .get_node_type_id(node)
-            .is_some_and(|previous| previous != ty)
+        self.solver.set_node_type(node, ty)
+    }
+
+    /// Return one component declaration type, if present.
+    pub(in crate::check) fn declaration_type_maybe(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::GlobalTypeId> {
+        self.declaration_types.get(&symbol).copied()
+    }
+
+    /// Record one declaration symbol type.
+    pub(in crate::check) fn set_declaration_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        if let Some(previous) = self.declaration_type_maybe(symbol)
+            && previous != ty
         {
             return Err(CompilerError::Internal {
-                message: format!("check node {node:?} received two types"),
+                message: format!(
+                    "declaration symbol {symbol:?} already has type {previous:?}, got {ty:?}"
+                ),
             });
         }
-        types.set_node_type(node, ty);
+
+        self.declaration_types.insert(symbol, ty);
 
         Ok(())
     }
 
-    /// Return one component symbol's checked type, if present.
-    pub(in crate::check) fn component_symbol_type_maybe(
+    /// Return one component binding type, if present.
+    pub(in crate::check) fn binding_type_maybe(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Option<dir::GlobalTypeId> {
-        self.modules
-            .get(&symbol.module_id)
-            .and_then(|module| module.types.get_symbol_type_id(symbol))
+        self.binding_types.get(&symbol).copied()
+    }
+
+    /// Record one binding symbol type.
+    pub(in crate::check) fn set_binding_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let previous = self.binding_type_maybe(symbol);
+        if previous.is_some_and(|previous| previous != ty) {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "binding symbol {symbol:?} already has type {previous:?}, got {ty:?}"
+                ),
+            });
+        }
+
+        self.binding_types.insert(symbol, ty);
+
+        Ok(())
     }
 
     /// Return one loaded symbol's checked type, if present.
@@ -339,8 +417,11 @@ impl CheckState<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Option<dir::GlobalTypeId> {
-        // prefer the component overlay over committed tables
-        if let Some(ty) = self.component_symbol_type_maybe(symbol) {
+        // prefer body-owned bindings over stable declarations
+        if let Some(ty) = self.binding_type_maybe(symbol) {
+            return Some(ty);
+        }
+        if let Some(ty) = self.declaration_type_maybe(symbol) {
             return Some(ty);
         }
 
@@ -352,45 +433,24 @@ impl CheckState<'_> {
         None
     }
 
-    /// Record the inferred type of one source symbol.
-    pub(in crate::check) fn set_symbol_type(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        let types = &mut self.module_mut(symbol.module_id).types;
-        if let Some(previous) = types.get_symbol_type_id(symbol)
-            && previous != ty
-        {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "check symbol {symbol:?} already has type {previous:?}, got {ty:?}"
-                ),
-            });
-        }
-        types.set_symbol_type(symbol, ty);
-
-        Ok(())
-    }
-
     /// Return the inferred static value of one source symbol.
-    pub(in crate::check) fn symbol_value(
+    pub(in crate::check) fn static_value(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Option<dir::GlobalTypeId> {
         self.modules
             .get(&symbol.module_id)
-            .and_then(|module| module.values.get(&symbol).copied())
+            .and_then(|module| module.static_values.get(&symbol).copied())
     }
 
     /// Record the inferred static value of one source symbol as a singleton type.
-    pub(in crate::check) fn set_symbol_value(
+    pub(in crate::check) fn set_static_value(
         &mut self,
         symbol: dir::GlobalSymbolId,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let values = &mut self.module_mut(symbol.module_id).values;
-        if values
+        let static_values = &mut self.module_mut(symbol.module_id).static_values;
+        if static_values
             .insert(symbol, value)
             .is_some_and(|previous| previous != value)
         {
@@ -454,25 +514,6 @@ impl CheckState<'_> {
         self.module_mut(symbol.module_id)
             .symbol_conditions
             .insert(symbol, predicates);
-    }
-
-    /// Return how syntax accesses one place expression.
-    pub(in crate::check) fn place_access(&self, node: dir::GlobalNodeIdAny) -> PlaceAccess {
-        self.modules
-            .get(&node.module_id)
-            .and_then(|module| module.accesses.get(&node).copied())
-            .unwrap_or(PlaceAccess::Read)
-    }
-
-    /// Record how syntax accesses one place expression.
-    pub(in crate::check) fn set_place_access(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        access: PlaceAccess,
-    ) {
-        self.module_mut(node.module_id)
-            .accesses
-            .insert(node, access);
     }
 
     /// Return one binding table by module.

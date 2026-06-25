@@ -1,6 +1,6 @@
 mod component;
 mod diagnostic;
 mod module;
-mod output;
+mod segments;
 
-pub(super) use output::*;
+pub(super) use segments::*;
