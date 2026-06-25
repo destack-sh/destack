@@ -10,7 +10,7 @@ pub(crate) struct ValueType {
 /// Collect lowered runtime value types for one function.
 pub(crate) fn analyze_value_types(function: &mir::Function) -> Vec<ValueType> {
     function
-        .value_types
+        .value_types()
         .iter()
         .filter_map(|ty| {
             let ty = (*ty)?;
