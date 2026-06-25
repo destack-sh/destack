@@ -686,17 +686,28 @@ fn resolve_block_param_ranges(
             EdgeArguments::Found(args) => args,
         };
 
+        // collect successor parameters for explicit edge arguments
+        let parameters = pred_terminator.successor_parameters(tree, block_id);
+
         // mark that we saw a predecessor
         is_seen = true;
 
         // reject mismatched argument counts
-        if args.len() != states.len() {
+        if args.len() != parameters.len() {
             states.fill(ParamRangeState::Overdefined);
             continue;
         }
 
         // update parameter states from arguments
-        for (index, arg) in args.iter().enumerate() {
+        for (parameter, arg) in parameters.iter().zip(args) {
+            let Some(index) = block
+                .parameters
+                .iter()
+                .position(|candidate| candidate.value == parameter.value)
+            else {
+                states.fill(ParamRangeState::Overdefined);
+                break;
+            };
             let arg_range = pred_exit.get(*arg).cloned();
             states[index] = match (&states[index], arg_range) {
                 (ParamRangeState::Unseen, Some(range)) => ParamRangeState::Range(range),
@@ -2538,6 +2549,47 @@ b3(v3: int32):
                 width: 32,
                 is_signed: true
             }
+        );
+    }
+
+    /// Fallible allocation result parameters do not consume edge arguments.
+    #[test]
+    fn test_range_fallible_allocation_success_argument() {
+        let test = TestProgram::new(
+            r#"
+function test(v0: int64): int32 {
+entry(v0: int64):
+    v1: int32 = 7
+    new.slice.uninit.try int32, v0 => b1(v1), b2
+
+b1(v2: uninit<slice<int32, managed, mutable>>, v3: int32):
+    return v3
+
+b2:
+    v4: int32 = 0
+    return v4
+}
+"#,
+        );
+
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses();
+        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+
+        let success = function.blocks[1];
+        let success_block = test.tree.get(success);
+        let argument = success_block.parameters[1].value;
+        let range = ranges.entry(success).get(argument);
+
+        assert_eq!(
+            range,
+            Some(&ValueRange::Integer {
+                min: 7,
+                max: 7,
+                width: 32,
+                is_signed: true,
+            })
         );
     }
 

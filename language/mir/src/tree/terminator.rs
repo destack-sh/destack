@@ -834,6 +834,26 @@ impl Terminator {
                     &[]
                 }
             }
+            Terminator::NewZeroedTry {
+                success, failure, ..
+            }
+            | Terminator::NewUninitTry {
+                success, failure, ..
+            }
+            | Terminator::NewSliceZeroedTry {
+                success, failure, ..
+            }
+            | Terminator::NewSliceUninitTry {
+                success, failure, ..
+            } => {
+                if Some(success.block) == Some(successor) {
+                    success.arguments(tree)
+                } else if Some(failure.block) == Some(successor) {
+                    failure.arguments(tree)
+                } else {
+                    &[]
+                }
+            }
 
             Terminator::Switch { default, cases, .. } => {
                 if Some(default.block) == Some(successor) {
@@ -906,6 +926,21 @@ impl Terminator {
                 arguments.merge_target(success, successor, tree);
                 arguments.merge_target(failure, successor, tree);
             }
+            Terminator::NewZeroedTry {
+                success, failure, ..
+            }
+            | Terminator::NewUninitTry {
+                success, failure, ..
+            }
+            | Terminator::NewSliceZeroedTry {
+                success, failure, ..
+            }
+            | Terminator::NewSliceUninitTry {
+                success, failure, ..
+            } => {
+                arguments.merge_target(success, successor, tree);
+                arguments.merge_target(failure, successor, tree);
+            }
             Terminator::Switch { default, cases, .. } => {
                 arguments.merge_target(default, successor, tree);
                 for case in tree.get_switch_cases(*cases) {
@@ -959,6 +994,12 @@ impl Terminator {
             | Terminator::CallIndirect { target, .. }
             | Terminator::CallVirtual { target, .. }
             | Terminator::CallDynamic { target, .. } => Some(target.block) == Some(successor),
+            Terminator::NewZeroedTry { success, .. }
+            | Terminator::NewUninitTry { success, .. }
+            | Terminator::NewSliceZeroedTry { success, .. }
+            | Terminator::NewSliceUninitTry { success, .. } => {
+                Some(success.block) == Some(successor)
+            }
             _ => false,
         }
     }
@@ -1016,4 +1057,116 @@ fn block_edge(
     target: &BlockTarget,
 ) -> Option<(Edge, &BlockTarget)> {
     Some((Edge::new(source, successor, target.block), target))
+}
+
+#[cfg(test)]
+mod tests {
+    use destack_core::StringPool;
+    use destack_source::FileId;
+
+    use crate::parse::{ParseOptions, Parser};
+    use crate::{Block, Terminator, Tree, Type};
+
+    /// Parse one MIR tree for terminator owner-method tests.
+    fn parse_tree(source: &str) -> (Tree, StringPool) {
+        Parser::parse(FileId::new(0), source, ParseOptions::default())
+            .finish()
+            .expect("parse failed")
+    }
+
+    /// Return one named block from a tree.
+    fn block_by_name(tree: &Tree, strings: &StringPool, name: &str) -> crate::BlockId {
+        tree.iter_nodes::<Block>()
+            .find(|(_, block)| {
+                block
+                    .name
+                    .map(|name_id| strings.get(name_id) == name)
+                    .unwrap_or(false)
+            })
+            .expect("missing block")
+            .0
+    }
+
+    /// Return one named block's terminator.
+    fn terminator_by_block_name<'a>(
+        tree: &'a Tree,
+        strings: &StringPool,
+        name: &str,
+    ) -> &'a Terminator {
+        let block = tree.get(block_by_name(tree, strings, name));
+
+        tree.get(block.terminator)
+    }
+
+    /// Return a block parameter's type.
+    fn block_parameter_type(tree: &Tree, block: crate::BlockId, index: usize) -> &Type {
+        let block = tree.get(block);
+        let parameter = block.parameters.get(index).expect("missing parameter");
+
+        tree.get(parameter.ty)
+    }
+
+    /// Parse fallible allocation edges with explicit success and failure payloads.
+    fn parse_fallible_allocation_tree() -> (Tree, StringPool) {
+        parse_tree(
+            r#"
+function test(v0: int64, v9: int32): int32 {
+entry(v0: int64, v9: int32):
+    new.slice.uninit.try int32, v0 => b1(v9), b2(v9)
+
+b1(v1: uninit<slice<int32, managed, mutable>>, v2: int32):
+    return v2
+
+b2(v3: int32):
+    return v3
+}
+"#,
+        )
+    }
+
+    /// Fallible allocation terminators expose explicit edge arguments.
+    #[test]
+    fn test_successor_arguments_include_fallible_allocation_edges() {
+        let (tree, strings) = parse_fallible_allocation_tree();
+        let terminator = terminator_by_block_name(&tree, &strings, "entry");
+        let success = block_by_name(&tree, &strings, "b1");
+        let failure = block_by_name(&tree, &strings, "b2");
+        let success_arguments = terminator.successor_arguments(&tree, success);
+        let failure_arguments = terminator.successor_arguments(&tree, failure);
+
+        // success and failure edges carry the explicit payload
+        assert_eq!(success_arguments.len(), 1);
+        assert_eq!(success_arguments, failure_arguments);
+    }
+
+    /// Fallible allocation success parameters skip the implicit result.
+    #[test]
+    fn test_successor_parameters_skip_fallible_allocation_result() {
+        let (tree, strings) = parse_fallible_allocation_tree();
+        let terminator = terminator_by_block_name(&tree, &strings, "entry");
+        let success = block_by_name(&tree, &strings, "b1");
+        let failure = block_by_name(&tree, &strings, "b2");
+
+        // success receives an implicit allocation result before explicit payloads
+        assert!(matches!(
+            block_parameter_type(&tree, success, 0),
+            Type::Uninit { .. }
+        ));
+        assert_eq!(terminator.successor_parameters(&tree, success).len(), 1);
+
+        // failure has no implicit result and binds every explicit payload
+        assert_eq!(terminator.successor_parameters(&tree, failure).len(), 1);
+    }
+
+    /// Fallible allocation result markers only apply to success edges.
+    #[test]
+    fn test_has_successor_result_marks_only_fallible_allocation_success() {
+        let (tree, strings) = parse_fallible_allocation_tree();
+        let terminator = terminator_by_block_name(&tree, &strings, "entry");
+        let success = block_by_name(&tree, &strings, "b1");
+        let failure = block_by_name(&tree, &strings, "b2");
+
+        assert!(terminator.has_successor_result(success));
+        assert!(!terminator.has_successor_result(failure));
+    }
 }

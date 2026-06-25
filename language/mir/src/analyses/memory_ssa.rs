@@ -25,6 +25,33 @@ impl MemoryAccessId {
     }
 }
 
+/// Source operation for one MemorySSA access.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MemoryAccessSource {
+    /// Access produced by a MIR instruction.
+    Instruction(mir::LocalNodeId<mir::Instruction>),
+    /// Access produced by a block terminator.
+    Terminator(mir::LocalNodeId<mir::Block>),
+}
+
+impl MemoryAccessSource {
+    /// Return the instruction source when this access has one.
+    pub fn instruction(self) -> Option<mir::LocalNodeId<mir::Instruction>> {
+        match self {
+            Self::Instruction(instruction) => Some(instruction),
+            Self::Terminator(_) => None,
+        }
+    }
+
+    /// Return the terminator block when this access has one.
+    pub fn terminator(self) -> Option<mir::LocalNodeId<mir::Block>> {
+        match self {
+            Self::Instruction(_) => None,
+            Self::Terminator(block) => Some(block),
+        }
+    }
+}
+
 /// Memory target touched by one effect.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MemoryEffectTarget {
@@ -289,10 +316,15 @@ pub enum MemoryAccess {
 impl MemoryAccess {
     /// Return the instruction id for this access if available.
     pub fn instruction(&self) -> Option<mir::LocalNodeId<mir::Instruction>> {
-        // map access to its instruction
+        // map instruction sourced accesses
+        self.source().and_then(MemoryAccessSource::instruction)
+    }
+
+    /// Return the source operation for this access if available.
+    pub fn source(&self) -> Option<MemoryAccessSource> {
         match self {
-            MemoryAccess::Def(def) => Some(def.instruction),
-            MemoryAccess::Use(use_access) => Some(use_access.instruction),
+            MemoryAccess::Def(def) => Some(def.source),
+            MemoryAccess::Use(use_access) => Some(use_access.source),
             _ => None,
         }
     }
@@ -310,11 +342,11 @@ pub struct MemoryPhi {
 /// Memory definition access.
 #[derive(Debug, Clone)]
 pub struct MemoryDef {
-    /// Instruction that defines memory.
-    pub instruction: mir::LocalNodeId<mir::Instruction>,
+    /// Operation that defines memory.
+    pub source: MemoryAccessSource,
     /// Immediate defining access in MemorySSA.
     pub defining_access: Option<MemoryAccessId>,
-    /// Memory effects for this instruction.
+    /// Memory effects for this operation.
     pub effect: MemoryAccessEffect,
 }
 
@@ -374,9 +406,8 @@ impl MemoryDef {
             return alias.alias(def_location, reference_location).may_alias();
         }
 
-        // fall back to alias memory effects for imprecise spaces
-        let effect = alias.memory_effect(self.instruction, reference_location);
-        effect.writes()
+        // imprecise defs clobber every compatible reference location
+        matches!(self.effect.location, MemoryEffectTarget::Any { .. })
     }
 
     /// Return whether this definition clobbers a memory target.
@@ -419,20 +450,41 @@ impl MemoryDef {
             return false;
         }
 
-        let effect = alias.memory_effect(self.instruction, reference_location);
-        effect.writes()
+        // compare reference locations when available
+        if let MemoryEffectTarget::Reference {
+            location: def_location,
+            ..
+        } = &self.effect.location
+        {
+            return alias.alias(def_location, reference_location).may_alias();
+        }
+
+        // imprecise defs clobber every compatible reference location
+        matches!(self.effect.location, MemoryEffectTarget::Any { .. })
+    }
+
+    /// Return the source instruction when this def has one.
+    pub fn instruction(&self) -> Option<mir::LocalNodeId<mir::Instruction>> {
+        self.source.instruction()
     }
 }
 
 /// Memory use access.
 #[derive(Debug, Clone)]
 pub struct MemoryUse {
-    /// Instruction that reads memory.
-    pub instruction: mir::LocalNodeId<mir::Instruction>,
+    /// Operation that reads memory.
+    pub source: MemoryAccessSource,
     /// Immediate defining access in MemorySSA.
     pub defining_access: Option<MemoryAccessId>,
-    /// Memory effects for this instruction.
+    /// Memory effects for this operation.
     pub effect: MemoryAccessEffect,
+}
+
+impl MemoryUse {
+    /// Return the source instruction when this use has one.
+    pub fn instruction(&self) -> Option<mir::LocalNodeId<mir::Instruction>> {
+        self.source.instruction()
+    }
 }
 
 /// MemorySSA analysis for a function.
@@ -444,6 +496,8 @@ pub struct MemorySSA {
     block_phis: Vec<Option<MemoryAccessId>>,
     /// Memory accesses indexed by instruction id.
     instruction_access: Vec<Vec<MemoryAccessId>>,
+    /// Memory accesses indexed by terminator block id.
+    terminator_access: Vec<Vec<MemoryAccessId>>,
     /// Memory accesses indexed by block id.
     block_accesses: Vec<Vec<MemoryAccessId>>,
     /// Live on entry access id.
@@ -469,6 +523,7 @@ impl MemorySSA {
                     accesses: vec![MemoryAccess::LiveOnEntry],
                     block_phis: Vec::new(),
                     instruction_access: Vec::new(),
+                    terminator_access: Vec::new(),
                     block_accesses: Vec::new(),
                     live_on_entry,
                 };
@@ -509,6 +564,7 @@ impl MemorySSA {
 
         // create instruction memory accesses
         let mut instruction_access = vec![Vec::new(); function.instruction_capacity(tree)];
+        let mut terminator_access = vec![Vec::new(); function.block_capacity()];
         let mut block_accesses = vec![Vec::new(); function.block_capacity()];
         for (block_index, access_list) in collected.block_accesses.iter().enumerate() {
             let Some(access_list) = access_list else {
@@ -519,27 +575,35 @@ impl MemorySSA {
             for access in access_list {
                 let access_id = MemoryAccessId::from_index(accesses.len());
                 match access {
-                    CollectedAccess::Use {
-                        instruction,
-                        effect,
-                    } => {
+                    CollectedAccess::Use { source, effect } => {
                         accesses.push(MemoryAccess::Use(MemoryUse {
-                            instruction: *instruction,
+                            source: *source,
                             defining_access: None,
                             effect: effect.clone(),
                         }));
-                        instruction_access[instruction.id as usize].push(access_id);
+                        match source {
+                            MemoryAccessSource::Instruction(instruction) => {
+                                instruction_access[instruction.id as usize].push(access_id);
+                            }
+                            MemoryAccessSource::Terminator(block) => {
+                                terminator_access[block.id as usize].push(access_id);
+                            }
+                        }
                     }
-                    CollectedAccess::Def {
-                        instruction,
-                        effect,
-                    } => {
+                    CollectedAccess::Def { source, effect } => {
                         accesses.push(MemoryAccess::Def(MemoryDef {
-                            instruction: *instruction,
+                            source: *source,
                             defining_access: None,
                             effect: effect.clone(),
                         }));
-                        instruction_access[instruction.id as usize].push(access_id);
+                        match source {
+                            MemoryAccessSource::Instruction(instruction) => {
+                                instruction_access[instruction.id as usize].push(access_id);
+                            }
+                            MemoryAccessSource::Terminator(block) => {
+                                terminator_access[block.id as usize].push(access_id);
+                            }
+                        }
                     }
                 }
                 block_list.push(access_id);
@@ -553,6 +617,7 @@ impl MemorySSA {
             accesses,
             block_phis,
             instruction_access,
+            terminator_access,
             block_accesses,
             live_on_entry,
         };
@@ -605,6 +670,17 @@ impl MemorySSA {
             .iter()
             .copied()
             .find(|access_id| matches!(self.access(*access_id), MemoryAccess::Use(_)))
+    }
+
+    /// Return all memory accesses for a block terminator if present.
+    pub fn terminator_accesses(
+        &self,
+        block: mir::LocalNodeId<mir::Block>,
+    ) -> Option<&[MemoryAccessId]> {
+        self.terminator_access
+            .get(block.id as usize)
+            .filter(|accesses| !accesses.is_empty())
+            .map(Vec::as_slice)
     }
 
     /// Return the memory phi for a block if present.
@@ -829,12 +905,12 @@ impl FunctionAnalysis for MemorySSA {
 enum CollectedAccess {
     /// Memory use (read).
     Use {
-        instruction: mir::LocalNodeId<mir::Instruction>,
+        source: MemoryAccessSource,
         effect: MemoryAccessEffect,
     },
     /// Memory def (write).
     Def {
-        instruction: mir::LocalNodeId<mir::Instruction>,
+        source: MemoryAccessSource,
         effect: MemoryAccessEffect,
     },
 }
@@ -915,16 +991,34 @@ impl<'a> MemoryAccessCollector<'a> {
                 for effect in effects {
                     if effect.writes || effect.is_barrier {
                         accesses.push(CollectedAccess::Def {
-                            instruction: instruction_id,
+                            source: MemoryAccessSource::Instruction(instruction_id),
                             effect,
                         });
                         def_blocks.insert(block_id);
                     } else if effect.reads {
                         accesses.push(CollectedAccess::Use {
-                            instruction: instruction_id,
+                            source: MemoryAccessSource::Instruction(instruction_id),
                             effect,
                         });
                     }
+                }
+            }
+
+            // scan the terminator for call and allocation effects
+            let terminator = self.tree.get(block.terminator);
+            let effects = self.terminator_effects(block_id, terminator);
+            for effect in effects {
+                if effect.writes || effect.is_barrier {
+                    accesses.push(CollectedAccess::Def {
+                        source: MemoryAccessSource::Terminator(block_id),
+                        effect,
+                    });
+                    def_blocks.insert(block_id);
+                } else if effect.reads {
+                    accesses.push(CollectedAccess::Use {
+                        source: MemoryAccessSource::Terminator(block_id),
+                        effect,
+                    });
                 }
             }
 
@@ -1232,6 +1326,46 @@ impl<'a> MemoryAccessCollector<'a> {
         }
     }
 
+    /// Determine memory effects for a block terminator.
+    fn terminator_effects(
+        &mut self,
+        block_id: mir::LocalNodeId<mir::Block>,
+        terminator: &mir::Terminator,
+    ) -> SmallVec<[MemoryAccessEffect; 2]> {
+        match terminator {
+            mir::Terminator::Call { .. }
+            | mir::Terminator::CallIndirect { .. }
+            | mir::Terminator::CallVirtual { .. }
+            | mir::Terminator::CallDynamic { .. }
+            | mir::Terminator::TailCall { .. }
+            | mir::Terminator::TailCallIndirect { .. }
+            | mir::Terminator::TailCallVirtual { .. }
+            | mir::Terminator::TailCallDynamic { .. } => self.callsite_effects(
+                mir::CallSite::Terminator(block_id),
+                terminator.call_direct_target(),
+            ),
+
+            mir::Terminator::NewZeroedTry { .. }
+            | mir::Terminator::NewUninitTry { .. }
+            | mir::Terminator::NewSliceZeroedTry { .. }
+            | mir::Terminator::NewSliceUninitTry { .. } => Self::single_effect(
+                MemoryAccessEffect::read_write(MemoryEffectTarget::any(mir::SpaceSet::ANY), false),
+            ),
+
+            mir::Terminator::Error
+            | mir::Terminator::Return { .. }
+            | mir::Terminator::Jump { .. }
+            | mir::Terminator::Branch { .. }
+            | mir::Terminator::Check { .. }
+            | mir::Terminator::Switch { .. }
+            | mir::Terminator::Yield { .. }
+            | mir::Terminator::Panic { .. }
+            | mir::Terminator::UnwindResume
+            | mir::Terminator::Trap { .. }
+            | mir::Terminator::Unreachable => SmallVec::new(),
+        }
+    }
+
     /// Convert explicit memory metadata into access effects.
     fn metadata_effects(
         &mut self,
@@ -1357,12 +1491,23 @@ impl<'a> MemoryAccessCollector<'a> {
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
     ) -> SmallVec<[MemoryAccessEffect; 2]> {
+        self.callsite_effects(
+            mir::CallSite::Instruction(instruction_id),
+            instruction.call_direct_target(),
+        )
+    }
+
+    /// Determine memory effects for a callsite using metadata.
+    fn callsite_effects(
+        &self,
+        callsite: mir::CallSite,
+        direct_target: Option<mir::LocalNodeId<mir::Function>>,
+    ) -> SmallVec<[MemoryAccessEffect; 2]> {
         // use callsite or callee metadata for memory effects
-        let callsite = mir::CallSite::Instruction(instruction_id);
         let call_metadata = self.tree.metadata.functions.call(callsite);
         let mut memory_effects = call_metadata
             .map(|metadata| metadata.memory.clone())
-            .or_else(|| self.callee_memory_effects(instruction));
+            .or_else(|| self.callee_memory_effects(direct_target));
 
         // fall back to conservative unknown when missing
         let Some(effects) = memory_effects.take() else {
@@ -1406,9 +1551,12 @@ impl<'a> MemoryAccessCollector<'a> {
     }
 
     /// Read memory effects from a direct callee when available.
-    fn callee_memory_effects(&self, instruction: &mir::Instruction) -> Option<mir::MemoryEffect> {
+    fn callee_memory_effects(
+        &self,
+        function: Option<mir::LocalNodeId<mir::Function>>,
+    ) -> Option<mir::MemoryEffect> {
         // only direct calls have callee metadata
-        let function = instruction.call_direct_target()?;
+        let function = function?;
         self.tree
             .metadata
             .functions
@@ -1946,6 +2094,18 @@ mod tests {
         // clone the access list when present
         memory_ssa
             .instruction_accesses(instruction)
+            .map(|accesses| accesses.to_vec())
+            .unwrap_or_default()
+    }
+
+    /// Collect the memory accesses for a terminator.
+    fn terminator_accesses(
+        memory_ssa: &MemorySSA,
+        block: mir::LocalNodeId<mir::Block>,
+    ) -> Vec<MemoryAccessId> {
+        // clone the access list when present
+        memory_ssa
+            .terminator_accesses(block)
             .map(|accesses| accesses.to_vec())
             .unwrap_or_default()
     }
@@ -2626,6 +2786,48 @@ entry(v0: ref<int32, raw, mutable>):
             call_effect.location,
             MemoryEffectTarget::Any { .. }
         ));
+    }
+
+    /// Continuation loads see memory effects from call terminators.
+    #[test]
+    fn test_memory_ssa_call_terminator_clobbers_continuation() {
+        let test = TestProgram::new(
+            r#"
+external function imported(ref<int32, raw, mutable>): void
+
+function test(v0: ref<int32, raw, mutable>): int32 {
+entry(v0: ref<int32, raw, mutable>):
+    call imported(v0) => b1
+
+b1:
+    v1: int32 = load v0
+    return v1
+}
+"#,
+        );
+
+        let function_id = test.entry_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses();
+        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let memory_ssa = memory_ssa.as_ref();
+
+        // locate the call terminator and continuation load
+        let entry = function.blocks[0];
+        let continuation = function.blocks[1];
+        let load = test.tree.get(continuation).instructions[0];
+
+        let call_accesses = terminator_accesses(memory_ssa, entry);
+        let load_access = memory_ssa
+            .instruction_access(load)
+            .expect("missing load access");
+
+        // require the call terminator to define the continuation memory state
+        assert_eq!(call_accesses.len(), 1);
+        assert_eq!(
+            memory_ssa.defining_access(load_access),
+            Some(call_accesses[0])
+        );
     }
 
     /// Call metadata no memory suppresses memory accesses.
