@@ -195,7 +195,7 @@ fn add_extension_row(
     builder: &mut DirSnapshotBuilder<'_>,
     symbol: dir::GlobalSymbolId,
     source: dir::GlobalNodeIdAny,
-    extension: &dir::Extension,
+    extension: &dir::ExtensionDefinition,
 ) {
     let row = SnapshotRow::new(builder.anchor_symbol(symbol), "definition", "extension")
         .field("symbol", builder.symbol_path_label(extension.symbol))

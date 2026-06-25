@@ -34,6 +34,7 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Instance(instance) => self.instance_type_label(types, instance),
             dir::Type::This => "this".to_string(),
             dir::Type::Member(member) => self.member_type_label(types, member),
+            dir::Type::EnumMember(member) => self.symbol_path_label(member.member),
             dir::Type::Form(form) => self.form_type_label(types, form),
             dir::Type::Dynamic(any) => {
                 let constraint = self.type_id_label(types, any.constraint);
