@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{Arena, GlobalTypeId, SegmentView, StaticKey};
+use crate::{Arena, GlobalSymbolId, GlobalTypeId, SegmentView, StaticKey};
 
 /// Cumulative layouts for one DIR module.
 #[derive(Debug, Clone)]
@@ -394,6 +394,8 @@ pub enum LayoutShape {
     TensorView(TensorViewLayout),
     /// Variant value storage.
     Variant(VariantLayout),
+    /// Enum value storage.
+    Enum(EnumLayout),
     /// Object storage with a dispatch table header.
     Object(ObjectLayout),
     /// Runtime dynamic value storage.
@@ -622,6 +624,26 @@ pub struct VariantTagLayout {
     pub size: u32,
     /// The tag alignment in bytes.
     pub alignment: u32,
+}
+
+/// Concrete layout for an enum value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub struct EnumLayout {
+    /// The backing type.
+    pub backing_type: GlobalTypeId,
+    /// The backing type layout.
+    pub backing_layout: LocalLayoutId,
+    /// The enum variants in declaration order.
+    pub variants: Vec<EnumVariantLayout>,
+}
+
+/// Concrete layout for one enum variant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub struct EnumVariantLayout {
+    /// The variant symbol.
+    pub symbol: GlobalSymbolId,
+    /// The represented discriminant.
+    pub discriminant: u128,
 }
 
 /// Concrete layout for an object.

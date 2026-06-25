@@ -148,6 +148,20 @@ pub struct MemberType {
     pub arguments: Vec<GlobalTypeId>,
 }
 
+/// Singleton type of one enum member.
+///
+/// Examples:
+/// ```ds
+/// Mode.Read
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub struct EnumMemberType {
+    /// The enum declaration instance.
+    pub owner: GlobalTypeId,
+    /// The selected enum variant symbol.
+    pub member: GlobalSymbolId,
+}
+
 /// Explicit runtime `Dynamic<T>` representation.
 ///
 /// Examples:
@@ -1205,6 +1219,8 @@ pub enum Type {
     This,
     /// Member type selected from an owner type, like `T.Output`.
     Member(MemberType),
+    /// Singleton enum member type, like `Mode.Read`.
+    EnumMember(EnumMemberType),
 
     /// Canonical memory or access form, like `^User` or `&exclusive User`.
     Form(FormType),
@@ -1347,6 +1363,7 @@ impl Type {
                     visit(child);
                 }
             }
+            Self::EnumMember(member) => visit(member.owner),
 
             // memory forms
             Self::Form(form) => {
@@ -1507,6 +1524,9 @@ impl Type {
                 for argument in &mut member.arguments {
                     *argument = map(*argument);
                 }
+            }
+            Self::EnumMember(member) => {
+                member.owner = map(member.owner);
             }
 
             // memory forms

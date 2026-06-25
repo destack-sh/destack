@@ -659,6 +659,8 @@ pub struct VariantDefinition {
     pub source: GlobalNodeIdAny,
     /// The variant key.
     pub key: StaticKey,
+    /// The checked variant type.
+    pub ty: GlobalTypeId,
     /// The checked variant value.
     pub value: Option<GlobalStaticId>,
     /// The @if availability condition guarding this member, when guarded.
@@ -721,6 +723,25 @@ impl DefinitionMember {
         }
     }
 
+    /// Return the source node declaring this member.
+    pub fn source(&self) -> GlobalNodeIdAny {
+        match self {
+            Self::Field(field) => field.source,
+            Self::Method(method) => method.source,
+            Self::AssociatedType(associated) => associated.source,
+            Self::AssociatedConst(associated) => associated.source,
+            Self::Variant(variant) => variant.source,
+            Self::CallSignature(signature)
+            | Self::ConstructSignature(signature)
+            | Self::IndexSignature(signature) => signature.source,
+        }
+    }
+
+    /// Return whether this member can share a key as an overload.
+    pub fn is_overloadable(&self) -> bool {
+        matches!(self, Self::Method(_))
+    }
+
     /// Return the member space declaring this member.
     pub fn space(&self) -> MemberSpace {
         match self {
@@ -771,7 +792,7 @@ impl DefinitionMember {
             Self::Method(method) => Some(method.ty),
             Self::AssociatedType(associated) => associated.value,
             Self::AssociatedConst(associated) => Some(associated.ty),
-            Self::Variant(_) => None,
+            Self::Variant(variant) => Some(variant.ty),
             Self::CallSignature(signature)
             | Self::ConstructSignature(signature)
             | Self::IndexSignature(signature) => Some(signature.ty),
