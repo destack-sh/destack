@@ -870,12 +870,83 @@ pub struct PatternNominalDestructureResolution {
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct PatternSequenceDestructureResolution {
-    /// The sequence length knowledge selected during checking.
-    pub length: PatternSequenceLength,
+    /// The selected sequence protocol operations.
+    pub sequence: SequenceProtocol,
+    /// The arity requirement introduced by the pattern.
+    pub arity: PatternSequenceArity,
     /// The fixed fields in source order.
-    pub fields: Vec<PatternFieldResolution>,
+    pub fields: Vec<PatternSequenceElementResolution>,
     /// The rest field, when present.
-    pub rest: Option<PatternRestResolution>,
+    pub rest: Option<PatternSequenceRestResolution>,
+}
+
+/// Sequence protocol calls selected by one pattern.
+///
+/// Examples:
+/// ```ds
+/// const [head, ...tail] = queue;
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct SequenceProtocol {
+    /// The selected length member.
+    pub length: MemberResolution,
+    /// The selected element call, when the pattern reads elements.
+    pub element_at: Option<CallResolution>,
+    /// The selected view call, when the pattern reads a rest view.
+    pub view: Option<CallResolution>,
+}
+
+/// Arity requirement introduced by one sequence pattern.
+///
+/// Examples:
+/// ```ds
+/// const [head, second] = values; // minimum: 2, maximum: 2
+/// const [head, ...tail] = values; // minimum: 1, maximum: none
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct PatternSequenceArity {
+    /// The minimum accepted source length.
+    pub minimum: usize,
+    /// The maximum accepted source length, when bounded.
+    pub maximum: Option<usize>,
+}
+
+/// One element projected by a sequence pattern.
+///
+/// Examples:
+/// ```ds
+/// const [head] = values;
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct PatternSequenceElementResolution {
+    /// The source node that introduces the field.
+    pub source: GlobalNodeIdAny,
+    /// The selected sequence position.
+    pub index: usize,
+    /// The projected element type.
+    pub ty: GlobalTypeId,
+    /// The nested pattern matched for the element.
+    pub pattern: GlobalNodeIdAny,
+}
+
+/// Rest field selected by one sequence pattern.
+///
+/// Examples:
+/// ```ds
+/// const [head, ...tail] = values;
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct PatternSequenceRestResolution {
+    /// The source node that introduces the rest field.
+    pub source: GlobalNodeIdAny,
+    /// The first element included in the projected view.
+    pub start: usize,
+    /// The exclusive end element, when statically bounded.
+    pub end: Option<usize>,
+    /// The projected view type.
+    pub ty: GlobalTypeId,
+    /// The nested pattern matched for the rest field.
+    pub pattern: Option<GlobalNodeIdAny>,
 }
 
 /// Tagged variant destructuring selected by one pattern.
@@ -892,31 +963,6 @@ pub struct PatternVariantDestructureResolution {
     pub projection: Projection,
     /// The payload fields in source order.
     pub fields: Vec<PatternFieldResolution>,
-}
-
-/// Sequence length knowledge selected during checking.
-///
-/// Examples:
-/// ```ds
-/// const [head, ...tail] = values; // Dynamic
-/// const [x, y] = pair;            // Exact
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum PatternSequenceLength {
-    /// Dynamically known sequence length.
-    ///
-    /// Examples:
-    /// ```ds
-    /// const [head, ...tail] = values;
-    /// ```
-    Dynamic,
-    /// Exact static sequence length.
-    ///
-    /// Examples:
-    /// ```ds
-    /// const [x, y] = pair;
-    /// ```
-    Exact(GlobalTypeId),
 }
 
 /// Or-pattern branches selected during checking.
@@ -945,22 +991,6 @@ pub struct PatternFieldResolution {
     /// The selected field projection.
     pub projection: Projection,
     /// The nested pattern matched for the field.
-    pub pattern: Option<GlobalNodeIdAny>,
-}
-
-/// Rest field selected by one ordered pattern.
-///
-/// Examples:
-/// ```ds
-/// const [head, ...tail] = values;
-/// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct PatternRestResolution {
-    /// The source node that introduces the rest field.
-    pub source: GlobalNodeIdAny,
-    /// The selected rest projection.
-    pub projection: Projection,
-    /// The nested pattern matched for the rest field.
     pub pattern: Option<GlobalNodeIdAny>,
 }
 
