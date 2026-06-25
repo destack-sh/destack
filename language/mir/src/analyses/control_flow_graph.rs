@@ -1,18 +1,17 @@
 use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation};
-use crate::{Block, Function, LocalNodeId, Tree};
+use crate::{Block, Function, LocalNodeId, NodeTable, Tree};
 
 /// Control flow graph for one function.
 #[derive(Debug, Clone)]
 pub struct ControlFlowGraph {
     /// Predecessors indexed by block id.
-    predecessors: Vec<Vec<LocalNodeId<Block>>>,
+    predecessors: NodeTable<Block, Vec<LocalNodeId<Block>>>,
 }
 
 impl ControlFlowGraph {
     /// Build the control flow graph for one function.
     pub fn build(function: &Function, tree: &Tree) -> Self {
-        let block_count = function.block_capacity();
-        let mut predecessors = vec![Vec::new(); block_count];
+        let mut predecessors = NodeTable::from_nodes(&function.blocks, Vec::new);
 
         // compute predecessors from successor edges
         for &block_id in &function.blocks {
@@ -20,9 +19,8 @@ impl ControlFlowGraph {
             let terminator = tree.get(block.terminator);
 
             for successor in terminator.successors(tree) {
-                if let Some(block_predecessors) = predecessors.get_mut(successor.id as usize) {
-                    block_predecessors.push(block_id);
-                }
+                let block_predecessors = predecessors.get_mut(successor);
+                block_predecessors.push(block_id);
             }
         }
 
@@ -31,14 +29,15 @@ impl ControlFlowGraph {
 
     /// Return the predecessors of one block.
     pub fn predecessors(&self, block: LocalNodeId<Block>) -> &[LocalNodeId<Block>] {
-        self.predecessors
-            .get(block.id as usize)
-            .map(|predecessors| predecessors.as_slice())
-            .unwrap_or(&[])
+        self.predecessors.get(block).as_slice()
     }
 
     /// Return whether one block is reachable from the entry block.
     pub fn is_reachable(&self, block: LocalNodeId<Block>, entry: LocalNodeId<Block>) -> bool {
+        // validate query blocks
+        self.predecessors.index(block);
+        self.predecessors.index(entry);
+
         // the entry block is always reachable from itself
         if block == entry {
             return true;
@@ -49,9 +48,8 @@ impl ControlFlowGraph {
 
         // walk backward through predecessors until we find the entry
         while let Some(current) = worklist.pop() {
-            let Some(is_visited) = visited.get_mut(current.id as usize) else {
-                continue;
-            };
+            let index = self.predecessors.index(current);
+            let is_visited = &mut visited[index];
             if *is_visited {
                 continue;
             }
@@ -61,9 +59,8 @@ impl ControlFlowGraph {
                 return true;
             }
 
-            if let Some(predecessors) = self.predecessors.get(current.id as usize) {
-                worklist.extend(predecessors.iter().copied());
-            }
+            let predecessors = self.predecessors.get(current);
+            worklist.extend(predecessors.iter().copied());
         }
 
         false

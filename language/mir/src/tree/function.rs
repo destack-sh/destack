@@ -286,8 +286,8 @@ impl Function {
         self.value_names.get(value.0 as usize).copied().flatten()
     }
 
-    /// Get the type for an SSA value or panic if missing.
-    pub fn require_value_type(&self, value: Value) -> LocalNodeId<Type> {
+    /// Get the expected type for an SSA value.
+    pub fn expect_value_type(&self, value: Value) -> LocalNodeId<Type> {
         // ensure value types are always recorded for SSA values
         match self.value_type(value) {
             Some(ty) => ty,
@@ -364,7 +364,7 @@ impl Function {
 
     /// Allocate a new SSA value with the same type as an existing value.
     pub fn next_typed_value_like(&mut self, source: Value) -> Value {
-        let ty = self.require_value_type(source);
+        let ty = self.expect_value_type(source);
         self.next_typed_value(ty)
     }
 

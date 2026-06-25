@@ -1,13 +1,11 @@
-use std::collections::HashMap;
-
 use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation};
-use crate::{Block, ControlFlowGraph, Function, LocalNodeId, Tree};
+use crate::{Block, ControlFlowGraph, Function, LocalNodeId, NodeTable, Tree};
 
 /// Dense control flow graph used by dominance computation.
 #[derive(Debug)]
 struct DenseControlFlow {
     /// The dense index for each block.
-    block_index: HashMap<LocalNodeId<Block>, usize>,
+    block_index: NodeTable<Block, Option<usize>>,
     /// Successor indices for each block.
     successors: Vec<Vec<usize>>,
     /// Predecessor indices for each block.
@@ -17,11 +15,11 @@ struct DenseControlFlow {
 impl DenseControlFlow {
     /// Build one dense control flow graph for one function.
     fn build(function: &Function, tree: &Tree, cfg: &ControlFlowGraph) -> Self {
-        let mut block_index = HashMap::new();
+        let mut block_index = NodeTable::from_nodes(&function.blocks, || None);
 
         // block indices
         for (index, &block) in function.blocks.iter().enumerate() {
-            block_index.insert(block, index);
+            *block_index.get_mut(block) = Some(index);
         }
 
         let mut successors = vec![Vec::new(); function.blocks.len()];
@@ -29,17 +27,17 @@ impl DenseControlFlow {
 
         // edge lists
         for &block in &function.blocks {
-            let index = block_index[&block];
+            let index = block_index.expect(block);
             let block_data = tree.get(block);
             let terminator = tree.get(block_data.terminator);
 
             for successor in terminator.successors(tree) {
-                let successor_index = block_index[&successor];
+                let successor_index = block_index.expect(successor);
                 successors[index].push(successor_index);
             }
 
             for predecessor in cfg.predecessors(block) {
-                let predecessor_index = block_index[predecessor];
+                let predecessor_index = block_index.expect(*predecessor);
                 predecessors[index].push(predecessor_index);
             }
         }
@@ -49,6 +47,13 @@ impl DenseControlFlow {
             successors,
             predecessors,
         }
+    }
+}
+
+impl DenseControlFlow {
+    /// Return the dense graph index for one block.
+    fn index_of(&self, block: LocalNodeId<Block>) -> usize {
+        self.block_index.expect(block)
     }
 }
 
@@ -65,11 +70,11 @@ struct DepthFirstFrame {
 #[derive(Debug, Clone)]
 pub struct DominatorTree {
     /// Immediate dominator indexed by block id.
-    immediate_dominators: Vec<Option<LocalNodeId<Block>>>,
+    immediate_dominators: NodeTable<Block, Option<LocalNodeId<Block>>>,
     /// Preorder numbers indexed by block id.
-    preorder: Vec<Option<u32>>,
+    preorder: NodeTable<Block, Option<u32>>,
     /// Maximum preorder number in each subtree indexed by block id.
-    preorder_max: Vec<Option<u32>>,
+    preorder_max: NodeTable<Block, Option<u32>>,
 }
 
 impl DominatorTree {
@@ -77,26 +82,26 @@ impl DominatorTree {
     pub fn build(function: &Function, tree: &Tree, cfg: &ControlFlowGraph) -> Self {
         let Some(entry) = function.entry else {
             return Self {
-                immediate_dominators: Vec::new(),
-                preorder: Vec::new(),
-                preorder_max: Vec::new(),
+                immediate_dominators: NodeTable::new(),
+                preorder: NodeTable::new(),
+                preorder_max: NodeTable::new(),
             };
         };
 
         // dense graph
         let dense = DenseControlFlow::build(function, tree, cfg);
-        let entry_index = dense.block_index[&entry];
+        let entry_index = dense.index_of(entry);
         let result =
             DominatorComputation::compute(&dense.successors, &dense.predecessors, entry_index);
 
-        let block_count = function.block_capacity();
-        let mut immediate_dominators = vec![None; block_count];
+        let mut immediate_dominators = NodeTable::from_nodes(&function.blocks, || None);
 
         // block dominators
-        for (&block, &index) in &dense.block_index {
+        for &block in &function.blocks {
+            let index = dense.index_of(block);
             if let Some(idom_index) = result.immediate_dominators[index] {
                 let idom_block = function.blocks[idom_index];
-                immediate_dominators[block.id as usize] = Some(idom_block);
+                *immediate_dominators.get_mut(block) = Some(idom_block);
             }
         }
 
@@ -112,21 +117,18 @@ impl DominatorTree {
 
     /// Return the immediate dominator of one block.
     pub fn immediate_dominator(&self, block: LocalNodeId<Block>) -> Option<LocalNodeId<Block>> {
-        self.immediate_dominators
-            .get(block.id as usize)
-            .copied()
-            .flatten()
+        *self.immediate_dominators.get(block)
     }
 
     /// Return whether one block dominates another.
     pub fn dominates(&self, a: LocalNodeId<Block>, b: LocalNodeId<Block>) -> bool {
-        let Some(a_pre) = self.preorder.get(a.id as usize).copied().flatten() else {
+        let Some(a_pre) = *self.preorder.get(a) else {
             return false;
         };
-        let Some(a_max) = self.preorder_max.get(a.id as usize).copied().flatten() else {
+        let Some(a_max) = *self.preorder_max.get(a) else {
             return false;
         };
-        let Some(b_pre) = self.preorder.get(b.id as usize).copied().flatten() else {
+        let Some(b_pre) = *self.preorder.get(b) else {
             return false;
         };
 
@@ -142,24 +144,19 @@ impl DominatorTree {
     fn compute_preorder(
         blocks: &[LocalNodeId<Block>],
         entry: LocalNodeId<Block>,
-        immediate_dominators: &[Option<LocalNodeId<Block>>],
-    ) -> (Vec<Option<u32>>, Vec<Option<u32>>) {
-        let block_count = blocks
-            .iter()
-            .map(|block| block.id as usize + 1)
-            .max()
-            .unwrap_or(0);
-        let mut children = vec![Vec::new(); block_count];
+        immediate_dominators: &NodeTable<Block, Option<LocalNodeId<Block>>>,
+    ) -> (NodeTable<Block, Option<u32>>, NodeTable<Block, Option<u32>>) {
+        let mut children = NodeTable::from_nodes(blocks, Vec::new);
+        let mut preorder = NodeTable::from_nodes(blocks, || None);
+        let mut preorder_max = NodeTable::from_nodes(blocks, || None);
 
         // dominator edges
         for &block in blocks {
-            if let Some(idom) = immediate_dominators[block.id as usize] {
-                children[idom.id as usize].push(block);
+            if let Some(idom) = *immediate_dominators.get(block) {
+                children.get_mut(idom).push(block);
             }
         }
 
-        let mut preorder = vec![None; block_count];
-        let mut preorder_max = vec![None; block_count];
         let mut counter = 0u32;
 
         // subtree ranges
@@ -177,25 +174,25 @@ impl DominatorTree {
     /// Fill preorder ranges for one dominator subtree.
     fn fill_preorder(
         block: LocalNodeId<Block>,
-        children: &[Vec<LocalNodeId<Block>>],
-        preorder: &mut [Option<u32>],
-        preorder_max: &mut [Option<u32>],
+        children: &NodeTable<Block, Vec<LocalNodeId<Block>>>,
+        preorder: &mut NodeTable<Block, Option<u32>>,
+        preorder_max: &mut NodeTable<Block, Option<u32>>,
         counter: &mut u32,
     ) {
         *counter += 1;
-        preorder[block.id as usize] = Some(*counter);
+        *preorder.get_mut(block) = Some(*counter);
 
         let mut max = *counter;
 
         // subtree walk
-        for &child in &children[block.id as usize] {
+        for &child in children.get(block) {
             Self::fill_preorder(child, children, preorder, preorder_max, counter);
-            max = max.max(preorder_max[child.id as usize].unwrap_or_else(|| {
+            max = max.max(preorder_max.get(child).unwrap_or_else(|| {
                 unreachable!("missing dominator preorder max for child: {child:?}")
             }));
         }
 
-        preorder_max[block.id as usize] = Some(max);
+        *preorder_max.get_mut(block) = Some(max);
     }
 }
 
@@ -234,20 +231,14 @@ impl DominatorComputation {
         predecessors: &[Vec<usize>],
         root: usize,
     ) -> DominatorResult {
-        // invalid graph shape
-        if successors.len() != predecessors.len() {
-            return DominatorResult {
-                immediate_dominators: vec![None; successors.len()],
-            };
-        }
-
         let node_count = successors.len();
 
-        // invalid root
+        // validate internal graph shape
+        if successors.len() != predecessors.len() {
+            panic!("dominator graph has mismatched successor and predecessor tables");
+        }
         if root >= node_count {
-            return DominatorResult {
-                immediate_dominators: vec![None; node_count],
-            };
+            panic!("dominator root is outside dense graph: {root}");
         }
 
         let mut computation = Self {

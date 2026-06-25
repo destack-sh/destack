@@ -315,6 +315,14 @@ impl ValueDefinitions {
         let parameters = terminator.successor_parameters(tree, target.block);
         let arguments = target.arguments(tree);
 
+        // require verified edge arity
+        assert_eq!(
+            parameters.len(),
+            arguments.len(),
+            "block target arity mismatch for {:?}",
+            target.block
+        );
+
         // pair target arguments with the destination block parameters
         for (parameter, argument) in parameters.iter().zip(arguments) {
             values
@@ -368,8 +376,8 @@ impl ValueTypeMap {
         self.values.get(value.0 as usize).copied().flatten()
     }
 
-    /// Return the type of a value.
-    pub fn require_value_type(&self, value: impl Into<mir::Value>) -> mir::LocalNodeId<mir::Type> {
+    /// Return the expected type of a value.
+    pub fn expect_value_type(&self, value: impl Into<mir::Value>) -> mir::LocalNodeId<mir::Type> {
         let value = value.into();
         match self.value_type(value) {
             Some(type_id) => type_id,
@@ -387,11 +395,8 @@ impl ValueTypeMap {
         self.locals.get(local.id as usize).copied().flatten()
     }
 
-    /// Return the type of a local or panic if missing.
-    pub fn require_local_type(
-        &self,
-        local: impl Into<mir::LocalId>,
-    ) -> mir::LocalNodeId<mir::Type> {
+    /// Return the expected type of a local.
+    pub fn expect_local_type(&self, local: impl Into<mir::LocalId>) -> mir::LocalNodeId<mir::Type> {
         let local = local.into();
         match self.local_type(local) {
             Some(type_id) => type_id,
@@ -405,9 +410,10 @@ impl ValueTypeMap {
         reference: impl Into<mir::Value>,
         tree: &mir::Tree,
     ) -> Option<mir::TypeId> {
-        let type_id = self.require_value_type(reference);
+        let type_id = self.expect_value_type(reference);
         match tree.get(type_id) {
             mir::Type::Reference { pointee, .. } => Some(*pointee),
+            mir::Type::Slice { element, .. } => Some(*element),
             mir::Type::TensorView { element, .. } => Some(*element),
             _ => None,
         }
@@ -419,9 +425,10 @@ impl ValueTypeMap {
         reference: impl Into<mir::Value>,
         tree: &mir::Tree,
     ) -> Option<mir::Space> {
-        let type_id = self.require_value_type(reference);
+        let type_id = self.expect_value_type(reference);
         match tree.get(type_id) {
             mir::Type::Reference { space, .. } => Some(space.clone()),
+            mir::Type::Slice { space, .. } => Some(space.clone()),
             mir::Type::TensorView { space, .. } => Some(space.clone()),
             _ => None,
         }
@@ -433,9 +440,10 @@ impl ValueTypeMap {
         reference: impl Into<mir::Value>,
         tree: &mir::Tree,
     ) -> Option<mir::ReferenceKind> {
-        let type_id = self.require_value_type(reference);
+        let type_id = self.expect_value_type(reference);
         match tree.get(type_id) {
             mir::Type::Reference { kind, .. } => Some(*kind),
+            mir::Type::Slice { kind, .. } => Some(*kind),
             mir::Type::TensorView { kind, .. } => Some(*kind),
             _ => None,
         }

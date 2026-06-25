@@ -242,8 +242,11 @@ impl<'a> Frequencies<'a> {
         let mut inner_first: Vec<usize> = (0..loop_count).collect();
         inner_first.sort_by_key(|&index| std::cmp::Reverse(self.loop_depth(index)));
         for &index in &inner_first {
-            let header = self.loops.get_loop(index).map(|l| l.header);
-            let Some(header) = header else { continue };
+            let header = self
+                .loops
+                .get_loop(index)
+                .unwrap_or_else(|| panic!("missing loop for frequency index: {index}"))
+                .header;
             let (local, backedge, exits) = self.distribute(Some(index), header, &masses);
             let scale = loop_scale(backedge);
             masses[index] = LoopMass {
@@ -265,9 +268,10 @@ impl<'a> Frequencies<'a> {
         let mut outer_first: Vec<usize> = (0..loop_count).collect();
         outer_first.sort_by_key(|&index| self.loop_depth(index));
         for &index in &outer_first {
-            let Some(this) = self.loops.get_loop(index) else {
-                continue;
-            };
+            let this = self
+                .loops
+                .get_loop(index)
+                .unwrap_or_else(|| panic!("missing loop for frequency index: {index}"));
             entry_freq[index] = match this.parent {
                 None => top_local.get(&this.header).copied().unwrap_or(0.0),
                 Some(parent) => {
@@ -468,7 +472,10 @@ impl<'a> Frequencies<'a> {
 
     /// Return one loop's nesting depth.
     fn loop_depth(&self, index: usize) -> u32 {
-        self.loops.get_loop(index).map(|l| l.depth).unwrap_or(0)
+        self.loops
+            .get_loop(index)
+            .unwrap_or_else(|| panic!("missing loop for frequency index: {index}"))
+            .depth
     }
 
     /// Return successor probabilities for every edge and whether any profile edge count is present.

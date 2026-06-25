@@ -161,7 +161,9 @@ impl TypeKey {
 
         let ty = tree.get(type_id);
         let key = match ty {
-            mir::Type::Error => TypeKey::NonConcrete,
+            mir::Type::Error => {
+                panic!("invalid MIR type reached type analysis");
+            }
             mir::Type::Void => TypeKey::Void,
             mir::Type::Boolean => TypeKey::Boolean,
             mir::Type::Int {
@@ -412,7 +414,7 @@ impl ValueTypeMap {
         pointer_width_bits: u16,
         tree: &mir::Tree,
     ) -> Option<u16> {
-        let type_id = self.require_value_type(value);
+        let type_id = self.expect_value_type(value);
         let ty = tree.get(type_id);
 
         // accept unsigned integer types
@@ -433,8 +435,8 @@ impl ValueTypeMap {
         replacement: mir::Value,
         tree: &mir::Tree,
     ) -> bool {
-        let destination_type = self.require_value_type(destination);
-        let replacement_type = self.require_value_type(replacement);
+        let destination_type = self.expect_value_type(destination);
+        let replacement_type = self.expect_value_type(replacement);
 
         types_are_equal(destination_type, replacement_type, tree)
     }

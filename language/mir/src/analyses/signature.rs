@@ -15,7 +15,7 @@ pub struct SignatureKey {
 
 impl SignatureKey {
     /// Build a signature key from a function definition.
-    pub fn from_function(tree: &mir::Tree, function: &mir::Function) -> Option<Self> {
+    pub fn from_function(tree: &mir::Tree, function: &mir::Function) -> Self {
         // collect parameter type keys
         let parameters = function
             .parameters
@@ -31,7 +31,7 @@ impl SignatureKey {
         // collect result type key
         let result = TypeKey::from_type_id(&function.return_type, tree);
 
-        Some(Self { parameters, result })
+        Self { parameters, result }
     }
 
     /// Build a signature key from a function reference type.
