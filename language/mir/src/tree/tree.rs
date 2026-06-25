@@ -1134,6 +1134,18 @@ impl Tree {
         <Self as TreeImpl<T>>::get_mut(self, local_id)
     }
 
+    /// Replace one function block's instruction list.
+    pub fn replace_block_instructions(
+        &mut self,
+        function: LocalNodeId<Function>,
+        block: LocalNodeId<Block>,
+        instructions: Vec<LocalNodeId<Instruction>>,
+    ) {
+        self.get_mut(function)
+            .replace_block_instruction_index(block, &instructions);
+        self.get_mut(block).instructions = instructions;
+    }
+
     /// Get the node type of a node by its raw id.
     #[inline]
     pub fn get_node_type(&self, id: u32) -> NodeType {

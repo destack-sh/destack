@@ -47,7 +47,7 @@ pub fn collect_reachable_blocks(
 
     // preserve function block order
     function
-        .blocks
+        .blocks()
         .iter()
         .copied()
         .filter(|block| visited.contains(block))
@@ -281,7 +281,7 @@ pub fn ensure_edge_block(
     });
     let edge_block = mir::Block::new(edge_terminator);
     let edge_block_id = tree.insert(edge_block);
-    insert_block_after(function, predecessor, edge_block_id);
+    insert_block_after(function, predecessor, edge_block_id, tree);
 
     // redirect the predecessor to the edge block
     if redirect_successor_to_edge(predecessor, successor, edge_block_id, tree) {
@@ -310,15 +310,13 @@ fn insert_block_after(
     function: &mut mir::Function,
     predecessor: mir::LocalNodeId<mir::Block>,
     block: mir::LocalNodeId<mir::Block>,
+    tree: &mir::Tree,
 ) {
-    // insert directly after the predecessor when it exists
-    if let Some(index) = function.blocks.iter().position(|id| *id == predecessor) {
-        function.blocks.insert(index + 1, block);
-        return;
-    }
+    let Some(body) = function.body_mut() else {
+        unreachable!("cannot insert a block into a function without a body");
+    };
 
-    // fallback to appending when the predecessor is not found
-    function.blocks.push(block);
+    body.insert_block_after(predecessor, block, tree);
 }
 
 /// Redirect a successor edge to a new edge block.
@@ -501,7 +499,7 @@ impl BlockParamForwarding {
         let mut map = HashMap::new();
 
         // scan blocks for forwarded parameters
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             // read block parameters
             let block = tree.get(block_id);
             if block.parameters.is_empty() {
@@ -613,7 +611,7 @@ pub fn apply_substitutions_in_dominated_blocks(
     let mut changed = false;
 
     // update blocks dominated by the root
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // skip blocks not dominated by the root
         if !domtree.dominates(root, block_id) {
             continue;
@@ -797,7 +795,7 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::Tree) -> 
     let mut threadable: HashMap<mir::LocalNodeId<mir::Block>, ThreadableBlock> = HashMap::new();
 
     // scan blocks to identify threadable candidates
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // read the block
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
@@ -836,7 +834,7 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::Tree) -> 
 
     // rewrite terminators to bypass threadable blocks
     let mut changed = false;
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // snapshot the terminator before interning new payload slices
         let terminator_id = tree.get(block_id).terminator;
         let terminator = tree.get(terminator_id).clone();

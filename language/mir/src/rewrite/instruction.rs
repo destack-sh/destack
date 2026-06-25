@@ -451,7 +451,7 @@ pub fn instruction_collect_used_values(
     }
 
     // scan blocks for instruction and terminator uses
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
 
@@ -1666,7 +1666,7 @@ pub fn substitute_values(
 ///
 /// Returns true when any instruction or terminator is updated or removed.
 pub fn apply_substitutions_in_function(
-    function: &mir::Function,
+    function: &mut mir::Function,
     tree: &mut mir::Tree,
     substitutions: &HashMap<mir::Value, mir::Value>,
     to_remove: Option<&HashSet<mir::LocalNodeId<mir::Instruction>>>,
@@ -1681,8 +1681,10 @@ pub fn apply_substitutions_in_function(
     // track whether any changes occur
     let mut changed = false;
 
+    let blocks = function.blocks().to_vec();
+
     // rewrite instructions and terminators in each block
-    for &block_id in &function.blocks {
+    for block_id in blocks {
         // snapshot block contents
         let block = tree.get(block_id).clone();
         let instruction_ids = block.instructions.clone();
@@ -1722,9 +1724,7 @@ pub fn apply_substitutions_in_function(
 
         // update block when instructions or terminator changed
         if new_instructions.len() != block.instructions.len() || new_terminator != terminator {
-            let mut new_block = block;
-            new_block.instructions = new_instructions;
-            tree.set(block_id, new_block);
+            function.replace_block_instructions(block_id, new_instructions, tree);
             tree.set(terminator_id, new_terminator);
             changed = true;
         }
@@ -1752,7 +1752,7 @@ pub fn build_use_def_maps(function: &mir::Function, tree: &mir::Tree) -> UseDefM
     let mut def_block: HashMap<mir::Value, mir::LocalNodeId<mir::Block>> = HashMap::new();
 
     // scan blocks for definitions and uses
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
 
         // block parameters are defined in this block
@@ -1894,7 +1894,7 @@ pub fn build_value_definition_blocks(
     let mut map = HashMap::new();
 
     // scan blocks for definitions
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         let block = tree.get(block_id);
 
         // record block parameters as definitions
@@ -1914,24 +1914,6 @@ pub fn build_value_definition_blocks(
     map
 }
 
-/// Build a map from instruction ids to their containing blocks.
-pub fn build_instruction_block_map(
-    function: &mir::Function,
-    tree: &mir::Tree,
-) -> HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>> {
-    let mut map = HashMap::new();
-
-    // scan blocks for instruction ownership
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        for &instruction_id in &block.instructions {
-            map.insert(instruction_id, block_id);
-        }
-    }
-
-    map
-}
-
 /// Build a map from values to their defining instructions.
 pub fn build_value_instruction_map(
     function: &mir::Function,
@@ -1941,7 +1923,7 @@ pub fn build_value_instruction_map(
     let mut map = HashMap::new();
 
     // scan blocks for definitions
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // read block instructions
         let block = tree.get(block_id);
         for &instruction_id in &block.instructions {
@@ -1965,7 +1947,7 @@ pub fn build_value_instruction_refs(
     let mut map = HashMap::new();
 
     // scan blocks for definitions
-    for &block_id in &function.blocks {
+    for &block_id in function.blocks() {
         // read block instructions
         let block = tree.get(block_id);
         for (index, instruction_id) in block.instructions.iter().enumerate() {

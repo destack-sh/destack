@@ -163,11 +163,11 @@ pub fn loop_preheader(
 
 /// Collect control instructions in a latch block.
 pub fn control_instructions_for_latch(
+    function: &mir::Function,
     header: mir::LocalNodeId<mir::Block>,
     latch: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
 ) -> HashSet<mir::LocalNodeId<mir::Instruction>> {
     // collect control values from header and latch arguments
     let mut control_values = HashSet::new();
@@ -193,7 +193,7 @@ pub fn control_instructions_for_latch(
             continue;
         };
 
-        if instruction_blocks.get(definition) != Some(&latch) {
+        if function.instruction_block(*definition) != Some(latch) {
             continue;
         }
 
@@ -322,6 +322,9 @@ fn clone_loop_blocks_internal(
     let mut block_map = HashMap::new();
     let mut value_map = HashMap::new();
     let mut instruction_id_map = HashMap::new();
+    let Some(body) = function.body_mut() else {
+        unreachable!("cannot clone loop blocks in a function without a body");
+    };
 
     // sort blocks for deterministic insertion
     let mut sorted_blocks: Vec<_> = loop_blocks.iter().copied().collect();
@@ -338,7 +341,7 @@ fn clone_loop_blocks_internal(
             .iter()
             .map(|param| match (Some(param.value), Some(param.ty)) {
                 (Some(value), Some(ty)) => {
-                    let new_value = function.next_typed_value(ty);
+                    let new_value = body.next_typed_value(ty);
                     value_map.insert(value, new_value);
 
                     mir::BlockParameter {
@@ -354,7 +357,7 @@ fn clone_loop_blocks_internal(
         for &instruction_id in &original.instructions {
             let instruction = tree.get(instruction_id);
             if let Some(destination) = instruction.destination() {
-                let new_value = function.next_typed_value_like(destination);
+                let new_value = body.next_typed_value_like(destination);
                 value_map.insert(destination, new_value);
             }
         }
@@ -385,10 +388,7 @@ fn clone_loop_blocks_internal(
             new_instructions.push(new_instruction_id);
         }
 
-        // attach cloned instructions to the new block
-        let mut new_block = tree.get(new_block_id).clone();
-        new_block.instructions = new_instructions;
-        tree.set(new_block_id, new_block);
+        function.replace_block_instructions(new_block_id, new_instructions, tree);
     }
 
     (block_map, value_map, instruction_id_map)
