@@ -22,15 +22,12 @@ impl Origin {
         }
     }
 
-    /// Return the value-expression node that can receive an implicit coercion.
-    pub(in crate::check) fn coercion_site(self) -> Option<dir::GlobalNodeIdAny> {
+    /// Return the expression node that produced this work.
+    pub(in crate::check) fn expression(self) -> Option<dir::GlobalNodeId<dir::Expression>> {
         let Self::Node(node) = self else {
             return None;
         };
-        if node.local_id.ty == dir::NodeType::Expression {
-            Some(node)
-        } else {
-            None
-        }
+
+        node.try_into_typed().ok()
     }
 }
