@@ -44,7 +44,7 @@ pub struct TypeTable {
     /// Program type id by MIR type id.
     type_ids: HashMap<mir::LocalNodeId<mir::Type>, TypeId>,
     /// Dense runtime layout ids keyed by program type id.
-    layout_by_type: Vec<Option<mir::LayoutId>>,
+    layouts: Vec<Option<mir::LayoutId>>,
 }
 
 impl TypeTable {
@@ -68,15 +68,15 @@ impl TypeTable {
         }
 
         // copy layout ids already assigned during VM lowerer
-        let mut layout_by_type = Vec::new();
+        let mut layouts = Vec::new();
         for (mir_type, _) in tree.iter_nodes::<mir::Type>() {
             if let Some(layout_id) = tree.type_layout_id(mir_type) {
                 let type_id = index.type_id(mir_type);
                 let index = type_id.index();
-                if index >= layout_by_type.len() {
-                    layout_by_type.resize_with(index + 1, || None);
+                if index >= layouts.len() {
+                    layouts.resize_with(index + 1, || None);
                 }
-                layout_by_type[index] = Some(layout_id);
+                layouts[index] = Some(layout_id);
             }
         }
 
@@ -84,7 +84,7 @@ impl TypeTable {
             types,
             mir_types,
             type_ids,
-            layout_by_type,
+            layouts,
         }
     }
 
@@ -129,7 +129,7 @@ impl TypeTable {
     pub fn layout_id(&self, ty: TypeId) -> Option<mir::LayoutId> {
         let ty = self.repr_type(ty);
 
-        self.layout_by_type.get(ty.index()).copied().flatten()
+        self.layouts.get(ty.index()).copied().flatten()
     }
 
     /// Return whether one type is stored in one VM cell.
