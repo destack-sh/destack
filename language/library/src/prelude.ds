@@ -99,6 +99,7 @@ global {
         Ownership,
         OwnershipOf,
         OwnershipOr,
+        OverwriteStable,
         PayloadOf,
         Phantom,
         Pin,

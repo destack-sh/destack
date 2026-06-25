@@ -10,6 +10,10 @@ export newtype interface Concrete {}
 @languageItem("memory.DynamicSafe")
 export newtype interface DynamicSafe {}
 
+/// Mark a type as safe to overwrite through non-exclusive mutable access.
+@languageItem("memory.OverwriteStable")
+export newtype interface OverwriteStable {}
+
 /// Mark a type as explicitly cloneable.
 @languageItem("memory.Clone")
 export newtype interface Clone {
