@@ -10,7 +10,7 @@ use destack_artifact::{
 use destack_dir as dir;
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Host, ProviderError, Ref, Repository,
-    Revision, Settings,
+    Revision, Settings, TraceSnapshot,
 };
 use destack_source::{
     Content, DiagnosticCollection, DiffOptions, MemoryFileSystem, ModuleId, ProfileId, TargetId,
@@ -23,14 +23,13 @@ use crate::tests::snapshot::{
 
 use super::module::{TestModule, parse_module, parsed_dependencies};
 use super::provider::TestProvider;
+use super::trace::TraceTable;
 
 /// A test session builder.
 #[derive(Debug, Default)]
 pub(crate) struct TestSessionBuilder {
     /// Source files keyed by logical path.
     files: BTreeMap<String, Content>,
-    /// Whether provider attempts should emit event traces.
-    emit_events: bool,
 }
 
 impl TestSessionBuilder {
@@ -61,7 +60,6 @@ impl TestSessionBuilder {
     /// Build the test session.
     pub(crate) fn build(self) -> TestSession {
         let mut files = self.files;
-        let emit_events = self.emit_events;
 
         // enable sidecar snapshots in compiler tests
         files
@@ -77,7 +75,7 @@ impl TestSessionBuilder {
                 .to_string(),
             });
 
-        TestSession::build(files, emit_events)
+        TestSession::build(files)
     }
 }
 
@@ -119,7 +117,7 @@ impl TestSession {
     }
 
     /// Build one test session from source files.
-    fn build(files: BTreeMap<String, Content>, emit_events: bool) -> Self {
+    fn build(files: BTreeMap<String, Content>) -> Self {
         let root = PathBuf::new();
         let environment = Environment::default();
         let layout = DestackLayout::resolve(
@@ -159,7 +157,7 @@ impl TestSession {
         let modules_by_path = Self::build_modules(repository.as_ref(), revision, &files);
         let module_path_by_id = Self::module_path_by_id(repository.as_ref(), revision, &files);
         Self::seed_parsed_artifacts(repository.as_ref(), revision, &modules_by_path);
-        let provider = TestProvider::new(repository.clone(), revision, emit_events);
+        let provider = TestProvider::new(repository.clone(), revision);
 
         Self {
             repository,
@@ -878,6 +876,24 @@ impl TestSession {
         } else {
             Ok(())
         }
+    }
+
+    /// Return the detailed artifact trace for this test session.
+    pub(crate) fn trace(&self) -> TraceSnapshot {
+        self.provider.trace()
+    }
+
+    /// Print the detailed artifact trace for this test session.
+    pub(crate) fn print_trace(&self, name: &str, attempt_limit: usize) {
+        let trace = self.trace();
+
+        TraceTable::new()
+            .row(name, &trace)
+            .color()
+            .timeline()
+            .times()
+            .slow_attempts(attempt_limit)
+            .print();
     }
 
     /// Return the artifact key that owns one phase sidecar.
