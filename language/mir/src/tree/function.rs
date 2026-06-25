@@ -3,8 +3,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Block, FunctionParameter, LifetimeParameter, Linkage, Local, LocalNodeId, Node, NodeType,
-    Symbol, Tree, Type, TypeId, Value,
+    Block, FunctionParameter, Instruction, LifetimeParameter, Linkage, Local, LocalNodeId, Node,
+    NodeType, Symbol, Tree, Type, TypeId, Value,
 };
 
 /// Memory allocation restrictions for a function.
@@ -97,23 +97,12 @@ pub struct Function {
     /// Optional parameter names for diagnostics.
     pub parameter_names: Vec<Option<StringId>>,
 
-    /// Optional explicit SSA value names keyed by value id.
-    pub value_names: Vec<Option<StringId>>,
-    /// SSA value types keyed by value id.
-    pub value_types: Vec<Option<LocalNodeId<Type>>>,
-    /// Counter for allocating unique SSA value IDs.
-    pub(crate) next_value_id: u32,
-
     /// The return type.
     pub return_type: TypeId,
     /// The hidden environment type for this function when present.
     pub environment: Option<TypeId>,
-    /// Local variables (stack-allocated slots for mutable bindings).
-    pub locals: Vec<LocalNodeId<Local>>,
-    /// All basic blocks in this function.
-    pub blocks: Vec<LocalNodeId<Block>>,
-    /// The entry block (execution starts here).
-    pub entry: Option<LocalNodeId<Block>>,
+    /// The executable function body when this function is defined.
+    pub body: Option<FunctionBody>,
 
     /// Memory allocation restrictions for this function.
     pub allocation: AllocationMode,
@@ -125,15 +114,406 @@ impl Node for Function {
     const TYPE: NodeType = NodeType::Function;
 }
 
-impl Function {
-    /// Return the dense value table capacity for this function.
+/// The executable body of one MIR function.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct FunctionBody {
+    /// The entry block where execution starts.
+    entry: LocalNodeId<Block>,
+    /// The function blocks in layout order.
+    blocks: Vec<LocalNodeId<Block>>,
+    /// The function locals in slot order.
+    locals: Vec<LocalNodeId<Local>>,
+    /// Optional explicit SSA value names keyed by value id.
+    value_names: Vec<Option<StringId>>,
+    /// SSA value types keyed by value id.
+    value_types: Vec<Option<LocalNodeId<Type>>>,
+    /// Counter for allocating unique SSA value ids.
+    next_value_id: u32,
+    /// Instruction locations keyed by instruction id.
+    instruction_index: InstructionIndex,
+}
+
+/// Location of one instruction in a MIR function body.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct InstructionLocation {
+    /// The block that owns the instruction.
+    pub block: LocalNodeId<Block>,
+    /// The instruction index in the block.
+    pub index: u32,
+}
+
+/// Function-local instruction location index.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+struct InstructionIndex {
+    /// Instruction locations keyed by instruction id.
+    locations: Vec<Option<InstructionLocation>>,
+}
+
+impl InstructionIndex {
+    /// Build an instruction index for one function body.
+    fn build(blocks: &[LocalNodeId<Block>], tree: &Tree) -> Self {
+        let mut index = Self::default();
+        index.rebuild(blocks, tree);
+        index
+    }
+
+    /// Rebuild the whole instruction index.
+    fn rebuild(&mut self, blocks: &[LocalNodeId<Block>], tree: &Tree) {
+        self.locations.clear();
+
+        for &block_id in blocks {
+            let block = tree.get(block_id);
+            for (index, &instruction) in block.instructions.iter().enumerate() {
+                self.set(instruction, block_id, index);
+            }
+        }
+    }
+
+    /// Return one instruction location.
+    fn location(&self, instruction: LocalNodeId<Instruction>) -> Option<InstructionLocation> {
+        self.locations
+            .get(instruction.id as usize)
+            .copied()
+            .flatten()
+    }
+
+    /// Return the block that owns one instruction.
+    fn block(&self, instruction: LocalNodeId<Instruction>) -> Option<LocalNodeId<Block>> {
+        self.location(instruction).map(|location| location.block)
+    }
+
+    /// Return one instruction's index in its owning block.
+    fn position(&self, instruction: LocalNodeId<Instruction>) -> Option<usize> {
+        self.location(instruction)
+            .map(|location| location.index as usize)
+    }
+
+    /// Replace all instruction locations for one block.
+    fn replace_block(
+        &mut self,
+        block: LocalNodeId<Block>,
+        instructions: &[LocalNodeId<Instruction>],
+    ) {
+        for location in &mut self.locations {
+            let Some(existing) = location else {
+                continue;
+            };
+
+            if existing.block == block {
+                *location = None;
+            }
+        }
+
+        for (index, &instruction) in instructions.iter().enumerate() {
+            self.set(instruction, block, index);
+        }
+    }
+
+    /// Record one instruction location.
+    fn set(
+        &mut self,
+        instruction: LocalNodeId<Instruction>,
+        block: LocalNodeId<Block>,
+        index: usize,
+    ) {
+        let slot = instruction.id as usize;
+        let count = slot + 1;
+        if self.locations.len() < count {
+            self.locations.resize(count, None);
+        }
+
+        self.locations[slot] = Some(InstructionLocation {
+            block,
+            index: index as u32,
+        });
+    }
+}
+
+impl FunctionBody {
+    /// Create an empty function body.
+    fn empty(
+        entry: LocalNodeId<Block>,
+        value_names: Vec<Option<StringId>>,
+        value_types: Vec<Option<LocalNodeId<Type>>>,
+        next_value_id: u32,
+    ) -> Self {
+        Self {
+            entry,
+            blocks: Vec::new(),
+            locals: Vec::new(),
+            value_names,
+            value_types,
+            next_value_id,
+            instruction_index: InstructionIndex::default(),
+        }
+    }
+
+    /// Create a complete function body.
+    pub fn new(
+        entry: LocalNodeId<Block>,
+        blocks: Vec<LocalNodeId<Block>>,
+        locals: Vec<LocalNodeId<Local>>,
+        value_names: Vec<Option<StringId>>,
+        value_types: Vec<Option<LocalNodeId<Type>>>,
+        next_value_id: u32,
+        tree: &Tree,
+    ) -> Self {
+        let instruction_index = InstructionIndex::build(&blocks, tree);
+
+        Self {
+            entry,
+            blocks,
+            locals,
+            value_names,
+            value_types,
+            next_value_id,
+            instruction_index,
+        }
+    }
+
+    /// Return the entry block.
+    pub fn entry(&self) -> LocalNodeId<Block> {
+        self.entry
+    }
+
+    /// Set the entry block.
+    pub fn set_entry(&mut self, entry: LocalNodeId<Block>) {
+        self.entry = entry;
+    }
+
+    /// Return the function blocks in layout order.
+    pub fn blocks(&self) -> &[LocalNodeId<Block>] {
+        &self.blocks
+    }
+
+    /// Return one function block by layout index.
+    pub fn block(&self, index: usize) -> LocalNodeId<Block> {
+        self.blocks
+            .get(index)
+            .copied()
+            .unwrap_or_else(|| unreachable!("missing block at layout index {index}"))
+    }
+
+    /// Replace the function blocks in layout order.
+    pub fn replace_blocks(&mut self, blocks: Vec<LocalNodeId<Block>>, tree: &Tree) {
+        self.blocks = blocks;
+        self.rebuild_instruction_index(tree);
+    }
+
+    /// Append one block to the body.
+    pub fn add_block(&mut self, block: LocalNodeId<Block>, tree: &Tree) {
+        self.blocks.push(block);
+        self.rebuild_instruction_index(tree);
+    }
+
+    /// Insert one block after a predecessor, or append it when the predecessor is absent.
+    pub fn insert_block_after(
+        &mut self,
+        predecessor: LocalNodeId<Block>,
+        block: LocalNodeId<Block>,
+        tree: &Tree,
+    ) {
+        if let Some(index) = self.blocks.iter().position(|id| *id == predecessor) {
+            self.blocks.insert(index + 1, block);
+        } else {
+            self.blocks.push(block);
+        }
+
+        self.rebuild_instruction_index(tree);
+    }
+
+    /// Return the function locals in slot order.
+    pub fn locals(&self) -> &[LocalNodeId<Local>] {
+        &self.locals
+    }
+
+    /// Return one function local by slot index.
+    pub fn local(&self, index: usize) -> LocalNodeId<Local> {
+        self.locals
+            .get(index)
+            .copied()
+            .unwrap_or_else(|| unreachable!("missing local at slot index {index}"))
+    }
+
+    /// Replace the function locals in slot order.
+    pub fn replace_locals(&mut self, locals: Vec<LocalNodeId<Local>>) {
+        self.locals = locals;
+    }
+
+    /// Append one local to the body.
+    pub fn add_local(&mut self, local: LocalNodeId<Local>) {
+        self.locals.push(local);
+    }
+
+    /// Return the dense value table capacity for this body.
     pub fn value_capacity(&self) -> usize {
         self.next_value_id as usize
     }
 
+    /// Return the explicit name for one SSA value.
+    pub fn value_name(&self, value: Value) -> Option<StringId> {
+        self.value_names.get(value.0 as usize).copied().flatten()
+    }
+
+    /// Return the type for one SSA value.
+    pub fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
+        self.value_types.get(value.0 as usize).copied().flatten()
+    }
+
+    /// Return all value type slots.
+    pub fn value_types(&self) -> &[Option<LocalNodeId<Type>>] {
+        &self.value_types
+    }
+
+    /// Return one instruction location.
+    pub fn instruction_location(
+        &self,
+        instruction: LocalNodeId<Instruction>,
+    ) -> Option<InstructionLocation> {
+        self.instruction_index.location(instruction)
+    }
+
+    /// Return the block that owns one instruction.
+    pub fn instruction_block(
+        &self,
+        instruction: LocalNodeId<Instruction>,
+    ) -> Option<LocalNodeId<Block>> {
+        self.instruction_index.block(instruction)
+    }
+
+    /// Return one instruction's index in its owning block.
+    pub fn instruction_position(&self, instruction: LocalNodeId<Instruction>) -> Option<usize> {
+        self.instruction_index.position(instruction)
+    }
+
+    /// Rebuild the instruction location index.
+    pub fn rebuild_instruction_index(&mut self, tree: &Tree) {
+        self.instruction_index.rebuild(&self.blocks, tree);
+    }
+
+    /// Replace one block's instruction locations.
+    fn replace_block_instructions(
+        &mut self,
+        block: LocalNodeId<Block>,
+        instructions: &[LocalNodeId<Instruction>],
+    ) {
+        self.instruction_index.replace_block(block, instructions);
+    }
+
+    /// Replace the SSA value type table.
+    pub fn replace_value_types(&mut self, value_types: Vec<Option<LocalNodeId<Type>>>) {
+        self.value_types = value_types;
+        self.next_value_id = self.next_value_id.max(self.value_types.len() as u32);
+    }
+
+    /// Return the expected type for one SSA value.
+    pub fn expect_value_type(&self, value: Value) -> LocalNodeId<Type> {
+        match self.value_type(value) {
+            Some(ty) => ty,
+            None => unreachable!("missing type for value {value:?}"),
+        }
+    }
+
+    /// Record the type for one SSA value.
+    pub fn set_value_type(&mut self, value: Value, ty: LocalNodeId<Type>) {
+        let index = self.resize_value_slots(value);
+
+        if let Some(existing) = self.value_types[index] {
+            if existing != ty {
+                unreachable!("value {value:?} has mismatched types {existing:?} and {ty:?}");
+            }
+
+            return;
+        }
+
+        self.value_types[index] = Some(ty);
+    }
+
+    /// Record the explicit name for one SSA value.
+    pub fn set_value_name(&mut self, value: Value, name: StringId) {
+        let index = self.resize_value_slots(value);
+        self.value_names[index] = Some(name);
+    }
+
+    /// Allocate a new SSA value.
+    pub fn next_value(&mut self) -> Value {
+        let value = Value::new(self.next_value_id);
+        self.next_value_id += 1;
+        value
+    }
+
+    /// Allocate a new SSA value and record its type.
+    pub fn next_typed_value(&mut self, ty: LocalNodeId<Type>) -> Value {
+        let value = self.next_value();
+        self.set_value_type(value, ty);
+        value
+    }
+
+    /// Allocate a new SSA value with the same type as an existing value.
+    pub fn next_typed_value_like(&mut self, source: Value) -> Value {
+        let ty = self.expect_value_type(source);
+        self.next_typed_value(ty)
+    }
+
+    /// Recompute the next SSA value id from live body values.
+    pub fn recompute_next_value_id(&mut self, parameters: &[FunctionParameter], tree: &Tree) {
+        let mut max_id: u32 = 0;
+
+        // scan function parameters
+        for parameter in parameters {
+            max_id = max_id.max(parameter.value.0);
+        }
+
+        // scan block parameters and instruction destinations
+        for &block_id in &self.blocks {
+            let block = tree.get(block_id);
+            for parameter in &block.parameters {
+                max_id = max_id.max(parameter.value.0);
+            }
+
+            for &instruction_id in &block.instructions {
+                let Some(value) = tree.get(instruction_id).destination() else {
+                    continue;
+                };
+
+                max_id = max_id.max(value.0);
+            }
+        }
+
+        let computed_next = max_id + 1;
+        let min_next = self.value_types.len() as u32;
+        self.next_value_id = self.next_value_id.max(computed_next).max(min_next);
+    }
+
+    /// Resize SSA side tables for one value.
+    fn resize_value_slots(&mut self, value: Value) -> usize {
+        let index = value.0 as usize;
+        let value_count = index + 1;
+
+        if self.value_types.len() < value_count {
+            self.value_types.resize(value_count, None);
+        }
+
+        if self.value_names.len() < value_count {
+            self.value_names.resize(value_count, None);
+        }
+
+        index
+    }
+}
+
+impl Function {
+    /// Return the dense value table capacity for this function.
+    pub fn value_capacity(&self) -> usize {
+        self.body
+            .as_ref()
+            .map(FunctionBody::value_capacity)
+            .unwrap_or(0)
+    }
+
     /// Return the dense local table capacity for this function.
     pub fn local_capacity(&self) -> usize {
-        self.locals
+        self.locals()
             .iter()
             .map(|local| local.id as usize + 1)
             .max()
@@ -142,7 +522,7 @@ impl Function {
 
     /// Return the dense block table capacity for this function.
     pub fn block_capacity(&self) -> usize {
-        self.blocks
+        self.blocks()
             .iter()
             .map(|block| block.id as usize + 1)
             .max()
@@ -151,7 +531,7 @@ impl Function {
 
     /// Return the dense instruction table capacity for this function.
     pub fn instruction_capacity(&self, tree: &Tree) -> usize {
-        self.blocks
+        self.blocks()
             .iter()
             .flat_map(|block| tree.get(*block).instructions.iter())
             .map(|instruction| instruction.id as usize + 1)
@@ -197,30 +577,24 @@ impl Function {
         parameters: Vec<FunctionParameter>,
         return_type: TypeId,
         linkage: Linkage,
-        entry: Option<LocalNodeId<Block>>,
+        body: Option<FunctionBody>,
     ) -> Self {
         // seed parameter-derived state
         let parameter_names = vec![None; parameters.len()];
-        let (next_value_id, value_types) = Self::parameter_state(&parameters);
 
-        // function body and signature
+        // function signature
         Self {
             name,
             symbol: Symbol(name),
             parameters,
             lifetimes,
             parameter_names,
-            value_names: vec![None; next_value_id as usize],
-            value_types,
             return_type,
             linkage,
             allocation: AllocationMode::Any,
             suspension: None,
             environment: None,
-            locals: Vec::new(),
-            blocks: Vec::new(),
-            entry,
-            next_value_id,
+            body,
         }
     }
 
@@ -241,21 +615,29 @@ impl Function {
         )
     }
 
-    /// Create a new local (private) function with the given signature.
-    pub fn local(
+    /// Create a defined local function with an empty body.
+    pub fn define(
         name: StringId,
         lifetimes: Vec<LifetimeParameter>,
         parameters: Vec<FunctionParameter>,
         return_type: TypeId,
         entry: LocalNodeId<Block>,
     ) -> Self {
+        let (next_value_id, value_types) = Self::parameter_state(&parameters);
+        let body = FunctionBody::empty(
+            entry,
+            vec![None; next_value_id as usize],
+            value_types,
+            next_value_id,
+        );
+
         Self::with_signature(
             name,
             lifetimes,
             parameters,
             return_type,
             Linkage::Local,
-            Some(entry),
+            Some(body),
         )
     }
 
@@ -278,52 +660,18 @@ impl Function {
 
     /// Get the type for an SSA value.
     pub fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
-        self.value_types.get(value.0 as usize).copied().flatten()
+        self.body.as_ref().and_then(|body| body.value_type(value))
     }
 
     /// Get the explicit name for an SSA value when one exists.
     pub fn value_name(&self, value: Value) -> Option<StringId> {
-        self.value_names.get(value.0 as usize).copied().flatten()
-    }
-
-    /// Get the expected type for an SSA value.
-    pub fn expect_value_type(&self, value: Value) -> LocalNodeId<Type> {
-        // ensure value types are always recorded for SSA values
-        match self.value_type(value) {
-            Some(ty) => ty,
-            None => unreachable!("missing type for value {value:?}"),
-        }
-    }
-
-    /// Record the type for an SSA value.
-    pub fn set_value_type(&mut self, value: Value, ty: LocalNodeId<Type>) {
-        let index = self.resize_value_slots(value);
-
-        if let Some(existing) = self.value_types[index] {
-            if existing != ty {
-                unreachable!("value {value:?} has mismatched types {existing:?} and {ty:?}");
+        for (parameter, name) in self.parameters.iter().zip(&self.parameter_names) {
+            if parameter.value == value {
+                return *name;
             }
-
-            return;
         }
 
-        self.value_types[index] = Some(ty);
-    }
-
-    /// Resize SSA side tables for one value.
-    fn resize_value_slots(&mut self, value: Value) -> usize {
-        let index = value.0 as usize;
-        let value_count = index + 1;
-
-        if self.value_types.len() < value_count {
-            self.value_types.resize(value_count, None);
-        }
-
-        if self.value_names.len() < value_count {
-            self.value_names.resize(value_count, None);
-        }
-
-        index
+        self.body.as_ref().and_then(|body| body.value_name(value))
     }
 
     /// Set the linkage and return self (builder pattern).
@@ -348,68 +696,257 @@ impl Function {
         self.linkage.is_import()
     }
 
+    /// Return whether this function has an executable body.
+    pub fn is_defined(&self) -> bool {
+        self.body.is_some()
+    }
+
+    /// Return the executable body when present.
+    pub fn body(&self) -> Option<&FunctionBody> {
+        self.body.as_ref()
+    }
+
+    /// Return the mutable executable body when present.
+    pub(crate) fn body_mut(&mut self) -> Option<&mut FunctionBody> {
+        self.body.as_mut()
+    }
+
+    /// Replace the executable body.
+    pub fn set_body(&mut self, body: FunctionBody) {
+        self.body = Some(body);
+    }
+
+    /// Remove the executable body.
+    pub fn clear_body(&mut self) {
+        self.body = None;
+    }
+
+    /// Return the entry block when this function has a body.
+    pub fn entry(&self) -> Option<LocalNodeId<Block>> {
+        self.body.as_ref().map(FunctionBody::entry)
+    }
+
+    /// Return the function blocks in layout order.
+    pub fn blocks(&self) -> &[LocalNodeId<Block>] {
+        self.body.as_ref().map(FunctionBody::blocks).unwrap_or(&[])
+    }
+
+    /// Return one function block by layout index.
+    pub fn block(&self, index: usize) -> LocalNodeId<Block> {
+        let Some(body) = self.body.as_ref() else {
+            unreachable!("cannot read block {index} from a function without a body");
+        };
+
+        body.block(index)
+    }
+
+    /// Return the function locals in slot order.
+    pub fn locals(&self) -> &[LocalNodeId<Local>] {
+        self.body.as_ref().map(FunctionBody::locals).unwrap_or(&[])
+    }
+
+    /// Return one function local by slot index.
+    pub fn local(&self, index: usize) -> LocalNodeId<Local> {
+        let Some(body) = self.body.as_ref() else {
+            unreachable!("cannot read local {index} from a function without a body");
+        };
+
+        body.local(index)
+    }
+
+    /// Return the value type table when this function has a body.
+    pub fn value_types(&self) -> &[Option<LocalNodeId<Type>>] {
+        self.body
+            .as_ref()
+            .map(FunctionBody::value_types)
+            .unwrap_or(&[])
+    }
+
+    /// Return one instruction location when this function has a body.
+    pub fn instruction_location(
+        &self,
+        instruction: LocalNodeId<Instruction>,
+    ) -> Option<InstructionLocation> {
+        self.body
+            .as_ref()
+            .and_then(|body| body.instruction_location(instruction))
+    }
+
+    /// Return the block that owns one instruction.
+    pub fn instruction_block(
+        &self,
+        instruction: LocalNodeId<Instruction>,
+    ) -> Option<LocalNodeId<Block>> {
+        self.body
+            .as_ref()
+            .and_then(|body| body.instruction_block(instruction))
+    }
+
+    /// Return one instruction's index in its owning block.
+    pub fn instruction_position(&self, instruction: LocalNodeId<Instruction>) -> Option<usize> {
+        self.body
+            .as_ref()
+            .and_then(|body| body.instruction_position(instruction))
+    }
+
+    /// Set the entry block.
+    pub fn set_entry(&mut self, entry: LocalNodeId<Block>) {
+        let Some(body) = self.body.as_mut() else {
+            unreachable!("cannot set entry on a function without a body");
+        };
+
+        body.set_entry(entry);
+    }
+
+    /// Replace the function blocks in layout order.
+    pub fn replace_blocks(&mut self, blocks: Vec<LocalNodeId<Block>>, tree: &Tree) {
+        let Some(body) = self.body.as_mut() else {
+            unreachable!("cannot replace blocks on a function without a body");
+        };
+
+        body.replace_blocks(blocks, tree);
+    }
+
+    /// Retain function blocks that satisfy one predicate.
+    pub fn retain_blocks(
+        &mut self,
+        mut retain: impl FnMut(LocalNodeId<Block>) -> bool,
+        tree: &Tree,
+    ) {
+        let Some(body) = self.body.as_mut() else {
+            unreachable!("cannot retain blocks on a function without a body");
+        };
+
+        body.blocks.retain(|block| retain(*block));
+        body.rebuild_instruction_index(tree);
+    }
+
+    /// Insert one block after another block, or append it when the predecessor is absent.
+    pub fn insert_block_after(
+        &mut self,
+        predecessor: LocalNodeId<Block>,
+        block: LocalNodeId<Block>,
+        tree: &Tree,
+    ) {
+        let Some(body) = self.body.as_mut() else {
+            unreachable!("cannot insert block into a function without a body");
+        };
+
+        body.insert_block_after(predecessor, block, tree);
+    }
+
+    /// Replace one block's instruction list.
+    pub fn replace_block_instructions(
+        &mut self,
+        block: LocalNodeId<Block>,
+        instructions: Vec<LocalNodeId<Instruction>>,
+        tree: &mut Tree,
+    ) {
+        self.replace_block_instruction_index(block, &instructions);
+        tree.get_mut(block).instructions = instructions;
+    }
+
+    /// Replace one block's instruction index entries.
+    pub(crate) fn replace_block_instruction_index(
+        &mut self,
+        block: LocalNodeId<Block>,
+        instructions: &[LocalNodeId<Instruction>],
+    ) {
+        let Some(body) = self.body.as_mut() else {
+            unreachable!("cannot replace instructions on a function without a body");
+        };
+
+        body.replace_block_instructions(block, instructions);
+    }
+
+    /// Rebuild the function body's instruction index.
+    pub fn rebuild_instruction_index(&mut self, tree: &Tree) {
+        let Some(body) = self.body.as_mut() else {
+            unreachable!("cannot rebuild instruction index on a function without a body");
+        };
+
+        body.rebuild_instruction_index(tree);
+    }
+
+    /// Replace the function locals in slot order.
+    pub fn replace_locals(&mut self, locals: Vec<LocalNodeId<Local>>) {
+        let Some(body) = self.body.as_mut() else {
+            unreachable!("cannot replace locals on a function without a body");
+        };
+
+        body.replace_locals(locals);
+    }
+
+    /// Retain function locals that satisfy one predicate.
+    pub fn retain_locals(&mut self, mut retain: impl FnMut(LocalNodeId<Local>) -> bool) {
+        let Some(body) = self.body.as_mut() else {
+            unreachable!("cannot retain locals on a function without a body");
+        };
+
+        body.locals.retain(|local| retain(*local));
+    }
+
+    /// Replace the SSA value type table.
+    pub fn replace_value_types(&mut self, value_types: Vec<Option<LocalNodeId<Type>>>) {
+        let Some(body) = self.body.as_mut() else {
+            unreachable!("cannot replace value types on a function without a body");
+        };
+
+        body.replace_value_types(value_types);
+    }
+
     /// Allocate a new SSA value.
     pub fn next_value(&mut self) -> Value {
-        let id = self.next_value_id;
-        self.next_value_id += 1;
-        Value::new(id)
+        let Some(body) = self.body.as_mut() else {
+            unreachable!("cannot allocate SSA value in a function without a body");
+        };
+
+        body.next_value()
     }
 
     /// Allocate a new SSA value and record its type.
     pub fn next_typed_value(&mut self, ty: LocalNodeId<Type>) -> Value {
-        let value = self.next_value();
-        self.set_value_type(value, ty);
-        value
+        let Some(body) = self.body.as_mut() else {
+            unreachable!("cannot allocate typed SSA value in a function without a body");
+        };
+
+        body.next_typed_value(ty)
     }
 
     /// Allocate a new SSA value with the same type as an existing value.
     pub fn next_typed_value_like(&mut self, source: Value) -> Value {
-        let ty = self.expect_value_type(source);
-        self.next_typed_value(ty)
+        let Some(body) = self.body.as_mut() else {
+            unreachable!("cannot allocate typed SSA value in a function without a body");
+        };
+
+        body.next_typed_value_like(source)
     }
 
-    /// Recompute `next_value_id` by scanning all values in the function.
-    ///
-    /// Call this before allocating new values if the function was parsed
-    /// or modified externally and `next_value_id` may be stale.
+    /// Recompute the next SSA value id from live function values.
     pub fn recompute_next_value_id(&mut self, tree: &Tree) {
-        let mut max_id: u32 = 0;
+        let parameters = &self.parameters;
+        let Some(body) = self.body.as_mut() else {
+            unreachable!("cannot recompute SSA values in a function without a body");
+        };
 
-        // function parameters
-        for param in &self.parameters {
-            let value = param.value;
-            max_id = max_id.max(value.0);
-        }
-
-        // block parameters and instruction destinations
-        for &block_id in &self.blocks {
-            let block = tree.get(block_id);
-            for param in &block.parameters {
-                let value = param.value;
-                max_id = max_id.max(value.0);
-            }
-            for &instr_id in &block.instructions {
-                let Some(value) = tree.get(instr_id).destination() else {
-                    continue;
-                };
-
-                max_id = max_id.max(value.0);
-            }
-        }
-
-        // avoid reusing value ids when blocks were removed
-        let computed_next = max_id + 1;
-        let min_next = self.value_types.len() as u32;
-        self.next_value_id = self.next_value_id.max(computed_next).max(min_next);
+        body.recompute_next_value_id(parameters, tree);
     }
 
-    /// Add a local variable and return its id.
+    /// Append one local to the function body.
     pub fn add_local(&mut self, local: LocalNodeId<Local>) {
-        self.locals.push(local);
+        let Some(body) = self.body.as_mut() else {
+            unreachable!("cannot append local to a function without a body");
+        };
+
+        body.add_local(local);
     }
 
-    /// Add a basic block and return its id.
-    pub fn add_block(&mut self, block: LocalNodeId<Block>) {
-        self.blocks.push(block);
+    /// Append one block to the function body.
+    pub fn add_block(&mut self, block: LocalNodeId<Block>, tree: &Tree) {
+        let Some(body) = self.body.as_mut() else {
+            unreachable!("cannot append block to a function without a body");
+        };
+
+        body.add_block(block, tree);
     }
 }

@@ -57,7 +57,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         {
             let context = f.context_mut();
             context.local_indices.clear();
-            for (i, local_id) in self.locals.iter().enumerate() {
+            for (i, local_id) in self.locals().iter().enumerate() {
                 context.local_indices.insert(*local_id, i);
             }
             context.current_function = Some(id);
@@ -188,8 +188,8 @@ fn has_attribute(attributes: &[crate::Attribute], name: &str, f: &MirFormatter<'
 
 /// Format the body of one local function.
 fn format_function_body<'a>(function: &Function, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-    let locals = function.locals.clone();
-    let blocks = function.blocks.clone();
+    let locals = function.locals();
+    let blocks = function.blocks();
 
     // locals
     if !locals.is_empty() {

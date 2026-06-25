@@ -59,17 +59,17 @@ b1:
     // diagnostic and blocks
     assert_eq!(diagnostics.len(), 1);
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
-    assert_eq!(function.blocks.len(), 2);
+    assert_eq!(function.blocks().len(), 2);
 
     // b0
-    assert_node!(tree, function.blocks[0], Block { instructions, terminator, .. } => {
+    assert_node!(tree, function.block(0), Block { instructions, terminator, .. } => {
         assert_eq!(instructions.len(), 1);
         assert_node!(tree, instructions[0], Instruction::Error);
         assert_node!(tree, *terminator, Terminator::Error);
     });
 
     // b1
-    assert_node!(tree, function.blocks[1], Block { terminator, .. } => {
+    assert_node!(tree, function.block(1), Block { terminator, .. } => {
         assert_node!(tree, *terminator, Terminator::Return { .. });
     });
 }
@@ -93,10 +93,10 @@ b0:
     // diagnostic and block
     assert_eq!(diagnostics.len(), 1);
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
-    assert_eq!(function.blocks.len(), 1);
+    assert_eq!(function.blocks().len(), 1);
 
     // recovered instructions
-    assert_node!(tree, function.blocks[0], Block { instructions, terminator, .. } => {
+    assert_node!(tree, function.block(0), Block { instructions, terminator, .. } => {
         assert_eq!(instructions.len(), 2);
         assert_node!(tree, instructions[0], Instruction::Error);
         assert!(!matches!(tree.get(instructions[1]), Instruction::Error));
@@ -125,7 +125,7 @@ b0:
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
 
     // recovered instructions
-    assert_node!(tree, function.blocks[0], Block { instructions, terminator, .. } => {
+    assert_node!(tree, function.block(0), Block { instructions, terminator, .. } => {
         assert_eq!(instructions.len(), 2);
         assert_node!(tree, instructions[0], Instruction::Error);
         assert!(!matches!(tree.get(instructions[1]), Instruction::Error));
@@ -153,15 +153,15 @@ b1:
     // diagnostic and blocks
     assert_eq!(diagnostics.len(), 1);
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
-    assert_eq!(function.blocks.len(), 2);
+    assert_eq!(function.blocks().len(), 2);
 
     // b0
-    assert_node!(tree, function.blocks[0], Block { terminator, .. } => {
+    assert_node!(tree, function.block(0), Block { terminator, .. } => {
         assert_node!(tree, *terminator, Terminator::Error);
     });
 
     // b1
-    assert_node!(tree, function.blocks[1], Block { terminator, .. } => {
+    assert_node!(tree, function.block(1), Block { terminator, .. } => {
         assert_node!(tree, *terminator, Terminator::Return { .. });
     });
 }
@@ -185,16 +185,16 @@ b0:
     // diagnostic and body
     assert_eq!(diagnostics.len(), 1);
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
-    assert_eq!(function.locals.len(), 1);
-    assert_eq!(function.blocks.len(), 1);
+    assert_eq!(function.locals().len(), 1);
+    assert_eq!(function.blocks().len(), 1);
 
     // recovered local
-    assert_node!(tree, function.locals[0], Local { ty, .. } => {
+    assert_node!(tree, function.local(0), Local { ty, .. } => {
         assert_error_type(&tree, *ty);
     });
 
     // recovered terminator
-    assert_node!(tree, function.blocks[0], Block { terminator, .. } => {
+    assert_node!(tree, function.block(0), Block { terminator, .. } => {
         assert_node!(tree, *terminator, Terminator::Return { .. });
     });
 }
@@ -341,7 +341,7 @@ b0:
     assert_eq!(diagnostics.len(), 1);
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
     assert_error_type(&tree, function.return_type);
-    assert_eq!(function.blocks.len(), 1);
+    assert_eq!(function.blocks().len(), 1);
 }
 
 fn assert_error_type(tree: &Tree, ty: LocalNodeId<Type>) {
@@ -370,7 +370,7 @@ b0:
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
 
     // recovered instructions
-    assert_node!(tree, function.blocks[0], Block { instructions, terminator, .. } => {
+    assert_node!(tree, function.block(0), Block { instructions, terminator, .. } => {
         assert_eq!(instructions.len(), 3);
         assert_node!(tree, instructions[0], Instruction::Error);
         assert_node!(tree, instructions[1], Instruction::Error);
