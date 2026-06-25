@@ -1,9 +1,6 @@
 use std::cmp::Reverse;
 
-use destack_repository::TraceSnapshot;
-
-/// The drawn width of one trace timeline lane.
-const TIMELINE_WIDTH: usize = 72;
+use destack_repository::{TraceSnapshot, TraceTimelineOptions, render_trace_timeline};
 
 /// One styled text table.
 #[derive(Debug, Default)]
@@ -376,45 +373,12 @@ impl<'a> TraceTable<'a> {
                 "{}",
                 paint(&format!("timeline {}", row.name), "1;38;5;250", self.color)
             );
-            let kinds = timeline_kinds(row.trace);
-            for worker in 0..row.trace.workers {
-                let lane = timeline_lane(row.trace, worker, &kinds, self.color);
-
-                println!("worker {worker:>2} ▕{lane}▏");
+            let options = TraceTimelineOptions::new().with_color(self.color);
+            let timeline = render_trace_timeline(row.trace, options);
+            if !timeline.is_empty() {
+                print!("{timeline}");
             }
-
-            println!(
-                "          0 ms{:>width$}",
-                format!("{} ms", format_millis(row.trace.total_micros)),
-                width = TIMELINE_WIDTH,
-            );
-            self.print_legend(&kinds);
         }
-    }
-
-    /// Print the artifact kind legend for one timeline.
-    fn print_legend(&self, kinds: &[TimelineKind]) {
-        let mut entries = kinds.iter().collect::<Vec<_>>();
-        entries.sort_by_key(|kind| Reverse(kind.micros));
-        let entries = entries
-            .into_iter()
-            .map(|kind| {
-                let block = paint("█", kind_color(&kind.name), self.color);
-
-                format!("{block} {}", kind.name)
-            })
-            .collect::<Vec<_>>();
-
-        if entries.is_empty() {
-            println!("          · idle");
-
-            return;
-        }
-
-        for line in entries.chunks(4) {
-            println!("          {}", line.join("  "));
-        }
-        println!("          · idle");
     }
 
     /// Print one table with artifact stage totals.
@@ -565,122 +529,6 @@ struct TraceRow<'a> {
     name: String,
     /// The trace snapshot to print.
     trace: &'a TraceSnapshot,
-}
-
-/// One artifact kind drawn on a timeline.
-#[derive(Debug)]
-struct TimelineKind {
-    /// The artifact kind name.
-    name: String,
-    /// The summed busy time across the trace.
-    micros: u64,
-}
-
-/// Return the artifact kinds in one trace.
-fn timeline_kinds(trace: &TraceSnapshot) -> Vec<TimelineKind> {
-    let mut kinds = Vec::<TimelineKind>::new();
-
-    // sum busy time by artifact name
-    for artifact in &trace.artifacts {
-        match kinds.iter_mut().find(|kind| kind.name == artifact.name) {
-            Some(kind) => kind.micros += artifact.micros,
-            None => kinds.push(TimelineKind {
-                name: artifact.name.clone(),
-                micros: artifact.micros,
-            }),
-        }
-    }
-
-    kinds
-}
-
-/// Return the worker timeline lane for one trace.
-fn timeline_lane(
-    trace: &TraceSnapshot,
-    worker: usize,
-    kinds: &[TimelineKind],
-    color: bool,
-) -> String {
-    let cell_micros = trace.total_micros.div_ceil(TIMELINE_WIDTH as u64).max(1);
-    let mut busy = vec![vec![0u64; kinds.len()]; TIMELINE_WIDTH];
-
-    // accumulate busy overlap per artifact kind and fixed-width cell
-    for artifact in trace
-        .artifacts
-        .iter()
-        .filter(|artifact| artifact.worker == worker)
-    {
-        let kind = kinds
-            .iter()
-            .position(|kind| kind.name == artifact.name)
-            .expect("every timeline artifact kind should be indexed");
-        let end = artifact.start_micros + artifact.micros.max(1);
-        let first = (artifact.start_micros / cell_micros) as usize;
-        let last = ((end - 1) / cell_micros) as usize;
-
-        for (cell, lanes) in busy
-            .iter_mut()
-            .enumerate()
-            .take(last.min(TIMELINE_WIDTH - 1) + 1)
-            .skip(first)
-        {
-            let cell_start = cell as u64 * cell_micros;
-            let cell_end = cell_start + cell_micros;
-            let overlap = end
-                .min(cell_end)
-                .saturating_sub(artifact.start_micros.max(cell_start));
-
-            lanes[kind] += overlap;
-        }
-    }
-
-    // choose each cell's busiest artifact kind
-    let cells = busy
-        .into_iter()
-        .map(|cell| {
-            cell.iter()
-                .enumerate()
-                .filter(|(_kind, micros)| **micros > 0)
-                .max_by_key(|(_kind, micros)| **micros)
-                .map(|(kind, _micros)| kind)
-        })
-        .collect::<Vec<_>>();
-
-    timeline_runs(&cells, kinds, color)
-}
-
-/// Render coalesced timeline cell runs.
-fn timeline_runs(cells: &[Option<usize>], kinds: &[TimelineKind], color: bool) -> String {
-    let mut lane = String::new();
-    let mut run = String::new();
-    let mut run_kind = None;
-
-    // group neighboring cells with the same artifact kind
-    for cell in cells {
-        if *cell != run_kind && !run.is_empty() {
-            lane.push_str(&paint_timeline_run(&run, run_kind, kinds, color));
-            run.clear();
-        }
-
-        run_kind = *cell;
-        run.push(if cell.is_some() { '█' } else { '·' });
-    }
-    lane.push_str(&paint_timeline_run(&run, run_kind, kinds, color));
-
-    lane
-}
-
-/// Paint one timeline run.
-fn paint_timeline_run(
-    run: &str,
-    kind: Option<usize>,
-    kinds: &[TimelineKind],
-    color: bool,
-) -> String {
-    match kind {
-        Some(kind) => paint(run, kind_color(&kinds[kind].name), color),
-        None => paint(run, "2", color),
-    }
 }
 
 /// Apply ANSI color to one string when enabled.

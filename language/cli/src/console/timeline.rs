@@ -1,8 +1,8 @@
-use std::collections::BTreeMap;
+use destack_repository::{
+    TraceSnapshot, TraceTimelineOptions, render_trace_duration, render_trace_timeline,
+};
 
-use destack_repository::TraceSnapshot;
-
-use super::console::{Stream, bold, color, color_enabled, dim};
+use super::console::{Stream, color, color_enabled, dim};
 
 /// The drawn width of one timeline lane in cells.
 const LANE_WIDTH: usize = 72;
@@ -27,7 +27,7 @@ pub fn render_stage_summary(report: &TraceSnapshot) -> String {
         .stages
         .iter()
         .map(|stage| {
-            let entry = format!("{} {}", stage.name, render_duration(stage.micros));
+            let entry = format!("{} {}", stage.name, render_trace_duration(stage.micros));
             if colored {
                 color(&entry, stage_color(&stage.name))
             } else {
@@ -41,7 +41,7 @@ pub fn render_stage_summary(report: &TraceSnapshot) -> String {
         "{stages} {}",
         dim(&format!(
             "(wall {}, {} {})",
-            render_duration(report.total_micros),
+            render_trace_duration(report.total_micros),
             report.workers,
             if report.workers == 1 {
                 "worker"
@@ -52,160 +52,17 @@ pub fn render_stage_summary(report: &TraceSnapshot) -> String {
     )
 }
 
-/// One artifact kind drawn on a timeline.
-struct TimelineKind {
-    /// The artifact kind name.
-    name: String,
-    /// The summed busy time across the run.
-    micros: u64,
-}
-
 /// Render the per-worker timeline of one detailed build trace.
 /// Each worker draws one lane; every cell shows the artifact kind that
 /// owned most of its slice of wall time. Color encodes artifact kind
 /// when available; plain output only marks busy and idle cells.
 pub fn render_timeline(report: &TraceSnapshot) -> String {
-    if report.artifacts.is_empty() || report.total_micros == 0 {
-        return String::new();
-    }
+    let options = TraceTimelineOptions::new()
+        .with_color(color_enabled(Stream::Stdout))
+        .with_width(LANE_WIDTH)
+        .with_slow_attempts(SLOWEST_COUNT);
 
-    let mut output = String::new();
-    let cell_micros = report.total_micros.div_ceil(LANE_WIDTH as u64).max(1);
-    let colored = color_enabled(Stream::Stdout);
-
-    // index the artifact kinds appearing in this trace
-    let mut kinds: Vec<TimelineKind> = Vec::new();
-    let mut kind_by_name: BTreeMap<String, usize> = BTreeMap::new();
-    for artifact in &report.artifacts {
-        if let Some(kind) = kind_by_name.get(&artifact.name).copied() {
-            kinds[kind].micros += artifact.micros;
-        } else {
-            let kind = kinds.len();
-            kind_by_name.insert(artifact.name.clone(), kind);
-            kinds.push(TimelineKind {
-                name: artifact.name.clone(),
-                micros: artifact.micros,
-            });
-        }
-    }
-
-    // one lane per worker, busiest kind per cell
-    for worker in 0..report.workers {
-        let mut busy = vec![vec![0u64; kinds.len()]; LANE_WIDTH];
-        for artifact in report.artifacts.iter().filter(|a| a.worker == worker) {
-            let Some(kind) = kind_by_name.get(&artifact.name).copied() else {
-                unreachable!("artifact kind should be indexed before drawing");
-            };
-            let end = artifact.start_micros + artifact.micros.max(1);
-            let first = (artifact.start_micros / cell_micros) as usize;
-            let last = ((end - 1) / cell_micros) as usize;
-            for (cell, lanes) in busy
-                .iter_mut()
-                .enumerate()
-                .take(last.min(LANE_WIDTH - 1) + 1)
-                .skip(first)
-            {
-                let cell_start = cell as u64 * cell_micros;
-                let cell_end = cell_start + cell_micros;
-                let overlap = end
-                    .min(cell_end)
-                    .saturating_sub(artifact.start_micros.max(cell_start));
-                lanes[kind] += overlap;
-            }
-        }
-
-        // pick each cell's winner, then paint coalesced runs
-        let cells = busy
-            .into_iter()
-            .map(|cell| {
-                cell.iter()
-                    .enumerate()
-                    .filter(|(_, micros)| **micros > 0)
-                    .max_by_key(|(_, micros)| **micros)
-                    .map(|(kind, _)| kind)
-            })
-            .collect::<Vec<_>>();
-        let mut lane = String::new();
-        let mut run = String::new();
-        let mut run_kind: Option<usize> = None;
-        for cell in cells {
-            if cell != run_kind && !run.is_empty() {
-                lane.push_str(&paint_run(&run, run_kind, &kinds, colored));
-                run.clear();
-            }
-            run_kind = cell;
-            run.push(match cell {
-                Some(_) => '█',
-                None => '·',
-            });
-        }
-        lane.push_str(&paint_run(&run, run_kind, &kinds, colored));
-        output.push_str(&format!("worker {worker:>2} ▕{lane}▏\n"));
-    }
-
-    // time scale
-    output.push_str(&dim(&format!(
-        "          0{:>width$}\n",
-        render_duration(report.total_micros),
-        width = LANE_WIDTH,
-    )));
-
-    // render the legend for the active terminal
-    if colored {
-        let mut legend = kinds.iter().collect::<Vec<_>>();
-        legend.sort_by_key(|kind| std::cmp::Reverse(kind.micros));
-        let entries = legend
-            .into_iter()
-            .map(|kind| format!("{} {}", color("█", kind_color(&kind.name)), kind.name))
-            .collect::<Vec<_>>();
-        for line in entries.chunks(4) {
-            output.push_str(&format!("          {}\n", line.join("  ")));
-        }
-    } else {
-        output.push_str(&dim("          █ busy  · idle\n"));
-    }
-
-    // show named terminal attempts after the worker lanes
-    let mut slowest = report
-        .artifacts
-        .iter()
-        .filter(|artifact| artifact.outcome != "parked")
-        .collect::<Vec<_>>();
-    slowest.sort_by_key(|artifact| std::cmp::Reverse(artifact.micros));
-    if !slowest.is_empty() {
-        output.push_str(&format!("\n{}\n", bold("slowest artifacts:")));
-        for artifact in slowest.into_iter().take(SLOWEST_COUNT) {
-            let label = artifact.label.as_deref().unwrap_or("");
-            let name = if colored {
-                color(
-                    &format!("{:<24}", artifact.name),
-                    kind_color(&artifact.name),
-                )
-            } else {
-                format!("{:<24}", artifact.name)
-            };
-            let target = artifact
-                .target
-                .as_deref()
-                .map(|target| dim(&format!(" ({target})")))
-                .unwrap_or_default();
-            output.push_str(&format!(
-                "  {:>9}  {name} {label}{target}\n",
-                render_duration(artifact.micros),
-            ));
-        }
-    }
-
-    output
-}
-
-/// Paint one coalesced run of equal lane cells.
-fn paint_run(run: &str, kind: Option<usize>, kinds: &[TimelineKind], colored: bool) -> String {
-    match kind {
-        Some(kind) if colored => color(run, kind_color(&kinds[kind].name)),
-        Some(_) => run.to_string(),
-        None => dim(run),
-    }
+    render_trace_timeline(report, options)
 }
 
 /// Return the 256-color code of one stage display name, matching the
@@ -228,45 +85,5 @@ fn stage_color(stage: &str) -> &'static str {
         "query" => "38;5;147",
         "init" => "38;5;245",
         _ => "38;5;250",
-    }
-}
-
-/// Return the 256-color code of one artifact kind display name.
-fn kind_color(name: &str) -> &'static str {
-    match name {
-        "dir.parse" => "38;5;75",
-        "data" => "38;5;67",
-        "dir.bind" => "38;5;80",
-        "dir.import" => "38;5;73",
-        "dir.expand" => "38;5;115",
-        "dir.export" => "38;5;72",
-        "dir.resolve" => "38;5;79",
-        "module.index" | "component.graph" => "38;5;147",
-        "dir.check.component" => "38;5;170",
-        "dir.check" => "38;5;176",
-        "dir.materialize" => "38;5;178",
-        "dir.elaborate" => "38;5;179",
-        "mir.lower" => "38;5;208",
-        "mir.verify" => "38;5;209",
-        "mir.optimize" => "38;5;214",
-        "module.emit" => "38;5;114",
-        "package.link" => "38;5;84",
-        "module.lint" | "package.lint" | "workspace.lint" => "38;5;228",
-        "workspace.index" => "38;5;147",
-        "environment" | "dependency.index" => "38;5;245",
-        _ => "38;5;250",
-    }
-}
-
-/// Render one microsecond count as a compact duration.
-fn render_duration(micros: u64) -> String {
-    if micros >= 10_000_000 {
-        format!("{:.1}s", micros as f64 / 1_000_000.0)
-    } else if micros >= 1_000_000 {
-        format!("{:.2}s", micros as f64 / 1_000_000.0)
-    } else if micros >= 1_000 {
-        format!("{}ms", micros / 1_000)
-    } else {
-        format!("{micros}µs")
     }
 }
