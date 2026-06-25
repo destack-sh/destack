@@ -380,8 +380,8 @@ entry(this0: Widget):
         let shape = tree
             .metadata
             .dispatch
-            .dynamic_shape(shape_table.constraint)
-            .expect("missing Shape dynamic shape");
+            .dynamic_layout(shape_table.constraint)
+            .expect("missing Shape dynamic layout");
         match (&shape_table.entries[0], &shape.slots[0]) {
             (
                 mir::DynamicEntry::Field { offset },
@@ -405,8 +405,8 @@ entry(this0: Widget):
         let paint = tree
             .metadata
             .dispatch
-            .dynamic_shape(paint_table.constraint)
-            .expect("missing Paint dynamic shape");
+            .dynamic_layout(paint_table.constraint)
+            .expect("missing Paint dynamic layout");
         match (&paint_table.entries[0], &paint.slots[0]) {
             (
                 mir::DynamicEntry::Field { offset },

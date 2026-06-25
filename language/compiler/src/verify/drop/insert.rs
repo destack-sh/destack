@@ -22,7 +22,7 @@ impl VerifyState<'_> {
             }
 
             let function = self.tree.get(function_id).clone();
-            if function.entry.is_none() {
+            if function.entry().is_none() {
                 continue;
             }
 
@@ -36,7 +36,7 @@ impl VerifyState<'_> {
     fn is_generated_drop_glue(&self, function_id: mir::LocalNodeId<mir::Function>) -> bool {
         self.tree
             .metadata
-            .drop
+            .drops
             .glue_by_type
             .values()
             .any(|glue| glue.is_generated_function(function_id))
@@ -46,7 +46,7 @@ impl VerifyState<'_> {
     fn drop_receiver(&self, function_id: mir::LocalNodeId<mir::Function>) -> Option<mir::Value> {
         self.tree
             .metadata
-            .drop
+            .drops
             .hooks_by_type
             .values()
             .any(|hook| hook.is_function(function_id))
@@ -172,7 +172,7 @@ impl VerifyState<'_> {
         value: mir::Value,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Vec<mir::Instruction> {
-        if let Some(glue) = self.tree.metadata.drop.drop_glue(ty).cloned() {
+        if let Some(glue) = self.tree.metadata.drops.drop_glue(ty).cloned() {
             return self
                 .instruction_for_drop_glue(value, ty, glue)
                 .into_iter()
@@ -219,7 +219,7 @@ impl VerifyState<'_> {
         if self
             .tree
             .metadata
-            .drop
+            .drops
             .drop_glue(ty)
             .is_some_and(|glue| !matches!(glue, mir::DropGlue::None))
         {

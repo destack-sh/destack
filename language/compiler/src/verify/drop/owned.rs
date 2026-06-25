@@ -17,7 +17,7 @@ impl OwnedValues {
 
     /// Build available owned values from function parameters.
     pub(super) fn parameters(function: &mir::Function, owned: &Self) -> Self {
-        let mut values = Self::new(function.value_types.len());
+        let mut values = Self::new(function.value_types().len());
 
         // seed parameters available at function entry
         for parameter in &function.parameters {

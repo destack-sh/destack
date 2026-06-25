@@ -19,7 +19,7 @@ impl DropState {
         Self {
             owned: OwnedValues::parameters(function, owned),
             moved: Vec::new(),
-            places: vec![None; function.value_types.len()],
+            places: vec![None; function.value_types().len()],
         }
     }
 

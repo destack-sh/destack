@@ -31,7 +31,7 @@ impl ModuleLowerer<'_> {
         anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<Option<mir::LayoutId>> {
         // skip if metadata already exists
-        if let Some(layout_id) = self.builder.tree().metadata.layout.layout_id(ty) {
+        if let Some(layout_id) = self.builder.tree().metadata.layouts.layout_id(ty) {
             return Ok(Some(layout_id));
         }
 
@@ -289,7 +289,7 @@ impl ModuleLowerer<'_> {
         };
 
         // attach layout metadata to the type table
-        let type_table = &mut self.builder.tree_mut().metadata.layout;
+        let type_table = &mut self.builder.tree_mut().metadata.layouts;
         let layout_id = type_table.layout_table.insert(layout_entry);
         type_table.set_layout_id(ty, layout_id);
 

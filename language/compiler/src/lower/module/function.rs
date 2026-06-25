@@ -267,7 +267,7 @@ impl ModuleLowerer<'_> {
 
             // skip functions already lowered
             let function = self.builder.tree().get(function_id);
-            if function.entry.is_some() {
+            if function.entry().is_some() {
                 continue;
             }
 

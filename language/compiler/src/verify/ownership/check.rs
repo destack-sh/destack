@@ -10,7 +10,7 @@ impl VerifyState<'_> {
 
         // verify every body-backed function
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
-            if function.entry.is_none() {
+            if function.entry().is_none() {
                 continue;
             }
 

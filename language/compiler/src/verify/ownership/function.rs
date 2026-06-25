@@ -69,7 +69,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     ) -> Vec<mir::BorrowObligation> {
         let mut obligations = Vec::new();
 
-        for &block_id in &self.function.blocks {
+        for &block_id in self.function.blocks() {
             let Some(entry) = entries.get(&block_id).cloned() else {
                 continue;
             };
@@ -106,7 +106,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
     /// Solve fixed-point entry flow for every reachable block.
     fn solve_entries(&mut self) -> HashMap<mir::LocalNodeId<mir::Block>, FlowState> {
-        let Some(entry) = self.function.entry else {
+        let Some(entry) = self.function.entry() else {
             return HashMap::new();
         };
 
@@ -155,7 +155,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         entries: &HashMap<mir::LocalNodeId<mir::Block>, FlowState>,
         exits: &HashMap<mir::LocalNodeId<mir::Block>, FlowState>,
     ) -> FlowState {
-        if Some(block_id) == self.function.entry {
+        if Some(block_id) == self.function.entry() {
             return entries
                 .get(&block_id)
                 .cloned()
@@ -963,7 +963,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         instruction.call_direct_target().or_else(|| {
             self.tree
                 .metadata
-                .functions
+                .effects
                 .call(mir::CallSite::Instruction(instruction_id))
                 .and_then(|metadata| metadata.target)
         })
@@ -978,7 +978,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         terminator.call_direct_target().or_else(|| {
             self.tree
                 .metadata
-                .functions
+                .effects
                 .call(mir::CallSite::Terminator(block_id))
                 .and_then(|metadata| metadata.target)
         })
@@ -1297,7 +1297,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         }
 
         // check instruction results carried into the continuation
-        for (index, _) in self.function.value_types.iter().enumerate() {
+        for (index, _) in self.function.value_types().iter().enumerate() {
             let value = mir::Value::new(index as u32);
             if self.value_can_carry_sources(value)
                 && self.is_value_live_across_suspension(value, resume, unwind.as_ref())
@@ -1356,7 +1356,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             .iter()
             .any(|parameter| parameter.value == value);
         if is_parameter {
-            return self.function.entry.map(Into::into).unwrap_or(fallback);
+            return self.function.entry().map(Into::into).unwrap_or(fallback);
         }
 
         fallback
@@ -1447,7 +1447,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             return false;
         };
 
-        self.tree.metadata.drop.drop_hook(ty).is_some()
+        self.tree.metadata.drops.drop_hook(ty).is_some()
     }
 
     /// Return whether one value has a variant type.

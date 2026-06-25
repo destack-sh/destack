@@ -105,7 +105,7 @@ impl PlaceAlias {
         let mut constants = HashMap::new();
 
         // scan instruction constants once per function
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
             for &instruction_id in &block.instructions {
                 let mir::Instruction::Const { destination, value } = tree.get(instruction_id)
