@@ -138,7 +138,7 @@ fn record_static_elements(
     expected_len: usize,
 ) -> CodegenCraneliftResult<Vec<StaticElement>> {
     // record layouts carry authoritative field offsets
-    let layout = tree.metadata.layout.type_layout(ty).ok_or_else(|| {
+    let layout = tree.metadata.layouts.type_layout(ty).ok_or_else(|| {
         CodegenCraneliftError::unsupported_type("missing layout metadata", ty.into_any())
     })?;
     let fields = layout.shape.fields();
@@ -196,7 +196,7 @@ fn array_static_stride(
     pointer_bytes: u8,
 ) -> CodegenCraneliftResult<usize> {
     // layout metadata is authoritative when present
-    if let Some(layout) = tree.metadata.layout.type_layout(array)
+    if let Some(layout) = tree.metadata.layouts.type_layout(array)
         && let mir::LayoutShape::Array(layout) = &layout.shape
     {
         return Ok(layout.stride as usize);

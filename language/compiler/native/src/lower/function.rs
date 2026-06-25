@@ -92,8 +92,8 @@ impl<'a> FunctionLowerer<'a> {
         self.create_blocks(&mut builder, &mut value_map, &mut block_map)?;
 
         // phase 3+4: lower each block's instructions and terminator
-        let entry_block_id = self.function.entry;
-        for &block_id in &self.function.blocks {
+        let entry_block_id = self.function.entry();
+        for &block_id in self.function.blocks() {
             self.lower_block(
                 &mut builder,
                 block_id,
@@ -120,7 +120,7 @@ impl<'a> FunctionLowerer<'a> {
         target: &mut cir::Function,
     ) -> CodegenCraneliftResult<()> {
         // scan all blocks for direct callee references
-        for &block_id in &self.function.blocks {
+        for &block_id in self.function.blocks() {
             let block = self.tree.get(block_id);
 
             // check instructions for Call and FunctionAddr
@@ -187,7 +187,7 @@ impl<'a> FunctionLowerer<'a> {
         builder: &mut FunctionBuilder<'_>,
         local_map: &mut HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot>,
     ) -> CodegenCraneliftResult<()> {
-        for &local_id in &self.function.locals {
+        for &local_id in self.function.locals() {
             let local = self.tree.get(local_id);
             let ty = lower_type(self.tree, local.ty, self.pointer_bytes)?;
             let size = ty.bytes();
@@ -215,7 +215,7 @@ impl<'a> FunctionLowerer<'a> {
         block_map: &mut HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
     ) -> CodegenCraneliftResult<()> {
         // first, create all blocks
-        for &block_id in &self.function.blocks {
+        for &block_id in self.function.blocks() {
             let block = builder.create_block();
             block_map.insert(block_id, block);
         }
@@ -223,7 +223,7 @@ impl<'a> FunctionLowerer<'a> {
         // set entry block and add function parameters as entry block parameters
         let entry_block_id =
             self.function
-                .entry
+                .entry()
                 .ok_or_else(|| CodegenCraneliftError::Internal {
                     message: "cannot lower external function without entry block".to_string(),
                 })?;
@@ -245,7 +245,7 @@ impl<'a> FunctionLowerer<'a> {
 
         // now add MIR block parameters for non-entry blocks
         // (entry block parameters are already handled via function parameters above)
-        for &block_id in &self.function.blocks {
+        for &block_id in self.function.blocks() {
             // skip entry block, its parameters come from function parameters
             if block_id == entry_block_id {
                 continue;
