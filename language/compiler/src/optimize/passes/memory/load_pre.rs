@@ -372,7 +372,6 @@ fn load_can_move_to_entry(
 
 /// Collect edge insertions for each predecessor of the load block.
 // allow many arguments to keep the edge selection explicit
-#[allow(clippy::too_many_arguments)]
 fn collect_edge_insertions(
     load: &LoadCandidate,
     access_info: &LoadAccessInfo,

@@ -9,7 +9,6 @@ use dir::{
 use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
-#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Resolve expected argument types for a call when possible.
     pub(super) fn expected_argument_types_for_call(

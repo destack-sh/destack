@@ -171,7 +171,6 @@ struct GuardInfo {
 }
 
 /// Run loop fusion and return true when changes are made.
-#[allow(clippy::too_many_arguments)]
 fn run_loop_fusion(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
@@ -224,7 +223,6 @@ fn run_loop_fusion(
 }
 
 /// Build a fusion candidate from a loop.
-#[allow(clippy::too_many_arguments)]
 fn build_fusion_candidate(
     loop_index: usize,
     lp: &mir::Loop,

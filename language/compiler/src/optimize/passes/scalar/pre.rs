@@ -548,7 +548,6 @@ fn build_dominator_children(
 }
 
 /// Rename expression operands while traversing the dominator tree.
-#[allow(clippy::too_many_arguments)]
 fn rename_block(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
@@ -636,7 +635,6 @@ fn rename_block(
 }
 
 /// Insert an expression instruction into a block when operands are available.
-#[allow(clippy::too_many_arguments)]
 fn insert_expression_in_block(
     availability_block: mir::LocalNodeId<mir::Block>,
     insert_block: mir::LocalNodeId<mir::Block>,

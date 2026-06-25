@@ -137,7 +137,6 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) queued_function_bodies: HashSet<u32>,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl<'a> ModuleLowerer<'a> {
     /// Create a new module lowering context.
     pub(crate) fn new(

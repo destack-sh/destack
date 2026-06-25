@@ -7,7 +7,6 @@ use dir::{
 use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateError, ElaborateResult};
 
-#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Return true when one node is active in the local symbol table.
     pub(crate) fn is_active_in_state(

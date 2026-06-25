@@ -263,7 +263,6 @@ struct CollectContext<'a> {
 }
 
 /// Decide whether a binary instruction can be reassociated.
-#[allow(clippy::too_many_arguments)]
 fn reassociate_binary(
     operator: mir::BinaryOperator,
     left: mir::Value,

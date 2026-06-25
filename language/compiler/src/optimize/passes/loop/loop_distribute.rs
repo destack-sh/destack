@@ -188,7 +188,6 @@ fn run_loop_distribute(
 }
 
 /// Build a distribution candidate for a loop.
-#[allow(clippy::too_many_arguments)]
 fn build_candidate(
     lp: &Loop,
     tree: &mir::Tree,
@@ -282,7 +281,6 @@ fn build_candidate(
 }
 
 /// Collect store groups within a latch block.
-#[allow(clippy::too_many_arguments)]
 fn collect_store_groups(
     latch: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
@@ -407,7 +405,6 @@ fn collect_store_groups(
 }
 
 /// Collect group instructions from a store anchor.
-#[allow(clippy::too_many_arguments)]
 fn collect_group_instructions(
     anchor: mir::LocalNodeId<mir::Instruction>,
     pointer: Option<mir::Value>,
@@ -470,7 +467,6 @@ fn collect_group_instructions(
 }
 
 /// Collect memory effects for a group.
-#[allow(clippy::too_many_arguments)]
 fn collect_group_effects(
     instructions: &HashSet<mir::LocalNodeId<mir::Instruction>>,
     tree: &mir::Tree,

@@ -45,7 +45,6 @@ impl Callees {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 impl CheckState<'_> {
     /// Select the callable meaning of one call node.
     pub(in crate::check) fn select_call(
@@ -405,7 +404,6 @@ impl CheckState<'_> {
 
     /// Attempt one callable candidate against collected arguments,
     /// recording the call resolution when it accepts.
-    #[allow(clippy::too_many_arguments)]
     fn attempt_call(
         &mut self,
         origin: Origin,

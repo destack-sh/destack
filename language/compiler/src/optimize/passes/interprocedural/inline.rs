@@ -292,7 +292,6 @@ struct InlineCandidate {
 
 /// Find the next inline candidate in a function.
 // allow many arguments to keep the inline heuristics explicit
-#[allow(clippy::too_many_arguments)]
 fn find_inline_site(
     function_id: mir::LocalNodeId<mir::Function>,
     function: &mir::Function,
@@ -362,7 +361,6 @@ fn find_inline_site(
 
 /// Evaluate a callsite and return an inline candidate when profitable.
 // allow many arguments to keep the inline heuristics explicit
-#[allow(clippy::too_many_arguments)]
 fn inline_candidate(
     tree: &mir::Tree,
     caller_id: mir::LocalNodeId<mir::Function>,
@@ -420,7 +418,6 @@ fn scale_inline_limit(limit: usize, scale_percent: u64) -> usize {
 
 /// Compute inline costs and benefits for a callsite.
 // allow many arguments to keep the inline heuristics explicit
-#[allow(clippy::too_many_arguments)]
 fn inline_score(
     tree: &mir::Tree,
     caller_id: mir::LocalNodeId<mir::Function>,
@@ -530,7 +527,6 @@ fn resolve_inline_target(
 
 /// Check if a call should be inlined.
 // allow many arguments to keep the inline heuristics explicit
-#[allow(clippy::too_many_arguments)]
 fn should_inline(
     tree: &mir::Tree,
     caller_id: mir::LocalNodeId<mir::Function>,
@@ -795,7 +791,6 @@ fn clone_callee_blocks(
 }
 
 /// Split the caller block around a call and create the continuation block.
-#[allow(clippy::too_many_arguments)]
 fn split_block_for_inline(
     caller: &mut mir::Function,
     tree: &mut mir::Tree,
@@ -1145,7 +1140,6 @@ fn inline_budget_for_function(
 
 /// Compute the inline benefit for a callsite.
 // allow many arguments to keep the inline heuristics explicit
-#[allow(clippy::too_many_arguments)]
 fn inline_benefit(
     hotness: CallsiteHotness,
     arguments: &[mir::Value],

@@ -7,7 +7,6 @@ use crate::{LinkError, LinkResult};
 use super::super::JsLinker;
 use super::{ModuleSet, Output, OutputGraph, OutputId, OutputKind};
 
-#[allow(clippy::too_many_arguments)]
 impl<'a> JsLinker<'a> {
     /// Build the output graph over the current JS module set.
     pub(crate) fn build_js_output_graph(&self, module_set: &ModuleSet) -> LinkResult<OutputGraph> {

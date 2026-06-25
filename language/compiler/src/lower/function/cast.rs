@@ -5,7 +5,6 @@ use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 use crate::lower::FunctionLowerer;
 use crate::lower::r#type::VariantStorage;
 
-#[allow(clippy::too_many_arguments)]
 impl FunctionLowerer<'_> {
     /// Lower a value expression into a declared target type.
     pub(crate) fn lower_value_for_target(

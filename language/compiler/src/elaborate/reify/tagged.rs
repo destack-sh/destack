@@ -34,7 +34,6 @@ struct NominalLookupView<'a> {
     types: &'a TypeTable<'a>,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Reify nominal constructor calls into tagged expressions.
     pub(super) fn reify_tagged_constructor_call(

@@ -120,7 +120,6 @@ impl FunctionPass for LoadStoreForward {
 }
 
 /// Core load store forwarding logic. Returns true if changes were made.
-#[allow(clippy::too_many_arguments)]
 fn run_load_store_forward(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
@@ -364,7 +363,6 @@ fn find_forwardable_loads(
 }
 
 /// Process a single block, tracking available values and finding forwardable loads.
-#[allow(clippy::too_many_arguments)]
 fn process_block(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,

@@ -84,7 +84,6 @@ pub(crate) struct TestProgram {
 }
 
 #[allow(dead_code)]
-#[allow(clippy::too_many_arguments)]
 impl TestProgram {
     /// Create a new test program from MIR source text.
     pub(crate) fn new(source: &str) -> Self {
@@ -344,7 +343,6 @@ impl TestProgram {
     }
 
     /// Attach pointer access metadata to an instruction with flags.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn insert_pointer_access_with_options(
         &mut self,
         instruction: mir::LocalNodeId<mir::Instruction>,

@@ -165,7 +165,6 @@ fn run_code_hoisting(
 }
 
 /// Hoist a common instruction prefix for a branch.
-#[allow(clippy::too_many_arguments)]
 fn hoist_common_prefix(
     function: &mut mir::Function,
     tree: &mut mir::Tree,

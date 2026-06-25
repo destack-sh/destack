@@ -4,7 +4,6 @@ use destack_js as js;
 
 use crate::emit::js::ModuleLowerer;
 
-#[allow(clippy::too_many_arguments)]
 impl ModuleLowerer<'_> {
     /// Lower asynchrony from DIR into JS AST.
     pub(crate) fn lower_asynchrony(&self, asynchrony: dir::Asynchrony) -> js::Asynchrony {

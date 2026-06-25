@@ -8,7 +8,6 @@ use dir::{Expression, Condition, IfForm, LocalNodeId, MatchForm};
 use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
-#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Reify a module to make abstractions concrete:
     /// - Implicit conversions → explicit cast nodes.

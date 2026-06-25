@@ -80,7 +80,6 @@ pub(crate) struct TypeLowerer<'a> {
     pub(crate) layout_policy: TypeLayoutPolicy,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl<'a> TypeLowerer<'a> {
     /// Create a new type lowerer with cached common types.
     pub(crate) fn new(

@@ -171,7 +171,6 @@ fn run_loop_interchange(
 }
 
 /// Build a loop interchange candidate.
-#[allow(clippy::too_many_arguments)]
 fn build_interchange_candidate(
     outer: &mir::Loop,
     inner: &mir::Loop,

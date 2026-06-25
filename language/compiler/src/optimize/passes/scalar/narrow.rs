@@ -317,7 +317,6 @@ fn integer_info_for_value(
 }
 
 /// Narrow a pair of operands when the range allows it.
-#[allow(clippy::too_many_arguments)]
 fn narrow_pair(
     left: mir::Value,
     right: mir::Value,
@@ -381,7 +380,6 @@ fn narrow_pair(
 }
 
 /// Insert or reuse a truncation cast for a narrower width.
-#[allow(clippy::too_many_arguments)]
 fn narrow_value_to_width(
     value: mir::Value,
     width: u16,
