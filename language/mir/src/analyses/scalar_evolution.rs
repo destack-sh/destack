@@ -796,8 +796,15 @@ fn header_argument_from_pred(
     let pred_block = tree.get(pred);
     let pred_terminator = tree.get(pred_block.terminator);
     let args = pred_terminator.successor_arguments(tree, header);
+    let parameters = pred_terminator.successor_parameters(tree, header);
+    let header_block = tree.get(header);
+    let parameter = header_block.parameters.get(param_index)?;
 
-    args.get(param_index).copied()
+    parameters
+        .iter()
+        .zip(args)
+        .find(|(candidate, _)| candidate.value == parameter.value)
+        .map(|(_, argument)| *argument)
 }
 
 /// Get a constant value for an SSA value if it is constant.
