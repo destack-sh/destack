@@ -171,7 +171,7 @@ impl ExecutionCounts {
     ) -> HashMap<Edge, u64> {
         let mut counts = HashMap::new();
 
-        for &block in &function.blocks {
+        for &block in function.blocks() {
             // split this block's count across its successors
             let source_count = block_counts.get(&block).copied().unwrap_or(0);
             if source_count == 0 {
@@ -254,8 +254,8 @@ impl<'a> Frequencies<'a> {
         let (probabilities, weighted) = Self::branch_probabilities(function, tree, profile);
 
         // record the innermost loop containing each block
-        let mut innermost = NodeTable::from_nodes(&function.blocks, || None);
-        for &block in &function.blocks {
+        let mut innermost = NodeTable::from_nodes(function.blocks(), || None);
+        for &block in function.blocks() {
             let index = loops
                 .innermost_loop(block)
                 .and_then(|containing| loops.loop_index(containing.header));
@@ -281,7 +281,7 @@ impl<'a> Frequencies<'a> {
         };
 
         // skip unweighted functions
-        let Some(entry) = self.function.entry else {
+        let Some(entry) = self.function.entry() else {
             return empty;
         };
         if !self.weighted {
@@ -339,8 +339,8 @@ impl<'a> Frequencies<'a> {
         }
 
         // assemble global block frequencies from the loop nest
-        let mut blocks = NodeTable::from_nodes(&self.function.blocks, || 0.0);
-        for &block in &self.function.blocks {
+        let mut blocks = NodeTable::from_nodes(self.function.blocks(), || 0.0);
+        for &block in self.function.blocks() {
             let frequency = match *self.innermost.get(block) {
                 None => top_local.get(&block).copied().unwrap_or(0.0),
                 Some(index) => {
@@ -354,7 +354,7 @@ impl<'a> Frequencies<'a> {
 
         // edge frequency is the source frequency split by branch probability
         let mut edges = HashMap::new();
-        for &block in &self.function.blocks {
+        for &block in self.function.blocks() {
             let source_frequency = *blocks.get(block);
             if source_frequency == 0.0 {
                 continue;
@@ -547,7 +547,7 @@ impl<'a> Frequencies<'a> {
         let mut probabilities = HashMap::new();
         let mut weighted = false;
 
-        for &block in &function.blocks {
+        for &block in function.blocks() {
             let terminator = tree.get(tree.get(block).terminator);
 
             // a profiled edge marks the function as weighted
@@ -686,7 +686,7 @@ b3:
         );
 
         let function = tree.get(function_id);
-        let blocks = function.blocks.clone();
+        let blocks = function.blocks().to_vec();
         let profile = branch_profile(&tree, blocks[0], 3, 1);
 
         let frequency = frequencies(&tree, function_id, Some(&profile));
@@ -718,7 +718,7 @@ b3:
         );
 
         let function = tree.get(function_id);
-        let blocks = function.blocks.clone();
+        let blocks = function.blocks().to_vec();
         let mut function_profile = branch_profile(&tree, blocks[0], 3, 1);
         function_profile.entry = Count::new(100);
 
@@ -766,7 +766,7 @@ b3:
         );
 
         let function = tree.get(function_id);
-        let blocks = function.blocks.clone();
+        let blocks = function.blocks().to_vec();
         let profile = branch_profile(&tree, blocks[1], 9, 1);
 
         let frequency = frequencies(&tree, function_id, Some(&profile));

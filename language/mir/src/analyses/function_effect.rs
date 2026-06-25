@@ -56,7 +56,7 @@ impl FunctionEffectAnalysis {
     /// Return ids for all functions with bodies.
     fn function_body_ids(tree: &mir::Tree) -> Vec<mir::FunctionId> {
         tree.iter_nodes::<mir::Function>()
-            .filter_map(|(id, function)| function.entry.is_some().then_some(id))
+            .filter_map(|(id, function)| function.entry().is_some().then_some(id))
             .collect()
     }
 }
@@ -107,7 +107,7 @@ impl<'a> FunctionEffectBuilder<'a> {
         };
 
         // scan every block for instruction and terminator effects
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             builder.record_block(block_id);
         }
 

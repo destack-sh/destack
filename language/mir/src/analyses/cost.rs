@@ -250,11 +250,11 @@ impl CostModel {
         let mut model = Self {
             weights,
             function: OperationCost::default(),
-            blocks: NodeTable::from_nodes(&function.blocks, || 0),
+            blocks: NodeTable::from_nodes(function.blocks(), || 0),
         };
 
         // compute block and function costs together
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block_cost = model.compute_block(block_id, tree);
             *model.blocks.get_mut(block_id) = block_cost.score;
             model.function.record(block_cost);

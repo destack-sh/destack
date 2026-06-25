@@ -133,7 +133,7 @@ impl ScalarEvolution {
         target_layout: TargetLayout,
     ) -> Self {
         // handle functions without bodies
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Self {
                 loop_scev: HashMap::new(),
             };
@@ -1336,10 +1336,10 @@ b2(v7: int32):
         let loop_index = loops
             .loops()
             .iter()
-            .position(|lp| lp.header == function.blocks[1])
+            .position(|lp| lp.header == function.block(1))
             .unwrap();
 
-        let header_block = test.tree.get(function.blocks[1]);
+        let header_block = test.tree.get(function.block(1));
         let param_value = header_block.parameters[0].value;
 
         let expected = Scev::AddRec {
@@ -1353,7 +1353,7 @@ b2(v7: int32):
                 width: 32,
                 is_signed: true,
             })),
-            loop_header: function.blocks[1],
+            loop_header: function.block(1),
         };
 
         let actual = scev.value_scev(loop_index, param_value).unwrap();
@@ -1390,10 +1390,10 @@ b2(v6: int32):
         let loop_index = loops
             .loops()
             .iter()
-            .position(|lp| lp.header == function.blocks[1])
+            .position(|lp| lp.header == function.block(1))
             .unwrap();
 
-        let header_block = test.tree.get(function.blocks[1]);
+        let header_block = test.tree.get(function.block(1));
         let param_value = header_block.parameters[0].value;
 
         let actual = scev.value_scev(loop_index, param_value).unwrap();
@@ -1431,10 +1431,10 @@ b2(v6: int32):
         let loop_index = loops
             .loops()
             .iter()
-            .position(|lp| lp.header == function.blocks[1])
+            .position(|lp| lp.header == function.block(1))
             .unwrap();
 
-        let header_block = test.tree.get(function.blocks[1]);
+        let header_block = test.tree.get(function.block(1));
         let param_value = header_block.parameters[0].value;
 
         let expected = Scev::AddRec {
@@ -1448,7 +1448,7 @@ b2(v6: int32):
                 width: 32,
                 is_signed: true,
             })),
-            loop_header: function.blocks[1],
+            loop_header: function.block(1),
         };
 
         let actual = scev.value_scev(loop_index, param_value).unwrap();
@@ -1487,10 +1487,10 @@ b3(v5: int32):
         let loop_index = loops
             .loops()
             .iter()
-            .position(|lp| lp.header == function.blocks[1])
+            .position(|lp| lp.header == function.block(1))
             .unwrap();
 
-        let header_block = test.tree.get(function.blocks[1]);
+        let header_block = test.tree.get(function.block(1));
         let param_value = header_block.parameters[0].value;
 
         let expected = Scev::AddRec {
@@ -1504,7 +1504,7 @@ b3(v5: int32):
                 width: 32,
                 is_signed: true,
             })),
-            loop_header: function.blocks[1],
+            loop_header: function.block(1),
         };
 
         let actual = scev.value_scev(loop_index, param_value).unwrap();
@@ -1544,10 +1544,10 @@ b2(v9: int32):
         let loop_index = loops
             .loops()
             .iter()
-            .position(|lp| lp.header == function.blocks[1])
+            .position(|lp| lp.header == function.block(1))
             .unwrap();
 
-        let block1 = test.tree.get(function.blocks[1]);
+        let block1 = test.tree.get(function.block(1));
         let instruction_id = block1.instructions[1];
         let instruction = test.tree.get(instruction_id);
         let derived_value = instruction
@@ -1565,7 +1565,7 @@ b2(v9: int32):
                 width: 32,
                 is_signed: true,
             })),
-            loop_header: function.blocks[1],
+            loop_header: function.block(1),
         };
 
         let actual = scev.value_scev(loop_index, derived_value).unwrap();
@@ -1604,10 +1604,10 @@ b2(v7: int32):
         let loop_index = loops
             .loops()
             .iter()
-            .position(|lp| lp.header == function.blocks[1])
+            .position(|lp| lp.header == function.block(1))
             .unwrap();
 
-        let block1 = test.tree.get(function.blocks[1]);
+        let block1 = test.tree.get(function.block(1));
         let instruction = test.tree.get(block1.instructions[0]);
         let derived_value = instruction
             .destination()
@@ -1624,7 +1624,7 @@ b2(v7: int32):
                 width: 32,
                 is_signed: true,
             })),
-            loop_header: function.blocks[1],
+            loop_header: function.block(1),
         };
 
         let actual = scev.value_scev(loop_index, derived_value).unwrap();
@@ -1664,10 +1664,10 @@ b2(v8: int32):
         let loop_index = loops
             .loops()
             .iter()
-            .position(|lp| lp.header == function.blocks[1])
+            .position(|lp| lp.header == function.block(1))
             .unwrap();
 
-        let block1 = test.tree.get(function.blocks[1]);
+        let block1 = test.tree.get(function.block(1));
         let instruction = test.tree.get(block1.instructions[1]);
         let derived_value = instruction
             .destination()
@@ -1684,7 +1684,7 @@ b2(v8: int32):
                 width: 32,
                 is_signed: true,
             })),
-            loop_header: function.blocks[1],
+            loop_header: function.block(1),
         };
 
         let actual = scev.value_scev(loop_index, derived_value).unwrap();
@@ -1723,10 +1723,10 @@ b2(v8: int32):
         let loop_index = loops
             .loops()
             .iter()
-            .position(|lp| lp.header == function.blocks[1])
+            .position(|lp| lp.header == function.block(1))
             .unwrap();
 
-        let block1 = test.tree.get(function.blocks[1]);
+        let block1 = test.tree.get(function.block(1));
         let instruction = test.tree.get(block1.instructions[0]);
         let derived_value = instruction
             .destination()
@@ -1740,7 +1740,7 @@ b2(v8: int32):
                 is_signed: true,
             })),
             step: Box::new(Scev::Unknown(invariant_value)),
-            loop_header: function.blocks[1],
+            loop_header: function.block(1),
         };
 
         let actual = scev.value_scev(loop_index, derived_value).unwrap();
@@ -1780,10 +1780,10 @@ b2(v8: int32):
         let loop_index = loops
             .loops()
             .iter()
-            .position(|lp| lp.header == function.blocks[1])
+            .position(|lp| lp.header == function.block(1))
             .unwrap();
 
-        let header_block = test.tree.get(function.blocks[1]);
+        let header_block = test.tree.get(function.block(1));
         let param_value = header_block.parameters[0].value;
 
         let expected = Scev::AddRec {
@@ -1797,7 +1797,7 @@ b2(v8: int32):
                 width: 32,
                 is_signed: true,
             })),
-            loop_header: function.blocks[1],
+            loop_header: function.block(1),
         };
 
         let actual = scev.value_scev(loop_index, param_value).unwrap();
@@ -1837,10 +1837,10 @@ b2(v8: int32):
         let loop_index = loops
             .loops()
             .iter()
-            .position(|lp| lp.header == function.blocks[1])
+            .position(|lp| lp.header == function.block(1))
             .unwrap();
 
-        let header_block = test.tree.get(function.blocks[1]);
+        let header_block = test.tree.get(function.block(1));
         let param_value = header_block.parameters[0].value;
 
         let expected = Scev::AddRec {
@@ -1854,7 +1854,7 @@ b2(v8: int32):
                 width: 32,
                 is_signed: true,
             })),
-            loop_header: function.blocks[1],
+            loop_header: function.block(1),
         };
 
         let actual = scev.value_scev(loop_index, param_value).unwrap();
@@ -1894,10 +1894,10 @@ b2(v8: int32):
         let loop_index = loops
             .loops()
             .iter()
-            .position(|lp| lp.header == function.blocks[1])
+            .position(|lp| lp.header == function.block(1))
             .unwrap();
 
-        let block1 = test.tree.get(function.blocks[1]);
+        let block1 = test.tree.get(function.block(1));
         let instruction = test.tree.get(block1.instructions[1]);
         let divide_value = instruction
             .destination()
@@ -1914,7 +1914,7 @@ b2(v8: int32):
                 width: 32,
                 is_signed: true,
             })),
-            loop_header: function.blocks[1],
+            loop_header: function.block(1),
         };
 
         let actual = scev.value_scev(loop_index, divide_value).unwrap();
@@ -1954,14 +1954,14 @@ b2(v8: int32):
         let loop_index = loops
             .loops()
             .iter()
-            .position(|lp| lp.header == function.blocks[1])
+            .position(|lp| lp.header == function.block(1))
             .unwrap();
 
-        let header_block = test.tree.get(function.blocks[1]);
+        let header_block = test.tree.get(function.block(1));
         let param_value = header_block.parameters[0].value;
         let param_scev = scev.value_scev(loop_index, param_value).unwrap().clone();
 
-        let block1 = test.tree.get(function.blocks[1]);
+        let block1 = test.tree.get(function.block(1));
         let arithmetic_value = test
             .tree
             .get(block1.instructions[1])
@@ -2034,14 +2034,14 @@ b2(v13: int64):
         let loop_index = loops
             .loops()
             .iter()
-            .position(|lp| lp.header == function.blocks[1])
+            .position(|lp| lp.header == function.block(1))
             .unwrap();
 
-        let header_block = test.tree.get(function.blocks[1]);
+        let header_block = test.tree.get(function.block(1));
         let param_value = header_block.parameters[0].value;
         let param_scev = scev.value_scev(loop_index, param_value).unwrap().clone();
 
-        let block1 = test.tree.get(function.blocks[1]);
+        let block1 = test.tree.get(function.block(1));
         let divide_value = test
             .tree
             .get(block1.instructions[1])

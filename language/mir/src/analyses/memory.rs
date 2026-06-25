@@ -34,7 +34,7 @@ impl ValueDefinitions {
         let mut frame_allocs = HashSet::new();
 
         // scan blocks for stack allocations
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             // read the block
             let block = tree.get(block_id);
 
@@ -54,7 +54,7 @@ impl ValueDefinitions {
         let mut escaping = HashSet::new();
 
         // scan blocks for escaping uses
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             // read the block
             let block = tree.get(block_id);
 

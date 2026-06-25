@@ -11,10 +11,10 @@ pub struct ControlFlowGraph {
 impl ControlFlowGraph {
     /// Build the control flow graph for one function.
     pub fn build(function: &Function, tree: &Tree) -> Self {
-        let mut predecessors = NodeTable::from_nodes(&function.blocks, Vec::new);
+        let mut predecessors = NodeTable::from_nodes(function.blocks(), Vec::new);
 
         // compute predecessors from successor edges
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
 
@@ -103,9 +103,9 @@ b2:
         let function = tree.get(function_id);
         let cfg = ControlFlowGraph::build(function, &tree);
 
-        let block0 = function.entry.expect("missing entry");
-        let block1 = function.blocks[1];
-        let block2 = function.blocks[2];
+        let block0 = function.entry().expect("missing entry");
+        let block1 = function.block(1);
+        let block2 = function.block(2);
 
         assert!(cfg.predecessors(block0).is_empty());
         assert_eq!(cfg.predecessors(block1).len(), 1);
@@ -132,8 +132,8 @@ b2:
         let function = tree.get(function_id);
         let cfg = ControlFlowGraph::build(function, &tree);
 
-        let block1 = function.blocks[1];
-        let block2 = function.blocks[2];
+        let block1 = function.block(1);
+        let block2 = function.block(2);
 
         assert_eq!(cfg.predecessors(block1).len(), 1);
         assert_eq!(cfg.predecessors(block2).len(), 1);
@@ -162,7 +162,7 @@ b3:
         let function = tree.get(function_id);
         let cfg = ControlFlowGraph::build(function, &tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
 
         assert_eq!(cfg.predecessors(block3).len(), 2);
     }
@@ -187,7 +187,7 @@ b2:
         let function = tree.get(function_id);
         let cfg = ControlFlowGraph::build(function, &tree);
 
-        let block1 = function.blocks[1];
+        let block1 = function.block(1);
 
         assert_eq!(cfg.predecessors(block1).len(), 2);
     }
@@ -216,10 +216,10 @@ b3:
 
         let function = tree.get(function_id);
         let cfg = ControlFlowGraph::build(function, &tree);
-        let entry = function.entry.expect("missing entry");
+        let entry = function.entry().expect("missing entry");
 
-        let reachable_block = function.blocks[1];
-        let unreachable_block = function.blocks[3];
+        let reachable_block = function.block(1);
+        let unreachable_block = function.block(3);
 
         assert!(cfg.is_reachable(reachable_block, entry));
         assert!(!cfg.is_reachable(unreachable_block, entry));

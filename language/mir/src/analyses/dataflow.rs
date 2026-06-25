@@ -45,8 +45,8 @@ impl<S> DataflowResult<S> {
     /// Create a result large enough for one function.
     pub fn for_function(function: &mir::Function) -> Self {
         Self {
-            block_entry: NodeTable::from_nodes(&function.blocks, || None),
-            block_exit: NodeTable::from_nodes(&function.blocks, || None),
+            block_entry: NodeTable::from_nodes(function.blocks(), || None),
+            block_exit: NodeTable::from_nodes(function.blocks(), || None),
         }
     }
 
@@ -102,7 +102,7 @@ where
     where
         F: FnMut(mir::LocalNodeId<mir::Block>, S, &mir::Tree) -> S,
     {
-        let entry = match function.entry {
+        let entry = match function.entry() {
             Some(entry) => entry,
             None => return Self::new(),
         };
@@ -199,14 +199,14 @@ where
     where
         F: FnMut(mir::LocalNodeId<mir::Block>, S, &mir::Tree) -> S,
     {
-        if function.entry.is_none() {
+        if function.entry().is_none() {
             return Self::new();
         }
 
         let mut result = Self::for_function(function);
 
         // seed terminal blocks with the caller-provided exit state
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
             if matches!(
@@ -228,7 +228,7 @@ where
         let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
         let mut in_worklist: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
 
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             if result.exit(block_id).is_some() {
                 worklist.push_back(block_id);
                 in_worklist.insert(block_id);
@@ -358,15 +358,16 @@ b2:
 
         let function_id = program.first_function_id();
         let (block0, block1, block2) = {
-            let function = program.tree.get_mut(function_id);
-            let entry = function.entry.expect("missing entry");
+            let mut function = program.tree.get(function_id).clone();
+            let entry = function.entry().expect("missing entry");
 
             let block0 = entry;
-            let block1 = function.blocks[1];
-            let block2 = function.blocks[2];
+            let block1 = function.block(1);
+            let block2 = function.block(2);
 
             // reorder blocks so the unreachable predecessor is first
-            function.blocks = vec![block1, block0, block2];
+            function.replace_blocks(vec![block1, block0, block2], &program.tree);
+            program.tree.set(function_id, function);
 
             (block0, block1, block2)
         };
@@ -410,7 +411,7 @@ entry(v0: int32):
         let function_id = program.function_id_by_name("test");
         let function = program.tree.get(function_id);
         let cfg = ControlFlowGraph::build(function, &program.tree);
-        let entry = function.entry.expect("missing entry");
+        let entry = function.entry().expect("missing entry");
 
         let exit_state: HashSet<mir::LocalNodeId<mir::Block>> = [entry].into_iter().collect();
         let result = DataflowResult::backward(
@@ -443,7 +444,7 @@ entry(v0: ref<void, managed, readonly>):
         let function_id = program.function_id_by_name("test");
         let function = program.tree.get(function_id);
         let cfg = ControlFlowGraph::build(function, &program.tree);
-        let entry = function.entry.expect("missing entry");
+        let entry = function.entry().expect("missing entry");
 
         let exit_state: HashSet<mir::LocalNodeId<mir::Block>> = [entry].into_iter().collect();
         let result = DataflowResult::backward(

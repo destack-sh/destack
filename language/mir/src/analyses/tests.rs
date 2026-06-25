@@ -58,7 +58,7 @@ impl TestProgram {
         self.tree
             .iter_nodes::<Function>()
             .find(|(_, function)| {
-                function.entry.is_some() && self.strings.get(function.name) == "test"
+                function.entry().is_some() && self.strings.get(function.name) == "test"
             })
             .map(|(function_id, _)| function_id)
             .expect("missing test function")
@@ -114,7 +114,7 @@ impl TestProgram {
     ) -> LocalNodeId<mir::Block> {
         let function = self.tree.get(function_id);
 
-        function.entry.expect("missing entry block")
+        function.entry().expect("missing entry block")
     }
 
     /// Return the instruction ids in a block.
@@ -163,7 +163,7 @@ impl TestProgram {
     ) -> (LocalNodeId<mir::Instruction>, LocalNodeId<Function>) {
         // read the entry block for the function
         let function = self.tree.get(function_id);
-        let block = self.tree.get(function.blocks[0]);
+        let block = self.tree.get(function.block(0));
 
         // locate the first call instruction
         let call_inst = block

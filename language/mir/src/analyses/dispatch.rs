@@ -32,7 +32,7 @@ impl DispatchAnalysis {
 
         // scan each function body
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
-            if function.entry.is_some() {
+            if function.entry().is_some() {
                 let value_types = analyses.get_function::<ValueTypes>(function_id, tree);
                 let mut resolver = DispatchResolver {
                     tree,
@@ -86,7 +86,7 @@ struct DispatchResolver<'a, 'b> {
 impl<'a, 'b> DispatchResolver<'a, 'b> {
     /// Record dispatch targets in one function.
     fn record_function(&mut self, caller: mir::FunctionId) {
-        for &block_id in &self.function.blocks {
+        for &block_id in self.function.blocks() {
             self.record_block(caller, block_id);
         }
     }
@@ -500,7 +500,7 @@ entry(v0: int32):
         let function = program.tree.get(function);
 
         // scan the function body
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = program.tree.get(block_id);
             for &instruction_id in &block.instructions {
                 if let mir::Instruction::CallVirtual { class, .. } =
@@ -522,7 +522,7 @@ entry(v0: int32):
         let function = program.tree.get(function);
 
         // scan the function body
-        for &block_id in &function.blocks {
+        for &block_id in function.blocks() {
             let block = program.tree.get(block_id);
             for &instruction_id in &block.instructions {
                 if let mir::Instruction::CallDynamic {

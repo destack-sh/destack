@@ -15,18 +15,18 @@ struct DenseControlFlow {
 impl DenseControlFlow {
     /// Build one dense control flow graph for one function.
     fn build(function: &Function, tree: &Tree, cfg: &ControlFlowGraph) -> Self {
-        let mut block_index = NodeTable::from_nodes(&function.blocks, || None);
+        let mut block_index = NodeTable::from_nodes(function.blocks(), || None);
 
         // block indices
-        for (index, &block) in function.blocks.iter().enumerate() {
+        for (index, &block) in function.blocks().iter().enumerate() {
             *block_index.get_mut(block) = Some(index);
         }
 
-        let mut successors = vec![Vec::new(); function.blocks.len()];
-        let mut predecessors = vec![Vec::new(); function.blocks.len()];
+        let mut successors = vec![Vec::new(); function.blocks().len()];
+        let mut predecessors = vec![Vec::new(); function.blocks().len()];
 
         // edge lists
-        for &block in &function.blocks {
+        for &block in function.blocks() {
             let index = block_index.expect(block);
             let block_data = tree.get(block);
             let terminator = tree.get(block_data.terminator);
@@ -80,7 +80,7 @@ pub struct DominatorTree {
 impl DominatorTree {
     /// Build the dominator tree for one function.
     pub fn build(function: &Function, tree: &Tree, cfg: &ControlFlowGraph) -> Self {
-        let Some(entry) = function.entry else {
+        let Some(entry) = function.entry() else {
             return Self {
                 immediate_dominators: NodeTable::new(),
                 preorder: NodeTable::new(),
@@ -94,19 +94,19 @@ impl DominatorTree {
         let result =
             DominatorComputation::compute(&dense.successors, &dense.predecessors, entry_index);
 
-        let mut immediate_dominators = NodeTable::from_nodes(&function.blocks, || None);
+        let mut immediate_dominators = NodeTable::from_nodes(function.blocks(), || None);
 
         // block dominators
-        for &block in &function.blocks {
+        for &block in function.blocks() {
             let index = dense.index_of(block);
             if let Some(idom_index) = result.immediate_dominators[index] {
-                let idom_block = function.blocks[idom_index];
+                let idom_block = function.block(idom_index);
                 *immediate_dominators.get_mut(block) = Some(idom_block);
             }
         }
 
         let (preorder, preorder_max) =
-            Self::compute_preorder(&function.blocks, entry, &immediate_dominators);
+            Self::compute_preorder(function.blocks(), entry, &immediate_dominators);
 
         Self {
             immediate_dominators,
@@ -448,9 +448,9 @@ b2:
         let cfg = ControlFlowGraph::build(function, &tree);
         let domtree = DominatorTree::build(function, &tree, &cfg);
 
-        let block0 = function.blocks[0];
-        let block1 = function.blocks[1];
-        let block2 = function.blocks[2];
+        let block0 = function.block(0);
+        let block1 = function.block(1);
+        let block2 = function.block(2);
 
         assert!(domtree.dominates(block0, block0));
         assert!(domtree.dominates(block0, block1));
@@ -486,10 +486,10 @@ b3:
         let cfg = ControlFlowGraph::build(function, &tree);
         let domtree = DominatorTree::build(function, &tree, &cfg);
 
-        let block0 = function.blocks[0];
-        let block1 = function.blocks[1];
-        let block2 = function.blocks[2];
-        let block3 = function.blocks[3];
+        let block0 = function.block(0);
+        let block1 = function.block(1);
+        let block2 = function.block(2);
+        let block3 = function.block(3);
 
         assert!(domtree.dominates(block0, block0));
         assert!(domtree.dominates(block0, block1));
@@ -524,8 +524,8 @@ b3:
         let cfg = ControlFlowGraph::build(function, &tree);
         let domtree = DominatorTree::build(function, &tree, &cfg);
 
-        let block0 = function.blocks[0];
-        let block3 = function.blocks[3];
+        let block0 = function.block(0);
+        let block3 = function.block(3);
 
         assert_eq!(domtree.immediate_dominator(block3), None);
         assert!(!domtree.dominates(block0, block3));
@@ -549,8 +549,8 @@ b1:
         let cfg = ControlFlowGraph::build(function, &tree);
         let domtree = DominatorTree::build(function, &tree, &cfg);
 
-        let block0 = function.blocks[0];
-        let block1 = function.blocks[1];
+        let block0 = function.block(0);
+        let block1 = function.block(1);
 
         assert!(domtree.dominates(block0, block0));
         assert!(!domtree.strictly_dominates(block0, block0));

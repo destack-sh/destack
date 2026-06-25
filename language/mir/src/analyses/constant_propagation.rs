@@ -108,7 +108,7 @@ impl ConstantPropagation {
         entry_constants: ConstantMap,
     ) -> Self {
         // entry block selection
-        let entry = match function.entry {
+        let entry = match function.entry() {
             Some(entry) => entry,
             None => {
                 return Self {
@@ -119,15 +119,15 @@ impl ConstantPropagation {
         };
 
         // init state maps
-        let mut block_entry = NodeTable::from_nodes(&function.blocks, || None);
-        let mut block_exit = NodeTable::from_nodes(&function.blocks, || None);
+        let mut block_entry = NodeTable::from_nodes(function.blocks(), || None);
+        let mut block_exit = NodeTable::from_nodes(function.blocks(), || None);
 
         // seed entry state
         *block_entry.get_mut(entry) = Some(entry_constants);
 
         // init worklist
         let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
-        let mut in_worklist = NodeTable::from_nodes(&function.blocks, || false);
+        let mut in_worklist = NodeTable::from_nodes(function.blocks(), || false);
         worklist.push_back(entry);
         *in_worklist.get_mut(entry) = true;
 
@@ -518,7 +518,7 @@ entry:
         let analyses = test.function_analyses();
         let analysis = analyses.get::<ConstantPropagation>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let constant = analysis
             .constant_at_exit(block0, mir::Value::new(1))
             .cloned();
@@ -546,7 +546,7 @@ entry:
         let analyses = test.function_analyses();
         let analysis = analyses.get::<ConstantPropagation>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let constant = analysis
             .constant_at_exit(block0, mir::Value::new(1))
             .cloned();
@@ -574,7 +574,7 @@ entry:
         let analyses = test.function_analyses();
         let analysis = analyses.get::<ConstantPropagation>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let constant = analysis
             .constant_at_exit(block0, mir::Value::new(1))
             .cloned();
@@ -601,7 +601,7 @@ entry:
         let analyses = test.function_analyses();
         let analysis = analyses.get::<ConstantPropagation>(function, &test.tree);
 
-        let block0 = function.blocks[0];
+        let block0 = function.block(0);
         let constant = analysis
             .constant_at_exit(block0, mir::Value::new(2))
             .cloned();
@@ -642,7 +642,7 @@ b3(v4: boolean):
         let analyses = test.function_analyses();
         let analysis = analyses.get::<ConstantPropagation>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let constant = analysis
             .constant_at_entry(block3, mir::Value::new(4))
             .cloned();
@@ -674,7 +674,7 @@ b2:
         let analyses = test.function_analyses();
         let analysis = analyses.get::<ConstantPropagation>(function, &test.tree);
 
-        let success = function.blocks[1];
+        let success = function.block(1);
         let success_block = test.tree.get(success);
         let argument = success_block.parameters[1].value;
         let constant = analysis.constant_at_entry(success, argument).cloned();
@@ -710,7 +710,7 @@ b3(v5: boolean):
         let analyses = test.function_analyses();
         let analysis = analyses.get::<ConstantPropagation>(function, &test.tree);
 
-        let block3 = function.blocks[3];
+        let block3 = function.block(3);
         let constant = analysis
             .constant_at_entry(block3, mir::Value::new(5))
             .cloned();
@@ -739,7 +739,7 @@ b1(v3: boolean):
         let analyses = test.function_analyses();
         let analysis = analyses.get::<ConstantPropagation>(function, &test.tree);
 
-        let block1 = function.blocks[1];
+        let block1 = function.block(1);
         let constant = analysis
             .constant_at_entry(block1, mir::Value::new(3))
             .cloned();
