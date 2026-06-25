@@ -47,7 +47,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             return Ok(None);
         }
 
-        let Some(entry) = func.entry else {
+        let Some(entry) = func.entry() else {
             return Ok(None);
         };
 
@@ -166,13 +166,13 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
     /// Build the lowered local index map for the function.
     fn local_index_map(func: &mir::Function) -> HashMap<mir::LocalNodeId<mir::Local>, u32> {
         debug_assert!(
-            func.locals.len() <= u32::MAX as usize,
+            func.locals().len() <= u32::MAX as usize,
             "too many locals for lowered function indices"
         );
 
-        let mut local_index_by_id = HashMap::with_capacity(func.locals.len());
+        let mut local_index_by_id = HashMap::with_capacity(func.locals().len());
 
-        for (index, local) in func.locals.iter().enumerate() {
+        for (index, local) in func.locals().iter().enumerate() {
             local_index_by_id.insert(*local, index as u32);
         }
 

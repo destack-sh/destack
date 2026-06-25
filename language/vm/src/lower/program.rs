@@ -319,7 +319,7 @@ fn initializer_ranges(
 fn trace_table_from_layouts(layouts: &LayoutTable) -> mir::TraceTable {
     let mut trace_table = mir::TraceTable::new();
 
-    for layout in &layouts.layouts {
+    for layout in &layouts.entries {
         trace_table.insert(layout.trace_map.clone());
     }
 
@@ -333,7 +333,7 @@ pub struct ProgramLowerer {
     shared_heap_options: heap::SharedHeapOptions,
     tree: mir::Tree,
     strings: StringPool,
-    frames: mir::FrameTable,
+    frames: mir::FrameMetadata,
     resume: ResumeTable,
 }
 
@@ -350,7 +350,7 @@ impl ProgramLowerer {
             shared_heap_options,
             tree,
             strings,
-            frames: mir::FrameTable::default(),
+            frames: mir::FrameMetadata::default(),
             resume: ResumeTable::default(),
         }
     }
@@ -380,9 +380,9 @@ impl ProgramLowerer {
         let side_table = side_table.finish();
         let functions = VmFunctionTable::new(functions, target_by_id);
         let vm = program::vm::Code::new(functions, side_table, self.resume);
-        self.tree.metadata.frame = self.frames;
-        let layouts = self.tree.metadata.layout.layout_table.clone();
-        let frames = self.tree.metadata.frame.clone();
+        self.tree.metadata.frames = self.frames;
+        let layouts = self.tree.metadata.layouts.table.clone();
+        let frames = self.tree.metadata.frames.clone();
         let functions = program::FunctionTable::lower(&self.tree, &self.strings, &index);
         let header = program::ProgramHeader::new(
             self.tree.pointer_bytes(),
@@ -534,12 +534,12 @@ impl ProgramLowerer {
         layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
         layout_table: LayoutTable,
     ) {
-        self.tree.metadata.layout.layout_table = layout_table;
+        self.tree.metadata.layouts.table = layout_table;
 
         for (type_id, layout_id) in layout_id_by_type {
             self.tree
                 .metadata
-                .layout
+                .layouts
                 .set_layout_id(*type_id, *layout_id);
         }
     }
@@ -555,7 +555,7 @@ impl ProgramLowerer {
             .max()
             .unwrap_or(0);
         let mut table = LayoutTable::new();
-        table.layouts.resize_with(max_layout_id, || mir::Layout {
+        table.entries.resize_with(max_layout_id, || mir::Layout {
             shape: LayoutShape::None,
             size: 0,
             alignment: 1,
@@ -567,14 +567,14 @@ impl ProgramLowerer {
             let module_layout = self.program_layout(*type_id, layout)?;
             let index = layout.layout_id.index();
 
-            if index >= table.layouts.len() {
+            if index >= table.entries.len() {
                 return Err(Error::internal(format!(
                     "layout id out of range: {:?}",
                     layout.layout_id
                 )));
             }
 
-            table.layouts[index] = module_layout;
+            table.entries[index] = module_layout;
         }
 
         Ok(table)
@@ -733,7 +733,7 @@ impl ProgramLowerer {
             }
 
             // declarations without bodies are not call targets
-            if function.entry.is_none() {
+            if function.entry().is_none() {
                 continue;
             }
 
@@ -803,7 +803,7 @@ impl ProgramLowerer {
         let frame_layout = self.build_frame_layout(function, &value_types, layouts)?;
         let liveness = { mir::FunctionLiveness::build(function, &self.tree) };
         let entry = function
-            .entry
+            .entry()
             .ok_or_else(|| Error::invalid_program(format!("program function {function_id:?}")))?;
         let block_order = BlockOrder::new(&self.tree, entry)?;
         let (yield_resume, call_resume) = self.build_resume(
@@ -899,8 +899,9 @@ impl ProgramLowerer {
     ) -> Result<mir::FrameLayout> {
         let mut byte_len = 0usize;
 
-        let slot_count =
-            value_types.len() + function.locals.len() + usize::from(function.environment.is_some());
+        let slot_count = value_types.len()
+            + function.locals().len()
+            + usize::from(function.environment.is_some());
         let mut slots = Vec::with_capacity(slot_count);
 
         for value_type in value_types {
@@ -910,7 +911,7 @@ impl ProgramLowerer {
 
         let value_count =
             u32::try_from(value_types.len()).map_err(|_| Error::invalid_instruction())?;
-        for local_id in &function.locals {
+        for local_id in function.locals() {
             let local = self.tree.get(*local_id);
             let local_type = local.ty;
             let slot = self.frame_slot(layouts, local_type, &mut byte_len)?;
@@ -918,7 +919,7 @@ impl ProgramLowerer {
         }
 
         let local_count =
-            u32::try_from(function.locals.len()).map_err(|_| Error::invalid_instruction())?;
+            u32::try_from(function.locals().len()).map_err(|_| Error::invalid_instruction())?;
         let environment_slot = function
             .environment
             .as_ref()
@@ -986,7 +987,7 @@ impl ProgramLowerer {
         HashMap<mir::LocalNodeId<mir::Block>, mir::FrameStateId>,
         HashMap<mir::LocalNodeId<mir::Block>, mir::FrameStateId>,
     )> {
-        let block_ids = self.tree.get(function_id).blocks.clone();
+        let block_ids = self.tree.get(function_id).blocks().to_vec();
         let mut yield_resume = HashMap::new();
         let mut call_resume = HashMap::new();
 
