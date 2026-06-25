@@ -26,16 +26,16 @@ pub struct TargetCompilerOptions {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum OptimizeLevel {
-    /// No optimization (O0).
+    /// Debug build level with no optimization.
     #[default]
     O0,
-    /// Basic optimization (O1).
+    /// Fast local optimization level.
     O1,
-    /// Standard optimization (O2).
+    /// Standard release optimization level.
     O2,
-    /// Aggressive optimization (O3).
+    /// Aggressive release optimization level.
     O3,
-    /// Maximal optimization (O4).
+    /// Maximum Destack optimization level.
     O4,
 }
 
