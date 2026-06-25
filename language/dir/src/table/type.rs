@@ -6,8 +6,8 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, IntersectionType, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, Node, SegmentView, Type, UnionType,
+    Arena, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LocalNodeId, LocalNodeIdAny, LocalTypeId,
+    Node, SegmentView, Type,
 };
 
 /// Cumulative type slots for one DIR module.
@@ -283,43 +283,6 @@ impl TypeSegment {
         let source_id = self.get_type_source(source_type_id);
 
         self.allocate_type(ty, source_id)
-    }
-
-    /// Intern one union type by deterministic structural scan.
-    pub fn intern_union_type(
-        &mut self,
-        source_type_id: LocalTypeId,
-        elements: Vec<GlobalTypeId>,
-    ) -> LocalTypeId {
-        for type_id in self.iter_type_ids() {
-            if let Type::Union(existing) = self.get_type(type_id)
-                && existing.elements == elements
-            {
-                return type_id;
-            }
-        }
-
-        self.insert_type_from_type(Type::Union(UnionType { elements }), source_type_id)
-    }
-
-    /// Intern one intersection type by deterministic structural scan.
-    pub fn intern_intersection_type(
-        &mut self,
-        source_type_id: LocalTypeId,
-        elements: Vec<GlobalTypeId>,
-    ) -> LocalTypeId {
-        for type_id in self.iter_type_ids() {
-            if let Type::Intersection(existing) = self.get_type(type_id)
-                && existing.elements == elements
-            {
-                return type_id;
-            }
-        }
-
-        self.insert_type_from_type(
-            Type::Intersection(IntersectionType { elements }),
-            source_type_id,
-        )
     }
 
     /// Iterate effective checked types keyed by DIR node.

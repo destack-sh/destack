@@ -832,6 +832,9 @@ define_language_items! {
             /// Runtime erasure capability.
             DynamicSafe => (NewtypeInterface, "memory/capability", "DynamicSafe"),
 
+            /// Non-exclusive overwrite capability.
+            OverwriteStable => (NewtypeInterface, "memory/capability", "OverwriteStable"),
+
             /// Worker-send capability.
             Send => (NewtypeInterface, "memory/capability", "Send"),
 
