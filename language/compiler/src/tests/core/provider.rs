@@ -7,9 +7,12 @@ use destack_artifact::{
     DiagnosticDisplay, DiagnosticError, DiagnosticLike,
 };
 use destack_repository::{
-    DependencySetResolution, ProviderContext, ProviderError, ProviderResult, Repository, Revision,
+    ArtifactAttemptOutcome, ArtifactAttemptRecorder, Clock, DependencySetResolution,
+    ProviderContext, ProviderError, ProviderResult, Repository, Revision, Trace, TraceSnapshot,
 };
-use destack_source::{ContentId, DiagnosticCollection, DiagnosticLabel, FileId, ModuleId, Span};
+use destack_source::{
+    Content, ContentId, DiagnosticCollection, DiagnosticLabel, FileId, ModuleId, Span,
+};
 
 use super::module::{parse_module, parsed_dependencies};
 use crate::Compiler;
@@ -23,21 +26,27 @@ pub(crate) struct TestProvider {
     revision: Revision,
     /// The compiler under test.
     compiler: Compiler,
-    /// Whether provider attempts should emit event traces.
-    emit_events: bool,
+    /// The artifact trace for this test provider.
+    trace: Arc<Trace>,
 }
 
 impl TestProvider {
     /// Create one test provider.
-    pub(crate) fn new(repository: Arc<Repository>, revision: Revision, emit_events: bool) -> Self {
+    pub(crate) fn new(repository: Arc<Repository>, revision: Revision) -> Self {
         let compiler = Compiler::new(repository.clone());
 
         Self {
             repository,
             revision,
             compiler,
-            emit_events,
+            trace: Trace::new(Clock::default()),
         }
+    }
+
+    /// Return a detailed snapshot of this provider's artifact trace.
+    pub(crate) fn trace(&self) -> TraceSnapshot {
+        self.trace.finish();
+        self.trace.snapshot(true, |_| None, |_| None)
     }
 
     /// Require one artifact, building its closure depth first.
@@ -47,34 +56,41 @@ impl TestProvider {
 
     /// Resolve one artifact through the repository dependency-set model.
     fn resolve(&self, key: ArtifactKey) -> ProviderResult<ArtifactVersion> {
-        if let Some(version) = self.terminal_version(key)? {
+        let recorder = Arc::new(self.trace.begin(key, 0));
+
+        if let Some(version) = recorder.span("terminal", || self.terminal_version(key))? {
+            recorder.finish(ArtifactAttemptOutcome::MemoryCached);
+
             return Ok(version);
         }
 
-        let mut set = self.collect(key)?;
+        let mut set = recorder.span("collect", || self.collect(key))?;
         loop {
-            match self.repository.resolve_dependency_set(self.revision, set)? {
+            match recorder.span("dependencies", || {
+                self.repository.resolve_dependency_set(self.revision, set)
+            })? {
                 DependencySetResolution::Incomplete => {
-                    set = self.collect(key)?;
+                    set = recorder.span("collect", || self.collect(key))?;
                 }
                 DependencySetResolution::Pending {
                     frontier,
                     pending_set,
                 } => {
+                    recorder.record_counter("frontier", frontier.len() as u64);
                     for dependency in frontier {
                         self.resolve(dependency)?;
                     }
                     set = if let Some(pending_set) = pending_set {
                         pending_set
                     } else {
-                        self.collect(key)?
+                        recorder.span("collect", || self.collect(key))?
                     };
                 }
                 DependencySetResolution::Resolved {
                     base,
                     dependencies,
                     failed,
-                } => return self.commit(key, base, dependencies, failed),
+                } => return self.commit(key, base, dependencies, failed, recorder),
             }
         }
     }
@@ -103,82 +119,108 @@ impl TestProvider {
         base: Option<ArtifactVersion>,
         dependencies: Vec<ArtifactDependency>,
         failed: Option<ArtifactKey>,
+        recorder: Arc<ArtifactAttemptRecorder>,
     ) -> ProviderResult<ArtifactVersion> {
-        let version = ArtifactVersion::new(
-            key,
-            self.repository.build_fingerprint(),
-            base,
-            dependencies.iter().cloned(),
-        );
+        let version = recorder.span("version", || {
+            ArtifactVersion::new(
+                key,
+                self.repository.build_fingerprint(),
+                base,
+                dependencies.iter().cloned(),
+            )
+        });
 
         // record poisoned dependencies without running the provider
         if let Some(failed) = failed {
-            self.fail(
-                version,
-                base,
-                dependencies,
-                DiagnosticCollection::new(),
-                Vec::new(),
-                ArtifactFailure::requirement(failed),
-            )?;
+            recorder.span("complete", || {
+                self.fail(
+                    version,
+                    base,
+                    dependencies,
+                    DiagnosticCollection::new(),
+                    Vec::new(),
+                    ArtifactFailure::requirement(failed),
+                )
+            })?;
+            recorder.finish(ArtifactAttemptOutcome::Failed);
 
             return Ok(version);
         }
 
         // reuse committed memory or disk records before running the provider
-        if self.repository.artifact_table().outcome(&version).is_some() {
-            self.repository
-                .bind_artifact(self.revision, version)
-                .map_err(|error| ProviderError::internal(error.to_string()))?;
+        if recorder.span("memory_cache", || {
+            self.repository.artifact_table().outcome(&version).is_some()
+        }) {
+            recorder.span("bind", || {
+                self.repository
+                    .bind_artifact(self.revision, version)
+                    .map_err(|error| ProviderError::internal(error.to_string()))
+            })?;
+            recorder.finish(ArtifactAttemptOutcome::MemoryCached);
 
             return Ok(version);
         }
-        if self
-            .repository
-            .load_artifact(self.revision, version)
-            .map_err(|error| ProviderError::internal(error.to_string()))?
-        {
+        if recorder.span("store_cache", || {
+            self.repository
+                .load_artifact(self.revision, version)
+                .map_err(|error| ProviderError::internal(error.to_string()))
+        })? {
+            recorder.finish(ArtifactAttemptOutcome::StoreCached);
+
             return Ok(version);
         }
 
         // run the local test provider and publish its terminal outcome
-        let context = TestProviderContext::new(self, key);
-        match self.provide(key, &context) {
+        let context = TestProviderContext::new(self, key).with_recorder(recorder.clone());
+        match recorder.span("provider", || self.provide(key, &context)) {
             Ok(payload) => {
-                self.repository
-                    .complete_artifact(
-                        self.revision,
-                        version,
-                        base,
-                        payload,
-                        dependencies,
-                        context.diagnostics(),
-                        context.sidecars(),
-                    )
-                    .map_err(|error| ProviderError::internal(error.to_string()))?;
+                recorder.span("publish", || {
+                    self.repository
+                        .complete_artifact(
+                            self.revision,
+                            version,
+                            base,
+                            payload,
+                            dependencies,
+                            context.diagnostics(),
+                            context.sidecars(),
+                        )
+                        .map_err(|error| ProviderError::internal(error.to_string()))
+                })?;
+                recorder.finish(ArtifactAttemptOutcome::Built);
             }
             Err(error) => match *error {
                 ProviderError::Failed { failure } => {
-                    self.fail(
-                        version,
-                        base,
-                        dependencies,
-                        context.diagnostics(),
-                        context.sidecars(),
-                        failure,
-                    )?;
+                    recorder.span("complete", || {
+                        self.fail(
+                            version,
+                            base,
+                            dependencies,
+                            context.diagnostics(),
+                            context.sidecars(),
+                            failure,
+                        )
+                    })?;
+                    recorder.finish(ArtifactAttemptOutcome::Failed);
                 }
                 ProviderError::RequirementFailed { key } => {
-                    self.fail(
-                        version,
-                        base,
-                        dependencies,
-                        context.diagnostics(),
-                        context.sidecars(),
-                        ArtifactFailure::requirement(key),
-                    )?;
+                    recorder.span("complete", || {
+                        self.fail(
+                            version,
+                            base,
+                            dependencies,
+                            context.diagnostics(),
+                            context.sidecars(),
+                            ArtifactFailure::requirement(key),
+                        )
+                    })?;
+                    recorder.finish(ArtifactAttemptOutcome::Failed);
                 }
-                error => return Err(error.into()),
+                error => {
+                    recorder.finish(ArtifactAttemptOutcome::Failed);
+
+                    return Err(context.internal_error(error).into());
+                }
             },
         }
 
@@ -307,6 +349,8 @@ struct TestProviderContext<'a> {
     diagnostics: RefCell<DiagnosticCollection>,
     /// The sidecars recorded by this attempt.
     sidecars: RefCell<Vec<ArtifactSidecar>>,
+    /// The artifact trace recorder for this attempt.
+    recorder: Option<Arc<ArtifactAttemptRecorder>>,
 }
 
 impl<'a> TestProviderContext<'a> {
@@ -317,7 +361,15 @@ impl<'a> TestProviderContext<'a> {
             key,
             diagnostics: RefCell::new(DiagnosticCollection::new()),
             sidecars: RefCell::new(Vec::new()),
+            recorder: None,
         }
+    }
+
+    /// Attach one artifact trace recorder.
+    fn with_recorder(mut self, recorder: Arc<ArtifactAttemptRecorder>) -> Self {
+        self.recorder = Some(recorder);
+
+        self
     }
 
     /// Return diagnostics produced by this attempt.
@@ -328,6 +380,37 @@ impl<'a> TestProviderContext<'a> {
     /// Return sidecars produced by this attempt.
     fn sidecars(&self) -> Vec<ArtifactSidecar> {
         self.sidecars.borrow().clone()
+    }
+
+    /// Return one internal provider error with any retained trace sidecar.
+    fn internal_error(&self, error: ProviderError) -> ProviderError {
+        let mut message = error.to_string();
+
+        if let Some(events) = self.check_event_sidecar() {
+            message.push_str("\n\n=== check.events ===\n");
+            message.push_str(&events);
+        }
+
+        ProviderError::internal(message)
+    }
+
+    /// Return the retained check event sidecar for this attempt.
+    fn check_event_sidecar(&self) -> Option<String> {
+        self.sidecars.borrow().iter().find_map(|sidecar| {
+            let is_check_events = sidecar.name == "events"
+                && sidecar
+                    .labels
+                    .get("phase")
+                    .is_some_and(|phase| phase == "check");
+            if !is_check_events {
+                return None;
+            }
+
+            match &sidecar.content {
+                Content::Text { content } => Some(content.clone()),
+                Content::Binary { .. } => None,
+            }
+        })
     }
 
     /// Return one diagnostic label.
@@ -433,7 +516,12 @@ impl ProviderContext for TestProviderContext<'_> {
 
     /// Emit event traces from compiler test attempts.
     fn emit_events(&self) -> bool {
-        self.provider.emit_events
+        true
+    }
+
+    /// Return the recorder for this artifact attempt.
+    fn recorder(&self) -> Option<&ArtifactAttemptRecorder> {
+        self.recorder.as_deref()
     }
 
     /// Add an already-final diagnostic collection produced by this attempt.
