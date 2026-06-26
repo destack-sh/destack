@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, ComponentGraph, DirBound,
@@ -1135,7 +1135,7 @@ fn update_expectation(caller: &std::panic::Location<'_>, expected: &str, actual:
 /// packages every fixture imports check once per process instead of
 /// once per test.
 fn shared_blob_store() -> Arc<MemoryBlobStore> {
-    static STORE: std::sync::OnceLock<Arc<MemoryBlobStore>> = std::sync::OnceLock::new();
+    static STORE: OnceLock<Arc<MemoryBlobStore>> = OnceLock::new();
 
     Arc::clone(STORE.get_or_init(|| Arc::new(MemoryBlobStore::new())))
 }
