@@ -855,7 +855,7 @@ impl ModuleQueryContext<'_> {
         let pattern = dir_tree.get::<dir::Pattern>(pattern_id);
 
         match pattern {
-            dir::Pattern::Assign { pattern, .. } => {
+            dir::Pattern::Default { pattern, .. } => {
                 Self::pattern_symbol_at_offset(ctx, dir_tree, *pattern, offset)
             }
             dir::Pattern::Binding { pattern, .. } => {
