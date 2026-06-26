@@ -31,11 +31,8 @@ export class Generator<Y, R = void, N = void> implements Drop {
     }
 }
 
-/// Generators iterate over their yielded values, dropping returns and resume values.
-extension<Y, R, N> of Generator<Y, R, N> implements Iterator {
-    type Item = Y;
-    type Return = R;
-
+/// Generators iterate over their yielded values.
+extension<Y, R, N> of Generator<Y, R, N> implements Iterator<Y, R> {
     /// Advance the generator and return the next yield or completion.
     next(): IteratorResult<Y, R> {
         todo("Generator.next")
@@ -64,11 +61,8 @@ export class AsyncGenerator<Y, R = void, N = void> implements Drop {
     }
 }
 
-/// Async generators iterate over their yielded values, dropping returns and resume values.
-extension<Y, R, N> of AsyncGenerator<Y, R, N> implements AsyncIterator {
-    type Item = Y;
-    type Return = R;
-
+/// Async generators iterate over their yielded values.
+extension<Y, R, N> of AsyncGenerator<Y, R, N> implements AsyncIterator<Y, R> {
     /// Advance the generator and return the next yield or completion.
     next(): Promise<IteratorResult<Y, R>> {
         todo("AsyncGenerator.next")

@@ -1,17 +1,16 @@
-import { Index } from "destack:ops";
 import { Access, WithAccess } from "destack:memory";
 
 /// Finite ordered indexed collection.
 @languageItem("collections.Sequence")
-export newtype interface Sequence extends Index<usize> {
-    /// The element type.
-    type Element = this.Output;
-
+export newtype interface Sequence<T> {
     /// The contiguous range view type.
     type View;
 
     /// Return the number of elements.
     get length(): usize;
+
+    /// Return the element at `index` by value.
+    index(index: usize): T;
 
     /// Borrow a view over `start..end`.
     view<comptime A: Access = "readonly">(

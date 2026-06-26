@@ -25,7 +25,7 @@ export struct SmallArray<T, comptime N: number> {
 }
 
 extension<T, comptime N: number> of SmallArray<T, N> implements
-    Sequence,
+    Sequence<T>,
     Index<usize>,
     IndexSet<usize, T>,
     Iterable<T>,

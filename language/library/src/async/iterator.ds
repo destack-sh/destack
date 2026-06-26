@@ -4,27 +4,20 @@ import { Promise } from "./promise.ds";
 
 /// Protocol for asynchronously producing values.
 @languageItem("async.AsyncIterator")
-export newtype interface AsyncIterator {
-    type Item;
-    type Return = void;
-
+export newtype interface AsyncIterator<T, R = unknown> {
     /// Advance and return the next yield or completion.
-    next(): Promise<IteratorResult<this.Item, this.Return>>;
+    next(): Promise<IteratorResult<T, R>>;
 }
 
 /// Value that can produce an async iterator.
 @languageItem("async.AsyncIterable")
-export newtype interface AsyncIterable {
-    type Item;
-
+export newtype interface AsyncIterable<T> {
     /// Return a new async iterator for this receiver form.
-    asyncIterator(): AsyncIterator<this.Item>;
+    asyncIterator(): AsyncIterator<T>;
 }
 
 /// Every async iterator is trivially async-iterable as itself.
-extension<I: AsyncIterator> of I implements AsyncIterable {
-    type Item = I.Item;
-
+extension<T, R, I: AsyncIterator<T, R>> of I implements AsyncIterable<T> {
     /// Return this async iterator.
     asyncIterator(): I {
         this

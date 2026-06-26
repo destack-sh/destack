@@ -3,7 +3,7 @@ import { Access, WithAccess } from "destack:memory";
 /// The union of iterator yield and completion results.
 @languageItem("iter.IteratorResult")
 @derive(Tagged)
-export newtype IteratorResult<Y, R = void> = IteratorYield<Y> | IteratorReturn<R>;
+export newtype IteratorResult<Y, R = unknown> = IteratorYield<Y> | IteratorReturn<R>;
 
 /// A yielded iterator value.
 @languageItem("iter.IteratorYield")
@@ -17,7 +17,7 @@ export struct IteratorYield<Y> {
 
 /// A completed iterator value.
 @languageItem("iter.IteratorReturn")
-export struct IteratorReturn<R = void> {
+export struct IteratorReturn<R = unknown> {
     /// The result tag.
     kind: "return" = "return";
 
@@ -27,27 +27,20 @@ export struct IteratorReturn<R = void> {
 
 /// A protocol for producing a sequence of values.
 @languageItem("iter.Iterator")
-export newtype interface Iterator {
-    type Item;
-    type Return = void;
-
+export newtype interface Iterator<T, R = unknown> {
     /// Advance and return the next yield or completion.
-    next(): IteratorResult<this.Item, this.Return>;
+    next(): IteratorResult<T, R>;
 }
 
 /// A value that can produce an iterator.
 @languageItem("iter.Iterable")
-export newtype interface Iterable {
-    type Item;
-
+export newtype interface Iterable<T> {
     /// Return a new iterator for this receiver form.
-    iterator(): Iterator<this.Item>;
+    iterator(): Iterator<T>;
 }
 
 /// Every iterator is trivially iterable as itself.
-extension<I: Iterator> of I implements Iterable {
-    type Item = I.Item;
-
+extension<T, R, I: Iterator<T, R>> of I implements Iterable<T> {
     /// Return this iterator.
     iterator(): I {
         this
@@ -68,9 +61,9 @@ export newtype interface Extend<T, comptime A: Access = "mutable"> {
     extend(this: WithAccess<&this, A>, values: Iterable<T>): void;
 }
 
-export extension<I: Iterator> of I {
+export extension<T, R, I: Iterator<T, R>> of I {
     /// Collect this iterator into `C`.
-    collect<C>(): C where C: FromIterator<I.Item> {
+    collect<C>(): C where C: FromIterator<T> {
         C.fromIterator(this)
     }
 }
