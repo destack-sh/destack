@@ -261,7 +261,7 @@ fn is_multiline_pattern_field_default_object(
 
     // default value slot
     let is_default_value = match context.tree.get(assignment_id) {
-        Pattern::Assign { value, .. } => value.id == expression_id.id,
+        Pattern::Default { value, .. } => value.id == expression_id.id,
         _ => false,
     };
     if !is_default_value {

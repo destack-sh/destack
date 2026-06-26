@@ -117,6 +117,7 @@ fn format_pattern_field_list<'ast>(
     open: &'static str,
     close: &'static str,
     fields: &[LocalNodeId<PatternField>],
+    is_tuple: bool,
     should_expand: bool,
 ) -> FormatResult<()> {
     if fields.is_empty() {
@@ -125,12 +126,52 @@ fn format_pattern_field_list<'ast>(
 
     let allow_trailing_separator =
         !pattern_fields_disallow_trailing_separator(f.context().tree, fields);
-    let trailing_separator =
-        if !allow_trailing_separator || f.context().options.trailing_comma == TrailingComma::None {
-            TrailingSeparator::Omit
-        } else {
-            TrailingSeparator::Allowed
-        };
+    let trailing_separator = if is_tuple && fields.len() == 1 {
+        TrailingSeparator::Mandatory
+    } else if !allow_trailing_separator || f.context().options.trailing_comma == TrailingComma::None
+    {
+        TrailingSeparator::Omit
+    } else {
+        TrailingSeparator::Allowed
+    };
+
+    write!(
+        f,
+        [group(&format_args![
+            token(open),
+            soft_block_indent(&separated_entries(",", fields, trailing_separator, None)),
+            token(close)
+        ])
+        .should_expand(should_expand)]
+    )?;
+
+    Ok(())
+}
+
+/// Format one list-like assign-pattern field collection with shared trailing-separator behavior.
+fn format_assign_pattern_field_list<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<AssignPattern>,
+    open: &'static str,
+    close: &'static str,
+    fields: &[LocalNodeId<AssignPatternField>],
+    is_tuple: bool,
+    should_expand: bool,
+) -> FormatResult<()> {
+    if fields.is_empty() {
+        return format_empty_pattern_delimiter_with_interior_annotations(f, node_id, open, close);
+    }
+
+    let allow_trailing_separator =
+        !assign_pattern_fields_disallow_trailing_separator(f.context().tree, fields);
+    let trailing_separator = if is_tuple && fields.len() == 1 {
+        TrailingSeparator::Mandatory
+    } else if !allow_trailing_separator || f.context().options.trailing_comma == TrailingComma::None
+    {
+        TrailingSeparator::Omit
+    } else {
+        TrailingSeparator::Allowed
+    };
 
     write!(
         f,
@@ -187,41 +228,6 @@ fn assign_pattern_fields_disallow_trailing_separator(
             AssignPatternField::Spread { .. } | AssignPatternField::Elision
         )
     })
-}
-
-/// Format one list-like assign-pattern field collection with shared trailing-separator behavior.
-fn format_assign_pattern_field_list<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<AssignPattern>,
-    open: &'static str,
-    close: &'static str,
-    fields: &[LocalNodeId<AssignPatternField>],
-    should_expand: bool,
-) -> FormatResult<()> {
-    if fields.is_empty() {
-        return format_empty_pattern_delimiter_with_interior_annotations(f, node_id, open, close);
-    }
-
-    let allow_trailing_separator =
-        !assign_pattern_fields_disallow_trailing_separator(f.context().tree, fields);
-    let trailing_separator =
-        if !allow_trailing_separator || f.context().options.trailing_comma == TrailingComma::None {
-            TrailingSeparator::Omit
-        } else {
-            TrailingSeparator::Allowed
-        };
-
-    write!(
-        f,
-        [group(&format_args![
-            token(open),
-            soft_block_indent(&separated_entries(",", fields, trailing_separator, None)),
-            token(close)
-        ])
-        .should_expand(should_expand)]
-    )?;
-
-    Ok(())
 }
 
 /// Format one empty pattern delimiter pair with interior infix annotations.
@@ -358,7 +364,7 @@ fn object_pattern_has_assignment_wrapper_parent(
     // assignment wrapper
     matches!(
         context.tree.get(LocalNodeId::<Pattern>::new(parent_id)),
-        Pattern::Assign { .. }
+        Pattern::Default { .. }
     )
 }
 
@@ -399,7 +405,7 @@ fn pattern_is_direct_object_or_array_like(tree: &Tree, pattern_id: LocalNodeId<P
         | Pattern::Tuple { .. } => true,
 
         // assignment wrappers stay owned by assignment-like layout
-        Pattern::Assign { .. } => false,
+        Pattern::Default { .. } => false,
 
         // transparent wrappers
         Pattern::Must(pattern)
@@ -565,7 +571,7 @@ fn object_assign_pattern_has_assignment_wrapper_parent(
         context
             .tree
             .get(LocalNodeId::<AssignPattern>::new(parent_id)),
-        AssignPattern::Assign { .. }
+        AssignPattern::Default { .. }
     )
 }
 
@@ -618,13 +624,15 @@ fn assign_pattern_is_direct_object_or_array_like(
 ) -> bool {
     match tree.get(pattern_id) {
         // direct nested destructuring
-        AssignPattern::Object { .. } | AssignPattern::Sequence { .. } => true,
+        AssignPattern::Object { .. }
+        | AssignPattern::Sequence { .. }
+        | AssignPattern::Tuple { .. } => true,
 
         // assignment wrappers stay owned by assignment-like layout
-        AssignPattern::Assign { .. } => false,
+        AssignPattern::Default { .. } => false,
 
         // simple target
-        AssignPattern::Expression { .. } => false,
+        AssignPattern::Place { .. } => false,
     }
 }
 
@@ -820,7 +828,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
         node_id: LocalNodeId<Pattern>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        if let Pattern::Assign { pattern, value } = self {
+        if let Pattern::Default { pattern, value } = self {
             format_pattern_assignment(f, *pattern, *value)?;
             write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
             return Ok(());
@@ -832,7 +840,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             Pattern::Wildcard => write!(f, [token("_")])?,
             Pattern::Must(unwrap) => write!(f, [unwrap, token("!")])?,
 
-            Pattern::Assign { .. } => unreachable!("assignment pattern is formatted above"),
+            Pattern::Default { .. } => unreachable!("assignment pattern is formatted above"),
 
             Pattern::BorrowOf { right, mutability } => {
                 format_prefixed_pattern(f, "&", *right, *mutability)?;
@@ -866,7 +874,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             }
 
             Pattern::Tuple { fields } => {
-                format_pattern_field_list(f, node_id, "(", ")", fields, false)?;
+                format_pattern_field_list(f, node_id, "(", ")", fields, true, false)?;
             }
 
             Pattern::NominalTuple { ty, fields } => {
@@ -874,12 +882,12 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                     format_newtype_object_pattern(f, *ty, payload)?;
                 } else {
                     write!(f, [ty])?;
-                    format_pattern_field_list(f, node_id, "(", ")", fields, false)?;
+                    format_pattern_field_list(f, node_id, "(", ")", fields, true, false)?;
                 }
             }
 
             Pattern::Sequence { fields } => {
-                format_pattern_field_list(f, node_id, "[", "]", fields, false)?;
+                format_pattern_field_list(f, node_id, "[", "]", fields, false, false)?;
             }
 
             Pattern::Object { fields } => {
@@ -971,7 +979,7 @@ impl<'ast> FormatNode<'ast, AssignPattern> for AssignPattern {
         node_id: LocalNodeId<AssignPattern>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        if let AssignPattern::Assign { pattern, value } = self {
+        if let AssignPattern::Default { pattern, value } = self {
             format_assign_pattern_assignment(f, *pattern, *value)?;
             write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
             return Ok(());
@@ -980,14 +988,18 @@ impl<'ast> FormatNode<'ast, AssignPattern> for AssignPattern {
         write!(f, [prefix_annotations(f.context(), node_id)])?;
 
         match self {
-            AssignPattern::Expression { value } => {
+            AssignPattern::Place { expression: value } => {
                 write!(f, [value])?;
             }
 
-            AssignPattern::Assign { .. } => unreachable!("assignment pattern is formatted above"),
+            AssignPattern::Default { .. } => unreachable!("assignment pattern is formatted above"),
 
             AssignPattern::Sequence { fields } => {
-                format_assign_pattern_field_list(f, node_id, "[", "]", fields, false)?;
+                format_assign_pattern_field_list(f, node_id, "[", "]", fields, false, false)?;
+            }
+
+            AssignPattern::Tuple { fields } => {
+                format_assign_pattern_field_list(f, node_id, "(", ")", fields, true, false)?;
             }
 
             AssignPattern::Object { fields } => {
@@ -1069,7 +1081,7 @@ fn write_shorthand_assignment_value(
     // shorthand defaults always lower to assignment wrappers
     let pattern = f.context().tree.get(pattern_id);
 
-    let Pattern::Assign { value, .. } = pattern else {
+    let Pattern::Default { value, .. } = pattern else {
         unreachable!("expected shorthand assignment pattern");
     };
 
@@ -1084,7 +1096,7 @@ fn write_shorthand_assign_pattern_value(
     // shorthand defaults always lower to assignment wrappers
     let pattern = f.context().tree.get(pattern_id);
 
-    let AssignPattern::Assign { value, .. } = pattern else {
+    let AssignPattern::Default { value, .. } = pattern else {
         unreachable!("expected shorthand assignment target");
     };
 
