@@ -1048,12 +1048,12 @@ impl<'a> FunctionLowerer<'a> {
             let assign_pattern = self.context.dir_tree.get(assign_pattern_id);
 
             // keep direct expression targets
-            if let dir::AssignPattern::Expression { value } = assign_pattern {
+            if let dir::AssignPattern::Place { expression: value } = assign_pattern {
                 return Ok(*value);
             }
 
             // unwrap defaulted targets before checking the base
-            if let dir::AssignPattern::Assign { pattern, .. } = assign_pattern {
+            if let dir::AssignPattern::Default { pattern, .. } = assign_pattern {
                 assign_pattern_id = *pattern;
                 continue;
             }

@@ -116,8 +116,8 @@ impl Compiler {
 
         state.tree.insert_as_owner(
             assign_pattern_id,
-            dir::AssignPattern::Expression {
-                value: expression_id,
+            dir::AssignPattern::Place {
+                expression: expression_id,
             },
         )
     }
