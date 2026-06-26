@@ -995,7 +995,7 @@ pub struct PatternFieldResolution {
 }
 
 /// Assignment target meaning selected during checking.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum AssignPatternResolution {
     /// Direct writable place target, like `value` or `object.field`.
     Place(AssignPatternPlaceResolution),
@@ -1003,6 +1003,8 @@ pub enum AssignPatternResolution {
     Default(AssignPatternDefaultResolution),
     /// Ordered destructuring target, like `[head, ...tail]`.
     Sequence(AssignPatternSequenceResolution),
+    /// Tuple destructuring target, like `(x, y)` or `(x,)`.
+    Tuple(AssignPatternTupleResolution),
     /// Object destructuring target, like `{ name, age: years }`.
     Object(AssignPatternObjectResolution),
 }
@@ -1011,7 +1013,7 @@ pub enum AssignPatternResolution {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct AssignPatternPlaceResolution {
     /// The expression node that designates the writable place.
-    pub target: GlobalNodeIdAny,
+    pub place: GlobalNodeIdAny,
 }
 
 /// Defaulted assignment target selected during checking.
@@ -1024,16 +1026,27 @@ pub struct AssignPatternDefaultResolution {
 }
 
 /// Ordered assignment destructuring selected during checking.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct AssignPatternSequenceResolution {
+    /// The selected sequence protocol operations.
+    pub sequence: SequenceProtocol,
+    /// The sequence arity required by the assignment target.
+    pub arity: PatternSequenceArity,
     /// The fixed fields in source order.
-    pub fields: Vec<AssignPatternFieldResolution>,
+    pub fields: Vec<AssignPatternSequenceElementResolution>,
     /// The rest target, when present.
-    pub rest: Option<AssignPatternRestResolution>,
+    pub rest: Option<AssignPatternSequenceRestResolution>,
+}
+
+/// Tuple assignment destructuring selected during checking.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct AssignPatternTupleResolution {
+    /// The projected tuple fields in source order.
+    pub fields: Vec<AssignPatternFieldResolution>,
 }
 
 /// Object assignment destructuring selected during checking.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct AssignPatternObjectResolution {
     /// The named fields in source order.
     pub fields: Vec<AssignPatternFieldResolution>,
@@ -1042,27 +1055,46 @@ pub struct AssignPatternObjectResolution {
 }
 
 /// One destructured assignment field.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct AssignPatternFieldResolution {
-    /// The source node that introduces the field.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct AssignPatternSequenceElementResolution {
+    /// The source node that introduces the element.
     pub source: GlobalNodeIdAny,
-    /// The selected field target.
-    pub target: AssignPatternFieldTarget,
+    /// The selected sequence index.
+    pub index: usize,
+    /// The selected element type.
+    pub ty: GlobalTypeId,
+    /// The nested assignment target.
+    pub pattern: GlobalNodeIdAny,
+}
+
+/// Rest target selected by one sequence assignment destructuring pattern.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct AssignPatternSequenceRestResolution {
+    /// The source node that introduces the rest target.
+    pub source: GlobalNodeIdAny,
+    /// The first sequence index included in the rest value.
+    pub start: usize,
+    /// The exclusive end index, when bounded.
+    pub end: Option<usize>,
+    /// The selected rest value type.
+    pub ty: GlobalTypeId,
     /// The nested assignment target.
     pub pattern: Option<GlobalNodeIdAny>,
 }
 
-/// Field target selected by one assignment destructuring pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum AssignPatternFieldTarget {
-    /// Named or symbolic field target.
-    Key(StaticKey),
-    /// Positional field target.
-    Index(usize),
+/// One destructured assignment field.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct AssignPatternFieldResolution {
+    /// The source node that introduces the field.
+    pub source: GlobalNodeIdAny,
+    /// The selected field projection.
+    pub projection: Projection,
+    /// The nested assignment target.
+    pub pattern: Option<GlobalNodeIdAny>,
 }
 
 /// Rest field selected by one assignment destructuring pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct AssignPatternRestResolution {
     /// The source node that introduces the rest field.
     pub source: GlobalNodeIdAny,
