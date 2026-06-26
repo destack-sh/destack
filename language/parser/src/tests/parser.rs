@@ -244,15 +244,17 @@ impl ExpressionPathLike for Expression {
 impl ExpressionPathLike for AssignPattern {
     fn collect_path_segments(&self, parser: &Parser, segments: &mut Vec<StringId>) -> Option<()> {
         match self {
-            AssignPattern::Expression { value } => {
+            AssignPattern::Place { expression: value } => {
                 let expression = parser.tree.get(*value);
                 expression.collect_path_segments(parser, segments)
             }
-            AssignPattern::Assign { pattern, .. } => {
+            AssignPattern::Default { pattern, .. } => {
                 let pattern = parser.tree.get(*pattern);
                 pattern.collect_path_segments(parser, segments)
             }
-            AssignPattern::Sequence { .. } | AssignPattern::Object { .. } => None,
+            AssignPattern::Sequence { .. }
+            | AssignPattern::Tuple { .. }
+            | AssignPattern::Object { .. } => None,
         }
     }
 }

@@ -129,7 +129,7 @@ fn test_parse_parameter_with_pattern_and_defaults() {
                 assert_name!(parser, *name, "x");
 
                 // x = 4
-                assert_node!(parser.tree, *pattern, Pattern::Assign { pattern, value } => {
+                assert_node!(parser.tree, *pattern, Pattern::Default { pattern, value } => {
                     assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
                         assert_string!(parser, *name, "x");
                     });
@@ -301,14 +301,14 @@ fn test_parse_parameter_variadic_array_pattern_with_nested_object_and_defaults()
 
             // { id, systemId, input, syncSnapshot = false } = {} as any
             assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
-                assert_node!(parser.tree, *pattern, Pattern::Assign { pattern, value } => {
+                assert_node!(parser.tree, *pattern, Pattern::Default { pattern, value } => {
                     assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
                         assert_eq!(fields.len(), 4);
 
                         assert_node!(parser.tree, fields[3], PatternField::Named { name, is_shorthand: true, pattern: Some(pattern), .. } => {
                             assert_name!(parser, *name, "syncSnapshot");
 
-                            assert_node!(parser.tree, *pattern, Pattern::Assign { pattern, value } => {
+                            assert_node!(parser.tree, *pattern, Pattern::Default { pattern, value } => {
                                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
                                     assert_string!(parser, *name, "syncSnapshot");
                                 });

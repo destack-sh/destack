@@ -977,7 +977,7 @@ fn test_parse_parenthesized_cast_assignment_target() {
     assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right } => {
         assert_eq!(*operator, AssignOperator::Assign);
 
-        assert_node!(parser.tree, *left, AssignPattern::Expression { value } => {
+        assert_node!(parser.tree, *left, AssignPattern::Place { expression: value } => {
             assert_node!(parser.tree, *value, Expression::As { expression, target_type } => {
                 assert_expression_path!(parser, parser.tree.get(*expression), "value");
                 assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
@@ -1001,7 +1001,7 @@ fn test_parse_parenthesized_satisfies_assignment_target() {
     assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right } => {
         assert_eq!(*operator, AssignOperator::Assign);
 
-        assert_node!(parser.tree, *left, AssignPattern::Expression { value } => {
+        assert_node!(parser.tree, *left, AssignPattern::Place { expression: value } => {
             assert_node!(parser.tree, *value, Expression::Satisfies { expression, target_type } => {
                 assert_expression_path!(parser, parser.tree.get(*expression), "value");
                 assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {

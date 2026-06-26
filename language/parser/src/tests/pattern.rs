@@ -774,7 +774,7 @@ fn test_parse_pattern_named_default_after_comment_newline() {
         assert_eq!(fields.len(), 1);
         assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: true, pattern: Some(pattern), .. } => {
             assert_name!(parser, *name, "d");
-            assert_node!(parser.tree, *pattern, Pattern::Assign { pattern, value } => {
+            assert_node!(parser.tree, *pattern, Pattern::Default { pattern, value } => {
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
                     assert_string!(parser, *name, "d");
                 });
@@ -1222,7 +1222,7 @@ fn test_parse_object_pattern_defaults_do_not_consume_following_fields() {
 
         // b=1
         assert_node!(parser.tree, fields[1], PatternField::Named { is_shorthand: true, pattern: Some(pattern), .. } => {
-            assert_node!(parser.tree, *pattern, Pattern::Assign { .. });
+            assert_node!(parser.tree, *pattern, Pattern::Default { .. });
         });
 
         // c:d
@@ -1232,7 +1232,7 @@ fn test_parse_object_pattern_defaults_do_not_consume_following_fields() {
 
         // e:f=2
         assert_node!(parser.tree, fields[3], PatternField::Named { is_shorthand: false, pattern: Some(pattern), .. } => {
-            assert_node!(parser.tree, *pattern, Pattern::Assign { .. });
+            assert_node!(parser.tree, *pattern, Pattern::Default { .. });
         });
 
         // [g]:[h]
@@ -1255,17 +1255,17 @@ fn test_parse_object_pattern_alias_and_computed_defaults() {
 
         // d:e=1
         assert_node!(parser.tree, fields[1], PatternField::Named { is_shorthand: false, pattern: Some(pattern), .. } => {
-            assert_node!(parser.tree, *pattern, Pattern::Assign { .. });
+            assert_node!(parser.tree, *pattern, Pattern::Default { .. });
         });
 
         // [f]:g=2
         assert_node!(parser.tree, fields[2], PatternField::Computed { pattern, .. } => {
-            assert_node!(parser.tree, *pattern, Pattern::Assign { .. });
+            assert_node!(parser.tree, *pattern, Pattern::Default { .. });
         });
 
         // h=i
         assert_node!(parser.tree, fields[3], PatternField::Named { is_shorthand: true, pattern: Some(pattern), .. } => {
-            assert_node!(parser.tree, *pattern, Pattern::Assign { .. });
+            assert_node!(parser.tree, *pattern, Pattern::Default { .. });
         });
     });
 }
