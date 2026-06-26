@@ -10,15 +10,15 @@ use crate::{
 ///
 /// Examples:
 /// ```ds
-/// this.name      // owner: the enclosing class, ty: its instance type
-/// super.render() // owner: the enclosing class, ty: its superclass type
+/// this.name      // declaration: the enclosing class, ty: its instance type
+/// super.render() // declaration: the enclosing class, ty: its superclass type
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ReceiverResolution {
     /// The receiver syntax kind.
     pub kind: ReceiverKind,
     /// The declaration that introduces the receiver.
-    pub owner: GlobalSymbolId,
+    pub declaration: GlobalSymbolId,
     /// The receiver type after inference.
     pub ty: GlobalTypeId,
 }

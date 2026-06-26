@@ -718,12 +718,13 @@ impl DirSnapshotBuilder<'_> {
         types: &dir::TypeTable<'_>,
         function: &dir::FunctionSignatureType,
     ) -> String {
-        if function.generic_parameters.is_empty() {
+        let Some(template) = function.template else {
+            return String::new();
+        };
+        let parameters = self.function_generic_parameter_list_label(types, template);
+        if parameters.is_empty() {
             return String::new();
         }
-
-        // render generic parameters with constraints
-        let parameters = self.function_generic_parameter_list_label(types, function);
 
         format!("<{parameters}>")
     }
@@ -732,24 +733,13 @@ impl DirSnapshotBuilder<'_> {
     fn function_generic_parameter_label(
         &self,
         types: &dir::TypeTable<'_>,
-        type_id: dir::GlobalTypeId,
+        parameter: dir::GlobalGenericParameterId,
     ) -> String {
-        if type_id.module_id != types.module_id {
-            return self.global_type_label(type_id);
-        }
+        let label = self.parameter_type_label(&parameter);
+        let label = self.generic_parameter_head_label(&parameter, label);
+        let suffix = self.generic_parameter_signature_suffix(types, &parameter);
 
-        // render parameter symbols with their constraints
-        if let dir::Type::Parameter(parameter) = types.get_type(type_id.local_id) {
-            let label = self.parameter_type_label(parameter);
-            let label = self.generic_parameter_head_label(parameter, label);
-            let suffix = self.generic_parameter_signature_suffix(types, parameter);
-
-            format!("{label}{suffix}")
-        }
-        // fall back to the nested type label
-        else {
-            self.type_id_label(types, type_id)
-        }
+        format!("{label}{suffix}")
     }
 
     /// Return one generic parameter label.
@@ -860,14 +850,29 @@ impl DirSnapshotBuilder<'_> {
     fn function_generic_parameter_list_label(
         &self,
         types: &dir::TypeTable<'_>,
-        function: &dir::FunctionSignatureType,
+        template: dir::GlobalGenericTemplateId,
     ) -> String {
-        function
-            .generic_parameters
+        let Some(generics) = self.generic_table(template.module_id) else {
+            return String::new();
+        };
+        let template = generics.get_template(template.local_id);
+
+        template
+            .parameters
             .iter()
-            .map(|type_id| self.function_generic_parameter_label(types, *type_id))
+            .map(|parameter| parameter.into_global(generics.module_id))
+            .map(|parameter| self.function_generic_parameter_label(types, parameter))
             .collect::<Vec<_>>()
             .join(", ")
+    }
+
+    /// Return the generic table for one module.
+    fn generic_table(&self, module: destack_source::ModuleId) -> Option<&dir::GenericTable<'_>> {
+        if module == self.tree.module_id {
+            self.generics.as_ref()
+        } else {
+            self.foreign_generics.get(&module)
+        }
     }
 }
 

@@ -188,7 +188,7 @@ impl DefinitionSegment {
     ) {
         self.sources.insert(symbol, source);
         if let Definition::Extension(extension) = &definition {
-            match extension.target.nominal_root() {
+            match extension.target.root() {
                 Some(target_symbol) => {
                     self.extensions_by_target_symbol
                         .entry(target_symbol)
@@ -499,14 +499,14 @@ impl ExtensionDefinition {
 /// Extension lookup target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ExtensionTarget {
-    /// Extension whose receiver type has a nominal root.
+    /// Extension whose receiver type has a lookup root.
     ///
     /// Example:
     /// ```ds
     /// extension<T> of ^Array<T> {}
     /// ```
-    Nominal {
-        /// The nominal root used for member lookup.
+    Rooted {
+        /// The declaration root used for member lookup.
         root: GlobalSymbolId,
         /// The checked receiver type.
         ty: GlobalTypeId,
@@ -527,14 +527,14 @@ impl ExtensionTarget {
     /// Return the checked receiver type.
     pub fn r#type(&self) -> GlobalTypeId {
         match self {
-            Self::Nominal { ty, .. } | Self::Blanket { ty } => *ty,
+            Self::Rooted { ty, .. } | Self::Blanket { ty } => *ty,
         }
     }
 
-    /// Return the nominal lookup root when this target has one.
-    pub fn nominal_root(&self) -> Option<GlobalSymbolId> {
+    /// Return the lookup root when this target has one.
+    pub fn root(&self) -> Option<GlobalSymbolId> {
         match self {
-            Self::Nominal { root, .. } => Some(*root),
+            Self::Rooted { root, .. } => Some(*root),
             Self::Blanket { .. } => None,
         }
     }
