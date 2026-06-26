@@ -125,7 +125,7 @@ pub struct GenericInstance {
 /// Box                 // static declaration receiver in `Box.empty`
 /// Box.Output          // owner of a static associated type projection
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TypeReference {
     /// The referenced declaration symbol.
     pub symbol: GlobalSymbolId,
@@ -154,7 +154,7 @@ pub struct MemberType {
 /// ```ds
 /// Mode.Read
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct EnumMemberType {
     /// The enum declaration instance.
     pub owner: GlobalTypeId,
