@@ -41,12 +41,12 @@ declare_pass! {
     ///     return v1
     /// }
     /// ```
-    #[pass(id = "cfg-layout")]
-    pub CfgLayout,
+    #[pass(id = "order-blocks")]
+    pub OrderBlocks,
     "Profile guided block layout"
 }
 
-impl FunctionPass for CfgLayout {
+impl FunctionPass for OrderBlocks {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -68,7 +68,7 @@ impl FunctionPass for CfgLayout {
         }
 
         // compute a new layout
-        let changed = run_cfg_layout(function, tree, entry, profile, ctx, analyses);
+        let changed = order_blocks(function, tree, entry, profile, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -79,11 +79,11 @@ impl FunctionPass for CfgLayout {
     }
 
     fn name(&self) -> &'static str {
-        "CfgLayout"
+        "OrderBlocks"
     }
 
     fn id(&self) -> &'static str {
-        "cfg-layout"
+        "order-blocks"
     }
 }
 
@@ -110,7 +110,7 @@ struct EdgePredecessor {
 }
 
 /// Reorder blocks according to profile data.
-fn run_cfg_layout(
+fn order_blocks(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
@@ -803,7 +803,7 @@ mod tests {
 
     /// Layout moves hot successors earlier.
     #[test]
-    fn test_cfg_layout_orders_hot_path() {
+    fn test_order_blocks_orders_hot_path() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -843,13 +843,13 @@ b2:
         test.record_function_entry(&mut profile, function_id, 100);
         test.record_successor_weights(&mut profile, entry, &[10, 90]);
 
-        test.run_pass_with_profile(&CfgLayout, profile);
+        test.run_pass_with_profile(&OrderBlocks, profile);
         test.assert_output(expected);
     }
 
     /// Layout preserves order without profile data.
     #[test]
-    fn test_cfg_layout_skips_without_profile() {
+    fn test_order_blocks_skips_without_profile() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -868,13 +868,13 @@ b2:
         let mut test = TestProgram::new(input);
         let baseline = test.format();
 
-        test.run_pass(&CfgLayout);
+        test.run_pass(&OrderBlocks);
         test.assert_output(&baseline);
     }
 
     /// Cold blocks are split to the end of the layout.
     #[test]
-    fn test_cfg_layout_splits_cold_blocks() {
+    fn test_order_blocks_splits_cold_blocks() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -917,13 +917,13 @@ b3:
         test.record_function_entry(&mut profile, function_id, 100);
         test.record_successor_weights(&mut profile, entry, &[1, 80]);
 
-        test.run_pass_with_profile(&CfgLayout, profile);
+        test.run_pass_with_profile(&OrderBlocks, profile);
         test.assert_output(expected);
     }
 
     /// Switch blocks are ordered by hotness.
     #[test]
-    fn test_cfg_layout_switch_orders_hot_blocks() {
+    fn test_order_blocks_switch_orders_hot_blocks() {
         let input = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
@@ -966,13 +966,13 @@ b3:
         test.record_function_entry(&mut profile, function_id, 100);
         test.record_successor_weights(&mut profile, entry, &[5, 90]);
 
-        test.run_pass_with_profile(&CfgLayout, profile);
+        test.run_pass_with_profile(&OrderBlocks, profile);
         test.assert_output(expected);
     }
 
     /// Check terminators reorder blocks by hotness.
     #[test]
-    fn test_cfg_layout_check_orders_hot_blocks() {
+    fn test_order_blocks_check_orders_hot_blocks() {
         let input = r#"
 function test(v0: uint32, v1: [uint32; 8]): int32 {
 entry(v0: uint32, v1: [uint32; 8]):
@@ -1019,13 +1019,13 @@ b3:
         test.record_function_entry(&mut profile, function_id, 100);
         test.record_successor_weights(&mut profile, entry, &[90, 2]);
 
-        test.run_pass_with_profile(&CfgLayout, profile);
+        test.run_pass_with_profile(&OrderBlocks, profile);
         test.assert_output(expected);
     }
 
     /// Branch edge frequency drives hot trace selection.
     #[test]
-    fn test_cfg_layout_orders_by_edge_frequency() {
+    fn test_order_blocks_orders_by_edge_frequency() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -1065,13 +1065,13 @@ b1:
         test.record_function_entry(&mut profile, function_id, 100);
         test.record_successor_weights(&mut profile, entry, &[20, 80]);
 
-        test.run_pass_with_profile(&CfgLayout, profile);
+        test.run_pass_with_profile(&OrderBlocks, profile);
         test.assert_output(expected);
     }
 
     /// Hot branch edges duplicate small targets.
     #[test]
-    fn test_cfg_layout_duplicates_hot_edge() {
+    fn test_order_blocks_duplicates_hot_edge() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -1113,13 +1113,13 @@ b1_1:
         test.record_function_entry(&mut profile, function_id, 100);
         test.record_successor_weights(&mut profile, entry, &[80, 20]);
 
-        test.run_pass_with_profile(&CfgLayout, profile);
+        test.run_pass_with_profile(&OrderBlocks, profile);
         test.assert_output(expected);
     }
 
     /// Unreachable blocks are kept last.
     #[test]
-    fn test_cfg_layout_preserves_unreachable_order() {
+    fn test_order_blocks_preserves_unreachable_order() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -1167,7 +1167,7 @@ b2:
         test.record_function_entry(&mut profile, function_id, 100);
         test.record_successor_weights(&mut profile, entry, &[90, 10]);
 
-        test.run_pass_with_profile(&CfgLayout, profile);
+        test.run_pass_with_profile(&OrderBlocks, profile);
         test.assert_output(expected);
     }
 }

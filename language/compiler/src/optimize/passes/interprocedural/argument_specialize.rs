@@ -4,7 +4,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::passes::scalar::{
-    DeadCodeEliminate, SimplifyCfg, SparseConditionalConstantPropagation,
+    EliminateDeadCode, PropagateSparseConstants, SimplifyControlFlow,
 };
 use crate::optimize::{ModulePass, PipelineContext, run_function_passes_always};
 use destack_mir::{
@@ -441,9 +441,9 @@ fn specialize_callee(
     }
 
     // run cleanup passes on the specialized clone
-    let sccp = SparseConditionalConstantPropagation;
-    let simplify = SimplifyCfg;
-    let dce = DeadCodeEliminate;
+    let sccp = PropagateSparseConstants;
+    let simplify = SimplifyControlFlow;
+    let dce = EliminateDeadCode;
     run_function_passes_always(new_function_id, tree, ctx, &[&sccp, &simplify, &dce]);
     new_function_id
 }

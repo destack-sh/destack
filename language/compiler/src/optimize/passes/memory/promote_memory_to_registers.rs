@@ -40,12 +40,12 @@ declare_pass! {
     ///     return v1
     /// }
     /// ```
-    #[pass(id = "mem2reg")]
-    pub Mem2Reg,
+    #[pass(id = "promote-memory-to-registers")]
+    pub PromoteMemoryToRegisters,
     "Promote locals to SSA values"
 }
 
-impl FunctionPass for Mem2Reg {
+impl FunctionPass for PromoteMemoryToRegisters {
     /// Run memory to register promotion on a function.
     fn run(
         &self,
@@ -67,8 +67,8 @@ impl FunctionPass for Mem2Reg {
             )
         };
 
-        // run mem2reg
-        let changed = run_mem2reg(function, tree, &cfg, &domtree);
+        // run promote-memory-to-registers
+        let changed = run_promote_memory_to_registers(function, tree, &cfg, &domtree);
 
         // report what this pass changed
         if changed {
@@ -80,17 +80,17 @@ impl FunctionPass for Mem2Reg {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "Mem2Reg"
+        "PromoteMemoryToRegisters"
     }
 
     /// Return the pass identifier.
     fn id(&self) -> &'static str {
-        "mem2reg"
+        "promote-memory-to-registers"
     }
 }
 
-/// Core mem2reg logic. Returns true if changes were made.
-fn run_mem2reg(
+/// Core promote memory to registers logic. Returns true if changes were made.
+fn run_promote_memory_to_registers(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     cfg: &ControlFlowGraph,
@@ -1046,7 +1046,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Mem2Reg);
+        test.run_pass(&PromoteMemoryToRegisters);
         test.assert_output(expected);
     }
 
@@ -1077,7 +1077,7 @@ b1:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Mem2Reg);
+        test.run_pass(&PromoteMemoryToRegisters);
         test.assert_output(expected);
     }
 
@@ -1128,7 +1128,7 @@ b3(v5: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Mem2Reg);
+        test.run_pass(&PromoteMemoryToRegisters);
         test.assert_output(expected);
     }
 
@@ -1158,7 +1158,7 @@ entry(v0: int32, v1: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Mem2Reg);
+        test.run_pass(&PromoteMemoryToRegisters);
         test.assert_output(expected);
     }
 
@@ -1173,7 +1173,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Mem2Reg);
+        test.run_pass(&PromoteMemoryToRegisters);
         test.assert_unchanged(input);
     }
 
@@ -1192,7 +1192,7 @@ entry:
 "#;
         // reading a local before writing is a bug in the MIR
         let mut test = TestProgram::new(input);
-        test.run_pass(&Mem2Reg);
+        test.run_pass(&PromoteMemoryToRegisters);
     }
 
     /// Loop with local - block parameter needed at loop header.
@@ -1246,7 +1246,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Mem2Reg);
+        test.run_pass(&PromoteMemoryToRegisters);
         test.assert_output(expected);
     }
 
@@ -1274,7 +1274,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Mem2Reg);
+        test.run_pass(&PromoteMemoryToRegisters);
         test.assert_output(expected);
     }
 
@@ -1308,7 +1308,7 @@ b1(v2: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Mem2Reg);
+        test.run_pass(&PromoteMemoryToRegisters);
         test.assert_output(expected);
     }
 
@@ -1362,13 +1362,13 @@ b3(v5: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Mem2Reg);
+        test.run_pass(&PromoteMemoryToRegisters);
         test.assert_output(expected);
     }
 
     /// Call arguments are rewritten after local promotion.
     #[test]
-    fn test_promote_call_arguments() {
+    fn test_rewrite_call_arguments() {
         let input = r#"
 external function sink(int32): void
 
@@ -1395,7 +1395,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Mem2Reg);
+        test.run_pass(&PromoteMemoryToRegisters);
         test.assert_output(expected);
     }
 }

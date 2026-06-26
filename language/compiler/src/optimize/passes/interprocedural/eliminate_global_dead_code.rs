@@ -28,12 +28,12 @@ declare_pass! {
     ///     return v0
     /// }
     /// ```
-    #[pass(id = "global-dead-code-eliminate")]
-    pub GlobalDeadCodeEliminate,
+    #[pass(id = "eliminate-global-dead-code")]
+    pub EliminateGlobalDeadCode,
     "Eliminate unused globals"
 }
 
-impl ModulePass for GlobalDeadCodeEliminate {
+impl ModulePass for EliminateGlobalDeadCode {
     /// Run global dead code elimination for the module.
     fn run(
         &self,
@@ -41,11 +41,11 @@ impl ModulePass for GlobalDeadCodeEliminate {
         ctx: &PipelineContext<'_>,
         _analyses: &mir::ModuleAnalyses,
     ) -> Mutation {
-        let changed = run_global_dead_code_eliminate(tree);
+        let changed = run_eliminate_global_dead_code(tree);
 
         // report what this pass changed
         if changed {
-            ctx.strings.intern("global-dead-code-eliminate");
+            ctx.strings.intern("eliminate-global-dead-code");
             Mutation::CONTROL
         } else {
             Mutation::NONE
@@ -54,17 +54,17 @@ impl ModulePass for GlobalDeadCodeEliminate {
 
     /// Return the pass display name.
     fn name(&self) -> &'static str {
-        "GlobalDeadCodeEliminate"
+        "EliminateGlobalDeadCode"
     }
 
     /// Return the pass identifier.
     fn id(&self) -> &'static str {
-        "global-dead-code-eliminate"
+        "eliminate-global-dead-code"
     }
 }
 
 /// Run global dead code elimination over the module.
-pub(crate) fn run_global_dead_code_eliminate(tree: &mut mir::Tree) -> bool {
+pub(crate) fn run_eliminate_global_dead_code(tree: &mut mir::Tree) -> bool {
     // collect globals referenced by instructions
     let used_globals = collect_used_globals(tree);
 
@@ -127,7 +127,7 @@ mod tests {
 
     /// Unused globals are downgraded to imports.
     #[test]
-    fn test_global_dead_code_eliminate_unused_global() {
+    fn test_eliminate_global_dead_code_unused_global() {
         let input = r#"
 readonly global live: int32 = 1
 
@@ -155,13 +155,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&GlobalDeadCodeEliminate);
+        test.run_module_pass(&EliminateGlobalDeadCode);
         test.assert_output(expected);
     }
 
     /// Globals referenced via global.address are preserved.
     #[test]
-    fn test_global_dead_code_eliminate_keeps_global_addr() {
+    fn test_eliminate_global_dead_code_keeps_global_addr() {
         let input = r#"
 readonly global live: int32 = 1
 
@@ -187,7 +187,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&GlobalDeadCodeEliminate);
+        test.run_module_pass(&EliminateGlobalDeadCode);
         test.assert_output(expected);
     }
 }

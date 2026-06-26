@@ -40,12 +40,12 @@ declare_pass! {
     ///     return v2
     /// }
     /// ```
-    #[pass(id = "mem-cse")]
-    pub MemCse,
+    #[pass(id = "eliminate-redundant-memory")]
+    pub EliminateRedundantMemory,
     "Eliminate redundant memory stores"
 }
 
-impl FunctionPass for MemCse {
+impl FunctionPass for EliminateRedundantMemory {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -69,7 +69,7 @@ impl FunctionPass for MemCse {
         };
 
         // run memory cse
-        let changed = run_mem_cse(
+        let changed = run_eliminate_redundant_memory(
             function,
             tree,
             memory_ssa.as_ref(),
@@ -86,11 +86,11 @@ impl FunctionPass for MemCse {
     }
 
     fn name(&self) -> &'static str {
-        "MemCse"
+        "EliminateRedundantMemory"
     }
 
     fn id(&self) -> &'static str {
-        "mem-cse"
+        "eliminate-redundant-memory"
     }
 }
 
@@ -153,7 +153,7 @@ struct SourceAccess {
 }
 
 /// Run memory common subexpression elimination.
-fn run_mem_cse(
+fn run_eliminate_redundant_memory(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     memory_ssa: &MemorySSA,
@@ -584,7 +584,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_output(expected);
     }
 
@@ -616,7 +616,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_output(expected);
     }
 
@@ -652,7 +652,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_output(expected);
     }
 
@@ -688,7 +688,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_output(expected);
     }
 
@@ -724,7 +724,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_output(expected);
     }
 
@@ -771,7 +771,7 @@ entry:
         test.tree.metadata.effects.function_mut(callee).memory =
             mir::MemoryEffect::read_only(mir::SpaceSet::ANY);
 
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_output(expected);
     }
 
@@ -802,7 +802,7 @@ entry:
         test.tree.metadata.effects.function_mut(callee).memory =
             mir::MemoryEffect::read_write(mir::SpaceSet::ANY);
 
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_unchanged(input);
     }
 
@@ -849,7 +849,7 @@ entry:
         test.tree.metadata.effects.function_mut(callee).memory =
             mir::MemoryEffect::write_only(mir::SpaceSet::LOCAL);
 
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_output(expected);
     }
 
@@ -896,7 +896,7 @@ entry:
         test.tree.metadata.effects.function_mut(callee).memory =
             mir::MemoryEffect::write_only(mir::SpaceSet::SHARED);
 
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_output(expected);
     }
 
@@ -917,7 +917,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_unchanged(input);
     }
 
@@ -939,7 +939,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_unchanged(input);
     }
 
@@ -977,7 +977,7 @@ entry:
             None,
         );
 
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_unchanged(input);
     }
 
@@ -1015,7 +1015,7 @@ entry:
             Some(mir::MemoryOrdering::SequentiallyConsistent),
         );
 
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_unchanged(input);
     }
 
@@ -1065,7 +1065,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_output(expected);
     }
 
@@ -1096,7 +1096,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_unchanged(input);
     }
 
@@ -1128,7 +1128,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_output(expected);
     }
 
@@ -1158,7 +1158,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_output(expected);
     }
 
@@ -1188,7 +1188,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_output(expected);
     }
 
@@ -1209,7 +1209,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_unchanged(input);
     }
 
@@ -1231,7 +1231,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_unchanged(input);
     }
 
@@ -1261,7 +1261,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_output(expected);
     }
 
@@ -1286,7 +1286,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&MemCse);
+        test.run_pass(&EliminateRedundantMemory);
         test.assert_unchanged(input);
     }
 }

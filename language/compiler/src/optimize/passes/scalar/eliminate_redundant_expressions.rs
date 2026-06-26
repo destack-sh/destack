@@ -11,7 +11,7 @@ use destack_mir::{
 };
 
 declare_pass! {
-    /// Global Value Numbering.
+    /// Redundant expression elimination.
     ///
     /// Eliminates redundant computations across basic blocks by walking the dominator
     /// tree and propagating available expressions to dominated blocks. This is more
@@ -47,12 +47,12 @@ declare_pass! {
     ///     return v3
     /// }
     /// ```
-    #[pass(id = "gvn")]
-    pub GlobalValueNumbering,
+    #[pass(id = "eliminate-redundant-expressions")]
+    pub EliminateRedundantExpressions,
     "Eliminate redundant expressions across blocks"
 }
 
-impl FunctionPass for GlobalValueNumbering {
+impl FunctionPass for EliminateRedundantExpressions {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -74,8 +74,8 @@ impl FunctionPass for GlobalValueNumbering {
         let dom_children = build_dominator_children(function, domtree.as_ref());
         let value_types = analyses.get::<ValueTypes>(function, tree);
 
-        // run GVN
-        let changed = run_gvn(
+        // run redundant-expression elimination
+        let changed = run_eliminate_redundant_expressions(
             entry,
             function,
             tree,
@@ -96,16 +96,16 @@ impl FunctionPass for GlobalValueNumbering {
     }
 
     fn name(&self) -> &'static str {
-        "GlobalValueNumbering"
+        "EliminateRedundantExpressions"
     }
 
     fn id(&self) -> &'static str {
-        "gvn"
+        "eliminate-redundant-expressions"
     }
 }
 
-/// Core GVN logic. Returns true if changes were made.
-fn run_gvn(
+/// Core redundant-expression elimination logic. Returns true if changes were made.
+fn run_eliminate_redundant_expressions(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
@@ -116,7 +116,7 @@ fn run_gvn(
     value_types: &ValueTypes,
     target_layout: TargetLayout,
 ) -> bool {
-    // run GVN using dominator tree traversal
+    // run redundant-expression elimination using dominator tree traversal
     let (substitutions, to_remove) = find_redundant_expressions(
         entry,
         tree,
@@ -655,7 +655,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
@@ -681,7 +681,7 @@ b3(v5: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_unchanged(input);
     }
 
@@ -721,7 +721,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
@@ -753,7 +753,7 @@ b1:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
@@ -795,11 +795,11 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
-    /// GVN also handles local redundancies within a single block.
+    /// redundant-expression elimination also handles local redundancies within a single block.
     #[test]
     fn test_eliminate_local_redundancies() {
         let input = r#"
@@ -821,7 +821,7 @@ entry(v0: int32, v1: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
@@ -863,7 +863,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
@@ -906,7 +906,7 @@ b3(v6: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
@@ -930,11 +930,11 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_unchanged(input);
     }
 
-    /// Unary operations are properly GVN'd across blocks.
+    /// Unary operations are eliminated across blocks.
     #[test]
     fn test_eliminate_unary_cross_block() {
         let input = r#"
@@ -962,11 +962,11 @@ b1:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
-    /// Field access is properly GVN'd across blocks.
+    /// Field access is eliminated across blocks.
     #[test]
     fn test_eliminate_field_get_cross_block() {
         let input = r#"
@@ -994,7 +994,7 @@ b1:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
@@ -1029,7 +1029,7 @@ b1:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
@@ -1062,7 +1062,7 @@ b1:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
@@ -1105,7 +1105,7 @@ b1:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
@@ -1147,7 +1147,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
@@ -1193,7 +1193,7 @@ b3(v6: (int32, int32)):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
@@ -1236,13 +1236,13 @@ b3(v6: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
-    /// Aggregate forwarding combined with regular GVN.
+    /// Aggregate forwarding combined with regular redundant-expression elimination.
     #[test]
-    fn test_aggregate_combined_with_gvn() {
+    fn test_aggregate_combined_with_eliminate_redundant_expressions() {
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -1271,7 +1271,7 @@ b1:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
@@ -1305,7 +1305,7 @@ b1:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
@@ -1328,7 +1328,7 @@ b1:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(input);
     }
 
@@ -1368,7 +1368,7 @@ entry(v0: ref<int32, raw, mutable>):
             Some(4),
         );
 
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 
@@ -1409,7 +1409,7 @@ entry:
         let callsite = mir::CallSite::Instruction(call_inst);
         test.tree.metadata.effects.call_mut(callsite).memory = mir::MemoryEffect::none();
 
-        test.run_pass(&GlobalValueNumbering);
+        test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);
     }
 }

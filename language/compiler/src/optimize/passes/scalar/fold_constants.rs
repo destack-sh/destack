@@ -34,12 +34,12 @@ declare_pass! {
     ///     return v0
     /// }
     /// ```
-    #[pass(id = "constant-fold")]
-    pub ConstantFold,
+    #[pass(id = "fold-constants")]
+    pub FoldConstants,
     "Fold constant expressions"
 }
 
-impl FunctionPass for ConstantFold {
+impl FunctionPass for FoldConstants {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -51,7 +51,7 @@ impl FunctionPass for ConstantFold {
         let constants = { analyses.get::<ConstantPropagation>(function, tree).clone() };
 
         // run constant folding
-        let changed = run_constant_fold(function, tree, &constants, ctx.target_layout());
+        let changed = run_fold_constants(function, tree, &constants, ctx.target_layout());
 
         // report what this pass changed
         if changed {
@@ -62,16 +62,16 @@ impl FunctionPass for ConstantFold {
     }
 
     fn name(&self) -> &'static str {
-        "ConstantFold"
+        "FoldConstants"
     }
 
     fn id(&self) -> &'static str {
-        "constant-fold"
+        "fold-constants"
     }
 }
 
 /// Core constant folding logic. Returns true if changes were made.
-fn run_constant_fold(
+fn run_fold_constants(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     constants: &ConstantPropagation,
@@ -465,7 +465,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -497,7 +497,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -524,7 +524,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -542,7 +542,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_unchanged(input);
     }
 
@@ -567,7 +567,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -592,7 +592,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -619,7 +619,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -637,7 +637,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_unchanged(input);
     }
 
@@ -678,7 +678,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -698,7 +698,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_unchanged(input);
     }
 
@@ -718,7 +718,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_unchanged(input);
     }
 
@@ -749,7 +749,7 @@ b1(v1: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -774,7 +774,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -799,7 +799,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -831,7 +831,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -861,7 +861,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -891,7 +891,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -920,7 +920,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -949,7 +949,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -967,7 +967,7 @@ entry(v0: boolean):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_unchanged(input);
     }
 
@@ -993,7 +993,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -1032,7 +1032,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 
@@ -1057,7 +1057,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ConstantFold);
+        test.run_pass(&FoldConstants);
         test.assert_output(expected);
     }
 }

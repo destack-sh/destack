@@ -30,12 +30,12 @@ declare_pass! {
     ///     return v2
     /// }
     /// ```
-    #[pass(id = "value-range-prop")]
-    pub ValueRangePropagation,
+    #[pass(id = "propagate-value-ranges")]
+    pub PropagateValueRanges,
     "Fold values proven constant by range analysis"
 }
 
-impl FunctionPass for ValueRangePropagation {
+impl FunctionPass for PropagateValueRanges {
     /// Run the value range propagation pass.
     fn run(
         &self,
@@ -53,7 +53,7 @@ impl FunctionPass for ValueRangePropagation {
         let ranges = { analyses.get::<RangeAnalysis>(function, tree).clone() };
 
         // fold instructions with constant ranges
-        let changed = run_value_range_propagation(function, tree, &ranges);
+        let changed = run_propagate_value_rangesagation(function, tree, &ranges);
 
         // report what this pass changed
         if changed {
@@ -65,17 +65,17 @@ impl FunctionPass for ValueRangePropagation {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "ValueRangePropagation"
+        "PropagateValueRanges"
     }
 
     /// Return the pass id.
     fn id(&self) -> &'static str {
-        "value-range-prop"
+        "propagate-value-ranges"
     }
 }
 
 /// Apply range-based constant folding to a function.
-fn run_value_range_propagation(
+fn run_propagate_value_rangesagation(
     function: &mir::Function,
     tree: &mut mir::Tree,
     ranges: &RangeAnalysis,
@@ -138,7 +138,7 @@ mod tests {
 
     /// Constant comparisons fold to constant booleans.
     #[test]
-    fn test_value_range_prop_constant_comparison() {
+    fn test_propagate_value_ranges_constant_comparison() {
         let input = r#"
 function test(): boolean {
 entry:
@@ -159,13 +159,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ValueRangePropagation);
+        test.run_pass(&PropagateValueRanges);
         test.assert_output(expected);
     }
 
     /// Constant equality folds to true.
     #[test]
-    fn test_value_range_prop_constant_equals() {
+    fn test_propagate_value_ranges_constant_equals() {
         let input = r#"
 function test(): boolean {
 entry:
@@ -186,13 +186,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ValueRangePropagation);
+        test.run_pass(&PropagateValueRanges);
         test.assert_output(expected);
     }
 
     /// Non-constant comparisons are preserved.
     #[test]
-    fn test_value_range_prop_preserves_non_constant() {
+    fn test_propagate_value_ranges_preserves_non_constant() {
         let input = r#"
 function test(v0: int32, v1: int32): boolean {
 entry(v0: int32, v1: int32):
@@ -202,7 +202,7 @@ entry(v0: int32, v1: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&ValueRangePropagation);
+        test.run_pass(&PropagateValueRanges);
         test.assert_output(input);
     }
 }

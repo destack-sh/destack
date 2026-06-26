@@ -1,5 +1,5 @@
+mod hoist_loop_invariants;
 mod induction_simplify;
-mod licm;
 mod loop_delete;
 mod loop_distribute;
 mod loop_fusion;
@@ -13,8 +13,8 @@ mod loop_unroll;
 mod loop_unswitch;
 mod loop_versioning;
 
+pub use hoist_loop_invariants::*;
 pub use induction_simplify::*;
-pub use licm::*;
 pub use loop_delete::*;
 pub use loop_distribute::*;
 pub use loop_fusion::*;

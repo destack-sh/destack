@@ -48,11 +48,11 @@ declare_pass! {
     /// }
     /// ```
     #[pass(id = "dse")]
-    pub DeadStoreEliminate,
+    pub EliminateDeadStores,
     "Remove dead stores"
 }
 
-impl FunctionPass for DeadStoreEliminate {
+impl FunctionPass for EliminateDeadStores {
     /// Run dead store elimination on the function.
     fn run(
         &self,
@@ -76,7 +76,7 @@ impl FunctionPass for DeadStoreEliminate {
         let value_types = analyses.get::<ValueTypes>(function, tree);
 
         // run dead store elimination
-        let changed = run_dead_store_eliminate(
+        let changed = run_eliminate_dead_stores(
             function,
             tree,
             &aa,
@@ -96,7 +96,7 @@ impl FunctionPass for DeadStoreEliminate {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "DeadStoreEliminate"
+        "EliminateDeadStores"
     }
 
     /// Return the pass id.
@@ -106,7 +106,7 @@ impl FunctionPass for DeadStoreEliminate {
 }
 
 /// Core DSE logic. Returns true if changes were made.
-fn run_dead_store_eliminate(
+fn run_eliminate_dead_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     aa: &AliasAnalysis,
@@ -702,7 +702,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
     }
 
@@ -726,7 +726,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_unchanged(input);
     }
 
@@ -756,7 +756,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
     }
 
@@ -786,7 +786,7 @@ entry:
 
         tag_store_access(&mut test, store_id, 4, true, None);
 
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_unchanged(input);
     }
 
@@ -810,7 +810,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_unchanged(input);
     }
 
@@ -858,7 +858,7 @@ entry:
         metadata.memory = mir::MemoryEffect::none();
         metadata.arguments = vec![arg0];
 
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
     }
 
@@ -896,7 +896,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
     }
 
@@ -914,7 +914,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_unchanged(input);
     }
 
@@ -940,7 +940,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_unchanged(input);
     }
 
@@ -964,7 +964,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_unchanged(input);
     }
 
@@ -1005,7 +1005,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
     }
 
@@ -1025,7 +1025,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_unchanged(input);
     }
 
@@ -1045,7 +1045,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_unchanged(input);
     }
 
@@ -1071,7 +1071,7 @@ entry(v0: ref<Pair, raw, mutable>):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_unchanged(input);
     }
 
@@ -1100,7 +1100,7 @@ entry:
         tag_store_access(&mut test, *first_store, 8, false, None);
         tag_store_access(&mut test, *second_store, 4, false, None);
 
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_unchanged(input);
     }
 
@@ -1128,7 +1128,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
     }
 
@@ -1149,7 +1149,7 @@ entry:
         let expected = input;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
     }
 
@@ -1179,7 +1179,7 @@ entry:
 
         // run dse
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
     }
 
@@ -1202,7 +1202,7 @@ entry:
 
         // run dse
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
     }
 
@@ -1232,7 +1232,7 @@ entry:
 
         // run dse
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
     }
 
@@ -1255,7 +1255,7 @@ entry:
 
         // run dse
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
     }
 
@@ -1306,7 +1306,7 @@ entry(v0: ref<Point, raw, mutable>):
         );
 
         // run dse
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
     }
 
@@ -1347,7 +1347,7 @@ b1:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
     }
 
@@ -1377,7 +1377,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_unchanged(input);
     }
 
@@ -1404,7 +1404,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadStoreEliminate);
+        test.run_pass(&EliminateDeadStores);
         test.assert_unchanged(input);
     }
 }

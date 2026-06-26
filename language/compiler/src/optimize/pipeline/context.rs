@@ -82,8 +82,8 @@ impl Default for PipelineDiagnostics {
 /// Options for pipeline execution.
 #[derive(Debug, Clone)]
 pub struct PipelineOptions {
-    /// Maximum array elements for SROA to split (larger arrays are left intact).
-    pub sroa_max_array_elements: usize,
+    /// Maximum array elements for SplitAggregates to split (larger arrays are left intact).
+    pub split_aggregates_max_array_elements: usize,
     /// MIR analysis options for this pipeline run.
     pub analysis: AnalysisOptions,
     /// Loop unroll threshold in instructions.
@@ -95,7 +95,7 @@ pub struct PipelineOptions {
 impl Default for PipelineOptions {
     fn default() -> Self {
         Self {
-            sroa_max_array_elements: 8,
+            split_aggregates_max_array_elements: 8,
             analysis: AnalysisOptions::default(),
             unroll_threshold: 200,
             inline_budget_scale_percent: 100,

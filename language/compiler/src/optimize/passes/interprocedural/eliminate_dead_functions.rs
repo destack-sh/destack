@@ -40,12 +40,12 @@ declare_pass! {
     /// }
     /// external function dead(): void
     /// ```
-    #[pass(id = "dead-function-eliminate")]
-    pub DeadFunctionEliminate,
+    #[pass(id = "eliminate-dead-functions")]
+    pub EliminateDeadFunctions,
     "Eliminate dead functions"
 }
 
-impl ModulePass for DeadFunctionEliminate {
+impl ModulePass for EliminateDeadFunctions {
     /// Strip functions the analysis scope cannot reach.
     fn run(
         &self,
@@ -53,7 +53,7 @@ impl ModulePass for DeadFunctionEliminate {
         ctx: &PipelineContext<'_>,
         _analyses: &mir::ModuleAnalyses,
     ) -> Mutation {
-        let changed = run_dead_function_eliminate(tree, ctx.program_analysis());
+        let changed = run_eliminate_dead_functions(tree, ctx.program_analysis());
 
         // report stripped definitions as control-flow changes
         if changed {
@@ -65,17 +65,20 @@ impl ModulePass for DeadFunctionEliminate {
 
     /// Return the pass display name.
     fn name(&self) -> &'static str {
-        "DeadFunctionEliminate"
+        "EliminateDeadFunctions"
     }
 
     /// Return the pass identifier.
     fn id(&self) -> &'static str {
-        "dead-function-eliminate"
+        "eliminate-dead-functions"
     }
 }
 
 /// Strip every defined function the analysis scope cannot reach.
-pub(crate) fn run_dead_function_eliminate(tree: &mut mir::Tree, program: &ProgramAnalysis) -> bool {
+pub(crate) fn run_eliminate_dead_functions(
+    tree: &mut mir::Tree,
+    program: &ProgramAnalysis,
+) -> bool {
     // an empty scope defines no symbols, so nothing can be proven dead
     if program.is_empty() {
         return false;
@@ -167,7 +170,7 @@ entry:
 
         // the export reaches `live`; `dead` is reached by nothing
         let program = module_analysis(&test.tree);
-        let changed = run_dead_function_eliminate(&mut test.tree, &program);
+        let changed = run_eliminate_dead_functions(&mut test.tree, &program);
 
         // reachable functions keep their bodies; the unreachable one is externalized
         assert!(changed);

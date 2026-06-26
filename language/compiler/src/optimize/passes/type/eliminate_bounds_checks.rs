@@ -48,12 +48,12 @@ declare_pass! {
     ///     unreachable
     /// }
     /// ```
-    #[pass(id = "bounds-check-eliminate")]
-    pub BoundsCheckEliminate,
+    #[pass(id = "eliminate-bounds-checks")]
+    pub EliminateBoundsChecks,
     "Eliminate redundant bounds checks"
 }
 
-impl FunctionPass for BoundsCheckEliminate {
+impl FunctionPass for EliminateBoundsChecks {
     /// Run the bounds check elimination pass.
     fn run(
         &self,
@@ -184,12 +184,12 @@ impl FunctionPass for BoundsCheckEliminate {
 
     /// Return the display name for this pass.
     fn name(&self) -> &'static str {
-        "BoundsCheckEliminate"
+        "EliminateBoundsChecks"
     }
 
     /// Return the stable id for this pass.
     fn id(&self) -> &'static str {
-        "bounds-check-eliminate"
+        "eliminate-bounds-checks"
     }
 }
 
@@ -1590,7 +1590,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&BoundsCheckEliminate);
+        test.run_pass(&EliminateBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1635,7 +1635,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&BoundsCheckEliminate);
+        test.run_pass(&EliminateBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1667,7 +1667,7 @@ b3:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&BoundsCheckEliminate);
+        test.run_pass(&EliminateBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1718,7 +1718,7 @@ b3:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&BoundsCheckEliminate);
+        test.run_pass(&EliminateBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1744,7 +1744,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&BoundsCheckEliminate);
+        test.run_pass(&EliminateBoundsChecks);
         test.assert_unchanged(input);
     }
 
@@ -1776,7 +1776,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&BoundsCheckEliminate);
+        test.run_pass(&EliminateBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1823,7 +1823,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&BoundsCheckEliminate);
+        test.run_pass(&EliminateBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1878,7 +1878,7 @@ b3:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&BoundsCheckEliminate);
+        test.run_pass(&EliminateBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1935,7 +1935,7 @@ b4:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&BoundsCheckEliminate);
+        test.run_pass(&EliminateBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1986,7 +1986,7 @@ b3:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&BoundsCheckEliminate);
+        test.run_pass(&EliminateBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -2015,7 +2015,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&BoundsCheckEliminate);
+        test.run_pass(&EliminateBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -2068,7 +2068,7 @@ b3:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&BoundsCheckEliminate);
+        test.run_pass(&EliminateBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -2101,7 +2101,7 @@ b4:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&BoundsCheckEliminate);
+        test.run_pass(&EliminateBoundsChecks);
         test.assert_unchanged(input);
     }
 
@@ -2135,7 +2135,7 @@ b4:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&BoundsCheckEliminate);
+        test.run_pass(&EliminateBoundsChecks);
         test.assert_unchanged(input);
     }
 
@@ -2162,7 +2162,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&BoundsCheckEliminate);
+        test.run_pass(&EliminateBoundsChecks);
         test.assert_unchanged(input);
     }
 
@@ -2215,7 +2215,7 @@ b3:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&BoundsCheckEliminate);
+        test.run_pass(&EliminateBoundsChecks);
         test.assert_output(expected);
     }
 }
