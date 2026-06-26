@@ -435,7 +435,7 @@ fn pattern_is_destructuring(tree: &dir::Tree, pattern_id: LocalNodeId<dir::Patte
         | dir::Pattern::Sequence { .. }
         | dir::Pattern::Object { .. }
         | dir::Pattern::NominalObject { .. } => true,
-        dir::Pattern::Assign { pattern, .. }
+        dir::Pattern::Default { pattern, .. }
         | dir::Pattern::Must(pattern)
         | dir::Pattern::BorrowOf { right: pattern, .. }
         | dir::Pattern::MoveOf { right: pattern, .. }

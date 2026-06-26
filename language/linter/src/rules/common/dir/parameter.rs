@@ -127,7 +127,7 @@ pub fn collect_pattern_value_binding_symbols(
     // recurse through child patterns
     match pattern {
         dir::Pattern::Wildcard | dir::Pattern::Expression { .. } | dir::Pattern::Range { .. } => {}
-        dir::Pattern::Assign { pattern, .. } => {
+        dir::Pattern::Default { pattern, .. } => {
             collect_pattern_value_binding_symbols(tree, symbols, *pattern, bindings);
         }
         dir::Pattern::Must(inner)

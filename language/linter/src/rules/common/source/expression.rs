@@ -53,12 +53,12 @@ pub fn assign_pattern_expression(
         let assign_pattern = tree.get(assign_pattern_id);
 
         // keep direct expression targets
-        if let dir::AssignPattern::Expression { value } = assign_pattern {
+        if let dir::AssignPattern::Place { expression: value } = assign_pattern {
             return Some(*value);
         }
 
         // unwrap defaulted targets before checking the base
-        if let dir::AssignPattern::Assign { pattern, .. } = assign_pattern {
+        if let dir::AssignPattern::Default { pattern, .. } = assign_pattern {
             assign_pattern_id = *pattern;
             continue;
         }
@@ -106,15 +106,15 @@ pub fn assign_patterns_are_equal(
 
     match (left_pattern, right_pattern) {
         (
-            dir::AssignPattern::Expression { value: left_value },
-            dir::AssignPattern::Expression { value: right_value },
+            dir::AssignPattern::Place { expression: left_value },
+            dir::AssignPattern::Place { expression: right_value },
         ) => expression_is_equal(ctx, *left_value, *right_value),
         (
-            dir::AssignPattern::Assign {
+            dir::AssignPattern::Default {
                 pattern: left_pattern,
                 value: left_value,
             },
-            dir::AssignPattern::Assign {
+            dir::AssignPattern::Default {
                 pattern: right_pattern,
                 value: right_value,
             },
