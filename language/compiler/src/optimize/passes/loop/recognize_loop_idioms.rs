@@ -61,12 +61,12 @@ declare_pass! {
     ///     return
     /// }
     /// ```
-    #[pass(id = "loop-idiom")]
-    pub LoopIdiomRecognize,
+    #[pass(id = "recognize-loop-idioms")]
+    pub RecognizeLoopIdioms,
     "Recognize loop idioms (memset/memcpy)"
 }
 
-impl FunctionPass for LoopIdiomRecognize {
+impl FunctionPass for RecognizeLoopIdioms {
     /// Run loop idiom recognition on a function.
     fn run(
         &self,
@@ -80,7 +80,7 @@ impl FunctionPass for LoopIdiomRecognize {
             return Mutation::NONE;
         }
 
-        let changed = run_loop_idiom(function, tree, ctx, analyses);
+        let changed = run_recognize_loop_idioms(function, tree, ctx, analyses);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -90,12 +90,12 @@ impl FunctionPass for LoopIdiomRecognize {
 
     /// Return the display name for this pass.
     fn name(&self) -> &'static str {
-        "LoopIdiomRecognize"
+        "RecognizeLoopIdioms"
     }
 
     /// Return the pipeline identifier for this pass.
     fn id(&self) -> &'static str {
-        "loop-idiom"
+        "recognize-loop-idioms"
     }
 }
 
@@ -109,7 +109,7 @@ struct GuardInfo {
 }
 
 /// Run loop idiom recognition on a single function and report whether it changed.
-fn run_loop_idiom(
+fn run_recognize_loop_idioms(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
@@ -1331,7 +1331,7 @@ mod tests {
 
     /// Memset loops are lowered to intrinsic.memory.raw.setBytes.
     #[test]
-    fn test_loop_idiom_memset() {
+    fn test_recognize_loop_idioms_memset() {
         let input = r#"
 function test(v0: [uint8; 8], v1: uint32): void {
 entry(v0: [uint8; 8], v1: uint32):
@@ -1382,13 +1382,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_output(expected);
     }
 
     /// Memset loops with a separate latch are lowered.
     #[test]
-    fn test_loop_idiom_memset_multi_block() {
+    fn test_recognize_loop_idioms_memset_multi_block() {
         let input = r#"
 function test(v0: [uint8; 8], v1: uint32): void {
 entry(v0: [uint8; 8], v1: uint32):
@@ -1445,13 +1445,13 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_output(expected);
     }
 
     /// Volatile stores are not lowered into memset.
     #[test]
-    fn test_loop_idiom_skips_volatile_store() {
+    fn test_recognize_loop_idioms_skips_volatile_store() {
         let input = r#"
 function test(v0: [uint8; 8], v1: uint32): void {
 entry(v0: [uint8; 8], v1: uint32):
@@ -1506,13 +1506,13 @@ b3:
             None,
         );
 
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_unchanged(input);
     }
 
     /// Memcpy loops are lowered to intrinsic.memory.raw.copyBytes.
     #[test]
-    fn test_loop_idiom_memcpy() {
+    fn test_recognize_loop_idioms_memcpy() {
         let input = r#"
 function test(v0: [uint8; 8], v1: [uint8; 8], v2: uint32): void {
 entry(v0: [uint8; 8], v1: [uint8; 8], v2: uint32):
@@ -1565,13 +1565,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_output(expected);
     }
 
     /// Overlapping copy loops use memmove.
     #[test]
-    fn test_loop_idiom_memmove_aliasing() {
+    fn test_recognize_loop_idioms_memmove_aliasing() {
         let input = r#"
 function test(v0: [uint8; 8], v1: uint32): void {
 entry(v0: [uint8; 8], v1: uint32):
@@ -1622,13 +1622,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_output(expected);
     }
 
     /// Memcpy uses byte length when element size exceeds one byte.
     #[test]
-    fn test_loop_idiom_memcpy_multiplies_length() {
+    fn test_recognize_loop_idioms_memcpy_multiplies_length() {
         let input = r#"
 function test(v0: [uint32; 8], v1: [uint32; 8]): void {
 entry(v0: [uint32; 8], v1: [uint32; 8]):
@@ -1685,13 +1685,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_output(expected);
     }
 
     /// Non zero starts scale byte length for wider elements.
     #[test]
-    fn test_loop_idiom_memcpy_non_zero_start_multiplies_length() {
+    fn test_recognize_loop_idioms_memcpy_non_zero_start_multiplies_length() {
         let input = r#"
 function test(v0: [uint32; 8], v1: [uint32; 8]): void {
 entry(v0: [uint32; 8], v1: [uint32; 8]):
@@ -1749,13 +1749,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_output(expected);
     }
 
     /// Loops with non zero starts insert a guard.
     #[test]
-    fn test_loop_idiom_guards_non_zero_start() {
+    fn test_recognize_loop_idioms_guards_non_zero_start() {
         let input = r#"
 function test(v0: [uint8; 8], v1: uint32): void {
 entry(v0: [uint8; 8], v1: uint32):
@@ -1811,13 +1811,13 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_output(expected);
     }
 
     /// Non zero starts guard memcpy lowering.
     #[test]
-    fn test_loop_idiom_memcpy_guards_non_zero_start() {
+    fn test_recognize_loop_idioms_memcpy_guards_non_zero_start() {
         let input = r#"
 function test(v0: [uint8; 8], v1: [uint8; 8], v2: uint32, v3: uint32): void {
 entry(v0: [uint8; 8], v1: [uint8; 8], v2: uint32, v3: uint32):
@@ -1873,13 +1873,13 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_output(expected);
     }
 
     /// Non zero starts guard memmove lowering.
     #[test]
-    fn test_loop_idiom_memmove_guards_non_zero_start() {
+    fn test_recognize_loop_idioms_memmove_guards_non_zero_start() {
         let input = r#"
 function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
 entry(v0: [uint8; 8], v1: uint32, v2: uint32):
@@ -1933,13 +1933,13 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_output(expected);
     }
 
     /// Loops with non unit stride are not lowered.
     #[test]
-    fn test_loop_idiom_skips_non_unit_stride() {
+    fn test_recognize_loop_idioms_skips_non_unit_stride() {
         let input = r#"
 function test(v0: [uint8; 8], v1: uint32): void {
 entry(v0: [uint8; 8], v1: uint32):
@@ -1964,13 +1964,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_output(input);
     }
 
     /// Loops with conditional stores are not lowered.
     #[test]
-    fn test_loop_idiom_skips_conditional_store() {
+    fn test_recognize_loop_idioms_skips_conditional_store() {
         let input = r#"
 function test(v0: [uint8; 8], v1: uint32, v2: boolean): void {
 entry(v0: [uint8; 8], v1: uint32, v2: boolean):
@@ -2001,13 +2001,13 @@ b5:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_output(input);
     }
 
     /// Loops with nested stores are not lowered.
     #[test]
-    fn test_loop_idiom_skips_nested_store() {
+    fn test_recognize_loop_idioms_skips_nested_store() {
         let input = r#"
 function test(v0: [uint8; 8], v1: uint32): void {
 entry(v0: [uint8; 8], v1: uint32):
@@ -2045,13 +2045,13 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_output(input);
     }
 
     /// Loops with variant arrays are not lowered.
     #[test]
-    fn test_loop_idiom_skips_variant_array() {
+    fn test_recognize_loop_idioms_skips_variant_array() {
         let input = r#"
 function test(v0: [uint8; 8], v1: uint32): void {
 entry(v0: [uint8; 8], v1: uint32):
@@ -2077,13 +2077,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_output(input);
     }
 
     /// Loops with non constant stores are left unchanged.
     #[test]
-    fn test_loop_idiom_skips_non_constant_store() {
+    fn test_recognize_loop_idioms_skips_non_constant_store() {
         let input = r#"
 function test(v0: [uint8; 8], v1: uint8, v2: uint32): void {
 entry(v0: [uint8; 8], v1: uint8, v2: uint32):
@@ -2107,13 +2107,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_output(input);
     }
 
     /// Loops with side effects are not lowered.
     #[test]
-    fn test_loop_idiom_skips_side_effects() {
+    fn test_recognize_loop_idioms_skips_side_effects() {
         let input = r#"
 function test(v0: [uint8; 8], v1: uint32): void {
 entry(v0: [uint8; 8], v1: uint32):
@@ -2144,13 +2144,13 @@ entry(v0: uint32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_output(input);
     }
 
     /// Loops with multiple stores are not lowered.
     #[test]
-    fn test_loop_idiom_skips_multiple_stores() {
+    fn test_recognize_loop_idioms_skips_multiple_stores() {
         let input = r#"
 function test(v0: [uint8; 8], v1: [uint8; 8], v2: uint32): void {
 entry(v0: [uint8; 8], v1: [uint8; 8], v2: uint32):
@@ -2177,7 +2177,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopIdiomRecognize);
+        test.run_pass(&RecognizeLoopIdioms);
         test.assert_output(input);
     }
 }

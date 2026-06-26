@@ -11,7 +11,7 @@ use destack_mir::{
 };
 
 declare_pass! {
-    /// Inline direct calls into their callers when the callee is small.
+    /// InlineFunctions direct calls into their callers when the callee is small.
     ///
     /// This pass clones callee blocks into the caller, rewires returns to a continuation block, and skips recursive components and functions with tail calls.
     ///
@@ -41,12 +41,12 @@ declare_pass! {
     ///     return v4
     /// }
     /// ```
-    #[pass(id = "inline")]
-    pub Inline,
-    "Inline direct calls"
+    #[pass(id = "inline-functions")]
+    pub InlineFunctions,
+    "InlineFunctions direct calls"
 }
 
-impl ModulePass for Inline {
+impl ModulePass for InlineFunctions {
     /// Run the inline pass over a module.
     fn run(
         &self,
@@ -66,12 +66,12 @@ impl ModulePass for Inline {
 
     /// Return the pass display name.
     fn name(&self) -> &'static str {
-        "Inline"
+        "InlineFunctions"
     }
 
     /// Return the pass identifier.
     fn id(&self) -> &'static str {
-        "inline"
+        "inline-functions"
     }
 }
 
@@ -132,7 +132,7 @@ const INLINE_HOT_SCORE_BONUS: i64 = 24;
 /// Always inline when cost is below this threshold.
 const INLINE_ALWAYS_INLINE_COST: u64 = 40;
 
-/// Inline pass main entry.
+/// InlineFunctions pass main entry.
 fn run_inline(
     tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
@@ -249,15 +249,15 @@ fn run_inline(
 
     // record pass activity for downstream diagnostics
     if changed {
-        ctx.strings.intern("inline");
+        ctx.strings.intern("inline-functions");
     }
 
     changed
 }
 
-/// Inline site information for a call instruction.
+/// InlineFunctions site information for a call instruction.
 #[derive(Debug, Clone)]
-struct InlineSite {
+struct InlineFunctionsSite {
     /// The block containing the call.
     block_id: mir::LocalNodeId<mir::Block>,
     /// The index of the call instruction in the block.
@@ -272,14 +272,14 @@ struct InlineSite {
     destination: Option<mir::Value>,
 }
 
-/// Inline candidate with scoring information.
+/// InlineFunctions candidate with scoring information.
 #[derive(Debug, Clone)]
-struct InlineCandidate {
+struct InlineFunctionsCandidate {
     /// The inline site to apply.
-    site: InlineSite,
-    /// Inline cost score.
+    site: InlineFunctionsSite,
+    /// InlineFunctions cost score.
     cost: u64,
-    /// Inline benefit score.
+    /// InlineFunctions benefit score.
     score: i64,
 }
 
@@ -297,8 +297,8 @@ fn find_inline_site(
     function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     inline_budget: u64,
-) -> Option<InlineCandidate> {
-    let mut best: Option<InlineCandidate> = None;
+) -> Option<InlineFunctionsCandidate> {
+    let mut best: Option<InlineFunctionsCandidate> = None;
 
     // scan blocks in order for candidate callsites
     let block_ids = function.blocks().to_vec();
@@ -327,7 +327,7 @@ fn find_inline_site(
                 value_definitions,
                 function_analyses,
                 block_counts,
-                InlineSite {
+                InlineFunctionsSite {
                     block_id,
                     call_index: index,
                     call_instruction_id: *instruction_id,
@@ -370,8 +370,8 @@ fn inline_candidate(
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
-    site: InlineSite,
-) -> Option<InlineCandidate> {
+    site: InlineFunctionsSite,
+) -> Option<InlineFunctionsCandidate> {
     let block_count = block_counts.get(&site.block_id).copied().unwrap_or(0);
     let score = inline_score(
         tree,
@@ -388,19 +388,19 @@ fn inline_candidate(
         &site.arguments,
     )?;
 
-    Some(InlineCandidate {
+    Some(InlineFunctionsCandidate {
         site,
         cost: score.cost,
         score: score.score,
     })
 }
 
-/// Inline scoring metadata.
+/// InlineFunctions scoring metadata.
 #[derive(Debug, Clone, Copy)]
-struct InlineScore {
-    /// Inline cost score.
+struct InlineFunctionsScore {
+    /// InlineFunctions cost score.
     cost: u64,
-    /// Inline benefit score minus cost.
+    /// InlineFunctions benefit score minus cost.
     score: i64,
 }
 
@@ -432,7 +432,7 @@ fn inline_score(
     function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
     block_count: u64,
     arguments: &[mir::Value],
-) -> Option<InlineScore> {
+) -> Option<InlineFunctionsScore> {
     let entry_count = profile
         .and_then(|profile| profile.function(tree.get(caller_id).symbol))
         .map(|function_profile| function_profile.entry.get())
@@ -471,7 +471,7 @@ fn inline_score(
     }
 
     if callee_cost.score <= INLINE_ALWAYS_INLINE_COST {
-        return Some(InlineScore {
+        return Some(InlineFunctionsScore {
             cost: callee_cost.score,
             score: 0,
         });
@@ -497,7 +497,7 @@ fn inline_score(
         return None;
     }
 
-    Some(InlineScore {
+    Some(InlineFunctionsScore {
         cost: callee_cost.score,
         score,
     })
@@ -609,11 +609,11 @@ fn should_inline(
         && callee_size.calls() <= max_calls
 }
 
-/// Inline a direct callsite into the caller.
+/// InlineFunctions a direct callsite into the caller.
 fn inline_callsite(
     caller: &mut mir::Function,
     tree: &mut mir::Tree,
-    site: &InlineSite,
+    site: &InlineFunctionsSite,
     ctx: &PipelineContext<'_>,
     function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
 ) -> bool {
@@ -715,7 +715,7 @@ fn inline_callsite(
 
 /// Result of splitting a block around a call.
 #[derive(Debug, Clone, Copy)]
-struct InlineSplit {
+struct InlineFunctionsSplit {
     /// The continuation block id.
     continuation_id: mir::LocalNodeId<mir::Block>,
     /// The continuation parameter value when the call returns a value.
@@ -814,7 +814,7 @@ fn split_block_for_inline(
     destination: Option<mir::Value>,
     entry_params: &[mir::BlockParameter],
     argument_map: &HashMap<mir::Value, mir::Value>,
-) -> Option<InlineSplit> {
+) -> Option<InlineFunctionsSplit> {
     // load the call block for editing
     let mut block = tree.get(block_id).clone();
     if call_index >= block.instructions.len() {
@@ -876,7 +876,7 @@ fn split_block_for_inline(
     let continuation_id = tree.insert(continuation_block);
     caller.add_block(continuation_id, tree);
 
-    Some(InlineSplit {
+    Some(InlineFunctionsSplit {
         continuation_id,
         result_value,
     })
@@ -1283,7 +1283,7 @@ b2(v5: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&Inline);
+        test.run_module_pass(&InlineFunctions);
         test.assert_output(expected);
     }
 
@@ -1307,7 +1307,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&Inline);
+        test.run_module_pass(&InlineFunctions);
         test.assert_output(expected);
     }
 
@@ -1341,7 +1341,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&Inline);
+        test.run_module_pass(&InlineFunctions);
         test.assert_output(expected);
     }
 
@@ -1392,11 +1392,11 @@ b2(v5: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&Inline);
+        test.run_module_pass(&InlineFunctions);
         test.assert_output(expected);
     }
 
-    /// Inlined memory access metadata remaps reference targets.
+    /// InlineFunctionsd memory access metadata remaps reference targets.
     #[test]
     fn test_inline_remaps_memory_access_metadata() {
         let input = r#"
@@ -1445,7 +1445,7 @@ entry:
             None,
         );
 
-        test.run_module_pass(&Inline);
+        test.run_module_pass(&InlineFunctions);
 
         let caller_id = test.function_id_by_name("caller");
         let caller = test.tree.get(caller_id);
@@ -1503,7 +1503,7 @@ entry:
         input.push_str("}\n");
 
         let mut test = TestProgram::new(&input);
-        test.run_module_pass(&Inline);
+        test.run_module_pass(&InlineFunctions);
         test.assert_unchanged(&input);
     }
 
@@ -1545,7 +1545,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&Inline);
+        test.run_module_pass(&InlineFunctions);
         test.assert_output(expected);
     }
 
@@ -1581,7 +1581,7 @@ entry(v0: int32):
         let mut profile = mir::Profile::new();
         test.record_function_entry(&mut profile, caller_id, 5);
 
-        test.run_module_pass_with_profile(&Inline, profile);
+        test.run_module_pass_with_profile(&InlineFunctions, profile);
         test.assert_unchanged(input);
     }
 
@@ -1659,7 +1659,7 @@ entry(v0: int32):
         let mut profile = mir::Profile::new();
         test.record_function_entry(&mut profile, caller_id, 100);
 
-        test.run_module_pass_with_profile(&Inline, profile);
+        test.run_module_pass_with_profile(&InlineFunctions, profile);
         test.assert_output(expected);
     }
 
@@ -1696,7 +1696,7 @@ entry0:
         assert_eq!(cold, CallsiteHotness::Cold);
     }
 
-    /// Inline replaces multiple returns with a continuation.
+    /// InlineFunctions replaces multiple returns with a continuation.
     #[test]
     fn test_inline_multiple_returns() {
         let input = r#"
@@ -1755,11 +1755,11 @@ b4(v9: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&Inline);
+        test.run_module_pass(&InlineFunctions);
         test.assert_output(expected);
     }
 
-    /// Inline forwards call results into continuation terminators.
+    /// InlineFunctions forwards call results into continuation terminators.
     #[test]
     fn test_inline_continuation_argument() {
         let input = r#"
@@ -1803,7 +1803,7 @@ b3(v5: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&Inline);
+        test.run_module_pass(&InlineFunctions);
         test.assert_output(expected);
     }
 
@@ -1826,7 +1826,7 @@ entry(v0: fn(int32) => int32, v1: int32):
 
         let mut test = TestProgram::new(input);
 
-        test.run_module_pass(&Inline);
+        test.run_module_pass(&InlineFunctions);
         test.assert_unchanged(input);
     }
 }

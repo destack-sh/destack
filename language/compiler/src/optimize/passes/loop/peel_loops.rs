@@ -52,12 +52,12 @@ declare_pass! {
     ///     branch v11, b1(v10), b2
     /// }
     /// ```
-    #[pass(id = "loop-peel")]
-    pub LoopPeel,
+    #[pass(id = "peel-loops")]
+    pub PeelLoops,
     "Peel one iteration of latch-guarded loops"
 }
 
-impl FunctionPass for LoopPeel {
+impl FunctionPass for PeelLoops {
     /// Run loop peeling on a function.
     fn run(
         &self,
@@ -71,7 +71,7 @@ impl FunctionPass for LoopPeel {
             return Mutation::NONE;
         }
 
-        let changed = run_loop_peel(function, tree, ctx, analyses);
+        let changed = run_peel_loops(function, tree, ctx, analyses);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -81,17 +81,17 @@ impl FunctionPass for LoopPeel {
 
     /// Return the display name for this pass.
     fn name(&self) -> &'static str {
-        "LoopPeel"
+        "PeelLoops"
     }
 
     /// Return the pipeline identifier for this pass.
     fn id(&self) -> &'static str {
-        "loop-peel"
+        "peel-loops"
     }
 }
 
 /// Run loop peeling on a single function and report whether it changed.
-fn run_loop_peel(
+fn run_peel_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     _ctx: &PipelineContext<'_>,
@@ -286,7 +286,7 @@ mod tests {
 
     /// Latch guarded loops are peeled once.
     #[test]
-    fn test_loop_peel_single_iteration() {
+    fn test_peel_loops_single_iteration() {
         let input = r#"
 function test(v0: uint32): uint32 {
 entry(v0: uint32):
@@ -331,13 +331,13 @@ b3(v7: uint32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopPeel);
+        test.run_pass(&PeelLoops);
         test.assert_output(expected);
     }
 
     /// Header guarded loops are not peeled.
     #[test]
-    fn test_loop_peel_skips_header_guard() {
+    fn test_peel_loops_skips_header_guard() {
         let input = r#"
 function test(v0: uint32): uint32 {
 entry(v0: uint32):
@@ -359,13 +359,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopPeel);
+        test.run_pass(&PeelLoops);
         test.assert_output(input);
     }
 
     /// Multiple exits prevent peeling.
     #[test]
-    fn test_loop_peel_skips_multiple_exits() {
+    fn test_peel_loops_skips_multiple_exits() {
         let input = r#"
 function test(v0: uint32, v1: boolean): uint32 {
 entry(v0: uint32, v1: boolean):
@@ -393,7 +393,7 @@ b5:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopPeel);
+        test.run_pass(&PeelLoops);
         test.assert_output(input);
     }
 }

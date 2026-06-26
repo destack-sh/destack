@@ -60,12 +60,12 @@ declare_pass! {
     ///     return
     /// }
     /// ```
-    #[pass(id = "loop-eliminate-bounds-checks")]
-    pub LoopEliminateBoundsChecks,
+    #[pass(id = "eliminate-loop-bounds-checks")]
+    pub EliminateLoopBoundsChecks,
     "Eliminate redundant loop bounds checks"
 }
 
-impl FunctionPass for LoopEliminateBoundsChecks {
+impl FunctionPass for EliminateLoopBoundsChecks {
     /// Run the loop bounds check elimination pass.
     fn run(
         &self,
@@ -96,7 +96,7 @@ impl FunctionPass for LoopEliminateBoundsChecks {
         let forwarding = BlockParamForwarding::build(function, tree, &cfg);
 
         // run the elimination pass
-        let changed = run_loop_eliminate_bounds_checks(
+        let changed = run_eliminate_loop_bounds_checks(
             tree,
             &loops,
             &domtree,
@@ -114,12 +114,12 @@ impl FunctionPass for LoopEliminateBoundsChecks {
 
     /// Return the display name for this pass.
     fn name(&self) -> &'static str {
-        "LoopEliminateBoundsChecks"
+        "EliminateLoopBoundsChecks"
     }
 
     /// Return the stable id for this pass.
     fn id(&self) -> &'static str {
-        "loop-eliminate-bounds-checks"
+        "eliminate-loop-bounds-checks"
     }
 }
 
@@ -243,7 +243,7 @@ struct NonNegativeGuard {
 }
 
 /// Eliminate redundant bounds checks inside loops.
-fn run_loop_eliminate_bounds_checks(
+fn run_eliminate_loop_bounds_checks(
     tree: &mut mir::Tree,
     loops: &LoopAnalysis,
     domtree: &DominatorTree,
@@ -972,7 +972,7 @@ b5:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopEliminateBoundsChecks);
+        test.run_pass(&EliminateLoopBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1033,7 +1033,7 @@ b4:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopEliminateBoundsChecks);
+        test.run_pass(&EliminateLoopBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1100,7 +1100,7 @@ b5:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopEliminateBoundsChecks);
+        test.run_pass(&EliminateLoopBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1165,7 +1165,7 @@ b5:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopEliminateBoundsChecks);
+        test.run_pass(&EliminateLoopBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1232,7 +1232,7 @@ b5:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopEliminateBoundsChecks);
+        test.run_pass(&EliminateLoopBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1307,7 +1307,7 @@ b6:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopEliminateBoundsChecks);
+        test.run_pass(&EliminateLoopBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1382,7 +1382,7 @@ b6:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopEliminateBoundsChecks);
+        test.run_pass(&EliminateLoopBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1457,7 +1457,7 @@ b6:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopEliminateBoundsChecks);
+        test.run_pass(&EliminateLoopBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1525,7 +1525,7 @@ b5:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopEliminateBoundsChecks);
+        test.run_pass(&EliminateLoopBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1592,7 +1592,7 @@ b5:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopEliminateBoundsChecks);
+        test.run_pass(&EliminateLoopBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1657,7 +1657,7 @@ b5:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopEliminateBoundsChecks);
+        test.run_pass(&EliminateLoopBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1726,7 +1726,7 @@ b5:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopEliminateBoundsChecks);
+        test.run_pass(&EliminateLoopBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1795,7 +1795,7 @@ b5:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopEliminateBoundsChecks);
+        test.run_pass(&EliminateLoopBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1864,7 +1864,7 @@ b5:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopEliminateBoundsChecks);
+        test.run_pass(&EliminateLoopBoundsChecks);
         test.assert_output(expected);
     }
 
@@ -1933,7 +1933,7 @@ b5:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopEliminateBoundsChecks);
+        test.run_pass(&EliminateLoopBoundsChecks);
         test.assert_output(expected);
     }
 }

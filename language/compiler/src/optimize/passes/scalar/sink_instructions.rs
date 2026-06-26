@@ -11,7 +11,7 @@ use destack_mir::{
 };
 
 declare_pass! {
-    /// Sink instructions closer to their uses.
+    /// SinkInstructions instructions closer to their uses.
     ///
     /// Code sinking moves instructions from a block into successors where
     /// their results are used. This reduces register pressure and avoids
@@ -50,12 +50,12 @@ declare_pass! {
     /// - Does not sink into blocks with multiple predecessors
     ///
     /// Loads can be sunk when intervening memory effects cannot clobber the read location.
-    #[pass(id = "sink")]
-    pub Sink,
+    #[pass(id = "sink-instructions")]
+    pub SinkInstructions,
     "Code sinking"
 }
 
-impl FunctionPass for Sink {
+impl FunctionPass for SinkInstructions {
     /// Run code sinking on a function.
     fn run(
         &self,
@@ -99,16 +99,16 @@ impl FunctionPass for Sink {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "Sink"
+        "SinkInstructions"
     }
 
     /// Return the pass identifier.
     fn id(&self) -> &'static str {
-        "sink"
+        "sink-instructions"
     }
 }
 
-/// Sink logic. Returns true if changes were made.
+/// SinkInstructions logic. Returns true if changes were made.
 fn run_sink(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
@@ -131,7 +131,7 @@ fn run_sink(
     let definition_map = ValueDefinitions::build(function, tree).instruction_map();
 
     // collect sinking work
-    let mut work: Vec<SinkWork> = Vec::new();
+    let mut work: Vec<SinkInstructionsWork> = Vec::new();
 
     for &block_id in function.blocks() {
         // load the block and its successors
@@ -268,7 +268,7 @@ fn run_sink(
                 continue;
             }
 
-            work.push(SinkWork {
+            work.push(SinkInstructionsWork {
                 from_block: block_id,
                 instruction_idx: idx,
                 to_block: successor,
@@ -284,7 +284,8 @@ fn run_sink(
     work.sort_by_key(|item| std::cmp::Reverse(item.instruction_idx));
 
     // group by source block
-    let mut by_block: HashMap<mir::LocalNodeId<mir::Block>, Vec<SinkWork>> = HashMap::new();
+    let mut by_block: HashMap<mir::LocalNodeId<mir::Block>, Vec<SinkInstructionsWork>> =
+        HashMap::new();
     for w in work {
         by_block.entry(w.from_block).or_default().push(w);
     }
@@ -364,7 +365,7 @@ fn memory_read_can_sink(
 }
 
 /// Work item for sinking an instruction.
-struct SinkWork {
+struct SinkInstructionsWork {
     from_block: mir::LocalNodeId<mir::Block>,
     instruction_idx: usize,
     to_block: mir::LocalNodeId<mir::Block>,
@@ -374,7 +375,7 @@ struct SinkWork {
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
-    use crate::optimize::passes::LoopSimplify;
+    use crate::optimize::passes::SimplifyLoops;
 
     /// Instruction used only in one successor is sunk.
     #[test]
@@ -408,7 +409,7 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sink);
+        test.run_pass(&SinkInstructions);
         test.assert_output(expected);
     }
 
@@ -433,7 +434,7 @@ b2:
 "#;
         let mut test = TestProgram::new(input);
         let before = test.format();
-        test.run_pass(&Sink);
+        test.run_pass(&SinkInstructions);
 
         // v4 is used in the terminator, can't sink
         // v2 is used in both terminator AND block1, can't sink
@@ -475,7 +476,7 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sink);
+        test.run_pass(&SinkInstructions);
         test.assert_output(expected);
     }
 
@@ -498,7 +499,7 @@ b2:
 "#;
         let mut test = TestProgram::new(input);
         let before = test.format();
-        test.run_pass(&Sink);
+        test.run_pass(&SinkInstructions);
         test.assert_output(&before);
     }
 
@@ -536,7 +537,7 @@ b1:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sink);
+        test.run_pass(&SinkInstructions);
         test.assert_output(expected);
     }
 
@@ -581,7 +582,7 @@ b2:
             None,
         );
 
-        test.run_pass(&Sink);
+        test.run_pass(&SinkInstructions);
         test.assert_unchanged(input);
     }
 
@@ -607,7 +608,7 @@ b3:
 "#;
         let mut test = TestProgram::new(input);
         let before = test.format();
-        test.run_pass(&Sink);
+        test.run_pass(&SinkInstructions);
         test.assert_output(&before);
     }
 
@@ -633,9 +634,9 @@ b3:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&Sink);
+        test.run_pass(&SinkInstructions);
 
         // v3 is used in b2 (inside loop) but defined in b0 (outside loop)
         // sinking would increase execution frequency
@@ -652,7 +653,7 @@ entry:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sink);
+        test.run_pass(&SinkInstructions);
         test.assert_unchanged(input);
     }
 
@@ -693,7 +694,7 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sink);
+        test.run_pass(&SinkInstructions);
         test.assert_output(expected);
     }
 
@@ -710,11 +711,11 @@ entry(v0: int32):
 "#;
         let mut test = TestProgram::new(input);
         let before = test.format();
-        test.run_pass(&Sink);
+        test.run_pass(&SinkInstructions);
         test.assert_output(&before);
     }
 
-    /// Sinking within a loop is allowed (same execution frequency).
+    /// SinkInstructionsing within a loop is allowed (same execution frequency).
     #[test]
     fn test_sink_within_loop() {
         let input = r#"
@@ -736,9 +737,9 @@ b3:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&Sink);
+        test.run_pass(&SinkInstructions);
 
         // v3 is used in both block2 and block3, so can't sink
         // v2 is used in block1 (same block) and block2, so can't sink
@@ -746,7 +747,7 @@ b3:
         test.assert_output(&before);
     }
 
-    /// Sinking from loop block to single-predecessor successor within loop.
+    /// SinkInstructionsing from loop block to single-predecessor successor within loop.
     #[test]
     fn test_sink_loop_internal() {
         let input = r#"
@@ -771,9 +772,9 @@ b3:
         // but block3 has predecessor block2 which is inside the loop
         // the pass checks loop depth mismatch and prevents this
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&Sink);
+        test.run_pass(&SinkInstructions);
         // no sinking should occur: sinking into the exit block would require
         // passing through the loop, and v2 is used by v3 in the same block
         test.assert_output(&before);
@@ -800,7 +801,7 @@ b2:
         // sinking past the store could change the loaded value
         let mut test = TestProgram::new(input);
         let before = test.format();
-        test.run_pass(&Sink);
+        test.run_pass(&SinkInstructions);
         test.assert_output(&before);
     }
 
@@ -839,7 +840,7 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sink);
+        test.run_pass(&SinkInstructions);
         test.assert_output(expected);
     }
 
@@ -879,7 +880,7 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sink);
+        test.run_pass(&SinkInstructions);
         test.assert_output(expected);
     }
 }

@@ -10,7 +10,7 @@ use destack_mir::{Mutation, RangeAnalysis, RangeMap, ValueRange, ValueTypes};
 const SUPPORTED_INTEGER_WIDTHS: [u16; 6] = [8, 16, 32, 64, 128, 256];
 
 declare_pass! {
-    /// Narrow integer operands for comparisons and bounds checks.
+    /// NarrowValues integer operands for comparisons and bounds checks.
     ///
     /// This pass inserts truncating casts where the upper bits are provably unused.
     /// This reduces comparison operand widths without changing observable semantics.
@@ -32,12 +32,12 @@ declare_pass! {
     ///     return v4
     /// }
     /// ```
-    #[pass(id = "narrow")]
-    pub Narrow,
-    "Narrow comparison operands using range information"
+    #[pass(id = "narrow-values")]
+    pub NarrowValues,
+    "NarrowValues comparison operands using range information"
 }
 
-impl FunctionPass for Narrow {
+impl FunctionPass for NarrowValues {
     /// Run operand narrowing on a function.
     fn run(
         &self,
@@ -66,12 +66,12 @@ impl FunctionPass for Narrow {
 
     /// Return the display name for this pass.
     fn name(&self) -> &'static str {
-        "Narrow"
+        "NarrowValues"
     }
 
     /// Return the pipeline identifier for this pass.
     fn id(&self) -> &'static str {
-        "narrow"
+        "narrow-values"
     }
 }
 
@@ -315,7 +315,7 @@ fn integer_info_for_value(
     })
 }
 
-/// Narrow a pair of operands when the range allows it.
+/// NarrowValues a pair of operands when the range allows it.
 fn narrow_pair(
     left: mir::Value,
     right: mir::Value,
@@ -423,7 +423,7 @@ mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
 
-    /// Narrowing inserts truncation casts before integer comparisons.
+    /// NarrowValuesing inserts truncation casts before integer comparisons.
     #[test]
     fn test_narrow_comparison_operands() {
         let input = r#"
@@ -453,7 +453,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Narrow);
+        test.run_pass(&NarrowValues);
         test.assert_output(expected);
     }
 
@@ -483,7 +483,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Narrow);
+        test.run_pass(&NarrowValues);
         test.assert_output(expected);
     }
 
@@ -527,7 +527,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Narrow);
+        test.run_pass(&NarrowValues);
         test.assert_output(expected);
     }
 
@@ -543,7 +543,7 @@ entry(v0: uint32, v1: uint32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Narrow);
+        test.run_pass(&NarrowValues);
         test.assert_output(input);
     }
 
@@ -567,7 +567,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Narrow);
+        test.run_pass(&NarrowValues);
         test.assert_output(input);
     }
 
@@ -585,7 +585,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Narrow);
+        test.run_pass(&NarrowValues);
         test.assert_output(input);
     }
 }

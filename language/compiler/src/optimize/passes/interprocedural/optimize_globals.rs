@@ -30,12 +30,12 @@ declare_pass! {
     ///     return v1
     /// }
     /// ```
-    #[pass(id = "global-opt")]
-    pub GlobalOpt,
+    #[pass(id = "optimize-globals")]
+    pub OptimizeGlobals,
     "Optimize immutable globals"
 }
 
-impl ModulePass for GlobalOpt {
+impl ModulePass for OptimizeGlobals {
     /// Run global optimization for the module.
     fn run(
         &self,
@@ -44,11 +44,11 @@ impl ModulePass for GlobalOpt {
         analyses: &mir::ModuleAnalyses,
     ) -> Mutation {
         let effects = analyses.get::<FunctionEffectAnalysis>(tree);
-        let changed = run_global_opt(tree, &effects);
+        let changed = run_optimize_globals(tree, &effects);
 
         // report what this pass changed
         if changed {
-            ctx.strings.intern("global-opt");
+            ctx.strings.intern("optimize-globals");
             Mutation::VALUE
         } else {
             Mutation::NONE
@@ -57,17 +57,17 @@ impl ModulePass for GlobalOpt {
 
     /// Return the pass display name.
     fn name(&self) -> &'static str {
-        "GlobalOpt"
+        "OptimizeGlobals"
     }
 
     /// Return the pass identifier.
     fn id(&self) -> &'static str {
-        "global-opt"
+        "optimize-globals"
     }
 }
 
 /// Run global optimizations over the module.
-fn run_global_opt(tree: &mut mir::Tree, effects: &FunctionEffectAnalysis) -> bool {
+fn run_optimize_globals(tree: &mut mir::Tree, effects: &FunctionEffectAnalysis) -> bool {
     // collect global address definitions and pointer uses
     let addr_info = collect_global_addr_info(tree);
     let use_maps = build_value_use_maps(tree);
@@ -571,7 +571,7 @@ mod tests {
 
     /// Unwritten private globals are marked readonly.
     #[test]
-    fn test_global_opt_marks_unwritten_global_readonly() {
+    fn test_optimize_globals_marks_unwritten_global_readonly() {
         let input = r#"
 global value: int32 = 42
 
@@ -595,13 +595,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&GlobalOpt);
+        test.run_module_pass(&OptimizeGlobals);
         test.assert_output(expected);
     }
 
     /// Globals that are stored to remain mutable.
     #[test]
-    fn test_global_opt_skips_written_global() {
+    fn test_optimize_globals_skips_written_global() {
         let input = r#"
 global value: int32 = 0
 
@@ -615,13 +615,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&GlobalOpt);
+        test.run_module_pass(&OptimizeGlobals);
         test.assert_output(input);
     }
 
     /// Space casts that feed stores keep globals mutable.
     #[test]
-    fn test_global_opt_skips_space_cast_store() {
+    fn test_optimize_globals_skips_space_cast_store() {
         let input = r#"
 global value: int32 = 0
 
@@ -636,13 +636,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&GlobalOpt);
+        test.run_module_pass(&OptimizeGlobals);
         test.assert_output(input);
     }
 
     /// Terminator uses keep globals mutable.
     #[test]
-    fn test_global_opt_skips_terminator_use() {
+    fn test_optimize_globals_skips_terminator_use() {
         let input = r#"
 global value: int32 = 42
 
@@ -654,13 +654,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&GlobalOpt);
+        test.run_module_pass(&OptimizeGlobals);
         test.assert_output(input);
     }
 
     /// Call terminators keep written globals mutable.
     #[test]
-    fn test_global_opt_skips_call_terminator_global_write() {
+    fn test_optimize_globals_skips_call_terminator_global_write() {
         let input = r#"
 global value: int32 = 0
 
@@ -685,7 +685,7 @@ b2(v2: ref<void, managed, readonly>):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&GlobalOpt);
+        test.run_module_pass(&OptimizeGlobals);
         test.assert_output(input);
     }
 }

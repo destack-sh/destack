@@ -43,12 +43,12 @@ declare_pass! {
     ///     return
     /// }
     /// ```
-    #[pass(id = "loop-delete")]
-    pub LoopDelete,
+    #[pass(id = "eliminate-dead-loops")]
+    pub EliminateDeadLoops,
     "Delete loops that compute nothing useful"
 }
 
-impl FunctionPass for LoopDelete {
+impl FunctionPass for EliminateDeadLoops {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -73,7 +73,7 @@ impl FunctionPass for LoopDelete {
         }
 
         // run loop deletion
-        let changed = run_loop_delete(function, tree, &loops, &domtree, &constants);
+        let changed = run_eliminate_dead_loops(function, tree, &loops, &domtree, &constants);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -82,16 +82,16 @@ impl FunctionPass for LoopDelete {
     }
 
     fn name(&self) -> &'static str {
-        "LoopDelete"
+        "EliminateDeadLoops"
     }
 
     fn id(&self) -> &'static str {
-        "loop-delete"
+        "eliminate-dead-loops"
     }
 }
 
 /// Core loop deletion logic. Returns true if changes were made.
-fn run_loop_delete(
+fn run_eliminate_dead_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     loops: &LoopAnalysis,
@@ -365,7 +365,7 @@ fn delete_loop(function: &mut mir::Function, tree: &mut mir::Tree, candidate: &D
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
-    use crate::optimize::passes::LoopSimplify;
+    use crate::optimize::passes::SimplifyLoops;
 
     /// Empty loop with no side effects is deleted.
     #[test]
@@ -394,8 +394,8 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopDelete);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&EliminateDeadLoops);
         test.assert_output(expected);
     }
 
@@ -430,8 +430,8 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopDelete);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&EliminateDeadLoops);
         test.assert_output(expected);
     }
 
@@ -459,9 +459,9 @@ entry:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&LoopDelete);
+        test.run_pass(&EliminateDeadLoops);
         test.assert_output(&before);
     }
 
@@ -483,9 +483,9 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&LoopDelete);
+        test.run_pass(&EliminateDeadLoops);
         test.assert_output(&before);
     }
 
@@ -507,9 +507,9 @@ b2(v2: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&LoopDelete);
+        test.run_pass(&EliminateDeadLoops);
         test.assert_output(&before);
     }
 
@@ -532,9 +532,9 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&LoopDelete);
+        test.run_pass(&EliminateDeadLoops);
         test.assert_output(&before);
     }
 
@@ -574,8 +574,8 @@ b4:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopDelete);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&EliminateDeadLoops);
         test.assert_output(expected);
     }
 
@@ -596,9 +596,9 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&LoopDelete);
+        test.run_pass(&EliminateDeadLoops);
         test.assert_output(&before);
     }
 
@@ -614,7 +614,7 @@ entry(v0: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopDelete);
+        test.run_pass(&EliminateDeadLoops);
         test.assert_unchanged(input);
     }
 
@@ -663,8 +663,8 @@ b4(v7: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopDelete);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&EliminateDeadLoops);
         test.assert_output(expected);
     }
 
@@ -699,8 +699,8 @@ b2(v6: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopDelete);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&EliminateDeadLoops);
         test.assert_output(expected);
     }
 
@@ -722,9 +722,9 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&LoopDelete);
+        test.run_pass(&EliminateDeadLoops);
         test.assert_output(&before);
     }
 }

@@ -49,8 +49,8 @@ declare_pass! {
     ///     return v4
     /// }
     /// ```
-    #[pass(id = "load-store-forward")]
-    pub LoadStoreForward,
+    #[pass(id = "forward-stored-values")]
+    pub ForwardStoredValues,
     "Forward stored values to subsequent loads"
 }
 
@@ -65,7 +65,7 @@ struct MemoryEntry {
     value: mir::Value,
 }
 
-impl FunctionPass for LoadStoreForward {
+impl FunctionPass for ForwardStoredValues {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -91,7 +91,7 @@ impl FunctionPass for LoadStoreForward {
         let value_types = analyses.get::<ValueTypes>(function, tree);
 
         // run load store forwarding
-        let changed = run_load_store_forward(
+        let changed = run_forward_stored_values(
             entry,
             function,
             tree,
@@ -111,16 +111,16 @@ impl FunctionPass for LoadStoreForward {
     }
 
     fn name(&self) -> &'static str {
-        "LoadStoreForward"
+        "ForwardStoredValues"
     }
 
     fn id(&self) -> &'static str {
-        "load-store-forward"
+        "forward-stored-values"
     }
 }
 
 /// Core load store forwarding logic. Returns true if changes were made.
-fn run_load_store_forward(
+fn run_forward_stored_values(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
@@ -593,7 +593,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -614,7 +614,7 @@ entry:
         let expected = input;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -646,7 +646,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -677,7 +677,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -725,7 +725,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -779,7 +779,7 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -813,7 +813,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -853,7 +853,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -902,7 +902,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -928,7 +928,7 @@ entry(v0: ref<int32, raw, mutable>):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -958,7 +958,7 @@ entry(v0: ref<int32, raw, mutable>):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -992,7 +992,7 @@ b1:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -1039,7 +1039,7 @@ b3(v5: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -1068,7 +1068,7 @@ b3:
         let expected = input;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -1114,7 +1114,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -1146,7 +1146,7 @@ b1:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -1169,7 +1169,7 @@ entry:
         let expected = input;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -1210,7 +1210,7 @@ entry:
         let callsite = mir::CallSite::Instruction(call_inst);
         test.tree.metadata.effects.call_mut(callsite).memory = mir::MemoryEffect::none();
 
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -1236,7 +1236,7 @@ b1:
         let expected = input;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -1282,7 +1282,7 @@ entry:
             true,
             None,
         );
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -1328,7 +1328,7 @@ entry:
             true,
             None,
         );
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -1351,7 +1351,7 @@ entry:
         let expected = input;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -1374,7 +1374,7 @@ entry:
         let expected = input;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -1395,7 +1395,7 @@ entry:
         let expected = input;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -1437,7 +1437,7 @@ entry:
             Some(4),
         );
 
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -1468,7 +1468,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -1481,7 +1481,7 @@ external function imported(): void
         let expected = input;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 
@@ -1498,7 +1498,7 @@ entry(v0: int32):
         let expected = input;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadStoreForward);
+        test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
     }
 }

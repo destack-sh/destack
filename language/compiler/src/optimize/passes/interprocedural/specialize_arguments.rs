@@ -61,12 +61,12 @@ declare_pass! {
     ///     return v2
     /// }
     /// ```
-    #[pass(id = "argument-specialize")]
-    pub ArgumentSpecialize,
+    #[pass(id = "specialize-arguments")]
+    pub SpecializeArguments,
     "Clone functions for constant argument callsites"
 }
 
-impl ModulePass for ArgumentSpecialize {
+impl ModulePass for SpecializeArguments {
     /// Run argument specialization for the module.
     fn run(
         &self,
@@ -75,11 +75,11 @@ impl ModulePass for ArgumentSpecialize {
         analyses: &mir::ModuleAnalyses,
     ) -> Mutation {
         // run the specialization pass
-        let changed = run_argument_specialize(tree, ctx, analyses);
+        let changed = run_specialize_arguments(tree, ctx, analyses);
 
         // report what this pass changed
         if changed {
-            ctx.strings.intern("argument-specialize");
+            ctx.strings.intern("specialize-arguments");
             Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
@@ -88,12 +88,12 @@ impl ModulePass for ArgumentSpecialize {
 
     /// Return the pass display name.
     fn name(&self) -> &'static str {
-        "ArgumentSpecialize"
+        "SpecializeArguments"
     }
 
     /// Return the pass identifier.
     fn id(&self) -> &'static str {
-        "argument-specialize"
+        "specialize-arguments"
     }
 }
 
@@ -152,7 +152,7 @@ enum ConstantKey {
 }
 
 /// Run argument specialization over the module.
-fn run_argument_specialize(
+fn run_specialize_arguments(
     tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
     analyses: &mir::ModuleAnalyses,
@@ -664,7 +664,7 @@ mod tests {
 
     /// Constant callsites are specialized into clones.
     #[test]
-    fn test_argument_specialize_clones_constant_call() {
+    fn test_specialize_arguments_clones_constant_call() {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -704,13 +704,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&ArgumentSpecialize);
+        test.run_module_pass(&SpecializeArguments);
         test.assert_output(expected);
     }
 
     /// Call metadata is remapped after specialization.
     #[test]
-    fn test_argument_specialize_updates_call_metadata() {
+    fn test_specialize_arguments_updates_call_metadata() {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -756,7 +756,7 @@ entry:
         test.tree.metadata.effects.call_mut(callsite).arguments =
             vec![mir::CallArgumentEffect::default(); 2];
 
-        test.run_module_pass(&ArgumentSpecialize);
+        test.run_module_pass(&SpecializeArguments);
         test.assert_output(expected);
 
         let (call_id, callee_id) = test.first_call_in_entry(root_id);
@@ -790,7 +790,7 @@ entry:
 
     /// Specialization remaps memory access metadata for cloned functions.
     #[test]
-    fn test_argument_specialize_remaps_memory_access_metadata() {
+    fn test_specialize_arguments_remaps_memory_access_metadata() {
         let input = r#"
 function callee(v0: int32): int32 {
     local l0: int32
@@ -838,7 +838,7 @@ entry:
             None,
         );
 
-        test.run_module_pass(&ArgumentSpecialize);
+        test.run_module_pass(&SpecializeArguments);
 
         let root_id = test.function_id_by_name("root");
         let specialized_ids: Vec<_> = test
@@ -885,7 +885,7 @@ entry:
 
     /// Cold callsites do not trigger specialization with profile data.
     #[test]
-    fn test_argument_specialize_skips_cold_callsite() {
+    fn test_specialize_arguments_skips_cold_callsite() {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -909,13 +909,13 @@ entry:
         let mut profile = mir::Profile::new();
         test.record_function_entry(&mut profile, root_id, 5);
 
-        test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
+        test.run_module_pass_with_profile(&SpecializeArguments, profile);
         test.assert_unchanged(input);
     }
 
     /// Missing function profiles prevent specialization below the hot threshold.
     #[test]
-    fn test_argument_specialize_skips_missing_function_count() {
+    fn test_specialize_arguments_skips_missing_function_count() {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -937,13 +937,13 @@ entry:
         // without a function entry count the caller hotness is unknown, so skip
         let profile = mir::Profile::new();
 
-        test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
+        test.run_module_pass_with_profile(&SpecializeArguments, profile);
         test.assert_unchanged(input);
     }
 
     /// Hot callsites specialize when profile data is present.
     #[test]
-    fn test_argument_specialize_uses_hot_callsite() {
+    fn test_specialize_arguments_uses_hot_callsite() {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -983,13 +983,13 @@ entry:
         let mut profile = mir::Profile::new();
         test.record_function_entry(&mut profile, root_id, 100);
 
-        test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
+        test.run_module_pass_with_profile(&SpecializeArguments, profile);
         test.assert_output(expected);
     }
 
     /// Required alloc size parameters are not removed.
     #[test]
-    fn test_argument_specialize_keeps_alloc_size_param() {
+    fn test_specialize_arguments_keeps_alloc_size_param() {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -1032,13 +1032,13 @@ entry(v0: int32):
             .function_mut(callee_id)
             .allocation_size = Some(mir::AllocationSize::new(0, None));
 
-        test.run_module_pass(&ArgumentSpecialize);
+        test.run_module_pass(&SpecializeArguments);
         test.assert_output(expected);
     }
 
     /// Recursive callees are not specialized.
     #[test]
-    fn test_argument_specialize_skips_recursive() {
+    fn test_specialize_arguments_skips_recursive() {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -1065,13 +1065,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&ArgumentSpecialize);
+        test.run_module_pass(&SpecializeArguments);
         test.assert_unchanged(input);
     }
 
     /// External callees are not specialized.
     #[test]
-    fn test_argument_specialize_skips_extern() {
+    fn test_specialize_arguments_skips_extern() {
         let input = r#"
 external function callee(int32): int32
 
@@ -1084,13 +1084,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&ArgumentSpecialize);
+        test.run_module_pass(&SpecializeArguments);
         test.assert_unchanged(input);
     }
 
     /// Specialization stops at the per function limit.
     #[test]
-    fn test_argument_specialize_respects_function_limit() {
+    fn test_specialize_arguments_respects_function_limit() {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -1160,7 +1160,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&ArgumentSpecialize);
+        test.run_module_pass(&SpecializeArguments);
         test.assert_output(expected);
     }
 }

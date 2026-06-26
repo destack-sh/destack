@@ -52,8 +52,8 @@ declare_pass! {
     /// - Only converts diamonds with a single predecessor per side block
     /// - Requires both branches to contain only speculatable instructions
     /// - Requires both branches to jump to a single common merge block
-    #[pass(id = "if-convert")]
-    pub IfConvert,
+    #[pass(id = "convert-branches")]
+    pub ConvertBranches,
     "Convert small diamonds into select instructions"
 }
 
@@ -64,7 +64,7 @@ const BALANCED_CONVERT_BUDGET: usize = 48;
 /// Threshold for treating a branch as highly biased.
 const BIASED_BRANCH_RATIO: f64 = 0.90;
 
-impl FunctionPass for IfConvert {
+impl FunctionPass for ConvertBranches {
     /// Run if conversion on a function.
     fn run(
         &self,
@@ -79,7 +79,7 @@ impl FunctionPass for IfConvert {
         }
 
         // run if conversion
-        let changed = run_if_convert(function, tree, ctx, analyses);
+        let changed = run_convert_branches(function, tree, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -91,18 +91,18 @@ impl FunctionPass for IfConvert {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "IfConvert"
+        "ConvertBranches"
     }
 
     /// Return the pass id.
     fn id(&self) -> &'static str {
-        "if-convert"
+        "convert-branches"
     }
 }
 
 /// Candidate diamond for conversion.
 #[derive(Debug, Clone)]
-struct IfConvertCandidate {
+struct ConvertBranchesCandidate {
     /// The header block containing the branch.
     header: mir::LocalNodeId<mir::Block>,
     /// The branch condition value.
@@ -119,7 +119,7 @@ struct IfConvertCandidate {
     else_arguments: Vec<mir::Value>,
 }
 
-impl IfConvertCandidate {
+impl ConvertBranchesCandidate {
     /// Return blocks consumed by this candidate rewrite.
     fn consumed_blocks(&self) -> [mir::BlockId; 3] {
         [self.header, self.then_block, self.else_block]
@@ -134,7 +134,7 @@ impl IfConvertCandidate {
 }
 
 /// Run if conversion and return true when changes were made.
-fn run_if_convert(
+fn run_convert_branches(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
@@ -146,7 +146,8 @@ fn run_if_convert(
     // collect candidates before mutation
     let mut candidates = Vec::new();
     for &block_id in function.blocks() {
-        let Some(candidate) = find_if_convert_candidate(block_id, function, tree, &cfg) else {
+        let Some(candidate) = find_convert_branches_candidate(block_id, function, tree, &cfg)
+        else {
             continue;
         };
 
@@ -171,7 +172,7 @@ fn run_if_convert(
         }
 
         let converted =
-            apply_if_convert(&candidate, function, tree, execution_counts.edges(), &cost);
+            apply_convert_branches(&candidate, function, tree, execution_counts.edges(), &cost);
         if converted {
             converted_blocks.extend(candidate.consumed_blocks());
             changed = true;
@@ -182,12 +183,12 @@ fn run_if_convert(
 }
 
 /// Find a diamond pattern rooted at the header block.
-fn find_if_convert_candidate(
+fn find_convert_branches_candidate(
     header: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
     tree: &mir::Tree,
     cfg: &ControlFlowGraph,
-) -> Option<IfConvertCandidate> {
+) -> Option<ConvertBranchesCandidate> {
     // read header terminator
     let header_block = tree.get(header);
     let header_terminator = tree.get(header_block.terminator);
@@ -260,7 +261,7 @@ fn find_if_convert_candidate(
         return None;
     }
 
-    Some(IfConvertCandidate {
+    Some(ConvertBranchesCandidate {
         header,
         condition: *condition,
         then_block,
@@ -272,8 +273,8 @@ fn find_if_convert_candidate(
 }
 
 /// Apply if conversion to the candidate.
-fn apply_if_convert(
-    candidate: &IfConvertCandidate,
+fn apply_convert_branches(
+    candidate: &ConvertBranchesCandidate,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     edge_counts: &HashMap<mir::Edge, u64>,
@@ -321,7 +322,7 @@ fn apply_if_convert(
     }
 
     // check conversion cost model
-    if !should_convert(&candidate, then_merge_args.len(), edge_counts, cost) {
+    if !should_convert(candidate, then_merge_args.len(), edge_counts, cost) {
         return false;
     }
 
@@ -362,7 +363,7 @@ fn apply_if_convert(
 
 /// Decide whether to convert a candidate based on cost and profile data.
 fn should_convert(
-    candidate: &IfConvertCandidate,
+    candidate: &ConvertBranchesCandidate,
     merge_args: usize,
     edge_counts: &HashMap<mir::Edge, u64>,
     cost: &mir::CostModel,
@@ -413,7 +414,7 @@ fn should_convert(
 
 /// Read branch profile counts when available.
 fn branch_profile_counts(
-    candidate: &IfConvertCandidate,
+    candidate: &ConvertBranchesCandidate,
     edge_counts: &HashMap<mir::Edge, u64>,
 ) -> Option<(u64, u64)> {
     let then_edge = mir::Edge::new(
@@ -516,7 +517,7 @@ mod tests {
 
     /// Convert a simple diamond with speculatable ops into a select.
     #[test]
-    fn test_if_convert_simple_diamond() {
+    fn test_convert_branches_simple_diamond() {
         let input = r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
 entry(v0: boolean, v1: int32, v2: int32):
@@ -556,13 +557,13 @@ b3(v9: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&IfConvert);
+        test.run_pass(&ConvertBranches);
         test.assert_output(expected);
     }
 
     /// Cloned instructions keep memory access metadata with remapped values.
     #[test]
-    fn test_if_convert_clones_memory_access_metadata() {
+    fn test_convert_branches_clones_memory_access_metadata() {
         let input = r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
 entry(v0: boolean, v1: int32, v2: int32):
@@ -610,7 +611,7 @@ b3(v9: int32):
             None,
         );
 
-        test.run_pass(&IfConvert);
+        test.run_pass(&ConvertBranches);
 
         let header_block = test.tree.get(header_block_id);
         let then_arg = header_block.parameters[1].value;
@@ -665,7 +666,7 @@ b3(v9: int32):
 
     /// Convert larger diamonds when balanced and speculatable.
     #[test]
-    fn test_if_convert_large_balanced_blocks() {
+    fn test_convert_branches_large_balanced_blocks() {
         let input = r#"
 function test(v0: boolean, v1: int32): int32 {
 entry(v0: boolean, v1: int32):
@@ -753,13 +754,13 @@ b3(v22: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&IfConvert);
+        test.run_pass(&ConvertBranches);
         test.assert_output(expected);
     }
 
     /// Skip conversion when branch instructions may trap.
     #[test]
-    fn test_if_convert_skips_trapping_ops() {
+    fn test_convert_branches_skips_trapping_ops() {
         let input = r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
 entry(v0: boolean, v1: int32, v2: int32):
@@ -779,13 +780,13 @@ b3(v9: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&IfConvert);
+        test.run_pass(&ConvertBranches);
         test.assert_output(input);
     }
 
     /// Skip conversion when a branch target has multiple predecessors.
     #[test]
-    fn test_if_convert_requires_single_pred() {
+    fn test_convert_branches_requires_single_pred() {
         let input = r#"
 function test(v0: boolean, v1: int32): int32 {
 entry(v0: boolean, v1: int32):
@@ -803,13 +804,13 @@ b3(v4: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&IfConvert);
+        test.run_pass(&ConvertBranches);
         test.assert_output(input);
     }
 
     /// Merge blocks with extra predecessors are not converted.
     #[test]
-    fn test_if_convert_requires_single_merge_pred() {
+    fn test_convert_branches_requires_single_merge_pred() {
         // source test
         let input = r#"
 function test(v0: boolean, v1: boolean, v2: int32, v3: int32): int32 {
@@ -837,13 +838,13 @@ b5(v14: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&IfConvert);
+        test.run_pass(&ConvertBranches);
         test.assert_output(input);
     }
 
     /// Multiple merge arguments become multiple select instructions.
     #[test]
-    fn test_if_convert_multiple_merge_args() {
+    fn test_convert_branches_multiple_merge_args() {
         // source test
         let input = r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
@@ -889,7 +890,7 @@ b3(v9: int32, v10: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&IfConvert);
+        test.run_pass(&ConvertBranches);
         test.assert_output(expected);
     }
 }

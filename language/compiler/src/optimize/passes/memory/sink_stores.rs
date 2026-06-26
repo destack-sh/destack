@@ -10,7 +10,7 @@ use destack_mir::{
 };
 
 declare_pass! {
-    /// Sink stores down to the successors that use them.
+    /// SinkInstructions stores down to the successors that use them.
     ///
     /// When a store feeds memory uses only along a subset of outgoing edges,
     /// move the store to those edges and remove it from the predecessor block.
@@ -44,12 +44,12 @@ declare_pass! {
     ///     return v2
     /// }
     /// ```
-    #[pass(id = "store-sink")]
-    pub StoreSink,
-    "Sink stores to the edges that require them"
+    #[pass(id = "sink-stores")]
+    pub SinkStores,
+    "SinkInstructions stores to the edges that require them"
 }
 
-impl FunctionPass for StoreSink {
+impl FunctionPass for SinkStores {
     /// Run store sinking on the function.
     fn run(
         &self,
@@ -64,7 +64,7 @@ impl FunctionPass for StoreSink {
         }
 
         // run store sinking
-        let changed = run_store_sink(function, tree, ctx, analyses);
+        let changed = run_sink_stores(function, tree, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -76,12 +76,12 @@ impl FunctionPass for StoreSink {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "StoreSink"
+        "SinkStores"
     }
 
     /// Return the pass id.
     fn id(&self) -> &'static str {
-        "store-sink"
+        "sink-stores"
     }
 }
 
@@ -114,7 +114,7 @@ struct StoreCandidate {
 }
 
 /// Run store sinking and return true when changes are made.
-fn run_store_sink(
+fn run_sink_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     _ctx: &PipelineContext<'_>,
@@ -484,7 +484,7 @@ mod tests {
 
     /// Stores are sunk to the successor that reads them.
     #[test]
-    fn test_store_sink_to_single_successor() {
+    fn test_sink_stores_to_single_successor() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -523,13 +523,13 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&StoreSink);
+        test.run_pass(&SinkStores);
         test.assert_output(expected);
     }
 
     /// Stores needed on both edges are not sunk.
     #[test]
-    fn test_store_sink_skips_all_successors() {
+    fn test_sink_stores_skips_all_successors() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -549,13 +549,13 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&StoreSink);
+        test.run_pass(&SinkStores);
         test.assert_output(input);
     }
 
     /// Stores to escaping memory are not sunk.
     #[test]
-    fn test_store_sink_skips_escaping_store() {
+    fn test_sink_stores_skips_escaping_store() {
         let input = r#"
 function test(v0: boolean, v1: ref<int32, raw, mutable, space(static)>): void {
 entry(v0: boolean, v1: ref<int32, raw, mutable, space(static)>):
@@ -572,7 +572,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&StoreSink);
+        test.run_pass(&SinkStores);
         test.assert_output(input);
     }
 }

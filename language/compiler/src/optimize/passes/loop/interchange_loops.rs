@@ -67,12 +67,12 @@ declare_pass! {
     ///     return v10
     /// }
     /// ```
-    #[pass(id = "loop-interchange")]
-    pub LoopInterchange,
+    #[pass(id = "interchange-loops")]
+    pub InterchangeLoops,
     "Interchange perfectly nested read only loops"
 }
 
-impl FunctionPass for LoopInterchange {
+impl FunctionPass for InterchangeLoops {
     /// Run loop interchange on the function.
     fn run(
         &self,
@@ -88,7 +88,7 @@ impl FunctionPass for LoopInterchange {
         let memory_ssa = analyses.get::<MemorySSA>(function, tree);
         // run loop interchange
         let changed =
-            run_loop_interchange(function, tree, &loops, &cfg, &domtree, memory_ssa.as_ref());
+            run_interchange_loops(function, tree, &loops, &cfg, &domtree, memory_ssa.as_ref());
 
         // report what this pass changed
         if changed {
@@ -100,12 +100,12 @@ impl FunctionPass for LoopInterchange {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "LoopInterchange"
+        "InterchangeLoops"
     }
 
     /// Return the pass id.
     fn id(&self) -> &'static str {
-        "loop-interchange"
+        "interchange-loops"
     }
 }
 
@@ -130,7 +130,7 @@ struct InterchangeCandidate {
 }
 
 /// Run loop interchange and return true when changes are made.
-fn run_loop_interchange(
+fn run_interchange_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     loops: &LoopAnalysis,
@@ -438,7 +438,7 @@ mod tests {
 
     /// Perfectly nested read only loops are interchanged.
     #[test]
-    fn test_loop_interchange_swaps_nested_loop() {
+    fn test_interchange_loops_swaps_nested_loop() {
         let input = r#"
 function test(v0: uint32): int32 {
 entry(v0: uint32):
@@ -504,13 +504,13 @@ b5:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopInterchange);
+        test.run_pass(&InterchangeLoops);
         test.assert_output(expected);
     }
 
     /// Loops with stores are not interchanged.
     #[test]
-    fn test_loop_interchange_skips_writes() {
+    fn test_interchange_loops_skips_writes() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -543,13 +543,13 @@ b5:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopInterchange);
+        test.run_pass(&InterchangeLoops);
         test.assert_output(input);
     }
 
     /// Inner exits that do not target the outer latch prevent interchange.
     #[test]
-    fn test_loop_interchange_skips_inner_exit_mismatch() {
+    fn test_interchange_loops_skips_inner_exit_mismatch() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -585,13 +585,13 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopInterchange);
+        test.run_pass(&InterchangeLoops);
         test.assert_output(input);
     }
 
     /// Inner header values unavailable at the outer preheader prevent interchange.
     #[test]
-    fn test_loop_interchange_skips_unavailable_inner_args() {
+    fn test_interchange_loops_skips_unavailable_inner_args() {
         let input = r#"
 function test(v0: uint32): int32 {
 entry(v0: uint32):
@@ -626,13 +626,13 @@ b5:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopInterchange);
+        test.run_pass(&InterchangeLoops);
         test.assert_output(input);
     }
 
     /// Non jump inner latches prevent interchange.
     #[test]
-    fn test_loop_interchange_skips_non_jump_inner_latch() {
+    fn test_interchange_loops_skips_non_jump_inner_latch() {
         let input = r#"
 function test(v0: uint32): int32 {
 entry(v0: uint32):
@@ -667,13 +667,13 @@ b5:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopInterchange);
+        test.run_pass(&InterchangeLoops);
         test.assert_output(input);
     }
 
     /// Inner latch parameters prevent interchange.
     #[test]
-    fn test_loop_interchange_skips_inner_latch_parameters() {
+    fn test_interchange_loops_skips_inner_latch_parameters() {
         let input = r#"
 function test(v0: uint32): int32 {
 entry(v0: uint32):
@@ -707,13 +707,13 @@ b5:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopInterchange);
+        test.run_pass(&InterchangeLoops);
         test.assert_output(input);
     }
 
     /// Missing outer preheaders prevent interchange.
     #[test]
-    fn test_loop_interchange_skips_missing_preheader() {
+    fn test_interchange_loops_skips_missing_preheader() {
         let input = r#"
 function test(v0: boolean, v1: uint32): int32 {
 entry(v0: boolean, v1: uint32):
@@ -785,13 +785,13 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopInterchange);
+        test.run_pass(&InterchangeLoops);
         test.assert_output(expected);
     }
 
     /// Non perfect nesting prevents interchange.
     #[test]
-    fn test_loop_interchange_skips_non_perfect_nesting() {
+    fn test_interchange_loops_skips_non_perfect_nesting() {
         let input = r#"
 function test(v0: uint32): int32 {
 entry(v0: uint32):
@@ -828,13 +828,13 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopInterchange);
+        test.run_pass(&InterchangeLoops);
         test.assert_output(input);
     }
 
     /// Inner exit arguments prevent interchange.
     #[test]
-    fn test_loop_interchange_skips_inner_exit_arguments() {
+    fn test_interchange_loops_skips_inner_exit_arguments() {
         let input = r#"
 function test(v0: uint32): int32 {
 entry(v0: uint32):
@@ -900,13 +900,13 @@ b5:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopInterchange);
+        test.run_pass(&InterchangeLoops);
         test.assert_output(expected);
     }
 
     /// Outer exit arguments prevent interchange.
     #[test]
-    fn test_loop_interchange_skips_outer_exit_arguments() {
+    fn test_interchange_loops_skips_outer_exit_arguments() {
         let input = r#"
 function test(v0: uint32): int32 {
 entry(v0: uint32):
@@ -972,7 +972,7 @@ b5(v13: uint32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopInterchange);
+        test.run_pass(&InterchangeLoops);
         test.assert_output(expected);
     }
 }

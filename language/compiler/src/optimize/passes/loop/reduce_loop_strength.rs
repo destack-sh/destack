@@ -57,12 +57,12 @@ declare_pass! {
     ///     return v4
     /// }
     /// ```
-    #[pass(id = "loop-strength-reduce")]
-    pub LoopStrengthReduce,
+    #[pass(id = "reduce-loop-strength")]
+    pub ReduceLoopStrength,
     "Reduce strength of loop derived computations"
 }
 
-impl FunctionPass for LoopStrengthReduce {
+impl FunctionPass for ReduceLoopStrength {
     /// Run the loop strength reduction pass.
     fn run(
         &self,
@@ -99,7 +99,7 @@ impl FunctionPass for LoopStrengthReduce {
             ranges: &ranges,
             target_layout: ctx.target_layout(),
         };
-        let changed = run_loop_strength_reduce(function, tree, &context);
+        let changed = run_reduce_loop_strength(function, tree, &context);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -109,12 +109,12 @@ impl FunctionPass for LoopStrengthReduce {
 
     /// Return the display name for this pass.
     fn name(&self) -> &'static str {
-        "LoopStrengthReduce"
+        "ReduceLoopStrength"
     }
 
     /// Return the stable id for this pass.
     fn id(&self) -> &'static str {
-        "loop-strength-reduce"
+        "reduce-loop-strength"
     }
 }
 
@@ -477,7 +477,7 @@ impl<'a> CandidateContext<'a> {
 }
 
 /// Build strength reduction candidates and apply transformations.
-fn run_loop_strength_reduce(
+fn run_reduce_loop_strength(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     context: &StrengthReduceContext<'_>,
@@ -1914,7 +1914,7 @@ b3:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopStrengthReduce);
+        test.run_pass(&ReduceLoopStrength);
         test.assert_output(expected);
     }
 
@@ -1970,7 +1970,7 @@ b3:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopStrengthReduce);
+        test.run_pass(&ReduceLoopStrength);
         test.assert_output(expected);
     }
 
@@ -2031,7 +2031,7 @@ b3:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopStrengthReduce);
+        test.run_pass(&ReduceLoopStrength);
         test.assert_output(expected);
     }
 
@@ -2096,7 +2096,7 @@ b3:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopStrengthReduce);
+        test.run_pass(&ReduceLoopStrength);
         test.assert_output(expected);
     }
 
@@ -2133,7 +2133,7 @@ b5:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopStrengthReduce);
+        test.run_pass(&ReduceLoopStrength);
         test.assert_unchanged(input);
     }
 
@@ -2199,7 +2199,7 @@ b4:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopStrengthReduce);
+        test.run_pass(&ReduceLoopStrength);
         test.assert_output(expected);
     }
 
@@ -2259,7 +2259,7 @@ b3:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopStrengthReduce);
+        test.run_pass(&ReduceLoopStrength);
         test.assert_output(expected);
     }
 
@@ -2315,7 +2315,7 @@ b3(v8: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopStrengthReduce);
+        test.run_pass(&ReduceLoopStrength);
         test.assert_output(expected);
     }
 
@@ -2381,7 +2381,7 @@ b4:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopStrengthReduce);
+        test.run_pass(&ReduceLoopStrength);
         test.assert_output(expected);
     }
 
@@ -2412,7 +2412,7 @@ b3:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopStrengthReduce);
+        test.run_pass(&ReduceLoopStrength);
         test.assert_unchanged(input);
     }
 
@@ -2444,7 +2444,7 @@ b3:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopStrengthReduce);
+        test.run_pass(&ReduceLoopStrength);
         test.assert_unchanged(input);
     }
 
@@ -2475,7 +2475,7 @@ b3:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopStrengthReduce);
+        test.run_pass(&ReduceLoopStrength);
         test.assert_unchanged(input);
     }
 }

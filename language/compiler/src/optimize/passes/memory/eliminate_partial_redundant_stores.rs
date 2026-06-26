@@ -49,12 +49,12 @@ declare_pass! {
     ///     return
     /// }
     /// ```
-    #[pass(id = "store-pre")]
-    pub StorePre,
+    #[pass(id = "eliminate-partial-redundant-stores")]
+    pub EliminatePartialRedundantStores,
     "Eliminate partially redundant stores"
 }
 
-impl FunctionPass for StorePre {
+impl FunctionPass for EliminatePartialRedundantStores {
     /// Run store PRE on the function.
     fn run(
         &self,
@@ -69,7 +69,7 @@ impl FunctionPass for StorePre {
         }
 
         // run store PRE
-        let changed = run_store_pre(function, tree, ctx, analyses);
+        let changed = run_eliminate_partial_redundant_stores(function, tree, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -81,12 +81,12 @@ impl FunctionPass for StorePre {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "StorePre"
+        "EliminatePartialRedundantStores"
     }
 
     /// Return the pass id.
     fn id(&self) -> &'static str {
-        "store-pre"
+        "eliminate-partial-redundant-stores"
     }
 }
 
@@ -134,7 +134,7 @@ struct EdgeStorePlan {
 }
 
 /// Run store PRE and return true when changes are made.
-fn run_store_pre(
+fn run_eliminate_partial_redundant_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     _ctx: &PipelineContext<'_>,
@@ -626,7 +626,7 @@ mod tests {
 
     /// Store PRE inserts edge stores for a join.
     #[test]
-    fn test_store_pre_inserts_edge_store() {
+    fn test_eliminate_partial_redundant_stores_inserts_edge_store() {
         let input = r#"
 function test(v0: boolean, v1: int32): void {
 entry(v0: boolean, v1: int32):
@@ -666,13 +666,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&StorePre);
+        test.run_pass(&EliminatePartialRedundantStores);
         test.assert_output(expected);
     }
 
     /// Stores are not moved when no predecessor already stores.
     #[test]
-    fn test_store_pre_requires_existing_store() {
+    fn test_eliminate_partial_redundant_stores_requires_existing_store() {
         let input = r#"
 function test(v0: boolean, v1: int32): void {
 entry(v0: boolean, v1: int32):
@@ -692,13 +692,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&StorePre);
+        test.run_pass(&EliminatePartialRedundantStores);
         test.assert_output(input);
     }
 
     /// Stores are not moved when values are defined in the join block.
     #[test]
-    fn test_store_pre_skips_unavailable_values() {
+    fn test_eliminate_partial_redundant_stores_skips_unavailable_values() {
         let input = r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -719,13 +719,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&StorePre);
+        test.run_pass(&EliminatePartialRedundantStores);
         test.assert_output(input);
     }
 
     /// Stores are not moved when earlier instructions are not speculatable.
     #[test]
-    fn test_store_pre_skips_non_speculatable_prefix() {
+    fn test_eliminate_partial_redundant_stores_skips_non_speculatable_prefix() {
         let input = r#"
 function test(v0: boolean, v1: int32): void {
 entry(v0: boolean, v1: int32):
@@ -746,7 +746,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&StorePre);
+        test.run_pass(&EliminatePartialRedundantStores);
         test.assert_output(input);
     }
 }
