@@ -529,20 +529,52 @@ impl ModuleLowerer<'_> {
             .insert_from_source_any(field, self.module.id, source_id))
     }
 
-    /// Lower one semantic function type generic parameter with one synthesized name.
+    /// Lower one semantic function type generic parameter.
     fn lower_semantic_function_generic_parameter(
         &mut self,
         source_id: dir::LocalNodeIdAny,
-        name: String,
-        ty_id: dir::GlobalTypeId,
+        parameter_id: dir::GlobalGenericParameterId,
     ) -> Result<js::LocalNodeId<js::GenericParameter>, EmitError> {
-        let name = self.strings.intern(&name);
-        let constraint = Some(self.lower_type(ty_id)?);
+        if parameter_id.module_id != self.module.id {
+            return Err(self.unsupported_construct(
+                source_id.into_global(self.module.id),
+                Some(format!(
+                    "JS lowering cannot read foreign semantic generic {parameter_id:?}"
+                )),
+            ));
+        }
+
+        let parameter = self.generics.get_parameter(parameter_id.local_id);
+        let name = match parameter.key {
+            dir::GenericParameterKey::Symbol(symbol) => {
+                let symbol = self.symbols.get_symbol(dir::LocalSymbolId::from(symbol));
+                let Some(dir::StaticKey::Name(name)) = symbol.key else {
+                    return Err(self.unsupported_construct(
+                        source_id.into_global(self.module.id),
+                        Some(
+                            "semantic generic parameter is missing a path-like key in JS output"
+                                .to_string(),
+                        ),
+                    ));
+                };
+
+                name
+            }
+            dir::GenericParameterKey::Generated(name) => name,
+        };
+        let constraint = parameter
+            .constraint
+            .map(|constraint| self.lower_type(constraint))
+            .transpose()?;
+        let default = parameter
+            .default
+            .map(|default| self.lower_type(default))
+            .transpose()?;
         let parameter = js::GenericParameter::Type {
             modifiers: None,
             name,
             constraint,
-            default: None,
+            default,
         };
 
         Ok(self
@@ -601,18 +633,27 @@ impl ModuleLowerer<'_> {
         };
 
         // generic parameters
-        let generic_parameters = function
-            .generic_parameters
-            .iter()
-            .enumerate()
-            .map(|(index, parameter_type_id)| {
-                self.lower_semantic_function_generic_parameter(
-                    source_id,
-                    format!("T{index}"),
-                    *parameter_type_id,
-                )
-            })
-            .collect::<Result<Vec<_>, EmitError>>()?;
+        let generic_parameters = match function.template {
+            Some(template) if template.module_id == self.module.id => self
+                .generics
+                .get_template(template.local_id)
+                .parameters
+                .iter()
+                .map(|parameter| parameter.into_global(self.module.id))
+                .map(|parameter| {
+                    self.lower_semantic_function_generic_parameter(source_id, parameter)
+                })
+                .collect::<Result<Vec<_>, EmitError>>()?,
+            Some(template) => {
+                return Err(self.unsupported_construct(
+                    source_id.into_global(self.module.id),
+                    Some(format!(
+                        "JS lowering cannot read foreign semantic template {template:?}"
+                    )),
+                ));
+            }
+            None => Vec::new(),
+        };
 
         // this parameter
         let this_parameter = function

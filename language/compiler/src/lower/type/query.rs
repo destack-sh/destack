@@ -37,20 +37,9 @@ impl ModuleLowerer<'_> {
                     return false;
                 }
 
-                // require matching static parameter counts
-                if left.generic_parameters.len() != right.generic_parameters.len() {
+                // require matching template ownership
+                if left.template != right.template {
                     return false;
-                }
-
-                // compare static parameter types
-                for (left_param, right_param) in left
-                    .generic_parameters
-                    .iter()
-                    .zip(right.generic_parameters.iter())
-                {
-                    if !self.types_are_equivalent(*left_param, *right_param) {
-                        return false;
-                    }
                 }
 
                 // require matching dynamic parameter counts

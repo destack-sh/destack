@@ -33,7 +33,7 @@ impl Compiler {
                 let is_provided = match &binding.argument {
                     dir::ArgumentSource::Provided(source) => *source == argument,
                     dir::ArgumentSource::Rest(sources) => sources.contains(&argument),
-                    dir::ArgumentSource::Omitted => false,
+                    dir::ArgumentSource::Static(_) | dir::ArgumentSource::Omitted => false,
                 };
 
                 is_provided.then_some(binding.ty.into_local())

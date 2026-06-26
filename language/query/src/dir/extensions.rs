@@ -9,7 +9,7 @@ impl ModuleQueryContext<'_> {
 
         // collect checked extension declarations
         for (extension_symbol, extension) in self.dir().definitions().iter_extensions() {
-            let Some(target_symbol) = extension.target.nominal_root() else {
+            let Some(target_symbol) = extension.target.root() else {
                 continue;
             };
 

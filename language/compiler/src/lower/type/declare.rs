@@ -124,9 +124,6 @@ impl ModuleLowerer<'_> {
         function: &dir::FunctionSignatureType,
         visited: &mut HashSet<dir::LocalTypeId>,
     ) -> LowerResult<()> {
-        for parameter in &function.generic_parameters {
-            self.declare_nominal_layouts_for_type(*parameter, visited)?;
-        }
         if let Some(this_parameter) = function.this_parameter {
             self.declare_nominal_layouts_for_type(this_parameter, visited)?;
         }

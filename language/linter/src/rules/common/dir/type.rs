@@ -662,6 +662,7 @@ fn evaluate_terminal_boolean_type_query(
             dir::Type::Parameter(_)
             | dir::Type::Variable(_)
             | dir::Type::Static(_)
+            | dir::Type::EnumMember(_)
             | dir::Type::Reference(_)
             | dir::Type::Instance(_)
             | dir::Type::Member(_)
@@ -1409,6 +1410,7 @@ fn type_truthiness_inner(
             dir::Type::Parameter(_)
             | dir::Type::This
             | dir::Type::Intrinsic
+            | dir::Type::EnumMember(_)
             | dir::Type::Reference(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Range(_)
@@ -1468,6 +1470,7 @@ fn type_nullishness_inner(
             | dir::Type::Primitive(_)
             | dir::Type::Range(_)
             | dir::Type::Literal(_) => TypeNullishness::Never,
+            dir::Type::EnumMember(_) => TypeNullishness::Never,
             dir::Type::Slice(_)
             | dir::Type::Array(_)
             | dir::Type::FixedArray(_)

@@ -66,6 +66,9 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
                 format!("{owner}.{key}<{}>", arguments.join(", "))
             }
         }
+        dir::Type::EnumMember(member) => {
+            format_symbol_path(member.member, ctx).unwrap_or_else(|| "<unknown>".to_string())
+        }
         dir::Type::Form(form) => format_form_type(form, ctx),
         dir::Type::Dynamic(dynamic) => {
             let constraint = format_global_type(dynamic.constraint, ctx);
@@ -236,14 +239,22 @@ fn format_function_static_parameters(
     function: &dir::FunctionSignatureType,
     ctx: &ModuleQueryContext<'_>,
 ) -> String {
-    if function.generic_parameters.is_empty() {
+    let Some(template) = function.template else {
+        return String::new();
+    };
+    if template.module_id != ctx.dir().module_id() {
+        return String::new();
+    }
+    let template = ctx.dir().generics().get_template(template.local_id);
+    if template.parameters.is_empty() {
         return String::new();
     }
 
-    let parameters = function
-        .generic_parameters
+    let parameters = template
+        .parameters
         .iter()
-        .map(|parameter| format_global_type(*parameter, ctx))
+        .map(|parameter| parameter.into_global(ctx.dir().module_id()))
+        .map(|parameter| format_parameter_type(&parameter, ctx))
         .collect::<Vec<_>>();
 
     format!("<{}>", parameters.join(", "))
