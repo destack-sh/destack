@@ -15,27 +15,27 @@ struct ComponentGraphBase {
     version: ArtifactVersion,
     /// The predecessor component graph payload.
     graph: Arc<ComponentGraph>,
-    /// Modules whose resolved imports changed since the predecessor revision.
+    /// Modules changed since the predecessor revision.
     changed_modules: Vec<ModuleId>,
 }
 
 impl ComponentGraphBase {
-    /// Return predecessor imports from one module.
-    fn imports(&self, module: ModuleId) -> CompilerResult<&Arc<[ModuleId]>> {
+    /// Return predecessor graph edges from one module.
+    fn edges(&self, module: ModuleId) -> CompilerResult<&Arc<[ModuleId]>> {
         self.graph
-            .imports
+            .edges
             .get(&module)
             .ok_or_else(|| CompilerError::Internal {
-                message: format!("module {module:?} is absent from base component graph imports"),
+                message: format!("module {module:?} is absent from base component graph edges"),
             })
     }
 }
 
-/// Import rows for one component graph build.
-enum ComponentGraphInput {
+/// Module edges for one component graph build.
+enum ComponentGraphEdges {
     /// The predecessor graph is still valid.
     Unchanged(Arc<ComponentGraph>),
-    /// Import rows changed and graph partitioning must run.
+    /// Module edges changed and graph partitioning must run.
     Changed(IndexMap<ModuleId, Arc<[ModuleId]>>),
 }
 
@@ -56,10 +56,12 @@ impl Compiler {
         // reuse the predecessor dependency set when the module set is stable
         if let Some(base) = base {
             for module in base.changed_modules {
+                dependencies.require(ArtifactKey::dir_imported(module, profile));
+                dependencies.require(ArtifactKey::dir_expanded(module, profile));
                 dependencies.require(ArtifactKey::dir_resolved(module, profile));
             }
         } else {
-            // collect every import row when no predecessor graph is usable
+            // collect every edge when no predecessor graph is usable
             let modules = self
                 .repository
                 .module_ids(context.revision())
@@ -68,6 +70,8 @@ impl Compiler {
                 })?;
 
             for module in modules {
+                dependencies.require(ArtifactKey::dir_imported(module, profile));
+                dependencies.require(ArtifactKey::dir_expanded(module, profile));
                 dependencies.require(ArtifactKey::dir_resolved(module, profile));
             }
         }
@@ -128,18 +132,19 @@ impl Compiler {
         }
         context.emit_counter("modules", modules.len() as u64);
 
-        // compare changed import rows against the predecessor graph
+        // compare changed edges against the predecessor graph
         let base = self.component_graph_base(context)?;
-        let imports = match self.module_imports(&artifacts, profile, context, &modules, base)? {
-            ComponentGraphInput::Unchanged(graph) => {
+        let edges = match self.graph_edges(&artifacts, profile, context, &modules, base)? {
+            ComponentGraphEdges::Unchanged(graph) => {
                 return Ok(ArtifactPayload::ComponentGraph(graph));
             }
-            ComponentGraphInput::Changed(imports) => imports,
+            ComponentGraphEdges::Changed(edges) => edges,
         };
+        validate_component_edges(&edges)?;
 
         // partition modules into strongly connected components
         let started = self.repository.host().clock().now();
-        let sccs = strongly_connected_components(&imports);
+        let sccs = strongly_connected_components(&edges);
         let component_count = sccs.len() as u64;
         if let Some(started) = started {
             context.emit_span("scc", started);
@@ -161,7 +166,7 @@ impl Compiler {
         let started = self.repository.host().clock().now();
         let mut dependencies = IndexMap::<ComponentId, Vec<ComponentId>>::new();
         let mut edge_count = 0u64;
-        for (module, edges) in &imports {
+        for (module, targets) in &edges {
             let component =
                 component_of
                     .get(module)
@@ -170,10 +175,14 @@ impl Compiler {
                         message: format!("module {module:?} is absent from component ownership"),
                     })?;
             let dependents = dependencies.entry(component).or_default();
-            for edge in edges.iter() {
-                let Some(target) = component_of.get(edge).copied() else {
-                    continue;
-                };
+            for edge in targets.iter() {
+                let target =
+                    component_of
+                        .get(edge)
+                        .copied()
+                        .ok_or_else(|| CompilerError::Internal {
+                            message: format!("module {edge:?} is absent from component ownership"),
+                        })?;
                 if target != component && !dependents.contains(&target) {
                     dependents.push(target);
                     edge_count += 1;
@@ -187,33 +196,33 @@ impl Compiler {
 
         Ok(ArtifactPayload::ComponentGraph(Arc::new(ComponentGraph {
             profile,
-            imports,
+            edges,
             component_of,
             members,
             dependencies,
         })))
     }
 
-    /// Return changed profile import rows, or the base graph when it still matches.
-    fn module_imports(
+    /// Return changed profile graph edges, or the base graph when it still matches.
+    fn graph_edges(
         &self,
         artifacts: &ArtifactReader<'_>,
         profile: ProfileId,
         context: &dyn ProviderContext,
         modules: &[ModuleId],
         base: Option<ComponentGraphBase>,
-    ) -> CompilerResult<ComponentGraphInput> {
+    ) -> CompilerResult<ComponentGraphEdges> {
         let started = self.repository.host().clock().now();
         let mut edge_count = 0u64;
 
-        // build all rows when no predecessor graph is available
+        // build all edges when no predecessor graph is available
         let Some(base) = base else {
-            let mut imports = IndexMap::with_capacity(modules.len());
+            let mut edges_by_module = IndexMap::with_capacity(modules.len());
 
             for module in modules.iter().copied() {
                 let edges = self.module_edges(artifacts, profile, module)?;
                 edge_count += edges.len() as u64;
-                imports.insert(module, edges);
+                edges_by_module.insert(module, edges);
             }
 
             if let Some(started) = started {
@@ -221,7 +230,7 @@ impl Compiler {
             }
             context.emit_counter("edges", edge_count);
 
-            return Ok(ComponentGraphInput::Changed(imports));
+            return Ok(ComponentGraphEdges::Changed(edges_by_module));
         };
 
         let changed = base.changed_modules.len();
@@ -230,17 +239,17 @@ impl Compiler {
         context.emit_counter("changed_modules", changed as u64);
         context.emit_counter("reused_modules", reused as u64);
 
-        let mut changed_rows = IndexMap::with_capacity(base.changed_modules.len());
+        let mut changed_edges = IndexMap::with_capacity(base.changed_modules.len());
         let mut is_changed = false;
 
-        // compare only rows whose resolved imports changed
+        // compare only edges whose source module changed
         for module in base.changed_modules.iter().copied() {
             let edges = self.module_edges(artifacts, profile, module)?;
-            let base_edges = base.imports(module)?;
+            let base_edges = base.edges(module)?;
 
             edge_count += edges.len() as u64;
             is_changed |= base_edges.as_ref() != edges.as_ref();
-            changed_rows.insert(module, edges);
+            changed_edges.insert(module, edges);
         }
 
         if let Some(started) = started {
@@ -248,23 +257,23 @@ impl Compiler {
         }
         context.emit_counter("edges", edge_count);
 
-        // return the predecessor graph when changed rows still match
+        // return the predecessor graph when changed edges still match
         if !is_changed {
-            return Ok(ComponentGraphInput::Unchanged(base.graph));
+            return Ok(ComponentGraphEdges::Unchanged(base.graph));
         }
 
         // assemble a full graph only when partitioning must run
-        let mut imports = IndexMap::with_capacity(modules.len());
+        let mut edges_by_module = IndexMap::with_capacity(modules.len());
         for module in modules.iter().copied() {
-            if let Some(edges) = changed_rows.get(&module) {
-                imports.insert(module, edges.clone());
+            if let Some(edges) = changed_edges.get(&module) {
+                edges_by_module.insert(module, edges.clone());
             } else {
-                let edges = base.imports(module)?;
-                imports.insert(module, edges.clone());
+                let edges = base.edges(module)?;
+                edges_by_module.insert(module, edges.clone());
             }
         }
 
-        Ok(ComponentGraphInput::Changed(imports))
+        Ok(ComponentGraphEdges::Changed(edges_by_module))
     }
 
     /// Return the modules one module depends on, deduplicated in order.
@@ -277,10 +286,20 @@ impl Compiler {
         let resolved = artifacts
             .dir_resolved(module, profile)
             .map_err(CompilerError::from)?;
+        let imported = artifacts
+            .dir_imported(module, profile)
+            .map_err(CompilerError::from)?;
+        let expanded = artifacts
+            .dir_expanded(module, profile)
+            .map_err(CompilerError::from)?;
+        let modules = expanded.module_table(&imported);
 
-        // collect resolved dependencies without self imports
+        // collect explicit source modules and resolved target modules
         let mut edges = IndexSet::new();
-        for target in resolved.imports.modules() {
+        let targets = modules
+            .target_modules()
+            .chain(resolved.imports.target_modules());
+        for target in targets {
             if target != module {
                 edges.insert(target);
             }
@@ -290,6 +309,26 @@ impl Compiler {
 
         Ok(Arc::from(edges))
     }
+}
+
+/// Validate that component graph edges stay inside the graph module set.
+fn validate_component_edges(edges: &IndexMap<ModuleId, Arc<[ModuleId]>>) -> CompilerResult<()> {
+    for (module, targets) in edges {
+        // reject edges outside the declared module universe
+        for target in targets.iter().copied() {
+            if edges.contains_key(&target) {
+                continue;
+            }
+
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "component graph edge from {module:?} points outside the graph to {target:?}"
+                ),
+            });
+        }
+    }
+
+    Ok(())
 }
 
 /// Return the strongly connected components of one module import graph.

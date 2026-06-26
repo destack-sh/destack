@@ -12,8 +12,8 @@ use crate::{ArtifactProjectionFingerprint, ComponentGraphProjection};
 pub struct ComponentGraph {
     /// The profile this partition belongs to.
     pub profile: ProfileId,
-    /// Imported modules per module, deduplicated in import order.
-    pub imports: IndexMap<ModuleId, Arc<[ModuleId]>>,
+    /// Outgoing module edges per module.
+    pub edges: IndexMap<ModuleId, Arc<[ModuleId]>>,
     /// Owning component per module.
     pub component_of: IndexMap<ModuleId, ComponentId>,
     /// Member modules per component, sorted, with the entry first.
@@ -23,9 +23,9 @@ pub struct ComponentGraph {
 }
 
 impl ComponentGraph {
-    /// Return the modules imported by one module.
-    pub fn imports(&self, module: ModuleId) -> &[ModuleId] {
-        self.imports.get(&module).map_or(&[], Arc::as_ref)
+    /// Return outgoing module edges for one module.
+    pub fn edges(&self, module: ModuleId) -> &[ModuleId] {
+        self.edges.get(&module).map_or(&[], Arc::as_ref)
     }
 
     /// Return the component containing one module.
