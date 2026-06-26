@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalStaticId, GlobalSymbolId,
-    MappedTypeModifier, RangeEnd, ScalarDomain, ScalarLiteral, StaticKey, StringId, TypeLiteral,
-    UnaryOperator,
+    Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalGenericTemplateId, GlobalStaticId,
+    GlobalSymbolId, MappedTypeModifier, RangeEnd, ScalarDomain, ScalarLiteral, StaticKey, StringId,
+    TypeLiteral, UnaryOperator,
 };
 
 use super::{FloatType, PrimitiveType};
@@ -759,8 +759,8 @@ pub struct ShapeType {
 pub struct FunctionSignatureType {
     /// The function asynchrony.
     pub asynchrony: Asynchrony,
-    /// The generic parameter types.
-    pub generic_parameters: Vec<GlobalTypeId>,
+    /// The template that owns this signature's generic parameters.
+    pub template: Option<GlobalGenericTemplateId>,
     /// The optional `this` parameter type.
     pub this_parameter: Option<GlobalTypeId>,
     /// The runtime parameters.
@@ -1455,9 +1455,6 @@ impl Type {
                 }
             }
             Self::FunctionSignature(function) => {
-                for child in function.generic_parameters.iter().copied() {
-                    visit(child);
-                }
                 if let Some(this_parameter) = function.this_parameter {
                     visit(this_parameter);
                 }
@@ -1619,9 +1616,6 @@ impl Type {
                 }
             }
             Self::FunctionSignature(function) => {
-                for parameter in &mut function.generic_parameters {
-                    *parameter = map(*parameter);
-                }
                 if let Some(this_parameter) = &mut function.this_parameter {
                     *this_parameter = map(*this_parameter);
                 }

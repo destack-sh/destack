@@ -171,7 +171,10 @@ fn add_receiver_resolution_row(
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "receiver")
         .optional_field("source", builder.node_source(node_id))
         .field("kind", receiver_kind_label(resolution.kind))
-        .field("owner", builder.symbol_path_label(resolution.owner))
+        .field(
+            "declaration",
+            builder.symbol_path_label(resolution.declaration),
+        )
         .type_field("type", builder.global_type_label(resolution.ty));
 
     builder.push(row);
