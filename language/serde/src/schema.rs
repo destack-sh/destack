@@ -4,6 +4,7 @@ use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use im::OrdMap;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use smallvec::{Array, SmallVec};
@@ -306,6 +307,15 @@ impl<T: Reflect> Reflect for [T] {
 }
 
 impl<K: Reflect, V: Reflect> Reflect for BTreeMap<K, V> {
+    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
+        SchemaRef::Map {
+            key: Box::new(K::reflect(registry)),
+            value: Box::new(V::reflect(registry)),
+        }
+    }
+}
+
+impl<K: Reflect, V: Reflect> Reflect for OrdMap<K, V> {
     fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
         SchemaRef::Map {
             key: Box::new(K::reflect(registry)),
