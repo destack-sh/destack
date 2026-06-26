@@ -706,7 +706,7 @@ impl Parser {
         self.bump(); // eat assign
         let value =
             self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())?;
-        let pattern = Pattern::Assign {
+        let pattern = Pattern::Default {
             pattern: pattern_id,
             value,
         };

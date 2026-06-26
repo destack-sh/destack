@@ -190,7 +190,7 @@ impl Parser {
         operator: AssignOperator,
     ) -> ParserResult<()> {
         if operator != AssignOperator::Assign
-            && !matches!(self.tree.get(left), AssignPattern::Expression { .. })
+            && !matches!(self.tree.get(left), AssignPattern::Place { .. })
         {
             Err(ParserError::unexpected(self.tree.get_span(left)))
         } else {
@@ -212,7 +212,9 @@ impl Parser {
     ) -> ParserResult<LocalNodeId<AssignPattern>> {
         let is_destructuring_expression = matches!(
             self.tree.get(expression_id),
-            Expression::ArrayExpression { .. } | Expression::ObjectExpression { .. }
+            Expression::ArrayExpression { .. }
+                | Expression::TupleExpression { .. }
+                | Expression::ObjectExpression { .. }
         );
 
         // lower recursive destructuring under stack growth
@@ -252,7 +254,9 @@ impl Parser {
                 Expression::Assign { .. } => {
                     return Err(ParserError::unexpected(self.tree.get_span(*expression)));
                 }
-                Expression::ArrayExpression { .. } | Expression::ObjectExpression { .. } => {
+                Expression::ArrayExpression { .. }
+                | Expression::TupleExpression { .. }
+                | Expression::ObjectExpression { .. } => {
                     return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
                 }
                 _ => {}
@@ -273,6 +277,9 @@ impl Parser {
             Expression::ArrayExpression { elements } => {
                 return self.assignment_pattern_from_array_expression(expression_id, elements);
             }
+            Expression::TupleExpression { elements } => {
+                return self.assignment_pattern_from_tuple_expression(expression_id, elements);
+            }
             Expression::ObjectExpression { properties } => {
                 return self.assignment_pattern_from_object_expression(expression_id, properties);
             }
@@ -282,7 +289,7 @@ impl Parser {
                 right,
             } => {
                 return Ok(self.insert_node(
-                    AssignPattern::Assign {
+                    AssignPattern::Default {
                         pattern: left,
                         value: right,
                     },
@@ -303,7 +310,7 @@ impl Parser {
         let target_id = self.without_parentheses_expression(expression_id);
 
         Ok(self.insert_node(
-            AssignPattern::Expression { value: target_id },
+            AssignPattern::Place { expression: target_id },
             self.tree.get_span(expression_id),
         ))
     }
@@ -352,6 +359,46 @@ impl Parser {
             Argument::Named { .. } | Argument::Labeled { .. } | Argument::Error => {
                 return Err(ParserError::unexpected(span));
             }
+        };
+
+        Ok(self.insert_node(field, span))
+    }
+
+    /// Build a tuple assignment pattern from a tuple expression.
+    fn assignment_pattern_from_tuple_expression(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        elements: Vec<LocalNodeId<Argument>>,
+    ) -> ParserResult<LocalNodeId<AssignPattern>> {
+        let fields = elements
+            .into_iter()
+            .map(|argument_id| self.assignment_tuple_field_from_argument(argument_id))
+            .collect::<ParserResult<Vec<_>>>()?;
+
+        Ok(self.insert_node(
+            AssignPattern::Tuple { fields },
+            self.tree.get_span(expression_id),
+        ))
+    }
+
+    /// Build one tuple assignment field from one tuple expression argument.
+    fn assignment_tuple_field_from_argument(
+        &mut self,
+        argument_id: LocalNodeId<Argument>,
+    ) -> ParserResult<LocalNodeId<AssignPatternField>> {
+        let argument = self.tree.get(argument_id).clone();
+        let span = self.tree.get_span(argument_id);
+
+        let field = match argument {
+            Argument::Positional { value } => {
+                let pattern = self.assignment_pattern_from_expression(value)?;
+
+                AssignPatternField::Positional { pattern }
+            }
+            Argument::Named { .. }
+            | Argument::Labeled { .. }
+            | Argument::Spread { .. }
+            | Argument::Error => return Err(ParserError::unexpected(span)),
         };
 
         Ok(self.insert_node(field, span))

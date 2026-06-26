@@ -354,7 +354,7 @@ impl Parser {
         let value_span = self.tree.get_span(value);
         let default_span = self.tree.get_span(default);
         let assign_span = Span::new(value_span.file, value_span.start, default_span.end);
-        let left = self.insert_node(AssignPattern::Expression { value }, value_span);
+        let left = self.insert_node(AssignPattern::Place { expression: value }, value_span);
         let assign_id = self.insert_node(
             Expression::Assign {
                 left,
