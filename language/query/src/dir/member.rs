@@ -176,7 +176,7 @@ impl ModuleQueryContext<'_> {
             .find(|(_, extension)| extension.symbol == extension_symbol)?;
         extension
             .target
-            .nominal_root()
+            .root()
             .map(|target_symbol| self.canonical_symbol(target_symbol))
     }
 

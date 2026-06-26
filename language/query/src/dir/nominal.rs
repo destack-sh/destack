@@ -45,7 +45,7 @@ impl ModuleQueryContext<'_> {
                 self.collect_implements(source_symbol, &definition.implements, entries);
             }
             dir::Definition::Extension(extension) => {
-                let Some(root) = extension.target.nominal_root() else {
+                let Some(root) = extension.target.root() else {
                     return;
                 };
                 let source_symbol = self.canonical_symbol(root);
