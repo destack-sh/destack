@@ -461,7 +461,7 @@ impl DirQueryContext<'_> {
                     ctx.rename_pattern_binding_name(strings, dir_tree, pattern, target_symbol)
                 })
             }
-            dir::Pattern::Assign { pattern, .. }
+            dir::Pattern::Default { pattern, .. }
             | dir::Pattern::Must(pattern)
             | dir::Pattern::BorrowOf { right: pattern, .. }
             | dir::Pattern::MoveOf { right: pattern, .. }

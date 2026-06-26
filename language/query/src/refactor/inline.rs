@@ -739,7 +739,7 @@ impl ModuleQueryContext<'_> {
         // walk patterns and collect binding symbols
         let pattern = dir_tree.get::<dir::Pattern>(pattern_id);
         match pattern {
-            dir::Pattern::Assign { pattern, .. } => {
+            dir::Pattern::Default { pattern, .. } => {
                 ctx.collect_pattern_bindings(dir_tree, *pattern, bindings);
             }
             dir::Pattern::Binding { pattern, .. } => {
@@ -821,7 +821,7 @@ impl ModuleQueryContext<'_> {
         let ctx = self;
         let pattern = dir_tree.get::<dir::Pattern>(pattern_id);
         match pattern {
-            dir::Pattern::Assign { pattern, .. } => {
+            dir::Pattern::Default { pattern, .. } => {
                 ctx.pattern_access_path(strings, dir_tree, *pattern, target_symbol)
             }
             dir::Pattern::Binding { pattern, .. } => {
@@ -1200,11 +1200,13 @@ impl ModuleQueryContext<'_> {
         let assign_pattern = dir_tree.get(assign_pattern_id);
 
         match assign_pattern {
-            dir::AssignPattern::Expression { value } => ctx.expression_target_symbol(*value),
-            dir::AssignPattern::Assign { pattern, .. } => {
+            dir::AssignPattern::Place { expression: value } => ctx.expression_target_symbol(*value),
+            dir::AssignPattern::Default { pattern, .. } => {
                 ctx.assign_pattern_target_symbol(*pattern)
             }
-            dir::AssignPattern::Sequence { .. } | dir::AssignPattern::Object { .. } => None,
+            dir::AssignPattern::Sequence { .. }
+            | dir::AssignPattern::Tuple { .. }
+            | dir::AssignPattern::Object { .. } => None,
         }
     }
 }

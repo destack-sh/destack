@@ -37,12 +37,14 @@ fn assign_pattern_contains_expression(
     let assign_pattern = tree.get(assign_pattern_id);
 
     match assign_pattern {
-        dir::AssignPattern::Expression { value } => *value == expression_id,
-        dir::AssignPattern::Assign { pattern, value } => {
+        dir::AssignPattern::Place { expression: value } => *value == expression_id,
+        dir::AssignPattern::Default { pattern, value } => {
             assign_pattern_contains_expression(tree, *pattern, expression_id)
                 || *value == expression_id
         }
-        dir::AssignPattern::Sequence { fields } | dir::AssignPattern::Object { fields } => {
+        dir::AssignPattern::Sequence { fields }
+        | dir::AssignPattern::Tuple { fields }
+        | dir::AssignPattern::Object { fields } => {
             fields.iter().any(|field_id| {
                 assign_pattern_field_contains_expression(tree, *field_id, expression_id)
             })
@@ -569,7 +571,7 @@ fn collect_pattern_binding_names(
     let pattern = parsed_tree.get(pattern_id);
 
     match pattern {
-        dir::Pattern::Assign { pattern, .. } => {
+        dir::Pattern::Default { pattern, .. } => {
             collect_pattern_binding_names(parsed_tree, *pattern, names);
         }
         dir::Pattern::Binding {
