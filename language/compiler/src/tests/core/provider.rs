@@ -7,7 +7,7 @@ use destack_artifact::{
     DiagnosticDisplay, DiagnosticError, DiagnosticLike,
 };
 use destack_repository::{
-    ArtifactAttemptOutcome, ArtifactAttemptRecorder, Clock, DependencySetResolution,
+    ArtifactAttemptOutcome, ArtifactAttemptRecorder, ArtifactBase, Clock, DependencySetResolution,
     ProviderContext, ProviderError, ProviderResult, Repository, Revision, Trace, TraceSnapshot,
     TraceView,
 };
@@ -66,13 +66,16 @@ impl TestProvider {
             return Ok(version);
         }
 
-        let mut set = recorder.span("collect", || self.collect(key))?;
+        let base = recorder
+            .span("base", || self.repository.artifact_base(self.revision, key))
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
+        let mut set = recorder.span("collect", || self.collect(key, base))?;
         loop {
             match recorder.span("dependencies", || {
                 self.repository.resolve_dependency_set(self.revision, set)
             })? {
                 DependencySetResolution::Incomplete => {
-                    set = recorder.span("collect", || self.collect(key))?;
+                    set = recorder.span("collect", || self.collect(key, base))?;
                 }
                 DependencySetResolution::Pending {
                     frontier,
@@ -85,14 +88,16 @@ impl TestProvider {
                     set = if let Some(pending_set) = pending_set {
                         pending_set
                     } else {
-                        recorder.span("collect", || self.collect(key))?
+                        recorder.span("collect", || self.collect(key, base))?
                     };
                 }
                 DependencySetResolution::Resolved {
-                    base,
+                    base: base_version,
                     dependencies,
                     failed,
-                } => return self.commit(key, base, dependencies, failed, recorder),
+                } => {
+                    return self.commit(key, base, base_version, dependencies, failed, recorder);
+                }
             }
         }
     }
@@ -118,6 +123,7 @@ impl TestProvider {
     fn commit(
         &self,
         key: ArtifactKey,
+        artifact_base: Option<ArtifactBase>,
         base: Option<ArtifactVersion>,
         dependencies: Vec<ArtifactDependency>,
         failed: Option<ArtifactKey>,
@@ -173,7 +179,8 @@ impl TestProvider {
         }
 
         // run the local test provider and publish its terminal outcome
-        let context = TestProviderContext::new(self, key).with_recorder(recorder.clone());
+        let context =
+            TestProviderContext::new(self, key, artifact_base).with_recorder(recorder.clone());
         match recorder.span("provider", || self.provide(key, &context)) {
             Ok(payload) => {
                 recorder.span("publish", || {
@@ -253,11 +260,15 @@ impl TestProvider {
     }
 
     /// Collect the dependency set for one artifact key.
-    fn collect(&self, key: ArtifactKey) -> ProviderResult<ArtifactDependencySet> {
+    fn collect(
+        &self,
+        key: ArtifactKey,
+        base: Option<ArtifactBase>,
+    ) -> ProviderResult<ArtifactDependencySet> {
         match key.provider() {
             ArtifactProvider::Loader => self.collect_loader(key),
             ArtifactProvider::Compiler => {
-                let context = TestProviderContext::new(self, key);
+                let context = TestProviderContext::new(self, key, base);
 
                 self.compiler.collect(&context)
             }
@@ -347,6 +358,8 @@ struct TestProviderContext<'a> {
     provider: &'a TestProvider,
     /// The artifact key being built.
     key: ArtifactKey,
+    /// The predecessor artifact selected for this attempt.
+    base: Option<ArtifactBase>,
     /// The diagnostics recorded by this attempt.
     diagnostics: RefCell<DiagnosticCollection>,
     /// The sidecars recorded by this attempt.
@@ -357,10 +370,11 @@ struct TestProviderContext<'a> {
 
 impl<'a> TestProviderContext<'a> {
     /// Create one test provider context.
-    fn new(provider: &'a TestProvider, key: ArtifactKey) -> Self {
+    fn new(provider: &'a TestProvider, key: ArtifactKey, base: Option<ArtifactBase>) -> Self {
         Self {
             provider,
             key,
+            base,
             diagnostics: RefCell::new(DiagnosticCollection::new()),
             sidecars: RefCell::new(Vec::new()),
             recorder: None,
@@ -514,6 +528,11 @@ impl ProviderContext for TestProviderContext<'_> {
     /// Return the artifact key being built.
     fn artifact_key(&self) -> ArtifactKey {
         self.key
+    }
+
+    /// Return the predecessor artifact selected for this attempt.
+    fn artifact_base(&self) -> Option<ArtifactBase> {
+        self.base
     }
 
     /// Emit event traces from compiler test attempts.
