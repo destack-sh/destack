@@ -10,13 +10,11 @@ use crate::{GlobalSymbolId, LanguageItem, LocalSymbolId, StaticKey};
 pub struct ImportTable {
     /// The module id of the import table.
     pub module_id: ModuleId,
-    /// Modules reached by resolved imports and active globals.
-    pub modules: Vec<ModuleId>,
     /// Imported local symbols keyed to their resolved target.
     pub target_by_symbol: IndexMap<LocalSymbolId, ImportTarget>,
     /// Global targets made visible by the active profile.
     pub global_target_by_key: IndexMap<StaticKey, Vec<ImportTarget>>,
-    /// Language item symbols required by compiler syntax.
+    /// Resolved symbols for language items used by this module.
     pub language_symbol_by_item: IndexMap<LanguageItem, GlobalSymbolId>,
 }
 
@@ -25,17 +23,9 @@ impl ImportTable {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            modules: Vec::new(),
             target_by_symbol: IndexMap::new(),
             global_target_by_key: IndexMap::new(),
             language_symbol_by_item: IndexMap::new(),
-        }
-    }
-
-    /// Add one resolved module.
-    pub fn push_module(&mut self, module: ModuleId) {
-        if !self.modules.contains(&module) {
-            self.modules.push(module);
         }
     }
 
@@ -89,9 +79,20 @@ impl ImportTable {
         self.language_symbol_by_item.values().copied()
     }
 
-    /// Return resolved modules.
-    pub fn modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
-        self.modules.iter().copied()
+    /// Return modules that own resolved import targets.
+    pub fn target_modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
+        let symbols = self.target_by_symbol.values().map(|target| target.module());
+        let globals = self
+            .global_target_by_key
+            .values()
+            .flatten()
+            .map(|target| target.module());
+        let language = self
+            .language_symbol_by_item
+            .values()
+            .map(|symbol| symbol.module_id);
+
+        symbols.chain(globals).chain(language)
     }
 }
 
