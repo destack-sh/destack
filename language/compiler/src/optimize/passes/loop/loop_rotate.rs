@@ -340,7 +340,7 @@ fn rotate_loop(
     tree.set(candidate.latch, latch);
     tree.set(tree.get(candidate.latch).terminator, latch_terminator);
 
-    // header is now unreachable, SimplifyCfg will remove it
+    // header is now unreachable, SimplifyControlFlow will remove it
 
     true
 }
@@ -349,7 +349,7 @@ fn rotate_loop(
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
-    use crate::optimize::passes::{LoopSimplify, SimplifyCfg};
+    use crate::optimize::passes::{LoopSimplify, SimplifyControlFlow};
 
     /// Simple while loop is rotated to do-while with guard.
     #[test]
@@ -372,7 +372,7 @@ b3:
         // after rotation:
         // - preheader (b0) gets the guard branch
         // - latch (b2) gets the rotated branch
-        // - header (b1) becomes dead and is removed by SimplifyCfg
+        // - header (b1) becomes dead and is removed by SimplifyControlFlow
         // - critical edges are split into jump blocks
         let expected = r#"
 function test(v0: boolean): void {
@@ -401,7 +401,7 @@ b3:
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
         test.run_pass(&LoopRotate);
-        test.run_pass(&SimplifyCfg); // clean up dead header
+        test.run_pass(&SimplifyControlFlow); // clean up dead header
         test.assert_output(expected);
     }
 
@@ -466,7 +466,7 @@ b3(v11: int32):
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
         test.run_pass(&LoopRotate);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -489,7 +489,7 @@ b3:
 }
 "#;
         // condition false => body, condition true -> exit
-        // critical edges are split after SimplifyCfg
+        // critical edges are split after SimplifyControlFlow
         let expected = r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -517,7 +517,7 @@ b3:
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
         test.run_pass(&LoopRotate);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -711,7 +711,7 @@ b3(v14: int32, v15: int32):
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
         test.run_pass(&LoopRotate);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 }

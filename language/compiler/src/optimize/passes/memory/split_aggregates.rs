@@ -13,7 +13,7 @@ declare_pass! {
     /// Scalar Replacement of Aggregates.
     ///
     /// Breaks apart aggregate stack allocations (structs, tuples, small arrays)
-    /// into individual scalar allocations. This enables mem2reg to promote
+    /// into individual scalar allocations. This enables promote-memory-to-registers to promote
     /// each scalar to an SSA value.
     ///
     /// ```mir
@@ -46,12 +46,12 @@ declare_pass! {
     ///     return v4
     /// }
     /// ```
-    #[pass(id = "sroa")]
-    pub Sroa,
+    #[pass(id = "split-aggregates")]
+    pub SplitAggregates,
     "Break aggregates into scalars"
 }
 
-impl FunctionPass for Sroa {
+impl FunctionPass for SplitAggregates {
     /// Run scalar replacement of aggregates on a function.
     fn run(
         &self,
@@ -70,11 +70,11 @@ impl FunctionPass for Sroa {
         let constants = { analyses.get::<ConstantPropagation>(function, tree).clone() };
 
         // run SROA
-        let changed = run_sroa(
+        let changed = run_split_aggregates(
             function,
             tree,
             entry,
-            ctx.options.sroa_max_array_elements,
+            ctx.options.split_aggregates_max_array_elements,
             &constants,
         );
 
@@ -88,17 +88,17 @@ impl FunctionPass for Sroa {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "Sroa"
+        "SplitAggregates"
     }
 
     /// Return the pass identifier.
     fn id(&self) -> &'static str {
-        "sroa"
+        "split-aggregates"
     }
 }
 
 /// Core SROA logic. Returns true if changes were made.
-fn run_sroa(
+fn run_split_aggregates(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
@@ -611,7 +611,7 @@ fn rewrite_base_load(
             pointer,
             ..
         } => (*destination, *pointer),
-        _ => panic!("sroa base load rewrite expects a load instruction"),
+        _ => panic!("split-aggregates base load rewrite expects a load instruction"),
     };
 
     // load each scalar element in order
@@ -654,7 +654,7 @@ fn rewrite_base_store(
     // extract stored value
     let stored_value = match tree.get(instruction_id) {
         mir::Instruction::Store { value, .. } => *value,
-        _ => panic!("sroa base store rewrite expects a store instruction"),
+        _ => panic!("split-aggregates base store rewrite expects a store instruction"),
     };
 
     let mut new_instructions: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
@@ -715,7 +715,7 @@ fn build_aggregate_instruction(
             ty: layout,
             elements: arguments,
         },
-        _ => panic!("sroa base load expects an aggregate layout type"),
+        _ => panic!("split-aggregates base load expects an aggregate layout type"),
     }
 }
 
@@ -815,7 +815,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sroa);
+        test.run_pass(&SplitAggregates);
         test.assert_output(expected);
     }
 
@@ -848,7 +848,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sroa);
+        test.run_pass(&SplitAggregates);
         test.assert_output(expected);
     }
 
@@ -885,7 +885,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sroa);
+        test.run_pass(&SplitAggregates);
         test.assert_output(expected);
     }
 
@@ -908,7 +908,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sroa);
+        test.run_pass(&SplitAggregates);
         test.assert_unchanged(input);
     }
 
@@ -935,7 +935,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sroa);
+        test.run_pass(&SplitAggregates);
         test.assert_unchanged(input);
     }
 
@@ -958,7 +958,7 @@ entry(v0: int64):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sroa);
+        test.run_pass(&SplitAggregates);
         test.assert_unchanged(input);
     }
 
@@ -1011,7 +1011,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sroa);
+        test.run_pass(&SplitAggregates);
         test.assert_output(expected);
     }
 
@@ -1065,7 +1065,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sroa);
+        test.run_pass(&SplitAggregates);
         test.assert_output(expected);
     }
 
@@ -1086,7 +1086,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sroa);
+        test.run_pass(&SplitAggregates);
         test.assert_unchanged(input);
     }
 
@@ -1111,14 +1111,14 @@ entry(v0: ref<ref<Point, raw, mutable>, raw, mutable>):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sroa);
+        test.run_pass(&SplitAggregates);
         test.assert_unchanged(input);
     }
 
     /// Single-field struct can be split.
     ///
     /// Even a single-field aggregate benefits from SROA since it allows
-    /// mem2reg to promote the value to SSA.
+    /// promote-memory-to-registers to promote the value to SSA.
     #[test]
     fn test_split_single_field() {
         let input = r#"
@@ -1152,7 +1152,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sroa);
+        test.run_pass(&SplitAggregates);
         test.assert_output(expected);
     }
 
@@ -1181,7 +1181,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sroa);
+        test.run_pass(&SplitAggregates);
         test.assert_unchanged(input);
     }
 
@@ -1220,7 +1220,7 @@ b1(v2: int64):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sroa);
+        test.run_pass(&SplitAggregates);
         test.assert_output(expected);
     }
 
@@ -1271,7 +1271,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sroa);
+        test.run_pass(&SplitAggregates);
         test.assert_output(expected);
     }
 
@@ -1314,7 +1314,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Sroa);
+        test.run_pass(&SplitAggregates);
         test.assert_output(expected);
     }
 
@@ -1348,7 +1348,7 @@ entry:
             None,
         );
 
-        test.run_pass(&Sroa);
+        test.run_pass(&SplitAggregates);
         test.assert_unchanged(input);
     }
 }

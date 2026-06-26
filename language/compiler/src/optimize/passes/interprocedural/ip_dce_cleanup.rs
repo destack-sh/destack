@@ -3,7 +3,7 @@ use destack_artifact::ProgramAnalysis;
 use destack_mir as mir;
 
 use crate::optimize::passes::interprocedural::{
-    run_dead_function_eliminate, run_global_dead_code_eliminate,
+    run_eliminate_dead_functions, run_eliminate_global_dead_code,
 };
 use crate::optimize::{ModulePass, PipelineContext};
 use destack_mir::Mutation;
@@ -78,11 +78,11 @@ impl ModulePass for InterproceduralDceCleanup {
 fn run_interprocedural_dce_cleanup(tree: &mut mir::Tree, program: &ProgramAnalysis) -> bool {
     let mut changed = false;
 
-    if run_dead_function_eliminate(tree, program) {
+    if run_eliminate_dead_functions(tree, program) {
         changed = true;
     }
 
-    if run_global_dead_code_eliminate(tree) {
+    if run_eliminate_global_dead_code(tree) {
         changed = true;
     }
 

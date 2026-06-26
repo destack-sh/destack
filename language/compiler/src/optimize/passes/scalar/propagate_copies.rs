@@ -36,12 +36,12 @@ declare_pass! {
     ///     return v0
     /// }
     /// ```
-    #[pass(id = "copy-propagate")]
-    pub CopyPropagate,
+    #[pass(id = "propagate-copies")]
+    pub PropagateCopies,
     "Propagate copies through block parameters"
 }
 
-impl FunctionPass for CopyPropagate {
+impl FunctionPass for PropagateCopies {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -50,7 +50,7 @@ impl FunctionPass for CopyPropagate {
         _analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // run copy propagation
-        let changed = run_copy_propagate(function, tree);
+        let changed = run_propagate_copies(function, tree);
 
         // report what this pass changed
         if changed {
@@ -61,17 +61,17 @@ impl FunctionPass for CopyPropagate {
     }
 
     fn name(&self) -> &'static str {
-        "CopyPropagate"
+        "PropagateCopies"
     }
 
     fn id(&self) -> &'static str {
-        "copy-propagate"
+        "propagate-copies"
     }
 }
 
 /// Core copy propagation logic.
 #[allow(clippy::type_complexity)]
-fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> bool {
+fn run_propagate_copies(function: &mut mir::Function, tree: &mut mir::Tree) -> bool {
     // build predecessor map: block -> list of (predecessor_block, arguments passed)
     let mut predecessors: HashMap<
         mir::LocalNodeId<mir::Block>,
@@ -511,7 +511,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&CopyPropagate);
+        test.run_pass(&PropagateCopies);
         test.assert_output(expected);
     }
 
@@ -538,7 +538,7 @@ b3(v2: int32):
         // v2 gets different values from different predecessors, so no change
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&CopyPropagate);
+        test.run_pass(&PropagateCopies);
         test.assert_unchanged(input);
     }
 
@@ -566,7 +566,7 @@ b1:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&CopyPropagate);
+        test.run_pass(&PropagateCopies);
         test.assert_output(expected);
     }
 
@@ -601,7 +601,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&CopyPropagate);
+        test.run_pass(&PropagateCopies);
         test.assert_output(expected);
     }
 
@@ -648,7 +648,7 @@ b3(v5: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&CopyPropagate);
+        test.run_pass(&PropagateCopies);
         test.assert_output(expected);
     }
 
@@ -665,7 +665,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&CopyPropagate);
+        test.run_pass(&PropagateCopies);
         test.assert_unchanged(input);
     }
 
@@ -688,7 +688,7 @@ entry(v0: boolean, v1: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&CopyPropagate);
+        test.run_pass(&PropagateCopies);
         test.assert_output(expected);
     }
 }

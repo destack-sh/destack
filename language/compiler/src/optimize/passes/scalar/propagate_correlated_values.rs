@@ -51,12 +51,12 @@ declare_pass! {
     /// - Only propagates integer and pointer equality
     /// - Does not propagate float equality due to NaN and signed zero
     /// - Folds dominated integer comparisons using branch range constraints
-    #[pass(id = "correlated-value-prop")]
-    pub CorrelatedValueProp,
+    #[pass(id = "propagate-correlated-values")]
+    pub PropagateCorrelatedValues,
     "Propagate correlated values from dominating conditions"
 }
 
-impl FunctionPass for CorrelatedValueProp {
+impl FunctionPass for PropagateCorrelatedValues {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -75,7 +75,7 @@ impl FunctionPass for CorrelatedValueProp {
         let constants = analyses.get::<ConstantPropagation>(function, tree).clone();
 
         // run correlated propagation
-        let changed = run_correlated_value_prop(function, tree, &domtree, &cfg, &constants);
+        let changed = run_propagate_correlated_values(function, tree, &domtree, &cfg, &constants);
 
         // report what this pass changed
         if changed {
@@ -86,16 +86,16 @@ impl FunctionPass for CorrelatedValueProp {
     }
 
     fn name(&self) -> &'static str {
-        "CorrelatedValueProp"
+        "PropagateCorrelatedValues"
     }
 
     fn id(&self) -> &'static str {
-        "correlated-value-prop"
+        "propagate-correlated-values"
     }
 }
 
 /// Propagate equalities implied by conditional branches.
-fn run_correlated_value_prop(
+fn run_propagate_correlated_values(
     function: &mir::Function,
     tree: &mut mir::Tree,
     domtree: &DominatorTree,
@@ -770,7 +770,7 @@ fn is_single_predecessor(
 #[cfg(test)]
 mod tests {
     use crate::optimize::common::tests::TestProgram;
-    use crate::optimize::passes::CorrelatedValueProp;
+    use crate::optimize::passes::PropagateCorrelatedValues;
 
     /// Equality branches substitute the dominated value.
     #[test]
@@ -817,7 +817,7 @@ b3(v5: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&CorrelatedValueProp);
+        test.run_pass(&PropagateCorrelatedValues);
         test.assert_output(expected);
     }
 
@@ -860,7 +860,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&CorrelatedValueProp);
+        test.run_pass(&PropagateCorrelatedValues);
         test.assert_output(expected);
     }
 
@@ -903,7 +903,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&CorrelatedValueProp);
+        test.run_pass(&PropagateCorrelatedValues);
         test.assert_output(expected);
     }
 
@@ -929,7 +929,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&CorrelatedValueProp);
+        test.run_pass(&PropagateCorrelatedValues);
         test.assert_output(input);
     }
 
@@ -976,7 +976,7 @@ b3:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&CorrelatedValueProp);
+        test.run_pass(&PropagateCorrelatedValues);
         test.assert_output(expected);
     }
 
@@ -1021,7 +1021,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&CorrelatedValueProp);
+        test.run_pass(&PropagateCorrelatedValues);
         test.assert_output(expected);
     }
 
@@ -1062,7 +1062,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&CorrelatedValueProp);
+        test.run_pass(&PropagateCorrelatedValues);
         test.assert_output(expected);
     }
 
@@ -1087,7 +1087,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&CorrelatedValueProp);
+        test.run_pass(&PropagateCorrelatedValues);
         test.assert_output(input);
     }
 
@@ -1130,7 +1130,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&CorrelatedValueProp);
+        test.run_pass(&PropagateCorrelatedValues);
         test.assert_output(expected);
     }
 
@@ -1173,7 +1173,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&CorrelatedValueProp);
+        test.run_pass(&PropagateCorrelatedValues);
         test.assert_output(expected);
     }
 }

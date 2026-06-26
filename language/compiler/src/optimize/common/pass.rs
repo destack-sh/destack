@@ -52,9 +52,9 @@ impl std::ops::BitOrAssign for PassRequirements {
 /// Static metadata about a MIR pass.
 #[derive(Debug, Clone, Copy)]
 pub struct PassMetadata {
-    /// Pass ID like "constant-fold".
+    /// Pass ID like "fold-constants".
     pub id: &'static str,
-    /// Pass name like "ConstantFold".
+    /// Pass name like "FoldConstants".
     pub name: &'static str,
     /// Human-readable description.
     pub description: &'static str,

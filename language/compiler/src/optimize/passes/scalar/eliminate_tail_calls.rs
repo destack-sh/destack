@@ -20,20 +20,20 @@ declare_pass! {
     /// functions into fully tail-recursive form. The pattern `return x OP call(...)`
     /// where OP is associative (int.add, int.mul, int.and, int.or, int.xor) is transformed by adding
     /// an accumulator parameter.
-    #[pass(id = "tail-call-elim")]
-    pub TailCallElim,
+    #[pass(id = "eliminate-tail-calls")]
+    pub EliminateTailCalls,
     "Eliminate tail-recursive calls"
 }
 
-impl ModulePass for TailCallElim {
+impl ModulePass for EliminateTailCalls {
     fn run(
         &self,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         _analyses: &mir::ModuleAnalyses,
     ) -> Mutation {
-        // run tail call elimination
-        let changed = run_tail_call_elimination(tree, ctx.strings);
+        // eliminate tail calls across the module
+        let changed = eliminate_tail_calls(tree, ctx.strings);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -42,16 +42,16 @@ impl ModulePass for TailCallElim {
     }
 
     fn name(&self) -> &'static str {
-        "TailCallElim"
+        "EliminateTailCalls"
     }
 
     fn id(&self) -> &'static str {
-        "tail-call-elim"
+        "eliminate-tail-calls"
     }
 }
 
-/// Tail call elimination logic.
-fn run_tail_call_elimination(tree: &mut mir::Tree, strings: &StringPool) -> bool {
+/// Eliminate tail calls across one MIR tree.
+fn eliminate_tail_calls(tree: &mut mir::Tree, strings: &StringPool) -> bool {
     let mut changed = false;
 
     // collect function ids first to avoid borrow issues
@@ -1416,7 +1416,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -1458,7 +1458,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -1501,7 +1501,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -1528,7 +1528,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_unchanged(input);
     }
 
@@ -1560,7 +1560,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -1600,7 +1600,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -1622,7 +1622,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -1639,7 +1639,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_unchanged(input);
     }
 
@@ -1683,7 +1683,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -1742,7 +1742,7 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -1778,7 +1778,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -1793,7 +1793,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_unchanged(input);
     }
 
@@ -1812,7 +1812,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_unchanged(input);
     }
 
@@ -1889,7 +1889,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -1933,7 +1933,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -1977,7 +1977,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -2025,7 +2025,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -2052,7 +2052,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_unchanged(input);
     }
 
@@ -2088,7 +2088,7 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         // should not transform: different operators in different paths
         test.assert_unchanged(input);
     }
@@ -2147,7 +2147,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -2197,7 +2197,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -2219,7 +2219,7 @@ entry(v0: fn(int32) => int32, v1: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -2251,7 +2251,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -2298,7 +2298,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 
@@ -2342,7 +2342,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&TailCallElim);
+        test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
 }

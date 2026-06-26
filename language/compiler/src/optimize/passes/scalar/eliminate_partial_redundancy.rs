@@ -47,12 +47,12 @@ declare_pass! {
     ///     return v5
     /// }
     /// ```
-    #[pass(id = "pre")]
-    pub PartialRedundancyElim,
+    #[pass(id = "eliminate-partial-redundancy")]
+    pub EliminatePartialRedundancy,
     "Eliminate partially redundant expressions"
 }
 
-impl FunctionPass for PartialRedundancyElim {
+impl FunctionPass for EliminatePartialRedundancy {
     /// Run partial redundancy elimination on a function.
     fn run(
         &self,
@@ -93,12 +93,12 @@ impl FunctionPass for PartialRedundancyElim {
 
     /// Return the display name for this pass.
     fn name(&self) -> &'static str {
-        "PartialRedundancyElim"
+        "EliminatePartialRedundancy"
     }
 
     /// Return the pipeline identifier for this pass.
     fn id(&self) -> &'static str {
-        "pre"
+        "eliminate-partial-redundancy"
     }
 }
 
@@ -769,7 +769,7 @@ b3(v5: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&PartialRedundancyElim);
+        test.run_pass(&EliminatePartialRedundancy);
         test.assert_output(expected);
     }
 
@@ -822,7 +822,7 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&PartialRedundancyElim);
+        test.run_pass(&EliminatePartialRedundancy);
         test.assert_output(expected);
     }
 
@@ -863,7 +863,7 @@ b2(v5: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&PartialRedundancyElim);
+        test.run_pass(&EliminatePartialRedundancy);
         test.assert_output(expected);
     }
 
@@ -914,7 +914,7 @@ b3(v6: int32, v8: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&PartialRedundancyElim);
+        test.run_pass(&EliminatePartialRedundancy);
         test.assert_output(expected);
     }
 
@@ -969,7 +969,7 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&PartialRedundancyElim);
+        test.run_pass(&EliminatePartialRedundancy);
         test.assert_output(expected);
     }
 
@@ -1024,7 +1024,7 @@ b4(v7: uint32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&PartialRedundancyElim);
+        test.run_pass(&EliminatePartialRedundancy);
         test.assert_output(expected);
     }
 
@@ -1072,7 +1072,7 @@ b3(v6: int32, v7: int32, v9: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&PartialRedundancyElim);
+        test.run_pass(&EliminatePartialRedundancy);
         test.assert_output(expected);
     }
 
@@ -1098,7 +1098,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&PartialRedundancyElim);
+        test.run_pass(&EliminatePartialRedundancy);
         test.assert_output(input);
     }
 
@@ -1124,7 +1124,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&PartialRedundancyElim);
+        test.run_pass(&EliminatePartialRedundancy);
         test.assert_output(input);
     }
 
@@ -1156,7 +1156,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&PartialRedundancyElim);
+        test.run_pass(&EliminatePartialRedundancy);
         test.assert_output(input);
     }
 
@@ -1183,11 +1183,11 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&PartialRedundancyElim);
+        test.run_pass(&EliminatePartialRedundancy);
         test.assert_output(input);
     }
 
-    /// Expressions already available on all paths are left to GVN.
+    /// Expressions already available on all paths are left to redundant-expression elimination.
     #[test]
     fn test_pre_skips_fully_redundant_expression() {
         let input = r#"
@@ -1209,7 +1209,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&PartialRedundancyElim);
+        test.run_pass(&EliminatePartialRedundancy);
         test.assert_output(input);
     }
 }

@@ -85,12 +85,12 @@ declare_pass! {
     ///     return v4
     /// }
     /// ```
-    #[pass(id = "simplify-cfg")]
-    pub SimplifyCfg,
+    #[pass(id = "simplify-control-flow")]
+    pub SimplifyControlFlow,
     "Simplify control flow graph"
 }
 
-impl FunctionPass for SimplifyCfg {
+impl FunctionPass for SimplifyControlFlow {
     /// Run CFG simplification on a function.
     fn run(
         &self,
@@ -100,7 +100,7 @@ impl FunctionPass for SimplifyCfg {
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // run simplify cfg with bounded fixed point
-        let changed = run_simplify_cfg(function, tree, ctx.profile(), ctx, analyses);
+        let changed = run_simplify_control_flow(function, tree, ctx.profile(), ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -112,17 +112,17 @@ impl FunctionPass for SimplifyCfg {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "SimplifyCfg"
+        "SimplifyControlFlow"
     }
 
     /// Return the pass identifier.
     fn id(&self) -> &'static str {
-        "simplify-cfg"
+        "simplify-control-flow"
     }
 }
 
 /// SimplifyCFG logic. Returns true if changes were made.
-fn run_simplify_cfg(
+fn run_simplify_control_flow(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     profile: Option<&mir::Profile>,
@@ -2762,7 +2762,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -2792,7 +2792,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -2827,7 +2827,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -2862,7 +2862,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -2889,7 +2889,7 @@ entry(v0: boolean):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -2919,7 +2919,7 @@ b1(v5: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -2953,7 +2953,7 @@ b1(v3: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -2995,7 +2995,7 @@ b1(v4: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3021,7 +3021,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_unchanged(input);
     }
 
@@ -3065,7 +3065,7 @@ b3(v4: boolean):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3099,7 +3099,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3128,7 +3128,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_unchanged(input);
     }
 
@@ -3144,7 +3144,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_unchanged(input);
     }
 
@@ -3186,7 +3186,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3212,7 +3212,7 @@ b3(v3: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_unchanged(input);
     }
 
@@ -3249,7 +3249,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3280,7 +3280,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3313,7 +3313,7 @@ entry(v0: boolean):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3350,7 +3350,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3381,7 +3381,7 @@ entry(v0: boolean, v1: [uint32; 4]):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3412,7 +3412,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3446,7 +3446,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3480,7 +3480,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3520,7 +3520,7 @@ b1(v3: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3553,7 +3553,7 @@ entry(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3596,7 +3596,7 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3653,7 +3653,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3689,7 +3689,7 @@ b1(v4: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3727,7 +3727,7 @@ b2(v3: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3848,7 +3848,7 @@ b2(v4: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3889,7 +3889,7 @@ entry(v0: boolean):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3944,7 +3944,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -3970,7 +3970,7 @@ entry(v0: uint32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -4015,7 +4015,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -4056,7 +4056,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -4099,7 +4099,7 @@ b2(v7: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -4144,7 +4144,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -4193,7 +4193,7 @@ b2(v8: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -4230,7 +4230,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -4259,7 +4259,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
 
@@ -4422,9 +4422,9 @@ entry:
         undefined
     }
 
-    /// SimplifyCfg preserves argument counts and definitions.
+    /// SimplifyControlFlow preserves argument counts and definitions.
     #[test]
-    fn test_simplify_cfg_preserves_argument_counts() {
+    fn test_simplify_control_flow_preserves_argument_counts() {
         let input = r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
 entry(v0: boolean, v1: int32, v2: int32):
@@ -4450,7 +4450,7 @@ b5(v9: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SimplifyCfg);
+        test.run_pass(&SimplifyControlFlow);
 
         let function_id = test.function_id_by_name("test");
         let function = test.tree.get(function_id);

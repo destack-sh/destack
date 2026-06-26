@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::passes::scalar::{SimplifyCfg, SparseConditionalConstantPropagation};
+use crate::optimize::passes::scalar::{PropagateSparseConstants, SimplifyControlFlow};
 use crate::optimize::{ModulePass, PipelineContext, run_function_passes};
 use destack_mir::{
     ConstantPropagation, FunctionEffectAnalysis, Mutation, SignatureKey, apply_constant_parameters,
@@ -43,11 +43,11 @@ declare_pass! {
     /// }
     /// ```
     #[pass(id = "ip-sccp")]
-    pub InterproceduralSccp,
+    pub InterproceduralPropagateSparseConstants,
     "Interprocedural sparse conditional constant propagation"
 }
 
-impl ModulePass for InterproceduralSccp {
+impl ModulePass for InterproceduralPropagateSparseConstants {
     /// Run interprocedural SCCP for the module.
     fn run(
         &self,
@@ -70,7 +70,7 @@ impl ModulePass for InterproceduralSccp {
 
     /// Return the pass display name.
     fn name(&self) -> &'static str {
-        "InterproceduralSccp"
+        "InterproceduralPropagateSparseConstants"
     }
 
     /// Return the pass identifier.
@@ -210,8 +210,8 @@ fn run_interprocedural_sccp(
 
     // run cleanup passes for modified functions
     for function_id in cleanup_functions {
-        let sccp = SparseConditionalConstantPropagation;
-        let simplify = SimplifyCfg;
+        let sccp = PropagateSparseConstants;
+        let simplify = SimplifyControlFlow;
         if run_function_passes(function_id, tree, ctx, &[&sccp, &simplify]) {
             changed = true;
         }
@@ -794,7 +794,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralSccp);
+        test.run_module_pass(&InterproceduralPropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -830,7 +830,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralSccp);
+        test.run_module_pass(&InterproceduralPropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -880,7 +880,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralSccp);
+        test.run_module_pass(&InterproceduralPropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -903,7 +903,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralSccp);
+        test.run_module_pass(&InterproceduralPropagateSparseConstants);
         test.assert_output(input);
     }
 
@@ -938,7 +938,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralSccp);
+        test.run_module_pass(&InterproceduralPropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -985,7 +985,7 @@ b2(v2: ref<int32, managed, readonly>):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralSccp);
+        test.run_module_pass(&InterproceduralPropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -1008,7 +1008,7 @@ entry(v0: fn(int32) => int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralSccp);
+        test.run_module_pass(&InterproceduralPropagateSparseConstants);
         test.assert_output(input);
     }
 }

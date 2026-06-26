@@ -41,12 +41,12 @@ declare_pass! {
     ///     return v1
     /// }
     /// ```
-    #[pass(id = "guard-eliminate")]
-    pub GuardEliminate,
+    #[pass(id = "eliminate-guards")]
+    pub EliminateGuards,
     "Eliminate redundant guard checks"
 }
 
-impl FunctionPass for GuardEliminate {
+impl FunctionPass for EliminateGuards {
     /// Run guard elimination on a function.
     fn run(
         &self,
@@ -99,12 +99,12 @@ impl FunctionPass for GuardEliminate {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "GuardEliminate"
+        "EliminateGuards"
     }
 
     /// Return the pass id.
     fn id(&self) -> &'static str {
-        "guard-eliminate"
+        "eliminate-guards"
     }
 }
 
@@ -127,7 +127,7 @@ mod tests {
 
     /// Dominating branch conditions eliminate redundant checks.
     #[test]
-    fn test_guard_eliminate_branch_facts() {
+    fn test_eliminate_guards_branch_facts() {
         let input = r#"
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
@@ -168,13 +168,13 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GuardEliminate);
+        test.run_pass(&EliminateGuards);
         test.assert_output(expected);
     }
 
     /// Assume instructions feed redundant checks.
     #[test]
-    fn test_guard_eliminate_assume_fact() {
+    fn test_eliminate_guards_assume_fact() {
         let input = r#"
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
@@ -205,13 +205,13 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GuardEliminate);
+        test.run_pass(&EliminateGuards);
         test.assert_output(expected);
     }
 
     /// Constant conditions eliminate checks.
     #[test]
-    fn test_guard_eliminate_constant_condition() {
+    fn test_eliminate_guards_constant_condition() {
         let input = r#"
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
@@ -240,13 +240,13 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GuardEliminate);
+        test.run_pass(&EliminateGuards);
         test.assert_output(expected);
     }
 
     /// Negated conditions are resolved using edge constraints.
     #[test]
-    fn test_guard_eliminate_negated_condition() {
+    fn test_eliminate_guards_negated_condition() {
         let input = r#"
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
@@ -289,13 +289,13 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GuardEliminate);
+        test.run_pass(&EliminateGuards);
         test.assert_output(expected);
     }
 
     /// Condition constraints transfer through block parameters.
     #[test]
-    fn test_guard_eliminate_block_param_condition() {
+    fn test_eliminate_guards_block_param_condition() {
         let input = r#"
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
@@ -336,13 +336,13 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GuardEliminate);
+        test.run_pass(&EliminateGuards);
         test.assert_output(expected);
     }
 
     /// Check edges propagate condition constraints to successors.
     #[test]
-    fn test_guard_eliminate_check_edge_fact() {
+    fn test_eliminate_guards_check_edge_fact() {
         let input = r#"
 function test(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]): uint32 {
 entry(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
@@ -381,13 +381,13 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GuardEliminate);
+        test.run_pass(&EliminateGuards);
         test.assert_output(expected);
     }
 
     /// Bounds constraints eliminate checks when always in range.
     #[test]
-    fn test_guard_eliminate_bounds_constraint_success() {
+    fn test_eliminate_guards_bounds_constraint_success() {
         let input = r#"
 function test(v0: boolean, v1: [uint32; 4]): uint32 {
 entry(v0: boolean, v1: [uint32; 4]):
@@ -418,13 +418,13 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GuardEliminate);
+        test.run_pass(&EliminateGuards);
         test.assert_output(expected);
     }
 
     /// Bounds constraints jump to failure when always out of range.
     #[test]
-    fn test_guard_eliminate_bounds_constraint_failure() {
+    fn test_eliminate_guards_bounds_constraint_failure() {
         let input = r#"
 function test(v0: boolean, v1: [uint32; 0]): uint32 {
 entry(v0: boolean, v1: [uint32; 0]):
@@ -455,13 +455,13 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GuardEliminate);
+        test.run_pass(&EliminateGuards);
         test.assert_output(expected);
     }
 
     /// Div zero constraints eliminate checks with non zero divisors.
     #[test]
-    fn test_guard_eliminate_div_zero_constraint_success() {
+    fn test_eliminate_guards_div_zero_constraint_success() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -490,13 +490,13 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GuardEliminate);
+        test.run_pass(&EliminateGuards);
         test.assert_output(expected);
     }
 
     /// Div zero constraints eliminate checks with zero divisors.
     #[test]
-    fn test_guard_eliminate_div_zero_constraint_failure() {
+    fn test_eliminate_guards_div_zero_constraint_failure() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -525,13 +525,13 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GuardEliminate);
+        test.run_pass(&EliminateGuards);
         test.assert_output(expected);
     }
 
     /// Shift range constraints eliminate checks with in range shifts.
     #[test]
-    fn test_guard_eliminate_shift_constraint_success() {
+    fn test_eliminate_guards_shift_constraint_success() {
         let input = r#"
 function test(v0: boolean): uint8 {
 entry(v0: boolean):
@@ -560,13 +560,13 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GuardEliminate);
+        test.run_pass(&EliminateGuards);
         test.assert_output(expected);
     }
 
     /// Shift range constraints jump to failure on out of range shifts.
     #[test]
-    fn test_guard_eliminate_shift_constraint_failure() {
+    fn test_eliminate_guards_shift_constraint_failure() {
         let input = r#"
 function test(v0: boolean): uint8 {
 entry(v0: boolean):
@@ -595,13 +595,13 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GuardEliminate);
+        test.run_pass(&EliminateGuards);
         test.assert_output(expected);
     }
 
     /// Narrow constraints eliminate checks for values in range.
     #[test]
-    fn test_guard_eliminate_narrow_constraint_success() {
+    fn test_eliminate_guards_narrow_constraint_success() {
         let input = r#"
 function test(v0: boolean): uint16 {
 entry(v0: boolean):
@@ -630,13 +630,13 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GuardEliminate);
+        test.run_pass(&EliminateGuards);
         test.assert_output(expected);
     }
 
     /// Narrow constraints jump to failure for out of range values.
     #[test]
-    fn test_guard_eliminate_narrow_constraint_failure() {
+    fn test_eliminate_guards_narrow_constraint_failure() {
         let input = r#"
 function test(v0: boolean): uint16 {
 entry(v0: boolean):
@@ -665,13 +665,13 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GuardEliminate);
+        test.run_pass(&EliminateGuards);
         test.assert_output(expected);
     }
 
     /// Overflow constraints eliminate checks when no overflow is possible.
     #[test]
-    fn test_guard_eliminate_overflow_constraint_success() {
+    fn test_eliminate_guards_overflow_constraint_success() {
         let input = r#"
 function test(v0: boolean): int8 {
 entry(v0: boolean):
@@ -702,13 +702,13 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GuardEliminate);
+        test.run_pass(&EliminateGuards);
         test.assert_output(expected);
     }
 
     /// Overflow constraints jump to failure when overflow is guaranteed.
     #[test]
-    fn test_guard_eliminate_overflow_constraint_failure() {
+    fn test_eliminate_guards_overflow_constraint_failure() {
         let input = r#"
 function test(v0: boolean): int8 {
 entry(v0: boolean):
@@ -739,7 +739,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&GuardEliminate);
+        test.run_pass(&EliminateGuards);
         test.assert_output(expected);
     }
 }

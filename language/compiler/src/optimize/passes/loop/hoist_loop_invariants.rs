@@ -52,12 +52,12 @@ declare_pass! {
     /// ```
     ///
     /// Requires canonical loop form from LoopSimplify.
-    #[pass(id = "licm")]
-    pub Licm,
+    #[pass(id = "hoist-loop-invariants")]
+    pub HoistLoopInvariants,
     "Loop invariant code motion"
 }
 
-impl FunctionPass for Licm {
+impl FunctionPass for HoistLoopInvariants {
     /// Run loop invariant code motion on a function.
     fn run(
         &self,
@@ -87,7 +87,7 @@ impl FunctionPass for Licm {
         }
 
         // run LICM
-        let changed = run_licm(
+        let changed = run_hoist_loop_invariants(
             entry,
             function,
             tree,
@@ -109,17 +109,17 @@ impl FunctionPass for Licm {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "Licm"
+        "HoistLoopInvariants"
     }
 
     /// Return the pass identifier.
     fn id(&self) -> &'static str {
-        "licm"
+        "hoist-loop-invariants"
     }
 }
 
 /// Core LICM logic. Returns true if changes were made.
-fn run_licm(
+fn run_hoist_loop_invariants(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
@@ -944,7 +944,7 @@ b2:
 "#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
 
@@ -980,7 +980,7 @@ b2:
 "#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
 
@@ -1020,7 +1020,7 @@ b2:
 "#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
 
@@ -1059,7 +1059,7 @@ b2:
 "#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
 
@@ -1074,7 +1074,7 @@ entry(v0: int32, v1: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_unchanged(input);
     }
 
@@ -1096,7 +1096,7 @@ b2:
 "#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_unchanged(input);
     }
 
@@ -1145,7 +1145,7 @@ b4:
 "#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
 
@@ -1186,7 +1186,7 @@ b2:
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
 
@@ -1216,7 +1216,7 @@ entry:
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
         let before = test.format();
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_output(&before);
     }
 
@@ -1240,7 +1240,7 @@ b2:
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
         let before = test.format();
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_output(&before);
     }
 
@@ -1288,7 +1288,7 @@ b2:
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
 
@@ -1334,7 +1334,7 @@ b2:
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
 
@@ -1369,7 +1369,7 @@ b5:
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_unchanged(input);
     }
 
@@ -1413,7 +1413,7 @@ b2:
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
 
@@ -1445,7 +1445,7 @@ entry(v0: ref<int32, raw, mutable>):
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_unchanged(input);
     }
 
@@ -1500,7 +1500,7 @@ b4:
 "#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
 
@@ -1554,7 +1554,7 @@ b3:
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
 
@@ -1585,7 +1585,7 @@ b3:
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
-        test.run_pass(&Licm);
+        test.run_pass(&HoistLoopInvariants);
         test.assert_output(input);
     }
 }

@@ -42,8 +42,8 @@ declare_pass! {
     ///     return v0
     /// }
     /// ```
-    #[pass(id = "instruction-combine")]
-    pub InstructionCombine,
+    #[pass(id = "combine-instructions")]
+    pub CombineInstructions,
     "Combine and simplify instructions"
 }
 
@@ -55,7 +55,7 @@ enum Simplification {
     Substitute(mir::Value),
 }
 
-impl FunctionPass for InstructionCombine {
+impl FunctionPass for CombineInstructions {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -67,7 +67,7 @@ impl FunctionPass for InstructionCombine {
         let constants = analyses.get::<ConstantPropagation>(function, tree).clone();
         let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
         let changed =
-            run_instruction_combine(function, tree, &constants, &ranges, ctx.target_layout());
+            run_combine_instructions(function, tree, &constants, &ranges, ctx.target_layout());
 
         // report what this pass changed
         if changed {
@@ -78,11 +78,11 @@ impl FunctionPass for InstructionCombine {
     }
 
     fn name(&self) -> &'static str {
-        "InstructionCombine"
+        "CombineInstructions"
     }
 
     fn id(&self) -> &'static str {
-        "instruction-combine"
+        "combine-instructions"
     }
 }
 
@@ -105,7 +105,7 @@ struct FieldGetEntry {
 }
 
 /// Core instruction combine logic.
-fn run_instruction_combine(
+fn run_combine_instructions(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     constants: &ConstantPropagation,
@@ -802,7 +802,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -826,7 +826,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -850,7 +850,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -875,7 +875,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -900,7 +900,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -924,7 +924,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -948,7 +948,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -974,7 +974,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1000,7 +1000,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1017,7 +1017,7 @@ entry(v0: int32):
         // no simplification because we don't know the type of v0
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_unchanged(input);
     }
 
@@ -1039,7 +1039,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1061,7 +1061,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1084,7 +1084,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1107,7 +1107,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1130,7 +1130,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1153,7 +1153,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1177,7 +1177,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1202,7 +1202,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1226,7 +1226,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1251,7 +1251,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1268,7 +1268,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_unchanged(input);
     }
 
@@ -1296,7 +1296,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1325,7 +1325,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1349,7 +1349,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1374,7 +1374,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1398,7 +1398,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1422,7 +1422,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1446,7 +1446,7 @@ entry(v0: uint32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1471,7 +1471,7 @@ entry(v0: uint32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1488,7 +1488,7 @@ entry(v0: float32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(input);
     }
 
@@ -1512,7 +1512,7 @@ entry(v0: boolean):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1536,7 +1536,7 @@ entry(v0: int32, v1: int64):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1560,7 +1560,7 @@ entry(v0: int32, v1: int64):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1598,7 +1598,7 @@ entry(v0: int32, v1: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1625,7 +1625,7 @@ entry(v0: int32, v1: int32, v2: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1641,7 +1641,7 @@ entry(v0: (int32, int32)):
 "#;
         // v0 is a parameter, not from tuple/struct instruction
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_unchanged(input);
     }
 
@@ -1676,7 +1676,7 @@ entry(v0: Point, v1: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1713,7 +1713,7 @@ entry(v0: int32, v1: int32, v2: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1753,7 +1753,7 @@ entry(v0: Point, v1: int32, v2: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1780,7 +1780,7 @@ entry(v0: [int32; 3], v1: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1811,7 +1811,7 @@ entry(v0: int32, v1: int32, v2: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1848,7 +1848,7 @@ entry(v0: Point, v1: int32, v2: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1872,7 +1872,7 @@ entry(v0: (int32, int64), v1: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1901,7 +1901,7 @@ entry(v0: [int32; 2], v1: int32, v2: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1922,7 +1922,7 @@ entry(v0: Point):
 "#;
         // aggregate source is a parameter, not a known constructor
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_unchanged(input);
     }
 
@@ -1940,7 +1940,7 @@ entry(v0: int32, v1: int32):
 "#;
         // index 10 is out of bounds for 2-element array
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_unchanged(input);
     }
 
@@ -1973,7 +1973,7 @@ entry(v0: Point):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -1998,7 +1998,7 @@ entry(v0: [int32; 3]):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_output(expected);
     }
 
@@ -2020,7 +2020,7 @@ entry(v0: Point):
 "#;
         // get from index 0, set at index 1 - not identity
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_unchanged(input);
     }
 
@@ -2042,7 +2042,7 @@ entry(v0: Point, v1: Point):
 "#;
         // get from v0, set on v1 - not identity
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_unchanged(input);
     }
 
@@ -2059,7 +2059,7 @@ entry(v0: [int32; 3]):
 "#;
         // get from index 0, set at index 1 - not identity
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_unchanged(input);
     }
 
@@ -2077,7 +2077,7 @@ entry(v0: [int32; 3], v1: [int32; 3]):
 "#;
         // get from v0, set on v1 - not identity
         let mut test = TestProgram::new(input);
-        test.run_pass(&InstructionCombine);
+        test.run_pass(&CombineInstructions);
         test.assert_unchanged(input);
     }
 }

@@ -36,12 +36,12 @@ declare_pass! {
     ///     return v2
     /// }
     /// ```
-    #[pass(id = "dead-arg-eliminate")]
-    pub DeadArgEliminate,
+    #[pass(id = "eliminate-dead-arguments")]
+    pub EliminateDeadArguments,
     "Eliminate unused function arguments"
 }
 
-impl ModulePass for DeadArgEliminate {
+impl ModulePass for EliminateDeadArguments {
     /// Run dead argument elimination for the module.
     fn run(
         &self,
@@ -49,11 +49,11 @@ impl ModulePass for DeadArgEliminate {
         ctx: &PipelineContext<'_>,
         _analyses: &mir::ModuleAnalyses,
     ) -> Mutation {
-        let changed = run_dead_arg_eliminate(tree);
+        let changed = run_eliminate_dead_arguments(tree);
 
         // report what this pass changed
         if changed {
-            ctx.strings.intern("dead-arg-eliminate");
+            ctx.strings.intern("eliminate-dead-arguments");
             Mutation::VALUE
         } else {
             Mutation::NONE
@@ -62,12 +62,12 @@ impl ModulePass for DeadArgEliminate {
 
     /// Return the pass display name.
     fn name(&self) -> &'static str {
-        "DeadArgEliminate"
+        "EliminateDeadArguments"
     }
 
     /// Return the pass identifier.
     fn id(&self) -> &'static str {
-        "dead-arg-eliminate"
+        "eliminate-dead-arguments"
     }
 }
 
@@ -90,7 +90,7 @@ struct CallData {
 }
 
 /// Run dead argument elimination over the module.
-fn run_dead_arg_eliminate(tree: &mut mir::Tree) -> bool {
+fn run_eliminate_dead_arguments(tree: &mut mir::Tree) -> bool {
     // collect callsite information up front
     let call_data = collect_call_data(tree);
 
@@ -409,7 +409,7 @@ mod tests {
 
     /// Unused parameters are removed from direct callsites.
     #[test]
-    fn test_dead_arg_eliminate_removes_unused_param() {
+    fn test_eliminate_dead_arguments_removes_unused_param() {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -437,13 +437,13 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&DeadArgEliminate);
+        test.run_module_pass(&EliminateDeadArguments);
         test.assert_output(expected);
     }
 
     /// Tailcall arguments are trimmed for unused parameters.
     #[test]
-    fn test_dead_arg_eliminate_updates_tailcall() {
+    fn test_eliminate_dead_arguments_updates_tailcall() {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -469,13 +469,13 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&DeadArgEliminate);
+        test.run_module_pass(&EliminateDeadArguments);
         test.assert_output(expected);
     }
 
     /// Direct call terminators are trimmed for unused parameters.
     #[test]
-    fn test_dead_arg_eliminate_updates_call_terminator() {
+    fn test_eliminate_dead_arguments_updates_call_terminator() {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -513,13 +513,13 @@ b2(v3: ref<int32, managed, readonly>):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&DeadArgEliminate);
+        test.run_module_pass(&EliminateDeadArguments);
         test.assert_output(expected);
     }
 
     /// Exported functions are not rewritten.
     #[test]
-    fn test_dead_arg_eliminate_skips_exports() {
+    fn test_eliminate_dead_arguments_skips_exports() {
         let input = r#"
 export function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -534,13 +534,13 @@ entry(v0: int32, v1: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&DeadArgEliminate);
+        test.run_module_pass(&EliminateDeadArguments);
         test.assert_output(input);
     }
 
     /// Indirect signatures block argument removal.
     #[test]
-    fn test_dead_arg_eliminate_skips_indirect_signature() {
+    fn test_eliminate_dead_arguments_skips_indirect_signature() {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -556,13 +556,13 @@ entry(v0: fn(int32, int32) => int32, v1: int32, v2: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&DeadArgEliminate);
+        test.run_module_pass(&EliminateDeadArguments);
         test.assert_output(input);
     }
 
     /// Call metadata argument lists are trimmed alongside arguments.
     #[test]
-    fn test_dead_arg_eliminate_updates_call_metadata() {
+    fn test_eliminate_dead_arguments_updates_call_metadata() {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -608,7 +608,7 @@ entry(v0: int32):
             mir::CallArgumentEffect::default(),
         ];
 
-        test.run_module_pass(&DeadArgEliminate);
+        test.run_module_pass(&EliminateDeadArguments);
         test.assert_output(expected);
         let callsite = mir::CallSite::Instruction(call_id);
         let metadata = test
@@ -622,7 +622,7 @@ entry(v0: int32):
 
     /// Metadata parameter indices are remapped after removal.
     #[test]
-    fn test_dead_arg_eliminate_remaps_metadata_indices() {
+    fn test_eliminate_dead_arguments_remaps_metadata_indices() {
         let input = r#"
 function callee(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
@@ -657,7 +657,7 @@ entry(v0: int32, v1: int32):
             .function_mut(callee_id)
             .allocation_size = Some(mir::AllocationSize::new(2, Some(0)));
 
-        test.run_module_pass(&DeadArgEliminate);
+        test.run_module_pass(&EliminateDeadArguments);
         test.assert_output(expected);
 
         let metadata = test
@@ -674,7 +674,7 @@ entry(v0: int32, v1: int32):
 
     /// Allocation metadata prevents removing its parameters.
     #[test]
-    fn test_dead_arg_eliminate_preserves_alloc_size_param() {
+    fn test_eliminate_dead_arguments_preserves_alloc_size_param() {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -690,7 +690,7 @@ entry(v0: int32, v1: int32):
             .function_mut(callee_id)
             .allocation_size = Some(mir::AllocationSize::new(1, None));
 
-        test.run_module_pass(&DeadArgEliminate);
+        test.run_module_pass(&EliminateDeadArguments);
         test.assert_output(input);
         let metadata = test
             .tree
@@ -706,7 +706,7 @@ entry(v0: int32, v1: int32):
 
     /// Allocation metadata is remapped at callsites.
     #[test]
-    fn test_dead_arg_eliminate_remaps_call_allocation_size() {
+    fn test_eliminate_dead_arguments_remaps_call_allocation_size() {
         let input = r#"
 function callee(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
@@ -753,7 +753,7 @@ entry(v0: int32):
             .call_mut(callsite)
             .allocation_size = Some(mir::AllocationSize::new(2, Some(0)));
 
-        test.run_module_pass(&DeadArgEliminate);
+        test.run_module_pass(&EliminateDeadArguments);
         test.assert_output(expected);
         let metadata = test
             .tree

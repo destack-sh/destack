@@ -33,12 +33,12 @@ declare_pass! {
     ///     return v0
     /// }
     /// ```
-    #[pass(id = "dead-code-eliminate")]
-    pub DeadCodeEliminate,
+    #[pass(id = "eliminate-dead-code")]
+    pub EliminateDeadCode,
     "Eliminate dead code"
 }
 
-impl FunctionPass for DeadCodeEliminate {
+impl FunctionPass for EliminateDeadCode {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -62,11 +62,11 @@ impl FunctionPass for DeadCodeEliminate {
     }
 
     fn name(&self) -> &'static str {
-        "DeadCodeEliminate"
+        "EliminateDeadCode"
     }
 
     fn id(&self) -> &'static str {
-        "dead-code-eliminate"
+        "eliminate-dead-code"
     }
 }
 
@@ -360,7 +360,7 @@ entry:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_output(expected);
     }
 
@@ -380,7 +380,7 @@ entry:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_unchanged(input);
     }
 
@@ -411,7 +411,7 @@ entry:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_output(expected);
     }
 
@@ -435,7 +435,7 @@ entry(v0: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_unchanged(input);
     }
 
@@ -478,7 +478,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_output(expected);
     }
 
@@ -516,7 +516,7 @@ entry:
             None,
         );
 
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_unchanged(input);
     }
 
@@ -557,7 +557,7 @@ entry:
             None,
         );
 
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_unchanged(input);
     }
 
@@ -583,7 +583,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_unchanged(input);
     }
 
@@ -614,7 +614,7 @@ entry:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_output(expected);
     }
 
@@ -650,7 +650,7 @@ b1(v4: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_output(expected);
     }
 
@@ -678,7 +678,7 @@ entry:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_output(expected);
     }
 
@@ -731,7 +731,7 @@ b3:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_output(expected);
     }
 
@@ -781,7 +781,7 @@ b3(v6: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_output(expected);
     }
 
@@ -807,7 +807,7 @@ entry(v0: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_unchanged(input);
     }
 
@@ -843,7 +843,7 @@ entry(v0: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_output(expected);
     }
 
@@ -873,7 +873,7 @@ entry(v0: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_output(expected);
     }
 
@@ -906,7 +906,7 @@ entry:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_output(expected);
     }
 
@@ -929,7 +929,7 @@ entry:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&DeadCodeEliminate);
+        test.run_pass(&EliminateDeadCode);
         test.assert_unchanged(input);
     }
 }

@@ -17,7 +17,7 @@ declare_pass! {
     /// expressions and replacing duplicates with the original result. This is a
     /// lightweight, fast pass that runs in O(n) per block.
     ///
-    /// For cross-block elimination, see GVN (Global Value Numbering).
+    /// For cross-block elimination, see redundant-expression elimination.
     ///
     /// ```mir
     /// function before(v0: int32, v1: int32): int32 {
@@ -429,7 +429,7 @@ entry:
         test.assert_unchanged(input);
     }
 
-    /// Expressions are not CSE'd across basic blocks (that's GVN's job).
+    /// Expressions are not CSE'd across basic blocks (that's redundant-expression elimination's job).
     #[test]
     fn test_skip_cross_block_expressions() {
         let input = r#"

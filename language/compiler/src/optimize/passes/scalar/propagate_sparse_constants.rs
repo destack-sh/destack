@@ -49,12 +49,12 @@ declare_pass! {
     ///     return v4
     /// }
     /// ```
-    #[pass(id = "sccp")]
-    pub SparseConditionalConstantPropagation,
+    #[pass(id = "propagate-sparse-constants")]
+    pub PropagateSparseConstants,
     "Sparse conditional constant propagation"
 }
 
-impl FunctionPass for SparseConditionalConstantPropagation {
+impl FunctionPass for PropagateSparseConstants {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -63,7 +63,8 @@ impl FunctionPass for SparseConditionalConstantPropagation {
         _analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // run SCCP
-        let (cfg_changed, value_changed) = run_sccp(function, tree, ctx.target_layout());
+        let (cfg_changed, value_changed) =
+            run_propagate_sparse_constants(function, tree, ctx.target_layout());
 
         if cfg_changed || value_changed {
             Mutation::CONTROL | Mutation::VALUE
@@ -73,16 +74,16 @@ impl FunctionPass for SparseConditionalConstantPropagation {
     }
 
     fn name(&self) -> &'static str {
-        "SparseConditionalConstantPropagation"
+        "PropagateSparseConstants"
     }
 
     fn id(&self) -> &'static str {
-        "sccp"
+        "propagate-sparse-constants"
     }
 }
 
 /// SCCP logic. Returns (cfg_changed, value_changed).
-fn run_sccp(
+fn run_propagate_sparse_constants(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     target_layout: TargetLayout,
@@ -96,12 +97,13 @@ fn run_sccp(
     // build use def data
     let use_def = build_use_def_maps(function, tree);
 
-    // run sccp analysis
-    let mut state = SccpState::new(tree, &use_def.use_blocks, entry, target_layout);
+    // run sparse conditional constant propagation analysis
+    let mut state =
+        PropagateSparseConstantsState::new(tree, &use_def.use_blocks, entry, target_layout);
     let result = state.run();
 
     // apply constant folding and reachability
-    apply_sccp_result(function, tree, &result)
+    apply_propagate_sparse_constants_result(function, tree, &result)
 }
 
 /// Lattice state for SCCP values.
@@ -160,14 +162,14 @@ struct ExecutableEdge {
 
 /// Result of the SCCP analysis.
 #[derive(Debug)]
-struct SccpResult {
+struct PropagateSparseConstantsResult {
     /// Executable blocks discovered by the analysis.
     executable_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
     /// Lattice states for SSA values.
     value_states: HashMap<mir::Value, LatticeValue>,
 }
 
-impl SccpResult {
+impl PropagateSparseConstantsResult {
     /// Check if a block is executable.
     fn is_executable(&self, block: mir::LocalNodeId<mir::Block>) -> bool {
         self.executable_blocks.contains(&block)
@@ -192,7 +194,7 @@ impl SccpResult {
 }
 
 /// SCCP analysis state and worklists.
-struct SccpState<'a> {
+struct PropagateSparseConstantsState<'a> {
     /// The MIR tree for instruction lookup.
     tree: &'a mir::Tree,
     /// Blocks that use a given value.
@@ -215,7 +217,7 @@ struct SccpState<'a> {
     target_layout: TargetLayout,
 }
 
-impl<'a> SccpState<'a> {
+impl<'a> PropagateSparseConstantsState<'a> {
     /// Create a new SCCP analysis state.
     fn new(
         tree: &'a mir::Tree,
@@ -239,7 +241,7 @@ impl<'a> SccpState<'a> {
     }
 
     /// Run SCCP and return the analysis result.
-    fn run(&mut self) -> SccpResult {
+    fn run(&mut self) -> PropagateSparseConstantsResult {
         // seed entry block
         self.mark_block_executable(self.entry);
 
@@ -261,7 +263,7 @@ impl<'a> SccpState<'a> {
         }
 
         // build analysis result
-        SccpResult {
+        PropagateSparseConstantsResult {
             executable_blocks: self.executable_blocks.clone(),
             value_states: self.value_states.clone(),
         }
@@ -868,10 +870,10 @@ fn select_switch_target(value: i128, cases: &[mir::SwitchCase]) -> Option<&mir::
 }
 
 /// Apply SCCP results to the function and tree.
-fn apply_sccp_result(
+fn apply_propagate_sparse_constants_result(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    result: &SccpResult,
+    result: &PropagateSparseConstantsResult,
 ) -> (bool, bool) {
     // track cfg and value changes
     let mut cfg_changed = false;
@@ -964,7 +966,7 @@ fn apply_sccp_result(
 fn function_insert_block_param_constants(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    result: &SccpResult,
+    result: &PropagateSparseConstantsResult,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
 ) -> bool {
     // track whether any updates occurred
@@ -1120,7 +1122,7 @@ fn instruction_needs_substitution(
 fn fold_constant_terminator(
     tree: &mir::Tree,
     terminator: &mir::Terminator,
-    result: &SccpResult,
+    result: &PropagateSparseConstantsResult,
 ) -> Option<mir::Terminator> {
     // fold conditional branches
     if let mir::Terminator::Branch {
@@ -1221,7 +1223,7 @@ b3(v3: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -1267,7 +1269,7 @@ b3(v3: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -1294,7 +1296,7 @@ b3(v3: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_unchanged(input);
     }
 
@@ -1315,7 +1317,7 @@ b1(v3: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_unchanged(input);
     }
 
@@ -1354,7 +1356,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -1381,7 +1383,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_unchanged(input);
     }
 
@@ -1408,7 +1410,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_unchanged(input);
     }
 
@@ -1445,7 +1447,7 @@ b2(v2: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -1487,7 +1489,7 @@ b1(v1: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -1522,7 +1524,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -1551,7 +1553,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -1578,7 +1580,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -1611,7 +1613,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -1644,7 +1646,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -1681,7 +1683,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -1701,7 +1703,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_unchanged(input);
     }
 
@@ -1721,7 +1723,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_unchanged(input);
     }
 
@@ -1742,7 +1744,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_unchanged(input);
     }
 
@@ -1771,7 +1773,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_output(expected);
     }
 
@@ -1796,7 +1798,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
+        test.run_pass(&PropagateSparseConstants);
         test.assert_output(expected);
     }
 }
