@@ -285,12 +285,7 @@ fn add_method(
         dir::MethodAbstraction::Abstract => Some("abstract".to_string()),
     };
     let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "method")
-        .optional_field(
-            "symbol",
-            method
-                .symbol
-                .map(|symbol| builder.symbol_path_label(symbol)),
-        )
+        .field("symbol", builder.symbol_path_label(method.symbol))
         .optional_field("source", builder.node_source(method.source))
         .field("slot", member_slot_label(method.slot, builder))
         .optional_field("static", static_label(method.space))

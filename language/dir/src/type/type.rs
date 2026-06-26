@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalGenericTemplateId, GlobalStaticId,
-    GlobalSymbolId, MappedTypeModifier, RangeEnd, ScalarDomain, ScalarLiteral, StaticKey, StringId,
-    TypeLiteral, UnaryOperator,
+    GlobalSymbolId, LanguageItem, MappedTypeModifier, RangeEnd, ScalarDomain, ScalarLiteral,
+    StaticKey, StringId, TypeLiteral, UnaryOperator,
 };
 
 use super::{FloatType, PrimitiveType};
@@ -227,6 +227,16 @@ pub enum MemoryLiteral {
 }
 
 impl MemoryLiteral {
+    /// Return the language item naming this literal's singleton domain.
+    pub fn domain_language_item(&self) -> LanguageItem {
+        match self {
+            Self::Access(_) => LanguageItem::Access,
+            Self::Space(_) => LanguageItem::Space,
+            Self::Place(_) => LanguageItem::Place,
+            Self::Lifetime(_) => LanguageItem::Lifetime,
+        }
+    }
+
     /// Return the canonical source text of one memory literal.
     pub fn text(&self) -> &'static str {
         match self {

@@ -359,8 +359,89 @@ pub struct ClassDefinition {
     pub extends: Option<NominalHeritage>,
     /// The implemented interfaces.
     pub implements: Vec<NominalHeritage>,
+    /// The constructors selected by class construction.
+    pub constructors: Vec<ClassConstructorDefinition>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
+}
+
+/// One class constructor available for construction.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub struct ClassConstructorDefinition {
+    /// The selected constructor.
+    pub constructor: ClassConstructor,
+    /// The checked constructor signature.
+    pub ty: GlobalTypeId,
+}
+
+/// Class constructor origin.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+pub enum ClassConstructor {
+    /// Constructor explicitly declared by this class.
+    ///
+    /// Examples:
+    /// ```ds
+    /// class User {
+    ///     constructor(name: string) {}
+    /// }
+    ///
+    /// new User("ada")
+    /// ```
+    Declared {
+        /// The declared constructor symbol.
+        symbol: GlobalSymbolId,
+    },
+    /// Empty constructor synthesized for a base class with no constructor.
+    ///
+    /// Examples:
+    /// ```ds
+    /// class User {}
+    ///
+    /// new User()
+    /// ```
+    Default,
+    /// Constructor forwarded to an explicit base class constructor.
+    ///
+    /// Examples:
+    /// ```ds
+    /// class Parent {
+    ///     constructor(name: string) {}
+    /// }
+    ///
+    /// class Child extends Parent {}
+    ///
+    /// new Child("ada")
+    /// ```
+    ForwardedDeclared {
+        /// The base class symbol.
+        base: GlobalSymbolId,
+        /// The selected base constructor symbol.
+        symbol: GlobalSymbolId,
+    },
+    /// Constructor forwarded to a base class default constructor.
+    ///
+    /// Examples:
+    /// ```ds
+    /// class Parent {}
+    ///
+    /// class Child extends Parent {}
+    ///
+    /// new Child()
+    /// ```
+    ForwardedDefault {
+        /// The base class symbol.
+        base: GlobalSymbolId,
+    },
+}
+
+impl ClassConstructor {
+    /// Return the function symbol called by this constructor, when one exists.
+    pub fn call_symbol(&self) -> Option<GlobalSymbolId> {
+        match self {
+            Self::Declared { symbol } | Self::ForwardedDeclared { symbol, .. } => Some(*symbol),
+            Self::Default | Self::ForwardedDefault { .. } => None,
+        }
+    }
 }
 
 /// Checked declaration data for one nominal interface.
@@ -599,7 +680,7 @@ pub struct MethodDefinition {
     /// The member space declaring the method.
     pub space: MemberSpace,
     /// The method symbol.
-    pub symbol: Option<GlobalSymbolId>,
+    pub symbol: GlobalSymbolId,
     /// The source member node.
     pub source: GlobalNodeIdAny,
     /// The nominal member slot.
@@ -762,7 +843,7 @@ impl DefinitionMember {
     pub fn symbol(&self) -> Option<GlobalSymbolId> {
         match self {
             Self::Field(field) => Some(field.symbol),
-            Self::Method(method) => method.symbol,
+            Self::Method(method) => Some(method.symbol),
             Self::AssociatedType(associated) => Some(associated.symbol),
             Self::AssociatedConst(associated) => Some(associated.symbol),
             Self::Variant(variant) => Some(variant.symbol),
