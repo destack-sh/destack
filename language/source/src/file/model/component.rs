@@ -36,6 +36,14 @@ impl ComponentId {
         modules.sort_unstable();
         modules.dedup();
 
+        Self::from_sorted_modules(profile, modules.into_iter())
+    }
+
+    /// Create a ComponentId from one sorted profile scoped module set.
+    pub fn from_sorted_modules(
+        profile: ProfileId,
+        modules: impl ExactSizeIterator<Item = ModuleId>,
+    ) -> Self {
         let mut hasher = StableHasher::new();
         hasher.update_len_prefixed(COMPONENT_DOMAIN);
         hasher.update(&profile.raw().to_le_bytes());
