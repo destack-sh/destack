@@ -75,12 +75,12 @@ declare_pass! {
     ///     return
     /// }
     /// ```
-    #[pass(id = "loop-fusion")]
-    pub LoopFusion,
+    #[pass(id = "fuse-loops")]
+    pub FuseLoops,
     "Fuse adjacent loops with identical bounds"
 }
 
-impl FunctionPass for LoopFusion {
+impl FunctionPass for FuseLoops {
     /// Run loop fusion on the function.
     fn run(
         &self,
@@ -98,7 +98,7 @@ impl FunctionPass for LoopFusion {
         let constants = analyses.get::<ConstantPropagation>(function, tree);
 
         // run loop fusion
-        let changed = run_loop_fusion(
+        let changed = run_fuse_loops(
             function,
             tree,
             &loops,
@@ -119,12 +119,12 @@ impl FunctionPass for LoopFusion {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "LoopFusion"
+        "FuseLoops"
     }
 
     /// Return the pass id.
     fn id(&self) -> &'static str {
-        "loop-fusion"
+        "fuse-loops"
     }
 }
 
@@ -171,7 +171,7 @@ struct GuardInfo {
 }
 
 /// Run loop fusion and return true when changes are made.
-fn run_loop_fusion(
+fn run_fuse_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     loops: &LoopAnalysis,
@@ -895,7 +895,7 @@ mod tests {
 
     /// Adjacent loops with identical bounds are fused.
     #[test]
-    fn test_loop_fusion_merges_adjacent_loops() {
+    fn test_fuse_loops_merges_adjacent_loops() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -964,13 +964,13 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopFusion);
+        test.run_pass(&FuseLoops);
         test.assert_output(expected);
     }
 
     /// Loops with matching carry arguments are fused.
     #[test]
-    fn test_loop_fusion_merges_with_carry_args() {
+    fn test_fuse_loops_merges_with_carry_args() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -1037,13 +1037,13 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopFusion);
+        test.run_pass(&FuseLoops);
         test.assert_output(expected);
     }
 
     /// Loops with aliasing stores are not fused.
     #[test]
-    fn test_loop_fusion_skips_aliasing() {
+    fn test_fuse_loops_skips_aliasing() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -1083,13 +1083,13 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopFusion);
+        test.run_pass(&FuseLoops);
         test.assert_output(input);
     }
 
     /// Non empty preheaders prevent fusion.
     #[test]
-    fn test_loop_fusion_skips_non_empty_preheader() {
+    fn test_fuse_loops_skips_non_empty_preheader() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -1131,13 +1131,13 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopFusion);
+        test.run_pass(&FuseLoops);
         test.assert_output(input);
     }
 
     /// Loops with mismatched bounds are not fused.
     #[test]
-    fn test_loop_fusion_skips_mismatched_bounds() {
+    fn test_fuse_loops_skips_mismatched_bounds() {
         let input = r#"
 function test(v0: uint32, v1: uint32): void {
 entry(v0: uint32, v1: uint32):
@@ -1178,13 +1178,13 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopFusion);
+        test.run_pass(&FuseLoops);
         test.assert_output(input);
     }
 
     /// Header reads in the second loop prevent fusion.
     #[test]
-    fn test_loop_fusion_skips_header_reads() {
+    fn test_fuse_loops_skips_header_reads() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -1226,13 +1226,13 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopFusion);
+        test.run_pass(&FuseLoops);
         test.assert_output(input);
     }
 
     /// Header defined values used in the second latch prevent fusion.
     #[test]
-    fn test_loop_fusion_skips_header_latch_dependency() {
+    fn test_fuse_loops_skips_header_latch_dependency() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -1274,13 +1274,13 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopFusion);
+        test.run_pass(&FuseLoops);
         test.assert_output(input);
     }
 
     /// Non speculatable latch instructions prevent fusion.
     #[test]
-    fn test_loop_fusion_skips_side_effects() {
+    fn test_fuse_loops_skips_side_effects() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -1327,13 +1327,13 @@ entry(v0: uint32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopFusion);
+        test.run_pass(&FuseLoops);
         test.assert_output(input);
     }
 
     /// Non adjacent loops are not fused.
     #[test]
-    fn test_loop_fusion_skips_non_adjacent_loops() {
+    fn test_fuse_loops_skips_non_adjacent_loops() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -1377,13 +1377,13 @@ b7:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopFusion);
+        test.run_pass(&FuseLoops);
         test.assert_output(input);
     }
 
     /// Mismatched loop carried arguments prevent fusion.
     #[test]
-    fn test_loop_fusion_skips_mismatched_carry_args() {
+    fn test_fuse_loops_skips_mismatched_carry_args() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -1426,13 +1426,13 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopFusion);
+        test.run_pass(&FuseLoops);
         test.assert_output(input);
     }
 
     /// Mismatched steps prevent fusion.
     #[test]
-    fn test_loop_fusion_skips_step_mismatch() {
+    fn test_fuse_loops_skips_step_mismatch() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -1474,7 +1474,7 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopFusion);
+        test.run_pass(&FuseLoops);
         test.assert_output(input);
     }
 }

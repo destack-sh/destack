@@ -51,7 +51,7 @@ declare_pass! {
     /// }
     /// ```
     ///
-    /// Requires canonical loop form from LoopSimplify.
+    /// Requires canonical loop form from SimplifyLoops.
     #[pass(id = "hoist-loop-invariants")]
     pub HoistLoopInvariants,
     "Loop invariant code motion"
@@ -910,7 +910,7 @@ fn find_preheader(lp: &Loop, domtree: &DominatorTree) -> Option<mir::LocalNodeId
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
-    use crate::optimize::passes::LoopSimplify;
+    use crate::optimize::passes::SimplifyLoops;
 
     /// Constant in loop is hoisted to preheader.
     #[test]
@@ -943,7 +943,7 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
@@ -979,7 +979,7 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
@@ -1019,7 +1019,7 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
@@ -1058,7 +1058,7 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
@@ -1095,7 +1095,7 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.run_pass(&HoistLoopInvariants);
         test.assert_unchanged(input);
     }
@@ -1144,7 +1144,7 @@ b4:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
@@ -1185,7 +1185,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
@@ -1214,7 +1214,7 @@ entry:
 "#;
         // call should not be hoisted
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
         test.run_pass(&HoistLoopInvariants);
         test.assert_output(&before);
@@ -1238,7 +1238,7 @@ b2:
 "#;
         // new should stay in loop: each iteration allocates a new object
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
         test.run_pass(&HoistLoopInvariants);
         test.assert_output(&before);
@@ -1287,7 +1287,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
@@ -1333,7 +1333,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
@@ -1368,7 +1368,7 @@ b5:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.run_pass(&HoistLoopInvariants);
         test.assert_unchanged(input);
     }
@@ -1412,7 +1412,7 @@ b2:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
@@ -1444,7 +1444,7 @@ entry(v0: ref<int32, raw, mutable>):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.run_pass(&HoistLoopInvariants);
         test.assert_unchanged(input);
     }
@@ -1499,7 +1499,7 @@ b4:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
@@ -1553,7 +1553,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.run_pass(&HoistLoopInvariants);
         test.assert_output(expected);
     }
@@ -1584,7 +1584,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.run_pass(&HoistLoopInvariants);
         test.assert_output(input);
     }

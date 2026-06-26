@@ -47,7 +47,7 @@ declare_pass! {
     ///     return v3
     /// }
     /// ```
-    #[pass(id = "dse")]
+    #[pass(id = "eliminate-dead-stores")]
     pub EliminateDeadStores,
     "Remove dead stores"
 }

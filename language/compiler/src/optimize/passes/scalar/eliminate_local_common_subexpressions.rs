@@ -37,12 +37,12 @@ declare_pass! {
     ///     return v4
     /// }
     /// ```
-    #[pass(id = "local-cse")]
-    pub LocalCse,
+    #[pass(id = "eliminate-local-common-subexpressions")]
+    pub EliminateLocalCommonSubexpressions,
     "Eliminate redundant expressions within blocks"
 }
 
-impl FunctionPass for LocalCse {
+impl FunctionPass for EliminateLocalCommonSubexpressions {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -55,7 +55,8 @@ impl FunctionPass for LocalCse {
         let memory_ssa = analyses.get::<MemorySSA>(function, tree);
 
         // run local CSE
-        let changed = run_local_cse(function, tree, &alias, &memory_ssa);
+        let changed =
+            run_eliminate_local_common_subexpressions(function, tree, &alias, &memory_ssa);
 
         // report what this pass changed
         if changed {
@@ -66,16 +67,16 @@ impl FunctionPass for LocalCse {
     }
 
     fn name(&self) -> &'static str {
-        "LocalCse"
+        "EliminateLocalCommonSubexpressions"
     }
 
     fn id(&self) -> &'static str {
-        "local-cse"
+        "eliminate-local-common-subexpressions"
     }
 }
 
 /// Run local CSE on all blocks in a function.
-fn run_local_cse(
+fn run_eliminate_local_common_subexpressions(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     alias: &AliasAnalysis,
@@ -353,7 +354,7 @@ entry(v0: int32, v1: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_output(expected);
     }
 
@@ -378,7 +379,7 @@ entry(v0: int32, v1: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_output(expected);
     }
 
@@ -407,7 +408,7 @@ entry(v0: int32, v1: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_output(expected);
     }
 
@@ -425,7 +426,7 @@ entry:
 "#;
         // should be unchanged: constant CSE is not done by this pass
         let mut test = TestProgram::new(input);
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_unchanged(input);
     }
 
@@ -446,7 +447,7 @@ b1:
 "#;
         // should be unchanged: v3 is in a different block
         let mut test = TestProgram::new(input);
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_unchanged(input);
     }
 
@@ -464,7 +465,7 @@ entry(v0: int32, v1: int32):
 "#;
         // should be unchanged: v0 - v1 != v1 - v0
         let mut test = TestProgram::new(input);
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_unchanged(input);
     }
 
@@ -489,7 +490,7 @@ entry(v0: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_output(expected);
     }
 
@@ -517,7 +518,7 @@ entry(v0: int32, v1: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_output(expected);
     }
 
@@ -542,7 +543,7 @@ entry(v0: (int32, int32)):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_output(expected);
     }
 
@@ -570,7 +571,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_output(expected);
     }
 
@@ -591,7 +592,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_output(input);
     }
 
@@ -609,7 +610,7 @@ entry(v0: (int32, int32)):
 "#;
         // should be unchanged: different field indices
         let mut test = TestProgram::new(input);
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_unchanged(input);
     }
 
@@ -634,7 +635,7 @@ entry(v0: [int32; 10], v1: int64):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_output(expected);
     }
 
@@ -659,7 +660,7 @@ entry(v0: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_output(expected);
     }
 
@@ -676,7 +677,7 @@ entry(v0: int32, v1: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_unchanged(input);
     }
 
@@ -712,7 +713,7 @@ b2(v6: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_output(expected);
     }
 
@@ -755,7 +756,7 @@ entry:
 }
 "#;
 
-        test.run_pass(&LocalCse);
+        test.run_pass(&EliminateLocalCommonSubexpressions);
         test.assert_output(expected);
     }
 }

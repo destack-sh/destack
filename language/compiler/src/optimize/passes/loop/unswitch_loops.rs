@@ -51,9 +51,9 @@ declare_pass! {
     /// 2) Only unswitches small loops to avoid excessive code growth.
     /// 3) Limits unswitching to a small number of disjoint loops per run.
     /// 4) Avoids cold unswitching when profile data is present.
-    /// 5) Requires canonical loop form from LoopSimplify.
-    #[pass(id = "loop-unswitch")]
-    pub LoopUnswitch,
+    /// 5) Requires canonical loop form from SimplifyLoops.
+    #[pass(id = "unswitch-loops")]
+    pub UnswitchLoops,
     "Loop unswitching for invariant conditionals"
 }
 
@@ -68,7 +68,7 @@ const MAX_UNSWITCHES_PER_FUNCTION: usize = 2;
 /// Minimum branch execution count for unswitching with profiles.
 const MIN_BRANCH_COUNT_FOR_UNSWITCH: u64 = 16;
 
-impl FunctionPass for LoopUnswitch {
+impl FunctionPass for UnswitchLoops {
     /// Run loop unswitching on a function.
     fn run(
         &self,
@@ -83,7 +83,7 @@ impl FunctionPass for LoopUnswitch {
         }
 
         // run loop unswitching
-        let changed = run_loop_unswitch(function, tree, ctx, analyses);
+        let changed = run_unswitch_loops(function, tree, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -95,17 +95,17 @@ impl FunctionPass for LoopUnswitch {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "LoopUnswitch"
+        "UnswitchLoops"
     }
 
     /// Return the pass identifier.
     fn id(&self) -> &'static str {
-        "loop-unswitch"
+        "unswitch-loops"
     }
 }
 
 /// Core loop unswitching logic. Returns true if changes were made.
-fn run_loop_unswitch(
+fn run_unswitch_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
@@ -712,7 +712,7 @@ fn unswitch_loop(
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
-    use crate::optimize::passes::LoopSimplify;
+    use crate::optimize::passes::SimplifyLoops;
 
     /// Loop with invariant condition in header is unswitched.
     #[test]
@@ -773,8 +773,8 @@ b9:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnswitch);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnswitchLoops);
         test.assert_output(expected);
     }
 
@@ -835,8 +835,8 @@ b9:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnswitch);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnswitchLoops);
         test.assert_output(expected);
     }
 
@@ -864,9 +864,9 @@ b3:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&LoopUnswitch);
+        test.run_pass(&UnswitchLoops);
         test.assert_output(&before);
     }
 
@@ -912,8 +912,8 @@ b5:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnswitch);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnswitchLoops);
         test.assert_output(expected);
     }
 
@@ -936,9 +936,9 @@ b3:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&LoopUnswitch);
+        test.run_pass(&UnswitchLoops);
         test.assert_output(&before);
     }
 
@@ -963,9 +963,9 @@ b3:
 "#;
         // no unswitchable branch: both have same targets
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&LoopUnswitch);
+        test.run_pass(&UnswitchLoops);
         test.assert_output(&before);
     }
 
@@ -1011,8 +1011,8 @@ b5:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnswitch);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnswitchLoops);
         test.assert_output(expected);
     }
 
@@ -1028,7 +1028,7 @@ entry(v0: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopUnswitch);
+        test.run_pass(&UnswitchLoops);
         test.assert_unchanged(input);
     }
 
@@ -1105,8 +1105,8 @@ b9(v21: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnswitch);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnswitchLoops);
         test.assert_output(expected);
     }
 
@@ -1151,8 +1151,8 @@ b5:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnswitch);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnswitchLoops);
         test.assert_output(expected);
     }
 
@@ -1192,8 +1192,8 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnswitch);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnswitchLoops);
         test.assert_output(expected);
     }
 
@@ -1243,8 +1243,8 @@ b5:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnswitch);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnswitchLoops);
         test.assert_output(expected);
     }
 
@@ -1277,9 +1277,9 @@ b4:
 }}"#
         );
         let mut test = TestProgram::new(&input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&LoopUnswitch);
+        test.run_pass(&UnswitchLoops);
         test.assert_output(&before);
     }
 
@@ -1337,8 +1337,8 @@ b7:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnswitch);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnswitchLoops);
         test.assert_output(expected);
     }
 
@@ -1363,8 +1363,8 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnswitch);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnswitchLoops);
         test.assert_output(input);
     }
 
@@ -1388,7 +1388,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
 
         let function_id = test.entry_function_id();
         let entry_block = test.entry_block_id(function_id);
@@ -1403,7 +1403,7 @@ b3:
         test.record_function_entry(&mut profile, function_id, 1);
         test.record_successor_weights(&mut profile, header_block, &[1, 1]);
 
-        test.run_pass_with_profile(&LoopUnswitch, profile);
+        test.run_pass_with_profile(&UnswitchLoops, profile);
         test.assert_output(input);
     }
 }

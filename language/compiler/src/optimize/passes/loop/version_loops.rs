@@ -76,12 +76,12 @@ declare_pass! {
     ///     jump b6(v16)
     /// }
     /// ```
-    #[pass(id = "loop-versioning")]
-    pub LoopVersioning,
+    #[pass(id = "version-loops")]
+    pub VersionLoops,
     "Version loops to specialize bounds checks"
 }
 
-impl FunctionPass for LoopVersioning {
+impl FunctionPass for VersionLoops {
     /// Run loop versioning on a function.
     fn run(
         &self,
@@ -95,7 +95,7 @@ impl FunctionPass for LoopVersioning {
             return Mutation::NONE;
         }
 
-        let changed = run_loop_versioning(function, tree, ctx, analyses);
+        let changed = run_version_loops(function, tree, ctx, analyses);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -105,12 +105,12 @@ impl FunctionPass for LoopVersioning {
 
     /// Return the display name for this pass.
     fn name(&self) -> &'static str {
-        "LoopVersioning"
+        "VersionLoops"
     }
 
     /// Return the pipeline identifier for this pass.
     fn id(&self) -> &'static str {
-        "loop-versioning"
+        "version-loops"
     }
 }
 
@@ -126,7 +126,7 @@ struct GuardInfo {
 }
 
 /// Run loop versioning on a single function and report whether it changed.
-fn run_loop_versioning(
+fn run_version_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
@@ -639,7 +639,7 @@ mod tests {
 
     /// Loop versioning inserts a fast path for bounds checks.
     #[test]
-    fn test_loop_versioning_bounds_guard() {
+    fn test_version_loops_bounds_guard() {
         let input = r#"
 function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
 entry(v0: [uint8; 8], v1: uint32, v2: uint32):
@@ -717,13 +717,13 @@ b8:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopVersioning);
+        test.run_pass(&VersionLoops);
         test.assert_output(expected);
     }
 
     /// Loop versioning handles non zero induction starts.
     #[test]
-    fn test_loop_versioning_non_zero_start() {
+    fn test_version_loops_non_zero_start() {
         let input = r#"
 function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
 entry(v0: [uint8; 8], v1: uint32, v2: uint32):
@@ -801,13 +801,13 @@ b8:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopVersioning);
+        test.run_pass(&VersionLoops);
         test.assert_output(expected);
     }
 
     /// Signed bounds checks are not versioned.
     #[test]
-    fn test_loop_versioning_skips_signed_bounds() {
+    fn test_version_loops_skips_signed_bounds() {
         let input = r#"
 function test(v0: [int32; 8], v1: int32, v2: int32): void {
 entry(v0: [int32; 8], v1: int32, v2: int32):
@@ -839,13 +839,13 @@ b5:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopVersioning);
+        test.run_pass(&VersionLoops);
         test.assert_output(input);
     }
 
     /// Mismatched integer types prevent versioning.
     #[test]
-    fn test_loop_versioning_skips_type_mismatch() {
+    fn test_version_loops_skips_type_mismatch() {
         let input = r#"
 function test(v0: [uint8; 8], v1: int32, v2: uint32): void {
 entry(v0: [uint8; 8], v1: int32, v2: uint32):
@@ -877,13 +877,13 @@ b5:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopVersioning);
+        test.run_pass(&VersionLoops);
         test.assert_output(input);
     }
 
     /// Non unit strides are still versioned.
     #[test]
-    fn test_loop_versioning_handles_non_unit_stride() {
+    fn test_version_loops_handles_non_unit_stride() {
         let input = r#"
 function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
 entry(v0: [uint8; 8], v1: uint32, v2: uint32):
@@ -961,13 +961,13 @@ b8:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopVersioning);
+        test.run_pass(&VersionLoops);
         test.assert_output(expected);
     }
 
     /// Non strict loop guards are not versioned.
     #[test]
-    fn test_loop_versioning_skips_non_strict_guard() {
+    fn test_version_loops_skips_non_strict_guard() {
         let input = r#"
 function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
 entry(v0: [uint8; 8], v1: uint32, v2: uint32):
@@ -999,7 +999,7 @@ b5:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopVersioning);
+        test.run_pass(&VersionLoops);
         test.assert_output(input);
     }
 }

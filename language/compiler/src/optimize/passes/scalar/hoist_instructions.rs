@@ -50,15 +50,15 @@ declare_pass! {
     /// - Only hoists instructions whose operands dominate the header
     /// - Requires branch successors with a single predecessor
     /// - Limits hoisting per diamond to keep compile time predictable
-    #[pass(id = "hoist")]
-    pub HoistCode,
+    #[pass(id = "hoist-instructions")]
+    pub HoistInstructions,
     "Hoist redundant instructions"
 }
 
 /// Maximum number of instructions to hoist per branch.
 const MAX_HOISTED_INSTRUCTIONS: usize = 8;
 
-impl FunctionPass for HoistCode {
+impl FunctionPass for HoistInstructions {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -79,7 +79,7 @@ impl FunctionPass for HoistCode {
         let domtree = analyses.get::<DominatorTree>(function, tree).clone();
 
         // run the hoisting pass
-        let changed = run_hoist_code(function, tree, &cfg, &domtree);
+        let changed = run_hoist_instructions(function, tree, &cfg, &domtree);
 
         // report what this pass changed
         if changed {
@@ -90,7 +90,7 @@ impl FunctionPass for HoistCode {
     }
 
     fn name(&self) -> &'static str {
-        "HoistCode"
+        "HoistInstructions"
     }
 
     fn id(&self) -> &'static str {
@@ -99,7 +99,7 @@ impl FunctionPass for HoistCode {
 }
 
 /// Hoist common instructions out of branch diamonds.
-fn run_hoist_code(
+fn run_hoist_instructions(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     cfg: &ControlFlowGraph,
@@ -475,7 +475,7 @@ fn build_expression_index(
 #[cfg(test)]
 mod tests {
     use crate::optimize::common::tests::TestProgram;
-    use crate::optimize::passes::HoistCode;
+    use crate::optimize::passes::HoistInstructions;
 
     /// Identical branch instructions are hoisted into the header.
     #[test]
@@ -519,7 +519,7 @@ b3(v5: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&HoistCode);
+        test.run_pass(&HoistInstructions);
         test.assert_output(expected);
     }
 
@@ -547,7 +547,7 @@ b3(v5: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&HoistCode);
+        test.run_pass(&HoistInstructions);
         test.assert_output(input);
     }
 
@@ -575,7 +575,7 @@ b3(v5: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&HoistCode);
+        test.run_pass(&HoistInstructions);
         test.assert_output(input);
     }
 
@@ -624,7 +624,7 @@ b3(v7: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&HoistCode);
+        test.run_pass(&HoistInstructions);
         test.assert_output(expected);
     }
 
@@ -670,7 +670,7 @@ b3(v9: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&HoistCode);
+        test.run_pass(&HoistInstructions);
         test.assert_output(expected);
     }
 
@@ -720,7 +720,7 @@ b3(v7: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&HoistCode);
+        test.run_pass(&HoistInstructions);
         test.assert_output(expected);
     }
 
@@ -751,7 +751,7 @@ b4:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&HoistCode);
+        test.run_pass(&HoistInstructions);
         test.assert_output(input);
     }
 }

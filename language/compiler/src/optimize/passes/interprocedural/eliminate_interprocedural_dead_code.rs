@@ -38,12 +38,12 @@ declare_pass! {
     ///     return v0
     /// }
     /// ```
-    #[pass(id = "ip-dce-cleanup")]
-    pub InterproceduralDceCleanup,
+    #[pass(id = "eliminate-interprocedural-dead-code")]
+    pub EliminateInterproceduralDeadCode,
     "Clean up dead code after interprocedural passes"
 }
 
-impl ModulePass for InterproceduralDceCleanup {
+impl ModulePass for EliminateInterproceduralDeadCode {
     /// Run interprocedural cleanup for the module.
     fn run(
         &self,
@@ -56,7 +56,7 @@ impl ModulePass for InterproceduralDceCleanup {
 
         // report what this pass changed
         if changed {
-            ctx.strings.intern("ip-dce-cleanup");
+            ctx.strings.intern("eliminate-interprocedural-dead-code");
             Mutation::CONTROL
         } else {
             Mutation::NONE
@@ -65,12 +65,12 @@ impl ModulePass for InterproceduralDceCleanup {
 
     /// Return the pass display name.
     fn name(&self) -> &'static str {
-        "InterproceduralDceCleanup"
+        "EliminateInterproceduralDeadCode"
     }
 
     /// Return the pass identifier.
     fn id(&self) -> &'static str {
-        "ip-dce-cleanup"
+        "eliminate-interprocedural-dead-code"
     }
 }
 
@@ -96,7 +96,7 @@ mod tests {
 
     /// Dead functions and globals are removed after cleanup.
     #[test]
-    fn test_ip_dce_cleanup_removes_dead_items() {
+    fn test_eliminate_interprocedural_dead_code_removes_dead_items() {
         let input = r#"
 readonly global dead: int32 = 1
 
@@ -128,13 +128,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralDceCleanup);
+        test.run_module_pass(&EliminateInterproceduralDeadCode);
         test.assert_output(expected);
     }
 
     /// Live globals are preserved during cleanup.
     #[test]
-    fn test_ip_dce_cleanup_preserves_live_globals() {
+    fn test_eliminate_interprocedural_dead_code_preserves_live_globals() {
         let input = r#"
 readonly global live: int32 = 1
 
@@ -162,7 +162,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralDceCleanup);
+        test.run_module_pass(&EliminateInterproceduralDeadCode);
         test.assert_output(expected);
     }
 }

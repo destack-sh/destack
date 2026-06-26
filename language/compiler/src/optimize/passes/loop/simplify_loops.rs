@@ -27,12 +27,12 @@ declare_pass! {
     /// Latches are merged when a loop has multiple back edges to its header.
     ///
     /// Exit blocks are split when they have predecessors from outside the loop.
-    #[pass(id = "loop-simplify")]
-    pub LoopSimplify,
+    #[pass(id = "simplify-loops")]
+    pub SimplifyLoops,
     "Canonicalize loops (preheaders, single latch, dedicated exits)"
 }
 
-impl FunctionPass for LoopSimplify {
+impl FunctionPass for SimplifyLoops {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -57,7 +57,7 @@ impl FunctionPass for LoopSimplify {
         }
 
         // run loop simplification
-        let changed = run_loop_simplify(entry, function, tree, &loops, &cfg);
+        let changed = run_simplify_loops(entry, function, tree, &loops, &cfg);
         if changed {
             Mutation::CONTROL
         } else {
@@ -66,16 +66,16 @@ impl FunctionPass for LoopSimplify {
     }
 
     fn name(&self) -> &'static str {
-        "LoopSimplify"
+        "SimplifyLoops"
     }
 
     fn id(&self) -> &'static str {
-        "loop-simplify"
+        "simplify-loops"
     }
 }
 
 /// Core loop simplification logic. Returns true if changes were made.
-fn run_loop_simplify(
+fn run_simplify_loops(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
@@ -730,7 +730,7 @@ b4:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_output(expected);
     }
 
@@ -753,7 +753,7 @@ b3:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_unchanged(input);
     }
 
@@ -784,7 +784,7 @@ b1:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_output(expected);
 
         // verify entry changed to preheader
@@ -831,7 +831,7 @@ b4:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_output(expected);
     }
 
@@ -854,7 +854,7 @@ b3:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_unchanged(input);
     }
 
@@ -897,7 +897,7 @@ b4(v4: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_output(expected);
     }
 
@@ -937,7 +937,7 @@ b4:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_output(expected);
     }
 
@@ -962,7 +962,7 @@ entry_1(v1: boolean):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_output(expected);
 
         // verify entry changed to preheader
@@ -1017,7 +1017,7 @@ b5:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_output(expected);
     }
 
@@ -1082,7 +1082,7 @@ b6(v8: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_output(expected);
     }
 
@@ -1123,7 +1123,7 @@ b4:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_output(expected);
     }
 
@@ -1168,7 +1168,7 @@ b4(v8: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_output(expected);
     }
 
@@ -1192,7 +1192,7 @@ b3:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_unchanged(input);
     }
 
@@ -1252,7 +1252,7 @@ b7:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_output(expected);
     }
 
@@ -1313,7 +1313,7 @@ b8:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_output(expected);
     }
 
@@ -1369,7 +1369,7 @@ b7:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_output(expected);
     }
 
@@ -1425,7 +1425,7 @@ b7:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_output(expected);
     }
 
@@ -1447,7 +1447,7 @@ b2:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_unchanged(input);
     }
 
@@ -1473,7 +1473,7 @@ b3:
 "#;
         // no natural loops detected, so unchanged
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_unchanged(input);
     }
 
@@ -1531,7 +1531,7 @@ b7:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         test.assert_output(expected);
     }
 }

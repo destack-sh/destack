@@ -48,12 +48,12 @@ declare_pass! {
     ///     return v3
     /// }
     /// ```
-    #[pass(id = "load-pre")]
-    pub LoadPre,
+    #[pass(id = "eliminate-partial-redundant-loads")]
+    pub EliminatePartialRedundantLoads,
     "Eliminate partially redundant loads"
 }
 
-impl FunctionPass for LoadPre {
+impl FunctionPass for EliminatePartialRedundantLoads {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -67,7 +67,7 @@ impl FunctionPass for LoadPre {
         }
 
         // run load PRE
-        let changed = run_load_pre(function, tree, ctx, analyses);
+        let changed = run_eliminate_partial_redundant_loads(function, tree, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -78,11 +78,11 @@ impl FunctionPass for LoadPre {
     }
 
     fn name(&self) -> &'static str {
-        "LoadPre"
+        "EliminatePartialRedundantLoads"
     }
 
     fn id(&self) -> &'static str {
-        "load-pre"
+        "eliminate-partial-redundant-loads"
     }
 }
 
@@ -120,7 +120,7 @@ struct EdgeInsertion {
 }
 
 /// Run load PRE and return true when changes are made.
-fn run_load_pre(
+fn run_eliminate_partial_redundant_loads(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     _ctx: &PipelineContext<'_>,
@@ -545,7 +545,7 @@ mod tests {
 
     /// Load PRE inserts per edge loads for a join.
     #[test]
-    fn test_load_pre_inserts_edge_loads() {
+    fn test_eliminate_partial_redundant_loads_inserts_edge_loads() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -592,13 +592,13 @@ b3(v5: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadPre);
+        test.run_pass(&EliminatePartialRedundantLoads);
         test.assert_output(expected);
     }
 
     /// Loads are not moved when the pointer is defined in the join block.
     #[test]
-    fn test_load_pre_skips_unavailable_pointer() {
+    fn test_eliminate_partial_redundant_loads_skips_unavailable_pointer() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -618,13 +618,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadPre);
+        test.run_pass(&EliminatePartialRedundantLoads);
         test.assert_output(input);
     }
 
     /// Loads are not moved past side effecting instructions.
     #[test]
-    fn test_load_pre_skips_side_effects() {
+    fn test_eliminate_partial_redundant_loads_skips_side_effects() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -646,13 +646,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadPre);
+        test.run_pass(&EliminatePartialRedundantLoads);
         test.assert_output(input);
     }
 
     /// Read only calls do not block load PRE.
     #[test]
-    fn test_load_pre_allows_read_only_call() {
+    fn test_eliminate_partial_redundant_loads_allows_read_only_call() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -714,13 +714,13 @@ external function readOnly(): void
         metadata.memory = mir::MemoryEffect::read_only(mir::SpaceSet::ANY);
         metadata.behavior = mir::FunctionBehavior::none();
 
-        test.run_pass(&LoadPre);
+        test.run_pass(&EliminatePartialRedundantLoads);
         test.assert_output(expected);
     }
 
     /// Volatile loads are not moved.
     #[test]
-    fn test_load_pre_skips_volatile_load() {
+    fn test_eliminate_partial_redundant_loads_skips_volatile_load() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -754,13 +754,13 @@ b3:
             None,
         );
 
-        test.run_pass(&LoadPre);
+        test.run_pass(&EliminatePartialRedundantLoads);
         test.assert_output(input);
     }
 
     /// Unknown memory locations are not moved.
     #[test]
-    fn test_load_pre_skips_unknown_location() {
+    fn test_eliminate_partial_redundant_loads_skips_unknown_location() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -800,13 +800,13 @@ b3:
         };
         test.insert_memory_accesses(load_inst, vec![access]);
 
-        test.run_pass(&LoadPre);
+        test.run_pass(&EliminatePartialRedundantLoads);
         test.assert_output(input);
     }
 
     /// Loads with non phi defining access are not moved.
     #[test]
-    fn test_load_pre_skips_non_phi_defining_access() {
+    fn test_eliminate_partial_redundant_loads_skips_non_phi_defining_access() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -828,13 +828,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadPre);
+        test.run_pass(&EliminatePartialRedundantLoads);
         test.assert_output(input);
     }
 
     /// Reuse predecessor loads that already match the incoming memory state.
     #[test]
-    fn test_load_pre_reuses_predecessor_load() {
+    fn test_eliminate_partial_redundant_loads_reuses_predecessor_load() {
         let input = r#"
 function test(v0: boolean, v1: boolean): int32 {
 entry(v0: boolean, v1: boolean):
@@ -886,13 +886,13 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadPre);
+        test.run_pass(&EliminatePartialRedundantLoads);
         test.assert_output(expected);
     }
 
     /// Read only intrinsics do not block load PRE.
     #[test]
-    fn test_load_pre_allows_read_only_intrinsic() {
+    fn test_eliminate_partial_redundant_loads_allows_read_only_intrinsic() {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -943,13 +943,13 @@ b3(v7: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadPre);
+        test.run_pass(&EliminatePartialRedundantLoads);
         test.assert_output(expected);
     }
 
     /// Loads on edges with multiple successors use edge blocks.
     #[test]
-    fn test_load_pre_splits_edge_blocks() {
+    fn test_eliminate_partial_redundant_loads_splits_edge_blocks() {
         let input = r#"
 function test(v0: boolean, v1: boolean): int32 {
 entry(v0: boolean, v1: boolean):
@@ -1007,7 +1007,7 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoadPre);
+        test.run_pass(&EliminatePartialRedundantLoads);
         test.assert_output(expected);
     }
 }

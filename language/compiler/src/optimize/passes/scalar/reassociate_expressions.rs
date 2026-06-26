@@ -10,7 +10,7 @@ use destack_mir::{
 };
 
 declare_pass! {
-    /// Reassociate associative expressions to expose constant folding.
+    /// ReassociateExpressions associative expressions to expose constant folding.
     ///
     /// This pass combines constants across associative binary chains,
     /// enabling later constant folding and CSE.
@@ -41,12 +41,12 @@ declare_pass! {
     /// Restrictions:
     /// - Only handles associative and commutative integer operators
     /// - Only reassociates when constants can be combined safely
-    #[pass(id = "reassociate")]
-    pub Reassociate,
-    "Reassociate associative expressions"
+    #[pass(id = "reassociate-expressions")]
+    pub ReassociateExpressions,
+    "ReassociateExpressions associative expressions"
 }
 
-impl FunctionPass for Reassociate {
+impl FunctionPass for ReassociateExpressions {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -70,15 +70,15 @@ impl FunctionPass for Reassociate {
     }
 
     fn name(&self) -> &'static str {
-        "Reassociate"
+        "ReassociateExpressions"
     }
 
     fn id(&self) -> &'static str {
-        "reassociate"
+        "reassociate-expressions"
     }
 }
 
-/// Reassociate binary operations within each block.
+/// ReassociateExpressions binary operations within each block.
 fn run_reassociate(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
@@ -238,7 +238,7 @@ fn run_reassociate(
 }
 
 /// Plan for reassociating a binary instruction.
-struct ReassociatePlan {
+struct ReassociateExpressionsPlan {
     /// Non constant operand values.
     operands: Vec<mir::Value>,
     /// Combined constant value.
@@ -268,7 +268,7 @@ fn reassociate_binary(
     instruction_index: usize,
     constants: &ConstantMap,
     value_to_instruction: &HashMap<mir::Value, InstructionRef>,
-) -> Option<ReassociatePlan> {
+) -> Option<ReassociateExpressionsPlan> {
     // only reassociate associative and commutative operators
     if !binary_operator_is_associative(operator) {
         return None;
@@ -313,7 +313,7 @@ fn reassociate_binary(
     // fold constants into a single value
     let combined = combine_constants(operator, &constant_values)?;
 
-    Some(ReassociatePlan {
+    Some(ReassociateExpressionsPlan {
         operands: non_constants,
         constant: combined,
     })
@@ -546,7 +546,7 @@ fn binary_operator_is_associative(operator: mir::BinaryOperator) -> bool {
 #[cfg(test)]
 mod tests {
     use crate::optimize::common::tests::TestProgram;
-    use crate::optimize::passes::Reassociate;
+    use crate::optimize::passes::ReassociateExpressions;
 
     /// Constant reassociation combines adjacent constants.
     #[test]
@@ -574,7 +574,7 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Reassociate);
+        test.run_pass(&ReassociateExpressions);
         test.assert_output(expected);
     }
 
@@ -593,7 +593,7 @@ entry(v0: float64):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Reassociate);
+        test.run_pass(&ReassociateExpressions);
         test.assert_output(input);
     }
 
@@ -610,7 +610,7 @@ entry(v0: int32, v1: int32, v2: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&Reassociate);
+        test.run_pass(&ReassociateExpressions);
         test.assert_output(input);
     }
 
@@ -647,7 +647,7 @@ entry(v0: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&Reassociate);
+        test.run_pass(&ReassociateExpressions);
         test.assert_output(expected);
     }
 
@@ -682,7 +682,7 @@ entry(v0: int32, v1: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&Reassociate);
+        test.run_pass(&ReassociateExpressions);
         test.assert_output(expected);
     }
 
@@ -718,7 +718,7 @@ entry(v0: int32, v1: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&Reassociate);
+        test.run_pass(&ReassociateExpressions);
         test.assert_output(expected);
     }
 
@@ -751,7 +751,7 @@ entry(v0: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&Reassociate);
+        test.run_pass(&ReassociateExpressions);
         test.assert_output(expected);
     }
 
@@ -784,7 +784,7 @@ entry(v0: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&Reassociate);
+        test.run_pass(&ReassociateExpressions);
         test.assert_output(expected);
     }
 }

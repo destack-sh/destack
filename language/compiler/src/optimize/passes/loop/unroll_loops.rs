@@ -63,8 +63,8 @@ declare_pass! {
     /// Requires a single latch and a single exiting block.
     /// Requires a constant trip count computed from scalar evolution.
     /// Only unrolls loops with speculatable guards.
-    #[pass(id = "loop-unroll")]
-    pub LoopUnroll,
+    #[pass(id = "unroll-loops")]
+    pub UnrollLoops,
     "Unroll loops with constant trip counts"
 }
 
@@ -136,8 +136,8 @@ declare_pass! {
     /// ```
     ///
     /// Requires perfectly nested loops with a constant outer trip count.
-    #[pass(id = "loop-unroll-jam")]
-    pub LoopUnrollAndJam,
+    #[pass(id = "unroll-and-jam-loops")]
+    pub UnrollAndJamLoops,
     "Unroll and jam perfectly nested loops"
 }
 
@@ -152,7 +152,7 @@ const MAX_UNROLL_LOOPS_PER_FUNCTION: usize = 8;
 /// Maximum number of loops to unroll and jam per pass invocation.
 const MAX_JAM_LOOPS_PER_FUNCTION: usize = 4;
 
-impl FunctionPass for LoopUnroll {
+impl FunctionPass for UnrollLoops {
     /// Run loop unrolling on the function.
     fn run(
         &self,
@@ -167,7 +167,7 @@ impl FunctionPass for LoopUnroll {
         }
 
         // run loop unrolling
-        let changed = run_loop_unroll(function, tree, ctx, analyses);
+        let changed = run_unroll_loops(function, tree, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -179,16 +179,16 @@ impl FunctionPass for LoopUnroll {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "LoopUnroll"
+        "UnrollLoops"
     }
 
     /// Return the pass id.
     fn id(&self) -> &'static str {
-        "loop-unroll"
+        "unroll-loops"
     }
 }
 
-impl FunctionPass for LoopUnrollAndJam {
+impl FunctionPass for UnrollAndJamLoops {
     /// Run loop unroll and jam on the function.
     fn run(
         &self,
@@ -203,7 +203,7 @@ impl FunctionPass for LoopUnrollAndJam {
         }
 
         // run loop unroll and jam
-        let changed = run_loop_unroll_and_jam(function, tree, ctx, analyses);
+        let changed = run_unroll_loops_and_jam(function, tree, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -215,12 +215,12 @@ impl FunctionPass for LoopUnrollAndJam {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "LoopUnrollAndJam"
+        "UnrollAndJamLoops"
     }
 
     /// Return the pass id.
     fn id(&self) -> &'static str {
-        "loop-unroll-jam"
+        "unroll-and-jam-loops"
     }
 }
 
@@ -347,7 +347,7 @@ struct UnrollIteration {
 }
 
 /// Run loop unrolling and return true when changes were made.
-fn run_loop_unroll(
+fn run_unroll_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
@@ -460,7 +460,7 @@ fn run_loop_unroll(
 }
 
 /// Run loop unroll and jam and return true when changes were made.
-fn run_loop_unroll_and_jam(
+fn run_unroll_loops_and_jam(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
@@ -2808,7 +2808,7 @@ mod tests {
     use destack_mir as mir;
 
     use crate::optimize::common::tests::TestProgram;
-    use crate::optimize::passes::{LoopSimplify, LoopUnroll, LoopUnrollAndJam};
+    use crate::optimize::passes::{SimplifyLoops, UnrollAndJamLoops, UnrollLoops};
 
     /// Fully unroll a loop with a small constant trip count.
     #[test]
@@ -2871,8 +2871,8 @@ b7(v14: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnroll);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnrollLoops);
         test.assert_output(expected);
     }
 
@@ -2938,8 +2938,8 @@ b7(v14: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnroll);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnrollLoops);
         test.assert_output(expected);
     }
 
@@ -2967,8 +2967,8 @@ b3(v7: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnroll);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnrollLoops);
         test.assert_output(input);
     }
 
@@ -3036,8 +3036,8 @@ b7(v19: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnroll);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnrollLoops);
         test.assert_output(expected);
     }
 
@@ -3110,8 +3110,8 @@ b9(v18: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnroll);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnrollLoops);
         test.assert_output(expected);
     }
 
@@ -3177,8 +3177,8 @@ b7(v14: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnroll);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnrollLoops);
         test.assert_output(expected);
     }
 
@@ -3213,8 +3213,8 @@ b5(v10: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnroll);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnrollLoops);
         test.assert_output(input);
     }
 
@@ -3243,7 +3243,7 @@ b3(v7: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
 
         let function_id = test.entry_function_id();
         let header = test.tree.get(function_id).blocks()[1];
@@ -3253,7 +3253,7 @@ b3(v7: int32):
         test.record_function_entry(&mut profile, function_id, 1);
         test.record_successor_weights(&mut profile, header, &[1, 1]);
 
-        test.run_pass_with_profile(&LoopUnroll, profile);
+        test.run_pass_with_profile(&UnrollLoops, profile);
         test.assert_output(input);
     }
 
@@ -3339,8 +3339,8 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnrollAndJam);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnrollAndJamLoops);
         test.assert_output(expected);
     }
 
@@ -3385,10 +3385,10 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let baseline = test.format();
 
-        test.run_pass(&LoopUnrollAndJam);
+        test.run_pass(&UnrollAndJamLoops);
         test.assert_output(&baseline);
     }
 
@@ -3433,10 +3433,10 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let baseline = test.format();
 
-        test.run_pass(&LoopUnrollAndJam);
+        test.run_pass(&UnrollAndJamLoops);
         test.assert_output(&baseline);
     }
 
@@ -3524,8 +3524,8 @@ b6:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnrollAndJam);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnrollAndJamLoops);
         test.assert_output(expected);
     }
 
@@ -3640,8 +3640,8 @@ b11(v27: uint32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopUnrollAndJam);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&UnrollAndJamLoops);
         test.assert_output(expected);
     }
 }

@@ -47,12 +47,12 @@ declare_pass! {
     ///     return v7
     /// }
     /// ```
-    #[pass(id = "induction-simplify")]
-    pub InductionVariableSimplify,
+    #[pass(id = "simplify-induction-variables")]
+    pub SimplifyInductionVariables,
     "Simplify redundant induction variables"
 }
 
-impl FunctionPass for InductionVariableSimplify {
+impl FunctionPass for SimplifyInductionVariables {
     /// Run the induction variable simplification pass.
     fn run(
         &self,
@@ -78,7 +78,7 @@ impl FunctionPass for InductionVariableSimplify {
 
         // run the simplification pass
         function.recompute_next_value_id(tree);
-        let changed = run_induction_simplify(function, tree, &loops, &scev, &cfg);
+        let changed = run_simplify_induction_variables(function, tree, &loops, &scev, &cfg);
         if changed {
             Mutation::VALUE
         } else {
@@ -88,12 +88,12 @@ impl FunctionPass for InductionVariableSimplify {
 
     /// Return the display name for this pass.
     fn name(&self) -> &'static str {
-        "InductionVariableSimplify"
+        "SimplifyInductionVariables"
     }
 
     /// Return the stable id for this pass.
     fn id(&self) -> &'static str {
-        "induction-simplify"
+        "simplify-induction-variables"
     }
 }
 
@@ -127,7 +127,7 @@ struct ParamSignature {
 }
 
 /// Run induction variable simplification for a function.
-fn run_induction_simplify(
+fn run_simplify_induction_variables(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     loops: &LoopAnalysis,
@@ -671,7 +671,7 @@ b2(v8: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&InductionVariableSimplify);
+        test.run_pass(&SimplifyInductionVariables);
         test.assert_output(expected);
     }
 
@@ -700,7 +700,7 @@ b2(v9: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&InductionVariableSimplify);
+        test.run_pass(&SimplifyInductionVariables);
         test.assert_unchanged(input);
     }
 
@@ -749,7 +749,7 @@ b2(v10: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&InductionVariableSimplify);
+        test.run_pass(&SimplifyInductionVariables);
         test.assert_output(expected);
     }
 
@@ -802,7 +802,7 @@ b3(v10: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&InductionVariableSimplify);
+        test.run_pass(&SimplifyInductionVariables);
         test.assert_output(expected);
     }
 
@@ -832,7 +832,7 @@ b2(v10: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&InductionVariableSimplify);
+        test.run_pass(&SimplifyInductionVariables);
         test.assert_unchanged(input);
     }
 
@@ -879,7 +879,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&InductionVariableSimplify);
+        test.run_pass(&SimplifyInductionVariables);
         test.assert_output(expected);
     }
 
@@ -926,7 +926,7 @@ b2:
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&InductionVariableSimplify);
+        test.run_pass(&SimplifyInductionVariables);
         test.assert_output(expected);
     }
 
@@ -976,7 +976,7 @@ b2(v9: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&InductionVariableSimplify);
+        test.run_pass(&SimplifyInductionVariables);
         test.assert_output(expected);
     }
 
@@ -1023,7 +1023,7 @@ b2(v8: int32):
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
-        test.run_pass(&InductionVariableSimplify);
+        test.run_pass(&SimplifyInductionVariables);
         test.assert_output(expected);
     }
 

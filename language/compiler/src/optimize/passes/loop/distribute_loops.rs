@@ -73,12 +73,12 @@ declare_pass! {
     ///     jump b4(v16)
     /// }
     /// ```
-    #[pass(id = "loop-distribute")]
-    pub LoopDistribute,
+    #[pass(id = "distribute-loops")]
+    pub DistributeLoops,
     "Distribute independent memory operations into separate loops"
 }
 
-impl FunctionPass for LoopDistribute {
+impl FunctionPass for DistributeLoops {
     /// Run loop distribution on the function.
     fn run(
         &self,
@@ -95,7 +95,7 @@ impl FunctionPass for LoopDistribute {
         let alias = analyses.get::<AliasAnalysis>(function, tree).clone();
 
         // run loop distribution
-        let changed = run_loop_distribute(
+        let changed = run_distribute_loops(
             function,
             tree,
             &loops,
@@ -115,12 +115,12 @@ impl FunctionPass for LoopDistribute {
 
     /// Return the pass name.
     fn name(&self) -> &'static str {
-        "LoopDistribute"
+        "DistributeLoops"
     }
 
     /// Return the pass id.
     fn id(&self) -> &'static str {
-        "loop-distribute"
+        "distribute-loops"
     }
 }
 
@@ -153,7 +153,7 @@ struct StoreGroup {
 }
 
 /// Run loop distribution and return true when changes are made.
-fn run_loop_distribute(
+fn run_distribute_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     loops: &LoopAnalysis,
@@ -754,7 +754,7 @@ mod tests {
 
     /// Store groups are distributed into separate loops.
     #[test]
-    fn test_loop_distribute_splits_stores() {
+    fn test_distribute_loops_splits_stores() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -820,13 +820,13 @@ b5(v15: uint32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopDistribute);
+        test.run_pass(&DistributeLoops);
         test.assert_output(expected);
     }
 
     /// Aliasable stores prevent distribution.
     #[test]
-    fn test_loop_distribute_skips_aliasing() {
+    fn test_distribute_loops_skips_aliasing() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -855,13 +855,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopDistribute);
+        test.run_pass(&DistributeLoops);
         test.assert_output(input);
     }
 
     /// Non speculatable latch instructions prevent distribution.
     #[test]
-    fn test_loop_distribute_skips_side_effects() {
+    fn test_distribute_loops_skips_side_effects() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -893,13 +893,13 @@ entry(v0: uint32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopDistribute);
+        test.run_pass(&DistributeLoops);
         test.assert_output(input);
     }
 
     /// Store groups that include a load are distributed.
     #[test]
-    fn test_loop_distribute_splits_load_store_groups() {
+    fn test_distribute_loops_splits_load_store_groups() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -969,13 +969,13 @@ b5(v17: uint32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopDistribute);
+        test.run_pass(&DistributeLoops);
         test.assert_output(expected);
     }
 
     /// Local set groups are distributed into separate loops.
     #[test]
-    fn test_loop_distribute_splits_local_sets() {
+    fn test_distribute_loops_splits_local_sets() {
         let input = r#"
 function test(v0: uint32): void {
     local l0: int32
@@ -1039,13 +1039,13 @@ b5(v11: uint32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopDistribute);
+        test.run_pass(&DistributeLoops);
         test.assert_output(expected);
     }
 
     /// Header loads prevent distribution.
     #[test]
-    fn test_loop_distribute_skips_header_load() {
+    fn test_distribute_loops_skips_header_load() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -1072,13 +1072,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopDistribute);
+        test.run_pass(&DistributeLoops);
         test.assert_output(input);
     }
 
     /// Single store groups are not distributed.
     #[test]
-    fn test_loop_distribute_skips_single_group() {
+    fn test_distribute_loops_skips_single_group() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -1104,13 +1104,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopDistribute);
+        test.run_pass(&DistributeLoops);
         test.assert_output(input);
     }
 
     /// Missing preheaders prevent distribution.
     #[test]
-    fn test_loop_distribute_skips_missing_preheader() {
+    fn test_distribute_loops_skips_missing_preheader() {
         let input = r#"
 function test(v0: boolean, v1: uint32): void {
 entry(v0: boolean, v1: uint32):
@@ -1166,13 +1166,13 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopDistribute);
+        test.run_pass(&DistributeLoops);
         test.assert_output(expected);
     }
 
     /// Unused latch instructions prevent distribution.
     #[test]
-    fn test_loop_distribute_skips_unassigned_instruction() {
+    fn test_distribute_loops_skips_unassigned_instruction() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -1203,13 +1203,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopDistribute);
+        test.run_pass(&DistributeLoops);
         test.assert_output(input);
     }
 
     /// Shared group instructions prevent distribution.
     #[test]
-    fn test_loop_distribute_skips_shared_group_instructions() {
+    fn test_distribute_loops_skips_shared_group_instructions() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -1238,13 +1238,13 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopDistribute);
+        test.run_pass(&DistributeLoops);
         test.assert_output(input);
     }
 
     /// Exit arguments prevent distribution.
     #[test]
-    fn test_loop_distribute_skips_exit_arguments() {
+    fn test_distribute_loops_skips_exit_arguments() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -1270,13 +1270,13 @@ b3(v10: uint32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopDistribute);
+        test.run_pass(&DistributeLoops);
         test.assert_output(input);
     }
 
     /// Multi block loops are not distributed.
     #[test]
-    fn test_loop_distribute_skips_multi_block_loop() {
+    fn test_distribute_loops_skips_multi_block_loop() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -1305,13 +1305,13 @@ b4:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopDistribute);
+        test.run_pass(&DistributeLoops);
         test.assert_output(input);
     }
 
     /// Non jump latches prevent distribution.
     #[test]
-    fn test_loop_distribute_skips_non_jump_latch() {
+    fn test_distribute_loops_skips_non_jump_latch() {
         let input = r#"
 function test(v0: uint32): void {
 entry(v0: uint32):
@@ -1337,7 +1337,7 @@ b3:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopDistribute);
+        test.run_pass(&DistributeLoops);
         test.assert_output(input);
     }
 }

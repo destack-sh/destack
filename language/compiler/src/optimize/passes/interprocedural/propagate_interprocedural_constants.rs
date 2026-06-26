@@ -46,12 +46,12 @@ declare_pass! {
     ///     return v2
     /// }
     /// ```
-    #[pass(id = "ip-constant-prop")]
-    pub InterproceduralConstantPropagation,
+    #[pass(id = "propagate-interprocedural-constants")]
+    pub PropagateInterproceduralConstants,
     "Propagate constants across callsites"
 }
 
-impl ModulePass for InterproceduralConstantPropagation {
+impl ModulePass for PropagateInterproceduralConstants {
     /// Run interprocedural constant propagation for the module.
     fn run(
         &self,
@@ -64,7 +64,7 @@ impl ModulePass for InterproceduralConstantPropagation {
 
         // report what this pass changed
         if changed {
-            ctx.strings.intern("ip-constant-prop");
+            ctx.strings.intern("propagate-interprocedural-constants");
             Mutation::VALUE
         } else {
             Mutation::NONE
@@ -73,12 +73,12 @@ impl ModulePass for InterproceduralConstantPropagation {
 
     /// Return the pass display name.
     fn name(&self) -> &'static str {
-        "InterproceduralConstantPropagation"
+        "PropagateInterproceduralConstants"
     }
 
     /// Return the pass identifier.
     fn id(&self) -> &'static str {
-        "ip-constant-prop"
+        "propagate-interprocedural-constants"
     }
 }
 
@@ -339,7 +339,7 @@ mod tests {
 
     /// Constant call arguments are propagated into the callee.
     #[test]
-    fn test_ip_constant_prop_inserts_constants() {
+    fn test_propagate_interprocedural_constants_inserts_constants() {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -375,13 +375,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralConstantPropagation);
+        test.run_module_pass(&PropagateInterproceduralConstants);
         test.assert_output(expected);
     }
 
     /// Differing constants across callsites do not propagate.
     #[test]
-    fn test_ip_constant_prop_skips_mismatched_constants() {
+    fn test_propagate_interprocedural_constants_skips_mismatched_constants() {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -427,13 +427,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralConstantPropagation);
+        test.run_module_pass(&PropagateInterproceduralConstants);
         test.assert_output(expected);
     }
 
     /// Indirect call signatures prevent propagation.
     #[test]
-    fn test_ip_constant_prop_skips_indirect_signature() {
+    fn test_propagate_interprocedural_constants_skips_indirect_signature() {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -467,13 +467,13 @@ entry(v0: fn(int32) => int32, v1: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralConstantPropagation);
+        test.run_module_pass(&PropagateInterproceduralConstants);
         test.assert_output(expected);
     }
 
     /// Readonly global loads are not propagated as call constants.
     #[test]
-    fn test_ip_constant_prop_skips_global_load() {
+    fn test_propagate_interprocedural_constants_skips_global_load() {
         let input = r#"
 readonly global value: int32 = 7
 
@@ -509,13 +509,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralConstantPropagation);
+        test.run_module_pass(&PropagateInterproceduralConstants);
         test.assert_output(expected);
     }
 
     /// Direct call terminators contribute constants to the callee.
     #[test]
-    fn test_ip_constant_prop_propagates_call_terminator() {
+    fn test_propagate_interprocedural_constants_propagates_call_terminator() {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -556,13 +556,13 @@ b2(v2: ref<int32, managed, readonly>):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralConstantPropagation);
+        test.run_module_pass(&PropagateInterproceduralConstants);
         test.assert_output(expected);
     }
 
     /// Tailcalls participate in constant propagation.
     #[test]
-    fn test_ip_constant_prop_propagates_tailcall() {
+    fn test_propagate_interprocedural_constants_propagates_tailcall() {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -591,7 +591,7 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralConstantPropagation);
+        test.run_module_pass(&PropagateInterproceduralConstants);
         test.assert_output(expected);
     }
 }

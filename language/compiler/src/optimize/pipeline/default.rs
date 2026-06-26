@@ -1,17 +1,19 @@
 use crate::CompositePipeline;
 use crate::optimize::passes::{
-    ArgumentSpecialize, CombineInstructions, EliminateBoundsChecks, EliminateDeadArguments,
-    EliminateDeadCode, EliminateDeadFunctions, EliminateDeadStores, EliminateGuards,
-    EliminatePartialRedundancy, EliminateRedundantExpressions, EliminateRedundantMemory,
-    EliminateTailCalls, FoldConstants, GlobalOpt, HoistCode, HoistLoopInvariants, IfConvert,
-    InductionVariableSimplify, Inline, InterproceduralConstantPropagation,
-    InterproceduralDceCleanup, InterproceduralPropagateSparseConstants, LoadPre, LoadStoreForward,
-    LocalCse, LoopDelete, LoopDistribute, LoopEliminateBoundsChecks, LoopFusion,
-    LoopIdiomRecognize, LoopInterchange, LoopPeel, LoopRotate, LoopSimplify, LoopStrengthReduce,
-    LoopUnroll, LoopUnrollAndJam, LoopUnswitch, LoopVersioning, Narrow, OrderBlocks,
-    PromoteMemoryToRegisters, PropagateCopies, PropagateCorrelatedValues, PropagateSparseConstants,
-    PropagateValueRanges, Reassociate, SimplifyControlFlow, Sink, SplitAggregates, StorePre,
-    StoreSink,
+    CombineInstructions, ConvertBranches, DistributeLoops, EliminateBoundsChecks,
+    EliminateDeadArguments, EliminateDeadCode, EliminateDeadFunctions, EliminateDeadLoops,
+    EliminateDeadStores, EliminateGuards, EliminateInterproceduralDeadCode,
+    EliminateLocalCommonSubexpressions, EliminateLoopBoundsChecks, EliminatePartialRedundancy,
+    EliminatePartialRedundantLoads, EliminatePartialRedundantStores, EliminateRedundantExpressions,
+    EliminateRedundantMemory, EliminateTailCalls, FoldConstants, ForwardStoredValues, FuseLoops,
+    HoistInstructions, HoistLoopInvariants, InlineFunctions, InterchangeLoops, NarrowValues,
+    OptimizeGlobals, OrderBlocks, PeelLoops, PromoteMemoryToRegisters, PropagateCopies,
+    PropagateCorrelatedValues, PropagateInterproceduralConstants,
+    PropagateInterproceduralSparseConstants, PropagateSparseConstants, PropagateValueRanges,
+    ReassociateExpressions, RecognizeLoopIdioms, ReduceLoopStrength, RotateLoops,
+    SimplifyControlFlow, SimplifyInductionVariables, SimplifyLoops, SinkInstructions, SinkStores,
+    SpecializeArguments, SplitAggregates, UnrollAndJamLoops, UnrollLoops, UnswitchLoops,
+    VersionLoops,
 };
 use crate::optimize::{FunctionPass, OptimizationLevel};
 
@@ -83,16 +85,16 @@ fn simplify() -> Vec<Box<dyn FunctionPass>> {
 fn eliminate_redundancy() -> Vec<Box<dyn FunctionPass>> {
     vec![
         Box::new(PropagateSparseConstants),
-        Box::new(Reassociate),
+        Box::new(ReassociateExpressions),
         Box::new(PropagateCorrelatedValues),
         Box::new(PropagateValueRanges),
-        Box::new(Narrow),
+        Box::new(NarrowValues),
         Box::new(EliminateGuards),
         Box::new(EliminatePartialRedundancy),
         Box::new(EliminateRedundantExpressions),
-        Box::new(HoistCode),
-        Box::new(IfConvert),
-        Box::new(LocalCse),
+        Box::new(HoistInstructions),
+        Box::new(ConvertBranches),
+        Box::new(EliminateLocalCommonSubexpressions),
         Box::new(PropagateCopies),
     ]
 }
@@ -101,7 +103,7 @@ fn eliminate_redundancy() -> Vec<Box<dyn FunctionPass>> {
 fn scalar_passes_light() -> Vec<Box<dyn FunctionPass>> {
     let mut passes = Vec::new();
     passes.extend(simplify());
-    passes.push(Box::new(LocalCse));
+    passes.push(Box::new(EliminateLocalCommonSubexpressions));
     passes.push(Box::new(PropagateCopies));
     passes
 }
@@ -122,11 +124,11 @@ fn scalar_passes_full(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
 /// Return memory optimization passes.
 fn optimize_memory() -> Vec<Box<dyn FunctionPass>> {
     vec![
-        Box::new(LoadPre),
-        Box::new(StorePre),
-        Box::new(LoadStoreForward),
+        Box::new(EliminatePartialRedundantLoads),
+        Box::new(EliminatePartialRedundantStores),
+        Box::new(ForwardStoredValues),
         Box::new(EliminateRedundantMemory),
-        Box::new(StoreSink),
+        Box::new(SinkStores),
         Box::new(EliminateDeadStores),
     ]
 }
@@ -134,32 +136,32 @@ fn optimize_memory() -> Vec<Box<dyn FunctionPass>> {
 /// Return loop optimization passes before fusion.
 fn optimize_loops_pre_fusion(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
     let mut passes: Vec<Box<dyn FunctionPass>> = vec![
-        Box::new(LoopSimplify),
-        Box::new(LoopRotate),
-        Box::new(LoopPeel),
-        Box::new(InductionVariableSimplify),
-        Box::new(LoopStrengthReduce),
-        Box::new(LoopInterchange),
-        Box::new(LoopDistribute),
-        Box::new(LoopVersioning),
-        Box::new(LoopIdiomRecognize),
+        Box::new(SimplifyLoops),
+        Box::new(RotateLoops),
+        Box::new(PeelLoops),
+        Box::new(SimplifyInductionVariables),
+        Box::new(ReduceLoopStrength),
+        Box::new(InterchangeLoops),
+        Box::new(DistributeLoops),
+        Box::new(VersionLoops),
+        Box::new(RecognizeLoopIdioms),
         Box::new(HoistLoopInvariants),
     ];
     if aggressive {
-        passes.push(Box::new(LoopUnswitch));
-        passes.push(Box::new(LoopUnroll));
-        passes.push(Box::new(LoopUnrollAndJam));
+        passes.push(Box::new(UnswitchLoops));
+        passes.push(Box::new(UnrollLoops));
+        passes.push(Box::new(UnrollAndJamLoops));
     }
-    passes.push(Box::new(LoopDelete));
+    passes.push(Box::new(EliminateDeadLoops));
     passes
 }
 
 /// Return loop optimization passes for fusion cleanup.
 fn optimize_loops_post_fusion() -> Vec<Box<dyn FunctionPass>> {
     vec![
-        Box::new(LoopSimplify),
-        Box::new(LoopFusion),
-        Box::new(LoopDelete),
+        Box::new(SimplifyLoops),
+        Box::new(FuseLoops),
+        Box::new(EliminateDeadLoops),
     ]
 }
 
@@ -181,7 +183,7 @@ fn loop_pipeline_post_fusion() -> FunctionPipeline {
 /// Return type and bounds check optimizations.
 fn optimize_types() -> Vec<Box<dyn FunctionPass>> {
     vec![
-        Box::new(LoopEliminateBoundsChecks),
+        Box::new(EliminateLoopBoundsChecks),
         Box::new(EliminateBoundsChecks),
     ]
 }
@@ -190,7 +192,7 @@ fn optimize_types() -> Vec<Box<dyn FunctionPass>> {
 fn interprocedural_cleanup_pipeline() -> CompositePipeline {
     PipelineBuilder::new()
         .function_passes(cleanup())
-        .module_pass(InterproceduralDceCleanup)
+        .module_pass(EliminateInterproceduralDeadCode)
         .build()
 }
 
@@ -233,11 +235,11 @@ fn o2_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         // drop functions no root reaches at program scope
         .module_pass(EliminateDeadFunctions)
         // propagate interprocedural constants before inlining
-        .module_pass(InterproceduralConstantPropagation)
-        .module_pass(InterproceduralPropagateSparseConstants)
+        .module_pass(PropagateInterproceduralConstants)
+        .module_pass(PropagateInterproceduralSparseConstants)
         .module_pass(EliminateDeadArguments)
-        .module_pass(Inline)
-        .module_pass(GlobalOpt)
+        .module_pass(InlineFunctions)
+        .module_pass(OptimizeGlobals)
         .repeat(2, interprocedural_cleanup_pipeline())
         // memory optimization
         .repeat(2, FunctionToModuleAdaptor::new(memory_pipeline()))
@@ -257,7 +259,7 @@ fn o2_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         .function_passes(scalar_passes_full(false))
         // late scalar
         .module_pass(EliminateTailCalls)
-        .function_passes(vec![Box::new(Sink)])
+        .function_passes(vec![Box::new(SinkInstructions)])
         .function_passes(cleanup())
         .function_passes(vec![Box::new(OrderBlocks)])
         .build()
@@ -277,12 +279,12 @@ fn o3_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         // drop functions no root reaches at program scope
         .module_pass(EliminateDeadFunctions)
         // propagate interprocedural constants before inlining
-        .module_pass(InterproceduralConstantPropagation)
-        .module_pass(InterproceduralPropagateSparseConstants)
-        .module_pass(ArgumentSpecialize)
+        .module_pass(PropagateInterproceduralConstants)
+        .module_pass(PropagateInterproceduralSparseConstants)
+        .module_pass(SpecializeArguments)
         .module_pass(EliminateDeadArguments)
-        .module_pass(Inline)
-        .module_pass(GlobalOpt)
+        .module_pass(InlineFunctions)
+        .module_pass(OptimizeGlobals)
         .repeat(3, interprocedural_cleanup_pipeline())
         // memory optimization
         .repeat(3, FunctionToModuleAdaptor::new(memory_pipeline()))
@@ -305,7 +307,7 @@ fn o3_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         )
         // late scalar
         .module_pass(EliminateTailCalls)
-        .function_passes(vec![Box::new(Sink)])
+        .function_passes(vec![Box::new(SinkInstructions)])
         .function_passes(cleanup())
         .function_passes(vec![Box::new(OrderBlocks)])
         .build()
@@ -325,12 +327,12 @@ fn o4_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         // drop functions no root reaches at program scope
         .module_pass(EliminateDeadFunctions)
         // propagate interprocedural constants before inlining
-        .module_pass(InterproceduralConstantPropagation)
-        .module_pass(InterproceduralPropagateSparseConstants)
-        .module_pass(ArgumentSpecialize)
+        .module_pass(PropagateInterproceduralConstants)
+        .module_pass(PropagateInterproceduralSparseConstants)
+        .module_pass(SpecializeArguments)
         .module_pass(EliminateDeadArguments)
-        .module_pass(Inline)
-        .module_pass(GlobalOpt)
+        .module_pass(InlineFunctions)
+        .module_pass(OptimizeGlobals)
         .repeat(4, interprocedural_cleanup_pipeline())
         // memory optimization
         .repeat(4, FunctionToModuleAdaptor::new(memory_pipeline()))
@@ -353,7 +355,7 @@ fn o4_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         )
         // late scalar
         .module_pass(EliminateTailCalls)
-        .function_passes(vec![Box::new(Sink)])
+        .function_passes(vec![Box::new(SinkInstructions)])
         .function_passes(cleanup())
         .function_passes(vec![Box::new(OrderBlocks)])
         .build()

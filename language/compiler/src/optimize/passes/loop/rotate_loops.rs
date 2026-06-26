@@ -26,14 +26,14 @@ declare_pass! {
     /// - Simplifies loop analysis (single back edge to body, not header)
     ///
     /// Prerequisites:
-    /// - Canonical loop form (preheader, single latch) from LoopSimplify
+    /// - Canonical loop form (preheader, single latch) from SimplifyLoops
     /// - Header must be a simple conditional (no instructions, just branch)
-    #[pass(id = "loop-rotate")]
-    pub LoopRotate,
+    #[pass(id = "rotate-loops")]
+    pub RotateLoops,
     "Loop rotation"
 }
 
-impl FunctionPass for LoopRotate {
+impl FunctionPass for RotateLoops {
     fn run(
         &self,
         function: &mut mir::Function,
@@ -58,7 +58,7 @@ impl FunctionPass for LoopRotate {
             return Mutation::NONE;
         }
 
-        let changed = run_loop_rotate(entry, function, tree, &loops, &cfg, &domtree);
+        let changed = run_rotate_loops(entry, function, tree, &loops, &cfg, &domtree);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -67,16 +67,16 @@ impl FunctionPass for LoopRotate {
     }
 
     fn name(&self) -> &'static str {
-        "LoopRotate"
+        "RotateLoops"
     }
 
     fn id(&self) -> &'static str {
-        "loop-rotate"
+        "rotate-loops"
     }
 }
 
 /// Core loop rotation logic. Returns true if changes were made.
-fn run_loop_rotate(
+fn run_rotate_loops(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
@@ -349,7 +349,7 @@ fn rotate_loop(
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
-    use crate::optimize::passes::{LoopSimplify, SimplifyControlFlow};
+    use crate::optimize::passes::{SimplifyControlFlow, SimplifyLoops};
 
     /// Simple while loop is rotated to do-while with guard.
     #[test]
@@ -399,8 +399,8 @@ b3:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopRotate);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&RotateLoops);
         test.run_pass(&SimplifyControlFlow); // clean up dead header
         test.assert_output(expected);
     }
@@ -464,8 +464,8 @@ b3(v11: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopRotate);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&RotateLoops);
         test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
@@ -515,8 +515,8 @@ b3:
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopRotate);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&RotateLoops);
         test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }
@@ -543,9 +543,9 @@ b3:
 "#;
         // header has instructions, don't rotate
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&LoopRotate);
+        test.run_pass(&RotateLoops);
         test.assert_output(&before);
     }
 
@@ -566,9 +566,9 @@ b2:
 "#;
         // latch == header, don't rotate
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&LoopRotate);
+        test.run_pass(&RotateLoops);
         test.assert_output(&before);
     }
 
@@ -592,9 +592,9 @@ b3:
 "#;
         // header ends with jump, not branch - can't rotate
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&LoopRotate);
+        test.run_pass(&RotateLoops);
         test.assert_output(&before);
     }
 
@@ -622,9 +622,9 @@ b3:
 "#;
         // header has param v2, body doesn't receive v2 as argument, skip rotation
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
+        test.run_pass(&SimplifyLoops);
         let before = test.format();
-        test.run_pass(&LoopRotate);
+        test.run_pass(&RotateLoops);
         test.assert_output(&before);
     }
 
@@ -640,7 +640,7 @@ entry(v0: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopRotate);
+        test.run_pass(&RotateLoops);
         test.assert_unchanged(input);
     }
 
@@ -709,8 +709,8 @@ b3(v14: int32, v15: int32):
 }
 "#;
         let mut test = TestProgram::new(input);
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&LoopRotate);
+        test.run_pass(&SimplifyLoops);
+        test.run_pass(&RotateLoops);
         test.run_pass(&SimplifyControlFlow);
         test.assert_output(expected);
     }

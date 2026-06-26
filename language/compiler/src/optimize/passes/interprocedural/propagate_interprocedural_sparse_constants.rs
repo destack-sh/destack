@@ -42,12 +42,12 @@ declare_pass! {
     ///     return v1
     /// }
     /// ```
-    #[pass(id = "ip-sccp")]
-    pub InterproceduralPropagateSparseConstants,
+    #[pass(id = "propagate-interprocedural-sparse-constants")]
+    pub PropagateInterproceduralSparseConstants,
     "Interprocedural sparse conditional constant propagation"
 }
 
-impl ModulePass for InterproceduralPropagateSparseConstants {
+impl ModulePass for PropagateInterproceduralSparseConstants {
     /// Run interprocedural SCCP for the module.
     fn run(
         &self,
@@ -61,7 +61,8 @@ impl ModulePass for InterproceduralPropagateSparseConstants {
 
         // report what this pass changed
         if changed {
-            ctx.strings.intern("ip-sccp");
+            ctx.strings
+                .intern("propagate-interprocedural-sparse-constants");
             Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
@@ -70,12 +71,12 @@ impl ModulePass for InterproceduralPropagateSparseConstants {
 
     /// Return the pass display name.
     fn name(&self) -> &'static str {
-        "InterproceduralPropagateSparseConstants"
+        "PropagateInterproceduralSparseConstants"
     }
 
     /// Return the pass identifier.
     fn id(&self) -> &'static str {
-        "ip-sccp"
+        "propagate-interprocedural-sparse-constants"
     }
 }
 
@@ -763,7 +764,7 @@ mod tests {
 
     /// Constant call arguments can produce constant call results.
     #[test]
-    fn test_ip_sccp_replaces_constant_argument_call() {
+    fn test_propagate_interprocedural_sparse_constants_replaces_constant_argument_call() {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -794,13 +795,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralPropagateSparseConstants);
+        test.run_module_pass(&PropagateInterproceduralSparseConstants);
         test.assert_output(expected);
     }
 
     /// Pure constant returns replace call results.
     #[test]
-    fn test_ip_sccp_replaces_pure_call() {
+    fn test_propagate_interprocedural_sparse_constants_replaces_pure_call() {
         let input = r#"
 function pure(): int32 {
 entry:
@@ -830,13 +831,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralPropagateSparseConstants);
+        test.run_module_pass(&PropagateInterproceduralSparseConstants);
         test.assert_output(expected);
     }
 
     /// Mismatched constants do not propagate into the callee.
     #[test]
-    fn test_ip_sccp_skips_mismatched_constants() {
+    fn test_propagate_interprocedural_sparse_constants_skips_mismatched_constants() {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -880,13 +881,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralPropagateSparseConstants);
+        test.run_module_pass(&PropagateInterproceduralSparseConstants);
         test.assert_output(expected);
     }
 
     /// Non constant callsites prevent parameter propagation.
     #[test]
-    fn test_ip_sccp_skips_non_constant_callsite() {
+    fn test_propagate_interprocedural_sparse_constants_skips_non_constant_callsite() {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -903,13 +904,13 @@ entry(v0: int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralPropagateSparseConstants);
+        test.run_module_pass(&PropagateInterproceduralSparseConstants);
         test.assert_output(input);
     }
 
     /// Tailcalls participate in interprocedural SCCP.
     #[test]
-    fn test_ip_sccp_propagates_tailcall() {
+    fn test_propagate_interprocedural_sparse_constants_propagates_tailcall() {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -938,13 +939,13 @@ entry:
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralPropagateSparseConstants);
+        test.run_module_pass(&PropagateInterproceduralSparseConstants);
         test.assert_output(expected);
     }
 
     /// Direct call terminators participate in interprocedural SCCP.
     #[test]
-    fn test_ip_sccp_propagates_call_terminator() {
+    fn test_propagate_interprocedural_sparse_constants_propagates_call_terminator() {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -985,13 +986,13 @@ b2(v2: ref<int32, managed, readonly>):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralPropagateSparseConstants);
+        test.run_module_pass(&PropagateInterproceduralSparseConstants);
         test.assert_output(expected);
     }
 
     /// Indirect signatures mark callees as exposed.
     #[test]
-    fn test_ip_sccp_skips_exposed_by_indirect_signature() {
+    fn test_propagate_interprocedural_sparse_constants_skips_exposed_by_indirect_signature() {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -1008,7 +1009,7 @@ entry(v0: fn(int32) => int32):
 "#;
 
         let mut test = TestProgram::new(input);
-        test.run_module_pass(&InterproceduralPropagateSparseConstants);
+        test.run_module_pass(&PropagateInterproceduralSparseConstants);
         test.assert_output(input);
     }
 }
