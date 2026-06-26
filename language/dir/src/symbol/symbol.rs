@@ -94,7 +94,7 @@ pub enum SymbolSpace {
 
 /// The lexical visibility extent of a symbol.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Schema,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub enum SymbolVisibility {
     /// Visible from the binding point forward in its scope.

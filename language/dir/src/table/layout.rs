@@ -627,7 +627,7 @@ pub struct VariantTagLayout {
 }
 
 /// Concrete layout for an enum value.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct EnumLayout {
     /// The backing type.
     pub backing_type: GlobalTypeId,
@@ -638,7 +638,7 @@ pub struct EnumLayout {
 }
 
 /// Concrete layout for one enum variant.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Schema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct EnumVariantLayout {
     /// The variant symbol.
     pub symbol: GlobalSymbolId,

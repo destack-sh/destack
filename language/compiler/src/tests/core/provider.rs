@@ -9,6 +9,7 @@ use destack_artifact::{
 use destack_repository::{
     ArtifactAttemptOutcome, ArtifactAttemptRecorder, Clock, DependencySetResolution,
     ProviderContext, ProviderError, ProviderResult, Repository, Revision, Trace, TraceSnapshot,
+    TraceView,
 };
 use destack_source::{
     Content, ContentId, DiagnosticCollection, DiagnosticLabel, FileId, ModuleId, Span,
@@ -46,7 +47,8 @@ impl TestProvider {
     /// Return a detailed snapshot of this provider's artifact trace.
     pub(crate) fn trace(&self) -> TraceSnapshot {
         self.trace.finish();
-        self.trace.snapshot(true, |_| None, |_| None)
+
+        self.trace.snapshot(TraceView::Detailed, |_| None, |_| None)
     }
 
     /// Require one artifact, building its closure depth first.
