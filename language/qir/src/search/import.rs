@@ -4,12 +4,12 @@ use destack_dir::SymbolKind;
 
 use crate::{MatchQuality, match_quality};
 
-/// The use role expected by one import search.
+/// The declaration use preferred by one import search.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SymbolUse {
-    /// Type-position use.
+    /// Type expression reference.
     Type,
-    /// Value-position use.
+    /// Runtime value reference.
     Value,
 }
 

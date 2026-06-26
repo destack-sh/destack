@@ -76,8 +76,6 @@ pub(in crate::resolve) struct PathReference {
     pub(in crate::resolve) source: dir::GlobalNodeIdAny,
     /// The source path.
     pub(in crate::resolve) path: dir::Path,
-    /// The symbol space used by the first segment.
-    pub(in crate::resolve) space: dir::SymbolSpace,
 }
 
 /// Function context used to choose async and generator language items.
@@ -141,7 +139,11 @@ impl<'a> ResolveState<'a> {
         // collect global keys only when no local root wins
         self.stats.local_binding_lookups += 1;
         let key = dir::StaticKey::Name(root);
-        let local_symbols = self.visible_symbols(reference.source.local_id, key, reference.space);
+        let local_symbols = self.visible_symbols(
+            reference.source.local_id,
+            key,
+            dir::SymbolSpace::Declaration,
+        );
         if local_symbols.is_empty() && self.global_keys.insert(key) {
             self.stats.required_globals += 1;
         }
@@ -149,7 +151,7 @@ impl<'a> ResolveState<'a> {
         self.path_references.push(reference);
     }
 
-    /// Return symbols visible at one source node.
+    /// Return symbols visible at one source node in one symbol space.
     pub(in crate::resolve) fn visible_symbols(
         &self,
         source: dir::LocalNodeIdAny,
