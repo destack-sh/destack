@@ -12,13 +12,13 @@ impl ModuleLowerer<'_> {
     ) -> Result<js::LocalNodeId<js::AssignPattern>, EmitError> {
         let assign_pattern = self.dir_tree.get(assign_pattern_id);
         let assign_pattern_id = match assign_pattern {
-            dir::AssignPattern::Expression { value } => {
+            dir::AssignPattern::Place { expression: value } => {
                 let value = self.lower_expression_as::<js::Expression>(*value)?;
                 let assign_pattern = js::AssignPattern::Expression { value };
                 self.tree
                     .insert_from_source(assign_pattern, self.module.id, assign_pattern_id)
             }
-            dir::AssignPattern::Assign { pattern, value } => {
+            dir::AssignPattern::Default { pattern, value } => {
                 let pattern = self.lower_assign_pattern(*pattern)?;
                 let value = self.lower_expression_as::<js::Expression>(*value)?;
                 let assign_pattern = js::AssignPattern::Assign { pattern, value };
@@ -26,6 +26,15 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(assign_pattern, self.module.id, assign_pattern_id)
             }
             dir::AssignPattern::Sequence { fields } => {
+                let fields = fields
+                    .iter()
+                    .map(|field_id| self.lower_assign_pattern_field(*field_id))
+                    .collect::<Result<Vec<_>, EmitError>>()?;
+                let assign_pattern = js::AssignPattern::Array { fields };
+                self.tree
+                    .insert_from_source(assign_pattern, self.module.id, assign_pattern_id)
+            }
+            dir::AssignPattern::Tuple { fields } => {
                 let fields = fields
                     .iter()
                     .map(|field_id| self.lower_assign_pattern_field(*field_id))

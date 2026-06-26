@@ -242,7 +242,7 @@ fn pattern_names_sentinel(
         Pattern::Binding { name, .. } => strings.get(*name) == RECOVERY_SENTINEL,
         Pattern::Must(pattern) => pattern_names_sentinel(parser, *pattern, strings),
         Pattern::Expression { value } => expression_names_sentinel(parser, *value, strings),
-        Pattern::Assign { pattern, .. }
+        Pattern::Default { pattern, .. }
         | Pattern::BorrowOf { right: pattern, .. }
         | Pattern::MoveOf { right: pattern, .. }
         | Pattern::DereferenceOf { right: pattern } => {

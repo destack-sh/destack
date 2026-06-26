@@ -817,7 +817,8 @@ impl ModuleLowerer<'_> {
                 right,
             } => {
                 if *operator != dir::AssignOperator::Assign {
-                    let dir::AssignPattern::Expression { value } = self.dir_tree.get(*left) else {
+                    let dir::AssignPattern::Place { expression: value } = self.dir_tree.get(*left)
+                    else {
                         return Err(self.unsupported_construct(expression_id.into_global_any(self.module.id), Some(
                                 "compound assignment targets must be expression targets for JS output"
                                     .to_string(),

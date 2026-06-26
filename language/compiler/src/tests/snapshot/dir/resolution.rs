@@ -857,27 +857,38 @@ fn add_assign_pattern_resolution_row(
         .field("kind", assign_pattern_resolution_label(resolution));
 
     let row = match resolution {
-        dir::AssignPatternResolution::Place(place) => {
-            row.field("target", builder.node_label(place.target))
-        }
+        dir::AssignPatternResolution::Place(place) => row.field(
+            "place",
+            builder
+                .node_source(place.place)
+                .unwrap_or_else(|| assign_pattern_place_label(builder, segment, place.place)),
+        ),
         dir::AssignPatternResolution::Default(default) => row
             .field(
                 "pattern",
                 assign_pattern_child_label(builder, segment, default.pattern),
             )
             .field("value", builder.node_label(default.value)),
-        dir::AssignPatternResolution::Sequence(sequence) => row
-            .tuple_field(
-                "fields",
-                assign_pattern_positional_field_labels(builder, segment, &sequence.fields),
-            )
-            .optional_field(
-                "rest",
-                sequence
-                    .rest
-                    .as_ref()
-                    .map(|rest| assign_pattern_rest_label(builder, segment, rest)),
+        dir::AssignPatternResolution::Sequence(sequence) => add_assign_pattern_sequence_fields(
+            builder,
+            segment,
+            add_pattern_sequence_arity_field(
+                row.optional_field(
+                    "element",
+                    sequence
+                        .fields
+                        .first()
+                        .map(|field| builder.global_type_label(field.ty)),
+                ),
+                &sequence.arity,
             ),
+            &sequence.fields,
+            sequence.rest.as_ref(),
+        ),
+        dir::AssignPatternResolution::Tuple(tuple) => row.tuple_field(
+            "fields",
+            assign_pattern_positional_field_labels(builder, segment, &tuple.fields),
+        ),
         dir::AssignPatternResolution::Object(object) => row
             .object_field(
                 "fields",
@@ -888,7 +899,7 @@ fn add_assign_pattern_resolution_row(
                 object
                     .rest
                     .as_ref()
-                    .map(|rest| assign_pattern_rest_label(builder, segment, rest)),
+                    .map(|rest| assign_pattern_object_rest_label(builder, segment, rest)),
             ),
     };
 
@@ -901,6 +912,7 @@ fn assign_pattern_resolution_label(resolution: &dir::AssignPatternResolution) ->
         dir::AssignPatternResolution::Place(_) => "place",
         dir::AssignPatternResolution::Default(_) => "default",
         dir::AssignPatternResolution::Sequence(_) => "sequence",
+        dir::AssignPatternResolution::Tuple(_) => "tuple",
         dir::AssignPatternResolution::Object(_) => "object",
     }
 }
@@ -1437,6 +1449,17 @@ fn assign_pattern_keyed_field_labels<'a>(
         .map(|field| assign_pattern_keyed_field_label(builder, segment, field))
 }
 
+/// Return positional assignment pattern field labels.
+fn assign_pattern_positional_field_labels<'a>(
+    builder: &'a DirSnapshotBuilder<'_>,
+    segment: &'a dir::ResolutionSegment,
+    fields: &'a [dir::AssignPatternFieldResolution],
+) -> impl Iterator<Item = String> + 'a {
+    fields
+        .iter()
+        .map(|field| assign_pattern_positional_field_label(builder, segment, field))
+}
+
 /// Return one keyed assignment pattern field group label.
 fn assign_pattern_keyed_fields_label(
     builder: &DirSnapshotBuilder<'_>,
@@ -1453,15 +1476,15 @@ fn assign_pattern_keyed_fields_label(
     format!("{{ {fields} }}")
 }
 
-/// Return positional assignment pattern field labels.
-fn assign_pattern_positional_field_labels<'a>(
+/// Return sequence assignment pattern field labels.
+fn assign_pattern_sequence_field_labels<'a>(
     builder: &'a DirSnapshotBuilder<'_>,
     segment: &'a dir::ResolutionSegment,
-    fields: &'a [dir::AssignPatternFieldResolution],
+    fields: &'a [dir::AssignPatternSequenceElementResolution],
 ) -> impl Iterator<Item = String> + 'a {
     fields
         .iter()
-        .map(|field| assign_pattern_positional_field_label(builder, segment, field))
+        .map(|field| assign_pattern_sequence_field_label(builder, segment, field))
 }
 
 /// Return one keyed assignment pattern field label.
@@ -1470,10 +1493,7 @@ fn assign_pattern_keyed_field_label(
     segment: &dir::ResolutionSegment,
     field: &dir::AssignPatternFieldResolution,
 ) -> String {
-    let target = match field.target {
-        dir::AssignPatternFieldTarget::Key(key) => builder.static_key(key),
-        dir::AssignPatternFieldTarget::Index(index) => index.to_string(),
-    };
+    let target = pattern_field_target_label(builder, &field.projection);
 
     let Some(pattern) = field.pattern else {
         return target;
@@ -1494,13 +1514,19 @@ fn assign_pattern_positional_field_label(
     field: &dir::AssignPatternFieldResolution,
 ) -> String {
     let Some(pattern) = field.pattern else {
-        return match field.target {
-            dir::AssignPatternFieldTarget::Key(key) => builder.static_key(key),
-            dir::AssignPatternFieldTarget::Index(index) => index.to_string(),
-        };
+        return "_".to_string();
     };
 
     assign_pattern_child_label(builder, segment, pattern)
+}
+
+/// Return one sequence assignment pattern field label.
+fn assign_pattern_sequence_field_label(
+    builder: &DirSnapshotBuilder<'_>,
+    segment: &dir::ResolutionSegment,
+    field: &dir::AssignPatternSequenceElementResolution,
+) -> String {
+    assign_pattern_child_label(builder, segment, field.pattern)
 }
 
 /// Return one compact child assignment pattern label.
@@ -1511,7 +1537,7 @@ fn assign_pattern_child_label(
 ) -> String {
     match segment.assign_pattern_resolution(pattern) {
         Some(dir::AssignPatternResolution::Place(place)) => {
-            assign_pattern_place_label(builder, segment, place.target)
+            assign_pattern_place_label(builder, segment, place.place)
         }
         Some(dir::AssignPatternResolution::Default(default)) => {
             assign_pattern_child_label(builder, segment, default.pattern)
@@ -1553,8 +1579,41 @@ fn pattern_sequence_rest_label(
     format!("...{pattern}")
 }
 
-/// Return one assignment pattern rest label.
-fn assign_pattern_rest_label(
+/// Add ordered assignment pattern sequence fields.
+fn add_assign_pattern_sequence_fields(
+    builder: &DirSnapshotBuilder<'_>,
+    segment: &dir::ResolutionSegment,
+    row: SnapshotRow,
+    fields: &[dir::AssignPatternSequenceElementResolution],
+    rest: Option<&dir::AssignPatternSequenceRestResolution>,
+) -> SnapshotRow {
+    row.tuple_field(
+        "fields",
+        assign_pattern_sequence_field_labels(builder, segment, fields),
+    )
+    .optional_field(
+        "rest",
+        rest.map(|rest| assign_pattern_sequence_rest_label(builder, segment, rest)),
+    )
+}
+
+/// Return one sequence assignment pattern rest label.
+fn assign_pattern_sequence_rest_label(
+    builder: &DirSnapshotBuilder<'_>,
+    segment: &dir::ResolutionSegment,
+    rest: &dir::AssignPatternSequenceRestResolution,
+) -> String {
+    let Some(pattern) = rest.pattern else {
+        return "...".to_string();
+    };
+
+    let pattern = assign_pattern_child_label(builder, segment, pattern);
+
+    format!("...{pattern}")
+}
+
+/// Return one object assignment pattern rest label.
+fn assign_pattern_object_rest_label(
     builder: &DirSnapshotBuilder<'_>,
     segment: &dir::ResolutionSegment,
     rest: &dir::AssignPatternRestResolution,

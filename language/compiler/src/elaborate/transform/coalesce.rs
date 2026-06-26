@@ -33,15 +33,17 @@ impl Compiler {
         let mut modified = false;
 
         match assign_pattern {
-            dir::AssignPattern::Expression { value } => {
+            dir::AssignPattern::Place { expression: value } => {
                 modified |= self.normalize_nested_coalesce_in_expression(state, scope, value)?;
             }
-            dir::AssignPattern::Assign { pattern, value } => {
+            dir::AssignPattern::Default { pattern, value } => {
                 modified |=
                     self.normalize_nested_coalesce_in_assign_pattern(state, scope, pattern)?;
                 modified |= self.normalize_nested_coalesce_in_expression(state, scope, value)?;
             }
-            dir::AssignPattern::Sequence { fields } | dir::AssignPattern::Object { fields } => {
+            dir::AssignPattern::Sequence { fields }
+            | dir::AssignPattern::Tuple { fields }
+            | dir::AssignPattern::Object { fields } => {
                 for field_id in fields {
                     modified |= self.normalize_nested_coalesce_in_assign_pattern_field(
                         state, scope, field_id,

@@ -24,12 +24,12 @@ impl Compiler {
             let assign_pattern = tree.get(assign_pattern_id);
 
             // keep direct expression targets
-            if let AssignPattern::Expression { value } = assign_pattern {
+            if let AssignPattern::Place { expression: value } = assign_pattern {
                 return Some(*value);
             }
 
             // unwrap defaulted targets before checking the base
-            if let AssignPattern::Assign { pattern, .. } = assign_pattern {
+            if let AssignPattern::Default { pattern, .. } = assign_pattern {
                 assign_pattern_id = *pattern;
                 continue;
             }

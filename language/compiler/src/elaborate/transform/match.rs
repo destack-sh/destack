@@ -1053,7 +1053,7 @@ impl Compiler {
             }
 
             // defaulting patterns defer to their wrapped pattern
-            Pattern::Assign { pattern, .. } => {
+            Pattern::Default { pattern, .. } => {
                 self.build_pattern_check(state, match_id, value, pattern, scope)
             }
 
@@ -1605,7 +1605,7 @@ impl Compiler {
 
         loop {
             match state.tree.get(current) {
-                Pattern::Assign { pattern: inner, .. }
+                Pattern::Default { pattern: inner, .. }
                 | Pattern::Must(inner)
                 | Pattern::BorrowOf { right: inner, .. }
                 | Pattern::MoveOf { right: inner, .. } => {

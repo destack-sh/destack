@@ -44,11 +44,9 @@ fn assign_pattern_contains_expression(
         }
         dir::AssignPattern::Sequence { fields }
         | dir::AssignPattern::Tuple { fields }
-        | dir::AssignPattern::Object { fields } => {
-            fields.iter().any(|field_id| {
-                assign_pattern_field_contains_expression(tree, *field_id, expression_id)
-            })
-        }
+        | dir::AssignPattern::Object { fields } => fields.iter().any(|field_id| {
+            assign_pattern_field_contains_expression(tree, *field_id, expression_id)
+        }),
     }
 }
 
