@@ -2,6 +2,10 @@ import { ExpansionContext, Macro, MaterializationContext } from "destack:macro";
 
 import { intrinsic } from "./intrinsic.ds";
 
+/// Derive macro dispatcher.
+@languageItem("decorator.derive")
+export newtype derive = intrinsic;
+
 /// Constructor naming policy for tagged newtype unions.
 export type TaggedCase =
     | "preserve"
