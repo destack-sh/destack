@@ -34,7 +34,7 @@ destack_source = { workspace = true }
 # general
 dashmap = { workspace = true }
 filetime = { workspace = true }
-im = "15.1.0"
+im = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 parking_lot = { workspace = true }
 regex = { workspace = true }
