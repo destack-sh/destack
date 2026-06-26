@@ -24,7 +24,6 @@ impl ResolveState<'_> {
                     path: dir::Path {
                         segments: smallvec![*name],
                     },
-                    space: dir::SymbolSpace::Declaration,
                 });
             }
             dir::Expression::Member { .. } => {
@@ -36,7 +35,6 @@ impl ResolveState<'_> {
                     self.collect_path_reference(PathReference {
                         source: id.into_global_any(self.module),
                         path,
-                        space: dir::SymbolSpace::Declaration,
                     });
                 }
 
@@ -151,7 +149,6 @@ impl ResolveState<'_> {
                 self.collect_path_reference(PathReference {
                     source: id.into_global_any(self.module),
                     path: path.clone(),
-                    space: dir::SymbolSpace::Declaration,
                 });
                 dir::walk_type_expression(self, tree, id, ty);
             }
@@ -159,7 +156,6 @@ impl ResolveState<'_> {
                 self.collect_path_reference(PathReference {
                     source: id.into_global_any(self.module),
                     path: path.clone(),
-                    space: dir::SymbolSpace::Declaration,
                 });
                 dir::walk_type_expression(self, tree, id, ty);
             }

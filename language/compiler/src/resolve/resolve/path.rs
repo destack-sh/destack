@@ -25,7 +25,7 @@ impl ResolveState<'_> {
             return Ok(());
         };
 
-        let root = self.resolve_path_root(reference.source.local_id, *root, reference.space);
+        let root = self.resolve_path_root(reference.source.local_id, *root);
         let mut prefixes: SmallVec<[dir::Reference; 4]> = smallvec![root.clone()];
 
         // walk exports only while the running prefix is a namespace
@@ -83,10 +83,9 @@ impl ResolveState<'_> {
         &self,
         source: dir::LocalNodeIdAny,
         root: dir::StringId,
-        space: dir::SymbolSpace,
     ) -> dir::Reference {
         let key = dir::StaticKey::Name(root);
-        let symbols = self.visible_symbols(source, key, space);
+        let symbols = self.visible_symbols(source, key, dir::SymbolSpace::Declaration);
         if !symbols.is_empty() {
             return self.reference_from_symbols(symbols);
         }
