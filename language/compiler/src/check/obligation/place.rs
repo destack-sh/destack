@@ -2,9 +2,12 @@ use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckError, CheckState, MemberLookup, Origin, answer};
+use crate::check::{
+    Answer, AutoInterface, CheckError, CheckState, Dependency, MemberLookup, Origin,
+    WritablePlaceObligation, answer,
+};
 
-/// Writable storage selected by source syntax.
+/// Writable storage selected by a source expression.
 ///
 /// Examples:
 /// ```ds
@@ -14,41 +17,51 @@ use crate::check::{Answer, CheckError, CheckState, MemberLookup, Origin, answer}
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) struct Place {
-    /// The selected storage type.
-    pub(in crate::check) ty: dir::GlobalTypeId,
-    /// How source syntax selected the place.
+    /// How the expression selected the place.
     pub(in crate::check) target: PlaceTarget,
-    /// The source syntax node for diagnostics.
+    /// How writes through this place are justified.
+    pub(in crate::check) write: PlaceWrite,
+    /// The source node for diagnostics.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
 }
 
 impl Place {
     /// Create a place.
-    pub(in crate::check) fn new(
-        ty: dir::GlobalTypeId,
+    pub(in crate::check) fn new(target: PlaceTarget, source: dir::GlobalNodeIdAny) -> Self {
+        Self {
+            target,
+            write: PlaceWrite::Direct,
+            source,
+        }
+    }
+
+    /// Create a place that writes through non-exclusive indirection.
+    pub(in crate::check) fn stable_overwrite(
         target: PlaceTarget,
         source: dir::GlobalNodeIdAny,
+        receiver: dir::GlobalTypeId,
     ) -> Self {
-        Self { ty, target, source }
+        Self {
+            target,
+            write: PlaceWrite::StableOverwrite { receiver },
+            source,
+        }
     }
 }
 
-/// How source syntax accesses a place expression.
-///
-/// Selection projects protocol direction from this fact: subscripts
-/// select `index` for reads and `indexSet` for writes, members select
-/// getters for reads and setters for writes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum PlaceAccess {
-    /// The place is only read.
-    Read,
-    /// The place is written as an assignment target.
-    Write,
-    /// The place is read and written as a compound assignment target.
-    ReadWrite,
+/// Proof needed to write through one place.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(in crate::check) enum PlaceWrite {
+    /// The storage owner decides whether the write is legal.
+    Direct,
+    /// The write goes through non-exclusive indirection.
+    StableOverwrite {
+        /// The value whose access determines whether the write is exclusive.
+        receiver: dir::GlobalTypeId,
+    },
 }
 
-/// How source syntax selects a place.
+/// How an expression selects a place.
 ///
 /// Examples:
 /// ```ds
@@ -61,7 +74,7 @@ pub(in crate::check) enum PlaceAccess {
 pub(in crate::check) enum PlaceTarget {
     /// Local or imported value binding.
     Binding {
-        /// The local binding symbol selected by syntax.
+        /// The selected local binding symbol.
         symbol: dir::GlobalSymbolId,
     },
     /// Structural or nominal member target.
@@ -86,8 +99,9 @@ impl CheckState<'_> {
     /// Check one writable place requirement.
     pub(in crate::check) fn check_writable_place(
         &mut self,
-        place: Place,
+        obligation: &WritablePlaceObligation,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+        let place = obligation.place;
         let diagnostic = match place.target {
             PlaceTarget::Binding { symbol } => self.writable_binding_error(place.source, symbol)?,
             PlaceTarget::Member { owner, key } => {
@@ -95,8 +109,70 @@ impl CheckState<'_> {
             }
             PlaceTarget::Index { .. } | PlaceTarget::Dereference => Answer::Ready(None),
         };
+        match diagnostic {
+            Answer::Ready(Some(_)) | Answer::Pending(_) => Ok(diagnostic),
+            Answer::Ready(None) => match place.write {
+                PlaceWrite::Direct => Ok(Answer::Ready(None)),
+                PlaceWrite::StableOverwrite { receiver } => {
+                    self.stable_overwrite_error(place.source, receiver, obligation.ty)
+                }
+            },
+        }
+    }
 
-        Ok(diagnostic)
+    /// Return the diagnostic for one non-exclusive overwrite.
+    fn stable_overwrite_error(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        receiver: dir::GlobalTypeId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+        if answer!(self.is_exclusive_receiver(Origin::Node(source), receiver)?) {
+            return Ok(Answer::Ready(None));
+        }
+
+        let origin = Origin::Node(source);
+        let ty = answer!(self.reduce_type_root(origin, ty)?);
+        if answer!(self.satisfies_auto_interface(origin, ty, AutoInterface::OverwriteStable)?) {
+            return Ok(Answer::Ready(None));
+        }
+
+        let (module, anchor) = self.source_anchor(source);
+        let ty = self.format_type(ty);
+        let error = CheckError::OverwriteStabilityNotSatisfied { anchor, module, ty };
+
+        Ok(Answer::Ready(Some(error.into())))
+    }
+
+    /// Return whether one receiver carries exclusive access.
+    fn is_exclusive_receiver(
+        &mut self,
+        origin: Origin,
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let receiver = answer!(self.reduce_type_root(origin, receiver)?);
+        let access = match self.ty(receiver)? {
+            dir::Type::Variable(variable) => {
+                let representative = self.solver.representative(*variable)?;
+
+                return Ok(Answer::pending([Dependency::Variable(representative)]));
+            }
+            dir::Type::Form(form) => match form.form {
+                dir::Form::Borrowed { access, .. } => Some(access),
+                _ => None,
+            },
+            _ => None,
+        };
+        let Some(access) = access else {
+            return Ok(Answer::Ready(false));
+        };
+        let access = answer!(self.reduce_type_root(origin, access)?);
+        let is_exclusive = matches!(
+            self.ty(access)?,
+            dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Exclusive))
+        );
+
+        Ok(Answer::Ready(is_exclusive))
     }
 
     /// Return the diagnostic for one binding that rejects writes.
@@ -123,6 +199,14 @@ impl CheckState<'_> {
         let input = self.module(symbol.module_id);
         let bindings = input.binding_table();
         let local_symbol = bindings.get_symbol(symbol.local_id);
+
+        // parameters are writable local bindings
+        if local_symbol
+            .declaration
+            .is_some_and(|declaration| declaration.local_id.ty == dir::NodeType::Parameter)
+        {
+            return Ok(Answer::Ready(None));
+        }
 
         // imported aliases never accept writes
         if input
@@ -170,7 +254,7 @@ impl CheckState<'_> {
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let origin = Origin::Node(source);
-        let owner = answer!(self.evaluate_root(origin, owner)?);
+        let owner = answer!(self.reduce_type_root(origin, owner)?);
 
         // structural fields carry their write access directly
         if let dir::Type::Shape(shape) = self.ty(owner)? {

@@ -1,16 +1,110 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
+use indexmap::IndexSet;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Dependency, MemberLookup, Origin, Relation, Rewrite, Task, Widening,
+    Answer, CheckState, Dependency, MemberLookup, Origin, Relation, TypeRewrite, Widening, answer,
 };
 
+/// One broad property-key domain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum KeyDomain {
+    /// String property names.
+    String,
+    /// Positional numeric property names.
+    Usize,
+    /// Symbol property names.
+    Symbol,
+}
+
+/// One reduced `keyof` result before it is written as a type.
+#[derive(Debug, Clone, Default)]
+struct KeySet {
+    /// The exact known keys.
+    keys: IndexSet<dir::StaticKey>,
+    /// The broad key domains accepted by index signatures.
+    domains: IndexSet<KeyDomain>,
+}
+
+impl KeySet {
+    /// Insert one exact key.
+    fn insert_key(&mut self, key: dir::StaticKey) {
+        self.keys.insert(key);
+    }
+
+    /// Insert one key domain.
+    fn insert_domain(&mut self, domain: KeyDomain) {
+        self.domains.insert(domain);
+    }
+
+    /// Add every key from another set.
+    fn extend(&mut self, other: Self) {
+        self.keys.extend(other.keys);
+        self.domains.extend(other.domains);
+    }
+
+    /// Return whether this set accepts one exact key.
+    fn accepts(&self, key: dir::StaticKey) -> bool {
+        self.keys.contains(&key) || self.domains.contains(&KeyDomain::from_key(key))
+    }
+
+    /// Return the intersection of two key sets.
+    fn intersect(self, other: Self) -> Self {
+        let mut keys = KeySet::default();
+
+        // keep exact left keys accepted by the right side
+        for key in self.keys.iter().copied() {
+            if other.accepts(key) {
+                keys.insert_key(key);
+            }
+        }
+
+        // keep exact right keys accepted by left domains
+        for key in other.keys.iter().copied() {
+            if !keys.keys.contains(&key) && self.accepts(key) {
+                keys.insert_key(key);
+            }
+        }
+
+        // keep broad domains accepted by both sides
+        for domain in self.domains.iter().copied() {
+            if other.domains.contains(&domain) {
+                keys.insert_domain(domain);
+            }
+        }
+
+        keys
+    }
+}
+
+impl KeyDomain {
+    /// Return the broad key domain containing one exact key.
+    fn from_key(key: dir::StaticKey) -> Self {
+        match key {
+            dir::StaticKey::Name(_) => Self::String,
+            dir::StaticKey::Index(_) => Self::Usize,
+            dir::StaticKey::Symbol(_) => Self::Symbol,
+        }
+    }
+
+    /// Return the primitive type representing this key domain.
+    fn primitive_type(self) -> dir::PrimitiveType {
+        match self {
+            Self::String => dir::PrimitiveType::String,
+            Self::Usize => {
+                dir::PrimitiveType::Integer(dir::IntegerType::Pointer { is_signed: false })
+            }
+            Self::Symbol => dir::PrimitiveType::Symbol,
+        }
+    }
+}
+
 impl CheckState<'_> {
-    /// Evaluate one type operation when its inputs allow.
+    /// Reduce one type operation when its inputs allow.
     /// Returns ready none when the operation must stay symbolic.
-    pub(super) fn evaluate_operation(
+    pub(super) fn reduce_operation(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
@@ -19,21 +113,21 @@ impl CheckState<'_> {
         match operation {
             // conditionals select by the extends relation
             dir::TypeOperation::Conditional(conditional) => {
-                self.evaluate_conditional(origin, *conditional)
+                self.reduce_conditional(origin, *conditional)
             }
+
+            // guard narrowings filter runtime-tested sources
+            dir::TypeOperation::Narrow(narrow) => self.reduce_narrow(origin, *narrow),
 
             // string mappings transform string literals
             dir::TypeOperation::StringMapping { mapping, target } => {
-                let target = match self.evaluate_root(origin, *target)? {
-                    Answer::Ready(target) => target,
-                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-                };
+                let target = answer!(self.reduce_type_root(origin, *target)?);
 
                 match self.ty(target)? {
                     dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
                         let value = *value;
                         let mapped =
-                            self.evaluate_string_mapping(origin, id.module_id, *mapping, value)?;
+                            self.reduce_string_mapping(origin, id.module_id, *mapping, value)?;
 
                         Ok(Answer::Ready(Some(mapped)))
                     }
@@ -42,55 +136,99 @@ impl CheckState<'_> {
             }
 
             // indexed access projects element or member types
-            dir::TypeOperation::Index(index) => self.evaluate_index(origin, index),
+            dir::TypeOperation::Index(index) => self.reduce_index(origin, index),
 
             // keyof projects the key union of one closed type
-            dir::TypeOperation::KeyOf(unary) => self.evaluate_keyof(origin, id, unary.target),
+            dir::TypeOperation::KeyOf(unary) => self.reduce_keyof(origin, id, unary.target),
+
+            // inference barriers peel only after their target closes
+            dir::TypeOperation::NoInfer(unary) => self.reduce_noinfer(origin, unary.target),
 
             // try projections split nullish parts and carrier channels
             dir::TypeOperation::TryOutput { value } => {
-                self.evaluate_try_projection(origin, *value, false)
+                self.reduce_try_projection(origin, *value, false)
             }
             dir::TypeOperation::TryResidual { value } => {
-                self.evaluate_try_projection(origin, *value, true)
+                self.reduce_try_projection(origin, *value, true)
             }
 
             // static operations evaluate over literal operands
             dir::TypeOperation::StaticBinary(binary) => {
-                self.evaluate_static_binary_operation(origin, *binary)
+                self.reduce_static_binary_operation(origin, *binary)
             }
             dir::TypeOperation::StaticUnary(unary) => {
-                self.evaluate_static_unary_operation(origin, *unary)
+                self.reduce_static_unary_operation(origin, *unary)
             }
 
             // template literals concatenate once every span closes
             dir::TypeOperation::TemplateLiteral(template) => {
-                self.evaluate_template_literal(origin, template)
+                self.reduce_template_literal(origin, template)
             }
 
             // mapped types project their closed key sources field by field
-            dir::TypeOperation::Mapped(mapped) => self.evaluate_mapped(origin, mapped),
+            dir::TypeOperation::Mapped(mapped) => self.reduce_mapped(origin, mapped),
 
             // bare binders stay symbolic until applied
             dir::TypeOperation::Infer(_) => Ok(Answer::Ready(None)),
         }
     }
 
+    /// Reduce one inference barrier after its target closes.
+    fn reduce_noinfer(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let blockers = self
+            .type_variables(target)?
+            .into_iter()
+            .map(Dependency::Variable)
+            .collect::<SmallVec<[_; 2]>>();
+        if !blockers.is_empty() {
+            return Ok(Answer::Pending(blockers));
+        }
+        if self.type_contains_generic_parameter(target)? {
+            return Ok(Answer::Ready(None));
+        }
+
+        let target = answer!(self.reduce_type_root(origin, target)?);
+
+        Ok(Answer::Ready(Some(target)))
+    }
+
+    /// Return whether one type still references a declaration parameter.
+    fn type_contains_generic_parameter(&self, target: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+        let mut visited = indexmap::IndexSet::new();
+        pending.push(target);
+
+        // scan the written operation target without expanding references
+        while let Some(id) = pending.pop() {
+            if !visited.insert(id) {
+                continue;
+            }
+            let ty = self.ty(id)?;
+            if matches!(ty, dir::Type::Parameter(_)) {
+                return Ok(true);
+            }
+            ty.for_each_child(|child| pending.push(child));
+        }
+
+        Ok(false)
+    }
+
     /// Project the success or residual channel of one tried value.
     /// Nullish union members propagate directly, the remaining carrier
     /// contributes its `Output` and `Residual` associated types.
     /// Returns ready none while the value stays symbolic.
-    fn evaluate_try_projection(
+    fn reduce_try_projection(
         &mut self,
         origin: Origin,
         value: dir::GlobalTypeId,
         residual: bool,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         // close the tried value first
-        let value = match self.evaluate_root(origin, value)? {
-            Answer::Ready(value) => value,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let value = answer!(self.reduce_type_root(origin, value)?);
 
         // split nullish members from the carrier part
         let mut nullish = Vec::new();
@@ -181,16 +319,13 @@ impl CheckState<'_> {
     /// Evaluate one conditional type, distributing over union-valued
     /// left operands when the conditional is distributive.
     /// Returns ready none while the operands stay symbolic.
-    fn evaluate_conditional(
+    fn reduce_conditional(
         &mut self,
         origin: Origin,
         conditional: dir::ConditionalType,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         // close the checked operand first
-        let left = match self.evaluate_root(origin, conditional.left)? {
-            Answer::Ready(left) => left,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let left = answer!(self.reduce_type_root(origin, conditional.left)?);
 
         // distribute over union-valued checked types
         let elements = match self.ty(left)? {
@@ -241,33 +376,31 @@ impl CheckState<'_> {
                 );
 
                 match matched {
-                    // the substituted branch escapes the probe, so its
-                    // harvested allocations must survive the rollback
                     Ok(Answer::Ready(Some(branch))) => {
-                        self.harvest_probe(probe)?;
+                        self.commit_probe(probe);
 
                         branch
                     }
                     Ok(Answer::Ready(None)) => {
-                        self.unwind_probe(probe)?;
+                        self.reject_probe(probe);
 
                         conditional.else_type
                     }
                     Ok(Answer::Pending(dependencies)) => {
-                        self.unwind_probe(probe)?;
+                        self.reject_probe(probe);
 
                         // blockers that died with the probe mean no match
-                        let survivors = self.surviving_blockers(dependencies);
-                        if survivors.is_empty() {
+                        let live_blockers = self.live_blockers(dependencies);
+                        if live_blockers.is_empty() {
                             conditional.else_type
                         } else {
-                            blockers.extend(survivors);
+                            blockers.extend(live_blockers);
 
                             continue;
                         }
                     }
                     Err(error) => {
-                        self.unwind_probe(probe)?;
+                        self.reject_probe(probe);
 
                         return Err(error);
                     }
@@ -275,7 +408,7 @@ impl CheckState<'_> {
             };
 
             // branch occurrences of the checked type become the element
-            let rewrite = Rewrite::Replace {
+            let rewrite = TypeRewrite::Replace {
                 from: conditional.left,
                 to: element,
             };
@@ -288,10 +421,7 @@ impl CheckState<'_> {
         // rebuild the distributed result, dropping never like any union
         let mut kept = Vec::with_capacity(selected.len());
         for branch in selected {
-            let branch = match self.evaluate_root(origin, branch)? {
-                Answer::Ready(branch) => branch,
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-            };
+            let branch = answer!(self.reduce_type_root(origin, branch)?);
             if matches!(self.ty(branch)?, dir::Type::Never) {
                 continue;
             }
@@ -312,9 +442,115 @@ impl CheckState<'_> {
         Ok(Answer::Ready(Some(joined)))
     }
 
+    /// Evaluate one runtime guard narrowing.
+    fn reduce_narrow(
+        &mut self,
+        origin: Origin,
+        narrow: dir::NarrowType,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        // close both operands before comparing arms
+        let source = answer!(self.reduce_type_root(origin, narrow.source)?);
+        let target = answer!(self.reduce_type_root(origin, narrow.target)?);
+
+        // distribute over union-valued sources
+        let elements = match self.ty(source)? {
+            dir::Type::Union(union) => union.elements.iter().copied().collect::<SmallVec<[_; 4]>>(),
+            dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(Answer::Ready(None)),
+            _ => {
+                let mut single = SmallVec::new();
+                single.push(source);
+
+                single
+            }
+        };
+
+        // filter each arm through the guard relation
+        let module = origin.module();
+        let source_node = self.origin_source_node(origin)?;
+        let mut kept = Vec::with_capacity(elements.len());
+        for element in elements {
+            let narrowed =
+                answer!(self.narrow_element(origin, element, target, narrow.is_positive)?);
+            let narrowed = answer!(self.reduce_type_root(origin, narrowed)?);
+            if matches!(self.ty(narrowed)?, dir::Type::Never) {
+                continue;
+            }
+            if !kept.contains(&narrowed) {
+                kept.push(narrowed);
+            }
+        }
+
+        // rebuild the filtered result
+        let joined = match kept.as_slice() {
+            [] => self.push_type(module, dir::Type::Never, source_node)?,
+            [single] => *single,
+            _ => self.push_type(
+                module,
+                dir::Type::Union(dir::UnionType { elements: kept }),
+                source_node,
+            )?,
+        };
+
+        Ok(Answer::Ready(Some(joined)))
+    }
+
+    /// Narrow one source arm through one runtime target.
+    fn narrow_element(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        is_positive: bool,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let module = origin.module();
+        let source_node = self.origin_source_node(origin)?;
+
+        // erased values expose the checked target on matching branches
+        if matches!(self.ty(source)?, dir::Type::Dynamic(_)) {
+            let narrowed = if is_positive { target } else { source };
+
+            return Ok(Answer::Ready(narrowed));
+        }
+
+        // disjoint arms can be decided without assignability
+        if !answer!(self.types_may_overlap(origin, source, target)?) {
+            let narrowed = if is_positive {
+                self.push_type(module, dir::Type::Never, source_node)?
+            } else {
+                source
+            };
+
+            return Ok(Answer::Ready(narrowed));
+        }
+
+        // exact matches keep or remove the source arm
+        if answer!(self.decide_relation(origin, Relation::Assignable, source, target)?) {
+            let narrowed = if is_positive {
+                source
+            } else {
+                self.push_type(module, dir::Type::Never, source_node)?
+            };
+
+            return Ok(Answer::Ready(narrowed));
+        }
+
+        // top-like source arms take the target on matching branches
+        let is_top_like =
+            answer!(self.decide_relation(origin, Relation::Assignable, target, source)?);
+        let narrowed = if is_positive && is_top_like {
+            target
+        } else if is_positive {
+            self.push_type(module, dir::Type::Never, source_node)?
+        } else {
+            source
+        };
+
+        Ok(Answer::Ready(narrowed))
+    }
+
     /// Concatenate one template literal type over closed spans.
     /// Returns ready none while any span stays symbolic.
-    fn evaluate_template_literal(
+    fn reduce_template_literal(
         &mut self,
         origin: Origin,
         template: &dir::TemplateLiteralType,
@@ -327,7 +563,7 @@ impl CheckState<'_> {
         let mut printed = Vec::with_capacity(spans.len());
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for span in spans {
-            let span = match self.evaluate_root(origin, span)? {
+            let span = match self.reduce_type_root(origin, span)? {
                 Answer::Ready(span) => span,
                 Answer::Pending(dependencies) => {
                     blockers.extend(dependencies);
@@ -407,7 +643,7 @@ impl CheckState<'_> {
         let module = origin.module();
         let source = self.origin_source_node(origin)?;
 
-        // hypothesize one variable per binder inside the pattern
+        // open one variable per binder inside the pattern
         let mut replaced = pattern;
         let mut variables =
             SmallVec::<[(dir::GlobalTypeId, dir::TypeVariableId, dir::GlobalTypeId); 2]>::new();
@@ -415,7 +651,7 @@ impl CheckState<'_> {
             let variable = self.allocate_variable(module, origin, Widening::Preserve);
             let ty = self.push_variable_type(variable, source)?;
 
-            // seed declared binder constraints as upper bounds
+            // add declared binder constraints as upper bounds
             if let dir::Type::Operation(dir::TypeOperation::Infer(infer)) = self.ty(binder)?
                 && let Some(constraint) = infer.constraint
             {
@@ -425,47 +661,40 @@ impl CheckState<'_> {
                 module,
                 source,
                 replaced,
-                Rewrite::Replace {
+                TypeRewrite::Replace {
                     from: binder,
                     to: ty,
                 },
             )?;
             variables.push((binder, variable, ty));
         }
-
         // match the element against the binding pattern
-        match self.constrain(origin, Relation::Assignable, element, replaced)? {
-            Answer::Ready(true) => {}
-            Answer::Ready(false) => return Ok(Answer::Ready(None)),
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        }
-
-        // solve the hypothesized binders from their matched bounds
-        let floor = self.queue.solve_count();
-        for (_, variable, _) in &variables {
-            self.queue_task(Task::Solve(*variable));
-        }
-        if !self.drain_probe_tasks(floor)? {
+        if !answer!(self.constrain(origin, Relation::Assignable, element, replaced)?) {
             return Ok(Answer::Ready(None));
         }
 
-        // uninferable binders close to unknown
+        // solve probe binders from their matched bounds
+        if !answer!(self.solve_probe_variables(variables.iter().map(|(_, variable, _)| *variable))?)
+        {
+            return Ok(Answer::Ready(None));
+        }
+
+        // require every binder to solve
         for (_, variable, _) in &variables {
-            if self.variables.solution(*variable)?.is_none() {
-                let unknown = self.push_type(module, dir::Type::Unknown, source)?;
-                self.set_solution(*variable, unknown)?;
+            if self.solver.solution(*variable)?.is_none() {
+                return Ok(Answer::Ready(None));
             }
         }
 
-        // substitute harvested binder solutions into the selected branch
+        // substitute resolved binder solutions into the selected branch
         let mut branch = then_type;
         for (binder, _, ty) in &variables {
-            let solution = self.harvest_type(module, source, *ty)?;
+            let solution = self.fold_type(module, source, *ty, TypeRewrite::Resolve)?;
             branch = self.fold_type(
                 module,
                 source,
                 branch,
-                Rewrite::Replace {
+                TypeRewrite::Replace {
                     from: *binder,
                     to: solution,
                 },
@@ -476,16 +705,13 @@ impl CheckState<'_> {
     }
 
     /// Evaluate one static binary operation over literal operands.
-    fn evaluate_static_binary_operation(
+    fn reduce_static_binary_operation(
         &mut self,
         origin: Origin,
         binary: dir::StaticBinaryType,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         // close the left operand first for short-circuit logic
-        let left = match self.evaluate_root(origin, binary.left)? {
-            Answer::Ready(left) => left,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let left = answer!(self.reduce_type_root(origin, binary.left)?);
         let left_literal = match self.ty(left)? {
             dir::Type::Literal(literal) => Some(*literal),
             _ => None,
@@ -498,10 +724,7 @@ impl CheckState<'_> {
                     return Ok(Answer::Ready(Some(left)));
                 }
                 (dir::StaticBinaryOperator::And, true) | (dir::StaticBinaryOperator::Or, false) => {
-                    let right = match self.evaluate_root(origin, binary.right)? {
-                        Answer::Ready(right) => right,
-                        Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-                    };
+                    let right = answer!(self.reduce_type_root(origin, binary.right)?);
 
                     return match self.ty(right)? {
                         dir::Type::Literal(dir::ScalarLiteral::Boolean(_)) => {
@@ -515,10 +738,7 @@ impl CheckState<'_> {
         }
 
         // close the right operand
-        let right = match self.evaluate_root(origin, binary.right)? {
-            Answer::Ready(right) => right,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let right = answer!(self.reduce_type_root(origin, binary.right)?);
         let right_literal = match self.ty(right)? {
             dir::Type::Literal(literal) => Some(*literal),
             _ => None,
@@ -566,15 +786,12 @@ impl CheckState<'_> {
     }
 
     /// Evaluate one static unary operation over a literal operand.
-    fn evaluate_static_unary_operation(
+    fn reduce_static_unary_operation(
         &mut self,
         origin: Origin,
         unary: dir::StaticUnaryType,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let target = match self.evaluate_root(origin, unary.target)? {
-            Answer::Ready(target) => target,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let target = answer!(self.reduce_type_root(origin, unary.target)?);
         let literal = match self.ty(target)? {
             dir::Type::Literal(literal) => *literal,
             _ => return Ok(Answer::Ready(None)),
@@ -614,21 +831,8 @@ impl CheckState<'_> {
         }
     }
 
-    /// Report one failed static evaluation.
-    fn report_static_operation(&mut self, origin: Origin, message: &str) -> CompilerResult<()> {
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let error = crate::CheckError::InvalidStaticOperation {
-            anchor,
-            module,
-            message: message.to_string(),
-        };
-        self.module_mut(module).diagnostics.push(error.into());
-
-        Ok(())
-    }
-
     /// Apply one compiler string mapping to a string literal.
-    fn evaluate_string_mapping(
+    fn reduce_string_mapping(
         &mut self,
         origin: Origin,
         module: ModuleId,
@@ -645,38 +849,31 @@ impl CheckState<'_> {
     }
 
     /// Reduce one indexed access type with a closed key.
-    fn evaluate_index(
+    fn reduce_index(
         &mut self,
         origin: Origin,
         index: &dir::IndexType,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         // close both operands first
-        let left = match self.evaluate_root(origin, index.left)? {
-            Answer::Ready(left) => left,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
-        let key = match self.evaluate_root(origin, index.index)? {
-            Answer::Ready(key) => key,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let left = answer!(self.reduce_type_root(origin, index.left)?);
+        let key = answer!(self.reduce_type_root(origin, index.index)?);
 
         // union keys distribute their projections
         if let dir::Type::Union(union) = self.ty(key)? {
             let keys = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
             let mut projections = Vec::with_capacity(keys.len());
             for key in keys {
-                let projection = self.evaluate_index(
+                let projection = self.reduce_index(
                     origin,
                     &dir::IndexType {
                         left: index.left,
                         index: key,
                     },
                 )?;
-                match projection {
-                    Answer::Ready(Some(projection)) => projections.push(projection),
-                    Answer::Ready(None) => return Ok(Answer::Ready(None)),
-                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-                }
+                let Some(projection) = answer!(projection) else {
+                    return Ok(Answer::Ready(None));
+                };
+                projections.push(projection);
             }
             let source = self.origin_source_node(origin)?;
             let union = self.push_type(
@@ -718,39 +915,24 @@ impl CheckState<'_> {
     }
 
     /// Reduce keyof over one closed type to a key literal union.
-    fn evaluate_keyof(
+    fn reduce_keyof(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         // close the target first
-        let target = match self.evaluate_root(origin, target)? {
-            Answer::Ready(target) => target,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        let target = answer!(self.reduce_type_root(origin, target)?);
+
+        // collect exact keys and index domains
+        let Some(keys) = answer!(self.keyof_set(origin, target)?) else {
+            return Ok(Answer::Ready(None));
         };
 
-        // collect string keys from structural shapes
-        let keys = match self.ty(target)? {
-            dir::Type::Shape(shape) => shape
-                .fields
-                .iter()
-                .filter_map(|field| match field.key {
-                    dir::StaticKey::Name(name) => Some(name),
-                    _ => None,
-                })
-                .collect::<SmallVec<[_; 4]>>(),
-            _ => return Ok(Answer::Ready(None)),
-        };
-
-        // build the key literal union
+        // create the key type union
         let module = id.module_id;
         let source = self.origin_source_node(origin)?;
-        let mut elements = Vec::with_capacity(keys.len());
-        for key in keys {
-            let literal = dir::Type::Literal(dir::ScalarLiteral::String(key));
-            elements.push(self.push_type(module, literal, source)?);
-        }
+        let elements = self.keyof_types(module, source, keys)?;
         let union = match elements.as_slice() {
             [] => self.push_type(module, dir::Type::Never, source)?,
             [single] => *single,
@@ -764,8 +946,300 @@ impl CheckState<'_> {
         Ok(Answer::Ready(Some(union)))
     }
 
+    /// Collect the property-key set of one closed type.
+    fn keyof_set(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<KeySet>>> {
+        let set = match self.ty(target)?.clone() {
+            // structural object keys come from fields and index signatures
+            dir::Type::Shape(shape) => {
+                let mut set = KeySet::default();
+                for field in shape.fields {
+                    set.insert_key(field.key);
+                }
+                for signature in shape.index_signatures {
+                    answer!(self.insert_index_key_type(origin, &mut set, signature.key_type)?);
+                }
+
+                set
+            }
+
+            // nominal instance keys follow public instance members through heritage
+            dir::Type::Instance(instance) => {
+                answer!(self.instance_keyof_set(origin, instance.symbol)?)
+            }
+
+            // declaration references expose static declaration members
+            dir::Type::Reference(reference) => {
+                answer!(self.definition_key_set(
+                    origin,
+                    reference.symbol,
+                    dir::MemberSpace::Static
+                )?)
+            }
+
+            // wrapper forms preserve the key set of their payload
+            dir::Type::Form(form) => {
+                let value = answer!(self.reduce_type_root(origin, form.value)?);
+
+                return self.keyof_set(origin, value);
+            }
+
+            // union keys are the keys present in every arm
+            dir::Type::Union(union) => {
+                let mut elements = union.elements.into_iter();
+                let Some(first) = elements.next() else {
+                    return Ok(Answer::Ready(Some(KeySet::default())));
+                };
+                let first = answer!(self.reduce_type_root(origin, first)?);
+                let Some(mut keys) = answer!(self.keyof_set(origin, first)?) else {
+                    return Ok(Answer::Ready(None));
+                };
+                for element in elements {
+                    let element = answer!(self.reduce_type_root(origin, element)?);
+                    let Some(other) = answer!(self.keyof_set(origin, element)?) else {
+                        return Ok(Answer::Ready(None));
+                    };
+                    keys = keys.intersect(other);
+                }
+
+                keys
+            }
+
+            // intersection keys are keys from any constituent
+            dir::Type::Intersection(intersection) => {
+                let mut keys = KeySet::default();
+                for element in intersection.elements {
+                    let element = answer!(self.reduce_type_root(origin, element)?);
+                    let Some(other) = answer!(self.keyof_set(origin, element)?) else {
+                        return Ok(Answer::Ready(None));
+                    };
+                    keys.extend(other);
+                }
+
+                keys
+            }
+
+            // open and non-object types stay symbolic
+            dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(Answer::Ready(None)),
+            _ => return Ok(Answer::Ready(None)),
+        };
+
+        Ok(Answer::Ready(Some(set)))
+    }
+
+    /// Collect the instance key set of one nominal declaration.
+    fn instance_keyof_set(
+        &mut self,
+        origin: Origin,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Answer<KeySet>> {
+        let mut keys = KeySet::default();
+        let mut pending = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
+        let mut visited = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
+        pending.push(symbol);
+
+        // walk instance members through nominal heritage
+        while let Some(symbol) = pending.pop() {
+            if visited.contains(&symbol) {
+                continue;
+            }
+            visited.push(symbol);
+            keys.extend(answer!(self.definition_key_set(
+                origin,
+                symbol,
+                dir::MemberSpace::Instance
+            )?));
+
+            if let Some(definition) = self.definition(symbol) {
+                for heritage in definition.bases() {
+                    pending.push(heritage.symbol);
+                }
+            }
+        }
+
+        Ok(Answer::Ready(keys))
+    }
+
+    /// Collect the direct key set of one declaration member space.
+    fn definition_key_set(
+        &mut self,
+        origin: Origin,
+        symbol: dir::GlobalSymbolId,
+        space: dir::MemberSpace,
+    ) -> CompilerResult<Answer<KeySet>> {
+        let mut keys = KeySet::default();
+        let Some(definition) = self.definition(symbol) else {
+            return Ok(Answer::Ready(keys));
+        };
+        let mut signatures = SmallVec::<[dir::GlobalTypeId; 2]>::new();
+
+        // collect keyed fields, methods, and associated members
+        for member in definition.members() {
+            if member.space() != space {
+                continue;
+            }
+            if let Some(key) = member.key() {
+                keys.insert_key(key);
+            }
+
+            // index signatures contribute key domains rather than exact keys
+            if let dir::DefinitionMember::IndexSignature(signature) = member {
+                signatures.push(signature.ty);
+            }
+        }
+        for signature in signatures {
+            answer!(self.insert_index_signature_type(origin, &mut keys, signature)?);
+        }
+
+        Ok(Answer::Ready(keys))
+    }
+
+    /// Insert the key domain carried by one index-signature function type.
+    fn insert_index_signature_type(
+        &mut self,
+        origin: Origin,
+        keys: &mut KeySet,
+        signature: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<()>> {
+        let signature = answer!(self.reduce_type_root(origin, signature)?);
+        let dir::Type::FunctionSignature(signature) = self.ty(signature)?.clone() else {
+            return Ok(Answer::Ready(()));
+        };
+        let Some(parameter) = signature.parameters.first() else {
+            return Ok(Answer::Ready(()));
+        };
+
+        self.insert_index_key_type(origin, keys, parameter.ty)
+    }
+
+    /// Insert the key domain represented by one closed key type.
+    fn insert_index_key_type(
+        &mut self,
+        origin: Origin,
+        keys: &mut KeySet,
+        key_type: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<()>> {
+        let key_type = answer!(self.reduce_type_root(origin, key_type)?);
+
+        match self.ty(key_type)?.clone() {
+            // union key domains contribute every alternative
+            dir::Type::Union(union) => {
+                for element in union.elements {
+                    answer!(self.insert_index_key_type(origin, keys, element)?);
+                }
+            }
+
+            // string index signatures accept numeric property names too
+            dir::Type::Primitive(dir::PrimitiveType::String) => {
+                keys.insert_domain(KeyDomain::String);
+                keys.insert_domain(KeyDomain::Usize);
+            }
+
+            // numeric index signatures use the TS++ index domain
+            dir::Type::Primitive(dir::PrimitiveType::Integer(_)) => {
+                keys.insert_domain(KeyDomain::Usize);
+            }
+
+            // symbol index signatures accept all symbol keys
+            dir::Type::Primitive(dir::PrimitiveType::Symbol | dir::PrimitiveType::UniqueSymbol) => {
+                keys.insert_domain(KeyDomain::Symbol);
+            }
+
+            // literal key domains are exact keys
+            _ => {
+                if let Some(key) = self.static_key_from_type(key_type)? {
+                    keys.insert_key(key);
+                }
+            }
+        }
+
+        Ok(Answer::Ready(()))
+    }
+
+    /// Write one key set as concrete type ids.
+    fn keyof_types(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        keys: KeySet,
+    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
+        let mut elements = Vec::with_capacity(keys.keys.len() + keys.domains.len());
+        for key in keys.keys {
+            elements.push(self.push_static_key_type(module, source, key)?);
+        }
+        for domain in keys.domains {
+            elements.push(self.key_domain_type(module, source, domain)?);
+        }
+
+        Ok(elements)
+    }
+
+    /// Write one key domain as its primitive type.
+    fn key_domain_type(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        domain: KeyDomain,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.push_type(
+            module,
+            dir::Type::Primitive(domain.primitive_type()),
+            source,
+        )
+    }
+
+    /// Return the exact static key represented by one singleton key type.
+    fn static_key_from_type(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::StaticKey>> {
+        let key = match self.ty(ty)? {
+            dir::Type::Literal(dir::ScalarLiteral::String(name)) => dir::StaticKey::Name(*name),
+            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
+                let Ok(index) = usize::try_from(*value) else {
+                    return Ok(None);
+                };
+
+                dir::StaticKey::Index(index)
+            }
+            dir::Type::Instance(instance) => {
+                if !self.is_unique_symbol_instance(ty, instance.symbol)? {
+                    return Ok(None);
+                }
+
+                dir::StaticKey::Symbol(dir::SymbolKey::Unique(instance.symbol))
+            }
+            _ => return Ok(None),
+        };
+
+        Ok(Some(key))
+    }
+
+    /// Return whether one instance type is a unique-symbol singleton.
+    fn is_unique_symbol_instance(
+        &self,
+        ty: dir::GlobalTypeId,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        if self.static_value(symbol) == Some(ty) {
+            return Ok(true);
+        }
+
+        let Some(symbol_type) = self.symbol_type_maybe(symbol) else {
+            return Ok(false);
+        };
+
+        Ok(matches!(
+            self.ty(symbol_type)?,
+            dir::Type::Primitive(dir::PrimitiveType::UniqueSymbol)
+        ))
+    }
+
     /// Project one mapped type over its closed key source.
-    fn evaluate_mapped(
+    fn reduce_mapped(
         &mut self,
         origin: Origin,
         mapped: &dir::MappedType,
@@ -777,10 +1251,7 @@ impl CheckState<'_> {
         };
 
         // close the key source first
-        let closed = match self.evaluate_root(origin, mapped.parameter.constraint)? {
-            Answer::Ready(closed) => closed,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let closed = answer!(self.reduce_type_root(origin, mapped.parameter.constraint)?);
         let keys = match self.ty(closed)? {
             dir::Type::Union(union) => union.elements.iter().copied().collect::<SmallVec<[_; 8]>>(),
             dir::Type::Never => SmallVec::new(),
@@ -796,13 +1267,14 @@ impl CheckState<'_> {
 
         // close the homomorphic source for modifier carry
         let source_shape = match homomorphic {
-            Some(target) => match self.evaluate_root(origin, target)? {
-                Answer::Ready(target) => match self.ty(target)? {
+            Some(target) => {
+                let target = answer!(self.reduce_type_root(origin, target)?);
+
+                match self.ty(target)? {
                     dir::Type::Shape(shape) => Some(shape.clone()),
                     _ => None,
-                },
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-            },
+                }
+            }
             None => None,
         };
 
@@ -816,13 +1288,13 @@ impl CheckState<'_> {
         for key in keys {
             // substitute the binder through the value and remap types
             let arguments = [key];
-            let rewrite = Rewrite::Substitute {
+            let rewrite = TypeRewrite::Substitute {
                 parameters: &parameters,
                 arguments: &arguments,
                 receiver: None,
             };
             let value = self.fold_type(module, source, mapped.value, rewrite)?;
-            let value = match self.evaluate_root(origin, value)? {
+            let value = match self.reduce_type_root(origin, value)? {
                 Answer::Ready(value) => value,
                 Answer::Pending(dependencies) => {
                     blockers.extend(dependencies);
@@ -836,7 +1308,7 @@ impl CheckState<'_> {
                 Some(remap) => {
                     let remap = self.fold_type(module, source, remap, rewrite)?;
 
-                    match self.evaluate_root(origin, remap)? {
+                    match self.reduce_type_root(origin, remap)? {
                         Answer::Ready(remap) => remap,
                         Answer::Pending(dependencies) => {
                             blockers.extend(dependencies);
@@ -881,18 +1353,12 @@ impl CheckState<'_> {
                 continue;
             }
 
-            let key = match self.ty(remapped)? {
-                dir::Type::Literal(dir::ScalarLiteral::String(name)) => dir::StaticKey::Name(*name),
-                dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
-                    match usize::try_from(*value) {
-                        Ok(index) => dir::StaticKey::Index(index),
-                        Err(_) => return Ok(Answer::Ready(None)),
-                    }
-                }
-                // never-remapped keys drop out of the projection
-                dir::Type::Never => continue,
-                // other key shapes stay symbolic
-                _ => return Ok(Answer::Ready(None)),
+            let key = if matches!(self.ty(remapped)?, dir::Type::Never) {
+                continue;
+            } else if let Some(key) = self.static_key_from_type(remapped)? {
+                key
+            } else {
+                return Ok(Answer::Ready(None));
             };
             fields.push(dir::TypeField {
                 key,

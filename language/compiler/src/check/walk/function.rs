@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    GenericInductionPosition, GenericTemplateId, Origin, ReceiverBinding, Relation, WalkState,
-    Widening,
+    GenericInductionDeclaration, GenericInductionPosition, GenericTemplateId, Origin,
+    ReceiverBinding, Relation, ValueUse, WalkState, Widening,
 };
 
 impl<'check, 'state> WalkState<'check, 'state> {
@@ -18,13 +18,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
         source: dir::LocalNodeIdAny,
         signature: &dir::FunctionSignature,
         template: Option<GenericTemplateId>,
+        owner: Option<GenericInductionDeclaration>,
         receiver_type: Option<dir::GlobalTypeId>,
         return_type: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let generic_parameters = self.push_signature_generic_parameter_types(source, template)?;
-
         let this_parameter = if let Some(parameter) = signature.this_parameter {
-            self.walk_parameter_type(parameter)?.or(receiver_type)
+            receiver_type.or(self.walk_parameter_type(parameter)?)
         } else {
             receiver_type
         };
@@ -36,10 +35,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 parameters.push(parameter);
             }
         }
+        let template =
+            self.signature_template(template, owner, this_parameter, &parameters, return_type)?;
 
         let function = dir::FunctionSignatureType {
             asynchrony: signature.asynchrony,
-            generic_parameters,
+            template,
             this_parameter,
             parameters,
             return_type,
@@ -47,6 +48,56 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
 
         self.push_type(dir::Type::FunctionSignature(function), source)
+    }
+
+    /// Return the template owned by one callable signature.
+    fn signature_template(
+        &mut self,
+        template: Option<GenericTemplateId>,
+        owner: Option<GenericInductionDeclaration>,
+        this_parameter: Option<dir::GlobalTypeId>,
+        parameters: &[dir::FunctionParameterType],
+        return_type: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<Option<GenericTemplateId>> {
+        if template.is_some() {
+            return Ok(template);
+        }
+        let Some(owner) = owner else {
+            return Ok(None);
+        };
+
+        // open an owner template only when this signature contains induced holes
+        if !self.signature_contains_induced_parameter(this_parameter, parameters, return_type)? {
+            return Ok(None);
+        }
+
+        self.check
+            .open_generic_template(owner.declaration, owner.parent, owner.symbol)
+            .map(Some)
+    }
+
+    /// Return whether one signature contains an induced generic hole.
+    fn signature_contains_induced_parameter(
+        &mut self,
+        this_parameter: Option<dir::GlobalTypeId>,
+        parameters: &[dir::FunctionParameterType],
+        return_type: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<bool> {
+        let mut types = Vec::new();
+        types.extend(this_parameter);
+        types.extend(parameters.iter().map(|parameter| parameter.ty));
+        types.extend(return_type);
+
+        for ty in types {
+            for variable in self.check.type_variables(ty)? {
+                let representative = self.check.solver.representative(variable)?;
+                if self.check.generics.induction(representative).is_some() {
+                    return Ok(true);
+                }
+            }
+        }
+
+        Ok(false)
     }
 
     /// Walk one function type expression.
@@ -69,7 +120,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
             &declaration.generic_parameters,
             &declaration.where_clauses,
         )?;
-        let generic_parameters = self.push_signature_generic_parameter_types(source, template)?;
         let return_type = match (return_type, declaration.return_type) {
             (Some(return_type), _) => Some(return_type),
             (None, Some(return_type)) => {
@@ -94,7 +144,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         let function = dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,
-            generic_parameters,
+            template,
             this_parameter,
             parameters,
             return_type,
@@ -125,7 +175,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
             &declaration.generic_parameters,
             &declaration.where_clauses,
         )?;
-        let generic_parameters = self.push_signature_generic_parameter_types(source, template)?;
         let return_type = match (return_type, declaration.return_type) {
             (Some(return_type), _) => Some(return_type),
             (None, Some(return_type)) => {
@@ -144,7 +193,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         let function = dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,
-            generic_parameters,
+            template,
             this_parameter: None,
             parameters,
             return_type,
@@ -167,26 +216,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
 
         self.push_type(dir::Type::Function(function), source)
-    }
-
-    /// Return the parameter types captured by one callable signature.
-    fn push_signature_generic_parameter_types(
-        &mut self,
-        source: dir::LocalNodeIdAny,
-        template: Option<GenericTemplateId>,
-    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        let Some(template) = template else {
-            return Ok(Vec::new());
-        };
-
-        // write each declared parameter as its parameter type
-        let parameters = self.check.generic_template_parameters(template);
-        let mut types = Vec::with_capacity(parameters.len());
-        for parameter in parameters {
-            types.push(self.push_type(dir::Type::Parameter(parameter), source)?);
-        }
-
-        Ok(types)
     }
 
     /// Return the template owned by one callable type header.
@@ -247,7 +276,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // open the async completion type
         if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
-            let completed = self.open_type(source)?;
+            let completed = self.infer_type(source)?;
             let promised =
                 self.language_type_reference(source, dir::LanguageItem::Promise, vec![completed])?;
             self.relate_type(origin, Relation::Assignable, promised, result);
@@ -257,9 +286,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // open the generator yielded, completed, and resumed types
         if signature.is_generator {
-            let yielded = self.open_type(source)?;
-            let completed = self.open_type(source)?;
-            let resumed = self.open_type(source)?;
+            let yielded = self.infer_type(source)?;
+            let completed = self.infer_type(source)?;
+            let resumed = self.infer_type(source)?;
             let item = match signature.asynchrony {
                 // function* f() {}
                 dir::Asynchrony::Sync => dir::LanguageItem::Generator,
@@ -298,7 +327,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
         if !Self::is_constructor_signature(signature) && self.expression_can_complete_normally(body)
         {
             let completion = self.node_type(body)?;
-            self.relate_type(origin, Relation::Assignable, completion, return_target);
+            self.push_flow(
+                origin,
+                ValueUse::Output,
+                Relation::Assignable,
+                completion,
+                return_target,
+            );
         }
 
         self.leave_function_frame()?;
@@ -420,12 +455,17 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let node = id.into_global_any(self.module);
+        if let Some(ty) = self.check.node_type_maybe(node) {
+            return Ok(Some(ty));
+        }
+
         let declared_type = match self.tree.get(id) {
             dir::Parameter::Error => return Ok(None),
             parameter => parameter.declared_type(),
         };
         let Some(declared_type) = declared_type else {
-            return Ok(Some(self.open_inferred_node_type(id, Widening::Preserve)?));
+            return Ok(Some(self.infer_node_type(id, Widening::Preserve)?));
         };
 
         let is_optional = self.tree.get(id).is_optional();
@@ -440,7 +480,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         } else {
             written
         };
-        self.bind_node_type(id, written)?;
+        self.write_node_type(id, written)?;
 
         Ok(Some(written))
     }

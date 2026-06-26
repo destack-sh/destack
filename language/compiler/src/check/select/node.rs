@@ -2,13 +2,13 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckState, ConstraintRole, Decision, Dependency, GenericArgumentMode, Origin,
-    Relation, Selection, SelectionId, SelectionState, answer,
+    Answer, CheckState, Decision, Dependency, GenericArgumentMode, Origin, Relation, Selection,
+    SelectionId, SelectionState, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Select one semantic operation once its inputs allow.
+    /// Select one queued operation once its inputs allow.
     pub(in crate::check) fn run_select(&mut self, id: SelectionId) -> CompilerResult<Answer<()>> {
         if self.solver.selections.is_complete(id) {
             return Ok(Answer::Ready(()));
@@ -45,7 +45,7 @@ impl CheckState<'_> {
         }
     }
 
-    /// Select the meaning of one queued semantic operation.
+    /// Select the meaning of one queued operation.
     fn select(&mut self, selection: Selection) -> CompilerResult<Answer<()>> {
         match selection {
             Selection::Member { node, left, name } => self.select_member(node, left, name),
@@ -124,6 +124,7 @@ impl CheckState<'_> {
             Selection::TaggedTemplate { node, tag } => self.select_tagged_template(node, tag),
             Selection::Tree { node } => self.select_tree(node),
             Selection::Pattern { node } => self.select_pattern(node),
+            Selection::AssignPattern { node } => self.select_assign_pattern(node),
         }
     }
 
@@ -237,13 +238,7 @@ impl CheckState<'_> {
                     if !answer!(self.constrain_generic_argument(
                         origin, node, condition, argument, constraint
                     )?) {
-                        self.relate(
-                            origin,
-                            Relation::Assignable,
-                            ConstraintRole::Check,
-                            argument,
-                            constraint,
-                        )?;
+                        self.relate(origin, Relation::Assignable, None, argument, constraint)?;
                         self.record_decision(node, Decision::Rejected)?;
 
                         return Ok(Answer::Ready(()));
@@ -288,7 +283,7 @@ impl CheckState<'_> {
         // close the tag's callable shape
         let tag_node = tag.into_global_any(module);
         let tag_type = answer!(self.node_type_answer(tag_node)?);
-        let tag_type = answer!(self.evaluate_root(origin, tag_type)?);
+        let tag_type = answer!(self.reduce_type_root(origin, tag_type)?);
         let signature = match self.ty(tag_type)? {
             dir::Type::FunctionSignature(_) => Some(tag_type),
             _ => self.callable_signature(tag_type)?,
@@ -333,8 +328,7 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeId<dir::Expression>,
     ) -> CompilerResult<Answer<()>> {
-        // TODO(check): select tree constructions through the configured
-        // tree builder once tree checking lands.
+        // TODO #Incomplete: select tree constructions through the configured tree builder
         let module = node.module_id;
         self.report_unsupported_tree_expression(module, node.local_id.into_any());
         self.record_decision(node.into_any(), Decision::Rejected)?;

@@ -16,8 +16,8 @@ pub(in crate::check) struct Capture {
 /// Receiver type visible in one lexical context.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct Receiver {
-    /// The nominal owner that supplies contextual `this`, when any.
-    pub(in crate::check) owner: Option<dir::GlobalSymbolId>,
+    /// The declaration that introduces contextual `this`, when any.
+    pub(in crate::check) declaration: Option<dir::GlobalSymbolId>,
     /// The receiver type.
     pub(in crate::check) ty: dir::GlobalTypeId,
     /// The superclass receiver type, when the owner extends one.

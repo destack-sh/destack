@@ -23,7 +23,7 @@ pub(in crate::check) enum Relation {
     Implements,
 }
 
-/// One relation pair identity: the judgment kind over two reduced roots.
+/// One relation pair identity over two reduced roots.
 pub(in crate::check) type RelationKey = (Relation, dir::GlobalTypeId, dir::GlobalTypeId);
 
 /// One memoized relation decision.
@@ -144,6 +144,16 @@ impl RelationCache {
         self.stack = snapshot.stack;
         self.provisional = snapshot.provisional;
         self.active_snapshots -= 1;
+    }
+
+    /// Commit one speculative mark.
+    pub(in crate::check) fn commit(&mut self, snapshot: RelationCacheSnapshot) {
+        drop(snapshot);
+        self.active_snapshots -= 1;
+
+        if self.active_snapshots == 0 {
+            self.undo.clear();
+        }
     }
 
     /// Return the memoized answer for one pair, recording assumption use.

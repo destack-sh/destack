@@ -2,47 +2,68 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckState, Condition, Constraint, ConstraintCause, Decision, Dependency,
-    GenericTemplateId, Mutation, Origin, Relation, Substitution, Task,
+    Answer, CheckState, Condition, Constraint, Decision, Dependency, GenericArgumentMode, Origin,
+    Relation, TypeRewrite, TypeSubstitution, ValueUse, answer,
 };
-use crate::{CheckError, CompilerError, CompilerResult};
+use crate::{CompilerError, CompilerResult};
 
 /// One callable candidate collected from a callee node.
 struct CalleeCandidate {
     /// The declaring symbol, when the callee names one.
     symbol: Option<dir::GlobalSymbolId>,
+    /// The declaration that exposed the callable.
+    owner: Option<dir::GlobalSymbolId>,
     /// The resolved receiver type for member callees.
     receiver: Option<dir::GlobalTypeId>,
     /// The callable type.
     ty: dir::GlobalTypeId,
+    /// The owner generic arguments already selected by member lookup.
+    generic_arguments: Vec<dir::GenericArgumentBinding>,
 }
 
-/// Callable candidates collected from one callee with their
-/// acceptance rule.
-struct Callees {
-    /// The candidates in declaration order.
-    candidates: SmallVec<[CalleeCandidate; 2]>,
-    /// Whether every candidate must accept the call: union receivers
-    /// dispatch at runtime, so the call must hold for every variant.
-    universal: bool,
+impl CalleeCandidate {
+    /// Return the complete generic argument bindings selected by this call.
+    fn selected_generic_arguments(
+        &self,
+        signature_arguments: &[dir::GenericArgumentBinding],
+    ) -> Vec<dir::GenericArgumentBinding> {
+        let mut arguments =
+            Vec::with_capacity(self.generic_arguments.len() + signature_arguments.len());
+        arguments.extend_from_slice(&self.generic_arguments);
+        arguments.extend_from_slice(signature_arguments);
+
+        arguments
+    }
 }
 
-impl Callees {
-    /// Collect candidates that one of them may accept.
-    fn any(candidates: SmallVec<[CalleeCandidate; 2]>) -> Self {
-        Self {
-            candidates,
-            universal: false,
-        }
-    }
+/// One callable signature selected for an invocation.
+pub(in crate::check) struct SignatureMatch {
+    /// The callable type after substitution.
+    pub(in crate::check) callable: dir::GlobalTypeId,
+    /// The selected parameters after substitution.
+    pub(in crate::check) parameters: SmallVec<[dir::FunctionParameterType; 4]>,
+    /// The return type after substitution.
+    pub(in crate::check) return_type: dir::GlobalTypeId,
+    /// The solved generic argument bindings.
+    pub(in crate::check) generic_arguments: Vec<dir::GenericArgumentBinding>,
+}
 
-    /// Collect candidates that all must accept.
-    fn every(candidates: SmallVec<[CalleeCandidate; 2]>) -> Self {
-        Self {
-            candidates,
-            universal: true,
-        }
-    }
+/// One rejected argument selected inside a generic probe.
+struct RejectedArgument {
+    /// The source location that should receive the diagnostic.
+    origin: Origin,
+    /// The argument type that failed.
+    argument: dir::GlobalTypeId,
+    /// The parameter type that rejected the argument.
+    parameter: dir::GlobalTypeId,
+}
+
+/// Callable candidates collected from one callee.
+enum CallCandidates {
+    /// At least one candidate must accept.
+    Existential(SmallVec<[CalleeCandidate; 2]>),
+    /// Every candidate must accept.
+    Universal(SmallVec<[CalleeCandidate; 2]>),
 }
 
 impl CheckState<'_> {
@@ -51,48 +72,43 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeId<dir::Expression>,
         callee: dir::LocalNodeId<dir::Expression>,
+        generic_argument_nodes: &[dir::LocalNodeId<dir::GenericArgument>],
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
     ) -> CompilerResult<Answer<()>> {
         let module = node.module_id;
         let node = node.into_any();
         let origin = Origin::Node(node);
 
+        // collect explicit type arguments from the call syntax
+        let mut type_arguments = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        for argument in generic_argument_nodes {
+            let argument = argument.into_global_any(module);
+            let ty = answer!(self.node_type_answer(argument)?);
+            type_arguments.push(ty);
+        }
+
         // collect argument types from walked inputs
         let mut arguments = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for argument in argument_nodes {
-            let argument = argument.into_global_any(module);
-            let Some(ty) = self.node_type(argument) else {
-                return Err(CompilerError::Internal {
-                    message: format!("call argument {argument:?} has no input type"),
-                });
-            };
+            let ty = answer!(self.argument_type(module, *argument)?);
             arguments.push(ty);
         }
 
         // collect callable candidates from the callee
-        let callees = match self.call_candidates(origin, module, callee)? {
-            Answer::Ready(Some(callees)) => callees,
-            // rejected callees fail silently to avoid cascading diagnostics
-            Answer::Ready(None) => {
-                self.record_decision(node, Decision::Rejected)?;
+        let Some(callees) = answer!(self.call_candidates(origin, module, callee)?) else {
+            // rejected callees already reported their own diagnostic
+            self.record_decision(node, Decision::Rejected)?;
 
-                return Ok(Answer::Ready(()));
-            }
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            return Ok(Answer::Ready(()));
         };
-        let candidates = callees.candidates;
+        let candidates = match &callees {
+            CallCandidates::Existential(candidates) => candidates,
+            CallCandidates::Universal(candidates) => candidates,
+        };
         if candidates.is_empty() {
-            let callee_type = self
-                .node_type(callee.into_global_any(module))
-                .map(|ty| self.format_type(ty))
-                .unwrap_or_else(|| "unknown".to_string());
-            let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-            let error = CheckError::NotCallable {
-                anchor,
-                module,
-                ty: callee_type,
-            };
-            self.module_mut(module).diagnostics.push(error.into());
+            let callee = callee.into_global_any(module);
+            let callee_type = answer!(self.node_type_answer(callee)?);
+            self.report_not_callable(origin, callee_type)?;
             self.record_decision(node, Decision::Rejected)?;
 
             return Ok(Answer::Ready(()));
@@ -119,33 +135,44 @@ impl CheckState<'_> {
         }
 
         // union receivers must hold for every variant
-        if callees.universal {
-            return self.select_union_call(node, origin, argument_nodes, &candidates, &arguments);
+        if let CallCandidates::Universal(candidates) = &callees {
+            return self.select_union_call(
+                node,
+                origin,
+                argument_nodes,
+                candidates,
+                &type_arguments,
+                &arguments,
+            );
         }
 
         // try candidates in declaration order
-        for candidate in &candidates {
+        for candidate in candidates {
             let attempt = self.attempt_call(
                 origin,
                 node,
                 module,
-                candidate.symbol,
-                candidate.receiver,
-                candidate.ty,
+                callee.into_global_any(module),
+                candidate,
                 argument_nodes,
+                &type_arguments,
                 &arguments,
             )?;
 
-            match attempt {
-                Answer::Ready(true) => return Ok(Answer::Ready(())),
-                Answer::Ready(false) => {}
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            if answer!(attempt) {
+                return Ok(Answer::Ready(()));
             }
         }
 
-        // a sole candidate blames the failing argument directly
+        // a sole candidate reports the failing argument directly
         if let [candidate] = candidates.as_slice()
-            && self.blame_sole_candidate(origin, candidate.symbol, candidate.ty, &arguments)?
+            && self.explain_sole_candidate_failure(
+                origin,
+                candidate.ty,
+                &type_arguments,
+                argument_nodes,
+                &arguments,
+            )?
         {
             self.record_decision(node, Decision::Rejected)?;
 
@@ -153,40 +180,58 @@ impl CheckState<'_> {
         }
 
         // no candidate accepted the arguments
-        let arguments = self.format_types(&arguments);
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let error = CheckError::NoMatchingCall {
-            anchor,
-            module,
-            arguments,
-        };
-        self.module_mut(module).diagnostics.push(error.into());
+        self.report_no_matching_call(origin, &arguments, None)?;
         self.record_decision(node, Decision::Rejected)?;
 
         Ok(Answer::Ready(()))
     }
 
-    /// Blame the failing arguments of one sole rejected candidate.
-    /// Returns whether blame was assigned; generic candidates decline
+    /// Explain the failing arguments of one sole rejected candidate.
+    /// Returns whether a diagnostic was emitted; generic candidates decline
     /// because their unsubstituted parameters would mislead.
-    fn blame_sole_candidate(
+    fn explain_sole_candidate_failure(
         &mut self,
         origin: Origin,
-        symbol: Option<dir::GlobalSymbolId>,
         function_type: dir::GlobalTypeId,
+        type_arguments: &[dir::GlobalTypeId],
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<bool> {
-        if symbol
-            .and_then(|symbol| self.generics.template_by_symbol(symbol))
-            .is_some()
-        {
-            return Ok(false);
-        }
+        let module = origin.module();
+        let source = self.origin_source_node(origin)?;
+        let parameters = self.callable_generic_parameters(origin, function_type)?;
+
+        // uninferred generic candidates cannot report one argument honestly
+        let function_type = match parameters.as_slice() {
+            [_first, ..] if type_arguments.is_empty() => {
+                return self.explain_generic_candidate_failure(
+                    origin,
+                    function_type,
+                    argument_nodes,
+                    type_arguments,
+                    arguments,
+                );
+            }
+            [_first, ..] => {
+                let Some(substitution) = self.instantiate_generic_parameters(
+                    origin,
+                    &parameters,
+                    type_arguments,
+                    GenericArgumentMode::Default,
+                )?
+                else {
+                    return Ok(false);
+                };
+
+                self.fold_type(module, source, function_type, substitution.rewrite())?
+            }
+            [] if type_arguments.is_empty() => function_type,
+            [] => return Ok(false),
+        };
 
         // read the closed callable shape, following function values
-        let mut function_type = match self.evaluate_root(origin, function_type)? {
-            Answer::Ready(reduced) => reduced,
-            Answer::Pending(_) => return Ok(false),
+        let Some(mut function_type) = self.reduce_type_root(origin, function_type)?.ready() else {
+            return Ok(false);
         };
         if let dir::Type::Function(function) = self.ty(function_type)? {
             function_type = function.signature;
@@ -211,36 +256,213 @@ impl CheckState<'_> {
         let has_rest = parameters.iter().any(|parameter| parameter.is_rest);
         if arguments.len() < required || (!has_rest && arguments.len() > parameters.len()) {
             let expected = Self::expected_arity(required, parameters.len(), has_rest);
-            let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-            let error = CheckError::WrongArgumentCount {
-                anchor,
-                module,
-                expected,
-                supplied: arguments.len(),
-            };
-            self.module_mut(module).diagnostics.push(error.into());
+            self.report_wrong_argument_count(origin, expected, arguments.len())?;
 
             return Ok(true);
         }
 
-        // re-relate each argument loudly under the argument cause
+        // re-relate each argument loudly under the argument role
         for (index, argument) in arguments.iter().enumerate() {
             let parameter = parameters.get(index).or_else(|| parameters.last());
             let Some(parameter) = parameter else {
                 return Ok(false);
             };
+            let expression = argument_nodes
+                .get(index)
+                .and_then(|argument| self.argument_value_node(module, *argument));
+            let origin = expression.map(Origin::Node).unwrap_or(origin);
 
-            self.push_constraint(Constraint {
-                relation: Relation::Assignable,
-                left: *argument,
-                right: parameter.ty,
+            self.push_constraint(Constraint::flow(
+                Relation::Assignable,
+                *argument,
+                parameter.ty,
                 origin,
-                condition: Condition::Always,
-                cause: ConstraintCause::Argument,
-            });
+                Condition::Always,
+                ValueUse::Argument,
+            ));
         }
 
         Ok(true)
+    }
+
+    /// Explain the first argument failure of one generic sole candidate.
+    fn explain_generic_candidate_failure(
+        &mut self,
+        origin: Origin,
+        function_type: dir::GlobalTypeId,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        type_arguments: &[dir::GlobalTypeId],
+        arguments: &[dir::GlobalTypeId],
+    ) -> CompilerResult<bool> {
+        let module = origin.module();
+        let source = self.origin_source_node(origin)?;
+        let probe = self.begin_probe();
+        let result = self.explain_generic_candidate_failure_in_probe(
+            origin,
+            module,
+            source,
+            function_type,
+            argument_nodes,
+            type_arguments,
+            arguments,
+        );
+        self.reject_probe(probe);
+
+        let Some(failure) = result? else {
+            return Ok(false);
+        };
+        self.relate(
+            failure.origin,
+            Relation::Assignable,
+            Some(ValueUse::Argument),
+            failure.argument,
+            failure.parameter,
+        )?;
+
+        Ok(true)
+    }
+
+    /// Select the first argument failure while probe variables are available.
+    fn explain_generic_candidate_failure_in_probe(
+        &mut self,
+        origin: Origin,
+        module: destack_source::ModuleId,
+        source: dir::LocalNodeIdAny,
+        function_type: dir::GlobalTypeId,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        type_arguments: &[dir::GlobalTypeId],
+        arguments: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Option<RejectedArgument>> {
+        let Some(function_type) = self.reduce_type_root(origin, function_type)?.ready() else {
+            return Ok(None);
+        };
+        let function = match self.ty(function_type)? {
+            dir::Type::FunctionSignature(function) => function.clone(),
+            dir::Type::Function(function) => {
+                return self.explain_generic_candidate_failure_in_probe(
+                    origin,
+                    module,
+                    source,
+                    function.signature,
+                    argument_nodes,
+                    type_arguments,
+                    arguments,
+                );
+            }
+            dir::Type::FunctionPointer(function) => {
+                return self.explain_generic_candidate_failure_in_probe(
+                    origin,
+                    module,
+                    source,
+                    function.signature,
+                    argument_nodes,
+                    type_arguments,
+                    arguments,
+                );
+            }
+            _ => return Ok(None),
+        };
+
+        // instantiate the same generic parameters the candidate attempt used
+        let generic_parameters = self.signature_generic_parameters(&function)?;
+        let Some(substitution) = self.instantiate_generic_parameters(
+            origin,
+            &generic_parameters,
+            type_arguments,
+            GenericArgumentMode::Infer,
+        )?
+        else {
+            return Ok(None);
+        };
+        // infer from arguments that are allowed to contribute
+        let mut deferred_arguments =
+            SmallVec::<[(usize, dir::GlobalTypeId, dir::GlobalTypeId); 4]>::new();
+        for (index, argument) in arguments.iter().copied().enumerate() {
+            let Some(parameter) = function
+                .parameters
+                .get(index)
+                .or_else(|| function.parameters.last())
+            else {
+                return Ok(None);
+            };
+            let parameter_type =
+                self.fold_type(module, source, parameter.ty, substitution.rewrite())?;
+            if self.type_contains_noinfer(parameter_type)? {
+                deferred_arguments.push((index, argument, parameter_type));
+
+                continue;
+            }
+
+            match self.constrain(origin, Relation::Assignable, argument, parameter_type)? {
+                Answer::Ready(true) => {}
+                Answer::Ready(false) => {
+                    return Ok(Some(self.rejected_argument(
+                        origin,
+                        module,
+                        argument_nodes,
+                        index,
+                        argument,
+                        parameter_type,
+                    )));
+                }
+                Answer::Pending(_) => return Ok(None),
+            }
+        }
+
+        // solve probe variables from the contributing arguments
+        let variables = self.substitution_variables(&substitution)?;
+        match self.solve_probe_variables(variables)? {
+            Answer::Ready(true) => {}
+            Answer::Ready(false) | Answer::Pending(_) => return Ok(None),
+        }
+
+        // report the first deferred argument that fails after inference
+        for (index, argument, parameter_type) in deferred_arguments {
+            let parameter_type =
+                self.fold_type(module, source, parameter_type, TypeRewrite::Resolve)?;
+            let Some(parameter_type) = self.reduce_type(origin, parameter_type)?.ready() else {
+                return Ok(None);
+            };
+            match self.constrain(origin, Relation::Assignable, argument, parameter_type)? {
+                Answer::Ready(true) => {}
+                Answer::Ready(false) => {
+                    return Ok(Some(self.rejected_argument(
+                        origin,
+                        module,
+                        argument_nodes,
+                        index,
+                        argument,
+                        parameter_type,
+                    )));
+                }
+                Answer::Pending(_) => return Ok(None),
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Return one rejected argument selected by a generic probe.
+    fn rejected_argument(
+        &self,
+        origin: Origin,
+        module: destack_source::ModuleId,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        index: usize,
+        argument: dir::GlobalTypeId,
+        parameter: dir::GlobalTypeId,
+    ) -> RejectedArgument {
+        let origin = argument_nodes
+            .get(index)
+            .and_then(|argument| self.argument_value_node(module, *argument))
+            .map(Origin::Node)
+            .unwrap_or(origin);
+
+        RejectedArgument {
+            origin,
+            argument,
+            parameter,
+        }
     }
 
     /// Render one accepted argument count phrase.
@@ -266,7 +488,7 @@ impl CheckState<'_> {
         origin: Origin,
         module: destack_source::ModuleId,
         callee: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<Option<Callees>>> {
+    ) -> CompilerResult<Answer<Option<CallCandidates>>> {
         let callee_node = callee.into_global_any(module);
 
         // reference and member callees carry decided declaration meanings
@@ -281,7 +503,7 @@ impl CheckState<'_> {
             return self.value_call_candidates(origin, callee_node);
         }
 
-        match self.decisions.get(callee_node) {
+        match self.solver.decision(callee_node) {
             Some(Decision::Name(resolution)) => {
                 let symbols = resolution
                     .symbols()
@@ -302,22 +524,22 @@ impl CheckState<'_> {
                 let mut candidates = SmallVec::new();
                 for symbol in symbols {
                     // gate candidates on their @if availability
-                    match self.decide_availability(symbol)? {
-                        Answer::Ready(true) => {}
-                        Answer::Ready(false) => continue,
-                        Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                    if !answer!(self.decide_availability(symbol)?) {
+                        continue;
                     }
 
-                    if let Some(ty) = self.known_symbol_type(symbol) {
+                    if let Some(ty) = self.symbol_type_maybe(symbol) {
                         candidates.push(CalleeCandidate {
                             symbol: Some(symbol),
+                            owner: Some(symbol),
                             receiver: None,
                             ty,
+                            generic_arguments: Vec::new(),
                         });
                     }
                 }
 
-                Ok(Answer::Ready(Some(Callees::any(candidates))))
+                Ok(Answer::Ready(Some(CallCandidates::Existential(candidates))))
             }
             Some(Decision::Member(resolution)) => match &resolution.target {
                 // member candidates carry their receiver-applied types
@@ -325,11 +547,13 @@ impl CheckState<'_> {
                     let mut candidates = SmallVec::new();
                     candidates.push(CalleeCandidate {
                         symbol: Some(candidate.symbol),
+                        owner: Some(candidate.owner),
                         receiver: Some(resolution.receiver),
                         ty: candidate.ty,
+                        generic_arguments: candidate.generic_arguments.clone(),
                     });
 
-                    Ok(Answer::Ready(Some(Callees::any(candidates))))
+                    Ok(Answer::Ready(Some(CallCandidates::Existential(candidates))))
                 }
                 // existential candidates need one match, universal candidates need every match
                 dir::MemberTarget::Existential(candidates)
@@ -340,15 +564,17 @@ impl CheckState<'_> {
                         .iter()
                         .map(|candidate| CalleeCandidate {
                             symbol: Some(candidate.symbol),
+                            owner: Some(candidate.owner),
                             receiver: Some(receiver),
                             ty: candidate.ty,
+                            generic_arguments: candidate.generic_arguments.clone(),
                         })
                         .collect::<SmallVec<[_; 2]>>();
 
                     Ok(Answer::Ready(Some(if is_universal {
-                        Callees::every(candidates)
+                        CallCandidates::Universal(candidates)
                     } else {
-                        Callees::any(candidates)
+                        CallCandidates::Existential(candidates)
                     })))
                 }
                 // field members call through their function-typed values
@@ -359,7 +585,11 @@ impl CheckState<'_> {
             Some(other) => Err(CompilerError::Internal {
                 message: format!("call callee {callee_node:?} decided as {other:?}"),
             }),
-            // wait for the callee's own selection
+            // function-valued callees can be called from their node type
+            None if self.node_type_maybe(callee_node).is_some() => {
+                self.value_call_candidates(origin, callee_node)
+            }
+            // named and member callees must resolve before call selection
             None => Ok(Answer::pending([Dependency::Decision(callee_node)])),
         }
     }
@@ -369,16 +599,11 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         callee: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Answer<Option<Callees>>> {
-        let Some(ty) = self.node_type(callee) else {
-            return Err(CompilerError::Internal {
-                message: format!("call callee {callee:?} has no input type"),
-            });
+    ) -> CompilerResult<Answer<Option<CallCandidates>>> {
+        let Some(ty) = self.node_type_maybe(callee) else {
+            return Ok(Answer::pending([Dependency::Decision(callee)]));
         };
-        let reduced = match self.evaluate_root(origin, ty)? {
-            Answer::Ready(reduced) => reduced,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let reduced = answer!(self.reduce_type_root(origin, ty)?);
 
         let mut candidates = SmallVec::new();
         match self.ty(reduced)? {
@@ -387,18 +612,20 @@ impl CheckState<'_> {
             | dir::Type::FunctionPointer(_) => {
                 candidates.push(CalleeCandidate {
                     symbol: None,
+                    owner: None,
                     receiver: None,
                     ty: reduced,
+                    generic_arguments: Vec::new(),
                 });
 
-                Ok(Answer::Ready(Some(Callees::any(candidates))))
+                Ok(Answer::Ready(Some(CallCandidates::Existential(candidates))))
             }
             dir::Type::Variable(variable) => {
-                let representative = self.variables.representative(*variable)?;
+                let representative = self.solver.representative(*variable)?;
 
                 Ok(Answer::pending([Dependency::Variable(representative)]))
             }
-            _ => Ok(Answer::Ready(Some(Callees::any(candidates)))),
+            _ => Ok(Answer::Ready(Some(CallCandidates::Existential(candidates)))),
         }
     }
 
@@ -409,119 +636,111 @@ impl CheckState<'_> {
         origin: Origin,
         node: dir::GlobalNodeIdAny,
         module: destack_source::ModuleId,
-        symbol: Option<dir::GlobalSymbolId>,
-        receiver: Option<dir::GlobalTypeId>,
-        function_type: dir::GlobalTypeId,
+        callee: dir::GlobalNodeIdAny,
+        candidate: &CalleeCandidate,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        type_arguments: &[dir::GlobalTypeId],
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<bool>> {
-        let attempt = self.attempt_callable(origin, symbol, function_type, arguments)?;
+        let attempt = self.attempt_callable(origin, candidate.ty, type_arguments, arguments)?;
 
-        match attempt {
-            // record the accepted resolution
-            Answer::Ready(Some((parameters, return_type))) => {
-                let target = match symbol {
-                    Some(symbol) => dir::CallTarget::Symbol(dir::CallCandidate {
-                        receiver,
-                        symbol,
-                        arguments: Vec::new(),
-                    }),
-                    None => dir::CallTarget::Expression {
-                        arguments: Vec::new(),
-                    },
-                };
-                let resolution = dir::CallResolution::new(target, parameters, return_type);
-                self.push_argument_constraints(module, argument_nodes, &resolution.parameters)?;
-                self.record_decision(node, Decision::Call(resolution))?;
-
-                // flow the return type into the call node variable
-                if let Some(variable) = self.node_variable(node)? {
-                    self.push_lower_bound(variable, return_type)?;
-                }
-
-                Ok(Answer::Ready(true))
-            }
-            Answer::Ready(None) => Ok(Answer::Ready(false)),
-            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+        let Some(accepted) = answer!(attempt) else {
+            return Ok(Answer::Ready(false));
+        };
+        let selected_arguments = candidate.selected_generic_arguments(&accepted.generic_arguments);
+        if !answer!(self.extension_clauses_hold(origin, candidate.owner, &selected_arguments)?) {
+            return Ok(Answer::Ready(false));
         }
+
+        // record the accepted resolution
+        let target = match candidate.symbol {
+            Some(symbol) => dir::CallTarget::Symbol(dir::CallCandidate {
+                receiver: candidate.receiver,
+                symbol,
+                generic_arguments: selected_arguments,
+            }),
+            None => dir::CallTarget::Expression {
+                generic_arguments: accepted.generic_arguments.clone(),
+            },
+        };
+        let resolution = dir::CallResolution::new(
+            target,
+            Some(accepted.callable),
+            Self::parameter_types(&accepted.parameters),
+            self.argument_bindings(module, argument_nodes, &accepted.parameters),
+            accepted.return_type,
+        );
+        answer!(self.push_argument_constraints(module, argument_nodes, &resolution.arguments)?);
+        self.record_decision(node, Decision::Call(resolution))?;
+
+        // flow the selected callable and result types into their nodes
+        self.bind_node_type(node, accepted.return_type)?;
+        self.bind_node_type(callee, accepted.callable)?;
+
+        Ok(Answer::Ready(true))
     }
 
     /// Attempt one callable candidate without recording a decision.
-    /// Returns the solved parameters and return type when it accepts,
-    /// keeping the winning hypothesis.
-    fn attempt_callable(
+    /// Returns the solved parameters and return type when it accepts.
+    pub(in crate::check) fn attempt_callable(
         &mut self,
         origin: Origin,
-        symbol: Option<dir::GlobalSymbolId>,
         function_type: dir::GlobalTypeId,
+        type_arguments: &[dir::GlobalTypeId],
         arguments: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<Option<(Vec<dir::GlobalTypeId>, dir::GlobalTypeId)>>> {
+    ) -> CompilerResult<Answer<Option<SignatureMatch>>> {
         let module = origin.module();
         let source = self.origin_source_node(origin)?;
 
         // close the callable shape first
-        let function_type = match self.evaluate_root(origin, function_type)? {
-            Answer::Ready(reduced) => reduced,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
-        let (parameters, return_type) = match self.ty(function_type)? {
-            dir::Type::FunctionSignature(function) => (
-                function
-                    .parameters
-                    .iter()
-                    .copied()
-                    .collect::<SmallVec<[_; 4]>>(),
-                function.return_type,
-            ),
+        let function_type = answer!(self.reduce_type_root(origin, function_type)?);
+        let function = match self.ty(function_type)? {
+            dir::Type::FunctionSignature(function) => function.clone(),
             dir::Type::Function(function) => {
                 let function = function.signature;
 
-                return self.attempt_callable(origin, symbol, function, arguments);
+                return self.attempt_callable(origin, function, type_arguments, arguments);
             }
             dir::Type::FunctionPointer(function) => {
                 let function = function.signature;
 
-                return self.attempt_callable(origin, symbol, function, arguments);
+                return self.attempt_callable(origin, function, type_arguments, arguments);
             }
             _ => return Ok(Answer::Ready(None)),
         };
+        let return_type = function.return_type;
 
-        // hypothesize generic parameters under a probe
-        let template = symbol.and_then(|symbol| self.generics.template_by_symbol(symbol));
+        // instantiate generic parameters under a probe
         let probe = self.begin_probe();
+        let generic_parameters = self.signature_generic_parameters(&function)?;
         let attempt = self.attempt_signature(
             origin,
             module,
             source,
-            template,
-            &parameters,
+            &generic_parameters,
+            type_arguments,
+            &function,
             return_type,
             arguments,
         )?;
 
         match attempt {
-            // keep the winning hypothesis
-            Answer::Ready(Some((parameters, return_type))) => {
-                self.keep_probe(probe)?;
+            Answer::Ready(Some(accepted)) => {
+                self.commit_probe(probe);
 
-                Ok(Answer::Ready(Some((parameters.to_vec(), return_type))))
+                Ok(Answer::Ready(Some(accepted)))
             }
-            // roll back failed hypotheses
             Answer::Ready(None) => {
-                self.unwind_probe(probe)?;
+                self.reject_probe(probe);
 
                 Ok(Answer::Ready(None))
             }
             Answer::Pending(blockers) => {
-                self.unwind_probe(probe)?;
+                self.reject_probe(probe);
 
                 // blockers that died with the probe cannot wake this candidate
-                let blockers = self.surviving_blockers(blockers);
-                if blockers.is_empty() {
-                    Ok(Answer::Ready(None))
-                } else {
-                    Ok(Answer::Pending(blockers))
-                }
+                let blockers = self.live_blockers(blockers);
+                Ok(Answer::ready_unless_blocked(None, blockers))
             }
         }
     }
@@ -535,36 +754,40 @@ impl CheckState<'_> {
         origin: Origin,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         candidates: &[CalleeCandidate],
+        type_arguments: &[dir::GlobalTypeId],
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<()>> {
         let mut targets = Vec::with_capacity(candidates.len());
         let mut returns = SmallVec::<[dir::GlobalTypeId; 4]>::new();
-        let mut parameters: Option<Vec<dir::GlobalTypeId>> = None;
+        let mut parameters: Option<SmallVec<[dir::FunctionParameterType; 4]>> = None;
 
         for candidate in candidates {
-            let attempt =
-                self.attempt_callable(origin, candidate.symbol, candidate.ty, arguments)?;
-            let (solved, return_type) = match attempt {
-                Answer::Ready(Some(signature)) => signature,
+            let attempt = self.attempt_callable(origin, candidate.ty, type_arguments, arguments)?;
+            let Some(accepted) = answer!(attempt) else {
                 // one rejecting variant rejects the whole union call
-                Answer::Ready(None) => {
-                    let variant = self.format_type(candidate.ty);
-                    let arguments = self.format_types(arguments);
-                    let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-                    let error = CheckError::NoMatchingCall {
-                        anchor,
-                        module,
-                        arguments,
-                    };
-                    let note =
-                        format!("every union variant must accept the call; '{variant}' does not");
-                    self.module_mut(module).diagnostics.push(error.note(note));
-                    self.record_decision(node, Decision::Rejected)?;
+                let variant = self.format_type(candidate.ty);
+                let note =
+                    format!("every union variant must accept the call; '{variant}' does not");
+                self.report_no_matching_call(origin, arguments, Some(note))?;
+                self.record_decision(node, Decision::Rejected)?;
 
-                    return Ok(Answer::Ready(()));
-                }
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                return Ok(Answer::Ready(()));
             };
+            let selected_arguments =
+                candidate.selected_generic_arguments(&accepted.generic_arguments);
+            if !answer!(self.extension_clauses_hold(
+                origin,
+                candidate.owner,
+                &selected_arguments,
+            )?) {
+                let variant = self.format_type(candidate.ty);
+                let note =
+                    format!("every union variant must accept the call; '{variant}' does not");
+                self.report_no_matching_call(origin, arguments, Some(note))?;
+                self.record_decision(node, Decision::Rejected)?;
+
+                return Ok(Answer::Ready(()));
+            }
 
             let Some(symbol) = candidate.symbol else {
                 continue;
@@ -572,10 +795,10 @@ impl CheckState<'_> {
             targets.push(dir::CallCandidate {
                 receiver: candidate.receiver,
                 symbol,
-                arguments: Vec::new(),
+                generic_arguments: selected_arguments,
             });
             // join by content: variant returns allocate distinct ids
-            let return_type = self.resolve_shallow(return_type)?;
+            let return_type = self.settled_root(accepted.return_type)?;
             let mut duplicate = false;
             for seen in returns.iter().copied() {
                 if self.ty(seen)? == self.ty(return_type)? {
@@ -588,7 +811,7 @@ impl CheckState<'_> {
             }
             // the recorded parameters are the first variant's; every
             // variant already accepted the arguments above
-            parameters.get_or_insert(solved);
+            parameters.get_or_insert(accepted.parameters.clone());
         }
 
         // join the variant returns into the call result
@@ -605,16 +828,28 @@ impl CheckState<'_> {
 
         let resolution = dir::CallResolution::new(
             dir::CallTarget::Universal(targets),
-            parameters.unwrap_or_default(),
+            None,
+            parameters
+                .as_ref()
+                .map(|parameters| Self::parameter_types(parameters))
+                .unwrap_or_default(),
+            parameters
+                .as_ref()
+                .map(|parameters| {
+                    self.argument_bindings(origin.module(), argument_nodes, parameters)
+                })
+                .unwrap_or_default(),
             return_type,
         );
-        self.push_argument_constraints(origin.module(), argument_nodes, &resolution.parameters)?;
+        answer!(self.push_argument_constraints(
+            origin.module(),
+            argument_nodes,
+            &resolution.arguments
+        )?);
         self.record_decision(node, Decision::Call(resolution))?;
 
         // flow the joined return into the call node variable
-        if let Some(variable) = self.node_variable(node)? {
-            self.push_lower_bound(variable, return_type)?;
-        }
+        self.bind_node_type(node, return_type)?;
 
         Ok(Answer::Ready(()))
     }
@@ -625,36 +860,86 @@ impl CheckState<'_> {
         origin: Origin,
         module: destack_source::ModuleId,
         source: dir::LocalNodeIdAny,
-        template: Option<GenericTemplateId>,
-        function_parameters: &[dir::FunctionParameterType],
+        generic_parameters: &[dir::GlobalGenericParameterId],
+        type_arguments: &[dir::GlobalTypeId],
+        function: &dir::FunctionSignatureType,
         function_return: Option<dir::GlobalTypeId>,
         arguments: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<Option<(SmallVec<[dir::GlobalTypeId; 4]>, dir::GlobalTypeId)>>> {
+    ) -> CompilerResult<Answer<Option<SignatureMatch>>> {
         // reject arities the signature cannot accept
-        let required = function_parameters
+        let required = function
+            .parameters
             .iter()
             .filter(|parameter| !parameter.is_optional && !parameter.is_rest)
             .count();
-        let has_rest = function_parameters
+        let has_rest = function
+            .parameters
             .iter()
             .any(|parameter| parameter.is_rest);
-        if arguments.len() < required || (!has_rest && arguments.len() > function_parameters.len())
+        if arguments.len() < required || (!has_rest && arguments.len() > function.parameters.len())
         {
             return Ok(Answer::Ready(None));
         }
 
-        // hypothesize the signature's generic parameters
-        let substitution = match template {
-            Some(template) => self.instantiate_template(origin, template)?,
-            None => Default::default(),
+        // instantiate the signature's generic parameters
+        let substitution = match generic_parameters {
+            [_first, ..] => {
+                let mode = if type_arguments.is_empty() {
+                    GenericArgumentMode::Infer
+                } else {
+                    GenericArgumentMode::Default
+                };
+                match self.instantiate_generic_parameters(
+                    origin,
+                    generic_parameters,
+                    type_arguments,
+                    mode,
+                )? {
+                    Some(substitution) => substitution,
+                    None => return Ok(Answer::Ready(None)),
+                }
+            }
+            [] if type_arguments.is_empty() => Default::default(),
+            [] => return Ok(Answer::Ready(None)),
         };
+        // check written arguments against their declared constraints
+        if !generic_parameters.is_empty() {
+            for (parameter, argument) in generic_parameters
+                .iter()
+                .copied()
+                .zip(substitution.arguments.iter().copied())
+                .take(type_arguments.len())
+            {
+                let constraint = self
+                    .generic_parameter(parameter)
+                    .and_then(|binding| binding.constraint);
+                let Some(constraint) = constraint else {
+                    continue;
+                };
+                let constraint =
+                    self.fold_type(module, source, constraint, substitution.rewrite())?;
 
-        // relate each argument into its substituted parameter
-        let mut parameters = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+                let source_node = source.into_global(module);
+                let condition = self.node_static_condition(source_node);
+                if !answer!(self.constrain_generic_argument(
+                    origin,
+                    source_node,
+                    condition,
+                    argument,
+                    constraint,
+                )?) {
+                    return Ok(Answer::Ready(None));
+                }
+            }
+        }
+
+        // relate inference-bearing arguments first
+        let mut deferred_arguments = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>::new();
         for (index, argument) in arguments.iter().enumerate() {
-            let parameter = function_parameters
+            let parameter = function
+                .parameters
                 .get(index)
-                .or_else(|| function_parameters.last());
+                .or_else(|| function.parameters.last());
             let Some(parameter) = parameter else {
                 return Ok(Answer::Ready(None));
             };
@@ -663,29 +948,38 @@ impl CheckState<'_> {
             } else {
                 self.fold_type(module, source, parameter.ty, substitution.rewrite())?
             };
+            if self.type_contains_noinfer(parameter_type)? {
+                deferred_arguments.push((*argument, parameter_type));
 
-            match self.constrain(origin, Relation::Assignable, *argument, parameter_type)? {
-                Answer::Ready(true) => parameters.push(parameter_type),
-                // rejected arguments fail the candidate silently
-                Answer::Ready(false) => return Ok(Answer::Ready(None)),
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                continue;
+            }
+
+            if !answer!(self.constrain(origin, Relation::Assignable, *argument, parameter_type)?) {
+                // rejected arguments fail only this candidate
+                return Ok(Answer::Ready(None));
             }
         }
 
-        // solve hypothesized parameters from their argument bounds
-        let floor = self.queue.solve_count();
-        for variable_type in substitution.arguments.iter().copied() {
-            if let Some(variable) = self.root_variable(variable_type)? {
-                self.queue_task(Task::Solve(variable));
+        // reject candidates whose inferred arguments violate their constraints
+        let variables = self.substitution_variables(&substitution)?;
+        match self.solve_probe_variables(variables)? {
+            Answer::Ready(true) => {}
+            Answer::Ready(false) => return Ok(Answer::Ready(None)),
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        }
+
+        // check NoInfer arguments after inference closes
+        for (argument, parameter_type) in deferred_arguments {
+            let parameter_type =
+                self.fold_type(module, source, parameter_type, TypeRewrite::Resolve)?;
+            let parameter_type = answer!(self.reduce_type(origin, parameter_type)?);
+
+            if !answer!(self.constrain(origin, Relation::Assignable, argument, parameter_type)?) {
+                return Ok(Answer::Ready(None));
             }
         }
-        // reject candidates whose inferred hypotheses violate their constraints
-        if !self.drain_probe_tasks(floor)? {
-            return Ok(Answer::Ready(None));
-        }
-        self.close_hypotheses(module, source, &substitution)?;
 
-        // harvest the substituted return type
+        // resolve the substituted return type
         let return_type = match function_return {
             Some(return_type) => {
                 let return_type = if substitution.is_empty() {
@@ -694,16 +988,227 @@ impl CheckState<'_> {
                     self.fold_type(module, source, return_type, substitution.rewrite())?
                 };
 
-                self.harvest_type(module, source, return_type)?
+                self.fold_type(module, source, return_type, TypeRewrite::Resolve)?
             }
             None => self.push_type(module, dir::Type::Void, source)?,
         };
-        let parameters = parameters
-            .into_iter()
-            .map(|parameter| self.harvest_type(module, source, parameter))
-            .collect::<CompilerResult<SmallVec<[_; 4]>>>()?;
+        let parameters = function
+            .parameters
+            .iter()
+            .map(|parameter| {
+                let ty = if substitution.is_empty() {
+                    parameter.ty
+                } else {
+                    self.fold_type(module, source, parameter.ty, substitution.rewrite())?
+                };
+                let ty = self.fold_type(module, source, ty, TypeRewrite::Resolve)?;
 
-        Ok(Answer::Ready(Some((parameters, return_type))))
+                Ok(dir::FunctionParameterType {
+                    ty,
+                    static_parameter: None,
+                    is_optional: parameter.is_optional,
+                    is_rest: parameter.is_rest,
+                })
+            })
+            .collect::<CompilerResult<SmallVec<[_; 4]>>>()?;
+        let raw_arguments = substitution
+            .arguments
+            .iter()
+            .copied()
+            .map(|argument| self.fold_type(module, source, argument, TypeRewrite::Resolve))
+            .collect::<CompilerResult<SmallVec<[_; 4]>>>()?;
+        let arguments = self.generic_argument_bindings(generic_parameters, &raw_arguments)?;
+        let function_type = self.resolve_inferred_function_signature(
+            module,
+            source,
+            function,
+            &substitution,
+            return_type,
+        )?;
+
+        Ok(Answer::Ready(Some(SignatureMatch {
+            callable: function_type,
+            parameters,
+            return_type,
+            generic_arguments: arguments,
+        })))
+    }
+
+    /// Return whether one type graph contains a NoInfer operation.
+    fn type_contains_noinfer(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+        let mut visited = indexmap::IndexSet::new();
+        pending.push(ty);
+
+        while let Some(ty) = pending.pop() {
+            let ty = self.settled_root(ty)?;
+            if !visited.insert(ty) {
+                continue;
+            }
+
+            let ty = self.ty(ty)?;
+            if matches!(ty, dir::Type::Operation(dir::TypeOperation::NoInfer(_))) {
+                return Ok(true);
+            }
+            if let dir::Type::Instance(instance) = ty
+                && self
+                    .environment
+                    .language
+                    .item(instance.symbol)
+                    .is_some_and(|item| item == dir::LanguageItem::NoInfer)
+            {
+                return Ok(true);
+            }
+
+            ty.for_each_child(|child| pending.push(child));
+        }
+
+        Ok(false)
+    }
+
+    /// Return the generic parameters carried by one callable type.
+    fn callable_generic_parameters(
+        &mut self,
+        origin: Origin,
+        function_type: dir::GlobalTypeId,
+    ) -> CompilerResult<SmallVec<[dir::GlobalGenericParameterId; 4]>> {
+        let Some(function_type) = self.reduce_type_root(origin, function_type)?.ready() else {
+            return Ok(SmallVec::new());
+        };
+
+        match self.ty(function_type)?.clone() {
+            dir::Type::FunctionSignature(function) => self.signature_generic_parameters(&function),
+            dir::Type::Function(function) => {
+                self.callable_generic_parameters(origin, function.signature)
+            }
+            dir::Type::FunctionPointer(function) => {
+                self.callable_generic_parameters(origin, function.signature)
+            }
+            _ => Ok(SmallVec::new()),
+        }
+    }
+
+    /// Return the generic parameter ids carried by one function signature.
+    /// Resolve one callable signature after substitution.
+    fn resolve_inferred_function_signature(
+        &mut self,
+        module: destack_source::ModuleId,
+        source: dir::LocalNodeIdAny,
+        function: &dir::FunctionSignatureType,
+        substitution: &TypeSubstitution,
+        return_type: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let this_parameter = match function.this_parameter {
+            Some(this_parameter) if substitution.is_empty() => Some(this_parameter),
+            Some(this_parameter) => {
+                let this_parameter =
+                    self.fold_type(module, source, this_parameter, substitution.rewrite())?;
+                let this_parameter =
+                    self.fold_type(module, source, this_parameter, TypeRewrite::Resolve)?;
+
+                Some(this_parameter)
+            }
+            None => None,
+        };
+        let parameters = function
+            .parameters
+            .iter()
+            .map(|parameter| {
+                let ty = if substitution.is_empty() {
+                    parameter.ty
+                } else {
+                    self.fold_type(module, source, parameter.ty, substitution.rewrite())?
+                };
+                let ty = self.fold_type(module, source, ty, TypeRewrite::Resolve)?;
+
+                Ok(dir::FunctionParameterType {
+                    ty,
+                    static_parameter: None,
+                    is_optional: parameter.is_optional,
+                    is_rest: parameter.is_rest,
+                })
+            })
+            .collect::<CompilerResult<Vec<_>>>()?;
+
+        self.push_type(
+            module,
+            dir::Type::FunctionSignature(dir::FunctionSignatureType {
+                asynchrony: function.asynchrony,
+                template: None,
+                this_parameter,
+                parameters,
+                return_type: Some(return_type),
+                is_generator: function.is_generator,
+            }),
+            source,
+        )
+    }
+
+    /// Return selected parameter types.
+    pub(in crate::check) fn parameter_types(
+        parameters: &[dir::FunctionParameterType],
+    ) -> Vec<dir::GlobalTypeId> {
+        parameters.iter().map(|parameter| parameter.ty).collect()
+    }
+
+    /// Return runtime argument bindings for selected parameters.
+    pub(in crate::check) fn argument_bindings(
+        &self,
+        module: destack_source::ModuleId,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        parameters: &[dir::FunctionParameterType],
+    ) -> Vec<dir::ArgumentBinding> {
+        let mut argument_index = 0usize;
+        let mut bindings = Vec::with_capacity(parameters.len());
+
+        for (parameter, parameter_type) in parameters.iter().enumerate() {
+            let argument = if parameter_type.is_rest {
+                let rest = argument_nodes[argument_index..]
+                    .iter()
+                    .map(|argument| argument.into_global_any(module))
+                    .collect();
+                argument_index = argument_nodes.len();
+
+                dir::ArgumentSource::Rest(rest)
+            } else if let Some(argument) = argument_nodes.get(argument_index).copied() {
+                argument_index += 1;
+
+                dir::ArgumentSource::Provided(argument.into_global_any(module))
+            } else {
+                dir::ArgumentSource::Omitted
+            };
+
+            bindings.push(dir::ArgumentBinding {
+                parameter,
+                ty: parameter_type.ty,
+                argument,
+            });
+        }
+
+        bindings
+    }
+
+    /// Return generated argument bindings for selected parameters.
+    pub(in crate::check) fn generated_argument_bindings(
+        argument_sources: &[dir::ArgumentSource],
+        parameters: &[dir::FunctionParameterType],
+    ) -> Vec<dir::ArgumentBinding> {
+        parameters
+            .iter()
+            .enumerate()
+            .map(|(parameter, parameter_type)| {
+                let argument = argument_sources
+                    .get(parameter)
+                    .cloned()
+                    .unwrap_or(dir::ArgumentSource::Omitted);
+
+                dir::ArgumentBinding {
+                    parameter,
+                    ty: parameter_type.ty,
+                    argument,
+                }
+            })
+            .collect()
     }
 
     /// Push final argument constraints for one selected signature.
@@ -711,36 +1216,66 @@ impl CheckState<'_> {
         &mut self,
         module: destack_source::ModuleId,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
-        parameters: &[dir::GlobalTypeId],
-    ) -> CompilerResult<()> {
-        for (index, argument) in argument_nodes.iter().copied().enumerate() {
-            let Some(parameter) = parameters.get(index).or_else(|| parameters.last()) else {
+        bindings: &[dir::ArgumentBinding],
+    ) -> CompilerResult<Answer<()>> {
+        for argument in argument_nodes.iter().copied() {
+            let argument_node = argument.into_global_any(module);
+            let Some(binding) = bindings.iter().find(|binding| {
+                matches!(
+                    &binding.argument,
+                    dir::ArgumentSource::Provided(source) if *source == argument_node
+                ) || matches!(
+                    &binding.argument,
+                    dir::ArgumentSource::Rest(sources) if sources.contains(&argument_node)
+                )
+            }) else {
                 continue;
             };
             let Some(value) = self.argument_value_node(module, argument) else {
                 continue;
             };
-            let Some(source) = self.node_type(value) else {
-                return Err(CompilerError::Internal {
-                    message: format!("argument value {value:?} has no input type"),
-                });
-            };
+            let source = answer!(self.argument_type(module, argument)?);
 
-            self.push_constraint(Constraint {
-                relation: Relation::Assignable,
-                left: source,
-                right: *parameter,
-                origin: Origin::Node(value),
-                condition: Condition::Always,
-                cause: ConstraintCause::Argument,
-            });
+            self.push_constraint(Constraint::flow(
+                Relation::Assignable,
+                source,
+                binding.ty,
+                Origin::Node(value),
+                Condition::Always,
+                ValueUse::Argument,
+            ));
         }
 
-        Ok(())
+        Ok(Answer::Ready(()))
+    }
+
+    /// Return the type flowing through one runtime argument.
+    pub(in crate::check) fn argument_type(
+        &mut self,
+        module: destack_source::ModuleId,
+        argument: dir::LocalNodeId<dir::Argument>,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let argument_node = argument.into_global_any(module);
+        if let Some(ty) = self.node_type_maybe(argument_node) {
+            return Ok(Answer::Ready(ty));
+        }
+
+        let Some(value) = self.argument_value_node(module, argument) else {
+            let error = self.push_type(module, dir::Type::Error, argument.into_any())?;
+            self.bind_node_type(argument_node, error)?;
+
+            return Ok(Answer::Ready(error));
+        };
+        let Some(ty) = self.node_type_maybe(value) else {
+            return Ok(Answer::pending([Dependency::Decision(value)]));
+        };
+        self.bind_node_type(argument_node, ty)?;
+
+        Ok(Answer::Ready(ty))
     }
 
     /// Return the value expression carried by one argument node.
-    fn argument_value_node(
+    pub(in crate::check) fn argument_value_node(
         &self,
         module: destack_source::ModuleId,
         argument: dir::LocalNodeId<dir::Argument>,
@@ -752,136 +1287,5 @@ impl CheckState<'_> {
             | dir::Argument::Labeled { value, .. } => Some(value.into_global_any(module)),
             dir::Argument::Error => None,
         }
-    }
-
-    /// Drop pending dependencies that died with an unwound probe.
-    pub(in crate::check) fn surviving_blockers(
-        &self,
-        blockers: SmallVec<[Dependency; 2]>,
-    ) -> SmallVec<[Dependency; 2]> {
-        blockers
-            .into_iter()
-            .filter(|blocker| match blocker {
-                Dependency::Variable(variable) => self.variables.get(*variable).is_ok(),
-                Dependency::Decision(_) => true,
-            })
-            .collect()
-    }
-
-    /// Close leftover unsolved hypothesis variables to unknown.
-    /// Harvested types must never reference variables the probe unwinds.
-    pub(in crate::check) fn close_hypotheses(
-        &mut self,
-        module: destack_source::ModuleId,
-        source: dir::LocalNodeIdAny,
-        substitution: &Substitution,
-    ) -> CompilerResult<()> {
-        for variable_type in substitution.arguments.iter().copied() {
-            let Some(variable) = self.root_variable(variable_type)? else {
-                continue;
-            };
-
-            // uninferable hypotheses close to unknown
-            if self.variables.solution(variable)?.is_none() {
-                let unknown = self.push_type(module, dir::Type::Unknown, source)?;
-                self.set_solution(variable, unknown)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Run solve tasks queued above one floor to quiescence inside one
-    /// probe. Returns whether every solved hypothesis met its upper
-    /// bounds. The floor keeps the drain probe-scoped: solve tasks the
-    /// outer loop queued before the probe stay untouched.
-    pub(in crate::check) fn drain_probe_tasks(&mut self, floor: usize) -> CompilerResult<bool> {
-        // bounded drain keeps candidate testing terminating; only the
-        // solve class drains, other task classes stay queued untouched
-        let mut budget = 1024usize;
-        let mut consistent = true;
-        while budget > 0 {
-            let Some(task) = self.queue.pop_solve_above(floor) else {
-                break;
-            };
-            self.journal.record(Mutation::TaskPopped { task });
-
-            if let Task::Solve(variable) = task {
-                consistent &= self.solve_probe_variable(variable)?;
-            }
-            budget -= 1;
-        }
-
-        Ok(consistent)
-    }
-
-    /// Solve one hypothesized variable from its bounds inside a probe.
-    /// Returns whether the solution met the variable's upper bounds.
-    fn solve_probe_variable(&mut self, variable: dir::TypeVariableId) -> CompilerResult<bool> {
-        let representative = self.variables.representative(variable)?;
-
-        // join available lower bounds directly
-        let state = self.variables.get(representative)?;
-        if state.solution.is_some() {
-            return Ok(true);
-        }
-        let lower = state.lower.clone();
-        if lower.is_empty() {
-            return Ok(true);
-        }
-        let origin = state.origin;
-        let upper = state.upper.clone();
-
-        let joined = self.best_common(representative, &lower)?;
-        self.set_solution(representative, joined)?;
-
-        // check the solution against seeded constraint bounds
-        for bound in upper {
-            match self.decide_relation(origin, Relation::Assignable, joined, bound)? {
-                Answer::Ready(true) => {}
-                // violated constraints fail the candidate
-                Answer::Ready(false) => return Ok(false),
-                // undecidable bounds re-check outside the probe
-                Answer::Pending(_) => {
-                    self.push_constraint(Constraint {
-                        relation: Relation::Assignable,
-                        left: joined,
-                        right: bound,
-                        origin,
-                        condition: Condition::Always,
-                        cause: ConstraintCause::General,
-                    });
-                }
-            }
-        }
-
-        Ok(true)
-    }
-
-    /// Return the open variable behind one node input.
-    pub(in crate::check) fn node_variable(
-        &self,
-        node: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Option<dir::TypeVariableId>> {
-        let Some(input) = self.node_type(node) else {
-            return Ok(None);
-        };
-
-        self.root_variable(input)
-    }
-
-    /// Return one symbol's type if known, from this component or external tables.
-    fn known_symbol_type(&self, symbol: dir::GlobalSymbolId) -> Option<dir::GlobalTypeId> {
-        // prefer the component's working type over committed tables
-        if let Some(ty) = self.symbol_type(symbol) {
-            return Some(ty);
-        }
-
-        // read external committed symbol types
-        if let Some(external) = self.external_modules.get(&symbol.module_id) {
-            return external.types.get_symbol_type_id(symbol);
-        }
-
-        None
     }
 }

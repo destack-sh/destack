@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckEvent, CheckState, Condition, Constraint, ConstraintRole, Dependency, Origin,
-    Relation, Task, VariableBounds, Widening, answer,
+    Answer, CheckEvent, CheckState, Condition, Constraint, Dependency, Origin, Relation, Task,
+    VariableBounds, Widening, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -132,9 +132,9 @@ impl CheckState<'_> {
 
             return Ok(Answer::Ready(true));
         };
-        let solution = answer!(self.evaluate_root(origin, solution)?);
-        self.set_solution(representative, solution)?;
+        let solution = answer!(self.reduce_type_root(origin, solution)?);
         let mut bounds_hold = true;
+        let mut pending = SmallVec::<[Dependency; 2]>::new();
 
         // check inferred solutions against their contextual upper bounds
         if check_upper {
@@ -150,20 +150,45 @@ impl CheckState<'_> {
                     bound,
                 )? {
                     Answer::Ready(true) => {}
-                    Answer::Ready(false) | Answer::Pending(_) => {
+                    Answer::Ready(false) => {
                         bounds_hold = false;
-                        self.push_constraint(Constraint {
-                            relation: Relation::Assignable,
-                            left: solution,
-                            right: bound,
+                        self.push_constraint(Constraint::check(
+                            Relation::Assignable,
+                            solution,
+                            bound,
                             origin,
-                            condition: Condition::Always,
-                            role: ConstraintRole::Check,
-                        });
+                            Condition::Always,
+                        ));
+                    }
+                    Answer::Pending(blockers) => {
+                        pending.extend(blockers);
+                        self.push_constraint(Constraint::check(
+                            Relation::Assignable,
+                            solution,
+                            bound,
+                            origin,
+                            Condition::Always,
+                        ));
                     }
                 }
             }
         }
+        if !pending.is_empty() {
+            self.set_solution(representative, solution)?;
+            self.record_event(CheckEvent::VariableBlocked {
+                variable: representative,
+                bounds: VariableBounds {
+                    lower,
+                    upper: self.solver.variable(representative)?.upper.clone(),
+                    default,
+                },
+                blockers: pending.clone(),
+            });
+
+            return Ok(Answer::Pending(pending));
+        }
+
+        self.set_solution(representative, solution)?;
 
         Ok(Answer::Ready(bounds_hold))
     }
@@ -304,14 +329,13 @@ impl CheckState<'_> {
         // late bounds against a solved variable become relation checks
         if let Some(solution) = self.solver.variable(representative)?.solution {
             let origin = self.solver.variable(representative)?.origin;
-            self.push_constraint(Constraint {
-                relation: Relation::Assignable,
-                left: bound,
-                right: solution,
+            self.push_constraint(Constraint::check(
+                Relation::Assignable,
+                bound,
+                solution,
                 origin,
-                condition: Condition::Always,
-                role: ConstraintRole::Check,
-            });
+                Condition::Always,
+            ));
 
             return Ok(());
         }
@@ -359,14 +383,13 @@ impl CheckState<'_> {
             )? {
                 Answer::Ready(true) => {}
                 Answer::Ready(false) | Answer::Pending(_) => {
-                    self.push_constraint(Constraint {
-                        relation: Relation::Assignable,
-                        left: solution,
-                        right: bound,
+                    self.push_constraint(Constraint::check(
+                        Relation::Assignable,
+                        solution,
+                        bound,
                         origin,
-                        condition: Condition::Always,
-                        role: ConstraintRole::Check,
-                    });
+                        Condition::Always,
+                    ));
                 }
             }
 

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, Origin, Relation};
+use crate::check::{Answer, CheckState, Origin, Relation};
 
 /// One derived generic parameter variance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -206,7 +206,7 @@ impl CheckState<'_> {
             }
 
             // applications compose with the base parameter variances
-            dir::Type::Reference(instance) => {
+            dir::Type::Instance(instance) => {
                 self.measure_application(instance.symbol, &instance.arguments, position, parameter)?
             }
 
@@ -338,11 +338,10 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(false));
         }
         let parameters = self
-            .generics
-            .template_by_symbol(symbol)
+            .symbol_template(symbol)
             .map(|template| self.generic_template_parameters(template));
 
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
+        let mut decision = Answer::Ready(true);
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
             // unknown templates compare invariantly
             let variance = match &parameters {
@@ -353,7 +352,7 @@ impl CheckState<'_> {
                 None => Variance::Invariant,
             };
 
-            let decision = match variance {
+            let answer = match variance {
                 // unused parameters relate freely
                 Variance::Bivariant => Answer::Ready(true),
                 Variance::Covariant => {
@@ -366,18 +365,13 @@ impl CheckState<'_> {
                     self.decide_relation(origin, Relation::Equal, *source, *target)?
                 }
             };
-            match decision {
-                Answer::Ready(false) => return Ok(Answer::Ready(false)),
-                Answer::Ready(true) => {}
-                Answer::Pending(dependencies) => blockers.extend(dependencies),
+            decision = decision.and(answer);
+            if decision.is_ready_false() {
+                return Ok(decision);
             }
         }
 
-        if blockers.is_empty() {
-            Ok(Answer::Ready(true))
-        } else {
-            Ok(Answer::pending(blockers))
-        }
+        Ok(decision)
     }
 
     /// Constrain same-template argument pairs by their parameter variances.
@@ -389,11 +383,10 @@ impl CheckState<'_> {
         target: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<bool>> {
         let parameters = self
-            .generics
-            .template_by_symbol(symbol)
+            .symbol_template(symbol)
             .map(|template| self.generic_template_parameters(template));
 
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
+        let mut decision = Answer::Ready(true);
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
             // unknown templates compare invariantly
             let variance = match &parameters {
@@ -415,18 +408,13 @@ impl CheckState<'_> {
                 }
                 Variance::Invariant => self.constrain(origin, Relation::Equal, *source, *target)?,
             };
-            match answer {
-                Answer::Ready(false) => return Ok(Answer::Ready(false)),
-                Answer::Ready(true) => {}
-                Answer::Pending(dependencies) => blockers.extend(dependencies),
+            decision = decision.and(answer);
+            if decision.is_ready_false() {
+                return Ok(decision);
             }
         }
 
-        if blockers.is_empty() {
-            Ok(Answer::Ready(true))
-        } else {
-            Ok(Answer::pending(blockers))
-        }
+        Ok(decision)
     }
 
     /// Measure one application's arguments under the base variances.
@@ -438,8 +426,7 @@ impl CheckState<'_> {
         parameter: dir::GlobalGenericParameterId,
     ) -> CompilerResult<Variance> {
         let parameters = self
-            .generics
-            .template_by_symbol(base)
+            .symbol_template(base)
             .map(|template| self.generic_template_parameters(template));
 
         let mut measured = Variance::Bivariant;

@@ -13,7 +13,7 @@ impl CheckState<'_> {
         interface: AutoInterface,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let origin = Origin::Node(source);
-        let ty = answer!(self.evaluate_root(origin, ty)?);
+        let ty = answer!(self.reduce_type_root(origin, ty)?);
         if answer!(self.satisfies_auto_interface(origin, ty, interface)?) {
             return Ok(Answer::Ready(None));
         }
@@ -23,6 +23,12 @@ impl CheckState<'_> {
             AutoInterface::DynamicSafe => {
                 let ty = self.format_type(ty);
                 let error = CheckError::DynamicSafetyNotSatisfied { anchor, module, ty };
+
+                error.into()
+            }
+            AutoInterface::OverwriteStable => {
+                let ty = self.format_type(ty);
+                let error = CheckError::OverwriteStabilityNotSatisfied { anchor, module, ty };
 
                 error.into()
             }

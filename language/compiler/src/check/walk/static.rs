@@ -223,6 +223,11 @@ impl WalkState<'_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        let node = expression.into_global_any(self.module);
+        if let Some(ty) = self.check.node_type_maybe(node) {
+            return Ok(ty);
+        }
+
         let source = expression.into_any();
 
         // embed eagerly evaluable subtrees as literals, covering profile
@@ -261,7 +266,7 @@ impl WalkState<'_, '_> {
                     ..
                 } = self.tree.get(*value)
                 {
-                    self.open_inferred_node_type(*value, Widening::Preserve)?
+                    self.infer_node_type(*value, Widening::Preserve)?
                 } else {
                     self.walk_type_expression(*value)?
                 };
@@ -416,7 +421,7 @@ impl WalkState<'_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.bind_node_type(expression, ty)
+        self.write_node_type(expression, ty)
     }
 
     /// Return one eagerly evaluated static term as a scalar literal.

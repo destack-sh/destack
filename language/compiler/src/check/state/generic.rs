@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, Origin, Substitution, Widening};
+use crate::check::{CheckState, Origin, TypeSubstitution, Widening};
 use crate::{CompilerError, CompilerResult};
 
 /// Stable id for one declaration-side generic parameter.
@@ -232,6 +232,29 @@ impl CheckState<'_> {
             .collect()
     }
 
+    /// Return the generic parameters owned by one callable signature.
+    pub(in crate::check) fn signature_generic_parameters(
+        &self,
+        signature: &dir::FunctionSignatureType,
+    ) -> CompilerResult<SmallVec<[GenericParameterId; 4]>> {
+        let Some(template_id) = signature.template else {
+            return Ok(SmallVec::new());
+        };
+        let Some(template) = self.generic_template(template_id) else {
+            return Err(CompilerError::Internal {
+                message: format!("signature template {template_id:?} is missing"),
+            });
+        };
+
+        let parameters = template
+            .parameters
+            .iter()
+            .map(|parameter| parameter.into_global(template_id.module_id))
+            .collect();
+
+        Ok(parameters)
+    }
+
     /// Return selected generic argument bindings for one ordered parameter list.
     pub(in crate::check) fn generic_argument_bindings(
         &self,
@@ -296,7 +319,7 @@ impl CheckState<'_> {
         if parameters.is_empty() {
             return Ok(Some(default));
         }
-        let substitution = Substitution {
+        let substitution = TypeSubstitution {
             parameters: parameters.iter().copied().collect(),
             arguments: arguments.iter().copied().collect(),
             receiver: None,
@@ -439,7 +462,7 @@ impl CheckState<'_> {
         template: GenericTemplateId,
         written: &[dir::GlobalTypeId],
         mode: GenericArgumentMode,
-    ) -> CompilerResult<Option<Substitution>> {
+    ) -> CompilerResult<Option<TypeSubstitution>> {
         let parameters = self.generic_template_parameters(template);
 
         self.instantiate_generic_parameters(origin, &parameters, written, mode)
@@ -453,7 +476,7 @@ impl CheckState<'_> {
         parameters: &[GenericParameterId],
         written: &[dir::GlobalTypeId],
         mode: GenericArgumentMode,
-    ) -> CompilerResult<Option<Substitution>> {
+    ) -> CompilerResult<Option<TypeSubstitution>> {
         if written.len() > parameters.len() {
             return Ok(None);
         }
@@ -509,7 +532,7 @@ impl CheckState<'_> {
             arguments.push(ty);
         }
 
-        Ok(Some(Substitution {
+        Ok(Some(TypeSubstitution {
             parameters: parameters.iter().copied().collect(),
             arguments,
             receiver: None,

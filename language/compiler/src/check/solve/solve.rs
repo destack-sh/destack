@@ -52,19 +52,19 @@ impl CheckState<'_> {
         }
 
         // copy the relation before solver calls can mutate state
-        let (relation, role, left, right, origin, predicates) = {
+        let (relation, value_use, left, right, origin, predicates) = {
             let constraint = self.solver.constraints.get(id)?;
-            let predicates = match &constraint.condition {
+            let predicates = match constraint.condition() {
                 Condition::Always => SmallVec::new(),
                 Condition::When(predicates) => predicates.clone(),
             };
 
             (
-                constraint.relation,
-                constraint.role,
-                constraint.left,
-                constraint.right,
-                constraint.origin,
+                constraint.relation(),
+                constraint.value_use(),
+                constraint.left(),
+                constraint.right(),
+                constraint.origin(),
                 predicates,
             )
         };
@@ -89,7 +89,7 @@ impl CheckState<'_> {
         match answer? {
             Answer::Ready(holds) => {
                 if !holds {
-                    self.report_relation_failure(origin, relation, role, left, right)?;
+                    self.report_relation_failure(origin, relation, value_use, left, right)?;
                 }
 
                 let state = if holds {

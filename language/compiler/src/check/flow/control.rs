@@ -3,7 +3,7 @@ use destack_dir as dir;
 use crate::CompilerResult;
 use crate::check::{
     ControlTarget, FlowBranch, Obligation, Origin, Relation, TryPropagationObligation,
-    TryPropagationTarget, TryPropagationValue, TryTarget, WalkState,
+    TryPropagationTarget, TryPropagationValue, TryTarget, ValueUse, WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -55,7 +55,13 @@ impl WalkState<'_, '_> {
             }
             // break exits already bound the result, add the fallthrough exit
             (_, Some(fallthrough)) => {
-                self.relate_type(origin, Relation::Assignable, fallthrough, target.result);
+                self.push_flow(
+                    origin,
+                    ValueUse::Store,
+                    Relation::Assignable,
+                    fallthrough,
+                    target.result,
+                );
             }
             // break exits already bound the result
             (_, None) => {}
@@ -70,8 +76,8 @@ impl WalkState<'_, '_> {
         &mut self,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // open the failure result variable
-        let failure = self.open_type(source)?;
+        // infer the failure result variable
+        let failure = self.infer_type(source)?;
         let target = TryTarget {
             failure,
             has_failure: false,
@@ -135,7 +141,7 @@ impl WalkState<'_, '_> {
         self.flow_mut().push_break_branch(index, value, branch);
 
         // require the break value to match the target result
-        self.relate_type(origin, Relation::Assignable, value, result);
+        self.push_flow(origin, ValueUse::Store, Relation::Assignable, value, result);
 
         Ok(())
     }

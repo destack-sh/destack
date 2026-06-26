@@ -69,7 +69,7 @@ impl WalkState<'_, '_> {
             self.copy_node_type(id, expression)?;
         } else {
             let void = self.push_type(dir::Type::Void, id.into_any())?;
-            self.bind_node_type(id, void)?;
+            self.write_node_type(id, void)?;
         }
 
         Ok(())

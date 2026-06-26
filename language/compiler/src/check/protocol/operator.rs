@@ -3,13 +3,15 @@ use destack_dir as dir;
 use destack_core::StringPool;
 use smallvec::{SmallVec, smallvec};
 
+use crate::CompilerResult;
+use crate::check::{CheckState, Origin, Protocol};
+
 /// Result produced by one operator expression protocol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum OperatorExpressionResult {
     /// Use the selected method return.
     MethodReturn,
-    // TODO #Suspicious: why do we need OperatorExpressionResult? .Pointee..? why .Boolean?
-    /// Use the place behind the returned borrow.
+    /// Use the place behind the selected method's returned borrow.
     Pointee,
     /// Use the builtin boolean result.
     Boolean,
@@ -133,6 +135,33 @@ impl OperatorProtocol {
         self.arguments = arguments;
 
         self
+    }
+}
+
+impl CheckState<'_> {
+    /// Return one operator protocol interface instance.
+    pub(in crate::check) fn operator_protocol(
+        &mut self,
+        origin: Origin,
+        protocol: &OperatorProtocol,
+        type_arguments: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Protocol> {
+        let module = origin.module();
+        let source = self.origin_source_node(origin)?;
+        let mut arguments = Vec::with_capacity(type_arguments.len() + protocol.arguments.len());
+        arguments.extend_from_slice(type_arguments);
+
+        // append static protocol arguments derived from syntax context
+        for argument in &protocol.arguments {
+            match argument {
+                OperatorProtocolArgument::Access(access) => {
+                    let ty = dir::Type::Memory(dir::MemoryLiteral::Access(*access));
+                    arguments.push(self.push_type(module, ty, source)?);
+                }
+            }
+        }
+
+        Ok(self.language_protocol(protocol.item, arguments))
     }
 }
 

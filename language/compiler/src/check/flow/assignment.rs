@@ -94,7 +94,7 @@ impl WalkState<'_, '_> {
             dir::Parameter::Named { .. }
             // (...name)
             | dir::Parameter::VariadicNamed { .. }
-            // ignore damaged syntax
+            // ignore error parameters
             | dir::Parameter::Error => {}
         }
     }
@@ -117,7 +117,7 @@ impl WalkState<'_, '_> {
             // *pattern
             | dir::Pattern::DereferenceOf { right: pattern }
             // pattern = value
-            | dir::Pattern::Assign { pattern, .. } => {
+            | dir::Pattern::Default { pattern, .. } => {
                 self.mark_pattern_bindings_assigned(*pattern);
             }
             // [a, b]

@@ -73,9 +73,9 @@ impl WalkState<'_, '_> {
             return Some(parent);
         }
 
-        // use receiver-owned member scopes
+        // use declaration receiver scopes
         receiver
-            .and_then(|receiver| receiver.owner)
+            .and_then(|receiver| receiver.declaration)
             .and_then(|symbol| self.check.generics.template_by_symbol(symbol))
     }
 

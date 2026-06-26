@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CheckState, Condition, Constraint, ConstraintRole, ConstructResult, FlowState,
-    GenericInductionParameter, Origin, PlaceUse, Relation, Selection, Widening,
+    CheckState, Condition, Constraint, ConstructResult, FlowState, GenericInductionParameter,
+    Origin, PlaceUse, Relation, Selection, ValueUse, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -106,30 +106,60 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(())
     }
 
-    /// Return one node's checked type, opening a slot when selection will fill it later.
+    /// Return one node's checked type.
     pub(in crate::check) fn node_type<T: dir::Node>(
-        &mut self,
+        &self,
         id: dir::LocalNodeId<T>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let node = id.into_global_any(self.module);
-        if let Some(ty) = self.check.node_type_maybe(node) {
-            return Ok(ty);
-        }
+        let Some(ty) = self.check.node_type_maybe(node) else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "walk read node without a checked type: {}",
+                    self.missing_node_type_message(node)
+                ),
+            });
+        };
 
-        self.open_inferred_node_type(id, Widening::Preserve)
+        Ok(ty)
     }
 
-    /// Open one inferred type as one node's checked type.
-    pub(in crate::check) fn open_inferred_node_type<T: dir::Node>(
+    /// Return an invariant message for one missing node type.
+    fn missing_node_type_message(&self, node: dir::GlobalNodeIdAny) -> String {
+        let detail = match node.local_id.ty {
+            dir::NodeType::Expression => {
+                let id = node.into_typed::<dir::Expression>().local_id;
+                format!("{:?}", self.tree.get(id))
+            }
+            dir::NodeType::Pattern => {
+                let id = node.into_typed::<dir::Pattern>().local_id;
+                format!("{:?}", self.tree.get(id))
+            }
+            dir::NodeType::AssignPattern => {
+                let id = node.into_typed::<dir::AssignPattern>().local_id;
+                format!("{:?}", self.tree.get(id))
+            }
+            dir::NodeType::TypeExpression => {
+                let id = node.into_typed::<dir::TypeExpression>().local_id;
+                format!("{:?}", self.tree.get(id))
+            }
+            _ => format!("{:?}", node.local_id.ty),
+        };
+
+        format!("node {node:?}: {detail}")
+    }
+
+    /// Create one inferred node type, or return the existing node type.
+    pub(in crate::check) fn infer_node_type<T: dir::Node>(
         &mut self,
         id: dir::LocalNodeId<T>,
         widening: Widening,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.open_inferred_node_type_any(id.into_any(), widening)
+        self.infer_node_type_any(id.into_any(), widening)
     }
 
-    /// Open one inferred type as one node's checked type.
-    pub(in crate::check) fn open_inferred_node_type_any(
+    /// Create one inferred node type, or return the existing node type.
+    pub(in crate::check) fn infer_node_type_any(
         &mut self,
         id: dir::LocalNodeIdAny,
         widening: Widening,
@@ -148,8 +178,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(ty)
     }
 
-    /// Open one inference type at a source node.
-    pub(in crate::check) fn open_type(
+    /// Create one inferred type at a source node.
+    pub(in crate::check) fn infer_type(
         &mut self,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -174,25 +204,16 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.node_type(id)
     }
 
-    /// Bind one node's own type to an exact type.
-    ///
-    /// When no node type exists yet, the exact type becomes the stable node entry.
-    /// When a node type already exists, the existing entry is equated with the exact type.
-    pub(in crate::check) fn bind_node_type<T: dir::Node>(
+    /// Write one node's own type.
+    pub(in crate::check) fn write_node_type<T: dir::Node>(
         &mut self,
         id: dir::LocalNodeId<T>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let node = id.into_global_any(self.module);
-        let Some(target) = self.check.node_type_maybe(node) else {
-            self.check.set_node_type(node, ty)?;
+        self.check.set_node_type(node, ty)?;
 
-            return Ok(ty);
-        };
-
-        self.relate_type(Origin::Node(node), Relation::Equal, target, ty);
-
-        Ok(target)
+        Ok(ty)
     }
 
     /// Copy one checked node type into another node.
@@ -202,7 +223,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         source: dir::LocalNodeId<U>,
     ) -> CompilerResult<()> {
         let ty = self.node_type(source)?;
-        self.bind_node_type(target, ty)?;
+        self.write_node_type(target, ty)?;
 
         Ok(())
     }
@@ -215,9 +236,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let node = id.into_global_any(self.module);
         let target = self.node_type(id)?;
-        self.push_relation(
+        self.push_flow(
             Origin::Node(node),
-            ConstraintRole::Value,
+            ValueUse::Store,
             Relation::Assignable,
             target,
             expected,
@@ -234,43 +255,45 @@ impl<'check, 'state> WalkState<'check, 'state> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) {
-        self.push_relation(origin, ConstraintRole::Check, relation, left, right);
+        let condition = self.flow.active_static_guard();
+        self.check
+            .push_constraint(Constraint::check(relation, left, right, origin, condition));
     }
 
-    /// Collect one relation constraint with its failure context.
-    pub(in crate::check) fn push_relation(
+    /// Collect one runtime value flow under the active static guard.
+    pub(in crate::check) fn push_flow(
         &mut self,
         origin: Origin,
-        role: ConstraintRole,
+        use_: ValueUse,
         relation: Relation,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
     ) {
         let condition = self.flow.active_static_guard();
-        self.check.push_constraint(Constraint {
-            relation,
-            left,
-            right,
-            origin,
-            condition,
-            role,
-        });
+        self.check.push_constraint(Constraint::flow(
+            relation, source, target, origin, condition, use_,
+        ));
     }
 
-    /// Queue one source-node selection under the active static guard.
-    pub(in crate::check) fn queue_selection(
+    /// Queue one node selection and return the type produced by it.
+    pub(in crate::check) fn select_node<T: dir::Node>(
         &mut self,
-        node: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<()> {
-        self.queue_selection_with_use(node, PlaceUse::Read)
+        id: dir::LocalNodeId<T>,
+        widening: Widening,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.select_node_with_use(id, widening, PlaceUse::Read)
     }
 
-    /// Queue one source-node selection with an explicit place use.
-    pub(in crate::check) fn queue_selection_with_use(
+    /// Queue one node selection with an explicit place use.
+    pub(in crate::check) fn select_node_with_use<T: dir::Node>(
         &mut self,
-        node: dir::GlobalNodeIdAny,
+        id: dir::LocalNodeId<T>,
+        widening: Widening,
         use_: PlaceUse,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let ty = self.infer_node_type(id, widening)?;
+        let node = id.into_global_any(self.module);
+
         // record the guard context the decision must run under
         if let Condition::When(predicates) = self.flow.active_static_guard() {
             self.check.set_node_condition(node, predicates);
@@ -279,7 +302,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let selection = self.selection(node, use_)?;
         self.check.push_selection(selection);
 
-        Ok(())
+        Ok(ty)
     }
 
     /// Return one selection for a visible source node.
@@ -287,6 +310,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
         match node.local_id.ty {
             dir::NodeType::Expression => self.expression_selection(node.into_typed(), use_),
             dir::NodeType::Pattern => Ok(Selection::Pattern {
+                node: node.into_typed(),
+            }),
+            dir::NodeType::AssignPattern => Ok(Selection::AssignPattern {
                 node: node.into_typed(),
             }),
             other => Err(CompilerError::Internal {
@@ -396,29 +422,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 Selection::TaggedTemplate { node, tag: *tag }
             }
             dir::Expression::TreeExpression { .. } => Selection::Tree { node },
-            dir::Expression::Assign {
-                left,
-                operator,
-                right,
-            } => {
-                let Some(operator) = operator.binary_operator() else {
-                    return Err(CompilerError::Internal {
-                        message: format!("assign node {node:?} queued without a compound operator"),
-                    });
-                };
-                let dir::AssignPattern::Expression { value } = self.tree.get(*left) else {
-                    return Err(CompilerError::Internal {
-                        message: format!("compound assignment {node:?} has no place target"),
-                    });
-                };
-
-                Selection::BinaryOperator {
-                    node,
-                    operator,
-                    left: *value,
-                    right: *right,
-                }
-            }
             other => {
                 return Err(CompilerError::Internal {
                     message: format!("check expression {node:?} has no selection: {other:?}"),
@@ -429,7 +432,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(selection)
     }
 
-    /// Return one symbol's checked type, opening a slot for local forward references.
+    /// Return one symbol's checked type.
     pub(in crate::check) fn symbol_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -475,13 +478,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(ty)
     }
 
-    /// Return one declaration type, opening a slot for recursive and forward references.
+    /// Return one declaration type, inferring recursive and forward references.
     pub(in crate::check) fn declaration_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
         widening: Widening,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // open declaration types on demand for recursive and forward references
+        // infer declaration types on demand for recursive and forward references
         let origin = Origin::Symbol(symbol);
         let source = self
             .check

@@ -3,9 +3,9 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    ConditionBranch, ConstraintRole, Decision, FlowBranch, FlowCheckpoint, ForInSourceObligation,
-    GuardOutcome, MatchCase, Obligation, Origin, PatternCoverage, PatternCoverageObligation, Place,
-    PlaceUse, Relation, WalkState, Widening, WritablePlaceObligation,
+    ConditionBranch, FlowBranch, FlowCheckpoint, ForInSourceObligation, GuardOutcome, MatchCase,
+    Obligation, Origin, PatternCoverage, PatternCoverageObligation, Place, PlaceUse, Relation,
+    Selection, ValueUse, WalkState, Widening, WritablePlaceObligation,
 };
 
 impl WalkState<'_, '_> {
@@ -44,11 +44,11 @@ impl WalkState<'_, '_> {
                         .declaration_symbol(declaration.into_any());
                     if let Some(symbol) = symbol {
                         let ty = self.symbol_type(symbol)?;
-                        self.bind_node_type(id, ty)?;
+                        self.write_node_type(id, ty)?;
                     }
                 } else {
                     let void = self.push_type(dir::Type::Void, id.into_any())?;
-                    self.bind_node_type(id, void)?;
+                    self.write_node_type(id, void)?;
                 }
             }
             // { ... }
@@ -69,7 +69,7 @@ impl WalkState<'_, '_> {
                     }
                 }
                 let void = self.push_type(dir::Type::Void, id.into_any())?;
-                self.bind_node_type(id, void)?;
+                self.write_node_type(id, void)?;
             }
             // export { item } from "module"
             dir::Expression::Export { items, .. } => {
@@ -77,7 +77,7 @@ impl WalkState<'_, '_> {
                     self.walk_dependency_item(*item, self.tree.get(*item))?;
                 }
                 let void = self.push_type(dir::Type::Void, id.into_any())?;
-                self.bind_node_type(id, void)?;
+                self.write_node_type(id, void)?;
             }
             // let x = value
             dir::Expression::Let {
@@ -91,7 +91,7 @@ impl WalkState<'_, '_> {
                     self.mark_declarator_assigned(self.tree.get(*declarator), *is_ambient);
                 }
                 let void = self.push_type(dir::Type::Void, id.into_any())?;
-                self.bind_node_type(id, void)?;
+                self.write_node_type(id, void)?;
             }
             // using x = value
             dir::Expression::Using { declarators, .. } => {
@@ -100,7 +100,7 @@ impl WalkState<'_, '_> {
                     self.mark_declarator_assigned(self.tree.get(*declarator), false);
                 }
                 let void = self.push_type(dir::Type::Void, id.into_any())?;
-                self.bind_node_type(id, void)?;
+                self.write_node_type(id, void)?;
             }
             // let pattern = value else { return }
             dir::Expression::LetElse {
@@ -172,13 +172,13 @@ impl WalkState<'_, '_> {
                 }
                 let value = value.map(|value| self.node_type(value)).transpose()?;
                 let never = self.push_type(dir::Type::Never, id.into_any())?;
-                self.bind_node_type(id, never)?;
+                self.write_node_type(id, never)?;
                 self.break_to_control_target(id.into_any(), label, value)?;
             }
             // continue
             dir::Expression::Continue { label } => {
                 let never = self.push_type(dir::Type::Never, id.into_any())?;
-                self.bind_node_type(id, never)?;
+                self.write_node_type(id, never)?;
                 self.continue_to_control_target(id.into_any(), *label);
             }
             // await value
@@ -189,24 +189,24 @@ impl WalkState<'_, '_> {
                 self.walk_expression(awaited, self.tree.get(awaited))?;
                 self.validate_await_context(id.into_any());
                 let result = self.await_result(id, awaited)?;
-                self.bind_node_type(id, result)?;
+                self.write_node_type(id, result)?;
             }
             // throw value
             dir::Expression::Throw { value } => {
                 self.walk_expression(*value, self.tree.get(*value))?;
                 let never = self.push_type(dir::Type::Never, id.into_any())?;
-                self.bind_node_type(id, never)?;
+                self.write_node_type(id, never)?;
             }
             // return value
             dir::Expression::Return { value } => {
                 let value = *value;
                 let never = self.push_type(dir::Type::Never, id.into_any())?;
-                self.bind_node_type(id, never)?;
+                self.write_node_type(id, never)?;
 
                 if let Some(value) = value {
                     self.walk_expression(value, self.tree.get(value))?;
                     let ty = self.node_type(value)?;
-                    self.constrain_return_value(id.into_any(), ty);
+                    self.constrain_return_value(value.into_any(), ty);
                 } else {
                     self.constrain_void_return(id.into_any())?;
                 }
@@ -220,18 +220,18 @@ impl WalkState<'_, '_> {
                 let value_type = value.map(|value| self.node_type(value)).transpose()?;
                 let delegate_return = match cardinality {
                     // yield* delegates resume into the inner return
-                    dir::YieldCardinality::Generator => Some(self.open_type(id.into_any())?),
+                    dir::YieldCardinality::Generator => Some(self.infer_type(id.into_any())?),
                     dir::YieldCardinality::Scalar => None,
                 };
 
                 // yield evaluates to the resumed value
                 match self.current_resume_target() {
                     Some(resumed) => {
-                        self.bind_node_type(id, resumed)?;
+                        self.write_node_type(id, resumed)?;
                     }
                     None => {
                         let void = self.push_type(dir::Type::Void, id.into_any())?;
-                        self.bind_node_type(id, void)?;
+                        self.write_node_type(id, void)?;
                     }
                 }
 
@@ -251,13 +251,13 @@ impl WalkState<'_, '_> {
                 let receiver = self.select_active_receiver(id.into_global_any(self.module))?;
                 match receiver {
                     Some(receiver) => {
-                        self.bind_node_type(id, receiver.ty)?;
+                        self.write_node_type(id, receiver.ty)?;
                     }
                     None => {
                         self.check
                             .report_this_outside_receiver(self.module, id.into_any());
                         let error = self.push_type(dir::Type::Error, id.into_any())?;
-                        self.bind_node_type(id, error)?;
+                        self.write_node_type(id, error)?;
                     }
                 }
             }
@@ -279,20 +279,20 @@ impl WalkState<'_, '_> {
                     // scalar literals are their own singleton types
                     value => self.push_type(dir::Type::Literal(value), id.into_any())?,
                 };
-                self.bind_node_type(id, ty)?;
+                self.write_node_type(id, ty)?;
             }
             // super
             dir::Expression::Super => {
                 let receiver = self.select_active_receiver(id.into_global_any(self.module))?;
                 match receiver.and_then(|receiver| receiver.super_ty) {
                     Some(super_ty) => {
-                        self.bind_node_type(id, super_ty)?;
+                        self.write_node_type(id, super_ty)?;
                     }
                     None => {
                         self.check
                             .report_super_outside_class(self.module, id.into_any());
                         let error = self.push_type(dir::Type::Error, id.into_any())?;
-                        self.bind_node_type(id, error)?;
+                        self.write_node_type(id, error)?;
                     }
                 }
             }
@@ -303,12 +303,12 @@ impl WalkState<'_, '_> {
                     dir::LanguageItem::ImportMeta,
                     Vec::new(),
                 )?;
-                self.bind_node_type(id, meta)?;
+                self.write_node_type(id, meta)?;
             }
             // import.source resolves to its module source descriptor at lowering
             dir::Expression::ImportSource => {
                 let source = self.push_type(dir::Type::Error, id.into_any())?;
-                self.bind_node_type(id, source)?;
+                self.write_node_type(id, source)?;
             }
             // #name, debugger, missing, stub, damaged nodes
             dir::Expression::PrivateIdentifier { .. }
@@ -331,7 +331,7 @@ impl WalkState<'_, '_> {
                     dir::Type::Primitive(dir::PrimitiveType::String),
                     id.into_any(),
                 )?;
-                self.bind_node_type(id, string)?;
+                self.write_node_type(id, string)?;
             }
             // tag<T>`text ${value}`
             dir::Expression::TaggedTemplateExpression { tag, value, .. } => {
@@ -339,7 +339,7 @@ impl WalkState<'_, '_> {
                 self.walk_template_literal(value)?;
 
                 // tagged template calls resolve at selection
-                self.queue_selection(id.into_global_any(self.module))?;
+                self.select_node(id, Widening::Preserve)?;
             }
             // [a, b, c]
             dir::Expression::ArrayExpression { elements } => {
@@ -358,7 +358,7 @@ impl WalkState<'_, '_> {
                     dir::Type::FixedArray(dir::FixedArrayType { element, count }),
                     id.into_any(),
                 )?;
-                self.bind_node_type(id, array)?;
+                self.write_node_type(id, array)?;
             }
             // [a, label: b, ...rest]
             dir::Expression::TupleExpression { elements } => {
@@ -376,11 +376,11 @@ impl WalkState<'_, '_> {
                 match expressions.last() {
                     Some(last) => {
                         let ty = self.node_type(*last)?;
-                        self.bind_node_type(id, ty)?;
+                        self.write_node_type(id, ty)?;
                     }
                     None => {
                         let void = self.push_type(dir::Type::Void, id.into_any())?;
-                        self.bind_node_type(id, void)?;
+                        self.write_node_type(id, void)?;
                     }
                 }
             }
@@ -389,9 +389,9 @@ impl WalkState<'_, '_> {
                 let properties = properties.iter().copied().collect::<SmallVec<[_; 4]>>();
                 let (fields, has_spread) = self.walk_literal_properties(&properties)?;
 
-                // queue selection when spread properties need closed source types
+                // select object spread after property values are known
                 if has_spread {
-                    self.queue_selection(id.into_global_any(self.module))?;
+                    self.select_node(id, Widening::Preserve)?;
                 }
                 // object literal values are managed objects
                 else {
@@ -411,7 +411,7 @@ impl WalkState<'_, '_> {
                         }),
                         id.into_any(),
                     )?;
-                    self.bind_node_type(id, managed)?;
+                    self.write_node_type(id, managed)?;
                 }
             }
             // Type { key: value }
@@ -419,11 +419,11 @@ impl WalkState<'_, '_> {
                 let properties = properties.iter().copied().collect::<SmallVec<[_; 4]>>();
                 let target = self.walk_type_expression(*ty)?;
                 let (fields, has_spread) = self.walk_literal_properties(&properties)?;
-                self.bind_node_type(id, target)?;
+                self.write_node_type(id, target)?;
 
-                // queue selection when spread properties need closed source types
+                // select struct spread after property values are known
                 if has_spread {
-                    self.queue_selection(id.into_global_any(self.module))?;
+                    self.select_node(id, Widening::Preserve)?;
                 }
                 // the written fields must fill the declared struct fields
                 else {
@@ -461,20 +461,20 @@ impl WalkState<'_, '_> {
                     }
                 }
 
-                // queue selection for tree construction
-                self.queue_selection(id.into_global_any(self.module))?;
+                // select tree construction
+                self.select_node(id, Widening::Preserve)?;
             }
             // (value)
             dir::Expression::Parenthesized { expression: child } => {
                 let child = *child;
                 self.walk_expression(child, self.tree.get(child))?;
                 let ty = self.node_type(child)?;
-                self.bind_node_type(id, ty)?;
+                self.write_node_type(id, ty)?;
             }
             // type T
             dir::Expression::Type { value } => {
                 let ty = self.walk_type_expression(*value)?;
-                self.bind_node_type(id, ty)?;
+                self.write_node_type(id, ty)?;
             }
             // comptime value
             dir::Expression::Comptime { body } => {
@@ -486,7 +486,7 @@ impl WalkState<'_, '_> {
                 self.restore_flow(before_body);
 
                 let ty = self.node_type(body)?;
-                self.bind_node_type(id, ty)?;
+                self.write_node_type(id, ty)?;
             }
             // value as T
             dir::Expression::As {
@@ -500,7 +500,7 @@ impl WalkState<'_, '_> {
                     self.walk_expression(child, self.tree.get(child))?;
                     let ty = self.node_type(child)?;
                     let asserted = self.const_asserted_type(child, ty)?;
-                    self.bind_node_type(id, asserted)?;
+                    self.write_node_type(id, asserted)?;
                 } else {
                     let target = self.walk_type_expression(target_type)?;
                     self.walk_expression_with_relation(
@@ -509,7 +509,7 @@ impl WalkState<'_, '_> {
                         target,
                         Relation::Castable,
                     )?;
-                    self.bind_node_type(id, target)?;
+                    self.write_node_type(id, target)?;
                 }
             }
             // value satisfies T
@@ -521,7 +521,7 @@ impl WalkState<'_, '_> {
                 self.walk_expression(child, self.tree.get(child))?;
                 let target = self.walk_type_expression(target_type)?;
                 let value = self.node_type(child)?;
-                self.bind_node_type(id, value)?;
+                self.write_node_type(id, value)?;
 
                 // require the value to satisfy the target without changing its type
                 let origin = Origin::Node(id.into_global_any(self.module));
@@ -536,8 +536,8 @@ impl WalkState<'_, '_> {
                     dir::Type::Primitive(dir::PrimitiveType::Boolean),
                     id.into_any(),
                 )?;
-                self.bind_node_type(id, boolean)?;
-                self.queue_selection(id.into_global_any(self.module))?;
+                self.write_node_type(id, boolean)?;
+                self.select_node(id, Widening::Preserve)?;
             }
             // value instanceof Target
             dir::Expression::InstanceOf { value, target } => {
@@ -548,8 +548,8 @@ impl WalkState<'_, '_> {
                     dir::Type::Primitive(dir::PrimitiveType::Boolean),
                     id.into_any(),
                 )?;
-                self.bind_node_type(id, boolean)?;
-                self.queue_selection(id.into_global_any(self.module))?;
+                self.write_node_type(id, boolean)?;
+                self.select_node(id, Widening::Preserve)?;
             }
             // value++, --value
             dir::Expression::Unary {
@@ -567,13 +567,7 @@ impl WalkState<'_, '_> {
                     let value = self.node_type(id)?;
                     let target = self.node_type(right)?;
                     let origin = Origin::Node(id.into_global_any(self.module));
-                    self.push_relation(
-                        origin,
-                        ConstraintRole::Value,
-                        Relation::Assignable,
-                        value,
-                        target,
-                    );
+                    self.push_flow(origin, ValueUse::Store, Relation::Assignable, value, target);
 
                     self.push_write_obligations(place, target);
                     self.mark_place_assigned(place);
@@ -582,23 +576,23 @@ impl WalkState<'_, '_> {
                 // increments invalidate narrowings under the target
                 self.clear_mutated_expression_narrowings(right);
 
-                // queue selection for the increment operator
-                self.queue_selection(id.into_global_any(self.module))?;
+                // select the increment operator
+                self.select_node(id, Widening::Preserve)?;
             }
             // !value, -value
             dir::Expression::Unary { right, .. } => {
                 let right = *right;
                 self.walk_expression(right, self.tree.get(right))?;
 
-                // queue selection for the unary operator
-                self.queue_selection(id.into_global_any(self.module))?;
+                // select the unary operator
+                self.select_node(id, Widening::Preserve)?;
             }
             // ^value
             dir::Expression::MoveOf { right, .. } => {
                 let right = *right;
                 self.walk_expression(right, self.tree.get(right))?;
                 let ty = self.node_type(right)?;
-                self.bind_node_type(id, ty)?;
+                self.write_node_type(id, ty)?;
             }
             // &value
             dir::Expression::BorrowOf {
@@ -628,7 +622,7 @@ impl WalkState<'_, '_> {
                     }),
                     id.into_any(),
                 )?;
-                self.bind_node_type(id, borrowed)?;
+                self.write_node_type(id, borrowed)?;
             }
             // value.member, or a static name path resolved by the resolve phase
             dir::Expression::Member { left, .. } => {
@@ -638,7 +632,7 @@ impl WalkState<'_, '_> {
             dir::Expression::PrivateMember { left, .. } => {
                 self.walk_expression(*left, self.tree.get(*left))?;
 
-                self.queue_selection(id.into_global_any(self.module))?;
+                self.select_node(id, Widening::Preserve)?;
             }
             // value[index]
             dir::Expression::Index { left, index, .. } => {
@@ -647,8 +641,8 @@ impl WalkState<'_, '_> {
                     self.walk_expression(index, self.tree.get(index))?;
                 }
 
-                // queue selection for the index expression
-                self.queue_selection(id.into_global_any(self.module))?;
+                // select the index expression
+                self.select_node(id, Widening::Preserve)?;
             }
             // value<T>
             dir::Expression::Instantiation {
@@ -675,8 +669,8 @@ impl WalkState<'_, '_> {
                     self.walk_argument(*argument, self.tree.get(*argument))?;
                 }
 
-                // queue selection for the call expression
-                self.queue_selection(id.into_global_any(self.module))?;
+                // select the call expression
+                self.select_node(id, Widening::Preserve)?;
             }
             // new Type<T>(argument)
             dir::Expression::New { ty, arguments } => {
@@ -686,8 +680,8 @@ impl WalkState<'_, '_> {
                     self.walk_argument(*argument, self.tree.get(*argument))?;
                 }
 
-                // queue selection for checked construction
-                self.queue_selection(id.into_global_any(self.module))?;
+                // select checked construction
+                self.select_node(id, Widening::Preserve)?;
             }
             // new? Type<T>(argument)
             dir::Expression::NewMaybe { ty, arguments } => {
@@ -697,8 +691,8 @@ impl WalkState<'_, '_> {
                     self.walk_argument(*argument, self.tree.get(*argument))?;
                 }
 
-                // queue selection for checked construction
-                self.queue_selection(id.into_global_any(self.module))?;
+                // select checked construction
+                self.select_node(id, Widening::Preserve)?;
                 self.propagate_selected_try(id.into_any())?;
             }
             // await? value
@@ -711,7 +705,7 @@ impl WalkState<'_, '_> {
                 let result = self.await_result(id, awaited)?;
                 self.propagate_try(id.into_any(), result)?;
                 let output = self.try_output(id, result)?;
-                self.bind_node_type(id, output)?;
+                self.write_node_type(id, output)?;
             }
             // await! value
             dir::Expression::AwaitMust {
@@ -722,7 +716,7 @@ impl WalkState<'_, '_> {
                 self.validate_await_context(id.into_any());
                 let result = self.await_result(id, awaited)?;
                 let output = self.try_output(id, result)?;
-                self.bind_node_type(id, output)?;
+                self.write_node_type(id, output)?;
             }
             // value?
             dir::Expression::Maybe { left, .. } => {
@@ -731,7 +725,7 @@ impl WalkState<'_, '_> {
                 let value = self.node_type(left)?;
                 self.propagate_try(id.into_any(), value)?;
                 let output = self.try_output(id, value)?;
-                self.bind_node_type(id, output)?;
+                self.write_node_type(id, output)?;
             }
             // value!
             dir::Expression::Must { left, .. } => {
@@ -739,7 +733,7 @@ impl WalkState<'_, '_> {
                 self.walk_expression(left, self.tree.get(left))?;
                 let value = self.node_type(left)?;
                 let output = self.try_output(id, value)?;
-                self.bind_node_type(id, output)?;
+                self.write_node_type(id, output)?;
             }
             // left + right
             dir::Expression::Binary {
@@ -805,9 +799,9 @@ impl WalkState<'_, '_> {
         };
 
         // keep the real source-target relation for diagnostics and coercions
-        self.push_relation(
+        self.push_flow(
             Origin::Node(id.into_global_any(self.module)),
-            ConstraintRole::Value,
+            ValueUse::Store,
             relation,
             walked,
             expected,
@@ -878,7 +872,7 @@ impl WalkState<'_, '_> {
             }
             // labeled blocks accept labeled breaks
             _ => {
-                let result = self.open_inferred_node_type(body, Widening::Preserve)?;
+                let result = self.infer_node_type(body, Widening::Preserve)?;
                 self.enter_control_target(Some(label), false, body, result);
                 self.walk_expression(body, self.tree.get(body))?;
                 let fallthrough = self.node_type(body)?;
@@ -887,7 +881,7 @@ impl WalkState<'_, '_> {
         }
 
         let ty = self.node_type(body)?;
-        self.bind_node_type(id, ty)?;
+        self.write_node_type(id, ty)?;
 
         Ok(())
     }
@@ -923,7 +917,7 @@ impl WalkState<'_, '_> {
         self.narrow_declarator_match(declarator)?;
 
         let void = self.push_type(dir::Type::Void, id.into_any())?;
-        self.bind_node_type(id, void)?;
+        self.write_node_type(id, void)?;
 
         Ok(())
     }
@@ -965,7 +959,7 @@ impl WalkState<'_, '_> {
             let else_can_complete = self.expression_can_complete_normally(else_expression);
             let else_type = self.node_type(else_expression)?;
             let union = self.normalized_union_type([then_type, else_type], id.into_any())?;
-            self.bind_node_type(id, union)?;
+            self.write_node_type(id, union)?;
 
             // collect false completion
             if else_can_complete {
@@ -976,7 +970,7 @@ impl WalkState<'_, '_> {
         else {
             let void = self.push_type(dir::Type::Void, id.into_any())?;
             let union = self.normalized_union_type([then_type, void], id.into_any())?;
-            self.bind_node_type(id, union)?;
+            self.write_node_type(id, union)?;
 
             // collect implicit false completion
             self.restore_flow(before);
@@ -1056,7 +1050,7 @@ impl WalkState<'_, '_> {
         self.expect_boolean_condition(condition)?;
 
         // enter loop control target
-        let result = self.open_inferred_node_type(id, Widening::Preserve)?;
+        let result = self.infer_node_type(id, Widening::Preserve)?;
         self.enter_control_target(label, true, id, result);
 
         // walk body under true condition flow
@@ -1103,7 +1097,7 @@ impl WalkState<'_, '_> {
         self.constrain_for_each_binding(id, operator, pattern, iterator)?;
 
         // enter loop control target
-        let result = self.open_inferred_node_type(id, Widening::Preserve)?;
+        let result = self.infer_node_type(id, Widening::Preserve)?;
         self.enter_control_target(label, true, id, result);
 
         // walk body with iteration binding assigned
@@ -1142,7 +1136,7 @@ impl WalkState<'_, '_> {
         let value = match operator {
             // for (const item of iterable)
             dir::ForEachOperator::Of => {
-                let value = self.open_type(id.into_any())?;
+                let value = self.infer_type(id.into_any())?;
                 let unknown = self.push_type(dir::Type::Unknown, id.into_any())?;
                 let iterable = self.language_type_reference(
                     id.into_any(),
@@ -1172,7 +1166,13 @@ impl WalkState<'_, '_> {
 
         // flow the iterated value into the pattern type
         let pattern_type = self.node_type(pattern)?;
-        self.relate_type(origin, Relation::Assignable, value, pattern_type);
+        self.push_flow(
+            origin,
+            ValueUse::Store,
+            Relation::Assignable,
+            value,
+            pattern_type,
+        );
 
         Ok(())
     }
@@ -1192,7 +1192,7 @@ impl WalkState<'_, '_> {
         increment: Option<dir::LocalNodeId<dir::Expression>>,
         body: dir::LocalNodeId<dir::Block>,
     ) -> CompilerResult<()> {
-        let result = self.open_inferred_node_type(id, Widening::Preserve)?;
+        let result = self.infer_node_type(id, Widening::Preserve)?;
 
         // walk initialization before loop flow splits
         if let Some(initialization) = initialization {
@@ -1291,7 +1291,7 @@ impl WalkState<'_, '_> {
         body: dir::LocalNodeId<dir::Block>,
     ) -> CompilerResult<()> {
         // enter loop control target
-        let result = self.open_inferred_node_type(id, Widening::Preserve)?;
+        let result = self.infer_node_type(id, Widening::Preserve)?;
         self.enter_control_target(label, true, id, result);
 
         // walk body with isolated flow
@@ -1355,10 +1355,10 @@ impl WalkState<'_, '_> {
                 let catch_body = self.tree.get(*catch).body;
                 let catch_type = self.node_type(catch_body)?;
                 let union = self.normalized_union_type([body_type, catch_type], id.into_any())?;
-                self.bind_node_type(id, union)?;
+                self.write_node_type(id, union)?;
             }
             None => {
-                self.bind_node_type(id, body_type)?;
+                self.write_node_type(id, body_type)?;
             }
         }
 
@@ -1442,7 +1442,13 @@ impl WalkState<'_, '_> {
             if let Some(value) = expected.or(failure) {
                 let origin = Origin::Node(pattern.into_global_any(self.module));
                 let pattern_type = self.node_type(pattern)?;
-                self.relate_type(origin, Relation::Assignable, value, pattern_type);
+                self.push_flow(
+                    origin,
+                    ValueUse::Store,
+                    Relation::Assignable,
+                    value,
+                    pattern_type,
+                );
 
                 let condition = self.active_static_guard();
                 self.check.push_obligation(Obligation::PatternCoverage(
@@ -1571,7 +1577,7 @@ impl WalkState<'_, '_> {
 
         // the match evaluates to the union of its case values
         let union = self.normalized_union_type(result_types, id.into_any())?;
-        self.bind_node_type(id, union)?;
+        self.write_node_type(id, union)?;
 
         Ok(())
     }
@@ -1625,14 +1631,20 @@ impl WalkState<'_, '_> {
 
         // join both boundaries into one element type
         let origin = Origin::Node(id.into_global_any(self.module));
-        let element = self.open_type(id.into_any())?;
+        let element = self.infer_type(id.into_any())?;
         if let Some(start) = start {
             let start = self.node_type(start)?;
-            self.relate_type(origin, Relation::Assignable, start, element);
+            self.push_flow(
+                origin,
+                ValueUse::Store,
+                Relation::Assignable,
+                start,
+                element,
+            );
         }
         if let Some(end) = end {
             let end = self.node_type(end)?;
-            self.relate_type(origin, Relation::Assignable, end, element);
+            self.push_flow(origin, ValueUse::Store, Relation::Assignable, end, element);
         }
 
         // pick the runtime range shape by its written bounds
@@ -1649,7 +1661,7 @@ impl WalkState<'_, '_> {
             (None, None, _) => (dir::LanguageItem::RangeFull, Vec::new()),
         };
         let range = self.language_type_reference(id.into_any(), item, arguments)?;
-        self.bind_node_type(id, range)?;
+        self.write_node_type(id, range)?;
 
         Ok(())
     }
@@ -1681,7 +1693,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         elements: &[dir::LocalNodeId<dir::Argument>],
     ) -> CompilerResult<()> {
-        let element = self.open_type(id.into_any())?;
+        let element = self.infer_type(id.into_any())?;
         let array = self.push_type(dir::Type::Array(dir::ArrayType { element }), id.into_any())?;
 
         // every item flows into the shared element type, each flow
@@ -1695,7 +1707,7 @@ impl WalkState<'_, '_> {
                     let value = *value;
                     let origin = Origin::Node(value.into_global_any(self.module));
                     let spread = self.node_type(value)?;
-                    self.relate_type(origin, Relation::Assignable, spread, array);
+                    self.push_flow(origin, ValueUse::Store, Relation::Assignable, spread, array);
                 }
                 dir::Argument::Positional { value }
                 | dir::Argument::Named { value, .. }
@@ -1703,13 +1715,13 @@ impl WalkState<'_, '_> {
                     let value = *value;
                     let origin = Origin::Node(value.into_global_any(self.module));
                     let item = self.node_type(value)?;
-                    self.relate_type(origin, Relation::Assignable, item, element);
+                    self.push_flow(origin, ValueUse::Store, Relation::Assignable, item, element);
                 }
                 dir::Argument::Error => {}
             }
         }
 
-        self.bind_node_type(id, array)?;
+        self.write_node_type(id, array)?;
 
         Ok(())
     }
@@ -1759,7 +1771,7 @@ impl WalkState<'_, '_> {
             self.push_type(dir::Type::Array(dir::ArrayType { element }), id.into_any())?
         };
 
-        self.bind_node_type(id, array)
+        self.write_node_type(id, array)
     }
 
     /// Walk one tuple expression.
@@ -1806,7 +1818,7 @@ impl WalkState<'_, '_> {
             }),
             id.into_any(),
         )?;
-        self.bind_node_type(id, tuple)?;
+        self.write_node_type(id, tuple)?;
 
         Ok(())
     }
@@ -1851,14 +1863,14 @@ impl WalkState<'_, '_> {
                 dir::Type::Primitive(dir::PrimitiveType::Boolean),
                 id.into_any(),
             )?;
-            self.bind_node_type(id, boolean)?;
-            self.queue_selection(id.into_global_any(self.module))?;
+            self.write_node_type(id, boolean)?;
+            self.select_node(id, Widening::Preserve)?;
 
             return Ok(());
         }
 
-        // queue selection for the binary operator
-        self.queue_selection(id.into_global_any(self.module))?;
+        // select the binary operator
+        self.select_node(id, Widening::Preserve)?;
 
         Ok(())
     }
@@ -1883,17 +1895,17 @@ impl WalkState<'_, '_> {
         };
 
         // queue arithmetic compound assignments as operator writes
-        if operator.binary_operator().is_some()
-            && let dir::AssignPattern::Expression { value: target } = self.tree.get(left)
+        if let Some(operator) = operator.binary_operator()
+            && let dir::AssignPattern::Place { expression: target } = self.tree.get(left)
         {
             let target = *target;
 
-            return self.walk_compound_assignment(id, target, access);
+            return self.walk_compound_assignment(id, target, operator, right, access);
         }
 
         // simple place assignments contextualize the assigned value
         if operator == dir::AssignOperator::Assign
-            && let dir::AssignPattern::Expression { value: target } = self.tree.get(left)
+            && let dir::AssignPattern::Place { expression: target } = self.tree.get(left)
         {
             let target = *target;
             let place = self.walk_assignment_place(target, access)?;
@@ -1902,19 +1914,15 @@ impl WalkState<'_, '_> {
                 let value =
                     self.walk_expression_expected(right, self.tree.get(right), target_type)?;
 
-                self.bind_node_type(id, value)?;
+                self.write_node_type(id, value)?;
                 self.push_write_obligations(place, target_type);
                 self.mark_place_assigned(place);
-
-                let resolution =
-                    dir::AssignPatternResolution::Place(dir::AssignPatternPlaceResolution {
-                        target: target.into_global_any(self.module),
-                    });
-                self.record_assign_pattern(left, resolution)?;
+                self.write_node_type(left, value)?;
+                self.select_node(left, Widening::Preserve)?;
             } else {
                 self.walk_expression(right, self.tree.get(right))?;
                 let value = self.node_type(right)?;
-                self.bind_node_type(id, value)?;
+                self.write_node_type(id, value)?;
             };
 
             self.clear_mutated_expression_narrowings(target);
@@ -1925,13 +1933,12 @@ impl WalkState<'_, '_> {
         // walk the assigned value before matching complex assignment patterns
         self.walk_expression(right, self.tree.get(right))?;
         let value = self.node_type(right)?;
-        let value_node = right.into_global_any(self.module);
 
         // assignment expressions evaluate to the assigned value
-        self.bind_node_type(id, value)?;
+        self.write_node_type(id, value)?;
 
-        // flow the value into the assignment target
-        self.walk_assign_pattern(left, value, value_node, access)?;
+        // prepare the assignment target and defer projection selection
+        self.walk_assign_pattern(left, Some(value), access)?;
 
         Ok(())
     }
@@ -1948,17 +1955,27 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
         target: dir::LocalNodeId<dir::Expression>,
+        operator: dir::BinaryOperator,
+        right: dir::LocalNodeId<dir::Expression>,
         access: PlaceUse,
     ) -> CompilerResult<()> {
         if let Some(place) = self.walk_assignment_place(target, access)? {
+            self.walk_expression(right, self.tree.get(right))?;
+
             // the operator result writes back through the place
-            self.queue_selection(id.into_global_any(self.module))?;
-            let value = self.node_type(id)?;
+            let value = self.infer_node_type(id, Widening::Preserve)?;
+            self.check.push_selection(Selection::BinaryOperator {
+                node: id.into_global(self.module),
+                operator,
+                left: target,
+                right,
+            });
+
             let target_type = self.node_type(target)?;
             let origin = Origin::Node(id.into_global_any(self.module));
-            self.push_relation(
+            self.push_flow(
                 origin,
-                ConstraintRole::Value,
+                ValueUse::Store,
                 Relation::Assignable,
                 value,
                 target_type,
@@ -2117,175 +2134,63 @@ impl WalkState<'_, '_> {
     fn walk_assign_pattern(
         &mut self,
         id: dir::LocalNodeId<dir::AssignPattern>,
-        value: dir::GlobalTypeId,
-        value_node: dir::GlobalNodeIdAny,
+        value: Option<dir::GlobalTypeId>,
         access: PlaceUse,
     ) -> CompilerResult<()> {
+        if let Some(value) = value {
+            self.write_node_type(id, value)?;
+        }
+
         match self.tree.get(id) {
             // x = value, obj.x = value
-            dir::AssignPattern::Expression { value: target } => {
+            dir::AssignPattern::Place { expression: target } => {
                 let target = *target;
                 if let Some(place) = self.walk_assignment_place(target, access)? {
-                    // value compatibility is separate from place mutability
                     let target_type = self.node_type(target)?;
-                    let origin = Origin::Node(value_node);
-                    self.push_relation(
-                        origin,
-                        ConstraintRole::Value,
-                        Relation::Assignable,
-                        value,
-                        target_type,
-                    );
                     self.push_write_obligations(place, target_type);
                     self.mark_place_assigned(place);
                 }
 
                 // assignments invalidate narrowings under the target
                 self.clear_mutated_expression_narrowings(target);
-
-                let resolution =
-                    dir::AssignPatternResolution::Place(dir::AssignPatternPlaceResolution {
-                        target: target.into_global_any(self.module),
-                    });
-                self.record_assign_pattern(id, resolution)?;
             }
             // x = default
-            dir::AssignPattern::Assign {
+            dir::AssignPattern::Default {
                 pattern,
                 value: default,
             } => {
                 let (pattern, default) = (*pattern, *default);
                 self.walk_expression(default, self.tree.get(default))?;
-                self.walk_assign_pattern(pattern, value, value_node, access)?;
-
-                let resolution =
-                    dir::AssignPatternResolution::Default(dir::AssignPatternDefaultResolution {
-                        pattern: pattern.into_global_any(self.module),
-                        value: default.into_global_any(self.module),
-                    });
-                self.record_assign_pattern(id, resolution)?;
+                self.walk_assign_pattern(pattern, None, access)?;
             }
             // [a, , ...rest] = values
             dir::AssignPattern::Sequence { fields } => {
                 for field in fields.clone() {
-                    self.walk_assign_pattern_field(field, value, value_node, access)?;
+                    self.walk_assign_pattern_field(field, access)?;
                 }
-
-                let resolution = self.sequence_assign_pattern_resolution(fields);
-                self.record_assign_pattern(id, resolution)?;
+            }
+            // (x, y) = point
+            dir::AssignPattern::Tuple { fields } => {
+                for field in fields.clone() {
+                    self.walk_assign_pattern_field(field, access)?;
+                }
             }
             // { x, y: z } = point
             dir::AssignPattern::Object { fields } => {
                 for field in fields.clone() {
-                    self.walk_assign_pattern_field(field, value, value_node, access)?;
+                    self.walk_assign_pattern_field(field, access)?;
                 }
-
-                let resolution = self.object_assign_pattern_resolution(fields);
-                self.record_assign_pattern(id, resolution)?;
             }
         }
+        self.select_node(id, Widening::Preserve)?;
 
         Ok(())
     }
 
-    /// Record one assignment pattern decision.
-    fn record_assign_pattern(
-        &mut self,
-        id: dir::LocalNodeId<dir::AssignPattern>,
-        resolution: dir::AssignPatternResolution,
-    ) -> CompilerResult<()> {
-        self.check.record_decision(
-            id.into_global_any(self.module),
-            Decision::AssignPattern(resolution),
-        )
-    }
-
-    /// Return the structural resolution for one sequence assignment target.
-    fn sequence_assign_pattern_resolution(
-        &self,
-        fields: &[dir::LocalNodeId<dir::AssignPatternField>],
-    ) -> dir::AssignPatternResolution {
-        let mut projected = Vec::with_capacity(fields.len());
-        let mut rest = None;
-        let mut position = 0usize;
-        for field in fields {
-            match self.tree.get(*field) {
-                dir::AssignPatternField::Positional { pattern } => {
-                    projected.push(dir::AssignPatternFieldResolution {
-                        source: field.into_global_any(self.module),
-                        target: dir::AssignPatternFieldTarget::Index(position),
-                        pattern: Some(pattern.into_global_any(self.module)),
-                    });
-                    position += 1;
-                }
-                dir::AssignPatternField::Spread { pattern } => {
-                    rest = Some(dir::AssignPatternRestResolution {
-                        source: field.into_global_any(self.module),
-                        pattern: pattern.map(|pattern| pattern.into_global_any(self.module)),
-                    });
-                }
-                dir::AssignPatternField::Elision => {
-                    position += 1;
-                }
-                dir::AssignPatternField::Named { .. }
-                | dir::AssignPatternField::Computed { .. } => {}
-            }
-        }
-
-        dir::AssignPatternResolution::Sequence(dir::AssignPatternSequenceResolution {
-            fields: projected,
-            rest,
-        })
-    }
-
-    /// Return the structural resolution for one object assignment target.
-    fn object_assign_pattern_resolution(
-        &self,
-        fields: &[dir::LocalNodeId<dir::AssignPatternField>],
-    ) -> dir::AssignPatternResolution {
-        let mut projected = Vec::with_capacity(fields.len());
-        let mut rest = None;
-        for field in fields {
-            match self.tree.get(*field) {
-                dir::AssignPatternField::Named { name, pattern, .. } => {
-                    projected.push(dir::AssignPatternFieldResolution {
-                        source: field.into_global_any(self.module),
-                        target: dir::AssignPatternFieldTarget::Key(name.static_key()),
-                        pattern: pattern.map(|pattern| pattern.into_global_any(self.module)),
-                    });
-                }
-                dir::AssignPatternField::Computed { key, pattern } => {
-                    let Some(key) = self.tree.get(*key).static_key() else {
-                        continue;
-                    };
-                    projected.push(dir::AssignPatternFieldResolution {
-                        source: field.into_global_any(self.module),
-                        target: dir::AssignPatternFieldTarget::Key(key),
-                        pattern: Some(pattern.into_global_any(self.module)),
-                    });
-                }
-                dir::AssignPatternField::Spread { pattern } => {
-                    rest = Some(dir::AssignPatternRestResolution {
-                        source: field.into_global_any(self.module),
-                        pattern: pattern.map(|pattern| pattern.into_global_any(self.module)),
-                    });
-                }
-                dir::AssignPatternField::Positional { .. } | dir::AssignPatternField::Elision => {}
-            }
-        }
-
-        dir::AssignPatternResolution::Object(dir::AssignPatternObjectResolution {
-            fields: projected,
-            rest,
-        })
-    }
-
-    /// Walk one assignment pattern field against the destructured value.
+    /// Walk one assignment pattern field before selection projects its input.
     fn walk_assign_pattern_field(
         &mut self,
         id: dir::LocalNodeId<dir::AssignPatternField>,
-        value: dir::GlobalTypeId,
-        value_node: dir::GlobalNodeIdAny,
         access: PlaceUse,
     ) -> CompilerResult<()> {
         match self.tree.get(id) {
@@ -2294,21 +2199,27 @@ impl WalkState<'_, '_> {
                 ..
             } => {
                 let pattern = *pattern;
-                self.walk_assign_pattern(pattern, value, value_node, access)?;
+                self.walk_assign_pattern(pattern, None, access)?;
             }
-            dir::AssignPatternField::Computed { pattern, .. }
-            | dir::AssignPatternField::Positional { pattern } => {
+            dir::AssignPatternField::Computed { key, pattern } => {
+                let (key, pattern) = (*key, *pattern);
+                self.walk_expression(key, self.tree.get(key))?;
+                self.walk_assign_pattern(pattern, None, access)?;
+            }
+            dir::AssignPatternField::Positional { pattern } => {
                 let pattern = *pattern;
-                self.walk_assign_pattern(pattern, value, value_node, access)?;
+                self.walk_assign_pattern(pattern, None, access)?;
             }
             dir::AssignPatternField::Spread {
                 pattern: Some(pattern),
             } => {
                 let pattern = *pattern;
-                self.walk_assign_pattern(pattern, value, value_node, access)?;
+                self.walk_assign_pattern(pattern, None, access)?;
             }
-            dir::AssignPatternField::Named { pattern: None, .. }
-            | dir::AssignPatternField::Spread { pattern: None }
+            dir::AssignPatternField::Named { pattern: None, .. } => {
+                self.infer_node_type(id, Widening::Preserve)?;
+            }
+            dir::AssignPatternField::Spread { pattern: None }
             | dir::AssignPatternField::Elision => {}
         }
 
@@ -2331,9 +2242,9 @@ impl WalkState<'_, '_> {
             dir::Type::Primitive(dir::PrimitiveType::Boolean),
             condition.into_any(),
         )?;
-        self.push_relation(
+        self.push_flow(
             origin,
-            ConstraintRole::Condition,
+            ValueUse::Condition,
             Relation::Assignable,
             ty,
             boolean,
@@ -2349,7 +2260,7 @@ impl WalkState<'_, '_> {
         awaited: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let origin = Origin::Node(id.into_global_any(self.module));
-        let result = self.open_type(id.into_any())?;
+        let result = self.infer_type(id.into_any())?;
         let promised =
             self.language_type_reference(id.into_any(), dir::LanguageItem::Promise, vec![result])?;
         let value = self.node_type(awaited)?;

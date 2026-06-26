@@ -44,7 +44,7 @@ impl WalkState<'_, '_> {
 
         let Some(value) = value else {
             let error = self.push_type(dir::Type::Error, id.into_any())?;
-            self.bind_node_type(id, error)?;
+            self.write_node_type(id, error)?;
 
             return Ok(());
         };
@@ -122,7 +122,7 @@ impl WalkState<'_, '_> {
                 id.into_global_any(self.module),
             ),
         };
-        self.bind_node_type(id, ty)?;
+        self.write_node_type(id, ty)?;
 
         Ok(GenericArgument { name, ty, source })
     }

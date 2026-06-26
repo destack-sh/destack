@@ -1,16 +1,24 @@
 use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
 use destack_source::ModuleId;
+use indexmap::IndexMap;
 
 use crate::{CheckError, CompilerError, CompilerResult, DiagnosticAnchor};
 
-use crate::check::{Answer, AutoInterface, CheckEvent, CheckState, Condition, Mutation, Place};
+use crate::check::{
+    Answer, AutoInterface, CheckEvent, CheckState, Condition, Origin, Place, Task, answer,
+};
 
-/// Stable index of one collected obligation.
+/// Component-global id of one collected obligation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) struct ObligationId(u32);
 
 impl ObligationId {
+    /// Return the obligation id at one index.
+    pub(in crate::check) fn at(index: usize) -> Self {
+        Self(index as u32)
+    }
+
     /// Return the obligation index.
     pub(in crate::check) fn index(self) -> usize {
         self.0 as usize
@@ -59,6 +67,8 @@ pub(in crate::check) enum Obligation {
     AutoInterface(AutoInterfaceObligation),
     /// A runtime predicate must have valid operands.
     RuntimePredicate(RuntimePredicateObligation),
+    /// A for-in source must be enumerable.
+    ForInSource(ForInSourceObligation),
     /// An extension must provide members required by its implemented interfaces.
     ExtensionConformance(ExtensionConformanceObligation),
     /// An implementation must not overlap a conflicting implementation.
@@ -77,6 +87,7 @@ impl Obligation {
             Self::Representation(obligation) => obligation.source,
             Self::AutoInterface(obligation) => obligation.source,
             Self::RuntimePredicate(obligation) => obligation.source,
+            Self::ForInSource(obligation) => obligation.source,
             Self::ExtensionConformance(obligation) => obligation.source,
             Self::ImplementationCoherence(obligation) => obligation.source,
             Self::DeclarationHeritage(obligation) => obligation.source,
@@ -92,6 +103,7 @@ impl Obligation {
             Self::Representation(obligation) => &obligation.condition,
             Self::AutoInterface(obligation) => &obligation.condition,
             Self::RuntimePredicate(obligation) => &obligation.condition,
+            Self::ForInSource(obligation) => &obligation.condition,
             Self::ExtensionConformance(obligation) => &obligation.condition,
             Self::ImplementationCoherence(obligation) => &obligation.condition,
             Self::DeclarationHeritage(obligation) => &obligation.condition,
@@ -149,10 +161,34 @@ pub(in crate::check) struct TryPropagationObligation {
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The static condition under which this obligation exists.
     pub(in crate::check) condition: Condition,
-    /// The tried value type.
-    pub(in crate::check) value: dir::GlobalTypeId,
+    /// The tried value.
+    pub(in crate::check) value: TryPropagationValue,
+    /// The receiver of the propagated failure.
+    pub(in crate::check) target: TryPropagationTarget,
+}
+
+/// A tried value available either immediately or after selection.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(in crate::check) enum TryPropagationValue {
+    /// A known try value type.
+    Type(dir::GlobalTypeId),
+    /// A selected node whose checked type is the try value.
+    Node(dir::GlobalNodeIdAny),
+}
+
+/// The receiver of one propagated failure.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(in crate::check) enum TryPropagationTarget {
+    /// A local try target failure type.
+    Failure {
+        /// The local failure accumulator type.
+        ty: dir::GlobalTypeId,
+    },
     /// The enclosing function return type.
-    pub(in crate::check) return_type: Option<dir::GlobalTypeId>,
+    Return {
+        /// The function return type, if propagation is inside a function.
+        ty: Option<dir::GlobalTypeId>,
+    },
 }
 
 /// Obliges an assignment target to accept writes.
@@ -166,6 +202,8 @@ pub(in crate::check) struct WritablePlaceObligation {
     pub(in crate::check) condition: Condition,
     /// The place being written.
     pub(in crate::check) place: Place,
+    /// The type being overwritten.
+    pub(in crate::check) ty: dir::GlobalTypeId,
 }
 
 /// Obliges a declaration's heritage graph to be valid.
@@ -235,6 +273,21 @@ pub(in crate::check) struct RuntimePredicateObligation {
     pub(in crate::check) predicate: dir::GuardResolution,
 }
 
+/// Obliges a for-in source to have enumerable string keys.
+///
+/// ```ds
+/// for (const key in value) {}
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct ForInSourceObligation {
+    /// The for-in expression.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The static condition under which this obligation exists.
+    pub(in crate::check) condition: Condition,
+    /// The source type that must be object-shaped.
+    pub(in crate::check) ty: dir::GlobalTypeId,
+}
+
 /// Obliges an extension to provide members required by its implemented interfaces.
 ///
 /// ```ds
@@ -266,32 +319,34 @@ pub(in crate::check) struct ImplementationCoherenceObligation {
 }
 
 /// Collected obligations in allocation order.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(in crate::check) struct ObligationTable {
-    /// The collected obligations in allocation order.
-    obligations: Vec<Obligation>,
+    /// The collected obligations keyed by absolute obligation id.
+    obligations: IndexMap<ObligationId, Obligation>,
 }
 
 impl ObligationTable {
     /// Create an empty obligation table.
     pub(in crate::check) fn new() -> Self {
         Self {
-            obligations: Vec::new(),
+            obligations: IndexMap::new(),
         }
     }
 
-    /// Collect one obligation.
-    pub(in crate::check) fn allocate(&mut self, obligation: Obligation) -> ObligationId {
-        let id = ObligationId(self.obligations.len() as u32);
-        self.obligations.push(obligation);
+    /// Insert one exact obligation id.
+    pub(in crate::check) fn insert(&mut self, id: ObligationId, obligation: Obligation) {
+        self.obligations.insert(id, obligation);
+    }
 
-        id
+    /// Remove one exact obligation id.
+    pub(in crate::check) fn remove(&mut self, id: ObligationId) -> Option<Obligation> {
+        self.obligations.swap_remove(&id)
     }
 
     /// Return one collected obligation.
     pub(in crate::check) fn get(&self, id: ObligationId) -> CompilerResult<&Obligation> {
         self.obligations
-            .get(id.index())
+            .get(&id)
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check obligation {id:?} does not exist"),
             })
@@ -301,51 +356,24 @@ impl ObligationTable {
     pub(in crate::check) fn count(&self) -> usize {
         self.obligations.len()
     }
-
-    /// Iterate obligation ids in allocation order.
-    pub(in crate::check) fn ids(&self) -> impl Iterator<Item = ObligationId> {
-        (0..self.obligations.len()).map(|index| ObligationId(index as u32))
-    }
-
-    /// Drop the youngest obligations down to one count.
-    pub(in crate::check) fn truncate(&mut self, count: usize) {
-        self.obligations.truncate(count);
-    }
 }
 
 impl CheckState<'_> {
-    /// Collect one journaled obligation.
+    /// Collect one obligation.
     pub(in crate::check) fn push_obligation(&mut self, obligation: Obligation) -> ObligationId {
-        let id = self.obligations.allocate(obligation);
-        self.journal.record(Mutation::ObligationAllocated);
+        let id = self.solver.allocate_obligation(obligation);
+        self.queue_task(Task::Oblige(id));
 
         id
     }
 
-    /// Check collected obligations after inference reaches a fixed point.
-    pub(in crate::check) fn check_obligations(&mut self) -> CompilerResult<()> {
-        let obligations = self.obligations.ids().collect::<Vec<_>>();
-
-        for obligation in obligations {
-            match self.run_obligation(obligation)? {
-                Answer::Ready(()) => {}
-                Answer::Pending(blockers) => {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "check obligation {obligation:?} is still pending after solve: {blockers:?}"
-                        ),
-                    });
-                }
-            }
-        }
-
-        Ok(())
-    }
-
     /// Check one obligation once.
-    fn run_obligation(&mut self, id: ObligationId) -> CompilerResult<Answer<()>> {
+    pub(in crate::check) fn run_obligation(
+        &mut self,
+        id: ObligationId,
+    ) -> CompilerResult<Answer<()>> {
         // copy the obligation for the borrow-free check
-        let obligation = self.obligations.get(id)?.clone();
+        let obligation = self.solver.obligations.get(id)?.clone();
         let predicates = match obligation.condition() {
             Condition::Always => smallvec::SmallVec::new(),
             Condition::When(predicates) => predicates.clone(),
@@ -413,12 +441,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         match obligation {
             Obligation::PatternCoverage(obligation) => self.check_pattern_coverage(obligation),
-            Obligation::TryPropagation(obligation) => self.check_try_propagates(
-                obligation.source,
-                obligation.value,
-                obligation.return_type,
-            ),
-            Obligation::WritablePlace(obligation) => self.check_writable_place(obligation.place),
+            Obligation::TryPropagation(obligation) => self.check_try_propagates(obligation),
+            Obligation::WritablePlace(obligation) => self.check_writable_place(obligation),
             Obligation::Representation(obligation) => {
                 self.check_layout(obligation.source, obligation.ty)
             }
@@ -426,6 +450,7 @@ impl CheckState<'_> {
                 self.check_auto_interface(obligation.source, obligation.ty, obligation.interface)
             }
             Obligation::RuntimePredicate(obligation) => self.check_runtime_predicate(obligation),
+            Obligation::ForInSource(obligation) => self.check_for_in_source(obligation),
             Obligation::ExtensionConformance(obligation) => {
                 self.check_extension_conformance(obligation.source, obligation.symbol)
             }
@@ -474,6 +499,22 @@ impl CheckState<'_> {
                 },
             ),
         }
+    }
+
+    /// Check one for-in source obligation.
+    fn check_for_in_source(
+        &mut self,
+        obligation: &ForInSourceObligation,
+    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+        let origin = Origin::Node(obligation.source);
+        if answer!(self.is_keyed_type(origin, obligation.ty)?) {
+            return Ok(Answer::Ready(None));
+        }
+
+        let (module, anchor) = self.source_anchor(obligation.source);
+        let error = CheckError::ForInSourceNotObjectShaped { anchor, module };
+
+        Ok(Answer::Ready(Some(error.into())))
     }
 
     /// Return the diagnostic anchor for one source node.
