@@ -931,14 +931,30 @@ fn add_class_construct_candidate_fields(
     row.field("target", builder.symbol_path_label(candidate.symbol))
         .optional_field(
             "constructor",
-            candidate
-                .constructor
-                .map(|symbol| builder.symbol_path_label(symbol)),
+            class_constructor_label(builder, &candidate.constructor),
         )
         .optional_field(
             "instance",
             generic_instance_label(builder, candidate.symbol, &candidate.generic_arguments),
         )
+}
+
+/// Return the selected class constructor label.
+fn class_constructor_label(
+    builder: &DirSnapshotBuilder<'_>,
+    constructor: &dir::ClassConstructor,
+) -> Option<String> {
+    match constructor {
+        dir::ClassConstructor::Declared { symbol } => Some(builder.symbol_path_label(*symbol)),
+        dir::ClassConstructor::Default => Some("default".to_string()),
+        dir::ClassConstructor::ForwardedDeclared { symbol, .. } => {
+            Some(format!("forwarded:{}", builder.symbol_path_label(*symbol)))
+        }
+        dir::ClassConstructor::ForwardedDefault { base } => Some(format!(
+            "forwarded:{}.default",
+            builder.symbol_path_label(*base)
+        )),
+    }
 }
 
 /// Add direct newtype construct candidate fields.

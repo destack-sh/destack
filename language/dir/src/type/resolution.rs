@@ -2,8 +2,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ArgumentBinding, BinaryOperator, GenericArgumentBinding, GlobalNodeIdAny, GlobalSymbolId,
-    GlobalTypeId, Predicate, Projection, ScalarLiteral, StaticKey, UnaryOperator,
+    ArgumentBinding, BinaryOperator, ClassConstructor, GenericArgumentBinding, GlobalNodeIdAny,
+    GlobalSymbolId, GlobalTypeId, Predicate, Projection, ScalarLiteral, StaticKey, UnaryOperator,
 };
 
 /// Receiver selected by contextual lookup, such as `this` or `super`.
@@ -595,8 +595,8 @@ impl ConstructTarget {
 pub struct ClassConstructCandidate {
     /// The selected class symbol.
     pub symbol: GlobalSymbolId,
-    /// The selected explicit constructor symbol, when declared.
-    pub constructor: Option<GlobalSymbolId>,
+    /// The selected class constructor.
+    pub constructor: ClassConstructor,
     /// The selected generic argument bindings for the class symbol.
     pub generic_arguments: Vec<GenericArgumentBinding>,
 }

@@ -269,8 +269,8 @@ impl FunctionLowerer<'_> {
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let construct_target = self.class_construct_target_for_new_expression(expression_id)?;
 
-        // call explicit constructors when present
-        if let Some(constructor_symbol) = construct_target.constructor {
+        // call constructors with function bodies
+        if let Some(constructor_symbol) = construct_target.constructor.call_symbol() {
             let function_id = self
                 .function_for_symbol(constructor_symbol)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
