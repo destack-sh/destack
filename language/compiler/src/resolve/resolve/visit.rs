@@ -21,11 +21,11 @@ impl ResolveState<'_> {
         self.resolve_language_globals(&environment.language)?;
         self.resolve_path_references()?;
 
-        // syntax-required language item modules resolve last
-        self.resolve_syntax_language_items(&environment.language)
+        // resolve language item symbols after profile globals
+        self.resolve_language_item_uses(&environment.language)
     }
 
-    /// Walk active roots and collect references and syntax language items.
+    /// Walk active roots and collect references and language item uses.
     ///
     /// Example:
     /// ```ds
@@ -108,7 +108,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
         declaration: &dir::Declaration,
     ) {
         if let dir::Declaration::Function(function) = declaration {
-            self.require_function_language_items(&function.signature);
+            self.record_function_language_items(&function.signature);
             self.enter_function(&function.signature);
             dir::walk_declaration(self, tree, id, declaration);
             self.leave_function();
@@ -134,7 +134,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
         property: &dir::Property,
     ) {
         if let dir::Property::Method { signature, .. } = property {
-            self.require_function_language_items(signature);
+            self.record_function_language_items(signature);
             self.enter_function(signature);
             dir::walk_property(self, tree, id, property);
             self.leave_function();
@@ -160,7 +160,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
         member: &dir::TypeMember,
     ) {
         if let dir::TypeMember::Method { signature, .. } = member {
-            self.require_function_language_items(signature);
+            self.record_function_language_items(signature);
         }
 
         dir::walk_type_member(self, tree, id, member);
@@ -181,7 +181,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
         member: &dir::Member,
     ) {
         if let dir::Member::Method { signature, .. } = member {
-            self.require_function_language_items(signature);
+            self.record_function_language_items(signature);
             self.enter_function(signature);
             dir::walk_member(self, tree, id, member);
             self.leave_function();

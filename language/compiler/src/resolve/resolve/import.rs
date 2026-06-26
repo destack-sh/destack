@@ -132,8 +132,6 @@ impl ResolveState<'_> {
         let Some(target) = edge.target else {
             return Ok(());
         };
-        self.imports.push_module(target);
-
         if let Some(items) = items {
             self.resolve_import_items(target, edge.specifier, items)?;
         }
@@ -241,7 +239,6 @@ impl ResolveState<'_> {
             return Ok(());
         };
         let specifier = edge.specifier;
-        self.imports.push_module(target);
 
         for item_id in items {
             self.stats.reexport_items += 1;

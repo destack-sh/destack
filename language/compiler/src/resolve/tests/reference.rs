@@ -20,8 +20,10 @@ type User = string;
 let value: User;
 /// @reference.bound source=User targets=[User]
 
-/// @import.summary
-/// @resolve.stats roots=2 expressions=2 types=2
+/// @import.language item=string.String symbol=string.string.String
+
+/// @import.summary language=1
+/// @resolve.stats roots=2 expressions=2 types=2 language=uses:1
 /// @reference.summary references=1
 "#,
     );
@@ -48,8 +50,10 @@ let value: User;
 
 type User = string;
 
-/// @import.summary
-/// @resolve.stats roots=2 expressions=2 types=2
+/// @import.language item=string.String symbol=string.string.String
+
+/// @import.summary language=1
+/// @resolve.stats roots=2 expressions=2 types=2 language=uses:1
 /// @reference.summary references=1
 "#,
     );

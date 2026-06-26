@@ -97,7 +97,7 @@ dep.value;
 /// @import.language item=string.String symbol=string.string.String
 
 /// @import.summary symbols=1 language=5
-/// @resolve.stats roots=2 expressions=3 types=0 clauses=import:1,reexport:0 language=required:5 exports=miss:1,hit:0,cycle:0
+/// @resolve.stats roots=2 expressions=3 types=0 clauses=import:1,reexport:0 language=uses:5 exports=miss:1,hit:0,cycle:0
 /// @reference.summary references=2
 "#,
     );
@@ -147,7 +147,7 @@ dep.api.value;
 /// @import.language item=string.String symbol=string.string.String
 
 /// @import.summary symbols=1 language=5
-/// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 language=required:5 exports=miss:2,hit:0,cycle:0
+/// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 language=uses:5 exports=miss:2,hit:0,cycle:0
 /// @reference.summary references=3
 "#,
     );
@@ -198,7 +198,7 @@ dep.api.value;
 /// @import.language item=string.String symbol=string.string.String
 
 /// @import.summary symbols=1 language=5
-/// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 language=required:5 exports=miss:2,hit:0,cycle:0
+/// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 language=uses:5 exports=miss:2,hit:0,cycle:0
 /// @reference.summary references=3
 "#,
     );
@@ -309,7 +309,7 @@ export let value = 1;
         "main.ds",
         r#"
 /// @diagnostic.error code=ER200 message="missing export 'missing' from './dep.ds'"
-/// @diagnostic.label line=2 column=10 source="import { missing } from \"./dep.ds\";"
+/// @diagnostic.label line=2 column=10 span="missing" line_source="import { missing } from \"./dep.ds\";"
 "#,
     );
 }
@@ -341,7 +341,7 @@ export { value as default };
         "main.ds",
         r#"
 /// @diagnostic.error code=ER200 message="missing export 'default' from './mid.ds'"
-/// @diagnostic.label line=2 column=10 source="import { default as value } from \"./mid.ds\";"
+/// @diagnostic.label line=2 column=10 span="default as value" line_source="import { default as value } from \"./mid.ds\";"
 "#,
     );
 }
@@ -379,7 +379,7 @@ export let value = 2;
         "main.ds",
         r#"
 /// @diagnostic.error code=ER201 message="ambiguous export 'value' from './mid.ds'"
-/// @diagnostic.label line=2 column=10 source="import { value } from \"./mid.ds\";"
+/// @diagnostic.label line=2 column=10 span="value" line_source="import { value } from \"./mid.ds\";"
 "#,
     );
 }

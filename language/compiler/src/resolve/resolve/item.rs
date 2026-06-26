@@ -3,7 +3,7 @@ use destack_dir as dir;
 use crate::resolve::state::ResolveState;
 
 impl ResolveState<'_> {
-    /// Require language items implied by one function signature.
+    /// Record language items implied by one function signature.
     ///
     /// Example:
     /// ```ds
@@ -11,55 +11,52 @@ impl ResolveState<'_> {
     /// function* ids() {}
     /// async function* events() {}
     /// ```
-    pub(in crate::resolve) fn require_function_language_items(
+    pub(in crate::resolve) fn record_function_language_items(
         &mut self,
         signature: &dir::FunctionSignature,
     ) {
         match (signature.asynchrony, signature.is_generator) {
             // async function f() {}
             (dir::Asynchrony::Async, false) => {
-                self.require_language_item(dir::LanguageItem::Promise);
+                self.record_language_item(dir::LanguageItem::Promise);
             }
             // function* f() {}
             (dir::Asynchrony::Sync, true) => {
-                self.require_language_item(dir::LanguageItem::Generator);
+                self.record_language_item(dir::LanguageItem::Generator);
             }
             // async function* f() {}
             (dir::Asynchrony::Async, true) => {
-                self.require_language_item(dir::LanguageItem::AsyncGenerator);
+                self.record_language_item(dir::LanguageItem::AsyncGenerator);
             }
             // function f() {}
             (dir::Asynchrony::Sync, false) => {}
         }
     }
 
-    /// Require language items implied by try propagation syntax.
+    /// Record language items implied by try propagation syntax.
     ///
     /// Example:
     /// ```ds
     /// const value = parse()?;
     /// ```
-    pub(in crate::resolve) fn require_try_language_items(&mut self) {
-        self.require_language_item(dir::LanguageItem::Try);
-        self.require_language_item(dir::LanguageItem::FromResidual);
+    pub(in crate::resolve) fn record_try_language_items(&mut self) {
+        self.record_language_item(dir::LanguageItem::Try);
+        self.record_language_item(dir::LanguageItem::FromResidual);
     }
 
-    /// Require the owner surfaces member access can demand.
+    /// Record language item owners that member lookup can project through.
     ///
-    /// The check projects scalar and collection receivers onto these
-    /// declarations, so this set mirrors the owner items its member
-    /// lookup reaches. Declaring the demand as import edges merges the
-    /// mutually dependent core components, which on-demand artifact
-    /// requires cannot serve across a component cycle.
-    pub(in crate::resolve) fn require_member_owner_language_items(&mut self) {
-        self.require_language_item(dir::LanguageItem::String);
-        self.require_language_item(dir::LanguageItem::Number);
-        self.require_language_item(dir::LanguageItem::Array);
-        self.require_language_item(dir::LanguageItem::Slice);
-        self.require_language_item(dir::LanguageItem::FixedArray);
+    /// Check projects scalar and collection receivers onto these declarations.
+    /// Resolve records them before component partitioning.
+    pub(in crate::resolve) fn record_member_owner_language_items(&mut self) {
+        self.record_language_item(dir::LanguageItem::String);
+        self.record_language_item(dir::LanguageItem::Number);
+        self.record_language_item(dir::LanguageItem::Array);
+        self.record_language_item(dir::LanguageItem::Slice);
+        self.record_language_item(dir::LanguageItem::FixedArray);
     }
 
-    /// Require the iterable item implied by yield delegation.
+    /// Record the iterable item implied by yield delegation.
     ///
     /// Example:
     /// ```ds
@@ -67,7 +64,7 @@ impl ResolveState<'_> {
     ///     yield* values;
     /// }
     /// ```
-    pub(in crate::resolve) fn require_yield_star_language_item(&mut self) {
+    pub(in crate::resolve) fn record_yield_star_language_item(&mut self) {
         let Some(function) = self.current_function() else {
             return;
         };
@@ -81,17 +78,17 @@ impl ResolveState<'_> {
             dir::Asynchrony::Async => dir::LanguageItem::AsyncIterable,
         };
 
-        self.require_language_item(item);
+        self.record_language_item(item);
     }
 
-    /// Require the range item implied by one range expression.
+    /// Record the range item implied by one range expression.
     ///
     /// Example:
     /// ```ds
     /// const open = start..end;
     /// const closed = start..=end;
     /// ```
-    pub(in crate::resolve) fn require_range_language_item(
+    pub(in crate::resolve) fn record_range_language_item(
         &mut self,
         has_start: bool,
         has_end: bool,
@@ -112,17 +109,17 @@ impl ResolveState<'_> {
             (false, false, _) => dir::LanguageItem::RangeFull,
         };
 
-        self.require_language_item(item);
+        self.record_language_item(item);
     }
 
-    /// Require language items implied by one unary operator.
+    /// Record language items implied by one unary operator.
     ///
     /// Example:
     /// ```ds
     /// const negated = -value;
     /// const dereferenced = *pointer;
     /// ```
-    pub(in crate::resolve) fn require_unary_operator_language_items(
+    pub(in crate::resolve) fn record_unary_operator_language_items(
         &mut self,
         operator: dir::UnaryOperator,
     ) {
@@ -146,17 +143,17 @@ impl ResolveState<'_> {
             | dir::UnaryOperator::Spread => return,
         };
 
-        self.require_language_item(item);
+        self.record_language_item(item);
     }
 
-    /// Require language items implied by one binary operator.
+    /// Record language items implied by one binary operator.
     ///
     /// Example:
     /// ```ds
     /// const total = left + right;
     /// const is_less = left < right;
     /// ```
-    pub(in crate::resolve) fn require_binary_operator_language_items(
+    pub(in crate::resolve) fn record_binary_operator_language_items(
         &mut self,
         operator: dir::BinaryOperator,
     ) {
@@ -194,9 +191,9 @@ impl ResolveState<'_> {
             | dir::BinaryOperator::LessThanOrEqual
             | dir::BinaryOperator::GreaterThan
             | dir::BinaryOperator::GreaterThanOrEqual => {
-                self.require_language_item(dir::LanguageItem::Compare);
-                self.require_language_item(dir::LanguageItem::Ordering);
-                self.require_language_item(dir::LanguageItem::PartialCompare);
+                self.record_language_item(dir::LanguageItem::Compare);
+                self.record_language_item(dir::LanguageItem::Ordering);
+                self.record_language_item(dir::LanguageItem::PartialCompare);
 
                 return;
             }
@@ -209,6 +206,6 @@ impl ResolveState<'_> {
             | dir::BinaryOperator::In => return,
         };
 
-        self.require_language_item(item);
+        self.record_language_item(item);
     }
 }
