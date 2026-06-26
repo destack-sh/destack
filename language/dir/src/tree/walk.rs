@@ -1828,7 +1828,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             let unwrap_pattern = tree.get(*unwrap);
             visitor.visit_pattern(tree, *unwrap, unwrap_pattern);
         }
-        Pattern::Assign { pattern, value } => {
+        Pattern::Default { pattern, value } => {
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
 
@@ -1972,18 +1972,20 @@ pub fn walk_assign_pattern<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::AssignPattern, id.id);
 
     match assign_pattern {
-        AssignPattern::Expression { value } => {
+        AssignPattern::Place { expression: value } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
-        AssignPattern::Assign { pattern, value } => {
+        AssignPattern::Default { pattern, value } => {
             let pattern_node = tree.get(*pattern);
             visitor.visit_assign_pattern(tree, *pattern, pattern_node);
 
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
-        AssignPattern::Sequence { fields } | AssignPattern::Object { fields } => {
+        AssignPattern::Sequence { fields }
+        | AssignPattern::Tuple { fields }
+        | AssignPattern::Object { fields } => {
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_assign_pattern_field(tree, *field_id, field);

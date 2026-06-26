@@ -28,8 +28,8 @@ pub enum Pattern {
     Wildcard,
     /// Must pattern (like `x!`).
     Must(LocalNodeId<Pattern>),
-    /// Assignment pattern (like `x = 1` or `{ x } = {}`).
-    Assign {
+    /// Defaulted pattern like `x = 1`.
+    Default {
         pattern: LocalNodeId<Pattern>,
         value: LocalNodeId<Expression>,
     },
@@ -132,15 +132,19 @@ impl Node for PatternField {
 /// An AssignPattern is one assignment left hand side.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum AssignPattern {
-    /// Expression target like `x`, `obj.x`, or `obj[key]`.
-    Expression { value: LocalNodeId<Expression> },
+    /// Writable place target like `x`, `obj.x`, or `obj[key]`.
+    Place { expression: LocalNodeId<Expression> },
     /// Defaulted destructuring target like `x = 1`.
-    Assign {
+    Default {
         pattern: LocalNodeId<AssignPattern>,
         value: LocalNodeId<Expression>,
     },
     /// Sequence destructuring target like `[a, , ...rest]`.
     Sequence {
+        fields: Vec<LocalNodeId<AssignPatternField>>,
+    },
+    /// Tuple destructuring target like `(a, b)` or `(a,)`.
+    Tuple {
         fields: Vec<LocalNodeId<AssignPatternField>>,
     },
     /// Object destructuring target like `{ x, y: z }`.

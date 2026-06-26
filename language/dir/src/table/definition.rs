@@ -359,14 +359,14 @@ pub struct ClassDefinition {
     pub extends: Option<NominalHeritage>,
     /// The implemented interfaces.
     pub implements: Vec<NominalHeritage>,
-    /// The constructors selected by class construction.
+    /// The class's direct construct candidates.
     pub constructors: Vec<ClassConstructorDefinition>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
 }
 
-/// One class constructor available for construction.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+/// One class construct candidate.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ClassConstructorDefinition {
     /// The selected constructor.
     pub constructor: ClassConstructor,
@@ -374,8 +374,8 @@ pub struct ClassConstructorDefinition {
     pub ty: GlobalTypeId,
 }
 
-/// Class constructor origin.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Schema)]
+/// Class construct candidate origin.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ClassConstructor {
     /// Constructor explicitly declared by this class.
     ///
@@ -391,7 +391,7 @@ pub enum ClassConstructor {
         /// The declared constructor symbol.
         symbol: GlobalSymbolId,
     },
-    /// Empty constructor synthesized for a base class with no constructor.
+    /// Default `new T()` candidate for a class with no declared constructor.
     ///
     /// Examples:
     /// ```ds
@@ -435,6 +435,16 @@ pub enum ClassConstructor {
 }
 
 impl ClassConstructor {
+    /// Return this constructor forwarded through one direct base class.
+    pub fn forwarded(self, base: GlobalSymbolId) -> Self {
+        match self {
+            Self::Declared { symbol } | Self::ForwardedDeclared { symbol, .. } => {
+                Self::ForwardedDeclared { base, symbol }
+            }
+            Self::Default | Self::ForwardedDefault { .. } => Self::ForwardedDefault { base },
+        }
+    }
+
     /// Return the function symbol called by this constructor, when one exists.
     pub fn call_symbol(&self) -> Option<GlobalSymbolId> {
         match self {
