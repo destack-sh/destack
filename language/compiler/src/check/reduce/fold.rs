@@ -8,7 +8,7 @@ use crate::check::CheckState;
 
 /// Rewrite rule applied to the leaves of one type fold.
 #[derive(Debug, Clone, Copy)]
-pub(in crate::check) enum Rewrite<'a> {
+pub(in crate::check) enum TypeRewrite<'a> {
     /// Replace generic parameter and receiver references by position.
     Substitute {
         /// The declared parameters in declaration order.
@@ -31,7 +31,7 @@ pub(in crate::check) enum Rewrite<'a> {
 
 /// One positional generic substitution.
 #[derive(Debug, Default)]
-pub(in crate::check) struct Substitution {
+pub(in crate::check) struct TypeSubstitution {
     /// The declared parameters in declaration order.
     pub(in crate::check) parameters: SmallVec<[dir::GlobalGenericParameterId; 4]>,
     /// The applied arguments in declaration order.
@@ -40,7 +40,7 @@ pub(in crate::check) struct Substitution {
     pub(in crate::check) receiver: Option<dir::GlobalTypeId>,
 }
 
-impl Substitution {
+impl TypeSubstitution {
     /// Return whether this substitution replaces nothing.
     pub(in crate::check) fn is_empty(&self) -> bool {
         self.parameters.is_empty() && self.receiver.is_none()
@@ -53,8 +53,8 @@ impl Substitution {
     }
 
     /// Return this substitution as a fold rewrite rule.
-    pub(in crate::check) fn rewrite(&self) -> Rewrite<'_> {
-        Rewrite::Substitute {
+    pub(in crate::check) fn rewrite(&self) -> TypeRewrite<'_> {
+        TypeRewrite::Substitute {
             parameters: &self.parameters,
             arguments: &self.arguments,
             receiver: self.receiver,
@@ -62,7 +62,7 @@ impl Substitution {
     }
 }
 
-impl Rewrite<'_> {
+impl TypeRewrite<'_> {
     /// Return the substituted argument for one parameter.
     fn substituted(&self, parameter: dir::GlobalGenericParameterId) -> Option<dir::GlobalTypeId> {
         match self {
@@ -109,8 +109,8 @@ impl CheckState<'_> {
 
             // record open variables through their representative
             if let dir::Type::Variable(variable) = ty {
-                let representative = self.variables.representative(*variable)?;
-                let state = self.variables.get(representative)?;
+                let representative = self.solver.representative(*variable)?;
+                let state = self.solver.variable(representative)?;
 
                 if state.solution.is_none() && !variables.contains(&representative) {
                     variables.push(representative);
@@ -135,7 +135,7 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
         id: dir::GlobalTypeId,
-        rewrite: Rewrite<'_>,
+        rewrite: TypeRewrite<'_>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // mark every affected id once, then rebuild along the marks
         let mut affected = IndexMap::new();
@@ -145,12 +145,36 @@ impl CheckState<'_> {
         self.fold_type_guarded(module, source, id, rewrite, &affected, &mut folding)
     }
 
+    /// Return the type substitution for one generic instance.
+    pub(in crate::check) fn instance_substitution(
+        &self,
+        instance: &dir::GenericInstance,
+    ) -> CompilerResult<TypeSubstitution> {
+        let Some(template) = self.symbol_template(instance.symbol) else {
+            return Ok(TypeSubstitution::default());
+        };
+
+        let parameters = self.generic_template_parameters(template);
+        let arguments = instance
+            .arguments
+            .iter()
+            .copied()
+            .take(parameters.len())
+            .collect();
+
+        Ok(TypeSubstitution {
+            parameters,
+            arguments,
+            receiver: None,
+        })
+    }
+
     /// Mark whether each reachable id contains one affected leaf.
     /// Cyclic graphs mark conservatively unaffected on re-entry.
     fn mark_affected(
         &self,
         id: dir::GlobalTypeId,
-        rewrite: Rewrite<'_>,
+        rewrite: TypeRewrite<'_>,
         affected: &mut IndexMap<dir::GlobalTypeId, bool>,
     ) -> CompilerResult<bool> {
         // replay marks and break cycles
@@ -162,11 +186,11 @@ impl CheckState<'_> {
         // leaves decide directly, composites inherit their children
         let ty = self.ty(id)?;
         let hit = match (ty, rewrite) {
-            _ if matches!(rewrite, Rewrite::Replace { from, .. } if from == id) => true,
-            (dir::Type::Parameter(parameter), Rewrite::Substitute { .. }) => {
+            _ if matches!(rewrite, TypeRewrite::Replace { from, .. } if from == id) => true,
+            (dir::Type::Parameter(parameter), TypeRewrite::Substitute { .. }) => {
                 rewrite.substituted(*parameter).is_some()
             }
-            (dir::Type::This, Rewrite::Substitute { .. }) => rewrite.receiver().is_some(),
+            (dir::Type::This, TypeRewrite::Substitute { .. }) => rewrite.receiver().is_some(),
             (dir::Type::Variable(_), _) => true,
             _ => {
                 let mut children = SmallVec::<[dir::GlobalTypeId; 8]>::new();
@@ -190,7 +214,7 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
         id: dir::GlobalTypeId,
-        rewrite: Rewrite<'_>,
+        rewrite: TypeRewrite<'_>,
         affected: &IndexMap<dir::GlobalTypeId, bool>,
         folding: &mut IndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -210,12 +234,12 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
         id: dir::GlobalTypeId,
-        rewrite: Rewrite<'_>,
+        rewrite: TypeRewrite<'_>,
         affected: &IndexMap<dir::GlobalTypeId, bool>,
         folding: &mut IndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // replace one matched type id
-        if let Rewrite::Replace { from, to } = rewrite
+        if let TypeRewrite::Replace { from, to } = rewrite
             && id == from
         {
             return Ok(to);
@@ -226,7 +250,7 @@ impl CheckState<'_> {
             if let Some(replacement) = rewrite.substituted(*parameter) {
                 return Ok(replacement);
             }
-            if matches!(rewrite, Rewrite::Substitute { .. }) {
+            if matches!(rewrite, TypeRewrite::Substitute { .. }) {
                 return Ok(id);
             }
         }
@@ -244,7 +268,7 @@ impl CheckState<'_> {
             _ => None,
         };
         if let Some(variable) = variable {
-            let solution = self.variables.solution(variable)?;
+            let solution = self.solver.solution(variable)?;
 
             return match (solution, rewrite) {
                 (Some(solution), _) => {
@@ -276,7 +300,7 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
         ty: dir::Type,
-        rewrite: Rewrite<'_>,
+        rewrite: TypeRewrite<'_>,
         affected: &IndexMap<dir::GlobalTypeId, bool>,
         folding: &mut IndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::Type> {
@@ -296,29 +320,6 @@ impl CheckState<'_> {
         });
         result?;
 
-        // substituted generic slots leave the function's parameter list
-        if let dir::Type::FunctionSignature(function) = &mut ty {
-            let mut kept = Vec::with_capacity(function.generic_parameters.len());
-            for parameter in function.generic_parameters.iter().copied() {
-                if matches!(self.ty(parameter)?, dir::Type::Parameter(_)) {
-                    kept.push(parameter);
-                }
-            }
-            function.generic_parameters = kept;
-        }
-
         Ok(ty)
-    }
-}
-
-impl CheckState<'_> {
-    /// Resolve one probe-built type into solution-free form for harvest.
-    pub(in crate::check) fn harvest_type(
-        &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
-        id: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        self.fold_type(module, source, id, Rewrite::Resolve)
     }
 }

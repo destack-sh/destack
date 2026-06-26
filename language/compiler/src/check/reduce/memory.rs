@@ -2,14 +2,14 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, Origin};
+use crate::check::{Answer, CheckState, Dependency, Origin, answer};
 
 /// The memory form wrappers stacked over one base type.
 #[derive(Debug, Clone)]
 struct FormChain {
     /// The form wrappers, outermost first.
     forms: SmallVec<[dir::FormType; 2]>,
-    /// The unqualified base type under every wrapper.
+    /// The unqualified base type under every memory form.
     base: dir::GlobalTypeId,
     /// Whether the base can still gain forms at instantiation.
     is_open: bool,
@@ -17,7 +17,7 @@ struct FormChain {
 
 impl CheckState<'_> {
     /// Normalize one unary form constructor application.
-    pub(in crate::check) fn evaluate_form_constructor(
+    pub(in crate::check) fn normalize_form_constructor(
         &mut self,
         origin: Origin,
         instance: &dir::GenericInstance,
@@ -33,7 +33,7 @@ impl CheckState<'_> {
     }
 
     /// Normalize one borrowed form constructor application.
-    pub(in crate::check) fn evaluate_borrowed_constructor(
+    pub(in crate::check) fn normalize_borrowed_constructor(
         &mut self,
         origin: Origin,
         instance: &dir::GenericInstance,
@@ -63,7 +63,7 @@ impl CheckState<'_> {
     }
 
     /// Normalize one placed form constructor application.
-    pub(in crate::check) fn evaluate_placed_constructor(
+    pub(in crate::check) fn normalize_placed_constructor(
         &mut self,
         origin: Origin,
         instance: &dir::GenericInstance,
@@ -86,7 +86,7 @@ impl CheckState<'_> {
     }
 
     /// Evaluate one memory accessor, distributing over union targets.
-    pub(in crate::check) fn evaluate_memory_accessor(
+    pub(in crate::check) fn reduce_memory_accessor(
         &mut self,
         origin: Origin,
         item: dir::LanguageItem,
@@ -97,10 +97,7 @@ impl CheckState<'_> {
         };
 
         // close the inspected target first
-        let target = match self.evaluate_root(origin, target)? {
-            Answer::Ready(target) => target,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let target = answer!(self.reduce_type_root(origin, target)?);
 
         // distribute the accessor over union targets
         let elements = match self.ty(target)? {
@@ -115,7 +112,7 @@ impl CheckState<'_> {
         let mut answers = Vec::with_capacity(elements.len());
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for element in elements {
-            let element = match self.evaluate_root(origin, element)? {
+            let element = match self.reduce_type_root(origin, element)? {
                 Answer::Ready(element) => element,
                 Answer::Pending(dependencies) => {
                     blockers.extend(dependencies);
@@ -124,7 +121,7 @@ impl CheckState<'_> {
                 }
             };
 
-            match self.evaluate_element_accessor(origin, item, instance, element)? {
+            match self.reduce_element_accessor(origin, item, instance, element)? {
                 // one symbolic element keeps the whole accessor symbolic
                 Answer::Ready(None) => return Ok(Answer::Ready(None)),
                 Answer::Ready(Some(answer)) => answers.push(answer),
@@ -161,7 +158,7 @@ impl CheckState<'_> {
 
     /// Evaluate one memory accessor over one closed element.
     /// Returns none while the element's forms stay symbolic.
-    fn evaluate_element_accessor(
+    fn reduce_element_accessor(
         &mut self,
         origin: Origin,
         item: dir::LanguageItem,
@@ -169,17 +166,14 @@ impl CheckState<'_> {
         element: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         // close the element's form chain first
-        let chain = match self.form_chain(origin, element)? {
-            Answer::Ready(chain) => chain,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
-        let answer = self.evaluate_stack_accessor(origin, item, instance, element, &chain)?;
+        let chain = answer!(self.form_chain(origin, element)?);
+        let answer = self.reduce_stack_accessor(origin, item, instance, element, &chain)?;
 
         Ok(Answer::Ready(answer))
     }
 
     /// Evaluate one memory accessor over one closed form chain.
-    fn evaluate_stack_accessor(
+    fn reduce_stack_accessor(
         &mut self,
         origin: Origin,
         item: dir::LanguageItem,
@@ -208,7 +202,7 @@ impl CheckState<'_> {
             dir::LanguageItem::OwnershipOr => {
                 let answer = self.ownership_answer(origin, chain)?;
 
-                self.fallback_answer(origin, instance, answer)
+                self.or_answer(origin, instance, answer)
             }
             dir::LanguageItem::IsManaged => {
                 self.ownership_predicate(origin, chain, dir::Form::Managed)
@@ -231,7 +225,7 @@ impl CheckState<'_> {
             dir::LanguageItem::AccessOr => {
                 let answer = self.access_answer(origin, chain)?;
 
-                self.fallback_answer(origin, instance, answer)
+                self.or_answer(origin, instance, answer)
             }
 
             // placement axis
@@ -239,7 +233,7 @@ impl CheckState<'_> {
             dir::LanguageItem::PlaceOr => {
                 let answer = self.place_answer(origin, chain)?;
 
-                self.fallback_answer(origin, instance, answer)
+                self.or_answer(origin, instance, answer)
             }
             dir::LanguageItem::PlaceIn => {
                 let answer = self.place_answer(origin, chain)?;
@@ -262,7 +256,7 @@ impl CheckState<'_> {
             dir::LanguageItem::SpaceOr => {
                 let answer = self.space_answer(origin, chain)?;
 
-                self.fallback_answer(origin, instance, answer)
+                self.or_answer(origin, instance, answer)
             }
             dir::LanguageItem::IsShared => {
                 let answer = self.space_answer(origin, chain)?;
@@ -299,10 +293,10 @@ impl CheckState<'_> {
             dir::LanguageItem::LifetimeOr => {
                 let answer = self.lifetime_answer(origin, chain)?;
 
-                self.fallback_answer(origin, instance, answer)
+                self.or_answer(origin, instance, answer)
             }
 
-            // rewriting helpers
+            // form rewriting
             dir::LanguageItem::WithBase => {
                 if chain.is_open {
                     return Ok(None);
@@ -344,10 +338,7 @@ impl CheckState<'_> {
 
         // collect form wrappers outermost first, closing each payload
         loop {
-            current = match self.evaluate_root(origin, current)? {
-                Answer::Ready(current) => current,
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-            };
+            current = answer!(self.reduce_type_root(origin, current)?);
             let dir::Type::Form(form) = self.ty(current)? else {
                 break;
             };
@@ -511,8 +502,8 @@ impl CheckState<'_> {
         }
     }
 
-    /// Replace one never answer with the accessor's fallback argument.
-    fn fallback_answer(
+    /// Return the first argument unless it is never, otherwise return the `*Or` default.
+    fn or_answer(
         &mut self,
         origin: Origin,
         instance: &dir::GenericInstance,
@@ -523,11 +514,11 @@ impl CheckState<'_> {
         };
 
         if matches!(self.ty(answer)?, dir::Type::Never) {
-            let Some(fallback) = instance.arguments.get(1).copied() else {
+            let Some(default) = instance.arguments.get(1).copied() else {
                 return Ok(None);
             };
 
-            Ok(Some(self.normalize_axis_text(origin, fallback)?))
+            Ok(Some(self.normalize_axis_text(origin, default)?))
         } else {
             Ok(Some(answer))
         }
@@ -574,7 +565,7 @@ impl CheckState<'_> {
         Ok(Some(self.push_memory_answer(origin, formed)?))
     }
 
-    /// Replace or add one placement wrapper.
+    /// Replace or add one placement form.
     fn with_place_answer(
         &mut self,
         origin: Origin,
@@ -587,7 +578,7 @@ impl CheckState<'_> {
         };
         let place = self.normalize_place(origin, place)?;
 
-        // replace an existing placement wrapper in its chain position
+        // replace an existing placement form in its chain position
         let position = chain
             .forms
             .iter()
@@ -611,7 +602,7 @@ impl CheckState<'_> {
         }
     }
 
-    /// Replace or insert one access wrapper.
+    /// Replace or insert one access form.
     fn with_access_answer(
         &mut self,
         origin: Origin,
@@ -641,7 +632,7 @@ impl CheckState<'_> {
         Ok(None)
     }
 
-    /// Rebuild one chain's borrow wrapper with replaced components.
+    /// Rebuild one chain's borrow form with replaced components.
     fn replace_borrow(
         &mut self,
         origin: Origin,
@@ -769,9 +760,8 @@ impl CheckState<'_> {
         origin: Origin,
         component: dir::GlobalTypeId,
     ) -> CompilerResult<Option<String>> {
-        let component = match self.evaluate_root(origin, component)? {
-            Answer::Ready(component) => component,
-            Answer::Pending(_) => return Ok(None),
+        let Some(component) = self.reduce_type_root(origin, component)?.ready() else {
+            return Ok(None);
         };
 
         let text = match self.ty(component)? {
@@ -852,13 +842,13 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let mut current = self.resolve_shallow(ty)?;
+        let mut current = self.settled_root(ty)?;
         while let dir::Type::Form(form) = self.ty(current)? {
             // only alias-transparent forms peel for reads
             if !matches!(form.form, dir::Form::Managed | dir::Form::Readonly) {
                 break;
             }
-            current = self.resolve_shallow(form.value)?;
+            current = self.settled_root(form.value)?;
         }
 
         Ok(current)

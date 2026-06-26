@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
 use crate::check::{
-    CheckState, ConstraintId, ConstraintRole, Dependency, ObligationId, Origin, Relation,
-    SelectionId, Widening,
+    CheckState, ConstraintId, Dependency, ObligationId, Origin, Relation, SelectionId, ValueUse,
+    Widening,
 };
 
 /// Rendering context for check trace values.
@@ -229,14 +229,14 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         }
     }
 
-    /// Return a compact constraint role label.
-    pub(in crate::check) fn role_label(&self, role: ConstraintRole) -> &'static str {
-        match role {
-            ConstraintRole::Check => "check",
-            ConstraintRole::Value => "value",
-            ConstraintRole::Argument => "argument",
-            ConstraintRole::Output => "output",
-            ConstraintRole::Condition => "condition",
+    /// Return a compact value use label.
+    pub(in crate::check) fn value_use_label(&self, use_: Option<ValueUse>) -> &'static str {
+        match use_ {
+            None => "check",
+            Some(ValueUse::Store) => "store",
+            Some(ValueUse::Argument) => "argument",
+            Some(ValueUse::Output) => "output",
+            Some(ValueUse::Condition) => "condition",
         }
     }
 

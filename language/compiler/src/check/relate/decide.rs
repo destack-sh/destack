@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, Mutation, Origin, Relation};
+use crate::check::{Answer, AutoInterface, CheckState, Origin, Relation, answer};
 
 impl CheckState<'_> {
     /// Decide one relation between two closed type roots.
@@ -14,23 +14,17 @@ impl CheckState<'_> {
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         // reduce both roots before structural comparison
-        let left = match self.evaluate_root(origin, left)? {
-            Answer::Ready(left) => left,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
-        let right = match self.evaluate_root(origin, right)? {
-            Answer::Ready(right) => right,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let left = answer!(self.reduce_type_root(origin, left)?);
+        let right = answer!(self.reduce_type_root(origin, right)?);
         if left == right {
             return Ok(Answer::Ready(true));
         }
 
         // reuse memoized answers, assuming in-flight pairs hold so recursive types terminate
-        if let Some(holds) = self.relations.lookup(relation, left, right) {
+        if let Some(holds) = self.relations().lookup(relation, left, right) {
             return Ok(Answer::Ready(holds));
         }
-        let frame = self.relations.enter(relation, left, right);
+        let frame = self.relations().enter(relation, left, right);
 
         let decision = match relation {
             Relation::Equal => self.decide_equal(origin, left, right),
@@ -45,18 +39,10 @@ impl CheckState<'_> {
         // memoize settled decisions, forget pending or failed attempts
         match &decision {
             Ok(Answer::Ready(holds)) => {
-                let settled = self.relations.finish(frame, *holds);
-                for (relation, left, right) in settled {
-                    self.journal.record(Mutation::RelationDecided {
-                        relation,
-                        left,
-                        right,
-                    });
-                }
+                self.relations().finish(frame, *holds);
             }
-            _ => self.relations.cancel(frame),
+            _ => self.relations().cancel(frame),
         }
-
         decision
     }
 
@@ -68,7 +54,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         // shape literals construct structs member-wise
-        if let (dir::Type::Shape(_), dir::Type::Reference(instance)) =
+        if let (dir::Type::Shape(_), dir::Type::Instance(instance)) =
             (self.ty(source)?, self.ty(target)?)
         {
             let instance = instance.clone();
@@ -82,20 +68,6 @@ impl CheckState<'_> {
         }
 
         self.decide_assignable(origin, source, target)
-    }
-
-    /// Return whether one fixed array count equals one literal length.
-    pub(in crate::check) fn fixed_count_equals(
-        &mut self,
-        count: dir::GlobalTypeId,
-        length: usize,
-    ) -> CompilerResult<bool> {
-        let count = self.resolve_shallow(count)?;
-        let dir::Type::Literal(dir::ScalarLiteral::Integer(count)) = self.ty(count)? else {
-            return Ok(false);
-        };
-
-        Ok(i64::try_from(length).is_ok_and(|length| *count == length))
     }
 
     /// Decide explicit castability.
@@ -114,12 +86,12 @@ impl CheckState<'_> {
         }
 
         let forward = self.decide_assignable(origin, source, target)?;
-        if forward == Answer::Ready(true) {
+        if forward.is_ready_true() {
             return Ok(Answer::Ready(true));
         }
 
         let backward = self.decide_assignable(origin, target, source)?;
-        if backward == Answer::Ready(true) {
+        if backward.is_ready_true() {
             return Ok(Answer::Ready(true));
         }
 
@@ -145,6 +117,13 @@ impl CheckState<'_> {
             | (dir::Type::Unknown, dir::Type::Unknown)
             | (dir::Type::Object, dir::Type::Object)
             | (dir::Type::This, dir::Type::This) => Answer::Ready(true),
+            // unit values are the concrete value representation of void
+            (dir::Type::Void, dir::Type::Tuple(tuple))
+            | (dir::Type::Tuple(tuple), dir::Type::Void)
+                if tuple.form == dir::TupleForm::Tuple && tuple.elements.is_empty() =>
+            {
+                Answer::Ready(true)
+            }
             // atoms compare structurally
             (dir::Type::Literal(left), dir::Type::Literal(right)) => Answer::Ready(left == right),
             // nullish literals equal their canonical type types
@@ -167,10 +146,17 @@ impl CheckState<'_> {
             (dir::Type::Parameter(left), dir::Type::Parameter(right)) => {
                 Answer::Ready(left == right)
             }
+            (dir::Type::EnumMember(left), dir::Type::EnumMember(right)) => {
+                if left.member != right.member {
+                    Answer::Ready(false)
+                } else {
+                    self.decide_relation(origin, Relation::Equal, left.owner, right.owner)?
+                }
+            }
             (dir::Type::Range(left), dir::Type::Range(right)) => Answer::Ready(left == right),
 
             // same-symbol references compare argument-wise
-            (dir::Type::Reference(left), dir::Type::Reference(right)) => {
+            (dir::Type::Instance(left), dir::Type::Instance(right)) => {
                 if left.symbol != right.symbol || left.arguments.len() != right.arguments.len() {
                     Answer::Ready(false)
                 } else {
@@ -190,7 +176,7 @@ impl CheckState<'_> {
                 let (left_form, right_form) = (left.form, right.form);
                 let (left_value, right_value) = (left.value, right.value);
                 let constructor = self.decide_form_equal(origin, left_form, right_form)?;
-                if constructor != Answer::Ready(true) {
+                if !constructor.is_ready_true() {
                     return Ok(constructor);
                 }
 
@@ -297,7 +283,10 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        if self.decide_equal(origin, source, target)? == Answer::Ready(true) {
+        if self.decide_equal(origin, source, target)?.is_ready_true() {
+            return Ok(Answer::Ready(true));
+        }
+        if self.widens_to(origin, source, target)? {
             return Ok(Answer::Ready(true));
         }
 
@@ -325,12 +314,18 @@ impl CheckState<'_> {
 
                 self.decide_readonly_assignable(origin, source_value, target_value)?
             }
+            // values can flow into readonly views by dropping write access
+            (_, dir::Type::Form(target)) if target.form == dir::Form::Readonly => {
+                let target_value = target.value;
+
+                self.decide_readonly_assignable(origin, source, target_value)?
+            }
             // memory forms check constructor then payload
             (dir::Type::Form(source), dir::Type::Form(target)) => {
                 let (source_form, target_form) = (source.form, target.form);
                 let (source_value, target_value) = (source.value, target.value);
                 let constructor = self.decide_form_assignable(origin, source_form, target_form)?;
-                if constructor != Answer::Ready(true) {
+                if !constructor.is_ready_true() {
                     return Ok(constructor);
                 }
 
@@ -355,10 +350,19 @@ impl CheckState<'_> {
 
                 self.decide_any(origin, source, &elements)?
             }
+            // erase compatible values into dynamic targets
+            (_, dir::Type::Dynamic(dynamic)) => {
+                let constraint = dynamic.constraint;
+
+                self.decide_dynamic_assignable(origin, source, constraint)?
+            }
 
             // literals and intervals widen by value
             (dir::Type::Literal(literal), target) => Answer::Ready(literal.widens_to(target)),
             (dir::Type::Range(range), target) => Answer::Ready(range.widens_to(target)),
+            (dir::Type::EnumMember(member), _) => {
+                self.decide_relation(origin, Relation::Assignable, member.owner, target)?
+            }
 
             // mutable collections alias their elements and stay invariant
             (dir::Type::Array(source), dir::Type::Array(target)) => {
@@ -371,21 +375,7 @@ impl CheckState<'_> {
 
                 self.decide_relation(origin, Relation::Equal, source, target)?
             }
-            // fresh array literals of the exact length fill fixed arrays
-            (dir::Type::Array(array), dir::Type::FixedArray(fixed)) => {
-                let (source_element, target_element) = (array.element, fixed.element);
-                let count = fixed.count;
-                match self.fresh_array_literal_length(source)? {
-                    Some(length) if self.fixed_count_equals(count, length)? => self
-                        .decide_relation(
-                            origin,
-                            Relation::Assignable,
-                            source_element,
-                            target_element,
-                        )?,
-                    _ => Answer::Ready(false),
-                }
-            }
+            (dir::Type::Array(_), dir::Type::FixedArray(_)) => Answer::Ready(false),
             (dir::Type::Slice(source), dir::Type::Slice(target)) => {
                 let (source, target) = (source.element, target.element);
 
@@ -418,17 +408,17 @@ impl CheckState<'_> {
             (dir::Type::Shape(_), dir::Type::Shape(_)) => {
                 self.decide_shape_assignable(origin, source, target)?
             }
-            (dir::Type::Shape(_), dir::Type::Reference(reference)) => {
+            (dir::Type::Shape(_), dir::Type::Instance(reference)) => {
                 let reference = reference.clone();
 
                 self.decide_source_against_reference(origin, source, &reference)?
             }
-            (dir::Type::Reference(reference), dir::Type::Shape(_)) => {
+            (dir::Type::Instance(reference), dir::Type::Shape(_)) => {
                 let reference = reference.clone();
 
                 self.decide_reference_against_target(origin, &reference, target)?
             }
-            (dir::Type::Reference(source_instance), dir::Type::Reference(target_instance))
+            (dir::Type::Instance(source_instance), dir::Type::Instance(target_instance))
                 if source_instance.symbol == target_instance.symbol =>
             {
                 // relate argument pairs by their parameter variances
@@ -451,7 +441,7 @@ impl CheckState<'_> {
                     &target_arguments,
                 )?
             }
-            (dir::Type::Reference(_), dir::Type::Reference(_)) => {
+            (dir::Type::Instance(_), dir::Type::Instance(_)) => {
                 self.decide_nominal_assignable(origin, source, target)?
             }
 
@@ -480,6 +470,25 @@ impl CheckState<'_> {
         };
 
         Ok(decision)
+    }
+
+    /// Decide whether one source value can erase into `Dynamic<constraint>`.
+    fn decide_dynamic_assignable(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        constraint: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let source = match self.ty(source)? {
+            dir::Type::Dynamic(dynamic) => dynamic.constraint,
+            _ => source,
+        };
+
+        if !answer!(self.satisfies_auto_interface(origin, source, AutoInterface::DynamicSafe,)?) {
+            return Ok(Answer::Ready(false));
+        }
+
+        self.decide_relation(origin, Relation::Assignable, source, constraint)
     }
 
     /// Decide assignability under one deep readonly view.
@@ -536,20 +545,15 @@ impl CheckState<'_> {
         relation: Relation,
         pairs: &[(dir::GlobalTypeId, dir::GlobalTypeId)],
     ) -> CompilerResult<Answer<bool>> {
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
+        let mut decision = Answer::Ready(true);
         for (left, right) in pairs.iter().copied() {
-            match self.decide_relation(origin, relation, left, right)? {
-                Answer::Ready(false) => return Ok(Answer::Ready(false)),
-                Answer::Ready(true) => {}
-                Answer::Pending(dependencies) => blockers.extend(dependencies),
+            decision = decision.and(self.decide_relation(origin, relation, left, right)?);
+            if decision.is_ready_false() {
+                return Ok(decision);
             }
         }
 
-        if blockers.is_empty() {
-            Ok(Answer::Ready(true))
-        } else {
-            Ok(Answer::pending(blockers))
-        }
+        Ok(decision)
     }
 
     /// Decide whether every union element assigns to one target.
@@ -559,20 +563,20 @@ impl CheckState<'_> {
         sources: &[dir::GlobalTypeId],
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
+        let mut decision = Answer::Ready(true);
         for source in sources {
-            match self.decide_relation(origin, Relation::Assignable, *source, target)? {
-                Answer::Ready(false) => return Ok(Answer::Ready(false)),
-                Answer::Ready(true) => {}
-                Answer::Pending(dependencies) => blockers.extend(dependencies),
+            decision = decision.and(self.decide_relation(
+                origin,
+                Relation::Assignable,
+                *source,
+                target,
+            )?);
+            if decision.is_ready_false() {
+                return Ok(decision);
             }
         }
 
-        if blockers.is_empty() {
-            Ok(Answer::Ready(true))
-        } else {
-            Ok(Answer::pending(blockers))
-        }
+        Ok(decision)
     }
 
     /// Decide whether one source assigns to any union element.
@@ -582,20 +586,16 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         targets: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<bool>> {
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
+        let mut decision = Answer::Ready(false);
         for target in targets {
-            match self.decide_relation(origin, Relation::Assignable, source, *target)? {
-                Answer::Ready(true) => return Ok(Answer::Ready(true)),
-                Answer::Ready(false) => {}
-                Answer::Pending(dependencies) => blockers.extend(dependencies),
+            decision =
+                decision.or(self.decide_relation(origin, Relation::Assignable, source, *target)?);
+            if decision.is_ready_true() {
+                return Ok(decision);
             }
         }
 
-        if blockers.is_empty() {
-            Ok(Answer::Ready(false))
-        } else {
-            Ok(Answer::pending(blockers))
-        }
+        Ok(decision)
     }
 
     /// Decide equality of two memory form constructors.
@@ -616,11 +616,11 @@ impl CheckState<'_> {
                     access: right_access,
                 },
             ) => {
-                // relations collect lifetimes without judging them:
+                // bind open lifetime slots without judging them:
                 // open annotation slots gather the flowing component,
                 // and Verify decides outlives on MIR
-                self.collect_lifetime(left_lifetime, right_lifetime)?;
-                self.collect_lifetime(right_lifetime, left_lifetime)?;
+                self.push_lifetime_lower_bound_if_open(left_lifetime, right_lifetime)?;
+                self.push_lifetime_lower_bound_if_open(right_lifetime, left_lifetime)?;
 
                 self.decide_relation(origin, Relation::Equal, left_access, right_access)
             }
@@ -654,10 +654,10 @@ impl CheckState<'_> {
                     access: target_access,
                 },
             ) => {
-                // relations collect lifetimes without judging them:
+                // bind open lifetime slots without judging them:
                 // open annotation slots gather the flowing component,
                 // and Verify decides outlives on MIR
-                self.collect_lifetime(source_lifetime, target_lifetime)?;
+                self.push_lifetime_lower_bound_if_open(source_lifetime, target_lifetime)?;
 
                 self.decide_access_assignable(origin, source_access, target_access)
             }
@@ -665,15 +665,15 @@ impl CheckState<'_> {
         }
     }
 
-    /// Collect one flowing lifetime into an open lifetime slot.
+    /// Push one flowing lifetime into an open lifetime slot.
     /// Lifetime validity is never judged here; open annotation slots
     /// solve from the components that flow through them.
-    fn collect_lifetime(
+    fn push_lifetime_lower_bound_if_open(
         &mut self,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let target = self.resolve_shallow(target)?;
+        let target = self.settled_root(target)?;
         if let Some(variable) = self.root_variable(target)? {
             self.push_lower_bound(variable, source)?;
         }
@@ -691,14 +691,8 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let source = match self.evaluate_root(origin, source)? {
-            Answer::Ready(source) => source,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
-        let target = match self.evaluate_root(origin, target)? {
-            Answer::Ready(target) => target,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let source = answer!(self.reduce_type_root(origin, source)?);
+        let target = answer!(self.reduce_type_root(origin, target)?);
 
         match (self.ty(source)?, self.ty(target)?) {
             (

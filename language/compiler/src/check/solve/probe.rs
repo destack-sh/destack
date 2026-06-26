@@ -4,27 +4,27 @@ use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, SolverSnapshot, Substitution, TypeMarks};
+use crate::check::{Answer, CheckState, Dependency, SolverSnapshot, TypeMark, TypeSubstitution};
 
 /// Snapshot of check state before one speculative probe.
 #[derive(Debug)]
-pub(in crate::check) struct ProbeSnapshot {
+pub(in crate::check) struct CheckSnapshot {
     /// The solver state before the probe.
     solver: SolverSnapshot,
     /// Layout segment marks before the probe.
-    layouts: LayoutMarks,
+    layouts: LayoutMark,
 }
 
-/// Layout segment marks keyed by module.
+/// Layout mark for all loaded module layout segments.
 #[derive(Debug, PartialEq, Eq)]
-struct LayoutMarks {
+struct LayoutMark {
     /// Layout and type-layout counts for each loaded layout segment.
-    modules: IndexMap<ModuleId, LayoutMark>,
+    modules: IndexMap<ModuleId, LayoutSegmentMark>,
 }
 
 /// Layout segment mark.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct LayoutMark {
+struct LayoutSegmentMark {
     /// The layout count before the probe.
     layouts: u32,
     /// The type-layout binding count before the probe.
@@ -33,23 +33,32 @@ struct LayoutMark {
 
 impl CheckState<'_> {
     /// Begin one speculative probe.
-    pub(in crate::check) fn begin_probe(&mut self) -> ProbeSnapshot {
+    pub(in crate::check) fn begin_probe(&mut self) -> CheckSnapshot {
         let marks = self
             .modules
             .iter()
             .map(|(module, state)| (*module, state.types.type_count()))
             .collect();
-        let solver = self.solver.snapshot(TypeMarks::new(marks));
-        let layouts = LayoutMarks::new(&self.layouts);
+        let solver = self.solver.snapshot(TypeMark::new(marks));
+        let layouts = LayoutMark::new(&self.layouts);
 
-        ProbeSnapshot { solver, layouts }
+        CheckSnapshot { solver, layouts }
     }
 
     /// Roll back one speculative probe.
-    pub(in crate::check) fn reject_probe(&mut self, snapshot: ProbeSnapshot) {
+    pub(in crate::check) fn reject_probe(&mut self, snapshot: CheckSnapshot) {
         let marks = self.solver.rollback(snapshot.solver);
         self.drop_probe_layouts(snapshot.layouts);
         self.drop_probe_types(marks);
+    }
+
+    /// Commit one speculative probe.
+    pub(in crate::check) fn commit_probe(&mut self, snapshot: CheckSnapshot) {
+        let CheckSnapshot {
+            solver,
+            layouts: _layouts,
+        } = snapshot;
+        self.solver.commit(solver);
     }
 
     /// Return dependencies still live after a probe was rejected.
@@ -87,15 +96,31 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         let mut all_bounds_hold = true;
         let mut pending = SmallVec::<[Dependency; 2]>::new();
+        let mut queue = variables.into_iter().collect::<Vec<_>>();
 
-        for variable in variables {
+        while let Some(variable) = queue.pop() {
             match self.solve_variable(variable)? {
                 Answer::Ready(holds) => all_bounds_hold &= holds,
                 Answer::Pending(blockers) => {
+                    let mut blocked_variables = SmallVec::<[dir::TypeVariableId; 2]>::new();
                     for blocker in blockers {
-                        if !pending.contains(&blocker) {
-                            pending.push(blocker);
+                        match blocker {
+                            Dependency::Variable(blocker) => {
+                                let blocker = self.solver.representative(blocker)?;
+                                let solution = self.solver.solution(blocker)?;
+                                if solution.is_none() && !blocked_variables.contains(&blocker) {
+                                    blocked_variables.push(blocker);
+                                }
+                            }
+                            Dependency::Decision(_) => {
+                                if !pending.contains(&blocker) {
+                                    pending.push(blocker);
+                                }
+                            }
                         }
+                    }
+                    if pending.is_empty() {
+                        queue.extend(blocked_variables);
                     }
                 }
             }
@@ -109,7 +134,7 @@ impl CheckState<'_> {
     /// Return inference variables referenced by one substitution.
     pub(in crate::check) fn substitution_variables(
         &mut self,
-        substitution: &Substitution,
+        substitution: &TypeSubstitution,
     ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 4]>> {
         let mut variables = SmallVec::new();
         for argument in substitution.arguments.iter().rev().copied() {
@@ -122,7 +147,7 @@ impl CheckState<'_> {
     }
 
     /// Drop probe-local types.
-    fn drop_probe_types(&mut self, marks: TypeMarks) {
+    fn drop_probe_types(&mut self, marks: TypeMark) {
         for (module, count) in marks.iter() {
             if let Some(state) = self.modules.get_mut(&module) {
                 state.types.truncate_types(count);
@@ -131,7 +156,7 @@ impl CheckState<'_> {
     }
 
     /// Drop probe-local layouts.
-    fn drop_probe_layouts(&mut self, marks: LayoutMarks) {
+    fn drop_probe_layouts(&mut self, marks: LayoutMark) {
         self.layouts
             .retain(|module, _| marks.modules.contains_key(module));
 
@@ -144,7 +169,7 @@ impl CheckState<'_> {
     }
 }
 
-impl LayoutMarks {
+impl LayoutMark {
     /// Mark every loaded layout segment.
     fn new(layouts: &IndexMap<ModuleId, dir::LayoutSegment>) -> Self {
         let modules = layouts
@@ -152,7 +177,7 @@ impl LayoutMarks {
             .map(|(module, segment)| {
                 (
                     *module,
-                    LayoutMark {
+                    LayoutSegmentMark {
                         layouts: segment.layout_count(),
                         type_layouts: segment.type_layout_count(),
                     },

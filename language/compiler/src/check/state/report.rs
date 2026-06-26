@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 use indexmap::IndexSet;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, ConstraintRole, Origin, Relation};
+use crate::check::{CheckState, Origin, Relation, ValueUse};
 use crate::{
     CheckError, CheckWarning, CompilerError, CompilerResult, DiagnosticAnchor,
     diagnostic_suggestion_distance,
@@ -395,6 +395,23 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one member access whose target is overloaded.
+    pub(in crate::check) fn report_ambiguous_member(
+        &mut self,
+        origin: Origin,
+        key: String,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::AmbiguousMember {
+            anchor,
+            module,
+            key,
+        };
+        self.module_mut(module).diagnostics.push(error.into());
+
+        Ok(())
+    }
+
     /// Report one value that is not callable.
     pub(in crate::check) fn report_not_callable(
         &mut self,
@@ -561,6 +578,61 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one tuple pattern with a non-tuple source.
+    pub(in crate::check) fn report_pattern_source_not_tuple_shaped(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::PatternSourceNotTupleShaped {
+            anchor,
+            module,
+            source: self.format_type(source),
+        };
+        self.module_mut(module).diagnostics.push(error.into());
+
+        Ok(())
+    }
+
+    /// Report one missing pattern field.
+    pub(in crate::check) fn report_pattern_field_missing(
+        &mut self,
+        origin: Origin,
+        receiver: dir::GlobalTypeId,
+        key: String,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::PatternFieldMissing {
+            anchor,
+            module,
+            key,
+            receiver: self.format_type(receiver),
+        };
+        self.module_mut(module).diagnostics.push(error.into());
+
+        Ok(())
+    }
+
+    /// Report one pattern member that is not a field.
+    pub(in crate::check) fn report_pattern_member_not_field(
+        &mut self,
+        origin: Origin,
+        receiver: dir::GlobalTypeId,
+        key: String,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::PatternMemberNotField {
+            anchor,
+            module,
+            key,
+            receiver: self.format_type(receiver),
+        };
+        self.module_mut(module).diagnostics.push(error.into());
+
+        Ok(())
+    }
+
     /// Report one pattern whose tag is not nominal.
     pub(in crate::check) fn report_invalid_pattern_tag(
         &mut self,
@@ -636,7 +708,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         relation: Relation,
-        role: ConstraintRole,
+        value_use: Option<ValueUse>,
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
@@ -656,6 +728,9 @@ impl CheckState<'_> {
         if matches!(
             relation,
             Relation::Assignable | Relation::Writable | Relation::Satisfies
+        ) && matches!(
+            value_use,
+            Some(ValueUse::Store | ValueUse::Argument | ValueUse::Output)
         ) && let Some(key) = self.object_literal_excess_property(origin, left, right)?
         {
             let error = CheckError::ExcessProperty {
@@ -674,7 +749,7 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        let error = match (relation, role) {
+        let error = match (relation, value_use) {
             // explicit casts report their own failure shape
             (Relation::Castable, _) => CheckError::InvalidCast {
                 anchor,
@@ -682,7 +757,7 @@ impl CheckState<'_> {
                 source,
                 target,
             },
-            // check-only relations report their judgment kind
+            // report check-only relations by relation kind
             (Relation::Satisfies, _) => CheckError::ConstraintNotSatisfied {
                 anchor,
                 module,
@@ -702,24 +777,24 @@ impl CheckState<'_> {
                 target,
             },
             // value roles specialize assignability diagnostics
-            (_, ConstraintRole::Condition) => CheckError::NonBooleanCondition {
+            (_, Some(ValueUse::Condition)) => CheckError::NonBooleanCondition {
                 anchor,
                 module,
                 actual: source,
             },
-            (_, ConstraintRole::Argument) => CheckError::ArgumentNotAssignable {
+            (_, Some(ValueUse::Argument)) => CheckError::ArgumentNotAssignable {
                 anchor,
                 module,
                 source,
                 target,
             },
-            (_, ConstraintRole::Output) => CheckError::ReturnNotAssignable {
+            (_, Some(ValueUse::Output)) => CheckError::ReturnNotAssignable {
                 anchor,
                 module,
                 source,
                 target,
             },
-            (_, ConstraintRole::Check | ConstraintRole::Value) => CheckError::NotAssignable {
+            (_, None | Some(ValueUse::Store)) => CheckError::NotAssignable {
                 anchor,
                 module,
                 source,
@@ -1087,12 +1162,24 @@ impl CheckState<'_> {
     }
 
     /// Return the first excess property one object literal supplies to one target.
-    fn object_literal_excess_property(
+    pub(in crate::check) fn object_literal_excess_property(
         &mut self,
         origin: Origin,
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Option<String>> {
+        let Some(expression) = origin.expression() else {
+            return Ok(None);
+        };
+        if !matches!(
+            self.module(expression.module_id)
+                .view()
+                .get(expression.local_id),
+            dir::Expression::ObjectExpression { .. }
+        ) {
+            return Ok(None);
+        }
+
         let left = self.settled_root(left)?;
         let left = match self.ty(left)? {
             dir::Type::Form(form) if form.form == dir::Form::Managed => {
@@ -1100,9 +1187,6 @@ impl CheckState<'_> {
             }
             _ => left,
         };
-        if !self.is_fresh_object_literal(left)? {
-            return Ok(None);
-        }
         let dir::Type::Shape(shape) = self.ty(left)? else {
             return Ok(None);
         };
@@ -1112,7 +1196,7 @@ impl CheckState<'_> {
             .map(|field| field.key)
             .collect::<SmallVec<[_; 8]>>();
 
-        let Some(right) = self.evaluate_root(origin, right)?.ready() else {
+        let Some(right) = self.reduce_type_root(origin, right)?.ready() else {
             return Ok(None);
         };
         let Some(accepted) = self.accepted_property_keys(origin, right)? else {
@@ -1147,7 +1231,7 @@ impl CheckState<'_> {
                 let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
                 let mut keys = SmallVec::new();
                 for element in elements {
-                    let Some(element) = self.evaluate_root(origin, element)?.ready() else {
+                    let Some(element) = self.reduce_type_root(origin, element)?.ready() else {
                         return Ok(None);
                     };
                     match self.accepted_property_keys(origin, element)? {

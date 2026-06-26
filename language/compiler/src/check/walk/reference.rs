@@ -67,7 +67,7 @@ impl WalkState<'_, '_> {
 
                         // read the active flow narrowing when one exists
                         if let Some(narrowed) = self.flow_path_narrowing(id) {
-                            self.bind_node_type(id, narrowed)?;
+                            self.write_node_type(id, narrowed)?;
                         } else {
                             self.bind_reference_node_type(id, symbol, declared)?;
                         }
@@ -94,7 +94,7 @@ impl WalkState<'_, '_> {
                 self.check
                     .report_ambiguous_reference(self.module, id.into_any(), &path);
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.bind_node_type(id, error)?;
+                self.write_node_type(id, error)?;
             }
 
             // missing names fail loudly
@@ -105,13 +105,13 @@ impl WalkState<'_, '_> {
                 self.check
                     .report_unresolved_reference(self.module, id.into_any(), &path);
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.bind_node_type(id, error)?;
+                self.write_node_type(id, error)?;
             }
 
             // reject namespaces used directly as values
             Some(dir::Reference::Namespace(_)) => {
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.bind_node_type(id, error)?;
+                self.write_node_type(id, error)?;
             }
 
             // require resolve to write the bare name reference
@@ -181,7 +181,7 @@ impl WalkState<'_, '_> {
                         .report_ambiguous_reference(self.module, id.into_any(), &path);
                 }
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.bind_node_type(id, error)?;
+                self.write_node_type(id, error)?;
             }
 
             // unresolved name paths fail loudly
@@ -191,18 +191,18 @@ impl WalkState<'_, '_> {
                         .report_unresolved_reference(self.module, id.into_any(), &path);
                 }
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.bind_node_type(id, error)?;
+                self.write_node_type(id, error)?;
             }
 
             // reject namespaces used directly as values
             Some(dir::Reference::Namespace(_)) => {
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.bind_node_type(id, error)?;
+                self.write_node_type(id, error)?;
             }
 
-            // queue selection for value member access
+            // select value member access
             Some(dir::Reference::Projected { .. }) | None => {
-                self.queue_selection(id.into_global_any(self.module))?;
+                self.select_node(id, Widening::Preserve)?;
             }
         }
 
@@ -227,7 +227,7 @@ impl WalkState<'_, '_> {
         for argument in generic_arguments {
             self.walk_generic_arguments(std::slice::from_ref(argument))?;
         }
-        self.queue_selection(id.into_global_any(self.module))?;
+        self.select_node(id, Widening::Preserve)?;
 
         Ok(())
     }
@@ -240,15 +240,15 @@ impl WalkState<'_, '_> {
         declared: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         if self.check.symbol_template(symbol).is_none() {
-            self.bind_node_type(id, declared)?;
+            self.write_node_type(id, declared)?;
 
             return Ok(());
         }
 
-        let slot = self.open_inferred_node_type(id, Widening::Preserve)?;
-        let Some(variable) = self.check.root_variable(slot)? else {
+        let inferred = self.infer_node_type(id, Widening::Preserve)?;
+        let Some(variable) = self.check.root_variable(inferred)? else {
             return Err(CompilerError::Internal {
-                message: format!("generic reference {symbol:?} did not open an inference slot"),
+                message: format!("generic reference {symbol:?} did not infer a type variable"),
             });
         };
         self.check.set_variable_default(variable, declared)?;

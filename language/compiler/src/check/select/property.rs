@@ -5,8 +5,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckError, CheckState, ConstraintCause, Decision, Dependency, MemberLookup, Origin,
-    Relation,
+    Answer, CheckState, Decision, Dependency, MemberLookup, Origin, Relation, answer,
 };
 
 /// One literal property entry collected for merging.
@@ -74,7 +73,7 @@ impl CheckState<'_> {
             match entry {
                 // direct fields read their walked node or method type
                 MergeEntry::Field { key, source } => {
-                    let ty = self.merge_entry_type(source)?;
+                    let ty = answer!(self.merge_entry_type(source)?);
                     fields.insert(
                         key,
                         dir::TypeField {
@@ -87,28 +86,20 @@ impl CheckState<'_> {
                 }
                 // spread sources contribute every visible field
                 MergeEntry::Spread { source } => {
-                    let Some(spread) = self.node_type(source) else {
-                        return Err(crate::CompilerError::Internal {
-                            message: format!("spread source {source:?} has no input type"),
-                        });
-                    };
-                    match self.spread_fields(origin, module, spread)? {
-                        Answer::Ready(Some(spread_fields)) => {
-                            for field in spread_fields {
-                                fields.insert(field.key, field);
-                            }
-                        }
+                    let spread = answer!(self.node_type_answer(source)?);
+                    let Some(spread_fields) = answer!(self.spread_fields(origin, module, spread)?)
+                    else {
                         // unspreadable sources reject the literal loudly
-                        Answer::Ready(None) => {
-                            return self.reject_spread(node, source, spread);
-                        }
-                        Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                        return self.reject_spread(node, source, spread);
+                    };
+                    for field in spread_fields {
+                        fields.insert(field.key, field);
                     }
                 }
             }
         }
 
-        // build the merged shape at the literal node
+        // merge the shape at the literal node
         let shape = self.push_type(
             module,
             dir::Type::Shape(dir::ShapeType {
@@ -122,13 +113,7 @@ impl CheckState<'_> {
 
         match target {
             // struct literals must fill their declared fields
-            Some(target) => self.relate(
-                origin,
-                Relation::Writable,
-                ConstraintCause::General,
-                shape,
-                target,
-            ),
+            Some(target) => self.relate(origin, Relation::Writable, None, shape, target),
             // object literals bind their managed merged shape
             None => {
                 let managed = self.push_type(
@@ -139,7 +124,7 @@ impl CheckState<'_> {
                     }),
                     node.local_id.into_any(),
                 )?;
-                self.bind_node_variable(node.into_any(), managed)?;
+                self.bind_node_type(node.into_any(), managed)?;
 
                 Ok(Answer::Ready(()))
             }
@@ -150,23 +135,18 @@ impl CheckState<'_> {
     fn merge_entry_type(
         &mut self,
         source: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<dir::GlobalTypeId> {
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         // method properties type through their declaration symbol
         if source.local_id.ty == dir::NodeType::Property
             && let Some(symbol) = self
                 .module(source.module_id)
                 .declaration_symbol(source.local_id)
-            && let Some(ty) = self.symbol_type(symbol)
+            && let Some(ty) = self.symbol_type_maybe(symbol)
         {
-            return Ok(ty);
+            return Ok(Answer::Ready(ty));
         }
 
-        match self.node_type(source) {
-            Some(ty) => Ok(ty),
-            None => Err(crate::CompilerError::Internal {
-                message: format!("merged property {source:?} has no input type"),
-            }),
-        }
+        self.node_type_answer(source)
     }
 
     /// Return the mergeable fields of one spread source.
@@ -177,10 +157,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<Vec<dir::TypeField>>>> {
         // close the spread source first
-        let root = match self.evaluate_root(origin, ty)? {
-            Answer::Ready(root) => root,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let root = answer!(self.reduce_type_root(origin, ty)?);
         if let Some(variable) = self.root_variable(root)? {
             return Ok(Answer::pending([Dependency::Variable(variable)]));
         }
@@ -191,17 +168,14 @@ impl CheckState<'_> {
             if form.form != dir::Form::Managed {
                 break;
             }
-            current = self.resolve_shallow(form.value)?;
+            current = self.settled_root(form.value)?;
         }
 
         match self.ty(current)?.clone() {
             // structural shapes spread their fields directly
             dir::Type::Shape(shape) => Ok(Answer::Ready(Some(shape.fields))),
-            // references spread their visible instance fields
-            dir::Type::Reference(_) => {
-                let dir::Type::Reference(instance) = self.ty(current)?.clone() else {
-                    unreachable!("the reference arm matches references");
-                };
+            // instances spread their visible fields
+            dir::Type::Instance(instance) => {
                 let keys = self.nominal_member_keys(instance.symbol);
                 let mut fields = Vec::with_capacity(keys.len());
                 let mut seen = SmallVec::<[dir::StaticKey; 8]>::new();
@@ -252,34 +226,9 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         spread: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
-        let (module, anchor) = self.origin_diagnostic_anchor(Origin::Node(source))?;
-        let error = CheckError::SpreadNotObject {
-            anchor,
-            module,
-            source: self.format_type(spread),
-        };
-        self.module_mut(module).diagnostics.push(error.into());
+        self.report_spread_not_object(Origin::Node(source), spread)?;
         self.record_decision(node.into_any(), Decision::Rejected)?;
 
         Ok(Answer::Ready(()))
-    }
-
-    /// Flow one selected type into the node's open input variable.
-    fn bind_node_variable(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        let variable = self.node_type(node).and_then(|input| {
-            self.ty(input).ok().and_then(|input| match input {
-                dir::Type::Variable(variable) => Some(*variable),
-                _ => None,
-            })
-        });
-        if let Some(variable) = variable {
-            self.push_lower_bound(variable, ty)?;
-        }
-
-        Ok(())
     }
 }

@@ -326,6 +326,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     generic_arguments: arguments,
                 }
             }
+            dir::Type::EnumMember(_) => return Ok(None),
 
             dir::Type::Array(array) => {
                 let Some(element) = self.reify_depth(array.element, next)? else {
@@ -671,7 +672,10 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         // async, generator, and generic signatures have no annotation spelling
         if function.asynchrony != dir::Asynchrony::Sync
             || function.is_generator
-            || !function.generic_parameters.is_empty()
+            || !self
+                .check
+                .signature_generic_parameters(function)?
+                .is_empty()
         {
             return Ok(None);
         }

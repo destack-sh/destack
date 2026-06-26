@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, Decision, GenericArgument, GenericInductionParameter, Origin, Relation, Substitution,
-    WalkState, Widening,
+    Answer, Decision, GenericArgument, GenericInductionParameter, Origin, Relation,
+    TypeSubstitution, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -29,7 +29,7 @@ impl WalkState<'_, '_> {
         }
 
         let ty = self.walk_type_expression_node(id)?;
-        self.bind_node_type(id, ty)?;
+        self.write_node_type(id, ty)?;
 
         Ok(ty)
     }
@@ -263,7 +263,7 @@ impl WalkState<'_, '_> {
                     source,
                 )?;
                 // induce a hidden comptime parameter through declaration sites
-                let lifetime = self.open_type(source)?;
+                let lifetime = self.infer_type(source)?;
                 if let Some(variable) = self.check.root_variable(lifetime)? {
                     // constrain the induced parameter to the lifetime kind
                     let constraint = match self
@@ -432,7 +432,7 @@ impl WalkState<'_, '_> {
 
                 match form {
                     // open a widening variable for anonymous holes
-                    dir::InferForm::Hole => self.open_inferred_node_type(id, Widening::Widen),
+                    dir::InferForm::Hole => self.infer_node_type(id, Widening::Widen),
                     // keep infer bindings symbolic for conditional probes
                     dir::InferForm::Infer => {
                         let constraint = match constraint {
@@ -674,7 +674,7 @@ impl WalkState<'_, '_> {
         arguments: &[dir::GlobalTypeId],
         sources: &[dir::GlobalNodeIdAny],
     ) -> CompilerResult<()> {
-        let substitution = Substitution {
+        let substitution = TypeSubstitution {
             parameters: parameters.iter().copied().collect(),
             arguments: arguments.iter().copied().collect(),
             receiver: None,
@@ -811,6 +811,7 @@ impl WalkState<'_, '_> {
                     let ty = self.walk_function_signature_type(
                         member.into_any(),
                         &signature,
+                        None,
                         None,
                         None,
                         result,

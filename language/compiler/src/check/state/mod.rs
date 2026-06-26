@@ -2,6 +2,7 @@ mod assumption;
 mod capture;
 mod component;
 mod external;
+mod format;
 mod generic;
 mod module;
 mod origin;

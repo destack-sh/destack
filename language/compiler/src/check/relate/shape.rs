@@ -2,100 +2,81 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation};
+use crate::check::{Answer, CheckState, Origin, Relation, SubscriptProtocol, answer};
 
 impl CheckState<'_> {
-    /// Return whether one shape is the fresh walked type of an object literal.
-    /// TODO #Suspicious: is "is_fresh_literal" really something we should derive from tree..?
-    ///
-    /// Freshness derives from provenance: the shape must still be its source
-    /// literal's own walked type. Every rebuilt copy — widening, folding,
-    /// harvesting — allocates a new id and loses freshness on its own.
-    pub(in crate::check) fn is_fresh_literal(&self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
-        // only component working shapes can be fresh
-        let Some(module) = self.modules.get(&id.module_id) else {
-            return Ok(false);
-        };
-        if module.types.get_type_maybe(id.local_id).is_none() {
-            return Ok(false);
-        }
+    /// Return whether one type can be used as a property key.
+    pub(in crate::check) fn is_property_key_type(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let ty = answer!(self.reduce_type_root(origin, ty)?);
 
-        // the type's source must be an object literal expression
-        let source = module.types.get_type_source(id.local_id);
-        if source.ty != dir::NodeType::Expression {
-            return Ok(false);
-        }
-        let view = self.module(id.module_id).view();
-        let expression = source.into_typed::<dir::Expression>();
-        if !matches!(
-            view.get(expression),
-            dir::Expression::ObjectExpression { .. }
-        ) {
-            return Ok(false);
-        }
+        let result = match self.ty(ty)?.clone() {
+            dir::Type::Any | dir::Type::Parameter(_) => true,
+            dir::Type::Primitive(primitive) => matches!(
+                primitive,
+                dir::PrimitiveType::String
+                    | dir::PrimitiveType::Symbol
+                    | dir::PrimitiveType::UniqueSymbol
+                    | dir::PrimitiveType::Integer(_)
+            ),
+            dir::Type::Literal(literal) => {
+                matches!(
+                    literal,
+                    dir::ScalarLiteral::String(_) | dir::ScalarLiteral::Integer(_)
+                )
+            }
+            dir::Type::Union(union) => {
+                let mut is_key = true;
+                for element in union.elements {
+                    if !answer!(self.is_property_key_type(origin, element)?) {
+                        is_key = false;
+                        break;
+                    }
+                }
 
-        // the shape must still be the literal node's own walked type
-        let node = dir::GlobalNodeIdAny {
-            module_id: id.module_id,
-            local_id: source,
-        };
-        let Some(node_type) = self.node_type(node) else {
-            return Ok(false);
-        };
-        // peel the managed wrapper the walk added around the shape
-        let node_type = match self.ty(node_type)? {
-            dir::Type::Form(form) if form.form == dir::Form::Managed => form.value,
-            _ => node_type,
+                is_key
+            }
+            _ => false,
         };
 
-        Ok(node_type == id)
+        Ok(Answer::Ready(result))
     }
 
-    /// Return the element count of one fresh array literal type.
-    pub(in crate::check) fn fresh_array_literal_length(
-        &self,
-        id: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<usize>> {
-        // only component working arrays can be fresh
-        let Some(module) = self.modules.get(&id.module_id) else {
-            return Ok(None);
-        };
-        if module.types.get_type_maybe(id.local_id).is_none() {
-            return Ok(None);
-        }
+    /// Return whether one type can be queried by a property key.
+    pub(in crate::check) fn is_keyed_type(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let ty = answer!(self.reduce_type_root(origin, ty)?);
 
-        // the type's source must be a spread-free array literal
-        let source = module.types.get_type_source(id.local_id);
-        if source.ty != dir::NodeType::Expression {
-            return Ok(None);
-        }
-        let view = self.module(id.module_id).view();
-        let expression = source.into_typed::<dir::Expression>();
-        let dir::Expression::ArrayExpression { elements } = view.get(expression) else {
-            return Ok(None);
-        };
-        let mut length = 0usize;
-        for element in elements {
-            match view.get(*element) {
-                dir::Argument::Spread { .. } | dir::Argument::Error => return Ok(None),
-                _ => length += 1,
+        let result = match self.ty(ty)?.clone() {
+            dir::Type::Any | dir::Type::Object | dir::Type::Parameter(_) => true,
+            dir::Type::Shape(_) => true,
+            dir::Type::Dynamic(dynamic) => answer!(self.is_keyed_type(origin, dynamic.constraint)?),
+            dir::Type::Instance(instance) => matches!(
+                self.symbol_kind(instance.symbol),
+                dir::SymbolKind::Class | dir::SymbolKind::Struct | dir::SymbolKind::Interface
+            ),
+            dir::Type::Form(form) => answer!(self.is_keyed_type(origin, form.value)?),
+            dir::Type::Union(union) => {
+                let mut is_keyed = true;
+                for element in union.elements {
+                    if !answer!(self.is_keyed_type(origin, element)?) {
+                        is_keyed = false;
+                        break;
+                    }
+                }
+
+                is_keyed
             }
-        }
-
-        // the array must still be the literal node's own walked type
-        let node = dir::GlobalNodeIdAny {
-            module_id: id.module_id,
-            local_id: source,
-        };
-        let Some(node_type) = self.node_type(node) else {
-            return Ok(None);
-        };
-        let node_type = match self.ty(node_type)? {
-            dir::Type::Form(form) if form.form == dir::Form::Managed => form.value,
-            _ => node_type,
+            _ => false,
         };
 
-        Ok((node_type == id).then_some(length))
+        Ok(Answer::Ready(result))
     }
 
     /// Decide exact equality of two tuple types.
@@ -235,26 +216,12 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         // match members and collect demands in one pure pass
-        let source_id = source;
-        let (pairs, demands) = {
+        let (pairs, demands, index_signatures) = {
             let (dir::Type::Shape(source), dir::Type::Shape(target)) =
                 (self.ty(source)?, self.ty(target)?)
             else {
                 return Ok(Answer::Ready(false));
             };
-
-            // fresh literals may only supply known properties
-            if target.index_signatures.is_empty() && self.is_fresh_literal(source_id)? {
-                for source_field in &source.fields {
-                    if !target
-                        .fields
-                        .iter()
-                        .any(|field| field.key == source_field.key)
-                    {
-                        return Ok(Answer::Ready(false));
-                    }
-                }
-            }
 
             // require each target field from the source shape
             let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
@@ -272,10 +239,6 @@ impl CheckState<'_> {
                         }
                     }
                     Some(source_field) => {
-                        // readonly sources cannot satisfy mutable targets
-                        if source_field.is_readonly && !target_field.is_readonly {
-                            return Ok(Answer::Ready(false));
-                        }
                         // optional sources cannot satisfy required targets
                         if source_field.is_optional && !target_field.is_optional {
                             return Ok(Answer::Ready(false));
@@ -297,13 +260,14 @@ impl CheckState<'_> {
                 let candidates = source.construct_signatures.iter().copied().collect();
                 demands.push((candidates, target_signature));
             }
+            let index_signatures = target.index_signatures.clone();
 
-            (pairs, demands)
+            (pairs, demands, index_signatures)
         };
 
         // decide matched field pairs
         let mut decision = self.decide_each(origin, Relation::Assignable, &pairs)?;
-        if decision == Answer::Ready(false) {
+        if decision.is_ready_false() {
             return Ok(decision);
         }
 
@@ -317,18 +281,150 @@ impl CheckState<'_> {
                     candidate,
                     target_signature,
                 )?);
-                if satisfied == Answer::Ready(true) {
+                if satisfied.is_ready_true() {
                     break;
                 }
             }
 
             decision = decision.and(satisfied);
-            if decision == Answer::Ready(false) {
+            if decision.is_ready_false() {
+                return Ok(decision);
+            }
+        }
+
+        // require each target index signature from the source
+        for signature in index_signatures {
+            decision =
+                decision.and(self.decide_index_signature_satisfied(origin, source, &signature)?);
+            if decision.is_ready_false() {
                 return Ok(decision);
             }
         }
 
         Ok(decision)
+    }
+
+    /// Decide whether one source exposes an index signature.
+    pub(in crate::check) fn decide_index_signature_satisfied(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: &dir::TypeIndexSignature,
+    ) -> CompilerResult<Answer<bool>> {
+        let source = answer!(self.reduce_type_root(origin, source)?);
+
+        match self.ty(source)?.clone() {
+            dir::Type::Shape(source) => {
+                self.decide_shape_index_signature_satisfied(origin, &source, target)
+            }
+            _ => self.decide_protocol_index_signature_satisfied(origin, source, target),
+        }
+    }
+
+    /// Decide whether one structural source exposes an index signature.
+    fn decide_shape_index_signature_satisfied(
+        &mut self,
+        origin: Origin,
+        source: &dir::ShapeType,
+        target: &dir::TypeIndexSignature,
+    ) -> CompilerResult<Answer<bool>> {
+        // prefer declared index signatures when the source has one
+        let mut decision = Answer::Ready(false);
+        for source in &source.index_signatures {
+            if source.is_optional && !target.is_optional {
+                continue;
+            }
+            if source.is_readonly && !target.is_readonly {
+                continue;
+            }
+            if !answer!(self.decide_relation(
+                origin,
+                Relation::Assignable,
+                target.key_type,
+                source.key_type,
+            )?) {
+                continue;
+            }
+
+            let value = self.decide_relation(
+                origin,
+                Relation::Assignable,
+                source.value_type,
+                target.value_type,
+            )?;
+            decision = decision.or(value);
+            if decision.is_ready_true() {
+                return Ok(decision);
+            }
+        }
+        if matches!(decision, Answer::Pending(_)) || !target.is_readonly {
+            return Ok(decision);
+        }
+
+        // readonly signatures also accept finite object views
+        let module = origin.module();
+        let source_node = self.origin_source_node(origin)?;
+        for field in &source.fields {
+            let key = self.push_static_key_type(module, source_node, field.key)?;
+            if !answer!(self.decide_relation(origin, Relation::Assignable, key, target.key_type,)?)
+            {
+                continue;
+            }
+
+            decision = decision.and(self.decide_relation(
+                origin,
+                Relation::Assignable,
+                field.ty,
+                target.value_type,
+            )?);
+            if decision.is_ready_false() {
+                return Ok(decision);
+            }
+        }
+
+        Ok(decision.or(Answer::Ready(true)))
+    }
+
+    /// Decide whether one nominal source exposes an index signature.
+    fn decide_protocol_index_signature_satisfied(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: &dir::TypeIndexSignature,
+    ) -> CompilerResult<Answer<bool>> {
+        let module = origin.module();
+        let read = {
+            let method = SubscriptProtocol::Index;
+            let arguments = SmallVec::<[dir::GlobalTypeId; 2]>::from_slice(&[target.key_type]);
+            let sources = [dir::ArgumentSource::Omitted];
+            let key = method.key(&self.module(module).strings);
+            let protocol = method.protocol(self);
+            let read_type = self.push_index_signature_read_type(origin, target.value_type)?;
+
+            self.protocol_call_returns(
+                origin, source, key, &protocol, &arguments, &sources, read_type,
+            )?
+        };
+        if !read.is_ready_true() || target.is_readonly {
+            return Ok(read);
+        }
+
+        let write = {
+            let method = SubscriptProtocol::IndexSet;
+            let arguments = SmallVec::<[dir::GlobalTypeId; 2]>::from_slice(&[
+                target.key_type,
+                target.value_type,
+            ]);
+            let sources = [dir::ArgumentSource::Omitted, dir::ArgumentSource::Omitted];
+            let key = method.key(&self.module(module).strings);
+            let protocol = method.protocol(self);
+            let call = answer!(self.select_protocol_call(
+                origin, source, source, key, &protocol, &arguments, &sources
+            )?);
+
+            Answer::Ready(call.is_some())
+        };
+        Ok(read.and(write))
     }
 
     /// Decide exact equality of two function types.
@@ -347,9 +443,11 @@ impl CheckState<'_> {
             };
 
             // equal functions share asynchrony, generator shape, and arity
+            let left_generics = self.signature_generic_parameters(left)?;
+            let right_generics = self.signature_generic_parameters(right)?;
             if left.asynchrony != right.asynchrony
                 || left.is_generator != right.is_generator
-                || left.generic_parameters != right.generic_parameters
+                || left_generics.len() != right_generics.len()
                 || left.parameters.len() != right.parameters.len()
             {
                 return Ok(Answer::Ready(false));

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use indexmap::IndexSet;
 
 use crate::CompilerResult;
-use crate::check::{ConstraintRole, FunctionFrame, Origin, ReceiverBinding, Relation, WalkState};
+use crate::check::{FunctionFrame, Origin, ReceiverBinding, Relation, ValueUse, WalkState};
 
 impl WalkState<'_, '_> {
     /// Enter one function body while walking.
@@ -70,9 +70,9 @@ impl WalkState<'_, '_> {
         let origin = Origin::Node(source.into_global(self.module));
         let return_target = function.return_target;
 
-        self.push_relation(
+        self.push_flow(
             origin,
-            ConstraintRole::Output,
+            ValueUse::Output,
             Relation::Assignable,
             value,
             return_target,
@@ -115,9 +115,9 @@ impl WalkState<'_, '_> {
                 None => self.push_type(dir::Type::Void, source)?,
             };
 
-            self.push_relation(
+            self.push_flow(
                 origin,
-                ConstraintRole::Output,
+                ValueUse::Output,
                 Relation::Assignable,
                 value,
                 yield_target,

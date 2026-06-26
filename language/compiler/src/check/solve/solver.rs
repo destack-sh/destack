@@ -31,7 +31,7 @@ pub(in crate::check) struct Solver {
     pub(in crate::check) queue: Queue,
     /// Relation decisions memoized for this component.
     pub(in crate::check) relations: RelationCache,
-    /// Node types selected for this component.
+    /// Node types created while walking this component.
     pub(in crate::check) node_types: IndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
     /// Node decisions selected for this component.
     pub(in crate::check) decisions: DecisionTable,
@@ -58,8 +58,8 @@ pub(in crate::check) struct SolverSnapshot {
     undo: usize,
     /// Relation cache snapshot before the probe.
     relations: RelationCacheSnapshot,
-    /// Type arena marks at probe entry.
-    types: TypeMarks,
+    /// Type arena mark at probe entry.
+    types: TypeMark,
 }
 
 /// One solver storage undo entry.
@@ -86,13 +86,6 @@ enum Undo {
         /// The previous selection state row.
         previous: SelectionState,
     },
-    /// Undo one node type row mutation.
-    NodeType {
-        /// The changed source node.
-        node: dir::GlobalNodeIdAny,
-        /// The previous selected type.
-        previous: Option<dir::GlobalTypeId>,
-    },
     /// Undo one node decision slot mutation.
     Decision {
         /// The changed source node.
@@ -102,9 +95,9 @@ enum Undo {
     },
 }
 
-/// Type arena marks keyed by module.
+/// Type arena mark for all loaded module type segments.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::check) struct TypeMarks {
+pub(in crate::check) struct TypeMark {
     /// The type count for each loaded component module.
     modules: IndexMap<ModuleId, u32>,
 }
@@ -131,7 +124,7 @@ impl Solver {
     }
 
     /// Snapshot the solver before one speculative probe.
-    pub(in crate::check) fn snapshot(&mut self, types: TypeMarks) -> SolverSnapshot {
+    pub(in crate::check) fn snapshot(&mut self, types: TypeMark) -> SolverSnapshot {
         self.active_snapshots += 1;
 
         SolverSnapshot {
@@ -146,13 +139,11 @@ impl Solver {
     }
 
     /// Roll back to a previous speculative snapshot.
-    pub(in crate::check) fn rollback(&mut self, snapshot: SolverSnapshot) -> TypeMarks {
+    pub(in crate::check) fn rollback(&mut self, snapshot: SolverSnapshot) -> TypeMark {
         while self.undo.len() > snapshot.undo {
-            let undo = self
-                .undo
-                .pop()
-                .expect("solver undo length checked before pop");
-            self.rollback_undo(undo);
+            if let Some(undo) = self.undo.pop() {
+                self.rollback_undo(undo);
+            }
         }
 
         self.relations.rollback(snapshot.relations);
@@ -166,6 +157,16 @@ impl Solver {
         self.active_snapshots -= 1;
 
         snapshot.types
+    }
+
+    /// Commit a previous speculative snapshot.
+    pub(in crate::check) fn commit(&mut self, snapshot: SolverSnapshot) {
+        self.relations.commit(snapshot.relations);
+        self.active_snapshots -= 1;
+
+        if self.active_snapshots == 0 {
+            self.undo.clear();
+        }
     }
 
     /// Return whether a speculative snapshot is active.
@@ -312,7 +313,7 @@ impl Solver {
         self.decisions.count()
     }
 
-    /// Return one selected node type.
+    /// Return one checked node type.
     pub(in crate::check) fn node_type(
         &self,
         node: dir::GlobalNodeIdAny,
@@ -320,7 +321,7 @@ impl Solver {
         self.node_types.get(&node).copied()
     }
 
-    /// Set one selected node type.
+    /// Set one checked node type.
     pub(in crate::check) fn set_node_type(
         &mut self,
         node: dir::GlobalNodeIdAny,
@@ -334,13 +335,12 @@ impl Solver {
             }
         }
 
-        self.record_node_type(node);
         self.node_types.insert(node, ty);
 
         Ok(())
     }
 
-    /// Iterate selected node types.
+    /// Iterate checked node types.
     pub(in crate::check) fn node_types(
         &self,
     ) -> impl Iterator<Item = (dir::GlobalNodeIdAny, dir::GlobalTypeId)> + '_ {
@@ -423,16 +423,6 @@ impl Solver {
         Ok(())
     }
 
-    /// Record one node type row if a snapshot is active.
-    fn record_node_type(&mut self, node: dir::GlobalNodeIdAny) {
-        if self.active_snapshots > 0 {
-            self.undo.push(Undo::NodeType {
-                node,
-                previous: self.node_types.get(&node).copied(),
-            });
-        }
-    }
-
     /// Record one decision slot if a snapshot is active.
     fn record_decision(&mut self, node: dir::GlobalNodeIdAny) {
         if self.active_snapshots > 0 {
@@ -455,14 +445,6 @@ impl Solver {
             },
             Undo::Constraint { id, previous } => self.constraints.set_state(id, previous),
             Undo::Selection { id, previous } => self.selections.set_state(id, previous),
-            Undo::NodeType { node, previous } => match previous {
-                Some(previous) => {
-                    self.node_types.insert(node, previous);
-                }
-                None => {
-                    self.node_types.swap_remove(&node);
-                }
-            },
             Undo::Decision { node, previous } => match previous {
                 Some(previous) => self.decisions.insert_slot(node, previous),
                 None => {
@@ -494,13 +476,13 @@ impl Solver {
     }
 }
 
-impl TypeMarks {
-    /// Create type marks from loaded module type counts.
+impl TypeMark {
+    /// Create a type mark from loaded module type counts.
     pub(in crate::check) fn new(modules: IndexMap<ModuleId, u32>) -> Self {
         Self { modules }
     }
 
-    /// Iterate module marks.
+    /// Iterate per-module type counts.
     pub(in crate::check) fn iter(&self) -> impl Iterator<Item = (ModuleId, u32)> + '_ {
         self.modules.iter().map(|(module, count)| (*module, *count))
     }

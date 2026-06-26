@@ -4,7 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckError, CheckState, Dependency, MemberForm, Origin, Relation, Substitution, answer,
+    Answer, CheckError, CheckState, Dependency, MemberRole, Origin, Relation, TypeSubstitution,
+    answer,
 };
 
 /// One class instance member that participates in heritage checks.
@@ -16,7 +17,7 @@ struct ClassMember {
     /// The member declaration node.
     source: dir::GlobalNodeIdAny,
     /// How the member participates in override assignability.
-    form: MemberForm,
+    role: MemberRole,
     /// Whether subclasses may override the member.
     is_overridable: bool,
     /// Whether the member declares an override.
@@ -42,7 +43,7 @@ impl ClassMember {
                     key: field.key,
                     ty: field.ty,
                     source: field.source,
-                    form: MemberForm::Field,
+                    role: MemberRole::Field,
                     is_overridable: field.is_abstract,
                     is_override: field.is_override,
                     is_abstract: field.is_abstract,
@@ -60,7 +61,7 @@ impl ClassMember {
                     key,
                     ty: method.ty,
                     source: method.source,
-                    form: MemberForm::Method,
+                    role: MemberRole::Method,
                     is_overridable,
                     is_override: method.is_override,
                     is_abstract,
@@ -174,8 +175,8 @@ impl CheckState<'_> {
                         );
                     } else {
                         // overrides must remain assignable to the base member
-                        let assignment = if member.form == MemberForm::Method
-                            && base.form == MemberForm::Method
+                        let assignment = if member.role == MemberRole::Method
+                            && base.role == MemberRole::Method
                         {
                             self.decide_method_assignable(origin, member.ty, base.ty)?
                         } else {
@@ -290,7 +291,7 @@ impl CheckState<'_> {
         let source = self.origin_source_node(origin)?;
         let mut members = Vec::<ClassMember>::new();
         let mut final_base = None;
-        let mut substitution = Substitution::default();
+        let mut substitution = TypeSubstitution::default();
         let mut extends = extends;
         let mut depth = 0usize;
 
@@ -326,7 +327,7 @@ impl CheckState<'_> {
             }
 
             // apply this base's parameters to its inherited member types
-            substitution = self.parameter_substitution(&instance)?;
+            substitution = self.instance_substitution(&instance)?;
             for mut member in base_members {
                 if !substitution.is_empty() {
                     member.ty =
@@ -360,20 +361,5 @@ impl CheckState<'_> {
         }
 
         Ok(dir::GenericInstance { symbol, arguments })
-    }
-
-    /// Return the first heritage error and report the rest directly.
-    fn report_heritage_errors(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        errors: Vec<DiagnosticBuilder<CheckError>>,
-    ) -> Option<DiagnosticBuilder<CheckError>> {
-        let mut errors = errors.into_iter();
-        let first = errors.next();
-        for error in errors {
-            self.module_mut(source.module_id).diagnostics.push(error);
-        }
-
-        first
     }
 }

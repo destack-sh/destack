@@ -1,4 +1,5 @@
 mod exhaustive;
+mod extension;
 mod heritage;
 mod interface;
 mod obligation;

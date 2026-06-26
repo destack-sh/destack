@@ -25,9 +25,11 @@ impl CheckState<'_> {
     pub(in crate::check) fn render_annotated_sources(
         &mut self,
     ) -> CompilerResult<Vec<AnnotatedSource>> {
-        let mut sources = Vec::with_capacity(self.modules.len());
-        for module_id in self.modules.keys().copied().collect::<Vec<_>>() {
-            if let Some(source) = self.render_annotated_source(module_id)? {
+        let modules = self.modules.keys().copied().collect::<Vec<_>>();
+        let mut sources = Vec::with_capacity(modules.len());
+        for module_id in modules {
+            let coercions = self.implicit_coercions(module_id)?;
+            if let Some(source) = self.render_annotated_source(module_id, &coercions)? {
                 sources.push(source);
             }
         }
@@ -39,8 +41,8 @@ impl CheckState<'_> {
     fn render_annotated_source(
         &mut self,
         module_id: ModuleId,
+        coercions: &[(dir::GlobalNodeIdAny, dir::Coercion)],
     ) -> CompilerResult<Option<AnnotatedSource>> {
-        let coercions = self.module_coercions(module_id);
         let state = self.module(module_id);
         let file_id = state.module.file_id;
         let Some(roots) = state.parsed.roots_for_file(file_id) else {
@@ -48,7 +50,7 @@ impl CheckState<'_> {
         };
 
         // amend a clone of the parsed tree with reified annotations
-        let tree = SourceReifier::new(self, state).run(&coercions)?;
+        let tree = SourceReifier::new(self, state).run(coercions)?;
 
         // print the amended tree through the canonical formatter
         let file = self.compiler.file(self.context, file_id)?;
@@ -270,6 +272,11 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
     fn reify_parameters(&mut self) -> CompilerResult<()> {
         let view = dir::View::new(self.state.source_tree());
         for (parameter_id, parameter) in view.iter_nodes_of_type::<dir::Parameter>() {
+            if let Some(dir::StaticKey::Name(name)) = parameter.symbol_key()
+                && self.state.strings.get(name) == "this"
+            {
+                continue;
+            }
             if parameter.is_comptime() {
                 continue;
             }
@@ -391,8 +398,8 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         }
         let Some(decision) = self
             .check
-            .decisions
-            .get(expression_id.into_global_any(module_id))
+            .solver
+            .decision(expression_id.into_global_any(module_id))
         else {
             return Ok(());
         };
@@ -431,7 +438,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             _ => return Ok(()),
         };
         let node = expression_id.into_global_any(module_id);
-        let Some(Decision::Construct(resolution)) = self.check.decisions.get(node) else {
+        let Some(Decision::Construct(resolution)) = self.check.solver.decision(node) else {
             return Ok(());
         };
         let arguments = resolution.target.generic_arguments();
@@ -472,7 +479,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         self.anchor(site);
         match function.return_type {
             Some(return_type) => self.types.reify(return_type),
-            // an omitted semantic return spells void
+            // omitted returns spell void
             None => Ok(Some(self.types.insert_keyword(dir::TypeLiteral::Void))),
         }
     }
@@ -485,8 +492,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             .bindings
             .declaration_symbol(site.into_global(module_id))?;
 
-        self.check
-            .component_symbol_type_maybe(symbol.into_global(module_id))
+        self.check.symbol_type_maybe(symbol.into_global(module_id))
     }
 
     /// Anchor synthesized nodes at one source site.
@@ -494,16 +500,16 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         self.types.anchor(self.state.authored_span(site));
     }
 
-    /// Reify recorded implicit coercions as explicit cast expressions.
+    /// Reify implicit coercions as explicit cast expressions.
     fn reify_coercions(
         &mut self,
         coercions: &[(dir::GlobalNodeIdAny, dir::Coercion)],
     ) -> CompilerResult<()> {
         for (node, coercion) in coercions.iter().copied() {
-            // only authored expression nodes spell casts
-            if node.local_id.ty != dir::NodeType::Expression
-                || !self.state.is_authored(node.local_id)
-            {
+            if node.local_id.ty != dir::NodeType::Expression {
+                continue;
+            }
+            if !self.state.source_tree().has_node_id(node.local_id.id) {
                 continue;
             }
 

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, MemberLookup, Origin, Relation};
+use crate::check::{Answer, CheckState, Dependency, MemberLookup, Origin, Relation, answer};
 
 /// One applied heritage edge in a nominal declaration closure.
 #[derive(Debug, Clone)]
@@ -58,21 +58,59 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        if self.decide_equal(origin, source, target)? == Answer::Ready(true) {
+        if self.decide_equal(origin, source, target)?.is_ready_true() {
             return Ok(Answer::Ready(true));
+        }
+
+        // memory singletons inhabit their stdlib singleton kind
+        let memory_kind = match self.ty(source)? {
+            dir::Type::Memory(source) => Some(source.domain_language_item()),
+            _ => None,
+        };
+        let target_symbol = match self.ty(target)? {
+            dir::Type::Instance(target) => Some(target.symbol),
+            _ => None,
+        };
+        let target_item = match target_symbol {
+            Some(target_symbol) => self.language_item(target_symbol)?,
+            None => None,
+        };
+        if let Some(memory_kind) = memory_kind {
+            if target_item == Some(memory_kind) {
+                return Ok(Answer::Ready(true));
+            }
         }
 
         // nominal sources meet nominal constraints through their declarations
         let instances = match (self.ty(source)?, self.ty(target)?) {
-            (dir::Type::Reference(source), dir::Type::Reference(target)) => {
+            (dir::Type::Instance(source), dir::Type::Instance(target)) => {
                 Some((source.clone(), target.clone()))
             }
+            _ => None,
+        };
+        let target_instance = match self.ty(target)? {
+            dir::Type::Instance(target) => Some(target.clone()),
             _ => None,
         };
 
         match (instances, relation) {
             (Some((source_instance, target_instance)), _) => {
                 self.decide_nominal_satisfies(origin, source, &source_instance, &target_instance)
+            }
+
+            // check extension implementations over any receiver form
+            (None, _) if self.is_interface_instance(target_instance.as_ref()) => {
+                let Some(target_instance) = target_instance.as_ref() else {
+                    return Ok(Answer::Ready(false));
+                };
+                let module = origin.module();
+                let implemented =
+                    self.decide_extension_implementation(origin, module, source, target_instance)?;
+                if !matches!(implemented, Answer::Ready(false)) {
+                    return Ok(implemented);
+                }
+
+                self.decide_assignable(origin, source, target)
             }
 
             // explicit implements requires the heritage relation
@@ -97,23 +135,33 @@ impl CheckState<'_> {
         }
 
         // heritage carries the relation when it names the target
-        let heritage = self.heritage_instance(origin, source_instance, target_instance.symbol)?;
-        match heritage {
-            Answer::Ready(Some(heritage)) => {
-                let arguments = self.decide_each_argument(origin, &heritage, target_instance)?;
-                if !matches!(
-                    self.definition(target_instance.symbol),
-                    Some(dir::Definition::Interface(_))
-                ) {
-                    return Ok(arguments);
-                }
-
-                let members = self.decide_member_satisfies(origin, source, target_instance)?;
-
-                return Ok(arguments.and(members));
+        if let Some(heritage) =
+            answer!(self.heritage_instance(origin, source_instance, target_instance.symbol)?)
+        {
+            let arguments = self.decide_each_argument(origin, &heritage, target_instance)?;
+            if !matches!(
+                self.definition(target_instance.symbol),
+                Some(dir::Definition::Interface(_))
+            ) {
+                return Ok(arguments);
             }
-            Answer::Ready(None) => {}
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+
+            let members = self.decide_interface_satisfied(origin, source, target_instance)?;
+
+            return Ok(arguments.and(members));
+        }
+
+        // check visible extension implementations
+        if matches!(
+            self.definition(target_instance.symbol),
+            Some(dir::Definition::Interface(_))
+        ) {
+            let module = origin.module();
+            let implemented =
+                self.decide_extension_implementation(origin, module, source, target_instance)?;
+            if !matches!(implemented, Answer::Ready(false)) {
+                return Ok(implemented);
+            }
         }
 
         // structural interfaces satisfy member-wise
@@ -123,10 +171,22 @@ impl CheckState<'_> {
             Some(dir::Definition::Interface(interface)) if !interface.is_nominal
         );
         if is_structural_interface {
-            return self.decide_member_satisfies(origin, source, target_instance);
+            return self.decide_interface_satisfied(origin, source, target_instance);
         }
 
         Ok(Answer::Ready(false))
+    }
+
+    /// Return whether one instance target names an interface.
+    fn is_interface_instance(&self, instance: Option<&dir::GenericInstance>) -> bool {
+        let Some(instance) = instance else {
+            return false;
+        };
+
+        matches!(
+            self.definition(instance.symbol),
+            Some(dir::Definition::Interface(_))
+        )
     }
 
     /// Decide assignability between different nominal applications.
@@ -137,7 +197,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         let (source_instance, target_instance) = match (self.ty(source)?, self.ty(target)?) {
-            (dir::Type::Reference(source), dir::Type::Reference(target)) => {
+            (dir::Type::Instance(source), dir::Type::Instance(target)) => {
                 (source.clone(), target.clone())
             }
             _ => return Ok(Answer::Ready(false)),
@@ -159,19 +219,7 @@ impl CheckState<'_> {
             Some(dir::Definition::Interface(interface)) if !interface.is_nominal
         );
         if is_structural_interface {
-            // fresh literals may only supply known properties
-            if self.is_fresh_literal(source)? {
-                let keys = self.nominal_member_keys(target_instance.symbol);
-                if let dir::Type::Shape(shape) = self.ty(source)? {
-                    for field in &shape.fields {
-                        if !keys.contains(&field.key) {
-                            return Ok(Answer::Ready(false));
-                        }
-                    }
-                }
-            }
-
-            return self.decide_member_satisfies(origin, source, target_instance);
+            return self.decide_interface_satisfied(origin, source, target_instance);
         }
 
         Ok(Answer::Ready(false))
@@ -220,7 +268,7 @@ impl CheckState<'_> {
                 *supplied,
                 declared,
             )?);
-            if decision == Answer::Ready(false) {
+            if decision.is_ready_false() {
                 return Ok(decision);
             }
         }
@@ -299,12 +347,15 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         // require each target field from the source fields
-        let fields = match self.ty(target)? {
-            dir::Type::Shape(shape) => shape
-                .fields
-                .iter()
-                .map(|field| (field.key, field.ty, field.is_optional))
-                .collect::<SmallVec<[_; 4]>>(),
+        let (fields, index_signatures) = match self.ty(target)? {
+            dir::Type::Shape(shape) => (
+                shape
+                    .fields
+                    .iter()
+                    .map(|field| (field.key, field.ty, field.is_optional))
+                    .collect::<SmallVec<[_; 4]>>(),
+                shape.index_signatures.clone(),
+            ),
             _ => return Ok(Answer::Ready(false)),
         };
         let module = origin.module();
@@ -335,10 +386,17 @@ impl CheckState<'_> {
                         member,
                         field_type,
                     )?);
-                    if decision == Answer::Ready(false) {
+                    if decision.is_ready_false() {
                         return Ok(decision);
                     }
                 }
+            }
+        }
+        for signature in index_signatures {
+            decision =
+                decision.and(self.decide_index_signature_satisfied(origin, source, &signature)?);
+            if decision.is_ready_false() {
+                return Ok(decision);
             }
         }
 
@@ -365,13 +423,9 @@ impl CheckState<'_> {
             &mut blockers,
         )?;
 
-        if blockers.is_empty() {
-            Ok(Answer::Ready(closure))
-        } else {
-            let blockers = self.surviving_blockers(blockers);
+        let blockers = self.live_blockers(blockers);
 
-            Ok(Answer::Pending(blockers))
-        }
+        Ok(Answer::ready_unless_blocked(closure, blockers))
     }
 
     /// Collect inherited applications from one nominal application.
@@ -392,7 +446,7 @@ impl CheckState<'_> {
             .iter()
             .map(|heritage| (*heritage).clone())
             .collect::<SmallVec<[_; 2]>>();
-        let substitution = self.parameter_substitution(instance)?;
+        let substitution = self.instance_substitution(instance)?;
         let module = origin.module();
         let source = self.origin_source_node(origin)?;
 
@@ -456,16 +510,13 @@ impl CheckState<'_> {
     }
 
     /// Find one heritage application naming a target symbol, transitively.
-    fn heritage_instance(
+    pub(in crate::check) fn heritage_instance(
         &mut self,
         origin: Origin,
         instance: &dir::GenericInstance,
         target: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<Option<dir::GenericInstance>>> {
-        let closure = match self.heritage_closure(origin, instance)? {
-            Answer::Ready(closure) => closure,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let closure = answer!(self.heritage_closure(origin, instance)?);
         if let Some(application) = closure.application(target) {
             return Ok(Answer::Ready(Some(application.instance.clone())));
         }
@@ -474,7 +525,7 @@ impl CheckState<'_> {
     }
 
     /// Decide argument-wise equality of two same-template applications.
-    fn decide_each_argument(
+    pub(in crate::check) fn decide_each_argument(
         &mut self,
         origin: Origin,
         source: &dir::GenericInstance,
@@ -504,7 +555,7 @@ impl CheckState<'_> {
 
         self.push_type(
             origin.module(),
-            dir::Type::Reference(instance.clone()),
+            dir::Type::Instance(instance.clone()),
             source,
         )
     }

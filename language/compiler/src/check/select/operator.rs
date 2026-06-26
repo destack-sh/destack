@@ -2,10 +2,10 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckState, Decision, MemberLookup, OperatorExpressionResult, OperatorProtocol, Origin,
-    PlaceAccess, Relation, binary_operator_protocols, unary_operator_protocols,
+    Answer, CheckState, Decision, OperatorExpressionResult, Origin, PlaceUse, Relation, answer,
+    binary_operator_protocols, unary_operator_protocols,
 };
-use crate::{CheckError, CompilerError, CompilerResult};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Select one binary operator application.
@@ -20,14 +20,8 @@ impl CheckState<'_> {
         let node = node.into_any();
         let origin = Origin::Node(node);
         let source = self.origin_source_node(origin)?;
-        let left = self.operand_type(origin, left_node.into_global_any(module))?;
-        let right = self.operand_type(origin, right_node.into_global_any(module))?;
-        let (left, right) = match (left, right) {
-            (Answer::Ready(left), Answer::Ready(right)) => (left, right),
-            (Answer::Pending(blockers), _) | (_, Answer::Pending(blockers)) => {
-                return Ok(Answer::Pending(blockers));
-            }
-        };
+        let left = answer!(self.operand_type(origin, left_node.into_global_any(module))?);
+        let right = answer!(self.operand_type(origin, right_node.into_global_any(module))?);
 
         // identity and logic produce builtin results directly
         let nullish_operand = matches!(self.ty(left)?, dir::Type::Null | dir::Type::Undefined)
@@ -42,6 +36,10 @@ impl CheckState<'_> {
         let builtin = match operator {
             // strict identity always produces a boolean
             dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict => {
+                if !answer!(self.types_may_overlap(origin, left, right)?) {
+                    self.report_invalid_strict_equality(origin, left, right)?;
+                }
+
                 Some(self.push_type(
                     module,
                     dir::Type::Primitive(dir::PrimitiveType::Boolean),
@@ -88,8 +86,8 @@ impl CheckState<'_> {
             return self.record_builtin_operator(node, operator, result);
         }
 
-        // same-type builtin numerics produce their operand type
-        if let Some(result) = self.builtin_numeric_result(origin, operator, left, right)? {
+        // builtin numerics contextualize operands through their joined type
+        if let Some((result, _)) = self.builtin_numeric_result(origin, operator, left, right)? {
             return self.record_builtin_operator(node, operator, result);
         }
 
@@ -97,36 +95,29 @@ impl CheckState<'_> {
         let protocols = binary_operator_protocols(operator);
         for protocol in protocols {
             let key = protocol.method.key(&self.module(module).strings);
-            let lookup =
-                self.lookup_member(origin, module, left, dir::MemberSpace::Instance, key)?;
+            let protocol_type = self.operator_protocol(origin, &protocol, &[])?;
+            let argument_sources = [dir::ArgumentSource::Provided(
+                right_node.into_global_any(module),
+            )];
 
-            match lookup {
-                MemberLookup::Found(candidates) => {
-                    // try every implementation in resolution order
-                    for candidate in candidates {
-                        let candidate_symbol = candidate.symbol;
-                        let candidate_type = candidate.ty;
+            let Some(call) = answer!(self.select_protocol_call(
+                origin,
+                left,
+                left,
+                key,
+                &protocol_type,
+                &[right],
+                &argument_sources,
+            )?) else {
+                continue;
+            };
+            let result = answer!(self.operator_expression_type(
+                origin,
+                protocol.expression_result,
+                call.return_type,
+            )?);
 
-                        // require the right operand to fit the method parameter
-                        let result =
-                            self.protocol_result(origin, &protocol, candidate_type, Some(right))?;
-                        match result {
-                            Answer::Ready(Some(result)) => {
-                                return self.record_protocol_operator(
-                                    node,
-                                    left,
-                                    candidate_symbol,
-                                    Some(result),
-                                );
-                            }
-                            Answer::Ready(None) => continue,
-                            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-                        }
-                    }
-                }
-                MemberLookup::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-                MemberLookup::Missing | MemberLookup::Field(_) => continue,
-            }
+            return self.record_protocol_operator(node, call.resolution, result);
         }
 
         self.reject_operator(
@@ -142,20 +133,18 @@ impl CheckState<'_> {
     }
 
     /// Select one unary operator application.
-    pub(in crate::check) fn select_unary_operator(
+    pub(in crate::check) fn select_unary_operator_with_use(
         &mut self,
         node: dir::GlobalNodeId<dir::Expression>,
         operator: dir::UnaryOperator,
         operand_node: dir::LocalNodeId<dir::Expression>,
+        use_: PlaceUse,
     ) -> CompilerResult<Answer<()>> {
         let module = node.module_id;
         let node = node.into_any();
         let origin = Origin::Node(node);
         let source = self.origin_source_node(origin)?;
-        let operand = match self.operand_type(origin, operand_node.into_global_any(module))? {
-            Answer::Ready(operand) => operand,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
+        let operand = answer!(self.operand_type(origin, operand_node.into_global_any(module))?);
 
         // increments rewrite builtin numeric places by one
         if matches!(
@@ -197,47 +186,35 @@ impl CheckState<'_> {
             return self.record_builtin_unary_operator(node, operator, operand);
         }
 
-        // dereferences demand access by their place position: whole
-        // value replacement may invalidate interior borrows, so writes
-        // require exclusive access
-        let access = match self.place_access(node) {
-            PlaceAccess::Read => dir::Access::Readonly,
-            PlaceAccess::Write | PlaceAccess::ReadWrite => dir::Access::Exclusive,
+        // dereferences need readonly for reads and mutable access for writes
+        let access = match use_ {
+            PlaceUse::Read => dir::Access::Readonly,
+            PlaceUse::Write | PlaceUse::Update => dir::Access::Mutable,
         };
 
         // dispatch through the operator protocol interfaces
         let protocols = unary_operator_protocols(operator, access);
         for protocol in protocols {
             let key = protocol.method.key(&self.module(module).strings);
-            let lookup =
-                self.lookup_member(origin, module, operand, dir::MemberSpace::Instance, key)?;
+            let protocol_type = self.operator_protocol(origin, &protocol, &[])?;
+            let Some(call) = answer!(self.select_protocol_call(
+                origin,
+                operand,
+                operand,
+                key,
+                &protocol_type,
+                &[],
+                &[],
+            )?) else {
+                continue;
+            };
+            let result = answer!(self.operator_expression_type(
+                origin,
+                protocol.expression_result,
+                call.return_type,
+            )?);
 
-            match lookup {
-                MemberLookup::Found(candidates) => {
-                    // try every implementation in resolution order
-                    for candidate in candidates {
-                        let candidate_symbol = candidate.symbol;
-                        let candidate_type = candidate.ty;
-
-                        let result =
-                            self.protocol_result(origin, &protocol, candidate_type, None)?;
-                        match result {
-                            Answer::Ready(Some(result)) => {
-                                return self.record_protocol_operator(
-                                    node,
-                                    operand,
-                                    candidate_symbol,
-                                    Some(result),
-                                );
-                            }
-                            Answer::Ready(None) => continue,
-                            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-                        }
-                    }
-                }
-                MemberLookup::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-                MemberLookup::Missing | MemberLookup::Field(_) => continue,
-            }
+            return self.record_protocol_operator(node, call.resolution, result);
         }
 
         self.reject_operator(
@@ -254,11 +231,20 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<ComparableKind>> {
-        let root = self.resolve_shallow(ty)?;
+        let root = self.settled_root(ty)?;
         let kind = match self.ty(root)? {
             dir::Type::Literal(literal) => comparable_literal_kind(literal),
             dir::Type::Primitive(primitive) => comparable_primitive_kind(primitive),
             dir::Type::Range(_) => Some(ComparableKind::Integer),
+            dir::Type::EnumMember(member) => Some(ComparableKind::Enum(member.owner)),
+            dir::Type::Instance(instance)
+                if matches!(
+                    self.definition(instance.symbol),
+                    Some(dir::Definition::Enum(_))
+                ) =>
+            {
+                Some(ComparableKind::Enum(root))
+            }
             dir::Type::Union(union) => {
                 let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
                 let mut shared: Option<ComparableKind> = None;
@@ -279,14 +265,14 @@ impl CheckState<'_> {
         Ok(kind)
     }
 
-    /// Return the builtin numeric result for one same-type application.
+    /// Return the builtin numeric result and joined operand type.
     fn builtin_numeric_result(
         &mut self,
         origin: Origin,
         operator: dir::BinaryOperator,
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+    ) -> CompilerResult<Option<(dir::GlobalTypeId, dir::GlobalTypeId)>> {
         // builtin arithmetic and comparison need numeric operands
         let is_arithmetic = matches!(
             operator,
@@ -329,10 +315,10 @@ impl CheckState<'_> {
                 source,
             )?;
 
-            return Ok(Some(boolean));
+            return Ok(Some((boolean, joined)));
         }
 
-        Ok(Some(joined))
+        Ok(Some((joined, joined)))
     }
 
     /// Join two builtin numeric operands into one common operand type.
@@ -361,18 +347,18 @@ impl CheckState<'_> {
             (true, false) => {
                 let fits = self.decide_relation(origin, Relation::Assignable, left, right)?;
 
-                Ok((fits == Answer::Ready(true)).then_some(right))
+                Ok((fits.is_ready_true()).then_some(right))
             }
             (false, true) => {
                 let fits = self.decide_relation(origin, Relation::Assignable, right, left)?;
 
-                Ok((fits == Answer::Ready(true)).then_some(left))
+                Ok((fits.is_ready_true()).then_some(left))
             }
             // typed operands must agree exactly
             (false, false) => {
                 let equal = self.decide_relation(origin, Relation::Equal, left, right)?;
 
-                Ok((equal == Answer::Ready(true)).then_some(left))
+                Ok((equal.is_ready_true()).then_some(left))
             }
         }
     }
@@ -383,9 +369,8 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let reduced = match self.evaluate_root(origin, ty)? {
-            Answer::Ready(reduced) => reduced,
-            Answer::Pending(_) => return Ok(false),
+        let Some(reduced) = self.reduce_type_root(origin, ty)?.ready() else {
+            return Ok(false);
         };
 
         Ok(match self.ty(reduced)? {
@@ -405,52 +390,19 @@ impl CheckState<'_> {
         })
     }
 
-    /// Return the result type of one matched protocol method.
-    fn protocol_result(
+    /// Return the expression result for one selected operator method.
+    fn operator_expression_type(
         &mut self,
         origin: Origin,
-        protocol: &OperatorProtocol,
-        method_type: dir::GlobalTypeId,
-        argument: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        // close the method's function shape
-        let method_type = match self.evaluate_root(origin, method_type)? {
-            Answer::Ready(reduced) => reduced,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
-        let (first_parameter, return_type) = match self.ty(method_type)? {
-            dir::Type::FunctionSignature(function) => (
-                function.parameters.first().map(|parameter| parameter.ty),
-                function.return_type,
-            ),
-            _ => return Ok(Answer::Ready(None)),
-        };
-
-        // require the right operand to fit the method parameter
-        if let (Some(argument), Some(parameter)) = (argument, first_parameter) {
-            let fits = self.decide_relation(origin, Relation::Assignable, argument, parameter)?;
-            match fits {
-                Answer::Ready(true) => {}
-                Answer::Ready(false) => return Ok(Answer::Ready(None)),
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-            }
-        }
-
+        expression_result: OperatorExpressionResult,
+        return_type: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         // produce the protocol's declared result
-        let result = match protocol.expression_result {
-            OperatorExpressionResult::MethodReturn => match return_type {
-                Some(return_type) => return_type,
-                None => return Ok(Answer::Ready(None)),
-            },
+        let result = match expression_result {
+            OperatorExpressionResult::MethodReturn => return_type,
             // project the place behind the returned borrow
             OperatorExpressionResult::Pointee => {
-                let Some(return_type) = return_type else {
-                    return Ok(Answer::Ready(None));
-                };
-                let reduced = match self.evaluate_root(origin, return_type)? {
-                    Answer::Ready(reduced) => reduced,
-                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-                };
+                let reduced = answer!(self.reduce_type_root(origin, return_type)?);
 
                 match self.ty(reduced)? {
                     dir::Type::Form(form)
@@ -458,8 +410,14 @@ impl CheckState<'_> {
                     {
                         form.value
                     }
-                    // dereference methods must return indirection
-                    _ => return Ok(Answer::Ready(None)),
+                    _ => {
+                        let actual = self.format_type(return_type);
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "dereference operator selected method returning {actual}"
+                            ),
+                        });
+                    }
                 }
             }
             OperatorExpressionResult::Boolean => {
@@ -474,7 +432,7 @@ impl CheckState<'_> {
             }
         };
 
-        Ok(Answer::Ready(Some(result)))
+        Ok(Answer::Ready(result))
     }
 
     /// Read one operand node's reduced input type.
@@ -483,13 +441,9 @@ impl CheckState<'_> {
         origin: Origin,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let Some(ty) = self.node_type(node) else {
-            return Err(CompilerError::Internal {
-                message: format!("operator operand {node:?} has no input type"),
-            });
-        };
+        let ty = answer!(self.node_type_answer(node)?);
 
-        self.evaluate_root(origin, ty)
+        self.reduce_type_root(origin, ty)
     }
 
     /// Record one builtin binary operator decision.
@@ -500,13 +454,11 @@ impl CheckState<'_> {
         result: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
         let target = dir::CallTarget::Builtin(dir::BuiltinCall::BinaryOperator { operator });
-        let resolution = dir::CallResolution::new(target, Vec::new(), result);
+        let resolution = dir::CallResolution::new(target, None, Vec::new(), Vec::new(), result);
         self.record_decision(node, Decision::Call(resolution))?;
 
-        // flow the result into the node variable
-        if let Some(variable) = self.node_variable(node)? {
-            self.push_lower_bound(variable, result)?;
-        }
+        // flow the result into the node slot
+        self.bind_node_type(node, result)?;
 
         Ok(Answer::Ready(()))
     }
@@ -519,12 +471,11 @@ impl CheckState<'_> {
         result: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
         let target = dir::CallTarget::Builtin(dir::BuiltinCall::UnaryOperator { operator });
-        let resolution = dir::CallResolution::new(target, Vec::new(), result);
+        let resolution = dir::CallResolution::new(target, None, Vec::new(), Vec::new(), result);
         self.record_decision(node, Decision::Call(resolution))?;
 
-        if let Some(variable) = self.node_variable(node)? {
-            self.push_lower_bound(variable, result)?;
-        }
+        // flow the result into the node slot
+        self.bind_node_type(node, result)?;
 
         Ok(Answer::Ready(()))
     }
@@ -533,53 +484,26 @@ impl CheckState<'_> {
     fn record_protocol_operator(
         &mut self,
         node: dir::GlobalNodeIdAny,
-        receiver: dir::GlobalTypeId,
-        symbol: Option<dir::GlobalSymbolId>,
-        result: Option<dir::GlobalTypeId>,
+        mut resolution: dir::CallResolution,
+        result: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
-        let module = node.module_id;
-        let source = node.local_id;
-        let result = match result {
-            Some(result) => result,
-            None => self.push_type(module, dir::Type::Void, source)?,
-        };
-
-        let target = match symbol {
-            Some(symbol) => dir::CallTarget::Symbol(dir::CallCandidate {
-                receiver: Some(receiver),
-                symbol,
-                arguments: Vec::new(),
-            }),
-            None => dir::CallTarget::Expression {
-                arguments: Vec::new(),
-            },
-        };
-        let resolution = dir::CallResolution::new(target, Vec::new(), result);
+        resolution.return_type = result;
         self.record_decision(node, Decision::Call(resolution))?;
 
-        if let Some(variable) = self.node_variable(node)? {
-            self.push_lower_bound(variable, result)?;
-        }
+        self.bind_node_type(node, result)?;
 
         Ok(Answer::Ready(()))
     }
 
     /// Reject one operator application with a diagnostic.
-    fn reject_operator(
+    pub(in crate::check) fn reject_operator(
         &mut self,
         node: dir::GlobalNodeIdAny,
         origin: Origin,
         operator: String,
         operands: String,
     ) -> CompilerResult<Answer<()>> {
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let error = CheckError::NoMatchingOperator {
-            anchor,
-            module,
-            operator,
-            operands,
-        };
-        self.module_mut(module).diagnostics.push(error.into());
+        self.report_no_matching_operator(origin, operator, operands)?;
         self.record_decision(node, Decision::Rejected)?;
 
         Ok(Answer::Ready(()))
@@ -601,6 +525,8 @@ enum ComparableKind {
     Float,
     /// Arbitrary-precision integers.
     Bigint,
+    /// Nominal enum values.
+    Enum(dir::GlobalTypeId),
 }
 
 /// Return the comparable family of one scalar literal.

@@ -144,8 +144,8 @@ impl CheckState<'_> {
         let mut external_modules = IndexSet::new();
         let imports = &self.module(module).resolved.imports;
 
-        // collect resolved import modules outside the component
-        for external_module in imports.modules() {
+        // collect resolved target modules outside the component
+        for external_module in imports.target_modules() {
             if !self.is_component_module(external_module) {
                 external_modules.insert(external_module);
             }

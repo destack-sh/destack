@@ -4,7 +4,8 @@ use destack_source::ModuleId;
 use crate::check::{
     CheckState, DeclarationHeritageObligation, ExtensionConformanceObligation,
     GenericInductionDeclaration, GenericTemplateId, ImplementationCoherenceObligation, Obligation,
-    Origin, Receiver, ReceiverBinding, Relation, RepresentationObligation, WalkState,
+    Origin, Receiver, ReceiverBinding, Relation, RepresentationObligation, TypeSubstitution,
+    WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -421,6 +422,7 @@ impl WalkState<'_, '_> {
                 self.tree.get(*member),
                 Some(receiver),
                 Some(induction),
+                declaration.is_ambient,
             )?);
         }
 
@@ -432,10 +434,10 @@ impl WalkState<'_, '_> {
         self.check.insert_definition(symbol, source, definition)?;
 
         // heritage rules check once the inherited declarations close
-        self.collect_heritage_obligation(source, symbol);
+        self.queue_heritage_obligation(source, symbol);
 
         // concrete structs need one fixed representation
-        self.collect_declaration_layout_obligation(symbol, receiver, template);
+        self.queue_declaration_layout_obligation(symbol, receiver, template)?;
 
         Ok(())
     }
@@ -551,8 +553,15 @@ impl WalkState<'_, '_> {
                 self.tree.get(*member),
                 Some(receiver),
                 Some(induction),
+                declaration.is_ambient,
             )?);
         }
+        let constructors = self.class_construct_candidates(
+            id.into_any(),
+            receiver.ty,
+            extends.is_some(),
+            &members,
+        )?;
 
         let definition = dir::Definition::Class(dir::ClassDefinition {
             template: template.map(|template| template.local_id),
@@ -560,17 +569,84 @@ impl WalkState<'_, '_> {
             is_final: declaration.is_final,
             extends,
             implements,
+            constructors,
             members,
         });
         self.check.insert_definition(symbol, source, definition)?;
 
         // heritage rules check once the inherited declarations close
-        self.collect_heritage_obligation(source, symbol);
+        self.queue_heritage_obligation(source, symbol);
 
         // concrete classes need one fixed representation
-        self.collect_declaration_layout_obligation(symbol, receiver, template);
+        self.queue_declaration_layout_obligation(symbol, receiver, template)?;
 
         Ok(())
+    }
+
+    /// Return direct construct candidates for one class.
+    fn class_construct_candidates(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        receiver: dir::GlobalTypeId,
+        is_derived: bool,
+        members: &[dir::DefinitionMember],
+    ) -> CompilerResult<Vec<dir::ClassConstructorDefinition>> {
+        let declared = self.declared_class_construct_candidates(members)?;
+        if !declared.is_empty() {
+            return Ok(declared);
+        }
+        if is_derived {
+            return Ok(Vec::new());
+        }
+
+        self.default_class_construct_candidate(source, receiver)
+    }
+
+    /// Return explicitly declared class construct candidates.
+    fn declared_class_construct_candidates(
+        &self,
+        members: &[dir::DefinitionMember],
+    ) -> CompilerResult<Vec<dir::ClassConstructorDefinition>> {
+        let mut constructors = Vec::new();
+        for member in members {
+            let dir::DefinitionMember::Method(method) = member else {
+                continue;
+            };
+            if method.slot != dir::MemberSlot::Constructor {
+                continue;
+            }
+
+            constructors.push(dir::ClassConstructorDefinition {
+                constructor: dir::ClassConstructor::Declared {
+                    symbol: method.symbol,
+                },
+                ty: method.ty,
+            });
+        }
+
+        Ok(constructors)
+    }
+
+    /// Return a base class default construct candidate.
+    fn default_class_construct_candidate(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<Vec<dir::ClassConstructorDefinition>> {
+        let function = dir::FunctionSignatureType {
+            asynchrony: dir::Asynchrony::Sync,
+            template: None,
+            this_parameter: None,
+            parameters: Vec::new(),
+            return_type: Some(receiver),
+            is_generator: false,
+        };
+        let ty = self.push_type(dir::Type::FunctionSignature(function), source)?;
+
+        Ok(vec![dir::ClassConstructorDefinition {
+            constructor: dir::ClassConstructor::Default,
+            ty,
+        }])
     }
 
     /// Walk one enum declaration.
@@ -653,6 +729,7 @@ impl WalkState<'_, '_> {
                 self.tree.get(*member),
                 Some(receiver),
                 Some(induction),
+                declaration.is_ambient,
             )?);
         }
 
@@ -664,10 +741,10 @@ impl WalkState<'_, '_> {
         self.check.insert_definition(symbol, source, definition)?;
 
         // heritage rules check once the inherited declarations close
-        self.collect_heritage_obligation(source, symbol);
+        self.queue_heritage_obligation(source, symbol);
 
         // enums need one fixed backing representation
-        self.collect_declaration_layout_obligation(symbol, receiver, template);
+        self.queue_declaration_layout_obligation(symbol, receiver, template)?;
 
         Ok(())
     }
@@ -754,7 +831,7 @@ impl WalkState<'_, '_> {
         self.check.insert_definition(symbol, source, definition)?;
 
         // heritage rules check once the inherited declarations close
-        self.collect_heritage_obligation(source, symbol);
+        self.queue_heritage_obligation(source, symbol);
 
         Ok(())
     }
@@ -795,13 +872,13 @@ impl WalkState<'_, '_> {
         // expose members under the extended receiver
         let target_type = self.walk_type_expression(declaration.target_type)?;
         self.record_type_induction_site(induction, target_type);
-        let target = self.walk_extension_target(declaration.target_type, target_type)?;
+        let target = self.walk_extension_target(target_type)?;
         let target_name = match &target {
-            dir::ExtensionTarget::Nominal { root, .. } => self.check.format_symbol(*root),
+            dir::ExtensionTarget::Rooted { root, .. } => self.check.format_symbol(*root),
             _ => self.check.format_type(target_type),
         };
         let receiver = Receiver {
-            owner: Some(symbol),
+            declaration: Some(symbol),
             ty: target_type,
             super_ty: None,
         };
@@ -844,12 +921,13 @@ impl WalkState<'_, '_> {
                 self.tree.get(*member),
                 Some(receiver),
                 Some(induction),
+                declaration.is_ambient,
             )?);
         }
 
         // named extensions import explicitly, inherent ones travel with their target declaration
         let form = match &target {
-            dir::ExtensionTarget::Nominal { root, .. } if root.module_id == self.module => {
+            dir::ExtensionTarget::Rooted { root, .. } if root.module_id == self.module => {
                 dir::ExtensionForm::Inherent
             }
             _ if declaration.name.is_some() => dir::ExtensionForm::Named,
@@ -866,15 +944,15 @@ impl WalkState<'_, '_> {
         });
         self.check.insert_definition(symbol, source, definition)?;
 
-        self.collect_extension_conformance_obligation(source, symbol);
-        self.collect_implementation_coherence_obligation(source, symbol);
-        self.collect_heritage_obligation(source, symbol);
+        self.queue_extension_conformance_obligation(source, symbol);
+        self.queue_implementation_coherence_obligation(source, symbol);
+        self.queue_heritage_obligation(source, symbol);
 
         Ok(())
     }
 
     /// Queue one extension conformance obligation under the active guard.
-    fn collect_extension_conformance_obligation(
+    fn queue_extension_conformance_obligation(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -890,7 +968,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Queue one implementation coherence obligation under the active guard.
-    fn collect_implementation_coherence_obligation(
+    fn queue_implementation_coherence_obligation(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -907,7 +985,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Queue one heritage obligation under the active guard.
-    fn collect_heritage_obligation(
+    fn queue_heritage_obligation(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -922,25 +1000,21 @@ impl WalkState<'_, '_> {
         ));
     }
 
-    /// Demand one concrete declaration's layout.
+    /// Queue one concrete declaration's layout check.
     /// Generic declarations lay out per instantiation instead.
-    fn collect_declaration_layout_obligation(
+    fn queue_declaration_layout_obligation(
         &mut self,
         symbol: dir::GlobalSymbolId,
         receiver: Receiver,
         template: Option<GenericTemplateId>,
-    ) {
+    ) -> CompilerResult<()> {
         if template.is_some() {
-            return;
+            return Ok(());
         }
-        let Some(source) = self
+        let source = self
             .check
             .module(self.module)
-            .symbol_declaration_node(symbol.local_id)
-            .ok()
-        else {
-            return;
-        };
+            .symbol_declaration_node(symbol.local_id)?;
         let condition = self.active_static_guard();
         self.check
             .push_obligation(Obligation::Representation(RepresentationObligation {
@@ -948,6 +1022,8 @@ impl WalkState<'_, '_> {
                 condition,
                 ty: receiver.ty,
             }));
+
+        Ok(())
     }
 
     /// Walk one function declaration.
@@ -994,6 +1070,7 @@ impl WalkState<'_, '_> {
             id.into_any(),
             &declaration.signature,
             template,
+            Some(induction),
             None,
             result,
         )?;
@@ -1227,7 +1304,7 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn this_parameter_receiver_binding(
         &mut self,
         parameter: dir::LocalNodeId<dir::Parameter>,
-        owner: Option<dir::GlobalSymbolId>,
+        scope: Option<Receiver>,
     ) -> CompilerResult<ReceiverBinding> {
         // read the receiver binding
         let Some(symbol) = self
@@ -1253,14 +1330,33 @@ impl WalkState<'_, '_> {
             });
         };
 
+        let ty = self.apply_receiver_scope(parameter.into_any(), scope, ty)?;
+
         Ok(ReceiverBinding {
             symbol,
             receiver: Receiver {
-                owner,
+                declaration: scope.and_then(|scope| scope.declaration),
                 ty,
-                super_ty: None,
+                super_ty: scope.and_then(|scope| scope.super_ty),
             },
         })
+    }
+
+    /// Apply the active receiver scope to one receiver parameter type.
+    pub(in crate::check) fn apply_receiver_scope(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        scope: Option<Receiver>,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let Some(scope) = scope else {
+            return Ok(ty);
+        };
+
+        let substitution = TypeSubstitution::default().with_receiver(scope.ty);
+
+        self.check
+            .fold_type(self.module, source, ty, substitution.rewrite())
     }
 
     /// Walk one function return annotation or open its inferred result.
@@ -1288,7 +1384,7 @@ impl WalkState<'_, '_> {
         }
 
         // open the inferred result
-        Ok(Some(self.open_type(source)?))
+        Ok(Some(self.infer_type(source)?))
     }
 
     /// Return one nominal declaration receiver scope.
@@ -1319,7 +1415,7 @@ impl WalkState<'_, '_> {
         )?;
 
         Ok(Receiver {
-            owner: Some(symbol),
+            declaration: Some(symbol),
             ty,
             super_ty: None,
         })
@@ -1354,14 +1450,11 @@ impl WalkState<'_, '_> {
     /// Return one extension target from a walked target annotation.
     fn walk_extension_target(
         &mut self,
-        _annotation: dir::LocalNodeId<dir::TypeExpression>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::ExtensionTarget> {
-        // nominal roots anchor member lookup
-        if let dir::Type::Instance(instance) = self.check.ty(ty)? {
-            let root = self.check.resolve_symbol_alias(instance.symbol)?;
-
-            return Ok(dir::ExtensionTarget::Nominal { root, ty });
+        // root extensions under their lookup owner
+        if let Some(root) = self.check.extension_root(ty)? {
+            return Ok(dir::ExtensionTarget::Rooted { root, ty });
         }
 
         Ok(dir::ExtensionTarget::Blanket { ty })

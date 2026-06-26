@@ -1,11 +1,11 @@
 use destack_dir as dir;
 use std::ptr::NonNull;
 
-use crate::CompilerResult;
 use crate::check::{
-    ConstraintRole, FlowState, GenericInductionDeclaration, GenericInductionPosition, Origin,
-    Receiver, ReceiverBinding, Relation, WalkState, Widening,
+    FlowState, GenericInductionDeclaration, GenericInductionPosition, Origin, Receiver,
+    ReceiverBinding, Relation, ValueUse, WalkState, Widening,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// One active receiver scope.
 pub(in crate::check) struct ReceiverGuard {
@@ -140,6 +140,7 @@ impl WalkState<'_, '_> {
                     signature,
                     template,
                     None,
+                    None,
                     result,
                 )?;
                 if let Some(symbol) = symbol {
@@ -186,6 +187,7 @@ impl WalkState<'_, '_> {
         member: &dir::Member,
         receiver_scope: Option<Receiver>,
         induction_declaration: Option<GenericInductionDeclaration>,
+        is_ambient_scope: bool,
     ) -> CompilerResult<Option<dir::DefinitionMember>> {
         let member_receiver = match member {
             dir::Member::StaticBlock { .. } | dir::Member::ComptimeBlock { .. } => None,
@@ -298,7 +300,7 @@ impl WalkState<'_, '_> {
                     if let Some(written) = written {
                         // the written value flows into the declared type
                         let origin = Origin::Node(id.into_global_any(self.module));
-                        self.relate_type(origin, Relation::Assignable, written, ty);
+                        self.push_flow(origin, ValueUse::Store, Relation::Assignable, written, ty);
                         self.set_static_value(symbol, written)?;
                     }
                 }
@@ -378,9 +380,9 @@ impl WalkState<'_, '_> {
                             let default_type = self.node_type(default)?;
                             let field_type = self.declaration_type(symbol, Widening::Widen)?;
                             let origin = Origin::Node(default.into_global_any(self.module));
-                            self.push_relation(
+                            self.push_flow(
                                 origin,
-                                ConstraintRole::Value,
+                                ValueUse::Store,
                                 Relation::Assignable,
                                 default_type,
                                 field_type,
@@ -444,42 +446,53 @@ impl WalkState<'_, '_> {
                 is_override,
                 ..
             } => {
-                let (key, body, is_static) = (*key, *body, *is_static);
-                let (abstraction, is_ambient, is_override) =
-                    (*abstraction, *is_ambient, *is_override);
-
-                if let Some(dir::Key::Expression(key)) = key {
+                if let Some(dir::Key::Expression(key)) = *key {
                     // check computed member keys in declaration context
                     let before_key = self.fork_flow();
                     self.walk_expression(key, self.tree.get(key))?;
                     self.restore_flow(before_key);
                 }
 
-                let symbol = self
+                // place the method into its declaration slot
+                let slot = match signature.role {
+                    Some(dir::FunctionRole::Constructor) => dir::MemberSlot::Constructor,
+                    Some(dir::FunctionRole::New) => dir::MemberSlot::New,
+                    Some(dir::FunctionRole::Call) => dir::MemberSlot::Call,
+                    _ => match (*key).and_then(dir::Key::direct_static_key) {
+                        Some(key) => dir::MemberSlot::Key(key),
+                        None => return Ok(None),
+                    },
+                };
+                let Some(symbol) = self
                     .check
                     .module(self.module)
-                    .declaration_symbol(id.into_any());
-                let receiver_owner = member_receiver.and_then(|scope| scope.owner);
+                    .declaration_symbol(id.into_any())
+                else {
+                    return Err(CompilerError::Internal {
+                        message: format!("method member {id:?} has no declaration symbol"),
+                    });
+                };
                 let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
                 let source = id.into_global_any(self.module);
-                let template = self.open_signature_template(source, parent, symbol, signature)?;
+                let template =
+                    self.open_signature_template(source, parent, Some(symbol), signature)?;
                 let captured_template = template.or(parent);
 
                 // open signature parameters before building the method type
                 self.walk_function_signature(template, signature)?;
-                if body.is_none() && !is_ambient && !abstraction.is_abstract() {
-                    let member = self.method_body_name(key, signature);
+                let needs_body = body.is_none()
+                    && !is_ambient_scope
+                    && !*is_ambient
+                    && !abstraction.is_abstract();
+                if needs_body {
+                    let member = self.method_body_name(*key, signature);
                     let source = id.into_global_any(self.module);
                     self.check.report_missing_declaration_body(source, member);
                 }
-                let implicit_receiver_scope = if is_static { None } else { receiver_scope };
-                let receiver = self.method_receiver_binding(
-                    id,
-                    signature,
-                    receiver_owner,
-                    implicit_receiver_scope,
-                )?;
-                let result = self.walk_method_result_type(id, signature, body, receiver)?;
+                let implicit_receiver_scope = if *is_static { None } else { receiver_scope };
+                let receiver =
+                    self.method_receiver_binding(id, signature, implicit_receiver_scope)?;
+                let result = self.walk_method_result_type(id, signature, *body, receiver)?;
 
                 // write the method's function type
                 let receiver_type = receiver
@@ -489,35 +502,27 @@ impl WalkState<'_, '_> {
                     id.into_any(),
                     signature,
                     captured_template,
+                    Some(GenericInductionDeclaration::new(
+                        source,
+                        parent,
+                        Some(symbol),
+                    )),
                     receiver_type,
                     result,
                 )?;
-                let induction = GenericInductionDeclaration::new(source, parent, symbol);
+                let induction = GenericInductionDeclaration::new(source, parent, Some(symbol));
                 self.record_type_induction_site(induction, method);
 
                 // write the method symbol type
-                if let Some(symbol) = symbol {
-                    self.bind_symbol_type(symbol, method)?;
-                }
+                self.bind_symbol_type(symbol, method)?;
 
                 // walk method body after its result exists
-                if let (Some(body), Some(symbol), Some(result)) = (body, symbol, result) {
+                if let (Some(body), Some(result)) = (*body, result) {
                     self.walk_function_body(symbol, signature, body, result, receiver)?;
                 }
 
-                // place the method into its declaration slot
-                let slot = match signature.role {
-                    Some(dir::FunctionRole::Constructor) => dir::MemberSlot::Constructor,
-                    Some(dir::FunctionRole::New) => dir::MemberSlot::New,
-                    Some(dir::FunctionRole::Call) => dir::MemberSlot::Call,
-                    _ => match key.and_then(dir::Key::direct_static_key) {
-                        Some(key) => dir::MemberSlot::Key(key),
-                        None => return Ok(None),
-                    },
-                };
-
                 Ok(Some(dir::DefinitionMember::Method(dir::MethodDefinition {
-                    space: if is_static {
+                    space: if *is_static {
                         dir::MemberSpace::Static
                     } else {
                         dir::MemberSpace::Instance
@@ -527,8 +532,8 @@ impl WalkState<'_, '_> {
                     slot,
                     role: signature.role,
                     ty: method,
-                    abstraction,
-                    is_override,
+                    abstraction: *abstraction,
+                    is_override: *is_override,
                     condition,
                 })))
             }
@@ -631,12 +636,27 @@ impl WalkState<'_, '_> {
                 ..
             } => {
                 let (key, body, is_static) = (*key, *body, *is_static);
-                let symbol = self
+                let slot = match signature.role {
+                    Some(dir::FunctionRole::Constructor) => dir::MemberSlot::Constructor,
+                    Some(dir::FunctionRole::New) => dir::MemberSlot::New,
+                    Some(dir::FunctionRole::Call) => dir::MemberSlot::Call,
+                    _ => match key.direct_static_key() {
+                        Some(key) => dir::MemberSlot::Key(key),
+                        None => return Ok(None),
+                    },
+                };
+                let Some(symbol) = self
                     .check
                     .module(self.module)
-                    .declaration_symbol(id.into_any());
+                    .declaration_symbol(id.into_any())
+                else {
+                    return Err(CompilerError::Internal {
+                        message: format!("type method member {id:?} has no declaration symbol"),
+                    });
+                };
                 let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
-                let template = self.open_signature_template(source, parent, symbol, signature)?;
+                let template =
+                    self.open_signature_template(source, parent, Some(symbol), signature)?;
                 let captured_template = template.or(parent);
 
                 // open signature parameters before building the method type
@@ -649,29 +669,18 @@ impl WalkState<'_, '_> {
                     id.into_any(),
                     signature,
                     captured_template,
+                    None,
                     receiver_type,
                     result,
                 )?;
 
                 // write the method symbol type
-                if let Some(symbol) = symbol {
-                    self.bind_symbol_type(symbol, method)?;
-                }
+                self.bind_symbol_type(symbol, method)?;
 
                 // walk default method bodies
-                if let (Some(body), Some(symbol), Some(result)) = (body, symbol, result) {
+                if let (Some(body), Some(result)) = (body, result) {
                     self.walk_function_body(symbol, signature, body, result, None)?;
                 }
-
-                let slot = match signature.role {
-                    Some(dir::FunctionRole::Constructor) => dir::MemberSlot::Constructor,
-                    Some(dir::FunctionRole::New) => dir::MemberSlot::New,
-                    Some(dir::FunctionRole::Call) => dir::MemberSlot::Call,
-                    _ => match key.direct_static_key() {
-                        Some(key) => dir::MemberSlot::Key(key),
-                        None => return Ok(None),
-                    },
-                };
 
                 Ok(Some(dir::DefinitionMember::Method(dir::MethodDefinition {
                     space: if is_static {
@@ -819,7 +828,13 @@ impl WalkState<'_, '_> {
                     if let Some(written) = written {
                         if let Some(declared) = declared {
                             let origin = Origin::Node(source);
-                            self.relate_type(origin, Relation::Assignable, written, declared);
+                            self.push_flow(
+                                origin,
+                                ValueUse::Store,
+                                Relation::Assignable,
+                                written,
+                                declared,
+                            );
                         }
                         self.set_static_value(symbol, written)?;
                     }
@@ -855,12 +870,12 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Member>,
         signature: &dir::FunctionSignature,
-        owner: Option<dir::GlobalSymbolId>,
         implicit_receiver_scope: Option<Receiver>,
     ) -> CompilerResult<Option<ReceiverBinding>> {
         // prefer explicit `this` parameters before implicit receivers
         if let Some(parameter) = signature.this_parameter {
-            let receiver = self.this_parameter_receiver_binding(parameter, owner)?;
+            let receiver =
+                self.this_parameter_receiver_binding(parameter, implicit_receiver_scope)?;
 
             return Ok(Some(receiver));
         }
@@ -935,7 +950,20 @@ impl WalkState<'_, '_> {
             return Ok(receiver.map(|receiver| receiver.receiver.ty));
         }
 
-        // return regular method result
-        self.walk_function_result_type(id.into_any(), signature, body)
+        // walk regular method result
+        let result = self.walk_function_result_type(id.into_any(), signature, body)?;
+        let Some(result) = result else {
+            return Ok(None);
+        };
+
+        // apply the implicit receiver to `this` in result position
+        let result = match receiver {
+            Some(receiver) => {
+                self.apply_receiver_scope(id.into_any(), Some(receiver.receiver), result)?
+            }
+            None => result,
+        };
+
+        Ok(Some(result))
     }
 }

@@ -215,7 +215,9 @@ impl WalkState<'_, '_> {
         let Some(path) = self.flow_path(value) else {
             return Ok(());
         };
-        let target = self.node_type(target)?;
+        let Some(target) = self.instanceof_target_type(target)? else {
+            return Ok(());
+        };
         let source = self.expression_type(value)?;
         let predicate = match branch {
             ConditionBranch::True => NarrowPredicate::Is(target),
@@ -223,6 +225,41 @@ impl WalkState<'_, '_> {
         };
 
         self.narrow_flow_path_by(path, source, value.into_any(), predicate)
+    }
+
+    /// Return the instance type named by one `instanceof` target.
+    fn instanceof_target_type(
+        &mut self,
+        target: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let source = target.into_global_any(self.module);
+        let reference = self
+            .check
+            .module(self.module)
+            .resolved
+            .references
+            .get(source)
+            .cloned();
+
+        // derive early branch flow from unambiguous class references
+        let Some(dir::Reference::Bound(symbols)) = reference else {
+            return Ok(None);
+        };
+        let symbols = self.check.available_symbols(&symbols);
+        let [symbol] = symbols.as_slice() else {
+            return Ok(None);
+        };
+        if self.check.symbol_kind(*symbol) != dir::SymbolKind::Class {
+            return Ok(None);
+        }
+
+        let ty = dir::Type::Instance(dir::GenericInstance {
+            symbol: *symbol,
+            arguments: Vec::new(),
+        });
+        let ty = self.push_type(ty, target.into_any())?;
+
+        Ok(Some(ty))
     }
 
     /// Narrow flow from one equality expression.

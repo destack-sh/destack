@@ -189,7 +189,7 @@ pub enum CheckError {
         module: ModuleId,
     },
 
-    /// Fresh object literal contains a property that the target cannot accept.
+    /// Direct object literal contains a property that the target cannot accept.
     ///
     /// ```ds
     /// const value: { name: string } = { name: "Ada", extra: true };
@@ -1558,6 +1558,24 @@ pub enum CheckError {
         /// The module being checked.
         module: ModuleId,
         /// The type that failed dynamic-safety checking.
+        ty: String,
+    },
+
+    /// Non-exclusive writes require overwrite-stable storage.
+    ///
+    /// ```ds
+    /// *borrow = value;
+    /// ```
+    #[diagnostic(
+        code = "EC505",
+        message = "type '{ty}' is not safe to overwrite through non-exclusive access"
+    )]
+    OverwriteStabilityNotSatisfied {
+        /// Report the overwritten type.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The type that failed overwrite-stability checking.
         ty: String,
     },
 

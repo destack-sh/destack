@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{FlowPath, Origin, WalkState, Widening};
+use crate::check::{FlowPath, WalkState};
 
 /// Runtime flow predicate used to narrow one stable path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -142,26 +142,7 @@ impl WalkState<'_, '_> {
                 return self.narrow_flow_path_by(path, source, source_node, predicate);
             }
         };
-        self.narrow_flow_path_to(path, source_node, narrowed)?;
-
-        Ok(())
-    }
-
-    /// Narrow one flow path to a solver-owned type.
-    fn narrow_flow_path_to(
-        &mut self,
-        path: FlowPath,
-        source_node: dir::LocalNodeIdAny,
-        narrowed: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        let origin = Origin::Node(source_node.into_global(self.module));
-        let variable = self
-            .check
-            .allocate_variable(self.module, origin, Widening::Preserve);
-        let ty = self.check.push_variable_type(variable, source_node)?;
-
-        self.check.push_lower_bound(variable, narrowed)?;
-        self.narrow_flow_path(path, ty);
+        self.narrow_flow_path(path, narrowed);
 
         Ok(())
     }

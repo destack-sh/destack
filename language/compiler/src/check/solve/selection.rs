@@ -173,6 +173,11 @@ pub(in crate::check) enum Selection {
         /// The selected pattern node.
         node: dir::GlobalNodeId<dir::Pattern>,
     },
+    /// Assignment pattern selection.
+    AssignPattern {
+        /// The selected assignment pattern node.
+        node: dir::GlobalNodeId<dir::AssignPattern>,
+    },
 }
 
 impl Selection {
@@ -194,6 +199,7 @@ impl Selection {
             | Self::TaggedTemplate { node, .. }
             | Self::Tree { node, .. } => node.into_any(),
             Self::Pattern { node } => node.into_any(),
+            Self::AssignPattern { node } => node.into_any(),
         }
     }
 }

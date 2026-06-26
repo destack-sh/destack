@@ -122,7 +122,7 @@ impl WalkState<'_, '_> {
         receiver: ReceiverBinding,
     ) -> CompilerResult<()> {
         // select bare receiver symbols directly
-        let Some(owner) = receiver.receiver.owner else {
+        let Some(declaration) = receiver.receiver.declaration else {
             let resolution = dir::NameResolution::new(receiver.symbol);
             return self
                 .check
@@ -132,7 +132,7 @@ impl WalkState<'_, '_> {
         self.select_this_receiver(
             source,
             Receiver {
-                owner: Some(owner),
+                declaration: Some(declaration),
                 ty: receiver.receiver.ty,
                 super_ty: receiver.receiver.super_ty,
             },
@@ -145,14 +145,14 @@ impl WalkState<'_, '_> {
         source: dir::GlobalNodeIdAny,
         receiver: Receiver,
     ) -> CompilerResult<()> {
-        let Some(owner) = receiver.owner else {
+        let Some(declaration) = receiver.declaration else {
             return Ok(());
         };
 
-        // select receiver with owner metadata
+        // select receiver with declaration context
         let resolution = dir::ReceiverResolution {
             kind: dir::ReceiverKind::This,
-            owner,
+            declaration,
             ty: receiver.ty,
         };
 

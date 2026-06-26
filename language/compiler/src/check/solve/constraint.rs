@@ -21,9 +21,18 @@ impl ConstraintId {
     }
 }
 
-/// One type relation to enforce.
+/// One relation collected for the solver.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct Constraint {
+pub(in crate::check) enum Constraint {
+    /// Pure type relation without a runtime value flow.
+    Check(TypeConstraint),
+    /// Runtime value flow into a target type.
+    Flow(ValueFlow),
+}
+
+/// Pure type relation without a runtime value flow.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct TypeConstraint {
     /// The relation to enforce.
     pub(in crate::check) relation: Relation,
     /// The left operand, the source for directed relations.
@@ -34,24 +43,29 @@ pub(in crate::check) struct Constraint {
     pub(in crate::check) origin: Origin,
     /// The condition gating the constraint.
     pub(in crate::check) condition: Condition,
-    /// The checker role of this relation.
-    pub(in crate::check) role: ConstraintRole,
 }
 
-/// Role one constraint plays in the checker.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum ConstraintRole {
-    /// Relation checked at its origin without creating an implicit coercion.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value satisfies Display
-    /// value as int32
-    /// function value<T: Display>(input: T) {}
-    /// ```
-    Check,
+/// Runtime value flow into a target type.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct ValueFlow {
+    /// The relation to enforce.
+    pub(in crate::check) relation: Relation,
+    /// The source value type.
+    pub(in crate::check) source: dir::GlobalTypeId,
+    /// The target value type.
+    pub(in crate::check) target: dir::GlobalTypeId,
+    /// The source that produced the flow.
+    pub(in crate::check) origin: Origin,
+    /// The condition gating the flow.
+    pub(in crate::check) condition: Condition,
+    /// The checked value use.
+    pub(in crate::check) use_: ValueUse,
+}
 
-    /// Runtime expression assigned into a storage or pattern target.
+/// Runtime value use checked by one value flow.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum ValueUse {
+    /// Value assigned into a storage or pattern target.
     ///
     /// Examples:
     /// ```ds
@@ -59,9 +73,9 @@ pub(in crate::check) enum ConstraintRole {
     /// target = source
     /// const [first] = values
     /// ```
-    Value,
+    Store,
 
-    /// Runtime argument assigned into a call or subscript parameter.
+    /// Value assigned into a call or subscript parameter.
     ///
     /// Examples:
     /// ```ds
@@ -70,7 +84,7 @@ pub(in crate::check) enum ConstraintRole {
     /// ```
     Argument,
 
-    /// Function body value assigned into a return or yield channel.
+    /// Function body value assigned into a return or yield result.
     ///
     /// Examples:
     /// ```ds
@@ -87,6 +101,92 @@ pub(in crate::check) enum ConstraintRole {
     /// while (condition) {}
     /// ```
     Condition,
+}
+
+impl Constraint {
+    /// Create a pure type relation.
+    pub(in crate::check) fn check(
+        relation: Relation,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+        origin: Origin,
+        condition: Condition,
+    ) -> Self {
+        Self::Check(TypeConstraint {
+            relation,
+            left,
+            right,
+            origin,
+            condition,
+        })
+    }
+
+    /// Create a runtime value flow.
+    pub(in crate::check) fn flow(
+        relation: Relation,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        origin: Origin,
+        condition: Condition,
+        use_: ValueUse,
+    ) -> Self {
+        Self::Flow(ValueFlow {
+            relation,
+            source,
+            target,
+            origin,
+            condition,
+            use_,
+        })
+    }
+
+    /// Return the relation to enforce.
+    pub(in crate::check) fn relation(&self) -> Relation {
+        match self {
+            Self::Check(constraint) => constraint.relation,
+            Self::Flow(flow) => flow.relation,
+        }
+    }
+
+    /// Return the left operand, the source for directed relations.
+    pub(in crate::check) fn left(&self) -> dir::GlobalTypeId {
+        match self {
+            Self::Check(constraint) => constraint.left,
+            Self::Flow(flow) => flow.source,
+        }
+    }
+
+    /// Return the right operand, the target for directed relations.
+    pub(in crate::check) fn right(&self) -> dir::GlobalTypeId {
+        match self {
+            Self::Check(constraint) => constraint.right,
+            Self::Flow(flow) => flow.target,
+        }
+    }
+
+    /// Return the source that produced the relation.
+    pub(in crate::check) fn origin(&self) -> Origin {
+        match self {
+            Self::Check(constraint) => constraint.origin,
+            Self::Flow(flow) => flow.origin,
+        }
+    }
+
+    /// Return the condition gating the relation.
+    pub(in crate::check) fn condition(&self) -> &Condition {
+        match self {
+            Self::Check(constraint) => &constraint.condition,
+            Self::Flow(flow) => &flow.condition,
+        }
+    }
+
+    /// Return the checked value use when this relation is a value flow.
+    pub(in crate::check) fn value_use(&self) -> Option<ValueUse> {
+        match self {
+            Self::Check(_) => None,
+            Self::Flow(flow) => Some(flow.use_),
+        }
+    }
 }
 
 /// Condition gating one constraint.

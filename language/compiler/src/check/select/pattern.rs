@@ -2,19 +2,92 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::select::protocol::Protocol;
+use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Condition, Constraint, ConstraintCause, Decision, Dependency, MemberLookup,
-    Origin, Relation, answer,
+    Answer, CheckState, Condition, Constraint, Decision, Dependency, MemberLookup, MemberRole,
+    Origin, Protocol, Relation, ValueUse, Widening, answer,
 };
-use crate::{CheckError, CompilerResult};
 
 impl CheckState<'_> {
+    /// Select the assignment meaning of one assignment pattern node.
+    ///
+    /// Assignment patterns decompose their input like match patterns, then
+    /// flow leaf inputs into writable places.
+    pub(in crate::check) fn select_assign_pattern(
+        &mut self,
+        node: dir::GlobalNodeId<dir::AssignPattern>,
+    ) -> CompilerResult<Answer<()>> {
+        let module = node.module_id;
+        let origin = Origin::Node(node.into_any());
+
+        // read each assignment target shape once and dispatch with it
+        let view = self.module(module).view();
+        match view.get(node.local_id) {
+            // x = value, obj.x = value
+            dir::AssignPattern::Place { expression: value } => {
+                let place = value.into_global_any(module);
+                let input = answer!(self.assign_pattern_input(node, origin)?);
+                let target = answer!(self.node_type_answer(place)?);
+                self.push_constraint(Constraint::flow(
+                    Relation::Assignable,
+                    input,
+                    target,
+                    origin,
+                    Condition::Always,
+                    ValueUse::Store,
+                ));
+
+                self.record_assign_pattern(
+                    node,
+                    dir::AssignPatternResolution::Place(dir::AssignPatternPlaceResolution {
+                        place,
+                    }),
+                )
+            }
+            // x = default
+            dir::AssignPattern::Default { pattern, value } => {
+                let (pattern, value) = (*pattern, *value);
+                let input = answer!(self.assign_pattern_input(node, origin)?);
+                let default = answer!(self.node_type_answer(value.into_global_any(module))?);
+                let input = answer!(self.defaulted_pattern_input(origin, input, default)?);
+
+                // flow the selected value into the nested target
+                self.project_assign_pattern_input(module, input, pattern)?;
+
+                self.record_assign_pattern(
+                    node,
+                    dir::AssignPatternResolution::Default(dir::AssignPatternDefaultResolution {
+                        pattern: pattern.into_global_any(module),
+                        value: value.into_global_any(module),
+                    }),
+                )
+            }
+            // [a, , ...rest] = values
+            dir::AssignPattern::Sequence { fields } => {
+                let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
+
+                self.select_assign_sequence_pattern(node, origin, &fields)
+            }
+            // (a, b) = point
+            dir::AssignPattern::Tuple { fields } => {
+                let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
+
+                self.select_assign_tuple_pattern(node, origin, &fields)
+            }
+            // { x, y: z } = point
+            dir::AssignPattern::Object { fields } => {
+                let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
+
+                self.select_assign_object_pattern(node, origin, &fields)
+            }
+        }
+    }
+
     /// Select the pattern meaning of one pattern node.
     ///
-    /// Every pattern node carries its own scrutinee component: the match
+    /// Every pattern node carries its own input: the match
     /// site flowed the value into the root, and each parent selection
-    /// projects components into its nested pattern holes.
+    /// projects values into its nested pattern holes.
     pub(in crate::check) fn select_pattern(
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
@@ -55,7 +128,7 @@ impl CheckState<'_> {
                     }),
                 )
             }
-            dir::Pattern::Assign { pattern, value } => {
+            dir::Pattern::Default { pattern, value } => {
                 let (pattern, value) = (*pattern, *value);
 
                 self.record_pattern(
@@ -175,7 +248,7 @@ impl CheckState<'_> {
         let module = node.module_id;
         let value_node = value.into_global_any(module);
         let ty = answer!(self.node_type_answer(value_node)?);
-        let ty = answer!(self.evaluate_root(origin, ty)?);
+        let ty = answer!(self.reduce_type_root(origin, ty)?);
 
         // closed literal values select literal patterns
         let literal = match self.ty(ty)? {
@@ -186,7 +259,7 @@ impl CheckState<'_> {
         };
         match literal {
             Some(value) => {
-                let input = answer!(self.pattern_component(node, origin)?);
+                let input = answer!(self.pattern_input(node, origin)?);
                 let predicate = dir::Predicate::unary(
                     dir::Projection::Identity { ty: input },
                     dir::PredicateCondition::Literal(value),
@@ -227,7 +300,7 @@ impl CheckState<'_> {
             };
             let bound_node = bound.into_global_any(module);
             let ty = answer!(self.node_type_answer(bound_node)?);
-            let ty = match self.evaluate_root(origin, ty)? {
+            let ty = match self.reduce_type_root(origin, ty)? {
                 Answer::Ready(ty) => ty,
                 Answer::Pending(dependencies) => {
                     blockers.extend(dependencies);
@@ -243,7 +316,7 @@ impl CheckState<'_> {
             return Ok(Answer::pending(blockers));
         }
 
-        // the matched scalar domain is the pattern's own component
+        // use the pattern input as the matched scalar domain
         let domain = answer!(self.node_type_answer(node.into_any())?);
         let predicate = dir::Predicate::unary(
             dir::Projection::Identity { ty: domain },
@@ -270,18 +343,22 @@ impl CheckState<'_> {
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<Answer<()>> {
         let module = node.module_id;
-        let scrutinee = answer!(self.pattern_component(node, origin)?);
+        let scrutinee = answer!(self.pattern_input(node, origin)?);
+
+        // reject non-tuple sources before building field projections
+        let dir::Type::Tuple(tuple) = self.ty(scrutinee)? else {
+            self.report_pattern_source_not_tuple_shaped(origin, scrutinee)?;
+            self.record_decision(node.into_any(), Decision::Rejected)?;
+
+            return Ok(Answer::Ready(()));
+        };
+        let elements = tuple
+            .elements
+            .iter()
+            .map(|element| element.ty)
+            .collect::<SmallVec<[_; 4]>>();
 
         // project tuple elements into positional holes
-        let elements = match self.ty(scrutinee)? {
-            dir::Type::Tuple(tuple) => tuple
-                .elements
-                .iter()
-                .map(|element| element.ty)
-                .collect::<SmallVec<[_; 4]>>(),
-            _ => SmallVec::new(),
-        };
-
         let mut projected = Vec::with_capacity(fields.len());
         let mut position = 0usize;
         for field in fields {
@@ -301,34 +378,35 @@ impl CheckState<'_> {
                 }
                 _ => continue,
             };
+            let Some(projected_value) = elements.get(position).copied() else {
+                let key = position.to_string();
+                self.report_pattern_field_missing(origin, scrutinee, key)?;
+                position += 1;
 
-            // flow the positional component into the nested hole
-            if let (Some(pattern), Some(component)) = (pattern, elements.get(position).copied()) {
+                continue;
+            };
+
+            // flow the positional value into the nested hole
+            if let Some(pattern) = pattern {
                 if pattern.local_id.ty == dir::NodeType::Pattern {
                     let pattern = dir::LocalNodeId::<dir::Pattern>::new(pattern.local_id.id);
-                    self.project_pattern_component(origin, module, component, pattern)?;
+                    self.project_pattern_input(origin, module, projected_value, pattern)?;
                 } else {
                     let hole = self.require_node_type(pattern)?;
-                    self.push_constraint(Constraint {
-                        relation: Relation::Equal,
-                        left: component,
-                        right: hole,
+                    self.push_constraint(Constraint::check(
+                        Relation::Equal,
+                        projected_value,
+                        hole,
                         origin,
-                        condition: Condition::Always,
-                        cause: ConstraintCause::Inference,
-                    });
+                        Condition::Always,
+                    ));
                 }
             }
-            let ty = elements
-                .get(position)
-                .copied()
-                .or_else(|| pattern.and_then(|pattern| self.node_type_maybe(pattern)))
-                .unwrap_or(scrutinee);
             projected.push(dir::PatternFieldResolution {
                 source: field.into_global_any(module),
                 projection: dir::Projection::FieldGet {
                     field: dir::ProjectionField::Key(dir::StaticKey::Index(position)),
-                    ty,
+                    ty: projected_value,
                 },
                 pattern,
             });
@@ -351,19 +429,24 @@ impl CheckState<'_> {
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<Answer<()>> {
         let module = node.module_id;
-        let scrutinee = answer!(self.pattern_component(node, origin)?);
+        let scrutinee = answer!(self.pattern_input(node, origin)?);
+        let has_elements = fields.iter().any(|field| {
+            matches!(
+                self.module(module).view().get(*field),
+                dir::PatternField::Positional { .. }
+            )
+        });
+        let rest_start = self.sequence_rest_start(module, fields);
 
         // reject non-sequence sources before projecting fields
-        let Some(sequence) = answer!(self.sequence_protocol(node, origin, scrutinee, fields)?)
-        else {
-            let source = self.format_type(scrutinee);
-            let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-            let error = CheckError::PatternSourceNotSequenceShaped {
-                anchor,
-                module,
-                source,
-            };
-            self.module_mut(module).diagnostics.push(error.into());
+        let Some(sequence) = answer!(self.sequence_protocol(
+            node.into_any(),
+            origin,
+            scrutinee,
+            has_elements,
+            rest_start,
+        )?) else {
+            self.report_pattern_source_not_sequence_shaped(origin, scrutinee)?;
             self.record_decision(node.into_any(), Decision::Rejected)?;
 
             return Ok(Answer::Ready(()));
@@ -403,7 +486,7 @@ impl CheckState<'_> {
                     let Some(element) = element else {
                         continue;
                     };
-                    self.project_pattern_component(origin, module, element, pattern)?;
+                    self.project_pattern_input(origin, module, element, pattern)?;
                     projected.push(dir::PatternSequenceElementResolution {
                         source: field.into_global_any(module),
                         index: position,
@@ -418,7 +501,7 @@ impl CheckState<'_> {
                         continue;
                     };
                     if let Some(pattern) = pattern {
-                        self.project_pattern_component(origin, module, rest_type, pattern)?;
+                        self.project_pattern_input(origin, module, rest_type, pattern)?;
                     }
                     rest = Some(dir::PatternSequenceRestResolution {
                         source: field.into_global_any(module),
@@ -449,28 +532,189 @@ impl CheckState<'_> {
         )
     }
 
+    /// Select one sequence assignment pattern.
+    fn select_assign_sequence_pattern(
+        &mut self,
+        node: dir::GlobalNodeId<dir::AssignPattern>,
+        origin: Origin,
+        fields: &[dir::LocalNodeId<dir::AssignPatternField>],
+    ) -> CompilerResult<Answer<()>> {
+        let module = node.module_id;
+        let scrutinee = answer!(self.assign_pattern_input(node, origin)?);
+        let has_elements = fields.iter().any(|field| {
+            matches!(
+                self.module(module).view().get(*field),
+                dir::AssignPatternField::Positional { .. }
+            )
+        });
+        let rest_start = self.assign_sequence_rest_start(module, fields);
+
+        // reject non-sequence sources before projecting fields
+        let Some(sequence) = answer!(self.sequence_protocol(
+            node.into_any(),
+            origin,
+            scrutinee,
+            has_elements,
+            rest_start,
+        )?) else {
+            self.report_pattern_source_not_sequence_shaped(origin, scrutinee)?;
+            self.record_decision(node.into_any(), Decision::Rejected)?;
+
+            return Ok(Answer::Ready(()));
+        };
+        let element = sequence.element_at.as_ref().map(|call| call.return_type);
+        let rest_type = sequence.view.as_ref().map(|view| view.return_type);
+
+        // compute the arity requirement introduced by the target
+        let fixed_positions = fields
+            .iter()
+            .filter(|field| {
+                matches!(
+                    self.module(module).view().get(**field),
+                    dir::AssignPatternField::Positional { .. } | dir::AssignPatternField::Elision
+                )
+            })
+            .count();
+        let arity = dir::PatternSequenceArity {
+            minimum: fixed_positions,
+            maximum: rest_start.is_none().then_some(fixed_positions),
+        };
+
+        // project elements and the rest target
+        let mut projected = Vec::with_capacity(fields.len());
+        let mut rest = None;
+        let mut position = 0usize;
+        for field in fields {
+            match self.module(module).view().get(*field) {
+                dir::AssignPatternField::Positional { pattern } => {
+                    let pattern = *pattern;
+                    let Some(element) = element else {
+                        continue;
+                    };
+                    self.project_assign_pattern_input(module, element, pattern)?;
+                    projected.push(dir::AssignPatternSequenceElementResolution {
+                        source: field.into_global_any(module),
+                        index: position,
+                        ty: element,
+                        pattern: pattern.into_global_any(module),
+                    });
+                    position += 1;
+                }
+                dir::AssignPatternField::Spread { pattern } => {
+                    let pattern = *pattern;
+                    let Some(rest_type) = rest_type else {
+                        continue;
+                    };
+                    if let Some(pattern) = pattern {
+                        self.project_assign_pattern_input(module, rest_type, pattern)?;
+                    }
+                    rest = Some(dir::AssignPatternSequenceRestResolution {
+                        source: field.into_global_any(module),
+                        start: position,
+                        end: None,
+                        ty: rest_type,
+                        pattern: pattern.map(|pattern| pattern.into_global_any(module)),
+                    });
+                }
+                dir::AssignPatternField::Elision => {
+                    position += 1;
+                }
+                _ => {}
+            }
+        }
+
+        self.record_assign_pattern(
+            node,
+            dir::AssignPatternResolution::Sequence(dir::AssignPatternSequenceResolution {
+                sequence,
+                arity,
+                fields: projected,
+                rest,
+            }),
+        )
+    }
+
+    /// Select one tuple assignment pattern.
+    fn select_assign_tuple_pattern(
+        &mut self,
+        node: dir::GlobalNodeId<dir::AssignPattern>,
+        origin: Origin,
+        fields: &[dir::LocalNodeId<dir::AssignPatternField>],
+    ) -> CompilerResult<Answer<()>> {
+        let module = node.module_id;
+        let scrutinee = answer!(self.assign_pattern_input(node, origin)?);
+
+        // reject non-tuple sources before projecting fields
+        let dir::Type::Tuple(tuple) = self.ty(scrutinee)? else {
+            self.report_pattern_source_not_tuple_shaped(origin, scrutinee)?;
+            self.record_decision(node.into_any(), Decision::Rejected)?;
+
+            return Ok(Answer::Ready(()));
+        };
+        let elements = tuple
+            .elements
+            .iter()
+            .map(|element| element.ty)
+            .collect::<SmallVec<[_; 4]>>();
+
+        // project each positional value into its nested assignment target
+        let mut projected = Vec::with_capacity(fields.len());
+        let mut position = 0usize;
+        for field in fields {
+            let pattern = match self.module(module).view().get(*field) {
+                dir::AssignPatternField::Positional { pattern } => *pattern,
+                dir::AssignPatternField::Elision => {
+                    position += 1;
+
+                    continue;
+                }
+                _ => continue,
+            };
+            let Some(projected_value) = elements.get(position).copied() else {
+                let key = position.to_string();
+                self.report_pattern_field_missing(origin, scrutinee, key)?;
+                position += 1;
+
+                continue;
+            };
+
+            self.project_assign_pattern_input(module, projected_value, pattern)?;
+            projected.push(dir::AssignPatternFieldResolution {
+                source: field.into_global_any(module),
+                projection: dir::Projection::FieldGet {
+                    field: dir::ProjectionField::Key(dir::StaticKey::Index(position)),
+                    ty: projected_value,
+                },
+                pattern: Some(pattern.into_global_any(module)),
+            });
+            position += 1;
+        }
+
+        self.record_assign_pattern(
+            node,
+            dir::AssignPatternResolution::Tuple(dir::AssignPatternTupleResolution {
+                fields: projected,
+            }),
+        )
+    }
+
     /// Select the sequence protocol operations needed by one pattern.
     fn sequence_protocol(
         &mut self,
-        node: dir::GlobalNodeId<dir::Pattern>,
+        node: dir::GlobalNodeIdAny,
         origin: Origin,
         receiver: dir::GlobalTypeId,
-        fields: &[dir::LocalNodeId<dir::PatternField>],
+        has_elements: bool,
+        rest_start: Option<usize>,
     ) -> CompilerResult<Answer<Option<dir::SequenceProtocol>>> {
-        let module = node.module_id;
-        let sequence = self.language_protocol(dir::LanguageItem::Sequence, Vec::new());
+        let element_type = self.open_sequence_element_type(origin)?;
+        let sequence = self.language_protocol(dir::LanguageItem::Sequence, vec![element_type]);
 
         // select the protocol operations used by destructuring
         let Some(length) = answer!(self.sequence_length_resolution(origin, receiver, &sequence)?)
         else {
             return Ok(Answer::Ready(None));
         };
-        let has_elements = fields.iter().any(|field| {
-            matches!(
-                self.module(module).view().get(*field),
-                dir::PatternField::Positional { .. }
-            )
-        });
         let element_at = if has_elements {
             let Some(element_at) =
                 answer!(self.sequence_element_resolution(node, origin, receiver, &sequence)?)
@@ -483,15 +727,9 @@ impl CheckState<'_> {
             None
         };
 
-        let has_rest = fields.iter().any(|field| {
-            matches!(
-                self.module(module).view().get(*field),
-                dir::PatternField::Spread { .. }
-            )
-        });
-        let view = if has_rest {
+        let view = if let Some(start) = rest_start {
             let Some(view) =
-                answer!(self.sequence_view_resolution(node, origin, receiver, &sequence, fields)?)
+                answer!(self.sequence_view_resolution(node, origin, receiver, &sequence, start)?)
             else {
                 return Ok(Answer::Ready(None));
             };
@@ -508,6 +746,15 @@ impl CheckState<'_> {
         })))
     }
 
+    /// Open the element type selected by one sequence protocol.
+    fn open_sequence_element_type(&mut self, origin: Origin) -> CompilerResult<dir::GlobalTypeId> {
+        let module = origin.module();
+        let source = self.origin_source_node(origin)?;
+        let variable = self.allocate_variable(module, origin, Widening::Preserve);
+
+        self.push_variable_type(variable, source)
+    }
+
     /// Return the selected `length` member of a sequence receiver.
     fn sequence_length_resolution(
         &mut self,
@@ -517,7 +764,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<dir::MemberResolution>>> {
         let module = origin.module();
         let key = self.static_name(module, "length");
-        let Some(member) = answer!(self.select_protocol_member(origin, receiver, key, sequence)?)
+        let Some(member) =
+            answer!(self.select_protocol_member(origin, receiver, receiver, key, sequence)?)
         else {
             return Ok(Answer::Ready(None));
         };
@@ -528,7 +776,7 @@ impl CheckState<'_> {
     /// Return the selected `Index.index` call of a sequence receiver.
     fn sequence_element_resolution(
         &mut self,
-        node: dir::GlobalNodeId<dir::Pattern>,
+        node: dir::GlobalNodeIdAny,
         origin: Origin,
         receiver: dir::GlobalTypeId,
         sequence: &Protocol,
@@ -538,9 +786,9 @@ impl CheckState<'_> {
         let key = self.static_name(module, "index");
         let arguments = [index];
         let sources = [dir::ArgumentSource::Static(index)];
-        let Some(call) = answer!(
-            self.select_protocol_call(origin, receiver, key, sequence, &arguments, &sources)?
-        ) else {
+        let Some(call) = answer!(self.select_protocol_call(
+            origin, receiver, receiver, key, sequence, &arguments, &sources
+        )?) else {
             return Ok(Answer::Ready(None));
         };
 
@@ -550,23 +798,20 @@ impl CheckState<'_> {
     /// Return the selected `Sequence.view` call of a sequence receiver.
     fn sequence_view_resolution(
         &mut self,
-        node: dir::GlobalNodeId<dir::Pattern>,
+        node: dir::GlobalNodeIdAny,
         origin: Origin,
         receiver: dir::GlobalTypeId,
         sequence: &Protocol,
-        fields: &[dir::LocalNodeId<dir::PatternField>],
+        start: usize,
     ) -> CompilerResult<Answer<Option<dir::CallResolution>>> {
         let module = node.module_id;
-        let Some(start) = self.sequence_rest_start(module, fields) else {
-            return Ok(Answer::Ready(None));
-        };
         let start_type = self.static_usize_type(node, start)?;
         let key = self.static_name(module, "view");
         let arguments = [start_type];
         let sources = [dir::ArgumentSource::Static(start_type)];
-        let Some(call) = answer!(
-            self.select_protocol_call(origin, receiver, key, sequence, &arguments, &sources)?
-        ) else {
+        let Some(call) = answer!(self.select_protocol_call(
+            origin, receiver, receiver, key, sequence, &arguments, &sources
+        )?) else {
             return Ok(Answer::Ready(None));
         };
 
@@ -593,16 +838,36 @@ impl CheckState<'_> {
         None
     }
 
+    /// Return the rest start position of one sequence assignment pattern.
+    fn assign_sequence_rest_start(
+        &self,
+        module: ModuleId,
+        fields: &[dir::LocalNodeId<dir::AssignPatternField>],
+    ) -> Option<usize> {
+        let mut position = 0usize;
+        for field in fields {
+            match self.module(module).view().get(*field) {
+                dir::AssignPatternField::Positional { .. } | dir::AssignPatternField::Elision => {
+                    position += 1;
+                }
+                dir::AssignPatternField::Spread { .. } => return Some(position),
+                _ => {}
+            }
+        }
+
+        None
+    }
+
     /// Return one generated usize literal type.
     fn static_usize_type(
         &mut self,
-        node: dir::GlobalNodeId<dir::Pattern>,
+        node: dir::GlobalNodeIdAny,
         value: usize,
     ) -> CompilerResult<dir::GlobalTypeId> {
         self.push_type(
             node.module_id,
             dir::Type::Literal(dir::ScalarLiteral::Integer(value as i64)),
-            node.local_id.into_any(),
+            node.local_id,
         )
     }
 
@@ -618,7 +883,7 @@ impl CheckState<'_> {
         origin: Origin,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<Answer<()>> {
-        let scrutinee = answer!(self.pattern_component(node, origin)?);
+        let scrutinee = answer!(self.pattern_input(node, origin)?);
         let projected = answer!(self.project_named_fields(node, origin, scrutinee, fields)?);
 
         self.record_pattern(
@@ -626,6 +891,26 @@ impl CheckState<'_> {
             dir::PatternResolution::Destructure(dir::PatternDestructureResolution::Object(
                 dir::PatternObjectDestructureResolution { fields: projected },
             )),
+        )
+    }
+
+    /// Select one object assignment pattern.
+    fn select_assign_object_pattern(
+        &mut self,
+        node: dir::GlobalNodeId<dir::AssignPattern>,
+        origin: Origin,
+        fields: &[dir::LocalNodeId<dir::AssignPatternField>],
+    ) -> CompilerResult<Answer<()>> {
+        let scrutinee = answer!(self.assign_pattern_input(node, origin)?);
+        let (fields, rest) =
+            answer!(self.project_assign_named_fields(node, origin, scrutinee, fields)?);
+
+        self.record_assign_pattern(
+            node,
+            dir::AssignPatternResolution::Object(dir::AssignPatternObjectResolution {
+                fields,
+                rest,
+            }),
         )
     }
 
@@ -642,7 +927,7 @@ impl CheckState<'_> {
         // close the written nominal tag
         let tag_node = ty.into_global_any(module);
         let tag = answer!(self.node_type_answer(tag_node)?);
-        let tag = answer!(self.evaluate_root(origin, tag)?);
+        let tag = answer!(self.reduce_type_root(origin, tag)?);
         let instance = match self.ty(tag)? {
             dir::Type::Instance(instance) => instance.clone(),
             _ => return self.reject_pattern(node, origin, tag),
@@ -653,7 +938,7 @@ impl CheckState<'_> {
             Some(dir::Definition::Newtype(definition)) => definition.value,
             _ => return self.reject_pattern(node, origin, tag),
         };
-        let substitution = self.parameter_substitution(&instance)?.with_receiver(tag);
+        let substitution = self.instance_substitution(&instance)?.with_receiver(tag);
         let source = self.origin_source_node(origin)?;
         let backing = if substitution.is_empty() {
             backing
@@ -669,7 +954,7 @@ impl CheckState<'_> {
                 _ => None,
             });
         if let Some(value) = value {
-            self.project_pattern_component(origin, module, backing, value)?;
+            self.project_pattern_input(origin, module, backing, value)?;
         }
 
         self.record_pattern(
@@ -699,7 +984,7 @@ impl CheckState<'_> {
         // close the written nominal tag
         let tag_node = ty.into_global_any(module);
         let tag = answer!(self.node_type_answer(tag_node)?);
-        let tag = answer!(self.evaluate_root(origin, tag)?);
+        let tag = answer!(self.reduce_type_root(origin, tag)?);
         let instance = match self.ty(tag)? {
             dir::Type::Instance(instance) => instance.clone(),
             _ => return self.reject_pattern(node, origin, tag),
@@ -720,7 +1005,7 @@ impl CheckState<'_> {
         )
     }
 
-    /// Select one or-pattern, sharing the component across branches.
+    /// Select one or-pattern, sharing the input across branches.
     fn select_union_pattern(
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
@@ -728,11 +1013,11 @@ impl CheckState<'_> {
         patterns: &[dir::LocalNodeId<dir::Pattern>],
     ) -> CompilerResult<Answer<()>> {
         let module = node.module_id;
-        let component = answer!(self.node_type_answer(node.into_any())?);
+        let input = answer!(self.node_type_answer(node.into_any())?);
 
-        // match every branch against the same component
+        // match every branch against the same input
         for pattern in patterns {
-            self.project_pattern_component(origin, module, component, *pattern)?;
+            self.project_pattern_input(origin, module, input, *pattern)?;
         }
 
         self.record_pattern(
@@ -746,7 +1031,7 @@ impl CheckState<'_> {
         )
     }
 
-    /// Project named pattern fields off one closed owner component.
+    /// Project named pattern fields off one closed input type.
     fn project_named_fields(
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
@@ -760,51 +1045,67 @@ impl CheckState<'_> {
         for field in fields {
             let (name, pattern) = match self.module(module).view().get(*field) {
                 dir::PatternField::Named { name, pattern, .. } => (*name, *pattern),
-                // spreads and computed keys keep the whole component
+                // spreads and computed keys keep the whole input
                 _ => continue,
             };
             let key = name.static_key();
 
-            // look the component up on the owner type
+            // look the field up on the owner type
             let lookup =
                 self.lookup_member(origin, module, owner, dir::MemberSpace::Instance, key)?;
             let projection = match lookup {
                 MemberLookup::Field(ty) => Some((ty, dir::ProjectionField::Key(key))),
-                MemberLookup::Found(candidates) => candidates.first().map(|candidate| {
-                    let field = candidate
-                        .symbol
-                        .map(dir::ProjectionField::Member)
-                        .unwrap_or(dir::ProjectionField::Key(key));
+                MemberLookup::Found(candidates) => match candidates.as_slice() {
+                    [candidate]
+                        if matches!(candidate.role, MemberRole::Field | MemberRole::Getter) =>
+                    {
+                        let field = candidate
+                            .symbol
+                            .map(dir::ProjectionField::Member)
+                            .unwrap_or(dir::ProjectionField::Key(key));
 
-                    (candidate.ty, field)
-                }),
+                        Some((candidate.ty, field))
+                    }
+                    [_candidate] => {
+                        let key = self.format_static_key(&key);
+                        self.report_pattern_member_not_field(origin, owner, key)?;
+
+                        continue;
+                    }
+                    [] => None,
+                    _ => {
+                        let key = self.format_static_key(&key);
+                        self.report_ambiguous_member(origin, key)?;
+
+                        continue;
+                    }
+                },
                 MemberLookup::Missing => None,
                 MemberLookup::Pending(blockers) => return Ok(Answer::Pending(blockers)),
             };
-            let Some((component, projection_field)) = projection else {
+            let Some((projected_value, projection_field)) = projection else {
                 let key = self.format_static_key(&key);
-                self.report_missing_member(origin, owner, key)?;
+                self.report_pattern_field_missing(origin, owner, key)?;
 
                 continue;
             };
 
-            // flow the component into the nested or shorthand hole
+            // flow the projected value into the nested or shorthand hole
             match pattern {
                 Some(pattern) => {
-                    self.project_pattern_component(origin, module, component, pattern)?;
+                    self.project_pattern_input(origin, module, projected_value, pattern)?;
                 }
                 // shorthand fields bind through their own field node
                 None => {
                     let field_node = field.into_global_any(module);
                     if let Some(hole) = self.node_type_maybe(field_node) {
-                        self.push_constraint(Constraint {
-                            relation: Relation::Equal,
-                            left: component,
-                            right: hole,
+                        self.push_constraint(Constraint::check(
+                            Relation::Equal,
+                            projected_value,
+                            hole,
                             origin,
-                            condition: Condition::Always,
-                            cause: ConstraintCause::Inference,
-                        });
+                            Condition::Always,
+                        ));
                     }
                 }
             }
@@ -812,7 +1113,7 @@ impl CheckState<'_> {
                 source: field.into_global_any(module),
                 projection: dir::Projection::FieldGet {
                     field: projection_field,
-                    ty: component,
+                    ty: projected_value,
                 },
                 pattern: pattern.map(|pattern| pattern.into_global_any(module)),
             });
@@ -821,23 +1122,130 @@ impl CheckState<'_> {
         Ok(Answer::Ready(projected))
     }
 
-    /// Return one pattern node's closed scrutinee component.
-    fn pattern_component(
+    /// Project named assignment fields off one closed input type.
+    fn project_assign_named_fields(
+        &mut self,
+        node: dir::GlobalNodeId<dir::AssignPattern>,
+        origin: Origin,
+        owner: dir::GlobalTypeId,
+        fields: &[dir::LocalNodeId<dir::AssignPatternField>],
+    ) -> CompilerResult<
+        Answer<(
+            Vec<dir::AssignPatternFieldResolution>,
+            Option<dir::AssignPatternRestResolution>,
+        )>,
+    > {
+        let module = node.module_id;
+        let mut projected = Vec::with_capacity(fields.len());
+        let mut rest = None;
+        for field in fields {
+            let (key, pattern) = match self.module(module).view().get(*field) {
+                dir::AssignPatternField::Named { name, pattern, .. } => {
+                    (name.static_key(), *pattern)
+                }
+                dir::AssignPatternField::Computed { key, pattern } => {
+                    let Some(key) = self.module(module).view().get(*key).static_key() else {
+                        continue;
+                    };
+
+                    (key, Some(*pattern))
+                }
+                dir::AssignPatternField::Spread { pattern } => {
+                    rest = Some(dir::AssignPatternRestResolution {
+                        source: field.into_global_any(module),
+                        pattern: pattern.map(|pattern| pattern.into_global_any(module)),
+                    });
+
+                    continue;
+                }
+                _ => continue,
+            };
+
+            // look the field up on the owner type
+            let lookup =
+                self.lookup_member(origin, module, owner, dir::MemberSpace::Instance, key)?;
+            let projection = match lookup {
+                MemberLookup::Field(ty) => Some((ty, dir::ProjectionField::Key(key))),
+                MemberLookup::Found(candidates) => match candidates.as_slice() {
+                    [candidate]
+                        if matches!(candidate.role, MemberRole::Field | MemberRole::Getter) =>
+                    {
+                        let field = candidate
+                            .symbol
+                            .map(dir::ProjectionField::Member)
+                            .unwrap_or(dir::ProjectionField::Key(key));
+
+                        Some((candidate.ty, field))
+                    }
+                    [_candidate] => {
+                        let key = self.format_static_key(&key);
+                        self.report_pattern_member_not_field(origin, owner, key)?;
+
+                        continue;
+                    }
+                    [] => None,
+                    _ => {
+                        let key = self.format_static_key(&key);
+                        self.report_ambiguous_member(origin, key)?;
+
+                        continue;
+                    }
+                },
+                MemberLookup::Missing => None,
+                MemberLookup::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            };
+            let Some((projected_value, projection_field)) = projection else {
+                let key = self.format_static_key(&key);
+                self.report_pattern_field_missing(origin, owner, key)?;
+
+                continue;
+            };
+
+            // flow the projected value into the nested target or shorthand field
+            if let Some(pattern) = pattern {
+                self.project_assign_pattern_input(module, projected_value, pattern)?;
+            } else {
+                let field_node = field.into_global_any(module);
+                let hole = self.require_node_type(field_node)?;
+                self.push_constraint(Constraint::flow(
+                    Relation::Assignable,
+                    projected_value,
+                    hole,
+                    origin,
+                    Condition::Always,
+                    ValueUse::Store,
+                ));
+            }
+            projected.push(dir::AssignPatternFieldResolution {
+                source: field.into_global_any(module),
+                projection: dir::Projection::FieldGet {
+                    field: projection_field,
+                    ty: projected_value,
+                },
+                pattern: pattern.map(|pattern| pattern.into_global_any(module)),
+            });
+        }
+
+        Ok(Answer::Ready((projected, rest)))
+    }
+
+    /// Return one pattern node's closed input type.
+    fn pattern_input(
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let ty = answer!(self.node_type_answer(node.into_any())?);
 
-        self.evaluate_root(origin, ty)
+        self.reduce_type_root(origin, ty)
     }
 
-    /// Flow one projected component into a nested pattern hole.
-    fn project_pattern_component(
+    /// Flow one projected value into a nested pattern hole.
+    fn project_pattern_input(
         &mut self,
         origin: Origin,
         module: destack_source::ModuleId,
-        component: dir::GlobalTypeId,
+        input: dir::GlobalTypeId,
         pattern: dir::LocalNodeId<dir::Pattern>,
     ) -> CompilerResult<()> {
         let pattern_node = pattern.into_global_any(module);
@@ -847,16 +1255,90 @@ impl CheckState<'_> {
             _ => Relation::Assignable,
         };
 
-        self.push_constraint(Constraint {
+        self.push_constraint(Constraint::check(
             relation,
-            left: component,
-            right: hole,
+            input,
+            hole,
             origin,
-            condition: Condition::Always,
-            cause: ConstraintCause::Inference,
-        });
+            Condition::Always,
+        ));
 
         Ok(())
+    }
+
+    /// Flow one projected value into a nested assignment target.
+    fn project_assign_pattern_input(
+        &mut self,
+        module: destack_source::ModuleId,
+        input: dir::GlobalTypeId,
+        pattern: dir::LocalNodeId<dir::AssignPattern>,
+    ) -> CompilerResult<()> {
+        self.bind_node_type(pattern.into_global_any(module), input)?;
+
+        Ok(())
+    }
+
+    /// Return one assignment pattern node's closed input type.
+    fn assign_pattern_input(
+        &mut self,
+        node: dir::GlobalNodeId<dir::AssignPattern>,
+        origin: Origin,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let ty = answer!(self.node_type_answer(node.into_any())?);
+
+        self.reduce_type_root(origin, ty)
+    }
+
+    /// Return the value produced by one defaulted pattern.
+    fn defaulted_pattern_input(
+        &mut self,
+        origin: Origin,
+        input: dir::GlobalTypeId,
+        default: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let input = answer!(self.reduce_type_root(origin, input)?);
+        let source = self.origin_source_node(origin)?;
+        let mut kept = Vec::new();
+        let mut has_undefined = false;
+
+        // split the undefined arm that triggers the default
+        match self.ty(input)? {
+            dir::Type::Union(union) => {
+                let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
+                for element in elements {
+                    if self.type_is_undefined(element)? {
+                        has_undefined = true;
+                    } else {
+                        kept.push(element);
+                    }
+                }
+            }
+            _ if self.type_is_undefined(input)? => {
+                has_undefined = true;
+            }
+            _ => {
+                kept.push(input);
+            }
+        }
+
+        // add the default only when it can actually run
+        if has_undefined {
+            kept.push(default);
+        }
+
+        let ty = self.normalized_union_type(origin.module(), kept, source)?;
+
+        Ok(Answer::Ready(ty))
+    }
+
+    /// Return whether one type is the undefined singleton.
+    fn type_is_undefined(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let is_undefined = matches!(
+            self.ty(ty)?,
+            dir::Type::Undefined | dir::Type::Literal(dir::ScalarLiteral::Undefined)
+        );
+
+        Ok(is_undefined)
     }
 
     /// Record one pattern decision.
@@ -870,6 +1352,17 @@ impl CheckState<'_> {
         Ok(Answer::Ready(()))
     }
 
+    /// Record one assignment pattern decision.
+    fn record_assign_pattern(
+        &mut self,
+        node: dir::GlobalNodeId<dir::AssignPattern>,
+        resolution: dir::AssignPatternResolution,
+    ) -> CompilerResult<Answer<()>> {
+        self.record_decision(node.into_any(), Decision::AssignPattern(resolution))?;
+
+        Ok(Answer::Ready(()))
+    }
+
     /// Reject one pattern whose tag is not nominal.
     fn reject_pattern(
         &mut self,
@@ -877,10 +1370,7 @@ impl CheckState<'_> {
         origin: Origin,
         tag: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
-        let ty = self.format_type(tag);
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let error = CheckError::InvalidPatternTag { anchor, module, ty };
-        self.module_mut(module).diagnostics.push(error.into());
+        self.report_invalid_pattern_tag(origin, tag)?;
         self.record_decision(node.into_any(), Decision::Rejected)?;
 
         Ok(Answer::Ready(()))

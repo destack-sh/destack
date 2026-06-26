@@ -11,8 +11,7 @@ use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, Capture, CheckError, CheckState, CheckWarning, Condition, Constraint, ConstraintRole,
-    Dependency, Origin, Relation,
+    Answer, Capture, CheckError, CheckState, CheckWarning, Condition, Constraint, Origin, Relation,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -21,7 +20,7 @@ pub(in crate::check) struct CheckModuleState {
     // inherited inputs from upstream phases, read-only
     /// The requested source module.
     pub(in crate::check) module: Arc<Module>,
-    /// The active semantic profile.
+    /// The active target profile.
     pub(in crate::check) profile: ProfileKey,
     /// The shared string pool.
     pub(in crate::check) strings: Arc<StringPool>,
@@ -301,7 +300,39 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(ty));
         }
 
-        Ok(Answer::pending([Dependency::Decision(node)]))
+        Err(CompilerError::Internal {
+            message: format!(
+                "solver read node without a checked type: {}",
+                self.missing_node_type_message(node)
+            ),
+        })
+    }
+
+    /// Return an invariant message for one missing node type.
+    fn missing_node_type_message(&self, node: dir::GlobalNodeIdAny) -> String {
+        let module = self.module(node.module_id);
+        let view = module.view();
+        let detail = match node.local_id.ty {
+            dir::NodeType::Expression => {
+                let id = node.into_typed::<dir::Expression>().local_id;
+                format!("{:?}", view.get(id))
+            }
+            dir::NodeType::Pattern => {
+                let id = node.into_typed::<dir::Pattern>().local_id;
+                format!("{:?}", view.get(id))
+            }
+            dir::NodeType::AssignPattern => {
+                let id = node.into_typed::<dir::AssignPattern>().local_id;
+                format!("{:?}", view.get(id))
+            }
+            dir::NodeType::TypeExpression => {
+                let id = node.into_typed::<dir::TypeExpression>().local_id;
+                format!("{:?}", view.get(id))
+            }
+            _ => format!("{:?}", node.local_id.ty),
+        };
+
+        format!("node {node:?}: {detail}")
     }
 
     /// Return the checked type required for one source node.
@@ -311,7 +342,10 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let Some(ty) = self.node_type_maybe(node) else {
             return Err(CompilerError::Internal {
-                message: format!("node {node:?} has no checked type"),
+                message: format!(
+                    "required node has no checked type: {}",
+                    self.missing_node_type_message(node)
+                ),
             });
         };
 
@@ -325,22 +359,24 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         let Some(existing) = self.node_type_maybe(node) else {
-            self.set_node_type(node, ty)?;
-
-            return Ok(());
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "selection tried to bind node without a checked type: {}",
+                    self.missing_node_type_message(node)
+                ),
+            });
         };
 
         if let Some(variable) = self.root_variable(existing)? {
             self.push_lower_bound(variable, ty)?;
         } else if existing != ty {
-            self.push_constraint(Constraint {
-                relation: Relation::Equal,
-                left: existing,
-                right: ty,
-                origin: Origin::Node(node),
-                condition: Condition::Always,
-                role: ConstraintRole::Check,
-            });
+            self.push_constraint(Constraint::check(
+                Relation::Equal,
+                existing,
+                ty,
+                Origin::Node(node),
+                Condition::Always,
+            ));
         }
 
         Ok(())
@@ -352,6 +388,18 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
+        if let Some(previous) = self.node_type_maybe(node)
+            && previous != ty
+        {
+            let previous = self.format_type(previous);
+            let ty = self.format_type(ty);
+            let node = self.missing_node_type_message(node);
+
+            return Err(CompilerError::Internal {
+                message: format!("check node {node} received two types: {previous} and {ty}"),
+            });
+        }
+
         self.solver.set_node_type(node, ty)
     }
 

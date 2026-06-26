@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    ConstraintRole, FlowPath, Obligation, Origin, PatternCoverage, PatternCoverageObligation,
-    Relation, WalkState, Widening,
+    FlowPath, Obligation, Origin, PatternCoverage, PatternCoverageObligation, Relation, ValueUse,
+    WalkState, Widening,
 };
 
 impl WalkState<'_, '_> {
@@ -96,12 +96,19 @@ impl WalkState<'_, '_> {
                 return Ok(());
             }
 
-            // open initializers flow into a binding variable
+            // preserved bindings can use the initializer hole directly
+            if widening == Widening::Preserve {
+                self.bind_symbol_type(symbol, initializer)?;
+
+                return Ok(());
+            }
+
+            // widened bindings need their own variable when the source is open
             let binding = self.binding_type(symbol, widening)?;
             let origin = Origin::Node(value.into_global_any(self.module));
-            self.push_relation(
+            self.push_flow(
                 origin,
-                ConstraintRole::Value,
+                ValueUse::Store,
                 Relation::Assignable,
                 initializer,
                 binding,
@@ -148,11 +155,14 @@ impl WalkState<'_, '_> {
             None
         };
         if let Some(matched) = matched {
-            let origin = Origin::Node(declarator.pattern.into_global_any(self.module));
+            let origin = match declarator.value {
+                Some(value) => Origin::Node(value.into_global_any(self.module)),
+                None => Origin::Node(declarator.pattern.into_global_any(self.module)),
+            };
             let pattern = self.node_type(declarator.pattern)?;
-            self.push_relation(
+            self.push_flow(
                 origin,
-                ConstraintRole::Value,
+                ValueUse::Store,
                 Relation::Assignable,
                 matched,
                 pattern,
@@ -288,7 +298,7 @@ impl WalkState<'_, '_> {
             // pattern!
             dir::Pattern::Must(pattern)
             // pattern = value
-            | dir::Pattern::Assign { pattern, .. }
+            | dir::Pattern::Default { pattern, .. }
             // &pattern
             | dir::Pattern::BorrowOf { right: pattern, .. }
             // move pattern

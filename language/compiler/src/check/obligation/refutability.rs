@@ -59,7 +59,7 @@ impl CheckState<'_> {
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         value: dir::GlobalTypeId,
     ) -> CompilerResult<String> {
-        let value = match self.evaluate_root(origin, value)? {
+        let value = match self.reduce_type_root(origin, value)? {
             Answer::Ready(value) => value,
             Answer::Pending(_) => return Ok(self.format_type(value)),
         };
@@ -105,7 +105,7 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         // close the matched value first
-        let value = answer!(self.evaluate_root(origin, value)?);
+        let value = answer!(self.reduce_type_root(origin, value)?);
 
         // cover unions element-wise
         if let dir::Type::Union(union) = self.ty(value)? {
@@ -164,7 +164,7 @@ impl CheckState<'_> {
             | dir::Pattern::BorrowOf { right: inner, .. }
             | dir::Pattern::MoveOf { right: inner, .. }
             | dir::Pattern::DereferenceOf { right: inner }
-            | dir::Pattern::Assign { pattern: inner, .. } => {
+            | dir::Pattern::Default { pattern: inner, .. } => {
                 let inner = *inner;
 
                 self.decide_pattern_covers(origin, inner.into_global(module), value)
@@ -172,7 +172,7 @@ impl CheckState<'_> {
             // expression patterns cover values their type absorbs
             dir::Pattern::Expression { value: expression } => {
                 let expression = *expression;
-                let expected = self.node_type(expression.into_global_any(module))?;
+                let expected = answer!(self.node_type_answer(expression.into_global_any(module))?);
 
                 self.decide_relation(origin, Relation::Assignable, value, expected)
             }
@@ -199,7 +199,7 @@ impl CheckState<'_> {
             | dir::Pattern::NominalObject { ty, fields } => {
                 let ty = *ty;
                 let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
-                let tag = self.node_type(ty.into_global_any(module))?;
+                let tag = answer!(self.node_type_answer(ty.into_global_any(module))?);
                 let tag_decision =
                     self.decide_relation(origin, Relation::Assignable, value, tag)?;
                 if !tag_decision.is_ready_true() {
@@ -323,9 +323,9 @@ impl CheckState<'_> {
         let Some(bound) = bound else {
             return Ok(Answer::Ready(None));
         };
-        let ty = self.node_type(bound.into_global_any(module))?;
+        let ty = answer!(self.node_type_answer(bound.into_global_any(module))?);
 
-        let reduced = answer!(self.evaluate_root(origin, ty)?);
+        let reduced = answer!(self.reduce_type_root(origin, ty)?);
         match self.ty(reduced)? {
             dir::Type::Literal(literal) => Ok(Answer::Ready(Some(*literal))),
             _ => Ok(Answer::Ready(None)),
@@ -349,7 +349,7 @@ impl CheckState<'_> {
         };
 
         // substitute applied arguments through the backing
-        let substitution = self.parameter_substitution(&instance)?;
+        let substitution = self.instance_substitution(&instance)?;
         let backing = if substitution.is_empty() {
             backing
         } else {
@@ -358,7 +358,7 @@ impl CheckState<'_> {
             self.fold_type(origin.module(), source, backing, substitution.rewrite())?
         };
 
-        self.evaluate_root(origin, backing)
+        self.reduce_type_root(origin, backing)
     }
 
     /// Return the finite scalar domain of one closed type when it has one.

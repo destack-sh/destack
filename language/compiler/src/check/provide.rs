@@ -134,13 +134,13 @@ impl Compiler {
                 context.emit_sidecar(annotated_sidecar(source));
             }
         }
+        if let Some(events) = events {
+            context.emit_sidecar(check_sidecar("events", events.render()));
+        }
 
         // write checked DIR tables and diagnostics
         let (modules, diagnostics) = check.write()?;
         context.emit_diagnostics(diagnostics);
-        if let Some(events) = events {
-            context.emit_sidecar(check_sidecar("events", events.render()));
-        }
 
         Ok(ArtifactPayload::DirCheckedComponent(Arc::new(
             DirCheckedComponent {

@@ -35,7 +35,7 @@ impl CheckState<'_> {
 
         for predicate in predicates {
             let origin = Origin::Type(*predicate);
-            let reduced = match self.evaluate_root(origin, *predicate)? {
+            let reduced = match self.reduce_type_root(origin, *predicate)? {
                 Answer::Ready(reduced) => reduced,
                 Answer::Pending(dependencies) => {
                     blockers.extend(dependencies);

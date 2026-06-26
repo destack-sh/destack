@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use std::collections::BTreeMap;
 
 use crate::CompilerResult;
 use crate::check::CheckState;
@@ -21,7 +22,7 @@ impl CheckState<'_> {
         if depth == 0 {
             return Ok("…".to_string());
         }
-        let id = self.resolve_shallow(id)?;
+        let id = self.settled_root(id)?;
         let next = depth - 1;
 
         let rendered = match self.ty(id)? {
@@ -46,7 +47,8 @@ impl CheckState<'_> {
             dir::Type::Range(range) => self.format_range(range),
 
             dir::Type::Parameter(parameter) => self.format_parameter(*parameter),
-            dir::Type::Reference(instance) => {
+            dir::Type::Reference(reference) => self.format_symbol(reference.symbol),
+            dir::Type::Instance(instance) => {
                 let name = self.format_symbol(instance.symbol);
                 if instance.arguments.is_empty() {
                     name
@@ -62,6 +64,7 @@ impl CheckState<'_> {
 
                 format!("{owner}.{key}")
             }
+            dir::Type::EnumMember(member) => self.format_symbol_path(member.member),
 
             // intrinsic collections render their declared names
             dir::Type::Array(array) => {
@@ -108,7 +111,7 @@ impl CheckState<'_> {
             dir::Type::FunctionSignature(function) => {
                 let mut parameters = Vec::new();
                 for parameter in function.parameters.iter().take(FORMAT_WIDTH) {
-                    parameters.push(self.format_depth(parameter.ty, next)?);
+                    parameters.push(self.format_function_parameter(parameter, next)?);
                 }
                 if function.parameters.len() > FORMAT_WIDTH {
                     parameters.push("…".to_string());
@@ -176,7 +179,7 @@ impl CheckState<'_> {
         function: &dir::FunctionPointerType,
         depth: usize,
     ) -> CompilerResult<String> {
-        let signature = self.resolve_shallow(function.signature)?;
+        let signature = self.settled_root(function.signature)?;
         let dir::Type::FunctionSignature(signature) = self.ty(signature)? else {
             let signature = self.format_depth(function.signature, depth)?;
 
@@ -185,7 +188,7 @@ impl CheckState<'_> {
 
         let mut parameters = Vec::new();
         for parameter in signature.parameters.iter().take(FORMAT_WIDTH) {
-            let parameter = self.format_function_pointer_parameter(parameter, depth)?;
+            let parameter = self.format_function_parameter(parameter, depth)?;
 
             parameters.push(parameter);
         }
@@ -206,8 +209,8 @@ impl CheckState<'_> {
         Ok(format!("FunctionPointer<{parameters}, {result}>"))
     }
 
-    /// Format one function pointer parameter inside the parameter tuple.
-    fn format_function_pointer_parameter(
+    /// Format one function signature parameter.
+    fn format_function_parameter(
         &self,
         parameter: &dir::FunctionParameterType,
         depth: usize,
@@ -215,8 +218,6 @@ impl CheckState<'_> {
         let parameter_type = self.format_depth(parameter.ty, depth)?;
         let parameter_type = if parameter.is_rest {
             format!("...{parameter_type}")
-        } else if parameter.is_optional {
-            format!("{parameter_type}?")
         } else {
             parameter_type
         };
@@ -235,7 +236,7 @@ impl CheckState<'_> {
             dir::Form::Raw => format!("*{value}"),
             dir::Form::Readonly => format!("readonly {value}"),
             dir::Form::Borrowed { access, .. } => {
-                let access = match self.ty(self.resolve_shallow(*access)?)? {
+                let access = match self.ty(self.settled_root(*access)?)? {
                     dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)) => {
                         "&readonly "
                     }
@@ -248,7 +249,7 @@ impl CheckState<'_> {
                 format!("{access}{value}")
             }
             dir::Form::Placed { place } => {
-                let place = match self.ty(self.resolve_shallow(*place)?)? {
+                let place = match self.ty(self.settled_root(*place)?)? {
                     dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space))) => {
                         match space {
                             dir::Space::Local => "local ",
@@ -281,8 +282,20 @@ impl CheckState<'_> {
                 self.format_depth(conditional.then_type, depth)?,
                 self.format_depth(conditional.else_type, depth)?,
             ),
+            dir::TypeOperation::Narrow(narrow) => {
+                let source = self.format_depth(narrow.source, depth)?;
+                let target = self.format_depth(narrow.target, depth)?;
+                if narrow.is_positive {
+                    format!("Narrow<{source}, {target}>")
+                } else {
+                    format!("Narrow<{source}, !{target}>")
+                }
+            }
             dir::TypeOperation::KeyOf(unary) => {
                 format!("keyof {}", self.format_depth(unary.target, depth)?)
+            }
+            dir::TypeOperation::NoInfer(unary) => {
+                format!("NoInfer<{}>", self.format_depth(unary.target, depth)?)
             }
             dir::TypeOperation::Index(index) => format!(
                 "{}[{}]",
@@ -397,6 +410,66 @@ impl CheckState<'_> {
             Some(key) => self.format_static_key(&key),
             None => "<anonymous>".to_string(),
         }
+    }
+
+    /// Format one symbol by its owner-qualified declared name.
+    pub(in crate::check) fn format_symbol_path(&self, symbol: dir::GlobalSymbolId) -> String {
+        let bindings = self.binding_table(symbol.module_id);
+        let mut paths = BTreeMap::new();
+
+        self.format_symbol_path_base(bindings, symbol.local_id, &mut paths)
+    }
+
+    /// Format one local symbol path without duplicate suffixes.
+    fn format_symbol_path_base(
+        &self,
+        bindings: &dir::BindingTable<'_>,
+        symbol: dir::LocalSymbolId,
+        paths: &mut BTreeMap<dir::LocalSymbolId, String>,
+    ) -> String {
+        if let Some(path) = paths.get(&symbol) {
+            return path.clone();
+        }
+
+        let entry = bindings.get_symbol(symbol);
+        let label = self.format_symbol(dir::GlobalSymbolId {
+            module_id: bindings.module_id,
+            local_id: symbol,
+        });
+        if !Self::should_qualify_symbol(entry) {
+            paths.insert(symbol, label.clone());
+
+            return label;
+        }
+
+        let scope = bindings.get_scope_by_id(entry.scope.id);
+        let Some(owner) = scope.owner else {
+            paths.insert(symbol, label.clone());
+
+            return label;
+        };
+
+        let owner_symbol = bindings.get_symbol(owner);
+        if owner_symbol.role == dir::SymbolRole::Namespace && owner_symbol.name().is_none() {
+            paths.insert(symbol, label.clone());
+
+            return label;
+        }
+
+        let owner = self.format_symbol_path_base(bindings, owner, paths);
+        let path = format!("{owner}.{label}");
+        paths.insert(symbol, path.clone());
+
+        path
+    }
+
+    /// Return whether one symbol should be owner-qualified.
+    fn should_qualify_symbol(symbol: &dir::Symbol) -> bool {
+        symbol.role == dir::SymbolRole::Item
+            || symbol.role == dir::SymbolRole::Namespace
+            || symbol.kind == dir::SymbolKind::TypeAlias
+            || symbol.kind == dir::SymbolKind::GenericTypeParameter
+            || symbol.kind == dir::SymbolKind::GenericValueParameter
     }
 
     /// Format one member or symbol key.

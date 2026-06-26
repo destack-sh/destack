@@ -25,7 +25,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            unresolved_origins.push(constraint.origin);
+            unresolved_origins.push(constraint.origin());
         }
 
         // report each unsolved anchor once

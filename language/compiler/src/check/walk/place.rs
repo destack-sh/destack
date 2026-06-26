@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Decision, Place, PlaceTarget, PlaceUse, WalkState};
+use crate::check::{Decision, Place, PlaceTarget, PlaceUse, WalkState, Widening};
 
 impl WalkState<'_, '_> {
     /// Walk one assignment target as a place.
@@ -84,6 +84,10 @@ impl WalkState<'_, '_> {
                 self.check
                     .report_invalid_assignment_target(self.module, id.into_any());
             }
+            if self.check.node_type_maybe(source).is_none() {
+                let error = self.push_type(dir::Type::Error, id.into_any())?;
+                self.write_node_type(id, error)?;
+            }
 
             return Ok(None);
         };
@@ -92,7 +96,7 @@ impl WalkState<'_, '_> {
         self.check
             .record_decision(source, Decision::Name(dir::NameResolution::new(symbol)))?;
         let ty = self.symbol_type(symbol)?;
-        self.bind_node_type(id, ty)?;
+        self.write_node_type(id, ty)?;
         if access != PlaceUse::Write {
             self.check_assigned_read(id.into_any(), symbol);
         }
@@ -118,9 +122,14 @@ impl WalkState<'_, '_> {
             // x
             dir::Expression::Identifier { .. } => {
                 let Some(symbol) = self.single_resolved_symbol(source) else {
+                    self.walk_expression(id, self.tree.get(id))?;
                     if self.is_namespace_reference(source) {
                         self.check
                             .report_invalid_assignment_target(module, id.into_any());
+                    }
+                    if self.check.node_type_maybe(source).is_none() {
+                        let error = self.push_type(dir::Type::Error, id.into_any())?;
+                        self.write_node_type(id, error)?;
                     }
 
                     return Ok(None);
@@ -129,7 +138,7 @@ impl WalkState<'_, '_> {
                 self.check
                     .record_decision(source, Decision::Name(dir::NameResolution::new(symbol)))?;
                 let ty = self.symbol_type(symbol)?;
-                self.bind_node_type(id, ty)?;
+                self.write_node_type(id, ty)?;
                 if access != PlaceUse::Write {
                     self.check_assigned_read(id.into_any(), symbol);
                 }
@@ -148,8 +157,7 @@ impl WalkState<'_, '_> {
             } => {
                 let owner = self.node_type(*left)?;
                 let key = dir::StaticKey::Name(*name);
-
-                self.queue_selection_with_use(source, access)?;
+                self.select_node_with_use(id, Widening::Preserve, access)?;
 
                 Ok(Some(Place::new(PlaceTarget::Member { owner, key }, source)))
             }
@@ -161,8 +169,7 @@ impl WalkState<'_, '_> {
             } => {
                 let receiver = self.node_type(*left)?;
                 let index = self.node_type(*index)?;
-
-                self.queue_selection_with_use(source, access)?;
+                self.select_node_with_use(id, Widening::Preserve, access)?;
 
                 Ok(Some(Place::new(
                     PlaceTarget::Index { receiver, index },
@@ -175,7 +182,7 @@ impl WalkState<'_, '_> {
                 right,
             } => {
                 let receiver = self.node_type(*right)?;
-                self.queue_selection_with_use(source, access)?;
+                self.select_node_with_use(id, Widening::Preserve, access)?;
 
                 Ok(Some(Place::stable_overwrite(
                     PlaceTarget::Dereference,

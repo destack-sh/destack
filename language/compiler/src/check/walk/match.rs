@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{ConditionBranch, FlowPath, Origin, Relation, WalkState};
+use crate::check::{ConditionBranch, FlowPath, Origin, Relation, ValueUse, WalkState};
 
 impl WalkState<'_, '_> {
     /// Walk one match case.
@@ -81,7 +81,13 @@ impl WalkState<'_, '_> {
                         dir::Type::Primitive(dir::PrimitiveType::Boolean),
                         guard.into_any(),
                     )?;
-                    self.relate_type(origin, Relation::Assignable, condition, boolean);
+                    self.push_flow(
+                        origin,
+                        ValueUse::Condition,
+                        Relation::Assignable,
+                        condition,
+                        boolean,
+                    );
                     self.narrow_expression(*guard, ConditionBranch::True)?;
                 }
             }

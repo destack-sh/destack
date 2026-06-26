@@ -56,8 +56,8 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) assumptions: Vec<Assumption>,
 
     // memoized closed facts, valid across rejected probes
-    /// Memoized closed type evaluations keyed by original type.
-    pub(in crate::check) evaluated_types: IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
+    /// Memoized closed type reductions keyed by original type.
+    pub(in crate::check) reduced_types: IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
     /// Generic instances, argument variables, and induction bookkeeping.
     pub(in crate::check) generics: GenericIndex,
     /// Memoized layout segments per module, component and external.
@@ -95,7 +95,7 @@ impl<'a> CheckState<'a> {
             declaration_types: IndexMap::new(),
             binding_types: IndexMap::new(),
             solver: Solver::new(),
-            evaluated_types: IndexMap::new(),
+            reduced_types: IndexMap::new(),
             assumptions: Vec::new(),
             generics: GenericIndex::new(),
             layouts: IndexMap::new(),
@@ -247,6 +247,49 @@ impl CheckState<'_> {
         let ty = dir::Type::Instance(dir::GenericInstance { symbol, arguments });
 
         self.push_type(module, ty, source)
+    }
+
+    /// Allocate one singleton type for an exact property key.
+    pub(in crate::check) fn push_static_key_type(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        key: dir::StaticKey,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let ty =
+            match key {
+                dir::StaticKey::Name(name) => dir::Type::Literal(dir::ScalarLiteral::String(name)),
+                dir::StaticKey::Index(index) => match i64::try_from(index) {
+                    Ok(index) => dir::Type::Literal(dir::ScalarLiteral::Integer(index)),
+                    Err(_) => dir::Type::Primitive(dir::PrimitiveType::Integer(
+                        dir::IntegerType::Pointer { is_signed: false },
+                    )),
+                },
+                dir::StaticKey::Symbol(dir::SymbolKey::Unique(symbol)) => {
+                    dir::Type::Instance(dir::GenericInstance {
+                        symbol,
+                        arguments: Vec::new(),
+                    })
+                }
+                dir::StaticKey::Symbol(dir::SymbolKey::Registry(_)) => {
+                    dir::Type::Primitive(dir::PrimitiveType::Symbol)
+                }
+            };
+
+        self.push_type(module, ty, source)
+    }
+
+    /// Allocate the type read from an index signature.
+    pub(in crate::check) fn push_index_signature_read_type(
+        &mut self,
+        origin: Origin,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let module = origin.module();
+        let source = self.origin_source_node(origin)?;
+        let undefined = self.push_type(module, dir::Type::Undefined, source)?;
+
+        self.normalized_union_type(module, [value, undefined], source)
     }
 
     /// Allocate one open type at the source carried by an origin.

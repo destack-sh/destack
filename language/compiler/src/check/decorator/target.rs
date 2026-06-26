@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{CheckState, DecoratorInvocation, NameLookup};
+use crate::check::{CheckState, DecoratorInvocation};
 
 impl CheckState<'_> {
     /// Return the language item referenced by one decorator invocation.
@@ -18,32 +18,37 @@ impl CheckState<'_> {
 
     /// Return the target resolved by one decorator invocation.
     ///
-    /// Decorator names resolve eagerly during the walk: their meaning
-    /// gates what the walk does next, so (unfortunately?) they cannot wait for selection.
+    /// Decorator names resolve eagerly because language item decorators affect later traversal.
     pub(in crate::check) fn decorator_target(
         &self,
         module: ModuleId,
         invocation: &DecoratorInvocation,
     ) -> dir::AnnotationTarget {
-        // read the decorator's written name
-        let name = {
+        // require a bare decorator name
+        {
             let view = self.module(module).view();
             match view.get(invocation.target) {
-                dir::Expression::Identifier { name } => *name,
+                dir::Expression::Identifier { .. } => {}
                 _ => return dir::AnnotationTarget::Unknown,
             }
-        };
+        }
 
-        // resolve the single visible binding
-        let lookup = self.lookup_name(
-            module,
-            invocation.target.into_any(),
-            name,
-            dir::SymbolSpace::Value,
-        );
-        let symbol = match lookup {
-            NameLookup::Found(candidate) => candidate.symbol(),
-            NameLookup::Missing | NameLookup::Ambiguous(_) => None,
+        // read the single resolved decorator binding
+        let source = invocation.target.into_global_any(module);
+        let reference = self.module(module).resolved.references.get(source);
+        let symbol = match reference {
+            Some(dir::Reference::Bound(symbols)) => {
+                let symbols = self.available_symbols(symbols);
+                match symbols.as_slice() {
+                    [symbol] => Some(*symbol),
+                    _ => None,
+                }
+            }
+            Some(dir::Reference::Missing)
+            | Some(dir::Reference::Namespace(_))
+            | Some(dir::Reference::Projected { .. })
+            | Some(dir::Reference::Ambiguous(_))
+            | None => None,
         };
         match symbol {
             Some(symbol) => match self.environment.language.item(symbol) {
