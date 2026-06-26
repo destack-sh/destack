@@ -61,6 +61,11 @@ impl<'a> ModuleTable<'a> {
         self.segments.iter().flat_map(|segment| segment.iter())
     }
 
+    /// Return modules targeted by visible module import edges.
+    pub fn target_modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
+        self.iter().filter_map(|edge| edge.target)
+    }
+
     /// Return whether the table has no module import edges.
     pub fn is_empty(&self) -> bool {
         self.segments.iter().all(|segment| segment.is_empty())

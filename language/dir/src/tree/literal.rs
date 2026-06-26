@@ -197,6 +197,15 @@ impl ScalarLiteral {
             _ => None,
         }
     }
+
+    /// Return the language item owning this literal's runtime representation.
+    pub fn representation_item(&self) -> Option<LanguageItem> {
+        match self {
+            Self::String(_) => Some(LanguageItem::String),
+            Self::Bigint(_) => Some(LanguageItem::BigInt),
+            _ => None,
+        }
+    }
 }
 
 impl PartialEq for ScalarLiteral {
@@ -365,6 +374,17 @@ impl From<PrimitiveType> for TypeLiteral {
             PrimitiveType::Float(float) => Self::Float(float),
             PrimitiveType::Symbol => Self::Symbol,
             PrimitiveType::UniqueSymbol => Self::UniqueSymbol,
+        }
+    }
+}
+
+impl TypeLiteral {
+    /// Return the language item owning this type's runtime representation.
+    pub fn representation_item(&self) -> Option<LanguageItem> {
+        match self {
+            Self::String => Some(LanguageItem::String),
+            Self::Bigint => Some(LanguageItem::BigInt),
+            _ => None,
         }
     }
 }
