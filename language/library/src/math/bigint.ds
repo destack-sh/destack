@@ -6,6 +6,8 @@ import {
     Compare,
     Divide,
     Equal,
+    Hash,
+    Hasher,
     Multiply,
     Not,
     Or,
@@ -36,24 +38,7 @@ export class BigInt {
     private capacity: usize = 0;
 }
 
-extension of BigInt implements
-    Add<bigint>,
-    And<bigint>,
-    Compare<bigint>,
-    Divide<bigint>,
-    Equal<bigint>,
-    Multiply<bigint>,
-    Not,
-    Or<bigint>,
-    Power<bigint>,
-    Remainder<bigint>,
-    ShiftLeft<usize>,
-    ShiftRight<usize>,
-    Subtract<bigint>,
-    Xor<bigint> {
-    /// The arithmetic result type.
-    type Output = bigint;
-
+extension of BigInt {
     /// Return zero.
     static zero(): bigint {
         todo("BigInt.zero")
@@ -83,6 +68,26 @@ extension of BigInt implements
     static asUintN(bits: number, value: bigint): bigint {
         todo("BigInt.asUintN")
     }
+}
+
+extension of bigint implements
+    Add<bigint>,
+    And<bigint>,
+    Compare<bigint>,
+    Divide<bigint>,
+    Equal<bigint>,
+    Hash,
+    Multiply<bigint>,
+    Not,
+    Or<bigint>,
+    Power<bigint>,
+    Remainder<bigint>,
+    ShiftLeft<usize>,
+    ShiftRight<usize>,
+    Subtract<bigint>,
+    Xor<bigint> {
+    /// The arithmetic result type.
+    type Output = bigint;
 
     /// Return whether this integer is zero.
     get isZero(): boolean {
@@ -141,6 +146,11 @@ extension of BigInt implements
     /// Return whether this integer equals `other`.
     equal(&readonly this, other: bigint): boolean {
         todo("BigInt.equal")
+    }
+
+    /// Add this integer to `state`.
+    hash(&readonly this, state: &Hasher): void {
+        todo("BigInt.hash")
     }
 
     /// Compare with `other`.

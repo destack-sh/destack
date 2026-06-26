@@ -3,6 +3,7 @@ import { As, Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Iterator } from "destack:iter";
 import { Default, Unique } from "destack:memory";
+import { Equal, Hash, Hasher } from "destack:ops";
 import { RegExp, RegExpMatch } from "destack:regexp";
 
 import { StringBuilder } from "./builder.ds";
@@ -64,7 +65,9 @@ extension of String {
     static from(value: ^StringBuilder): ^string {
         value.intoString()
     }
+}
 
+extension of string implements Equal<string>, Hash {
     /// The length in UTF-16 code units.
     get length(): usize {
         todo("String.length")
@@ -254,6 +257,11 @@ extension of String {
     /// Equality comparison.
     equal(&readonly this, other: string): boolean {
         todo("String.equal")
+    }
+
+    /// Add this string to `state`.
+    hash(&readonly this, state: &Hasher): void {
+        todo("String.hash")
     }
 
     /// String concatenation via + operator.
