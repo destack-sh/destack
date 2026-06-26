@@ -468,15 +468,17 @@ pub(crate) fn assign_pattern_target_expression(
 ) -> Option<LocalNodeId<Expression>> {
     match context.tree.get(pattern_id) {
         // direct target
-        AssignPattern::Expression { value } => Some(*value),
+        AssignPattern::Place { expression: value } => Some(*value),
 
         // default wrapper
-        AssignPattern::Assign { pattern, .. } => {
+        AssignPattern::Default { pattern, .. } => {
             assign_pattern_target_expression(context, *pattern)
         }
 
         // destructuring targets
-        AssignPattern::Sequence { .. } | AssignPattern::Object { .. } => None,
+        AssignPattern::Sequence { .. }
+        | AssignPattern::Tuple { .. }
+        | AssignPattern::Object { .. } => None,
     }
 }
 
@@ -488,16 +490,18 @@ pub(crate) fn assign_pattern_contains_expression(
 ) -> bool {
     match context.tree.get(pattern_id) {
         // direct target
-        AssignPattern::Expression { value } => *value == expression_id,
+        AssignPattern::Place { expression: value } => *value == expression_id,
 
         // default wrapper
-        AssignPattern::Assign { pattern, value } => {
+        AssignPattern::Default { pattern, value } => {
             assign_pattern_contains_expression(context, *pattern, expression_id)
                 || *value == expression_id
         }
 
         // destructuring fields
-        AssignPattern::Sequence { fields } | AssignPattern::Object { fields } => {
+        AssignPattern::Sequence { fields }
+        | AssignPattern::Tuple { fields }
+        | AssignPattern::Object { fields } => {
             fields.iter().copied().any(|field_id| {
                 assign_pattern_field_contains_expression(context, field_id, expression_id)
             })
@@ -631,7 +635,7 @@ fn declarator_pattern_has_default_assignment(
 ) -> bool {
     match context.tree.get(pattern_id) {
         // direct assignment wrapper
-        Pattern::Assign { .. } => true,
+        Pattern::Default { .. } => true,
 
         // leaf patterns
         Pattern::Wildcard | Pattern::Expression { .. } | Pattern::Range { .. } => false,
@@ -1722,7 +1726,7 @@ fn assignment_target_is_complex_destructuring(
 ) -> bool {
     let fields = match context.tree.get(left) {
         // default wrappers
-        AssignPattern::Assign { pattern, .. } => {
+        AssignPattern::Default { pattern, .. } => {
             return assignment_target_is_complex_destructuring(context, *pattern);
         }
 
@@ -1730,7 +1734,9 @@ fn assignment_target_is_complex_destructuring(
         AssignPattern::Object { fields } => fields,
 
         // non-object targets
-        AssignPattern::Expression { .. } | AssignPattern::Sequence { .. } => {
+        AssignPattern::Place { .. }
+        | AssignPattern::Sequence { .. }
+        | AssignPattern::Tuple { .. } => {
             return false;
         }
     };
