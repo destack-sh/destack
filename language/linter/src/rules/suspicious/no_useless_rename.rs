@@ -205,7 +205,7 @@ fn destructuring_alias_pattern_parts(
             pattern: None,
             ..
         } => Some((*name, None)),
-        dir::Pattern::Assign { pattern, value } => {
+        dir::Pattern::Default { pattern, value } => {
             let dir::Pattern::Binding {
                 name,
                 pattern: None,

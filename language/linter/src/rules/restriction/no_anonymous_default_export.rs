@@ -315,7 +315,7 @@ fn named_pattern_field_binding_name(
 ) -> Option<dir::StringId> {
     match ctx.dir.get(pattern_id) {
         dir::Pattern::Binding { name, .. } => Some(*name),
-        dir::Pattern::Assign { pattern, .. } => named_pattern_field_binding_name(ctx, *pattern),
+        dir::Pattern::Default { pattern, .. } => named_pattern_field_binding_name(ctx, *pattern),
         _ => None,
     }
 }

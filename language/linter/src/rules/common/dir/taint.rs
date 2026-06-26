@@ -169,14 +169,14 @@ impl<'a> TaintAnalysis<'a> {
 
         match assign_pattern {
             // expression targets can read receiver state
-            dir::AssignPattern::Expression { value } => {
+            dir::AssignPattern::Place { expression: value } => {
                 let value_labels =
                     self.expression_taint_labels_inner(*value, expression_stack, symbol_stack);
                 labels.merge(&value_labels);
             }
 
             // defaulted targets read both the base target and fallback value
-            dir::AssignPattern::Assign { pattern, value } => {
+            dir::AssignPattern::Default { pattern, value } => {
                 let pattern_labels = self.assign_pattern_taint_labels_inner(
                     *pattern,
                     expression_stack,
@@ -190,7 +190,9 @@ impl<'a> TaintAnalysis<'a> {
             }
 
             // destructuring targets read from every nested key and target
-            dir::AssignPattern::Sequence { fields } | dir::AssignPattern::Object { fields } => {
+            dir::AssignPattern::Sequence { fields }
+            | dir::AssignPattern::Tuple { fields }
+            | dir::AssignPattern::Object { fields } => {
                 for field_id in fields {
                     let field_labels = self.assign_pattern_field_taint_labels_inner(
                         *field_id,

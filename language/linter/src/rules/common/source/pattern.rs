@@ -48,7 +48,7 @@ fn pattern_assignment_value_expression_id(
     pattern_id: dir::LocalNodeId<dir::Pattern>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     match tree.get(pattern_id) {
-        dir::Pattern::Assign { value, .. } => Some(*value),
+        dir::Pattern::Default { value, .. } => Some(*value),
         dir::Pattern::Binding {
             pattern: Some(inner_pattern_id),
             ..
@@ -86,7 +86,7 @@ pub fn pattern_expression_id(
     let pattern = ctx.dir.get(pattern_id);
     match pattern {
         dir::Pattern::Expression { value } => Some(*value),
-        dir::Pattern::Assign { pattern, .. } => pattern_expression_id(ctx, *pattern),
+        dir::Pattern::Default { pattern, .. } => pattern_expression_id(ctx, *pattern),
         dir::Pattern::Binding {
             pattern: Some(inner_pattern_id),
             ..
@@ -115,7 +115,7 @@ pub fn pattern_matches_all(
     let pattern = ctx.dir.get(pattern_id);
     match pattern {
         dir::Pattern::Wildcard => true,
-        dir::Pattern::Assign { pattern, .. } => pattern_matches_all(ctx, *pattern),
+        dir::Pattern::Default { pattern, .. } => pattern_matches_all(ctx, *pattern),
         dir::Pattern::Binding { pattern, .. } => pattern
             .map(|inner_pattern_id| pattern_matches_all(ctx, inner_pattern_id))
             .unwrap_or(true),
@@ -137,7 +137,7 @@ pub fn pattern_is_underscore_binding_or_wildcard(
     // match wildcard and underscore bindings
     match pattern {
         dir::Pattern::Wildcard => true,
-        dir::Pattern::Assign { pattern, .. } => {
+        dir::Pattern::Default { pattern, .. } => {
             pattern_is_underscore_binding_or_wildcard(ctx, *pattern)
         }
         dir::Pattern::Binding { name, .. } => ctx.strings.get(*name).starts_with('_'),

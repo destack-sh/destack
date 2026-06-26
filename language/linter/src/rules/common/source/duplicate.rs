@@ -284,14 +284,16 @@ fn hash_assign_pattern_kind(
     std::mem::discriminant(assign_pattern).hash(hasher);
 
     match assign_pattern {
-        dir::AssignPattern::Expression { value } => {
+        dir::AssignPattern::Place { expression: value } => {
             hash_expression_kind(ctx, hasher, *value);
         }
-        dir::AssignPattern::Assign { pattern, value } => {
+        dir::AssignPattern::Default { pattern, value } => {
             hash_assign_pattern_kind(ctx, hasher, *pattern);
             hash_expression_kind(ctx, hasher, *value);
         }
-        dir::AssignPattern::Sequence { fields } | dir::AssignPattern::Object { fields } => {
+        dir::AssignPattern::Sequence { fields }
+        | dir::AssignPattern::Tuple { fields }
+        | dir::AssignPattern::Object { fields } => {
             fields.len().hash(hasher);
         }
     }

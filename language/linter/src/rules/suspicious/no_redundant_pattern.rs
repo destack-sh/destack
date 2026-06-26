@@ -83,7 +83,7 @@ fn binds_anything(ctx: &LintModuleContext<'_>, pattern_id: dir::LocalNodeId<dir:
         dir::Pattern::Wildcard => false,
 
         // assignment patterns bind through the wrapped pattern
-        dir::Pattern::Assign { pattern, .. } => binds_anything(ctx, *pattern),
+        dir::Pattern::Default { pattern, .. } => binds_anything(ctx, *pattern),
 
         // binding always binds something
         dir::Pattern::Binding { .. } => true,
