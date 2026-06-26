@@ -25,7 +25,7 @@ export type ReadonlyArray<T> = readonly T[];
 export type FixedArray<T, comptime N: number> = [T; N];
 
 extension<T, comptime N: number> of FixedArray<T, N> implements
-    Sequence,
+    Sequence<T>,
     Index<usize>,
     IndexSet<usize, T>,
     Iterable<T>,
@@ -174,7 +174,7 @@ export class Array<T> {
 }
 
 extension<T> of Array<T> implements
-    Sequence,
+    Sequence<T>,
     Index<usize>,
     IndexSet<usize, T>,
     Iterable<T>,
