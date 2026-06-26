@@ -426,11 +426,8 @@ define_language_items! {
 
         /// `destack:decorator/derive`.
         derive {
-            /// The `Clone` derive provider.
-            CloneDerive => (Newtype, "decorator/derive", "Clone"),
-
-            /// The `Debug` derive provider.
-            DebugDerive => (Newtype, "decorator/derive", "Debug"),
+            /// `@derive` macro dispatcher.
+            Derive => (Newtype, "decorator/derive", "derive"),
 
             /// The `Tagged` derive provider.
             Tagged => (Newtype, "decorator/derive", "Tagged"),
