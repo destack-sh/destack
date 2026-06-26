@@ -782,14 +782,14 @@ Both associated types and constants also work in abstract types, and as they are
 All statically known types and constants share the same static evaluation logic, and thus associated types and constants also mix with generic parameters, conditional types, decorators, and so on.
 
 ```ds
-newtype interface Iterator {
+newtype interface Collection {
     type Item;
     type Return = void;
 
     next(): IteratorResult<this.Item, this.Return>;
 }
 
-function collect<I: Iterator>(iter: I): I.Item[] {}
+function collect<I: Collection>(iter: I): I.Item[] {}
 ```
 
 Associated types are type aliases scoped to some struct, class, or interface and can also reference the owner's generic parameters.
@@ -842,11 +842,8 @@ interface Matrix<Row> {
 Associated members (both types and constants) can be refined explicitly at application sites whenever an erased or constrained value needs a concrete associated surface with `type Name = T` for types and `comptime Name = value` for constants.
 
 ```ds
-declare function read<I: Iterator<type Item = uint8>>(iter: I): IteratorResult<uint8>;
 declare function readBlock<T: RegisterBlock<comptime Width = 16>>(block: T): [uint8; 16];
 ```
-
-As a nice bit of "sugar", positional arguments can also be used to refine associated members in declaration order - just like all other generic parameters so `Iterator<uint8>` resolves to `Iterator<type Item = uint8>`.
 
 ### Constraints
 
@@ -1709,7 +1706,8 @@ read(counts, "apples") satisfies int32 | undefined;
 const dynamicCounts = new Map<string, int32>();
 dynamicCounts.set("apples", 3);
 dynamicCounts.has("apples") satisfies boolean;
-dynamicCounts satisfies Index<string, int32>;
+dynamicCounts satisfies Index<string>;
+dynamicCounts satisfies IndexSet<string, int32>;
 dynamicCounts satisfies Has<string>;
 ```
 
