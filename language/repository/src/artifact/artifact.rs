@@ -416,7 +416,7 @@ impl Repository {
 
             // reuse only candidates unaffected by changed source files
             for (artifact_key, version) in candidates {
-                if self.artifact_is_fresh(revision, version, source_delta.files())? {
+                if self.artifact_is_fresh(revision, ancestor, version, source_delta.files())? {
                     fresh.insert(artifact_key, version);
                 }
             }
@@ -438,9 +438,20 @@ impl Repository {
     fn artifact_is_fresh(
         &self,
         revision: Revision,
+        ancestor: Revision,
         version: ArtifactVersion,
         changed_files: &[FileId],
     ) -> Result<bool, RepositoryError> {
+        // reject exact graph reuse when module identity changed
+        if matches!(version.key, ArtifactKey::ComponentGraph { .. }) {
+            let Some(delta) = self.module_delta_between(revision, ancestor)? else {
+                return Ok(false);
+            };
+            if delta.is_module_set_changed() {
+                return Ok(false);
+            }
+        }
+
         let sources = self
             .artifact_table()
             .sources(&version)

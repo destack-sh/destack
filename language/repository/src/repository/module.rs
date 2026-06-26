@@ -11,6 +11,29 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{ConditionGate, ConditionRefError, Module, ModuleFile, ModuleIndex, PackageIndex};
 
+/// Module identity delta between two revisions.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModuleDelta {
+    /// Modules present only in the newer revision.
+    pub added: Vec<ModuleId>,
+    /// Modules present in both revisions with changed contributing files.
+    pub changed: Vec<ModuleId>,
+    /// Modules present only in the older revision.
+    pub removed: Vec<ModuleId>,
+}
+
+impl ModuleDelta {
+    /// Return modules whose outgoing graph edges must be reread.
+    pub fn edge_modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
+        self.added.iter().chain(&self.changed).copied()
+    }
+
+    /// Return whether the module set changed.
+    pub fn is_module_set_changed(&self) -> bool {
+        !self.added.is_empty() || !self.removed.is_empty()
+    }
+}
+
 /// One file before it is assigned to its canonical module.
 #[derive(Debug)]
 struct ModuleFileCandidate {
@@ -320,41 +343,74 @@ impl Repository {
         Ok(module_ids)
     }
 
-    /// Return changed modules between two revisions when the module set is stable.
-    pub fn changed_module_ids_between(
+    /// Return module identity and contributing file changes between two revisions.
+    pub fn module_delta_between(
         &self,
         revision: Revision,
         ancestor: Revision,
-    ) -> Result<Option<Vec<ModuleId>>, RepositoryError> {
+    ) -> Result<Option<ModuleDelta>, RepositoryError> {
         let current = self.module_index(revision)?;
         let previous = self.module_index(ancestor)?;
-        let current_ids = current.module_ids().collect::<Vec<_>>();
-        let previous_ids = previous.module_ids().collect::<Vec<_>>();
+        let current_ids = current.module_ids().collect::<FxHashSet<_>>();
+        let previous_ids = previous.module_ids().collect::<FxHashSet<_>>();
 
-        // report unknown when discovery changed the module set
-        if current_ids != previous_ids {
-            return Ok(None);
-        }
+        let mut added = current_ids
+            .difference(&previous_ids)
+            .copied()
+            .collect::<Vec<_>>();
+        let mut removed = previous_ids
+            .difference(&current_ids)
+            .copied()
+            .collect::<Vec<_>>();
+
+        added.sort_unstable();
+        removed.sort_unstable();
 
         let delta = self.source_delta_between(revision, ancestor)?;
         let mut modules = FxHashSet::default();
 
-        // changed files can be mapped to their owning modules
+        // map changed source files through either revision's module index
         for file in delta.files() {
-            let module = current
-                .module_id_for_file(*file)
-                .or_else(|| previous.module_id_for_file(*file));
-            let Some(module) = module else {
-                return Ok(None);
-            };
+            let current_module = current.module_id_for_file(*file);
+            let previous_module = previous.module_id_for_file(*file);
 
-            modules.insert(module);
+            match (current_module, previous_module) {
+                (Some(current), Some(previous)) if current == previous => {
+                    modules.insert(current);
+                }
+                (Some(current), Some(previous)) => {
+                    added.push(current);
+                    removed.push(previous);
+                }
+                (Some(current), None) => {
+                    added.push(current);
+                }
+                (None, Some(previous)) => {
+                    removed.push(previous);
+                }
+                (None, None) => {
+                    return Ok(None);
+                }
+            }
         }
 
-        let mut modules = modules.into_iter().collect::<Vec<_>>();
-        modules.sort_unstable();
+        let mut changed = modules
+            .into_iter()
+            .filter(|module| current_ids.contains(module) && previous_ids.contains(module))
+            .collect::<Vec<_>>();
 
-        Ok(Some(modules))
+        added.sort_unstable();
+        added.dedup();
+        changed.sort_unstable();
+        changed.dedup();
+        removed.sort_unstable();
+        removed.dedup();
+
+        Ok(Some(ModuleDelta {
+            added,
+            changed,
+            removed,
+        }))
     }
 
     /// Return the module ids visible for one package in one revision.
