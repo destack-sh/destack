@@ -221,7 +221,7 @@ export * from "./a.ds";
         "main.ds",
         r#"
 /// @diagnostic.error code=ER200 message="missing export 'missing' from './a.ds'"
-/// @diagnostic.label line=2 column=10 source="import { missing } from \"./a.ds\";"
+/// @diagnostic.label line=2 column=10 span="missing" line_source="import { missing } from \"./a.ds\";"
 "#,
     );
 }
@@ -246,7 +246,7 @@ export let value = 1;
         "main.ds",
         r#"
 /// @diagnostic.error code=ER200 message="missing export 'missing' from './dep.ds'"
-/// @diagnostic.label line=2 column=10 source="export { missing } from \"./dep.ds\";"
+/// @diagnostic.label line=2 column=10 span="missing" line_source="export { missing } from \"./dep.ds\";"
 "#,
     );
 }

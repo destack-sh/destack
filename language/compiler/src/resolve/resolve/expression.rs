@@ -40,7 +40,7 @@ impl ResolveState<'_> {
                     });
                 }
 
-                self.require_member_owner_language_items();
+                self.record_member_owner_language_items();
 
                 // mark the nested members so only the outermost collects
                 self.member_chain_depth += 1;
@@ -51,37 +51,37 @@ impl ResolveState<'_> {
                 operator: dir::ForEachOperator::Of,
                 ..
             } => {
-                self.require_language_item(dir::LanguageItem::Iterable);
+                self.record_language_item(dir::LanguageItem::Iterable);
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::Await { .. } => {
-                self.require_language_item(dir::LanguageItem::Promise);
+                self.record_language_item(dir::LanguageItem::Promise);
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::AwaitMaybe { .. } | dir::Expression::AwaitMust { .. } => {
-                self.require_language_item(dir::LanguageItem::Promise);
-                self.require_try_language_items();
+                self.record_language_item(dir::LanguageItem::Promise);
+                self.record_try_language_items();
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::Yield {
                 cardinality: dir::YieldCardinality::Generator,
                 ..
             } => {
-                self.require_yield_star_language_item();
+                self.record_yield_star_language_item();
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::ImportMeta => {
-                self.require_language_item(dir::LanguageItem::ImportMeta);
+                self.record_language_item(dir::LanguageItem::ImportMeta);
             }
             dir::Expression::ScalarLiteral(dir::ScalarLiteral::RegexString { .. }) => {
-                self.require_language_item(dir::LanguageItem::RegExp);
+                self.record_language_item(dir::LanguageItem::RegExp);
             }
             dir::Expression::Type { .. } => {
-                self.require_language_item(dir::LanguageItem::Type);
+                self.record_language_item(dir::LanguageItem::Type);
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::BorrowOf { .. } => {
-                self.require_language_item(dir::LanguageItem::Lifetime);
+                self.record_language_item(dir::LanguageItem::Lifetime);
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::RangeExpression {
@@ -89,31 +89,31 @@ impl ResolveState<'_> {
                 end,
                 end_kind,
             } => {
-                self.require_range_language_item(start.is_some(), end.is_some(), *end_kind);
+                self.record_range_language_item(start.is_some(), end.is_some(), *end_kind);
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::ArrayExpression { .. } => {
-                self.require_language_item(dir::LanguageItem::Array);
+                self.record_language_item(dir::LanguageItem::Array);
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::FixedArrayExpression { .. } => {
-                self.require_language_item(dir::LanguageItem::FixedArray);
+                self.record_language_item(dir::LanguageItem::FixedArray);
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::Index { .. } => {
-                self.require_language_item(dir::LanguageItem::Index);
+                self.record_language_item(dir::LanguageItem::Index);
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::Unary { operator, .. } => {
-                self.require_unary_operator_language_items(*operator);
+                self.record_unary_operator_language_items(*operator);
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::Binary { operator, .. } => {
-                self.require_binary_operator_language_items(*operator);
+                self.record_binary_operator_language_items(*operator);
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::Maybe { .. } | dir::Expression::Must { .. } => {
-                self.require_try_language_items();
+                self.record_try_language_items();
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::Import { .. } => {}
@@ -137,6 +137,16 @@ impl ResolveState<'_> {
         ty: &dir::TypeExpression,
     ) {
         match ty {
+            dir::TypeExpression::ScalarLiteral { value } => {
+                if let Some(item) = value.representation_item() {
+                    self.record_language_item(item);
+                }
+            }
+            dir::TypeExpression::Literal { value } => {
+                if let Some(item) = value.representation_item() {
+                    self.record_language_item(item);
+                }
+            }
             dir::TypeExpression::Reference { path, .. } if path.segments.len() == 1 => {
                 self.collect_path_reference(PathReference {
                     source: id.into_global_any(self.module),
@@ -154,19 +164,19 @@ impl ResolveState<'_> {
                 dir::walk_type_expression(self, tree, id, ty);
             }
             dir::TypeExpression::BorrowedOf { .. } => {
-                self.require_language_item(dir::LanguageItem::Lifetime);
+                self.record_language_item(dir::LanguageItem::Lifetime);
                 dir::walk_type_expression(self, tree, id, ty);
             }
             dir::TypeExpression::Array { .. } => {
-                self.require_language_item(dir::LanguageItem::Array);
+                self.record_language_item(dir::LanguageItem::Array);
                 dir::walk_type_expression(self, tree, id, ty);
             }
             dir::TypeExpression::Slice { .. } => {
-                self.require_language_item(dir::LanguageItem::Slice);
+                self.record_language_item(dir::LanguageItem::Slice);
                 dir::walk_type_expression(self, tree, id, ty);
             }
             dir::TypeExpression::FixedArray { .. } => {
-                self.require_language_item(dir::LanguageItem::FixedArray);
+                self.record_language_item(dir::LanguageItem::FixedArray);
                 dir::walk_type_expression(self, tree, id, ty);
             }
             _ => dir::walk_type_expression(self, tree, id, ty),

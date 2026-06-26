@@ -240,7 +240,7 @@ let local = api.value;
 /// @import.global key=api targets=[api.ds]
 
 /// @import.summary globals=1 language=5
-/// @resolve.stats roots=1 expressions=3 types=0 globals=required:1 language=required:5 exports=miss:1,hit:0,cycle:0
+/// @resolve.stats roots=1 expressions=3 types=0 globals=required:1 language=uses:5 exports=miss:1,hit:0,cycle:0
 /// @reference.summary references=2
 "#,
     );
@@ -288,10 +288,11 @@ export class Promise<T> {}
 let promise: Promise<string>;
 /// @reference.bound source=Promise targets=[async.promise.Promise, async.Promise]
 
+/// @import.language item=string.String symbol=string.string.String
 /// @import.global key=Promise targets=[async.promise.Promise, async.Promise]
 
-/// @import.summary globals=1
-/// @resolve.stats roots=1 expressions=1 types=2 globals=required:1
+/// @import.summary globals=1 language=1
+/// @resolve.stats roots=1 expressions=1 types=2 globals=required:1 language=uses:1
 /// @reference.summary references=1
 "#,
     );
@@ -315,10 +316,11 @@ let promise: Promise<string>;
 let promise: Promise<string>;
 /// @reference.bound source=Promise targets=[async.promise.Promise]
 
+/// @import.language item=string.String symbol=string.string.String
 /// @import.global key=Promise targets=[async.promise.Promise]
 
-/// @import.summary globals=1
-/// @resolve.stats roots=1 expressions=1 types=2 globals=required:1
+/// @import.summary globals=1 language=1
+/// @resolve.stats roots=1 expressions=1 types=2 globals=required:1 language=uses:1
 /// @reference.summary references=1
 "#,
     );
@@ -344,7 +346,7 @@ const load = async () => 1;
 /// @import.language item=async.Promise symbol=async.promise.Promise
 
 /// @import.summary language=1
-/// @resolve.stats roots=1 expressions=3 types=0 language=required:1
+/// @resolve.stats roots=1 expressions=3 types=0 language=uses:1
 "#,
     );
 }
@@ -371,7 +373,7 @@ const load = async () => 1;
 /// @import.language item=async.Promise symbol=async.promise.Promise
 
 /// @import.summary language=1
-/// @resolve.stats roots=2 expressions=4 types=0 language=required:1
+/// @resolve.stats roots=2 expressions=4 types=0 language=uses:1
 "#,
     );
 }
@@ -401,7 +403,7 @@ const runtime = import.meta.runtime;
 /// @import.language item=string.String symbol=string.string.String
 
 /// @import.summary language=6
-/// @resolve.stats roots=1 expressions=3 types=0 language=required:6
+/// @resolve.stats roots=1 expressions=3 types=0 language=uses:6
 "#,
     );
 }
@@ -432,7 +434,7 @@ const value = left + right;
 /// @import.language item=ops.Add symbol=ops.plus.Add
 
 /// @import.summary language=1
-/// @resolve.stats roots=3 expressions=8 types=0 language=required:1
+/// @resolve.stats roots=3 expressions=8 types=0 language=uses:1
 /// @reference.summary references=2
 "#,
     );
@@ -584,7 +586,7 @@ const value = api.value;
 /// @import.language item=string.String symbol=string.string.String
 
 /// @import.summary language=5
-/// @resolve.stats roots=2 expressions=5 types=0 language=required:5
+/// @resolve.stats roots=2 expressions=5 types=0 language=uses:5
 /// @reference.summary references=1
 "#,
     );

@@ -5,23 +5,23 @@ use crate::resolve::state::ResolveState;
 use crate::{CompilerError, CompilerResult};
 
 impl ResolveState<'_> {
-    /// Resolve syntax-required language item symbols.
+    /// Resolve recorded language items to symbols.
     ///
     /// Example:
     /// ```ds
     /// async function load() {
     ///     await task;
     /// }
-    /// // Promise is required by syntax even when it is not named directly
+    /// // Promise is used by async syntax even when source does not name it
     /// ```
-    pub(in crate::resolve) fn resolve_syntax_language_items(
+    pub(in crate::resolve) fn resolve_language_item_uses(
         &mut self,
         language: &LanguageEnvironment,
     ) -> CompilerResult<()> {
-        let items = self.language_items.iter().copied().collect::<Vec<_>>();
+        let items = self.language_item_uses.iter().copied().collect::<Vec<_>>();
 
         for item in items {
-            self.resolve_syntax_language_item(language, item)?;
+            self.resolve_language_item_use(language, item)?;
         }
 
         Ok(())
@@ -64,19 +64,18 @@ impl ResolveState<'_> {
             return;
         };
 
-        self.imports.push_module(symbol.module_id);
         self.imports
             .push_global_target(key, dir::ImportTarget::Symbol(symbol));
     }
 
-    /// Resolve one syntax-required language item symbol.
+    /// Resolve one recorded language item to its symbol.
     ///
     /// Example:
     /// ```ds
     /// const value = first + second;
-    /// // Add is required by operator syntax
+    /// // Add is used by operator syntax
     /// ```
-    fn resolve_syntax_language_item(
+    fn resolve_language_item_use(
         &mut self,
         language: &LanguageEnvironment,
         item: dir::LanguageItem,
@@ -87,11 +86,6 @@ impl ResolveState<'_> {
             });
         };
         self.imports.insert_language_symbol(item, symbol);
-        if symbol.module_id == self.module {
-            return Ok(());
-        }
-
-        self.imports.push_module(symbol.module_id);
 
         Ok(())
     }
@@ -109,19 +103,13 @@ impl ResolveState<'_> {
     ) -> CompilerResult<()> {
         let keys = self.global_keys.iter().copied().collect::<Vec<_>>();
 
-        // read each required key from the precomputed table
+        // read each referenced key from the precomputed table
         for key in keys {
             let Some(targets) = environment.global_targets_by_key.get(&key) else {
                 continue;
             };
 
             for target in targets {
-                let module = match target {
-                    dir::ImportTarget::Symbol(symbol) => symbol.module_id,
-                    dir::ImportTarget::Namespace(module) => *module,
-                };
-
-                self.imports.push_module(module);
                 self.imports.push_global_target(key, *target);
             }
         }

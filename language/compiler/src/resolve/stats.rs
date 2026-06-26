@@ -13,8 +13,8 @@ pub(in crate::resolve) struct ResolveStats {
     pub(in crate::resolve) reexport_clauses: usize,
     /// The number of required global keys.
     pub(in crate::resolve) required_globals: usize,
-    /// The number of syntax-required language items.
-    pub(in crate::resolve) required_language_items: usize,
+    /// The number of language items recorded from active roots.
+    pub(in crate::resolve) language_item_uses: usize,
     /// The number of export lookup cache misses.
     pub(in crate::resolve) export_cache_misses: usize,
     /// The number of export lookup cache hits.
@@ -64,11 +64,11 @@ impl ResolveStats {
             ));
         }
 
-        // include only syntax language item work
-        if self.required_language_items != 0 {
+        // include recorded language item work
+        if self.language_item_uses != 0 {
             lines.push(format!(
-                "resolve.stats.language=required:{}",
-                self.required_language_items
+                "resolve.stats.language=uses:{}",
+                self.language_item_uses
             ));
         }
 
