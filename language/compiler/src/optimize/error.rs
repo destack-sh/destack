@@ -15,13 +15,6 @@ pub enum OptimizeError {
         message: String,
     },
 
-    /// Required metadata is missing for the configured pipeline.
-    #[diagnostic(code = "EO500", message = "missing required metadata: {message}")]
-    MissingRequiredMetadata {
-        anchor: DiagnosticAnchor,
-        message: String,
-    },
-
     /// Unsupported MIR construct encountered during optimization.
     #[diagnostic(code = "EO900", message = "unsupported MIR construct")]
     UnsupportedConstruct { anchor: DiagnosticAnchor },

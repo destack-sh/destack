@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     CallsiteHotness, ControlFlowGraph, DominatorTree, EdgeArguments, Loop, LoopAnalysis, Mutation,
-    RangeAnalysis, ValueDefinitions, clone_instruction_metadata, clone_loop_blocks,
+    RangeAnalysis, ValueDefinitions, clone_instruction_tables, clone_loop_blocks,
     instruction_is_speculatable, instruction_map_with_locals, terminator_remap,
 };
 
@@ -73,17 +73,20 @@ impl FunctionPass for UnswitchLoops {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip empty functions
         if function.entry().is_none() {
             return Mutation::NONE;
         }
 
         // run loop unswitching
-        let changed = run_unswitch_loops(function, tree, ctx, analyses);
+        let changed = run_unswitch_loops(function, tree, memory, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -108,8 +111,9 @@ impl FunctionPass for UnswitchLoops {
 fn run_unswitch_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalyses,
+    analyses: &mir::FunctionAnalysisCache,
 ) -> bool {
     // track progress and exclusions
     let mut changed = false;
@@ -173,7 +177,7 @@ fn run_unswitch_loops(
         function.recompute_next_value_id(tree);
         unswitched_headers.insert(candidate.header);
         unswitched_blocks.push(candidate.loop_blocks.clone());
-        unswitch_loop(function, tree, &candidate);
+        unswitch_loop(function, tree, memory, &candidate);
         unswitched += 1;
         changed = true;
     }
@@ -244,7 +248,7 @@ struct HoistedCondition {
     instruction: mir::Instruction,
     /// The original destination value.
     destination: mir::Value,
-    /// Instruction id for metadata cloning.
+    /// Instruction id for tables cloning.
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     /// Remapping for invariant operands.
     value_map: HashMap<mir::Value, mir::Value>,
@@ -266,7 +270,7 @@ impl UnswitchHeuristics {
         function: &mir::Function,
         tree: &mir::Tree,
         profile: Option<&mir::Profile>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
         hotness: mir::HotnessThresholds,
     ) -> Self {
         // compute block counts from profile data
@@ -618,10 +622,11 @@ fn collect_header_param_rewrites(
 fn unswitch_loop(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     candidate: &UnswitchCandidate,
 ) {
     // clone all loop blocks with fresh IDs and values
-    let (block_map, value_map) = clone_loop_blocks(&candidate.loop_blocks, function, tree);
+    let (block_map, value_map) = clone_loop_blocks(&candidate.loop_blocks, function, tree, memory);
 
     // get the cloned header and cloned branch block
     let cloned_header = block_map[&candidate.header];
@@ -667,7 +672,7 @@ fn unswitch_loop(
         let hoisted_inst =
             instruction_map_with_locals(&hoisted.instruction, &value_map, &local_map, tree);
         let hoisted_id = tree.insert(hoisted_inst);
-        clone_instruction_metadata(tree, hoisted.instruction_id, hoisted_id, &value_map);
+        clone_instruction_tables(tree, memory, hoisted.instruction_id, hoisted_id, &value_map);
         let mut instructions = preheader.instructions.clone();
         instructions.push(hoisted_id);
         function.replace_block_instructions(candidate.preheader, instructions, tree);
@@ -1392,7 +1397,10 @@ b3:
 
         let function_id = test.entry_function_id();
         let entry_block = test.entry_block_id(function_id);
-        let entry_terminator = test.tree.get(test.tree.get(entry_block).terminator);
+        let entry_terminator = test
+            .optimized
+            .tree
+            .get(test.optimized.tree.get(entry_block).terminator);
         let header_block = match entry_terminator {
             mir::Terminator::Jump { target, .. } => target.block,
             _ => panic!("missing loop header jump"),

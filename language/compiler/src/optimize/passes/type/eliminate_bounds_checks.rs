@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, ConstantPropagation, ControlFlowGraph, DominatorTree, Mutation,
     RangeAnalysis, RangeMap, ValueRange, fold_binary,
@@ -12,7 +12,7 @@ use destack_mir::{
 declare_pass! {
     /// Eliminate bounds checks that are proven redundant.
     ///
-    /// Uses range analysis, dominator based constraints, and assume metadata
+    /// Uses range analysis, dominator based constraints, and assume tables
     /// to remove checks that are guaranteed to succeed.
     ///
     /// ```mir
@@ -58,10 +58,12 @@ impl FunctionPass for EliminateBoundsChecks {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+
         // skip imported functions
         let Some(entry) = function.entry() else {
             return Mutation::NONE;
@@ -73,7 +75,7 @@ impl FunctionPass for EliminateBoundsChecks {
         let ranges = analyses.get::<RangeAnalysis>(function, tree);
         let domtree = analyses.get::<DominatorTree>(function, tree);
 
-        // build value definition metadata
+        // build value definition tables
         let definitions = ValueDefinitions::build(function, tree);
 
         // build block parameter forwarding

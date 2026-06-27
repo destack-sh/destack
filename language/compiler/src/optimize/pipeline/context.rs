@@ -7,9 +7,9 @@ use destack_mir as mir;
 use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 use parking_lot::Mutex;
 
-use crate::optimize::{DiagnosticEmitter, ModuleWorkItem, PackageWorkset, PassMetadata};
+use crate::optimize::{DiagnosticEmitter, ModuleWorkItem, PackageWorkset};
 use crate::{DiagnosticAnchor, OptimizeError, OptimizeWarning};
-use destack_mir::{AnalysisOptions, FunctionAnalyses, HotnessThresholds, TargetLayout};
+use destack_mir::{AnalysisOptions, HotnessThresholds, TargetLayout};
 
 /// Shared diagnostics state for pipeline contexts.
 #[derive(Debug)]
@@ -258,32 +258,6 @@ impl<'a> PipelineContext<'a> {
         } else {
             DiagnosticAnchor::Module(self.module_id)
         }
-    }
-
-    /// Enforce metadata requirements for a function pass.
-    pub fn enforce_function_requirements(
-        &self,
-        metadata: &PassMetadata,
-        function_id: mir::LocalNodeId<mir::Function>,
-        function: &mir::Function,
-        tree: &mir::Tree,
-    ) -> bool {
-        super::contract::enforce_function_requirements(self, metadata, function_id, function, tree)
-    }
-
-    /// Enforce metadata requirements for a module pass.
-    pub fn enforce_module_requirements(&self, metadata: &PassMetadata, tree: &mir::Tree) -> bool {
-        super::contract::enforce_module_requirements(self, metadata, tree)
-    }
-
-    /// Create module level analyses for a tree.
-    ///
-    /// Create an empty function analysis cache configured for this run.
-    ///
-    /// The pipeline holds one cache per function across that function's pass
-    /// sequence and queries it with the function and tree at each access.
-    pub fn new_function_analyses(&self) -> FunctionAnalyses {
-        FunctionAnalyses::with_options(self.options.analysis)
     }
 
     /// Return the target layout for this pipeline run.

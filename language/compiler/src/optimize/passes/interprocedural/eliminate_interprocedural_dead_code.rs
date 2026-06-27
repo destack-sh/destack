@@ -5,7 +5,7 @@ use destack_mir as mir;
 use crate::optimize::passes::interprocedural::{
     run_eliminate_dead_functions, run_eliminate_global_dead_code,
 };
-use crate::optimize::{ModulePass, PipelineContext};
+use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
 use destack_mir::Mutation;
 
 declare_pass! {
@@ -47,12 +47,15 @@ impl ModulePass for EliminateInterproceduralDeadCode {
     /// Run interprocedural cleanup for the module.
     fn run(
         &self,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mir::ModuleAnalyses,
+        _analyses: &mir::TreeAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // run the cleanup pass
-        let changed = run_interprocedural_dce_cleanup(tree, ctx.program_analysis());
+        let changed = run_interprocedural_dce_cleanup(tree, memory, ctx.program_analysis());
 
         // report what this pass changed
         if changed {
@@ -75,10 +78,14 @@ impl ModulePass for EliminateInterproceduralDeadCode {
 }
 
 /// Run interprocedural cleanup over the module.
-fn run_interprocedural_dce_cleanup(tree: &mut mir::Tree, program: &ProgramAnalysis) -> bool {
+fn run_interprocedural_dce_cleanup(
+    tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
+    program: &ProgramAnalysis,
+) -> bool {
     let mut changed = false;
 
-    if run_eliminate_dead_functions(tree, program) {
+    if run_eliminate_dead_functions(tree, memory, program) {
         changed = true;
     }
 

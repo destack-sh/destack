@@ -2,7 +2,6 @@
 
 mod builder;
 mod context;
-mod contract;
 mod default;
 mod module;
 mod package;

@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ConstantPropagation, DominatorTree, MemoryAccess, MemoryAccessEffect,
-    MemoryAccessId, MemoryRegion, MemorySSA, Mutation, PureExpression, TargetLayout, ValueTypes,
+    AliasAnalysis, ConstantPropagation, DominatorTree, MemoryAccessEffect, MemoryAccessId,
+    MemoryNode, MemoryRegion, MemorySSA, Mutation, PureExpression, TargetLayout, ValueTypes,
     apply_substitutions_in_function, instruction_has_side_effects, resolve_substitution_chains,
 };
 
@@ -56,10 +56,13 @@ impl FunctionPass for EliminateRedundantExpressions {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip empty functions
         let entry = match function.entry() {
             Some(entry) => entry,
@@ -79,6 +82,7 @@ impl FunctionPass for EliminateRedundantExpressions {
             entry,
             function,
             tree,
+            memory,
             &dom_children,
             &alias,
             memory_ssa.as_ref(),
@@ -109,6 +113,7 @@ fn run_eliminate_redundant_expressions(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
@@ -134,7 +139,7 @@ fn run_eliminate_redundant_expressions(
     }
 
     // apply substitutions and remove redundant instructions
-    apply_substitutions_in_function(function, tree, &substitutions, Some(&to_remove));
+    apply_substitutions_in_function(function, tree, memory, &substitutions, Some(&to_remove));
 
     true
 }
@@ -547,7 +552,7 @@ fn process_block(
             };
 
             // read the use access data
-            let MemoryAccess::Use(use_access) = memory_ssa.access(use_access_id) else {
+            let MemoryNode::Use(use_access) = memory_ssa.access(use_access_id) else {
                 continue;
             };
 
@@ -563,7 +568,7 @@ fn process_block(
 
             // compute the clobbering access for the load
             let clobber = memory_ssa.clobbering_use(use_access_id, alias);
-            if matches!(memory_ssa.access(clobber), MemoryAccess::Phi(_)) {
+            if matches!(memory_ssa.access(clobber), MemoryNode::Phi(_)) {
                 continue;
             }
 
@@ -1357,13 +1362,13 @@ entry(v0: ref<int32, raw, mutable>):
         // attach mismatched sizes to block forwarding
         test.insert_pointer_access(
             load_first,
-            mir::MemoryAccessKind::Read,
+            mir::MemoryOperation::Read,
             mir::Value::new(0),
             Some(8),
         );
         test.insert_pointer_access(
             load_second,
-            mir::MemoryAccessKind::Read,
+            mir::MemoryOperation::Read,
             mir::Value::new(0),
             Some(4),
         );
@@ -1407,7 +1412,7 @@ entry:
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
         let callsite = mir::CallSite::Instruction(call_inst);
-        test.tree.metadata.effects.call_mut(callsite).memory = mir::MemoryEffect::none();
+        test.optimized.effects.call_mut(callsite).memory = mir::MemoryEffect::none();
 
         test.run_pass(&EliminateRedundantExpressions);
         test.assert_output(expected);

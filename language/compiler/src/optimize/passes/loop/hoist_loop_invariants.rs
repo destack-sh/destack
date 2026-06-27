@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ConstantPropagation, DominatorTree, Loop, LoopAnalysis, MemoryAccess,
-    MemoryAccessId, MemoryAccessSource, MemoryRegion, MemorySSA, Mutation, RangeAnalysis,
-    ValueRange, instruction_allows_read_only_motion, instruction_is_read_only_access,
+    AliasAnalysis, ConstantPropagation, DominatorTree, Loop, LoopAnalysis, MemoryAccessId,
+    MemoryAccessSource, MemoryNode, MemoryRegion, MemorySSA, Mutation, RangeAnalysis, ValueRange,
+    instruction_allows_read_only_motion, instruction_is_read_only_access,
     instruction_is_speculatable,
 };
 
@@ -62,10 +62,13 @@ impl FunctionPass for HoistLoopInvariants {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let effects = &mut optimized.effects;
+
         let entry = match function.entry() {
             Some(entry) => entry,
             None => return Mutation::NONE,
@@ -91,6 +94,7 @@ impl FunctionPass for HoistLoopInvariants {
             entry,
             function,
             tree,
+            effects,
             &loops,
             &domtree,
             &ranges,
@@ -123,6 +127,7 @@ fn run_hoist_loop_invariants(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    effects: &mir::EffectTable,
     loops: &LoopAnalysis,
     domtree: &DominatorTree,
     ranges: &RangeAnalysis,
@@ -196,6 +201,7 @@ fn run_hoist_loop_invariants(
                         &lp.blocks,
                         &guaranteed_blocks,
                         tree,
+                        effects,
                         alias,
                         memory_ssa,
                         block_id,
@@ -241,6 +247,7 @@ fn run_hoist_loop_invariants(
                     &lp.blocks,
                     &guaranteed_blocks,
                     tree,
+                    effects,
                     alias,
                     memory_ssa,
                     block_id,
@@ -463,6 +470,7 @@ fn instruction_is_hoistable(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     guaranteed_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::Tree,
+    effects: &mir::EffectTable,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     block_id: mir::LocalNodeId<mir::Block>,
@@ -496,7 +504,7 @@ fn instruction_is_hoistable(
 
     // handle other read only memory operations
     if instruction_is_read_only_access(instruction_id, memory_ssa) {
-        if !instruction_allows_read_only_motion(instruction_id, instruction, tree) {
+        if !instruction_allows_read_only_motion(instruction_id, instruction, effects) {
             return false;
         }
 
@@ -554,7 +562,7 @@ fn load_is_hoistable(
 
     let mut load_access = None;
     for access_id in accesses {
-        if matches!(memory_ssa.access(*access_id), MemoryAccess::Use(_)) {
+        if matches!(memory_ssa.access(*access_id), MemoryNode::Use(_)) {
             if load_access.is_some() {
                 return false;
             }
@@ -566,7 +574,7 @@ fn load_is_hoistable(
         return false;
     };
 
-    let MemoryAccess::Use(use_access) = memory_ssa.access(load_access) else {
+    let MemoryNode::Use(use_access) = memory_ssa.access(load_access) else {
         return false;
     };
 
@@ -586,8 +594,8 @@ fn load_is_hoistable(
     // resolve the clobbering access before the load
     let clobber = memory_ssa.clobbering_use(load_access, alias);
     match memory_ssa.access(clobber) {
-        MemoryAccess::LiveOnEntry => true,
-        MemoryAccess::Def(def_access) => {
+        MemoryNode::LiveOnEntry => true,
+        MemoryNode::Def(def_access) => {
             let block_id = match def_access.source {
                 MemoryAccessSource::Instruction(instruction) => {
                     let Some(block_id) = function.instruction_block(instruction) else {
@@ -665,7 +673,7 @@ fn read_only_access_is_hoistable(
     let mut use_accesses = Vec::new();
     for access_id in accesses {
         match memory_ssa.access(*access_id) {
-            MemoryAccess::Use(use_access) => {
+            MemoryNode::Use(use_access) => {
                 if use_access.effect.is_volatile || use_access.effect.is_barrier {
                     return false;
                 }
@@ -674,8 +682,8 @@ fn read_only_access_is_hoistable(
                 }
                 use_accesses.push(*access_id);
             }
-            MemoryAccess::Def(_) => return false,
-            MemoryAccess::Phi(_) | MemoryAccess::LiveOnEntry => {}
+            MemoryNode::Def(_) => return false,
+            MemoryNode::Phi(_) | MemoryNode::LiveOnEntry => {}
         }
     }
 
@@ -698,8 +706,8 @@ fn read_only_access_is_hoistable(
 
         let clobber = memory_ssa.clobbering_use(*use_access, alias);
         match memory_ssa.access(clobber) {
-            MemoryAccess::LiveOnEntry => {}
-            MemoryAccess::Def(def_access) => {
+            MemoryNode::LiveOnEntry => {}
+            MemoryNode::Def(def_access) => {
                 let block_id = match def_access.source {
                     MemoryAccessSource::Instruction(instruction) => {
                         let Some(block_id) = function.instruction_block(instruction) else {
@@ -811,7 +819,7 @@ fn signed_min_for_width(width: u16) -> Option<i128> {
     Some(-value)
 }
 
-/// Integer range with bit width and signedness metadata.
+/// Integer range with bit width and signedness tables.
 #[derive(Clone, Copy)]
 struct IntegerRange {
     /// The minimum value in the range.

@@ -2,7 +2,7 @@ use destack_artifact::ProgramAnalysis;
 use destack_mir as mir;
 use destack_mir::Mutation;
 
-use crate::optimize::{ModulePass, PipelineContext, declare_pass};
+use crate::optimize::{MirOptimized, ModulePass, PipelineContext, declare_pass};
 
 declare_pass! {
     /// Remove functions the analysis scope cannot reach.
@@ -49,11 +49,13 @@ impl ModulePass for EliminateDeadFunctions {
     /// Strip functions the analysis scope cannot reach.
     fn run(
         &self,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mir::ModuleAnalyses,
+        _analyses: &mir::TreeAnalysisCache,
     ) -> Mutation {
-        let changed = run_eliminate_dead_functions(tree, ctx.program_analysis());
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+        let changed = run_eliminate_dead_functions(tree, memory, ctx.program_analysis());
 
         // report stripped definitions as control-flow changes
         if changed {
@@ -77,6 +79,7 @@ impl ModulePass for EliminateDeadFunctions {
 /// Strip every defined function the analysis scope cannot reach.
 pub(crate) fn run_eliminate_dead_functions(
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     program: &ProgramAnalysis,
 ) -> bool {
     // an empty scope defines no symbols, so nothing can be proven dead
@@ -94,7 +97,7 @@ pub(crate) fn run_eliminate_dead_functions(
 
     // strip each unreachable function down to an external declaration
     for function_id in &dead {
-        strip_function_body(*function_id, tree);
+        strip_function_body(*function_id, tree, memory);
     }
 
     !dead.is_empty()
@@ -104,6 +107,7 @@ pub(crate) fn run_eliminate_dead_functions(
 pub(crate) fn strip_function_body(
     function_id: mir::LocalNodeId<mir::Function>,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
 ) {
     // collect blocks and instructions before stripping the body
     let block_ids = tree.get(function_id).blocks().to_vec();
@@ -113,14 +117,11 @@ pub(crate) fn strip_function_body(
     function.linkage = mir::Linkage::Import;
     function.clear_body();
 
-    // remove instruction metadata tied to stripped blocks
+    // remove instruction tables tied to stripped blocks
     for block_id in &block_ids {
         let instruction_ids = tree.get(*block_id).instructions.clone();
         for instruction_id in instruction_ids {
-            tree.metadata
-                .memory
-                .memory_accesses_by_instruction_id
-                .remove(&instruction_id);
+            memory.remove_memory_accesses(instruction_id);
         }
     }
 }
@@ -131,8 +132,9 @@ mod tests {
     use crate::optimize::common::tests::TestProgram;
 
     /// Build a program analysis treating the module as a standalone program.
-    fn module_analysis(tree: &mir::Tree) -> ProgramAnalysis {
-        let links = mir::ModuleAnalyses::new().get::<mir::LinkGraph>(tree);
+    fn module_analysis(test: &TestProgram) -> ProgramAnalysis {
+        let analyses = test.tree_analysis_cache();
+        let links = analyses.get::<mir::LinkGraph>(&test.optimized.tree);
         let roots: Vec<_> = links
             .nodes()
             .filter(|(_, node)| node.linkage().is_exported())
@@ -169,14 +171,21 @@ entry:
         let dead_id = test.function_id_by_name("dead");
 
         // the export reaches `live`; `dead` is reached by nothing
-        let program = module_analysis(&test.tree);
-        let changed = run_eliminate_dead_functions(&mut test.tree, &program);
+        let program = module_analysis(&test);
+        let changed = run_eliminate_dead_functions(
+            &mut test.optimized.tree,
+            &mut test.optimized.memory,
+            &program,
+        );
 
         // reachable functions keep their bodies; the unreachable one is externalized
         assert!(changed);
-        assert!(test.tree.get(root_id).entry().is_some());
-        assert!(test.tree.get(live_id).entry().is_some());
-        assert!(test.tree.get(dead_id).entry().is_none());
-        assert_eq!(test.tree.get(dead_id).linkage, mir::Linkage::Import);
+        assert!(test.optimized.tree.get(root_id).entry().is_some());
+        assert!(test.optimized.tree.get(live_id).entry().is_some());
+        assert!(test.optimized.tree.get(dead_id).entry().is_none());
+        assert_eq!(
+            test.optimized.tree.get(dead_id).linkage,
+            mir::Linkage::Import
+        );
     }
 }

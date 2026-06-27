@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AliasAnalysis, MemorySSA, Mutation, PureExpression, ReferenceLocation,
     instruction_has_side_effects, instruction_substitute_uses_in_tree,
@@ -46,17 +46,20 @@ impl FunctionPass for EliminateLocalCommonSubexpressions {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // build memory analyses
         let alias = analyses.get::<AliasAnalysis>(function, tree);
         let memory_ssa = analyses.get::<MemorySSA>(function, tree);
 
         // run local CSE
         let changed =
-            run_eliminate_local_common_subexpressions(function, tree, &alias, &memory_ssa);
+            run_eliminate_local_common_subexpressions(function, tree, memory, &alias, &memory_ssa);
 
         // report what this pass changed
         if changed {
@@ -79,6 +82,7 @@ impl FunctionPass for EliminateLocalCommonSubexpressions {
 fn run_eliminate_local_common_subexpressions(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
 ) -> bool {
@@ -88,8 +92,9 @@ fn run_eliminate_local_common_subexpressions(
     // run local CSE per block
     let block_ids = function.blocks().to_vec();
     for block_id in block_ids {
-        changed |=
-            eliminate_common_subexpressions_in_block(function, block_id, tree, alias, memory_ssa);
+        changed |= eliminate_common_subexpressions_in_block(
+            function, block_id, tree, memory, alias, memory_ssa,
+        );
     }
     changed
 }
@@ -101,6 +106,7 @@ fn eliminate_common_subexpressions_in_block(
     function: &mut mir::Function,
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
 ) -> bool {
@@ -128,7 +134,7 @@ fn eliminate_common_subexpressions_in_block(
         let instruction = tree.get(instruction_id);
 
         // treat exact accesses as barriers for load forwarding
-        if tree.instruction_requires_exact_access(instruction_id) {
+        if memory.instruction_requires_exact_access(tree, instruction_id) {
             load_table.clear();
             continue;
         }
@@ -235,7 +241,7 @@ fn eliminate_common_subexpressions_in_block(
             instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
         if new_instruction != instruction {
             tree.set(instruction_id, new_instruction);
-            remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
+            remap_instruction_memory_accesses(memory, instruction_id, &substitutions);
         }
     }
 
@@ -733,13 +739,13 @@ entry:
 
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let block = test.tree.get(function.block(0));
+        let function = test.optimized.tree.get(function_id);
+        let block = test.optimized.tree.get(function.block(0));
         let volatile_id = block.instructions[1];
 
         test.insert_pointer_access_with_options(
             volatile_id,
-            mir::MemoryAccessKind::Read,
+            mir::MemoryOperation::Read,
             mir::Value::new(0),
             Some(4),
             true,

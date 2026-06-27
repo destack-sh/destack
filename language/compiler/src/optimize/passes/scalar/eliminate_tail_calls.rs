@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use destack_core::StringPool;
 
-use crate::optimize::{ModulePass, PipelineContext};
-use destack_mir::{Mutation, SignatureKey, clone_instruction_metadata};
+use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
+use destack_mir::{Mutation, SignatureKey, clone_instruction_tables};
 
 declare_pass! {
     /// Eliminates tail-recursive calls by converting them to jumps.
@@ -28,12 +28,15 @@ declare_pass! {
 impl ModulePass for EliminateTailCalls {
     fn run(
         &self,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mir::ModuleAnalyses,
+        _analyses: &mir::TreeAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // eliminate tail calls across the module
-        let changed = eliminate_tail_calls(tree, ctx.strings);
+        let changed = eliminate_tail_calls(tree, memory, ctx.strings);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -51,7 +54,11 @@ impl ModulePass for EliminateTailCalls {
 }
 
 /// Eliminate tail calls across one MIR tree.
-fn eliminate_tail_calls(tree: &mut mir::Tree, strings: &StringPool) -> bool {
+fn eliminate_tail_calls(
+    tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
+    strings: &StringPool,
+) -> bool {
     let mut changed = false;
 
     // collect function ids first to avoid borrow issues
@@ -73,7 +80,14 @@ fn eliminate_tail_calls(tree: &mut mir::Tree, strings: &StringPool) -> bool {
 
         // phase 1: try accumulator transformation to enable more tail calls
         // (this may modify call sites in other functions, or create wrapper for exported)
-        if try_accumulator_transform(&mut function, tree, function_id, entry_block, strings) {
+        if try_accumulator_transform(
+            &mut function,
+            tree,
+            memory,
+            function_id,
+            entry_block,
+            strings,
+        ) {
             changed = true;
         }
 
@@ -127,6 +141,7 @@ struct AccumulatorPattern {
 fn try_accumulator_transform(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     current_function_id: mir::LocalNodeId<mir::Function>,
     entry_block: mir::LocalNodeId<mir::Block>,
     strings: &StringPool,
@@ -157,6 +172,7 @@ fn try_accumulator_transform(
         return try_accumulator_transform_exported(
             function,
             tree,
+            memory,
             current_function_id,
             entry_block,
             &patterns,
@@ -231,6 +247,7 @@ fn try_accumulator_transform(
 fn try_accumulator_transform_exported(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     current_function_id: mir::LocalNodeId<mir::Function>,
     entry_block: mir::LocalNodeId<mir::Block>,
     patterns: &[AccumulatorPattern],
@@ -246,7 +263,7 @@ fn try_accumulator_transform_exported(
 
     // clone the function to create the impl version
     let (impl_function_id, impl_entry_block, block_map) =
-        clone_function_as_impl(function, tree, impl_name);
+        clone_function_as_impl(function, tree, memory, impl_name);
 
     // find base cases in the IMPL function (using mapped block IDs)
     let impl_function = tree.get(impl_function_id).clone();
@@ -332,6 +349,7 @@ fn try_accumulator_transform_exported(
 fn clone_function_as_impl(
     original: &mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     impl_name: destack_core::StringId,
 ) -> (
     mir::LocalNodeId<mir::Function>,
@@ -353,7 +371,7 @@ fn clone_function_as_impl(
         for &old_instr_id in &old_block.instructions {
             let old_instr = tree.get(old_instr_id).clone();
             let new_instr_id = tree.insert(old_instr);
-            clone_instruction_metadata(tree, old_instr_id, new_instr_id, &HashMap::new());
+            clone_instruction_tables(tree, memory, old_instr_id, new_instr_id, &HashMap::new());
             new_instructions.push(new_instr_id);
         }
 

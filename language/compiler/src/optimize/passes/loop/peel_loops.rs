@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ControlFlowGraph, DominatorTree, LoopAnalysis, Mutation, clone_loop_blocks, terminator_remap,
 };
@@ -62,16 +62,19 @@ impl FunctionPass for PeelLoops {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip imported functions
         if function.entry().is_none() {
             return Mutation::NONE;
         }
 
-        let changed = run_peel_loops(function, tree, ctx, analyses);
+        let changed = run_peel_loops(function, tree, memory, ctx, analyses);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -94,8 +97,9 @@ impl FunctionPass for PeelLoops {
 fn run_peel_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     _ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalyses,
+    analyses: &mir::FunctionAnalysisCache,
 ) -> bool {
     // gather analyses
     let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
@@ -132,7 +136,7 @@ fn run_peel_loops(
         };
 
         // clone the loop once to form the peeled iteration
-        let (block_map, value_map) = clone_loop_blocks(&lp.blocks, function, tree);
+        let (block_map, value_map) = clone_loop_blocks(&lp.blocks, function, tree, memory);
 
         // map header and latch to their cloned counterparts
         let cloned_header = block_map[&lp.header];

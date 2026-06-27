@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AvailableExpressions, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, Mutation,
     PureExpression, UseDefMaps, ValueTypes, append_edge_arguments, apply_substitutions_in_function,
@@ -57,10 +57,13 @@ impl FunctionPass for EliminatePartialRedundancy {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip imported functions
         let Some(entry) = function.entry() else {
             return Mutation::NONE;
@@ -77,6 +80,7 @@ impl FunctionPass for EliminatePartialRedundancy {
             entry,
             function,
             tree,
+            memory,
             &cfg,
             &domtree,
             &available,
@@ -145,6 +149,7 @@ fn run_pre(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     available: &AvailableExpressions,
@@ -398,10 +403,10 @@ fn run_pre(
 
     if inserted {
         // inserted instructions may enable more substitutions
-        apply_substitutions_in_function(function, tree, &substitutions, Some(&to_remove));
+        apply_substitutions_in_function(function, tree, memory, &substitutions, Some(&to_remove));
         true
     } else if changed || !substitutions.is_empty() || !to_remove.is_empty() {
-        apply_substitutions_in_function(function, tree, &substitutions, Some(&to_remove));
+        apply_substitutions_in_function(function, tree, memory, &substitutions, Some(&to_remove));
         true
     } else {
         false

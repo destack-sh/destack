@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ControlFlowGraph, DominatorTree, Mutation, PureExpression,
-    apply_substitutions_in_dominated_blocks, build_use_def_maps, clone_instruction_metadata,
+    apply_substitutions_in_dominated_blocks, build_use_def_maps, clone_instruction_tables,
     instruction_is_speculatable, instruction_map, instruction_substitute_uses_in_tree,
 };
 
@@ -62,10 +62,13 @@ impl FunctionPass for HoistInstructions {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip imported functions
         if function.entry().is_none() {
             return Mutation::NONE;
@@ -79,7 +82,7 @@ impl FunctionPass for HoistInstructions {
         let domtree = analyses.get::<DominatorTree>(function, tree).clone();
 
         // run the hoisting pass
-        let changed = run_hoist_instructions(function, tree, &cfg, &domtree);
+        let changed = run_hoist_instructions(function, tree, memory, &cfg, &domtree);
 
         // report what this pass changed
         if changed {
@@ -102,10 +105,11 @@ impl FunctionPass for HoistInstructions {
 fn run_hoist_instructions(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
 ) -> bool {
-    // build definition metadata
+    // build definition tables
     let use_def = build_use_def_maps(function, tree);
 
     // track whether any changes were made
@@ -148,6 +152,7 @@ fn run_hoist_instructions(
         let hoisted = hoist_common_prefix(
             function,
             tree,
+            memory,
             domtree,
             &use_def.def_block,
             block_id,
@@ -168,6 +173,7 @@ fn run_hoist_instructions(
 fn hoist_common_prefix(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     domtree: &DominatorTree,
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     header: mir::LocalNodeId<mir::Block>,
@@ -276,7 +282,7 @@ fn hoist_common_prefix(
             // clone instruction with updated destinations and operands
             let hoisted_instruction = instruction_map(&candidate.instruction, &value_map, tree);
             let hoisted_id = tree.insert(hoisted_instruction);
-            clone_instruction_metadata(tree, candidate.then_id, hoisted_id, &value_map);
+            clone_instruction_tables(tree, memory, candidate.then_id, hoisted_id, &value_map);
             new_header_instructions.push(hoisted_id);
 
             // record substitutions for both branches
@@ -307,6 +313,7 @@ fn hoist_common_prefix(
     let then_changed = apply_substitutions_in_dominated_blocks(
         function,
         tree,
+        memory,
         domtree,
         then_block,
         &then_substitutions,
@@ -314,6 +321,7 @@ fn hoist_common_prefix(
     let else_changed = apply_substitutions_in_dominated_blocks(
         function,
         tree,
+        memory,
         domtree,
         else_block,
         &else_substitutions,

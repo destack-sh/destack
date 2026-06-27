@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{ModulePass, PipelineContext};
+use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
 use destack_mir::Mutation;
 
 declare_pass! {
@@ -37,10 +37,12 @@ impl ModulePass for EliminateGlobalDeadCode {
     /// Run global dead code elimination for the module.
     fn run(
         &self,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mir::ModuleAnalyses,
+        _analyses: &mir::TreeAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+
         let changed = run_eliminate_global_dead_code(tree);
 
         // report what this pass changed

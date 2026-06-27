@@ -3,11 +3,10 @@ use std::collections::HashSet;
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, AliasResult, ConstantPropagation, MemoryAccess, MemoryAccessEffect,
-    MemoryAccessId, MemoryDef, MemoryRegion, MemorySSA, Mutation, ValueDefinitions,
-    ValueEquivalence,
+    AliasAnalysis, AliasResult, ConstantPropagation, MemoryAccessEffect, MemoryAccessId, MemoryDef,
+    MemoryNode, MemoryRegion, MemorySSA, Mutation, ValueDefinitions, ValueEquivalence,
 };
 
 declare_pass! {
@@ -49,10 +48,13 @@ impl FunctionPass for EliminateRedundantMemory {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip empty functions
         let _entry = match function.entry() {
             Some(entry) => entry,
@@ -72,6 +74,7 @@ impl FunctionPass for EliminateRedundantMemory {
         let changed = run_eliminate_redundant_memory(
             function,
             tree,
+            memory,
             memory_ssa.as_ref(),
             &alias,
             constants.as_ref(),
@@ -156,6 +159,7 @@ struct SourceAccess {
 fn run_eliminate_redundant_memory(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mir::MemoryTable,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
     constants: &ConstantPropagation,
@@ -180,7 +184,14 @@ fn run_eliminate_redundant_memory(
 
     // evaluate candidates for redundancy
     for candidate in candidates {
-        if candidate_is_redundant(&candidate, memory_ssa, alias, tree, &mut equivalence) {
+        if candidate_is_redundant(
+            &candidate,
+            memory_ssa,
+            alias,
+            tree,
+            memory,
+            &mut equivalence,
+        ) {
             redundant.insert(candidate.instruction);
         }
     }
@@ -223,7 +234,7 @@ fn collect_candidates(
                 continue;
             };
 
-            let MemoryAccess::Def(def_access) = memory_ssa.access(access_id) else {
+            let MemoryNode::Def(def_access) = memory_ssa.access(access_id) else {
                 continue;
             };
 
@@ -293,7 +304,7 @@ fn instruction_def_access(
     let mut def_access = None;
 
     for access_id in accesses {
-        if matches!(memory_ssa.access(*access_id), MemoryAccess::Def(_)) {
+        if matches!(memory_ssa.access(*access_id), MemoryNode::Def(_)) {
             if def_access.is_some() {
                 return None;
             }
@@ -310,6 +321,7 @@ fn candidate_is_redundant(
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
     tree: &mir::Tree,
+    memory: &mir::MemoryTable,
     equivalence: &mut ValueEquivalence<'_>,
 ) -> bool {
     // skip untrackable candidates
@@ -318,7 +330,7 @@ fn candidate_is_redundant(
     }
 
     // skip atomically ordered candidates
-    if tree.instruction_has_atomic_ordering(candidate.instruction) {
+    if memory.instruction_has_atomic_ordering(tree, candidate.instruction) {
         return false;
     }
 
@@ -372,13 +384,13 @@ fn clobber_def_accesses(
 ) -> Option<Vec<&MemoryDef>> {
     // resolve the clobber access kind
     match memory_ssa.access(clobber) {
-        MemoryAccess::Def(def_access) => Some(vec![def_access]),
-        MemoryAccess::Phi(phi) => {
+        MemoryNode::Def(def_access) => Some(vec![def_access]),
+        MemoryNode::Phi(phi) => {
             // collect incoming defs for a phi
             let mut defs = Vec::new();
 
             for (_, incoming) in &phi.incoming {
-                let MemoryAccess::Def(def_access) = memory_ssa.access(*incoming) else {
+                let MemoryNode::Def(def_access) = memory_ssa.access(*incoming) else {
                     return None;
                 };
                 defs.push(def_access);
@@ -485,7 +497,7 @@ fn memop_source_access(
 
     // locate the single read access
     for access_id in accesses {
-        let MemoryAccess::Use(use_access) = memory_ssa.access(*access_id) else {
+        let MemoryNode::Use(use_access) = memory_ssa.access(*access_id) else {
             continue;
         };
 
@@ -768,8 +780,8 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.metadata.effects.function_mut(callee).memory =
-            mir::MemoryEffect::read_only(mir::SpaceSet::ANY);
+        test.optimized.effects.function_mut(callee).memory =
+            mir::MemoryEffect::read_only(mir::StorageSet::ANY);
 
         test.run_pass(&EliminateRedundantMemory);
         test.assert_output(expected);
@@ -799,8 +811,8 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.metadata.effects.function_mut(callee).memory =
-            mir::MemoryEffect::read_write(mir::SpaceSet::ANY);
+        test.optimized.effects.function_mut(callee).memory =
+            mir::MemoryEffect::read_write(mir::StorageSet::ANY);
 
         test.run_pass(&EliminateRedundantMemory);
         test.assert_unchanged(input);
@@ -846,8 +858,8 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.metadata.effects.function_mut(callee).memory =
-            mir::MemoryEffect::write_only(mir::SpaceSet::LOCAL);
+        test.optimized.effects.function_mut(callee).memory =
+            mir::MemoryEffect::write_only(mir::StorageSet::LOCAL);
 
         test.run_pass(&EliminateRedundantMemory);
         test.assert_output(expected);
@@ -893,8 +905,8 @@ entry:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.metadata.effects.function_mut(callee).memory =
-            mir::MemoryEffect::write_only(mir::SpaceSet::SHARED);
+        test.optimized.effects.function_mut(callee).memory =
+            mir::MemoryEffect::write_only(mir::StorageSet::SHARED);
 
         test.run_pass(&EliminateRedundantMemory);
         test.assert_output(expected);
@@ -960,8 +972,8 @@ entry:
 
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let block = test.tree.get(function.block(0));
+        let function = test.optimized.tree.get(function_id);
+        let block = test.optimized.tree.get(function.block(0));
         let pointer = *test
             .frame_alloc_destinations_in_entry(function_id)
             .first()
@@ -970,7 +982,7 @@ entry:
         let volatile_store = block.instructions[3];
         test.insert_pointer_access_with_options(
             volatile_store,
-            mir::MemoryAccessKind::Write,
+            mir::MemoryOperation::Write,
             pointer,
             None,
             true,
@@ -998,8 +1010,8 @@ entry:
 
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let block = test.tree.get(function.block(0));
+        let function = test.optimized.tree.get(function_id);
+        let block = test.optimized.tree.get(function.block(0));
         let pointer = *test
             .frame_alloc_destinations_in_entry(function_id)
             .first()
@@ -1008,7 +1020,7 @@ entry:
         let ordered_store = block.instructions[3];
         test.insert_pointer_access_with_options(
             ordered_store,
-            mir::MemoryAccessKind::Write,
+            mir::MemoryOperation::Write,
             pointer,
             None,
             false,

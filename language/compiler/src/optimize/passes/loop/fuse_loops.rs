@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AliasAnalysis, BlockParamForwarding, ConstantPropagation, ControlFlowGraph, DominatorTree,
     LoopAnalysis, LoopEffectPolicy, MemoryAccessEffect, MemorySSA, Mutation, ValueDefinitions,
-    ValueEquivalence, block_is_speculatable_no_reads, clone_instruction_metadata,
+    ValueEquivalence, block_is_speculatable_no_reads, clone_instruction_tables,
     collect_loop_effects, control_instructions_for_latch, instruction_is_speculatable,
     instruction_map, loop_guard_branch, loop_preheader,
 };
@@ -85,10 +85,13 @@ impl FunctionPass for FuseLoops {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // gather analyses
         let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
         let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
@@ -101,6 +104,7 @@ impl FunctionPass for FuseLoops {
         let changed = run_fuse_loops(
             function,
             tree,
+            memory,
             &loops,
             &cfg,
             &domtree,
@@ -136,7 +140,7 @@ struct FusionCandidate {
     second: LoopBody,
 }
 
-/// Per loop metadata needed for fusion.
+/// Per loop tables needed for fusion.
 struct LoopBody {
     /// Loop header block.
     header: mir::LocalNodeId<mir::Block>,
@@ -156,7 +160,7 @@ struct LoopBody {
     body_instructions: Vec<mir::LocalNodeId<mir::Instruction>>,
 }
 
-/// Guard metadata for a loop.
+/// Guard tables for a loop.
 struct GuardInfo {
     /// Induction parameter index.
     induction_index: usize,
@@ -174,6 +178,7 @@ struct GuardInfo {
 fn run_fuse_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     loops: &LoopAnalysis,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
@@ -196,6 +201,7 @@ fn run_fuse_loops(
             function,
             loops,
             tree,
+            memory,
             cfg,
             domtree,
             memory_ssa,
@@ -211,7 +217,7 @@ fn run_fuse_loops(
     };
 
     // apply the fusion
-    apply_fusion(function, tree, cfg, &candidate, &definitions)
+    apply_fusion(function, tree, memory, cfg, &candidate, &definitions)
 }
 
 /// Build a fusion candidate from a loop.
@@ -221,6 +227,7 @@ fn build_fusion_candidate(
     function: &mir::Function,
     loops: &LoopAnalysis,
     tree: &mir::Tree,
+    memory: &mir::MemoryTable,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     memory_ssa: &MemorySSA,
@@ -264,7 +271,7 @@ fn build_fusion_candidate(
     let loop_guard = guard_info(lp.header, latch, tree, constants, forwarding, definitions)?;
 
     // reject non speculatable instructions in the latch
-    if !latch_is_speculatable(latch, tree, memory_ssa) {
+    if !latch_is_speculatable(latch, tree, memory, memory_ssa) {
         return None;
     }
 
@@ -272,10 +279,15 @@ fn build_fusion_candidate(
     let control_instructions =
         control_instructions_for_latch(function, lp.header, latch, tree, definitions);
     let body_instructions = latch_body_instructions(latch, tree, &control_instructions);
-    let body_effects =
-        collect_loop_effects(&lp.blocks, tree, memory_ssa, LoopEffectPolicy::ReadWrite)?;
+    let body_effects = collect_loop_effects(
+        &lp.blocks,
+        tree,
+        memory,
+        memory_ssa,
+        LoopEffectPolicy::ReadWrite,
+    )?;
 
-    // record the first loop metadata
+    // record the first loop tables
     let first = LoopBody {
         header: lp.header,
         latch,
@@ -364,7 +376,7 @@ fn build_fusion_candidate(
     )?;
 
     // reject non speculatable instructions in the latch
-    if !latch_is_speculatable(*second_loop.latches.first()?, tree, memory_ssa) {
+    if !latch_is_speculatable(*second_loop.latches.first()?, tree, memory, memory_ssa) {
         return None;
     }
 
@@ -380,6 +392,7 @@ fn build_fusion_candidate(
     let second_effects = collect_loop_effects(
         &second_loop.blocks,
         tree,
+        memory,
         memory_ssa,
         LoopEffectPolicy::ReadWrite,
     )?;
@@ -404,7 +417,7 @@ fn build_fusion_candidate(
         return None;
     }
 
-    // record the second loop metadata
+    // record the second loop tables
     let second = LoopBody {
         header: second_loop.header,
         latch: *second_loop.latches.first()?,
@@ -419,7 +432,7 @@ fn build_fusion_candidate(
     Some(FusionCandidate { first, second })
 }
 
-/// Build guard metadata from a header and latch.
+/// Build guard tables from a header and latch.
 fn guard_info(
     header: mir::LocalNodeId<mir::Block>,
     latch: mir::LocalNodeId<mir::Block>,
@@ -572,6 +585,7 @@ fn induction_step(
 fn latch_is_speculatable(
     latch: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
+    memory: &mir::MemoryTable,
     memory_ssa: &MemorySSA,
 ) -> bool {
     // scan latch instructions
@@ -601,7 +615,14 @@ fn latch_is_speculatable(
     // check memory effects for volatility
     let mut blocks = HashSet::new();
     blocks.insert(latch);
-    collect_loop_effects(&blocks, tree, memory_ssa, LoopEffectPolicy::ReadWrite).is_some()
+    collect_loop_effects(
+        &blocks,
+        tree,
+        memory,
+        memory_ssa,
+        LoopEffectPolicy::ReadWrite,
+    )
+    .is_some()
 }
 
 /// Collect ordered body instructions for a latch.
@@ -726,6 +747,7 @@ fn const_i64(
 fn apply_fusion(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     cfg: &ControlFlowGraph,
     candidate: &FusionCandidate,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
@@ -826,7 +848,7 @@ fn apply_fusion(
         let original = tree.get(instruction_id).clone();
         let new_instruction = instruction_map(&original, &value_map, tree);
         let new_instruction_id = tree.insert(new_instruction);
-        clone_instruction_metadata(tree, instruction_id, new_instruction_id, &value_map);
+        clone_instruction_tables(tree, memory, instruction_id, new_instruction_id, &value_map);
         new_instructions.push(new_instruction_id);
     }
 

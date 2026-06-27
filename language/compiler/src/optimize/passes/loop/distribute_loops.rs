@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, MemoryAccess,
-    MemoryAccessEffect, MemoryRegion, MemorySSA, Mutation, ValueDefinitions,
+    AliasAnalysis, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, MemoryAccessEffect,
+    MemoryNode, MemoryRegion, MemorySSA, Mutation, ValueDefinitions,
     block_is_speculatable_no_reads, clone_loop_blocks_with_instructions,
     control_instructions_for_latch, instruction_is_speculatable, loop_guard_branch, loop_preheader,
     terminator_remap,
@@ -83,10 +83,13 @@ impl FunctionPass for DistributeLoops {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // gather analyses
         let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
         let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
@@ -98,6 +101,7 @@ impl FunctionPass for DistributeLoops {
         let changed = run_distribute_loops(
             function,
             tree,
+            memory,
             &loops,
             &cfg,
             &domtree,
@@ -156,6 +160,7 @@ struct StoreGroup {
 fn run_distribute_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     loops: &LoopAnalysis,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
@@ -171,6 +176,7 @@ fn run_distribute_loops(
             lp,
             function,
             tree,
+            memory,
             cfg,
             domtree,
             memory_ssa,
@@ -183,7 +189,7 @@ fn run_distribute_loops(
     };
 
     // apply the distribution
-    apply_distribution(function, tree, &candidate)
+    apply_distribution(function, tree, memory, &candidate)
 }
 
 /// Build a distribution candidate for a loop.
@@ -191,6 +197,7 @@ fn build_candidate(
     lp: &Loop,
     function: &mir::Function,
     tree: &mir::Tree,
+    memory: &mir::MemoryTable,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     memory_ssa: &MemorySSA,
@@ -256,6 +263,7 @@ fn build_candidate(
         function,
         latch,
         tree,
+        memory,
         memory_ssa,
         alias,
         definitions,
@@ -284,6 +292,7 @@ fn collect_store_groups(
     function: &mir::Function,
     latch: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
+    memory: &mir::MemoryTable,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
@@ -370,7 +379,7 @@ fn collect_store_groups(
         }
 
         // collect memory effects
-        let effects = collect_group_effects(&group_instructions, tree, memory_ssa)?;
+        let effects = collect_group_effects(&group_instructions, tree, memory, memory_ssa)?;
 
         // record the group
         groups.push(StoreGroup {
@@ -469,13 +478,14 @@ fn collect_group_instructions(
 fn collect_group_effects(
     instructions: &HashSet<mir::LocalNodeId<mir::Instruction>>,
     tree: &mir::Tree,
+    memory: &mir::MemoryTable,
     memory_ssa: &MemorySSA,
 ) -> Option<Vec<MemoryAccessEffect>> {
     // collect memory effects
     let mut effects = Vec::new();
     for instruction_id in instructions {
         // reject ordered memory accesses
-        if tree.instruction_has_atomic_ordering(*instruction_id) {
+        if memory.instruction_has_atomic_ordering(tree, *instruction_id) {
             return None;
         }
 
@@ -487,8 +497,8 @@ fn collect_group_effects(
         // validate effects for each access
         for access_id in accesses {
             let effect = match memory_ssa.access(*access_id) {
-                MemoryAccess::Def(def_access) => def_access.effect.clone(),
-                MemoryAccess::Use(use_access) => use_access.effect.clone(),
+                MemoryNode::Def(def_access) => def_access.effect.clone(),
+                MemoryNode::Use(use_access) => use_access.effect.clone(),
                 _ => continue,
             };
 
@@ -554,6 +564,7 @@ fn groups_are_independent(groups: &[StoreGroup], alias: &AliasAnalysis) -> bool 
 fn apply_distribution(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     candidate: &DistributeCandidate,
 ) -> bool {
     // prepare for cloning
@@ -571,7 +582,7 @@ fn apply_distribution(
     for _ in 1..candidate.groups.len() {
         let loop_blocks: HashSet<_> = [candidate.header, candidate.latch].into_iter().collect();
         let (block_map, value_map, instruction_map) =
-            clone_loop_blocks_with_instructions(&loop_blocks, function, tree);
+            clone_loop_blocks_with_instructions(&loop_blocks, function, tree, memory);
 
         // remap cloned terminators
         for &cloned_id in block_map.values() {
@@ -606,7 +617,7 @@ fn apply_distribution(
             return false;
         };
 
-        prune_latch_instructions(function, tree, instance.latch, &keep_set);
+        prune_latch_instructions(function, tree, memory, instance.latch, &keep_set);
     }
 
     // chain loop exits together
@@ -678,6 +689,7 @@ fn map_keep_set(
 fn prune_latch_instructions(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     latch: mir::LocalNodeId<mir::Block>,
     keep: &HashSet<mir::LocalNodeId<mir::Instruction>>,
 ) {
@@ -688,7 +700,7 @@ fn prune_latch_instructions(
         if keep.contains(&instruction_id) {
             filtered.push(instruction_id);
         } else {
-            tree.metadata.memory.remove_memory_accesses(instruction_id);
+            memory.remove_memory_accesses(instruction_id);
         }
     }
 

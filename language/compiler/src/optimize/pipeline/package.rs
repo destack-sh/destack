@@ -225,7 +225,7 @@ impl<P: Pipeline + 'static> PackagePipeline for ModuleToPackageAdaptor<P> {
         // run the module pipeline for each module
         for module in workset.modules_mut() {
             let changed = ctx.with_module_context(module, |module_ctx| {
-                module.with_tree_mut(|tree| self.inner.run(tree, module_ctx))
+                module.with_optimized_mut(|optimized| self.inner.run(optimized, module_ctx))
             });
 
             if changed {

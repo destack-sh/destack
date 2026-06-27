@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, Mutation,
     RangeAnalysis, RangeMap, ScalarEvolution, Scev, ValueRange, constant_zero_like,
@@ -70,10 +70,12 @@ impl FunctionPass for EliminateLoopBoundsChecks {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+
         // skip imported functions
         if function.entry().is_none() {
             return Mutation::NONE;
@@ -134,7 +136,7 @@ enum ValueDefinitionKind {
     },
 }
 
-/// Definition metadata for a value.
+/// Definition tables for a value.
 #[derive(Debug, Clone, Copy)]
 struct ValueDefinition {
     /// Definition kind.
@@ -189,7 +191,7 @@ impl ValueDefinitions {
         Self { definitions }
     }
 
-    /// Get the definition metadata for a value.
+    /// Get the definition tables for a value.
     fn definition_for(&self, value: mir::Value) -> Option<ValueDefinition> {
         self.definitions.get(&value).copied()
     }
@@ -233,7 +235,7 @@ struct LoopGuards {
     non_negative: Vec<NonNegativeGuard>,
 }
 
-/// Guard metadata for non negative proofs.
+/// Guard tables for non negative proofs.
 #[derive(Debug, Clone, Copy)]
 struct NonNegativeGuard {
     /// Block that establishes the guard.

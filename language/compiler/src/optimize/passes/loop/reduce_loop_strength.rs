@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, Mutation, RangeAnalysis, ScalarEvolution,
-    Scev, TargetLayout, ValueRange, ValueTypes, clone_instruction_metadata, constant_is_zero,
+    Scev, TargetLayout, ValueRange, ValueTypes, clone_instruction_tables, constant_is_zero,
     instruction_is_speculatable, instruction_map, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
@@ -67,10 +67,13 @@ impl FunctionPass for ReduceLoopStrength {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip imported functions
         if function.entry().is_none() {
             return Mutation::NONE;
@@ -99,7 +102,7 @@ impl FunctionPass for ReduceLoopStrength {
             ranges: &ranges,
             target_layout: ctx.target_layout(),
         };
-        let changed = run_reduce_loop_strength(function, tree, &context);
+        let changed = run_reduce_loop_strength(function, tree, memory, &context);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -166,7 +169,7 @@ enum ValueDefinitionKind {
     },
 }
 
-/// Definition metadata for a value.
+/// Definition tables for a value.
 #[derive(Debug, Clone, Copy)]
 struct ValueDefinition {
     /// Block where the value is defined.
@@ -310,9 +313,9 @@ struct CandidateContext<'a> {
     scev: &'a ScalarEvolution,
     /// Value type lookup for the function.
     value_types: &'a ValueTypes,
-    /// Value definition metadata.
+    /// Value definition tables.
     definitions: &'a ValueDefinitions,
-    /// Value use metadata.
+    /// Value use tables.
     uses: &'a ValueUses,
     /// Range analysis for safety checks.
     ranges: &'a RangeAnalysis,
@@ -391,7 +394,7 @@ impl<'a> CandidateContext<'a> {
                             block_id,
                             self.ranges,
                             self.value_types,
-                            self.target_layout.pointer_width_bits,
+                            self.target_layout.pointer_bits(),
                             self.tree,
                         )
                     {
@@ -400,11 +403,7 @@ impl<'a> CandidateContext<'a> {
 
                     // require an integer type for the value
                     let value_type = self.value_types.expect_value_type(destination);
-                    if !type_is_integer(
-                        value_type,
-                        self.target_layout.pointer_width_bits,
-                        self.tree,
-                    ) {
+                    if !type_is_integer(value_type, self.target_layout.pointer_bits(), self.tree) {
                         continue;
                     }
 
@@ -480,9 +479,10 @@ impl<'a> CandidateContext<'a> {
 fn run_reduce_loop_strength(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     context: &StrengthReduceContext<'_>,
 ) -> bool {
-    // build definition and use metadata
+    // build definition and use tables
     let definitions = ValueDefinitions::build(function, tree);
     let uses = ValueUses::build(function, tree);
 
@@ -536,6 +536,7 @@ fn run_reduce_loop_strength(
         let loop_substitutions = apply_candidates_for_loop(
             function,
             tree,
+            memory,
             &loop_candidates,
             &definitions,
             context.value_types,
@@ -572,7 +573,7 @@ fn run_reduce_loop_strength(
             // replace instructions that changed
             if new_instruction != instruction {
                 tree.set(instruction_id, new_instruction);
-                remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
+                remap_instruction_memory_accesses(memory, instruction_id, &substitutions);
             }
         }
     }
@@ -599,6 +600,7 @@ fn run_reduce_loop_strength(
 fn apply_candidates_for_loop(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     candidates: &[StrengthReductionCandidate],
     definitions: &ValueDefinitions,
     value_types: &ValueTypes,
@@ -611,7 +613,7 @@ fn apply_candidates_for_loop(
         return Vec::new();
     }
 
-    // use the first candidate to get loop metadata
+    // use the first candidate to get loop tables
     let header = candidates[0].header;
     let preheader = candidates[0].preheader;
     let latch = candidates[0].latch;
@@ -620,6 +622,7 @@ fn apply_candidates_for_loop(
     // build a materializer for the preheader
     let mut materializer = ScevMaterializer::new(
         tree,
+        memory,
         preheader,
         loop_blocks,
         definitions,
@@ -1209,6 +1212,8 @@ fn appended_arguments(
 struct ScevMaterializer<'a> {
     /// Mutable tree reference.
     tree: &'a mut mir::Tree,
+    /// Mutable memory metadata reference.
+    memory: &'a mut mir::MemoryTable,
     /// Preheader block id.
     preheader: mir::LocalNodeId<mir::Block>,
     /// Blocks inside the loop.
@@ -1239,6 +1244,7 @@ impl<'a> ScevMaterializer<'a> {
     /// Create a new materializer for the preheader.
     fn new(
         tree: &'a mut mir::Tree,
+        memory: &'a mut mir::MemoryTable,
         preheader: mir::LocalNodeId<mir::Block>,
         loop_blocks: &'a HashSet<mir::LocalNodeId<mir::Block>>,
         definitions: &'a ValueDefinitions,
@@ -1265,6 +1271,7 @@ impl<'a> ScevMaterializer<'a> {
 
         Self {
             tree,
+            memory,
             preheader,
             loop_blocks,
             definitions,
@@ -1616,7 +1623,13 @@ impl<'a> ScevMaterializer<'a> {
 
         // insert the cloned instruction in the preheader
         let cloned_id = self.insert_instruction(function, cloned);
-        clone_instruction_metadata(self.tree, instruction_id, cloned_id, &value_map);
+        clone_instruction_tables(
+            self.tree,
+            self.memory,
+            instruction_id,
+            cloned_id,
+            &value_map,
+        );
 
         Some(destination)
     }
@@ -1695,7 +1708,7 @@ impl<'a> ScevMaterializer<'a> {
 
     /// Check if a value is available in the preheader.
     fn value_available_in_preheader(&self, value: mir::Value) -> bool {
-        // check definition metadata first
+        // check definition tables first
         let Some(definition) = self.definitions.definition_for(value) else {
             return false;
         };
@@ -1731,7 +1744,7 @@ impl<'a> ScevMaterializer<'a> {
         // read the argument type
         let ty_id = self.value_types.expect_value_type(argument);
         let ty = self.tree.get(ty_id);
-        let (_, signed) = ty.int_info_with_pointer_width(self.target_layout.pointer_width_bits)?;
+        let (_, signed) = ty.int_info_with_pointer_width(self.target_layout.pointer_bits())?;
         Some(signed)
     }
 

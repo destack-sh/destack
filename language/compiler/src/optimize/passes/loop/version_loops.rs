@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, ControlFlowGraph, LoopAnalysis, Mutation, RangeAnalysis, ScalarEvolution,
     Scev, UseDefMaps, ValueRange, ValueTypes, build_use_def_maps, clone_loop_blocks,
@@ -86,16 +86,19 @@ impl FunctionPass for VersionLoops {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip imported functions
         if function.entry().is_none() {
             return Mutation::NONE;
         }
 
-        let changed = run_version_loops(function, tree, ctx, analyses);
+        let changed = run_version_loops(function, tree, memory, ctx, analyses);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -129,8 +132,9 @@ struct GuardInfo {
 fn run_version_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalyses,
+    analyses: &mir::FunctionAnalysisCache,
 ) -> bool {
     // gather analyses
     let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
@@ -197,21 +201,21 @@ fn run_version_loops(
         // require consistent unsigned integer types
         let Some(bound_width) = value_types.unsigned_int_width(
             resolved_bound,
-            ctx.target_layout().pointer_width_bits,
+            ctx.target_layout().pointer_bits(),
             tree,
         ) else {
             continue;
         };
         let Some(length_width) = value_types.unsigned_int_width(
             resolved_length,
-            ctx.target_layout().pointer_width_bits,
+            ctx.target_layout().pointer_bits(),
             tree,
         ) else {
             continue;
         };
         let Some(induction_width) = value_types.unsigned_int_width(
             guard.induction,
-            ctx.target_layout().pointer_width_bits,
+            ctx.target_layout().pointer_bits(),
             tree,
         ) else {
             continue;
@@ -247,7 +251,7 @@ fn run_version_loops(
         };
 
         // clone the loop body for the fast path
-        let (block_map, value_map) = clone_loop_blocks(&lp.blocks, function, tree);
+        let (block_map, value_map) = clone_loop_blocks(&lp.blocks, function, tree, memory);
 
         // remember the cloned header for the fast path
         let fast_header = block_map[&header];

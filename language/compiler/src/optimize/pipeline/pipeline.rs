@@ -1,9 +1,8 @@
 use std::any::Any;
 
-use destack_mir as mir;
-
 use crate::optimize::{
-    PackagePipelineContext, PackageWorkset, PipelineContext, ProgramPipelineContext, ProgramWorkset,
+    MirOptimized, PackagePipelineContext, PackageWorkset, PipelineContext, ProgramPipelineContext,
+    ProgramWorkset,
 };
 
 /// A composable pipeline element.
@@ -13,7 +12,7 @@ pub trait Pipeline: Send + Sync {
     /// Run the pipeline on a module.
     ///
     /// Returns true if any changes were made.
-    fn run(&self, tree: &mut mir::Tree, ctx: &mut PipelineContext<'_>) -> bool;
+    fn run(&self, mir: &mut MirOptimized, ctx: &mut PipelineContext<'_>) -> bool;
 
     /// Get the name of this pipeline.
     fn name(&self) -> &'static str;

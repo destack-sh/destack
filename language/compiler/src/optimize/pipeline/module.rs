@@ -1,9 +1,7 @@
 use std::fmt;
 
+use crate::optimize::{FunctionPass, MirOptimized, ModulePass, PipelineContext};
 use destack_mir as mir;
-use destack_mir::ModuleAnalyses;
-
-use crate::optimize::{FunctionPass, ModulePass, PipelineContext};
 
 use super::pipeline::Pipeline;
 
@@ -53,17 +51,18 @@ impl FunctionPipeline {
 }
 
 impl Pipeline for FunctionPipeline {
-    fn run(&self, tree: &mut mir::Tree, ctx: &mut PipelineContext<'_>) -> bool {
+    fn run(&self, optimized: &mut MirOptimized, ctx: &mut PipelineContext<'_>) -> bool {
         let mut any_changed = false;
 
         // collect function ids
-        let function_ids: Vec<_> = tree
+        let function_ids: Vec<_> = optimized
+            .tree
             .iter_nodes::<mir::Function>()
             .map(|(id, _)| id)
             .collect();
 
         for function_id in function_ids {
-            let mut function = tree.get(function_id).clone();
+            let mut function = optimized.tree.get(function_id).clone();
 
             // skip imported functions (no body)
             if function.entry().is_none() {
@@ -71,29 +70,29 @@ impl Pipeline for FunctionPipeline {
             }
 
             // one analysis cache lives across this function's whole pass sequence
-            let analyses = ctx.new_function_analyses();
+            let analyses = mir::FunctionAnalysisCache::with_options(
+                ctx.options.analysis,
+                &optimized.memory,
+                &optimized.effects,
+            );
 
             // seal the value counter once on entry; passes maintain it via next_value
-            function.recompute_next_value_id(tree);
+            function.recompute_next_value_id(&optimized.tree);
+            function.rebuild_instruction_index(&optimized.tree);
 
             for pass in &self.passes {
-                // enforce pass requirements
-                if !ctx.enforce_function_requirements(pass.metadata(), function_id, &function, tree)
-                {
-                    continue;
-                }
-
-                let mutation = pass.run(&mut function, tree, ctx, &analyses);
+                let mutation = pass.run(&mut function, optimized, ctx, &analyses);
 
                 // drop the analyses this pass's mutation invalidates
                 analyses.apply(mutation);
                 if !mutation.is_none() {
+                    function.rebuild_instruction_index(&optimized.tree);
                     any_changed = true;
                 }
             }
 
             // write function back
-            *tree.get_mut(function_id) = function;
+            *optimized.tree.get_mut(function_id) = function;
         }
 
         any_changed
@@ -144,19 +143,19 @@ impl ModulePipeline {
 }
 
 impl Pipeline for ModulePipeline {
-    fn run(&self, tree: &mut mir::Tree, ctx: &mut PipelineContext<'_>) -> bool {
+    fn run(&self, optimized: &mut MirOptimized, ctx: &mut PipelineContext<'_>) -> bool {
         let mut any_changed = false;
 
-        // one analysis cache lives across the module's whole pass sequence
-        let analyses = ModuleAnalyses::new();
+        // one analysis cache lives across the tree's whole pass sequence
+        let analyses = mir::TreeAnalysisCache::with_options(
+            ctx.options.analysis,
+            &optimized.dispatch,
+            &optimized.memory,
+            &optimized.effects,
+        );
 
         for pass in &self.passes {
-            // enforce pass requirements
-            if !ctx.enforce_module_requirements(pass.metadata(), tree) {
-                continue;
-            }
-
-            let mutation = pass.run(tree, ctx, &analyses);
+            let mutation = pass.run(optimized, ctx, &analyses);
 
             // drop the analyses this pass's mutation invalidates
             analyses.apply(mutation);
@@ -196,8 +195,8 @@ impl FunctionToModuleAdaptor {
 }
 
 impl Pipeline for FunctionToModuleAdaptor {
-    fn run(&self, tree: &mut mir::Tree, ctx: &mut PipelineContext<'_>) -> bool {
-        self.inner.run(tree, ctx)
+    fn run(&self, optimized: &mut MirOptimized, ctx: &mut PipelineContext<'_>) -> bool {
+        self.inner.run(optimized, ctx)
     }
 
     fn name(&self) -> &'static str {
@@ -244,11 +243,11 @@ impl RepeatedPipeline {
 }
 
 impl Pipeline for RepeatedPipeline {
-    fn run(&self, tree: &mut mir::Tree, ctx: &mut PipelineContext<'_>) -> bool {
+    fn run(&self, optimized: &mut MirOptimized, ctx: &mut PipelineContext<'_>) -> bool {
         let mut any_changed = false;
 
         for _ in 0..self.max_iterations {
-            let changed = self.inner.run(tree, ctx);
+            let changed = self.inner.run(optimized, ctx);
             any_changed |= changed;
 
             // stop if no changes (fixed point reached)
@@ -305,10 +304,10 @@ impl CompositePipeline {
 }
 
 impl Pipeline for CompositePipeline {
-    fn run(&self, tree: &mut mir::Tree, ctx: &mut PipelineContext<'_>) -> bool {
+    fn run(&self, optimized: &mut MirOptimized, ctx: &mut PipelineContext<'_>) -> bool {
         let mut any_changed = false;
         for pipeline in &self.pipelines {
-            let changed = pipeline.run(tree, ctx);
+            let changed = pipeline.run(optimized, ctx);
             any_changed |= changed;
         }
         any_changed
@@ -328,7 +327,7 @@ mod tests {
     use destack_mir::Mutation;
 
     use super::*;
-    use crate::optimize::{Pass, PassMetadata, PassRequirements, PipelineBuilder};
+    use crate::optimize::{Pass, PassMetadata, PipelineBuilder};
 
     /// Return a no op function pass.
     struct NoOpFunctionPass;
@@ -338,7 +337,6 @@ mod tests {
         id: "no-op",
         name: "NoOpFunctionPass",
         description: "No op pass.",
-        requirements: PassRequirements::NONE,
     };
 
     impl Pass for NoOpFunctionPass {
@@ -351,9 +349,9 @@ mod tests {
         fn run(
             &self,
             _func: &mut mir::Function,
-            _tree: &mut mir::Tree,
+            _optimized: &mut MirOptimized,
             _ctx: &PipelineContext<'_>,
-            _analyses: &mir::FunctionAnalyses,
+            _analyses: &mir::FunctionAnalysisCache,
         ) -> Mutation {
             Mutation::NONE
         }
@@ -373,7 +371,6 @@ mod tests {
         id: "changes",
         name: "ChangesFunctionPass",
         description: "Changes pass.",
-        requirements: PassRequirements::NONE,
     };
 
     impl Pass for ChangesFunctionPass {
@@ -386,9 +383,9 @@ mod tests {
         fn run(
             &self,
             _func: &mut mir::Function,
-            _tree: &mut mir::Tree,
+            _optimized: &mut MirOptimized,
             _ctx: &PipelineContext<'_>,
-            _analyses: &mir::FunctionAnalyses,
+            _analyses: &mir::FunctionAnalysisCache,
         ) -> Mutation {
             Mutation::ALL
         }
@@ -398,7 +395,7 @@ mod tests {
         }
     }
 
-    /// Validate empty function pipeline metadata.
+    /// Validate empty function pipeline tables.
     #[test]
     fn test_function_pipeline_empty() {
         let pipeline = FunctionPipeline::empty();

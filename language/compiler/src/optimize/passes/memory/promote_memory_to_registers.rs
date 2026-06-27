@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ControlFlowGraph, DominatorTree, Mutation, compute_dominance_frontiers,
     instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
@@ -50,10 +50,13 @@ impl FunctionPass for PromoteMemoryToRegisters {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip functions without locals
         if function.locals().is_empty() {
             return Mutation::NONE;
@@ -68,7 +71,7 @@ impl FunctionPass for PromoteMemoryToRegisters {
         };
 
         // run promote-memory-to-registers
-        let changed = run_promote_memory_to_registers(function, tree, &cfg, &domtree);
+        let changed = run_promote_memory_to_registers(function, tree, memory, &cfg, &domtree);
 
         // report what this pass changed
         if changed {
@@ -93,6 +96,7 @@ impl FunctionPass for PromoteMemoryToRegisters {
 fn run_promote_memory_to_registers(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
 ) -> bool {
@@ -133,6 +137,7 @@ fn run_promote_memory_to_registers(
         &block_params,
         function,
         tree,
+        memory,
         cfg,
         domtree,
         entry,
@@ -425,6 +430,7 @@ fn rename_variables(
     >,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     _cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     entry: mir::LocalNodeId<mir::Block>,
@@ -534,7 +540,7 @@ fn rename_variables(
                 instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
             if new_instruction != instruction {
                 tree.set(instruction_id, new_instruction);
-                remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
+                remap_instruction_memory_accesses(memory, instruction_id, &substitutions);
             }
         }
 
@@ -709,7 +715,7 @@ fn update_terminator_arguments(
                     right: remap_value_reference(*right, substitutions),
                     is_signed: *is_signed,
                 },
-                mir::CheckConstraint::Type { value, expected } => mir::CheckConstraint::Type {
+                mir::CheckConstraint::IsType { value, expected } => mir::CheckConstraint::IsType {
                     value: remap_value_reference(*value, substitutions),
                     expected: *expected,
                 },
@@ -719,15 +725,9 @@ fn update_terminator_arguments(
                         expected: expected.clone(),
                     }
                 }
-                mir::CheckConstraint::ReceiverType { receiver, expected } => {
-                    mir::CheckConstraint::ReceiverType {
-                        receiver: remap_value_reference(*receiver, substitutions),
-                        expected: *expected,
-                    }
-                }
-                mir::CheckConstraint::Implements { receiver, expected } => {
-                    mir::CheckConstraint::Implements {
-                        receiver: remap_value_reference(*receiver, substitutions),
+                mir::CheckConstraint::IsSubtype { value, expected } => {
+                    mir::CheckConstraint::IsSubtype {
+                        value: remap_value_reference(*value, substitutions),
                         expected: *expected,
                     }
                 }

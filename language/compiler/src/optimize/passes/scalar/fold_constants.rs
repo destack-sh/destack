@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ConstantPropagation, Mutation, TargetLayout, fold_binary, fold_cast, fold_intrinsic,
     fold_unary, instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
@@ -43,15 +43,18 @@ impl FunctionPass for FoldConstants {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // get constant propagation analysis
         let constants = { analyses.get::<ConstantPropagation>(function, tree).clone() };
 
         // run constant folding
-        let changed = run_fold_constants(function, tree, &constants, ctx.target_layout());
+        let changed = run_fold_constants(function, tree, memory, &constants, ctx.target_layout());
 
         // report what this pass changed
         if changed {
@@ -74,6 +77,7 @@ impl FunctionPass for FoldConstants {
 fn run_fold_constants(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     constants: &ConstantPropagation,
     target_layout: TargetLayout,
 ) -> bool {
@@ -207,7 +211,7 @@ fn run_fold_constants(
                             *operator,
                             arg_const.clone(),
                             to_type,
-                            target_layout.pointer_width_bits,
+                            target_layout.pointer_bits(),
                             tree,
                         )
                     {
@@ -286,7 +290,7 @@ fn run_fold_constants(
                 // replace instructions when substitutions apply
                 if updated != instruction {
                     tree.set(instruction_id, updated);
-                    remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
+                    remap_instruction_memory_accesses(memory, instruction_id, &substitutions);
                 }
             }
         }

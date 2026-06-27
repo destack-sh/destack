@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{ModulePass, PipelineContext};
+use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
 use destack_mir::{
     Mutation, SignatureKey, ValueDefinitions, apply_constant_parameters, constant_for_value,
     constant_matches_type, constant_type_of,
@@ -55,12 +55,15 @@ impl ModulePass for PropagateInterproceduralConstants {
     /// Run interprocedural constant propagation for the module.
     fn run(
         &self,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mir::ModuleAnalyses,
+        _analyses: &mir::TreeAnalysisCache,
     ) -> Mutation {
-        let pointer_width_bits = ctx.options.target_layout().pointer_width_bits;
-        let changed = run_interprocedural_constant_prop(tree, pointer_width_bits);
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
+        let pointer_width_bits = ctx.options.target_layout().pointer_bits();
+        let changed = run_interprocedural_constant_prop(tree, memory, pointer_width_bits);
 
         // report what this pass changed
         if changed {
@@ -101,7 +104,11 @@ struct CallData {
 }
 
 /// Run interprocedural constant propagation over the module.
-fn run_interprocedural_constant_prop(tree: &mut mir::Tree, pointer_width_bits: u16) -> bool {
+fn run_interprocedural_constant_prop(
+    tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
+    pointer_width_bits: u16,
+) -> bool {
     // collect callsites up front
     let call_data = collect_call_data(tree);
 
@@ -149,7 +156,7 @@ fn run_interprocedural_constant_prop(tree: &mut mir::Tree, pointer_width_bits: u
         }
 
         // insert constants and rewrite uses inside the callee
-        if apply_constant_parameters(function_id, &constants, tree) {
+        if apply_constant_parameters(function_id, &constants, tree, memory) {
             changed = true;
         }
     }
