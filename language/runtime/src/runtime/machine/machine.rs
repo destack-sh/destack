@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
-use destack_heap as heap;
-use destack_mir as mir;
-use destack_native as native;
+use destack_heap::{HeapResult, RootSlot};
+use destack_mir::TraceTable;
 use destack_program as program;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
-use super::{Continuation, ContinuationImage, Entry, Image, Outcome, RuntimeCall, RuntimeMemory};
+use super::{
+    Continuation, ContinuationImage, Entry, Image, Outcome, ProgramActivation, ProgramStorage,
+    native,
+};
 use crate::diagnostic::{MachineError, RuntimeError, RuntimeResult};
 
 const NATIVE_MACHINE: &str = "native";
@@ -176,8 +178,16 @@ impl Machine {
         self.id
     }
 
+    /// Return the immutable program.
+    pub fn program(&self) -> Arc<program::Program> {
+        match &self.engine {
+            Engine::Vm(machine) => machine.program_handle(),
+            Engine::Native { vm, .. } => vm.program_handle(),
+        }
+    }
+
     /// Return the program trace table used by heap metadata.
-    pub fn trace_table(&self) -> Arc<mir::TraceTable> {
+    pub fn trace_table(&self) -> &TraceTable {
         match &self.engine {
             Engine::Vm(machine) => machine.trace_table(),
             Engine::Native { vm, .. } => vm.trace_table(),
@@ -185,7 +195,7 @@ impl Machine {
     }
 
     /// Initialize worker-owned static bytes.
-    pub fn initialize(&mut self, context: RuntimeMemory<'_>) -> RuntimeResult<()> {
+    pub fn initialize(&mut self, context: ProgramStorage<'_>) -> RuntimeResult<()> {
         match &mut self.engine {
             Engine::Vm(machine) => vm::Machine::initialize(
                 machine.as_mut(),
@@ -209,7 +219,7 @@ impl Machine {
     /// Run one entrypoint.
     pub fn run(
         &mut self,
-        mut context: RuntimeCall<'_>,
+        mut context: ProgramActivation<'_>,
         entry: &Entry,
         args: &[program::Value],
     ) -> RuntimeResult<Outcome<Continuation>> {
@@ -220,8 +230,8 @@ impl Machine {
                 let entry = machine
                     .entry_by_name(entry.name())
                     .map_err(Box::<RuntimeError>::from)?;
-                let context = context.memory;
-                let function_id = machine.function_for_entry(entry);
+                let context = context.storage;
+                let function_id = entry.function();
                 let outcome = machine
                     .run_function_yielding(
                         context.local_static,
@@ -229,7 +239,7 @@ impl Machine {
                         context.heap,
                         context.shared_heap,
                         context.shared_cache,
-                        context.shared_gc_worker,
+                        context.shared_mark_worker,
                         function_id,
                         args,
                     )
@@ -254,8 +264,8 @@ impl Machine {
                 let entry = vm
                     .entry_by_name(entry.name())
                     .map_err(Box::<RuntimeError>::from)?;
-                let context = context.memory;
-                let function_id = vm.function_for_entry(entry);
+                let context = context.storage;
+                let function_id = entry.function();
                 let outcome = vm
                     .run_function_yielding(
                         context.local_static,
@@ -263,7 +273,7 @@ impl Machine {
                         context.heap,
                         context.shared_heap,
                         context.shared_cache,
-                        context.shared_gc_worker,
+                        context.shared_mark_worker,
                         function_id,
                         args,
                     )
@@ -277,7 +287,7 @@ impl Machine {
     /// Resume one continuation.
     pub fn resume(
         &mut self,
-        mut context: RuntimeCall<'_>,
+        mut context: ProgramActivation<'_>,
         continuation: Continuation,
         value: program::Value,
     ) -> RuntimeResult<Outcome<Continuation>> {
@@ -291,7 +301,7 @@ impl Machine {
         let id = self.id;
         match (&mut self.engine, continuation) {
             (Engine::Vm(machine), Continuation::Vm { continuation, .. }) => {
-                let context = context.memory;
+                let context = context.storage;
                 let outcome = vm::Machine::resume(
                     machine.as_mut(),
                     context.local_static,
@@ -299,7 +309,7 @@ impl Machine {
                     context.heap,
                     context.shared_heap,
                     context.shared_cache,
-                    context.shared_gc_worker,
+                    context.shared_mark_worker,
                     continuation,
                     value,
                 )
@@ -315,7 +325,7 @@ impl Machine {
                 outcome_from_native(id, vm.as_mut(), context, outcome)
             }
             (Engine::Native { vm, .. }, Continuation::Vm { continuation, .. }) => {
-                let context = context.memory;
+                let context = context.storage;
                 let outcome = vm::Machine::resume(
                     vm.as_mut(),
                     context.local_static,
@@ -323,7 +333,7 @@ impl Machine {
                     context.heap,
                     context.shared_heap,
                     context.shared_cache,
-                    context.shared_gc_worker,
+                    context.shared_mark_worker,
                     continuation,
                     value,
                 )
@@ -341,7 +351,7 @@ impl Machine {
     pub fn visit_root_slots(
         &mut self,
         local_static: &mut program::StaticSpace,
-        visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> RuntimeResult<()> {
         match &mut self.engine {
             Engine::Vm(machine) => {
@@ -359,7 +369,7 @@ impl Machine {
     pub fn visit_static_root_slots(
         &mut self,
         static_space: &mut program::StaticSpace,
-        visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> RuntimeResult<()> {
         match &mut self.engine {
             Engine::Vm(machine) => {
@@ -377,7 +387,7 @@ impl Machine {
     pub fn visit_continuation_root_slots(
         &mut self,
         continuation: &mut Continuation,
-        visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> RuntimeResult<()> {
         if continuation.machine() != self.id {
             return Ok(());
@@ -405,7 +415,7 @@ impl Machine {
     pub fn visit_continuation_image_root_slots(
         &mut self,
         continuation: &mut ContinuationImage,
-        visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> RuntimeResult<()> {
         if continuation.machine() != self.id {
             return Ok(());
@@ -430,7 +440,7 @@ impl Machine {
     }
 
     /// Fork this machine over already-forked memory.
-    pub fn fork(&self, context: RuntimeMemory<'_>) -> RuntimeResult<Self> {
+    pub fn fork(&self, context: ProgramStorage<'_>) -> RuntimeResult<Self> {
         let engine = match &self.engine {
             Engine::Vm(machine) => {
                 let _context = context;
@@ -457,7 +467,7 @@ impl Machine {
     }
 
     /// Capture one immutable machine image.
-    pub fn image(&self, context: RuntimeMemory<'_>) -> RuntimeResult<Image> {
+    pub fn image(&self, context: ProgramStorage<'_>) -> RuntimeResult<Image> {
         match &self.engine {
             Engine::Vm(machine) => {
                 let _context = context;
@@ -483,7 +493,7 @@ impl Machine {
     }
 
     /// Restore one immutable machine image.
-    pub fn restore(&mut self, context: RuntimeMemory<'_>, image: &Image) -> RuntimeResult<()> {
+    pub fn restore(&mut self, context: ProgramStorage<'_>, image: &Image) -> RuntimeResult<()> {
         if image.machine() != self.id {
             return Err(machine_image_mismatch(
                 &machine_name(self.kind(), self.id),
@@ -720,7 +730,7 @@ fn outcome_from_vm(id: MachineId, outcome: vm::Outcome) -> Outcome<Continuation>
 fn outcome_from_native(
     id: MachineId,
     vm: &mut vm::Machine,
-    context: RuntimeCall<'_>,
+    context: ProgramActivation<'_>,
     outcome: native::Outcome,
 ) -> RuntimeResult<Outcome<Continuation>> {
     match outcome {
@@ -736,7 +746,7 @@ fn outcome_from_native(
             value,
         }),
         native::Outcome::Deoptimized { continuation } => {
-            let context = context.memory;
+            let context = context.storage;
             let outcome = vm::Machine::continue_continuation_image(
                 vm,
                 context.local_static,
@@ -744,7 +754,7 @@ fn outcome_from_native(
                 context.heap,
                 context.shared_heap,
                 context.shared_cache,
-                context.shared_gc_worker,
+                context.shared_mark_worker,
                 &continuation,
             )
             .map_err(Box::<RuntimeError>::from)?;

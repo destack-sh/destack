@@ -58,18 +58,18 @@ impl Worker {
         let Worker {
             heap,
             shared_cache,
-            shared_gc_worker,
+            shared_mark_worker,
             local_static,
             machine,
             ..
         } = self;
-        let context = program::RuntimeCall {
+        let context = program::ProgramActivation {
             state: NonNull::from(&mut call_context).cast(),
-            memory: program::RuntimeMemory {
+            storage: program::ProgramStorage {
                 heap,
                 shared_heap: shared.shared.as_ref(),
                 shared_cache,
-                shared_gc_worker,
+                shared_mark_worker,
                 local_static,
                 shared_static,
                 constant_space,
@@ -351,11 +351,11 @@ impl Worker {
         let roots_complete = shared_roots.roots_complete();
         let progress = shared
             .step_collection_for_worker(
-                Some(&self.shared_gc_worker),
+                Some(&self.shared_mark_worker),
                 roots.as_ref(),
                 roots_complete,
                 budget_bytes,
-                runtime_shared.trace_table(),
+                runtime_shared.program().trace_table(),
             )
             .map_err(Box::<RuntimeError>::from)?;
 
@@ -623,18 +623,18 @@ impl Worker {
         let Worker {
             heap,
             shared_cache,
-            shared_gc_worker,
+            shared_mark_worker,
             local_static,
             machine,
             ..
         } = self;
-        let context = program::RuntimeCall {
+        let context = program::ProgramActivation {
             state: NonNull::from(&mut call_context).cast(),
-            memory: program::RuntimeMemory {
+            storage: program::ProgramStorage {
                 heap,
                 shared_heap: shared.shared.as_ref(),
                 shared_cache,
-                shared_gc_worker,
+                shared_mark_worker,
                 local_static,
                 shared_static,
                 constant_space,

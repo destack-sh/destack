@@ -59,7 +59,7 @@ const BUILTIN_ENTITY_KIND_DESCRIPTORS: &[BuiltinEntityKindDescriptor] = &[
         kind_id: "host.display.surface",
     },
     BuiltinEntityKindDescriptor {
-        kind_id: "host.memory.region",
+        kind_id: "host.storage.region",
     },
     BuiltinEntityKindDescriptor {
         kind_id: "host.time.clock",

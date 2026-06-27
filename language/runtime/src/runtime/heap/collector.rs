@@ -3,7 +3,8 @@ use std::sync::mpsc::{self, Receiver, SendError, Sender};
 use std::thread::{self, JoinHandle};
 
 use destack_heap::{GcPhase, SharedHeap};
-use destack_mir as mir;
+use destack_mir::TraceTable;
+use destack_program as program;
 use destack_repository::ExecutionMode;
 use parking_lot::{Condvar, Mutex};
 
@@ -26,8 +27,6 @@ pub struct SharedGc {
     heap: Arc<SharedHeap>,
     /// Shared roots consumed by mark steps.
     roots: Arc<SharedRootSet>,
-    /// Program trace table used by shared heap metadata.
-    trace: Arc<mir::TraceTable>,
     /// Collection state changed by world and collector threads.
     state: Mutex<CollectorState>,
     /// Wake quiescence waiters when pending GC work drains.
@@ -96,7 +95,12 @@ struct SharedCollectorThread {
 #[derive(Debug)]
 enum SharedCollectorMessage {
     /// Run one bounded shared heap GC step.
-    Wake(Arc<SharedGc>),
+    Wake {
+        /// Shared GC state to advance.
+        gc: Arc<SharedGc>,
+        /// Durable program owning the trace table.
+        program: Arc<program::Program>,
+    },
     /// Shut down the collector thread.
     Stop,
 }
@@ -126,7 +130,7 @@ impl SharedCollector {
     }
 
     /// Wake concurrent GC for one world.
-    pub(crate) fn wake(self: &Arc<Self>, work: &Arc<SharedGc>) {
+    pub(crate) fn wake(self: &Arc<Self>, work: &Arc<SharedGc>, program: &Arc<program::Program>) {
         if !self.mode.is_concurrent() || !work.schedule() {
             return;
         }
@@ -138,7 +142,7 @@ impl SharedCollector {
             return;
         };
 
-        if thread.wake(work.clone()).is_err() {
+        if thread.wake(work.clone(), program.clone()).is_err() {
             work.fail_scheduled("collector thread is stopped");
         }
     }
@@ -146,15 +150,10 @@ impl SharedCollector {
 
 impl SharedGc {
     /// Create one runtime-owned shared GC state.
-    pub(crate) fn new(
-        heap: Arc<SharedHeap>,
-        roots: Arc<SharedRootSet>,
-        trace_table: Arc<mir::TraceTable>,
-    ) -> Arc<Self> {
+    pub(crate) fn new(heap: Arc<SharedHeap>, roots: Arc<SharedRootSet>) -> Arc<Self> {
         Arc::new(Self {
             heap,
             roots,
-            trace: trace_table,
             state: Mutex::new(CollectorState::default()),
             quiesce: Condvar::new(),
             failure: Mutex::new(None),
@@ -193,16 +192,20 @@ impl SharedGc {
     }
 
     /// Run one scheduled GC step on the collector thread.
-    fn run_scheduled(self: &Arc<Self>, collector: &Arc<SharedCollector>) {
+    fn run_scheduled(
+        self: &Arc<Self>,
+        collector: &Arc<SharedCollector>,
+        program: &Arc<program::Program>,
+    ) {
         if !self.begin_run() {
             return;
         }
 
-        let should_continue = self.collect_with_failure();
+        let should_continue = self.collect_with_failure(program.trace_table());
         self.finish_run();
 
         if should_continue {
-            collector.wake(self);
+            collector.wake(self, program);
         }
     }
 
@@ -258,8 +261,8 @@ impl SharedGc {
     }
 
     /// Run one bounded shared GC increment and retain one failure.
-    fn collect_with_failure(&self) -> bool {
-        match self.collect() {
+    fn collect_with_failure(&self, trace_table: &TraceTable) -> bool {
+        match self.collect(trace_table) {
             Ok(should_continue) => should_continue,
             Err(error) => {
                 *self.failure.lock() = Some(error);
@@ -270,7 +273,7 @@ impl SharedGc {
     }
 
     /// Run one bounded shared GC increment.
-    fn collect(&self) -> RuntimeResult<bool> {
+    fn collect(&self, trace_table: &TraceTable) -> RuntimeResult<bool> {
         if self.heap.gc_phase() == GcPhase::Idle {
             return Ok(false);
         }
@@ -280,12 +283,7 @@ impl SharedGc {
         let budget_bytes = self.heap.take_collection_budget_bytes(1);
         let progress = self
             .heap
-            .step_collection(
-                roots.as_ref(),
-                roots_complete,
-                budget_bytes,
-                self.trace.as_ref(),
-            )
+            .step_collection(roots.as_ref(), roots_complete, budget_bytes, trace_table)
             .map_err(Box::<RuntimeError>::from)?;
 
         if self.heap.gc_phase() != GcPhase::Mark || roots_complete {
@@ -323,8 +321,13 @@ impl SharedCollectorThread {
     }
 
     /// Wake the collector thread.
-    fn wake(&self, work: Arc<SharedGc>) -> Result<(), SendError<SharedCollectorMessage>> {
-        self.sender.send(SharedCollectorMessage::Wake(work))
+    fn wake(
+        &self,
+        gc: Arc<SharedGc>,
+        program: Arc<program::Program>,
+    ) -> Result<(), SendError<SharedCollectorMessage>> {
+        self.sender
+            .send(SharedCollectorMessage::Wake { gc, program })
     }
 }
 
@@ -345,7 +348,7 @@ fn run_shared_collector_thread(
 ) {
     while let Ok(message) = receiver.recv() {
         match message {
-            SharedCollectorMessage::Wake(work) => work.run_scheduled(&collector),
+            SharedCollectorMessage::Wake { gc, program } => gc.run_scheduled(&collector, &program),
             SharedCollectorMessage::Stop => break,
         }
     }

@@ -1,8 +1,7 @@
-use destack_native as native;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
-use super::MachineId;
+use super::{MachineId, native};
 
 /// Live runnable continuation owned by one machine.
 #[derive(Debug)]

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use destack_mir::TraceTable;
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_program as program;
 use destack_repository::{Environment, RuntimeOptions};
@@ -18,7 +17,7 @@ use crate::host::{
     HostEvent, HostEventKind, LifecycleEvent, LifecycleSourceKind, LifecycleState, ResourceId,
 };
 use crate::runtime::machine::{
-    Continuation, Entry, Execution, Outcome, RuntimeCall, RuntimeMemory,
+    Continuation, Entry, Execution, Outcome, ProgramActivation, ProgramStorage,
 };
 use crate::runtime::scheduler::{Readiness, ScheduledTimer, Task, TaskId, TimerDeadline};
 use crate::runtime::time::Nanos;
@@ -532,12 +531,16 @@ impl TestWorldRuntime {
 }
 
 /// Build runtime-owned shared heap state for one test world.
-pub(crate) fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> RuntimeHeap {
+pub(crate) fn runtime_shared_heap(
+    world: &World,
+    options: &RuntimeOptions,
+    program: Arc<program::Program>,
+) -> RuntimeHeap {
     RuntimeHeap::new(
-        world.memory.allocator.clone(),
-        world.memory.shared_collector.clone(),
+        world.storage.allocator.clone(),
+        world.storage.shared_collector.clone(),
         options,
-        Arc::new(TraceTable::new()),
+        program,
     )
     .expect("runtime shared heap should build")
 }
@@ -556,12 +559,11 @@ fn worker_for_options(
     let mut world =
         World::new(options, Environment::default()).expect("runtime test world should build");
 
-    // construct one runtime worker from explicit options
-    let shared = runtime_shared_heap(&world, options);
-    let world_state = &mut world.state;
-
     let program = machine.program();
     let execution = machine.execution();
+    let shared = runtime_shared_heap(&world, options, program.clone());
+    let world_state = &mut world.state;
+
     let constant_space = program.constants().clone();
     let mut shared_static = program.shared_statics().clone();
     let mut worker = Worker::new_in_world(
@@ -605,16 +607,16 @@ pub(crate) fn start_worker_continuation(
         local_static,
         machine,
         shared_cache,
-        shared_gc_worker,
+        shared_mark_worker,
         ..
     } = worker;
-    let context = RuntimeCall {
+    let context = ProgramActivation {
         state: std::ptr::NonNull::from(&mut call_context).cast(),
-        memory: RuntimeMemory {
+        storage: ProgramStorage {
             heap: worker_heap,
             shared_heap: runtime_heap.shared.as_ref(),
             shared_cache,
-            shared_gc_worker,
+            shared_mark_worker,
             local_static,
             shared_static,
             constant_space,

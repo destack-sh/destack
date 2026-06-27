@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_heap::{
-    AllocationCache, Allocator, GcWorker, Heap, HeapLimits, HeapOptions, SharedHeap,
-    SharedHeapLimits, SharedHeapOptions,
+    AllocationCache, Allocator, Heap, HeapLimits, HeapOptions, SharedHeap, SharedHeapLimits,
+    SharedHeapOptions, SharedMarkWorker,
 };
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_program::StaticSpace;
@@ -159,8 +159,8 @@ pub(crate) struct VmMachine {
     shared: SharedHeap,
     /// Worker-local shared allocation cache.
     shared_cache: AllocationCache,
-    /// Shared collector worker.
-    shared_gc: GcWorker,
+    /// Shared mark worker.
+    shared_mark_worker: SharedMarkWorker,
 }
 
 impl VmMachine {
@@ -171,7 +171,7 @@ impl VmMachine {
         let mut shared_statics = StaticSpace::empty();
         let heap = heap();
         let shared = shared_heap();
-        let shared_gc = shared.register_collector_worker();
+        let shared_mark_worker = shared.register_mark_worker();
         let shared_cache = shared.allocation_cache();
 
         machine
@@ -185,7 +185,7 @@ impl VmMachine {
             heap,
             shared,
             shared_cache,
-            shared_gc,
+            shared_mark_worker,
         }
     }
 
@@ -203,7 +203,7 @@ impl VmMachine {
                 &mut self.heap,
                 &self.shared,
                 &mut self.shared_cache,
-                &self.shared_gc,
+                &self.shared_mark_worker,
                 entry,
                 &[],
             )

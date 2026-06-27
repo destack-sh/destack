@@ -93,10 +93,9 @@ impl Runtime {
     ) -> RuntimeResult<Self> {
         let environment = environment.into();
         let program = program.into();
-        let trace_table = program.trace_table_handle();
         let constant_space = program.constants().clone();
         let mut shared_static = program.shared_statics().clone();
-        let shared = RuntimeHeap::new(allocator, collector, options, trace_table)?;
+        let shared = RuntimeHeap::new(allocator, collector, options, program.clone())?;
         let default_worker = Worker::new_in_world(
             environment.clone(),
             options,
@@ -643,13 +642,13 @@ impl Runtime {
         // fork each owned worker first
         let mut workers = BTreeMap::new();
         for (worker_id, worker) in &mut self.workers {
-            let shared_gc_worker = shared.register_collector_worker();
+            let shared_mark_worker = shared.register_mark_worker();
             let Some(worker) = worker.try_fork(
                 execution_mode,
                 &shared,
                 &mut shared_static,
                 &self.constant_space,
-                shared_gc_worker,
+                shared_mark_worker,
             )?
             else {
                 return Ok(None);
@@ -693,14 +692,13 @@ impl Runtime {
         let program = image.program.clone();
         let execution =
             Execution::from_image(program.as_ref(), &image.execution, restore.native_linker())?;
-        let trace_table = program.trace_table_handle();
         let constant_space = program.constants().clone();
         let shared = RuntimeHeap::from_snapshot(
             &image.shared_heap,
             &image.options,
             allocator,
             collector,
-            trace_table,
+            program.clone(),
         )?;
         let mut shared_static = image.shared_static.clone();
         let mut workers = BTreeMap::new();
@@ -785,7 +783,7 @@ mod tests {
     use crate::runtime::{RuntimeHeap, TickResult, Worker, WorkerOptions};
     use crate::world::World;
     use destack_core::CaptureMode;
-    use destack_heap::{AllocationShape, SharedHeap};
+    use destack_heap::{PayloadShape, SharedHeap};
     use destack_mir::{TraceMap, TraceTable};
     use destack_program as program;
     use destack_repository::{Environment, RuntimeOptions};
@@ -796,10 +794,10 @@ mod tests {
         bytes: &[u8],
     ) -> destack_heap::HeapResult<destack_heap::SharedHeapReference> {
         let trace_map = TraceMap::Empty;
-        let shape = AllocationShape::new(bytes.len(), 1, None, &trace_map);
-        let site = heap.options().allocation_site_for_shape(shape);
+        let shape = PayloadShape::new(bytes.len(), 1, None, &trace_map);
+        let site = heap.options().allocation_plan_for_shape(shape);
         let mut allocator = heap.allocation_cache();
-        let worker = heap.register_collector_worker();
+        let worker = heap.register_mark_worker();
 
         heap.allocate_bytes(
             &worker,
@@ -812,12 +810,16 @@ mod tests {
     }
 
     /// Build runtime-owned shared heap state for one test world.
-    fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> RuntimeHeap {
+    fn runtime_shared_heap(
+        world: &World,
+        options: &RuntimeOptions,
+        program: Arc<program::Program>,
+    ) -> RuntimeHeap {
         RuntimeHeap::new(
-            world.memory.allocator.clone(),
-            world.memory.shared_collector.clone(),
+            world.storage.allocator.clone(),
+            world.storage.shared_collector.clone(),
             options,
-            Arc::new(TraceTable::new()),
+            program,
         )
         .expect("runtime shared heap should construct")
     }
@@ -846,11 +848,11 @@ mod tests {
         let options = RuntimeOptions::default();
         let mut world =
             World::new(&options, Environment::default()).expect("world should construct");
-        let shared = runtime_shared_heap(&world, &options);
-        let world_state = &mut world.state;
         let machine = TestMachine::default();
         let program = machine.program();
         let execution = machine.execution();
+        let shared = runtime_shared_heap(&world, &options, program.clone());
+        let world_state = &mut world.state;
         let constant_space = program.constants().clone();
         let mut shared_static = program.shared_statics().clone();
 
@@ -942,11 +944,11 @@ mod tests {
         let options = RuntimeOptions::default();
         let mut world =
             World::new(&options, Environment::default()).expect("world should construct");
-        let shared = runtime_shared_heap(&world, &options);
-        let world_state = &mut world.state;
         let machine = TestMachine::default();
         let program = machine.program();
         let execution = machine.execution();
+        let shared = runtime_shared_heap(&world, &options, program.clone());
+        let world_state = &mut world.state;
         let constant_space = program.constants().clone();
         let mut shared_static = program.shared_statics().clone();
         let mut worker = Worker::new_in_world(
@@ -962,18 +964,18 @@ mod tests {
         )
         .expect("worker should construct");
         let trace_map = TraceMap::Empty;
-        let shape = AllocationShape::new(16, 1, None, &trace_map);
-        let site = shared.shared.options().allocation_site_for_shape(shape);
+        let shape = PayloadShape::new(16, 1, None, &trace_map);
+        let site = shared.shared.options().allocation_plan_for_shape(shape);
 
         // allocate through the worker cache without reaching a normal flush point
         let _reference = shared
             .shared
             .allocate_zeroed(
-                &worker.shared_gc_worker,
+                &worker.shared_mark_worker,
                 &mut worker.shared_cache,
                 site,
                 &trace_map,
-                shared.trace_table(),
+                program.trace_table(),
             )
             .expect("shared allocation should succeed");
 
@@ -1005,11 +1007,11 @@ mod tests {
         let options = RuntimeOptions::default();
         let mut world =
             World::new(&options, Environment::default()).expect("world should construct");
-        let shared = runtime_shared_heap(&world, &options);
-        let world_state = &mut world.state;
         let machine = TestMachine::default();
         let program = machine.program();
         let execution = machine.execution();
+        let shared = runtime_shared_heap(&world, &options, program.clone());
+        let world_state = &mut world.state;
         let constant_space = program.constants().clone();
         let mut shared_static = program.shared_statics().clone();
 
