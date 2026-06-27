@@ -69,26 +69,26 @@ function compute(): number {
 
 ## generic
 
-### returns can be gated by static parameters
+### generic-dependent statements use comptime conditions
 
-Return statements can be `@if` gated with static parameters.
+Generic-dependent branches are ordinary checked code and may be erased after specialization.
 
 ```ds
 function size<comptime Wide: bool>(): Wide extends true ? 8 : 4 {
-    @if(Wide)
-    return 8;
-
-    @if(Wide == false)
-    return 4;
+    if (comptime Wide) {
+        return 8;
+    } else {
+        return 4;
+    }
 }
 
 size<true>() satisfies 8;
 size<false>() satisfies 4;
 ```
 
-### @if bindings stay local
+### generic-dependent @if is rejected
 
-A binding introduced by an `@if` statement is not visible outside the guarded statement.
+`@if` cannot remove statements from each generic instantiation.
 
 ```ds
 function demo<comptime Enabled: bool>(): void {
@@ -99,4 +99,4 @@ function demo<comptime Enabled: bool>(): void {
 }
 ```
 
-- contains: missing symbol
+- contains: static @if condition must be statically decidable

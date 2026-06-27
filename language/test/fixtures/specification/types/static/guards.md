@@ -1,24 +1,19 @@
-# Static Guards
+# Static Choices
 
-Members can be gated with `@if`.
+Generic-dependent static terms can select types and constants, but not source nodes.
 
 ## members
 
-### fields can be gated by static parameters
+### fields can use static parameters in conditional types
 
-Fields can be `@if` gated with static parameters.
+Fields can depend on static parameters by making the field type conditional.
 
 ```ds
 struct InlineIndex {}
 struct ExternalIndex {}
 
 struct Buffer<T, comptime Mode: "inline" | "external"> {
-    @if(Mode == "inline")
-    index: InlineIndex;
-
-    @if(Mode == "external")
-    index: ExternalIndex;
-
+    index: Mode == "inline" ? InlineIndex : ExternalIndex;
     value: T;
 }
 
@@ -26,17 +21,15 @@ declare const buffer: Buffer<string, "external">;
 buffer.index satisfies ExternalIndex;
 ```
 
-### fields can be gated by type relations
+### fields can use type relations in conditional types
 
-Fields can be `@if` gated with type relations.
+Fields can depend on type relations by making the field type conditional.
 
 ```ds
 struct TextMeta {}
 
 struct Packet<T> {
-    @if(T extends string)
-    meta: TextMeta;
-
+    meta: T extends string ? TextMeta : ();
     value: T;
 }
 
@@ -44,9 +37,9 @@ declare const packet: Packet<string>;
 packet.meta satisfies TextMeta;
 ```
 
-### when false, @if removes fields
+### generic-dependent @if does not remove fields
 
-A field behind `@if(false)` is absent.
+Generic-dependent member removal is rejected.
 
 ```ds
 struct ExternalIndex {}
@@ -62,21 +55,18 @@ declare const buffer: Buffer<string, "inline">;
 buffer.index;
 ```
 
-- contains: does not exist
+- contains: static @if condition must be statically decidable
 
-### fields can be gated by associated constants
+### fields can use associated constants in conditional types
 
-Fields can be `@if` gated with associated constants.
+Fields can depend on associated constants by making the field type conditional.
 
 ```ds
 struct WideMeta {}
 
 class Segment<Row> {
     comptime const Width: uint = Row extends string ? 8 : 4;
-
-    @if(this.Width == 8)
-    meta: WideMeta;
-
+    meta: this.Width == 8 ? WideMeta : ();
     value: Row;
 }
 
@@ -84,17 +74,15 @@ declare const segment: Segment<string>;
 segment.meta satisfies WideMeta;
 ```
 
-### fields can be gated by contextual placement
+### fields can use contextual placement in conditional types
 
-Fields can be `@if` gated with the containing value's placement.
+Fields can depend on the containing value's placement by making the field type conditional.
 
 ```ds
 struct SharedLock {}
 
 struct Buffer<T> {
-    @if(PlaceOf<this> == "shared")
-    lock: SharedLock;
-
+    lock: PlaceOf<this> == "shared" ? SharedLock : ();
     value: T;
 }
 
@@ -102,22 +90,18 @@ declare const buffer: shared Buffer<string>;
 buffer.lock satisfies SharedLock;
 ```
 
-### ambient placement omits shared fields
+### ambient placement selects unit fields
 
-A field gated on shared placement is absent from the ambient form.
+The ambient form keeps the same field and selects the unit type.
 
 ```ds
 struct SharedLock {}
 
 struct Buffer<T> {
-    @if(PlaceOf<this> == "shared")
-    lock: SharedLock;
-
+    lock: PlaceOf<this> == "shared" ? SharedLock : ();
     value: T;
 }
 
 declare const buffer: Buffer<string>;
-buffer.lock;
+buffer.lock satisfies ();
 ```
-
-- contains: does not exist
