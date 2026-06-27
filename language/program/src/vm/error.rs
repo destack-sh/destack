@@ -15,6 +15,8 @@ pub enum Error {
     InvalidInstruction,
     /// Invalid VM cast encoding.
     InvalidCast,
+    /// Invalid VM field access encoding.
+    InvalidFieldAccess { index: u32, field_count: usize },
     /// Invalid VM pointer type.
     InvalidPointerType { actual: String },
     /// Unsupported VM instruction form.
@@ -49,6 +51,11 @@ impl Error {
     /// Return one invalid cast error.
     pub const fn invalid_cast() -> Self {
         Self::InvalidCast
+    }
+
+    /// Return one invalid field access error.
+    pub const fn invalid_field_access(index: u32, field_count: usize) -> Self {
+        Self::InvalidFieldAccess { index, field_count }
     }
 
     /// Return one invalid pointer type error.
