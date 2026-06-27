@@ -3,36 +3,36 @@ use serde::{Deserialize, Serialize};
 
 use crate::TypeId;
 
-/// One static region.
+/// Dense executable global id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct StaticId(pub u32);
+pub struct GlobalId(pub u32);
 
-impl StaticId {
+impl GlobalId {
     /// Return this id as a dense table index.
     pub const fn index(self) -> usize {
         self.0 as usize
     }
 }
 
-impl From<u32> for StaticId {
-    /// Convert one raw program static id.
+impl From<u32> for GlobalId {
+    /// Convert one raw program global id.
     fn from(id: u32) -> Self {
         Self(id)
     }
 }
 
-impl From<StaticId> for u32 {
-    /// Convert one program static id into its raw value.
-    fn from(id: StaticId) -> Self {
+impl From<GlobalId> for u32 {
+    /// Convert one program global id into its raw value.
+    fn from(id: GlobalId) -> Self {
         id.0
     }
 }
 
-/// One typed region inside static memory.
+/// One executable global stored inside static memory.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct StaticRegion {
-    /// The region id.
-    pub id: StaticId,
+pub struct GlobalRegion {
+    /// The global id.
+    pub global: GlobalId,
     /// The region byte offset.
     pub offset: usize,
     /// The region byte length.

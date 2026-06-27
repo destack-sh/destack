@@ -1,13 +1,11 @@
 use destack_serde::Reflect;
 use std::collections::HashMap;
 
-use destack_core::StringPool;
-use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 
-use crate::vm::{CellLayout, Error};
+use crate::vm::Error;
 
-use super::{ProgramIndex, TypeId, TypeTable};
+use super::TypeId;
 
 /// Durable runtime function id inside one program.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -34,7 +32,7 @@ impl From<FunctionId> for u32 {
     }
 }
 
-/// Runtime function metadata carried by one durable program.
+/// Executable function table carried by one durable program.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FunctionTable {
     /// Dense function records keyed by program function id.
@@ -44,25 +42,11 @@ pub struct FunctionTable {
 }
 
 impl FunctionTable {
-    /// Build one runtime function table from lowered MIR metadata.
-    pub fn lower(tree: &mir::Tree, strings: &StringPool, index: &ProgramIndex) -> Self {
-        let mut functions = Vec::new();
-        let mut function_by_name = HashMap::new();
-
-        // copy function records into dense runtime slots
-        for (mir_function, function) in tree.iter_nodes::<mir::Function>() {
-            let function_id = index.function_id(mir_function);
-            let slot = function_id.index();
-            if slot >= functions.len() {
-                functions.resize_with(slot + 1, || None);
-            }
-
-            let name = strings.get(function.name).to_string();
-            let record = Function::lower(function, name.clone(), index);
-            functions[slot] = Some(record);
-            function_by_name.entry(name).or_insert(function_id);
-        }
-
+    /// Create one executable function table.
+    pub fn new(
+        functions: Vec<Option<Function>>,
+        function_by_name: HashMap<String, FunctionId>,
+    ) -> Self {
         Self {
             functions,
             function_by_name,
@@ -81,38 +65,17 @@ impl FunctionTable {
         self.function_by_name.get(name).copied()
     }
 
-    /// Return the function environment cell layout for one function id.
-    pub fn environment_layout(
-        &self,
-        types: &TypeTable,
-        pointer_bytes: u8,
-        function: FunctionId,
-    ) -> Option<CellLayout> {
-        let function = self.get(function)?;
-        let environment = function.environment?;
-
-        types.cell_layout(environment, pointer_bytes)
-    }
-
     /// Require one function to match one bare signature type.
     pub fn validate_signature(
         &self,
-        types: &TypeTable,
         function: FunctionId,
-        signature: TypeId,
+        signature: &Signature,
     ) -> Result<(), Error> {
         let function = self
             .get(function)
             .ok_or_else(|| Error::undefined_function(function))?;
 
-        let Some(mir::Type::FunctionSignature {
-            parameters, result, ..
-        }) = types.get(signature)
-        else {
-            return Err(Error::invalid_instruction());
-        };
-
-        if function.matches_signature(types, parameters, types.type_id(*result)) {
+        if function.matches_signature(signature) {
             return Ok(());
         }
 
@@ -123,53 +86,40 @@ impl FunctionTable {
     }
 }
 
-/// Runtime function metadata.
+/// Executable function record.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Function {
     /// The source-facing function name.
     pub name: String,
-    /// Function parameter types.
-    pub parameters: Vec<TypeId>,
-    /// Function return type.
-    pub return_type: TypeId,
+    /// Function call signature.
+    pub signature: Signature,
     /// Captured closure environment type when one exists.
     pub environment: Option<TypeId>,
 }
 
 impl Function {
-    /// Build one runtime function record from MIR.
-    fn lower(function: &mir::Function, name: String, index: &ProgramIndex) -> Self {
-        let parameters = function
-            .parameters
-            .iter()
-            .map(|parameter| index.type_id(parameter.ty))
-            .collect();
-
-        Self {
-            name,
-            parameters,
-            return_type: index.type_id(function.return_type),
-            environment: function.environment.map(|ty| index.type_id(ty)),
-        }
-    }
-
     /// Return whether this function matches one function signature type.
-    fn matches_signature(
-        &self,
-        types: &TypeTable,
-        parameters: &[mir::SignatureParameter],
-        result: TypeId,
-    ) -> bool {
-        if self.parameters.len() != parameters.len() {
+    fn matches_signature(&self, signature: &Signature) -> bool {
+        if self.signature.parameters.len() != signature.parameters.len() {
             return false;
         }
 
         let parameters_match = self
+            .signature
             .parameters
             .iter()
-            .zip(parameters.iter())
-            .all(|(actual, expected)| *actual == types.type_id(expected.ty));
+            .zip(signature.parameters.iter())
+            .all(|(actual, expected)| actual == expected);
 
-        parameters_match && self.return_type == result
+        parameters_match && self.signature.result == signature.result
     }
+}
+
+/// Executable callable signature.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct Signature {
+    /// Parameter types.
+    pub parameters: Vec<TypeId>,
+    /// Return type.
+    pub result: TypeId,
 }

@@ -1,35 +1,35 @@
 use std::collections::HashMap;
 
-use crate::{StaticId, StaticRegion, StaticSpace, TypeId};
+use crate::{GlobalId, GlobalRegion, StaticSpace, TypeId};
 
-/// Allocator for static memory.
+/// Construction-time allocator for global regions in one static space.
 #[derive(Debug, Default)]
-pub struct StaticAllocator {
+pub struct GlobalAllocator {
     /// Static bytes.
     bytes: Vec<u8>,
-    /// Static regions.
-    regions: Vec<StaticRegion>,
-    /// Region index by id.
-    region_by_id: HashMap<StaticId, usize>,
+    /// Global regions.
+    regions: Vec<GlobalRegion>,
+    /// Region index by global id.
+    region_by_global: HashMap<GlobalId, usize>,
 }
 
-impl StaticAllocator {
-    /// Create an empty static allocator.
+impl GlobalAllocator {
+    /// Create an empty global allocator.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Define one static region.
+    /// Define one global region.
     pub fn define(
         &mut self,
-        id: StaticId,
+        global: GlobalId,
         ty: TypeId,
         alignment: usize,
         is_mutable: bool,
         bytes: &[u8],
     ) -> bool {
-        // static ids are unique inside one static space
-        if self.region_by_id.contains_key(&id) {
+        // global ids are unique inside one static space
+        if self.region_by_global.contains_key(&global) {
             return false;
         }
 
@@ -40,21 +40,16 @@ impl StaticAllocator {
         // append region bytes and metadata together
         let index = self.regions.len();
         self.bytes.extend_from_slice(bytes);
-        self.regions.push(StaticRegion {
-            id,
+        self.regions.push(GlobalRegion {
+            global,
             offset,
             byte_len: bytes.len(),
             ty,
             is_mutable,
         });
-        self.region_by_id.insert(id, index);
+        self.region_by_global.insert(global, index);
 
         true
-    }
-
-    /// Return whether one static region is already defined.
-    pub fn contains(&self, id: StaticId) -> bool {
-        self.region_by_id.contains_key(&id)
     }
 
     /// Finish static memory.
@@ -62,7 +57,7 @@ impl StaticAllocator {
         StaticSpace::new(
             self.bytes.into_boxed_slice(),
             self.regions.into_boxed_slice(),
-            self.region_by_id,
+            self.region_by_global,
         )
     }
 }
