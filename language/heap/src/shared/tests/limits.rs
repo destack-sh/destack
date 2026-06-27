@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
+use destack_mir::TraceMap;
+
 use crate::{
     AccountingRegion, Allocator, HeapError, Payload, SharedHeap, SharedHeapLimits,
     SharedHeapOptions, SizeClassTable, test_aligned_layout, test_layout,
 };
-use destack_mir::TraceMap;
 
 use super::{heap_allocation_plan, read_mapped_bytes, test_allocate, trace_table};
 

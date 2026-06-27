@@ -1,30 +1,31 @@
 use std::sync::OnceLock;
 
+use destack_mir::TraceTable;
+
 use crate::local::storage::HeapStorage;
 use crate::local::{Heap, HeapLimits, HeapOptions};
 use crate::{
-    AllocationClass, AllocationPlan, AllocationShape, AllocationSite, HeapReference, Payload,
+    Allocation, AllocationClass, AllocationPlan, HeapReference, Payload, PayloadShape,
     allocation_class, test_allocator,
 };
-use destack_mir::TraceTable;
 
 static TRACE_TABLE: OnceLock<TraceTable> = OnceLock::new();
 
 /// A local heap layer that can build plans and allocate blocks for tests.
 pub(crate) trait TestHeapPlan {
     /// Build one allocation plan for this test heap layer.
-    fn test_allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> AllocationPlan<'a>;
+    fn test_allocation_plan<'a>(&self, shape: PayloadShape<'a>) -> Allocation<'a>;
 
     /// Allocate one block for this test heap layer.
-    fn test_allocate(&mut self, shape: AllocationShape<'_>, payload: Payload<'_>) -> HeapReference;
+    fn test_allocate(&mut self, shape: PayloadShape<'_>, payload: Payload<'_>) -> HeapReference;
 }
 
 impl TestHeapPlan for Heap {
-    fn test_allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> AllocationPlan<'a> {
+    fn test_allocation_plan<'a>(&self, shape: PayloadShape<'a>) -> Allocation<'a> {
         allocation_plan(self.options(), shape)
     }
 
-    fn test_allocate(&mut self, shape: AllocationShape<'_>, payload: Payload<'_>) -> HeapReference {
+    fn test_allocate(&mut self, shape: PayloadShape<'_>, payload: Payload<'_>) -> HeapReference {
         let plan = self.test_allocation_plan(shape);
 
         self.allocate_payload(&plan, payload)
@@ -36,17 +37,17 @@ impl<T> TestHeapPlan for &mut T
 where
     T: TestHeapPlan + ?Sized,
 {
-    fn test_allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> AllocationPlan<'a> {
+    fn test_allocation_plan<'a>(&self, shape: PayloadShape<'a>) -> Allocation<'a> {
         (**self).test_allocation_plan(shape)
     }
 
-    fn test_allocate(&mut self, shape: AllocationShape<'_>, payload: Payload<'_>) -> HeapReference {
+    fn test_allocate(&mut self, shape: PayloadShape<'_>, payload: Payload<'_>) -> HeapReference {
         (**self).test_allocate(shape, payload)
     }
 }
 
 impl TestHeapPlan for HeapStorage {
-    fn test_allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> AllocationPlan<'a> {
+    fn test_allocation_plan<'a>(&self, shape: PayloadShape<'a>) -> Allocation<'a> {
         let class = if shape.trace_map.has_tagged_reference() {
             AllocationClass::Large
         } else {
@@ -60,12 +61,12 @@ impl TestHeapPlan for HeapStorage {
                 self.small.span_size_bytes,
             )
         };
-        let site = AllocationSite::new(shape, class);
+        let plan = AllocationPlan::new(shape, class);
 
-        site.plan(shape.trace_map)
+        plan.allocation(shape.trace_map)
     }
 
-    fn test_allocate(&mut self, shape: AllocationShape<'_>, payload: Payload<'_>) -> HeapReference {
+    fn test_allocate(&mut self, shape: PayloadShape<'_>, payload: Payload<'_>) -> HeapReference {
         let plan = self.test_allocation_plan(shape);
 
         self.allocate(&plan, payload)
@@ -98,26 +99,29 @@ pub(crate) fn trace_table() -> &'static TraceTable {
     TRACE_TABLE.get_or_init(TraceTable::new)
 }
 
-/// Build one explicit local heap allocation site.
-pub(crate) fn allocation_site(options: &HeapOptions, shape: AllocationShape<'_>) -> AllocationSite {
-    options.allocation_site_for_shape(shape)
+/// Build one explicit local heap allocation plan.
+pub(crate) fn owned_allocation_plan(
+    options: &HeapOptions,
+    shape: PayloadShape<'_>,
+) -> AllocationPlan {
+    options.allocation_plan_for_shape(shape)
 }
 
 /// Build one local heap allocation plan.
 pub(crate) fn allocation_plan<'a>(
     options: &HeapOptions,
-    shape: AllocationShape<'a>,
-) -> AllocationPlan<'a> {
-    let site = allocation_site(options, shape);
+    shape: PayloadShape<'a>,
+) -> Allocation<'a> {
+    let plan = owned_allocation_plan(options, shape);
 
-    site.plan(shape.trace_map)
+    plan.allocation(shape.trace_map)
 }
 
 /// Build one allocation plan for a live test heap.
 pub(crate) fn heap_allocation_plan<'a>(
     heap: &impl TestHeapPlan,
-    shape: AllocationShape<'a>,
-) -> AllocationPlan<'a> {
+    shape: PayloadShape<'a>,
+) -> Allocation<'a> {
     heap.test_allocation_plan(shape)
 }
 

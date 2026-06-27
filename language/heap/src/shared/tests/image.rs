@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
+use destack_mir::TraceMap;
+
 use crate::shared::storage::HeapStorage;
 use crate::{Payload, SharedHeapOptions, SizeClassTable, test_layouts, test_shared_allocator};
-use destack_mir::TraceMap;
 
 use super::{heap_allocation_plan, read_mapped_bytes, trace_table, write_mapped_bytes};
 

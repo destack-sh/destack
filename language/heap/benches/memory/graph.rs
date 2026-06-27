@@ -1,5 +1,5 @@
 use destack_heap::{
-    AllocationCache, AllocationShape, AllocationSite, GcWorker, Heap, HeapReference, SharedHeap,
+    AllocationCache, AllocationPlan, GcWorker, Heap, HeapReference, PayloadShape, SharedHeap,
     SharedHeapReference,
 };
 use destack_mir::{TraceMap, TraceTable};
@@ -80,28 +80,28 @@ impl ObjectGraphWorkload {
         let mut trace_table = TraceTable::new();
         let record_trace_id = trace_table.insert(trace_map.clone());
         let leaf_map = TraceMap::Empty;
-        let leaf_shape = AllocationShape::new(self.leaf_bytes, 1, None, &leaf_map);
-        let record_shape = AllocationShape::new(
+        let leaf_shape = PayloadShape::new(self.leaf_bytes, 1, None, &leaf_map);
+        let record_shape = PayloadShape::new(
             self.record_bytes,
             REFERENCE_BYTES,
             Some(record_trace_id),
             trace_map,
         );
-        let leaf_site = local_allocation_site(heap, leaf_shape);
-        let record_site = local_allocation_site(heap, record_shape);
+        let leaf_plan = local_allocation_plan(heap, leaf_shape);
+        let record_plan = local_allocation_plan(heap, record_shape);
         let mut records = Vec::with_capacity(self.objects);
 
         // allocate leaf and record pairs
         for index in 0..self.objects {
             let leaf = heap
-                .allocate_zeroed(leaf_site, leaf_shape.trace_map)
+                .allocate_zeroed(leaf_plan, leaf_shape.trace_map)
                 .expect("leaf allocation should succeed");
             let mut record = vec![0u8; self.record_bytes];
             write_word(&mut record, 0, leaf.bits());
             write_word(&mut record, REFERENCE_BYTES, index);
 
             let reference = heap
-                .allocate_bytes(record_site, record_shape.trace_map, &record)
+                .allocate_bytes(record_plan, record_shape.trace_map, &record)
                 .expect("record allocation should succeed");
             records.push(reference);
         }
@@ -123,21 +123,21 @@ impl ObjectGraphWorkload {
         let mut trace_table = TraceTable::new();
         let record_trace_id = trace_table.insert(trace_map.clone());
         let leaf_map = TraceMap::Empty;
-        let leaf_shape = AllocationShape::new(self.leaf_bytes, 1, None, &leaf_map);
-        let record_shape = AllocationShape::new(
+        let leaf_shape = PayloadShape::new(self.leaf_bytes, 1, None, &leaf_map);
+        let record_shape = PayloadShape::new(
             self.record_bytes,
             REFERENCE_BYTES,
             Some(record_trace_id),
             trace_map,
         );
-        let leaf_site = shared_allocation_site(shared, leaf_shape);
-        let record_site = shared_allocation_site(shared, record_shape);
+        let leaf_plan = shared_allocation_plan(shared, leaf_shape);
+        let record_plan = shared_allocation_plan(shared, record_shape);
         let mut records = Vec::with_capacity(self.objects);
 
         // allocate leaf and record pairs through one worker cache
         for index in 0..self.objects {
             let leaf = shared
-                .allocate_zeroed(worker, cache, leaf_site, leaf_shape.trace_map, &trace_table)
+                .allocate_zeroed(worker, cache, leaf_plan, leaf_shape.trace_map, &trace_table)
                 .expect("shared leaf allocation should succeed");
             let mut record = vec![0u8; self.record_bytes];
             write_word(&mut record, 0, leaf.bits());
@@ -147,7 +147,7 @@ impl ObjectGraphWorkload {
                 .allocate_bytes(
                     worker,
                     cache,
-                    record_site,
+                    record_plan,
                     record_shape.trace_map,
                     &record,
                     &trace_table,
@@ -187,27 +187,27 @@ impl ReferenceArrayWorkload {
         let trace_map = local_reference_array_map(self.objects);
         let trace_id = trace_table.insert(trace_map.clone());
         let leaf_map = TraceMap::Empty;
-        let leaf_shape = AllocationShape::new(self.leaf_bytes, 1, None, &leaf_map);
-        let array_shape = AllocationShape::new(
+        let leaf_shape = PayloadShape::new(self.leaf_bytes, 1, None, &leaf_map);
+        let array_shape = PayloadShape::new(
             self.objects * REFERENCE_BYTES,
             REFERENCE_BYTES,
             Some(trace_id),
             &trace_map,
         );
-        let leaf_site = local_allocation_site(heap, leaf_shape);
-        let array_site = local_allocation_site(heap, array_shape);
+        let leaf_plan = local_allocation_plan(heap, leaf_shape);
+        let array_plan = local_allocation_plan(heap, array_shape);
         let mut payload = vec![0u8; self.objects * REFERENCE_BYTES];
 
         // build the array payload from fresh leaf references
         for index in 0..self.objects {
             let leaf = heap
-                .allocate_zeroed(leaf_site, leaf_shape.trace_map)
+                .allocate_zeroed(leaf_plan, leaf_shape.trace_map)
                 .expect("leaf allocation should succeed");
             write_word(&mut payload, index * REFERENCE_BYTES, leaf.bits());
         }
 
         let reference = heap
-            .allocate_bytes(array_site, array_shape.trace_map, &payload)
+            .allocate_bytes(array_plan, array_shape.trace_map, &payload)
             .expect("reference array allocation should succeed");
 
         ReferenceArray {
@@ -227,21 +227,21 @@ impl ReferenceArrayWorkload {
         let trace_map = shared_reference_array_map(self.objects);
         let trace_id = trace_table.insert(trace_map.clone());
         let leaf_map = TraceMap::Empty;
-        let leaf_shape = AllocationShape::new(self.leaf_bytes, 1, None, &leaf_map);
-        let array_shape = AllocationShape::new(
+        let leaf_shape = PayloadShape::new(self.leaf_bytes, 1, None, &leaf_map);
+        let array_shape = PayloadShape::new(
             self.objects * REFERENCE_BYTES,
             REFERENCE_BYTES,
             Some(trace_id),
             &trace_map,
         );
-        let leaf_site = shared_allocation_site(shared, leaf_shape);
-        let array_site = shared_allocation_site(shared, array_shape);
+        let leaf_plan = shared_allocation_plan(shared, leaf_shape);
+        let array_plan = shared_allocation_plan(shared, array_shape);
         let mut payload = vec![0u8; self.objects * REFERENCE_BYTES];
 
         // build the array payload from fresh leaf references
         for index in 0..self.objects {
             let leaf = shared
-                .allocate_zeroed(worker, cache, leaf_site, leaf_shape.trace_map, &trace_table)
+                .allocate_zeroed(worker, cache, leaf_plan, leaf_shape.trace_map, &trace_table)
                 .expect("shared leaf allocation should succeed");
             write_word(&mut payload, index * REFERENCE_BYTES, leaf.bits());
         }
@@ -250,7 +250,7 @@ impl ReferenceArrayWorkload {
             .allocate_bytes(
                 worker,
                 cache,
-                array_site,
+                array_plan,
                 array_shape.trace_map,
                 &payload,
                 &trace_table,
@@ -269,16 +269,16 @@ fn write_word(bytes: &mut [u8], offset: usize, value: usize) {
     bytes[offset..offset + REFERENCE_BYTES].copy_from_slice(&value.to_le_bytes());
 }
 
-/// Build one explicit local allocation site for graph workloads.
+/// Build one explicit local allocation plan for graph workloads.
 #[inline(always)]
-fn local_allocation_site(heap: &Heap, shape: AllocationShape<'_>) -> AllocationSite {
-    heap.options().allocation_site_for_shape(shape)
+fn local_allocation_plan(heap: &Heap, shape: PayloadShape<'_>) -> AllocationPlan {
+    heap.options().allocation_plan_for_shape(shape)
 }
 
-/// Build one explicit shared allocation site for graph workloads.
+/// Build one explicit shared allocation plan for graph workloads.
 #[inline(always)]
-fn shared_allocation_site(shared: &SharedHeap, shape: AllocationShape<'_>) -> AllocationSite {
-    shared.options().allocation_site_for_shape(shape)
+fn shared_allocation_plan(shared: &SharedHeap, shape: PayloadShape<'_>) -> AllocationPlan {
+    shared.options().allocation_plan_for_shape(shape)
 }
 
 /// Build the scan map for one record with a local reference field.

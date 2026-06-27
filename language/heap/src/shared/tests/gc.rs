@@ -1,14 +1,16 @@
 use std::sync::Arc;
 
-use crate::{
-    AllocationCache, AllocationShape, Allocator, GcKind, GcOptions, GcPhase, GcProgress, GcWorker,
-    HeapAllocationError, HeapError, Payload, SharedHeap, SharedHeapLimits, SharedHeapOptions,
-    SharedHeapReference, SizeClassTable, TestLayout, shared_trace_map, test_layout, test_layouts,
-};
 use destack_mir::{TraceMap, TraceTable};
 
+use crate::{
+    AllocationCache, Allocator, GcKind, GcOptions, GcPhase, GcProgress, GcWorker,
+    HeapAllocationError, HeapError, Payload, PayloadShape, SharedHeap, SharedHeapLimits,
+    SharedHeapOptions, SharedHeapReference, SizeClassTable, TestLayout, shared_trace_map,
+    test_layout, test_layouts,
+};
+
 use super::{
-    allocation_site, heap_allocation_plan, read_mapped_bytes, test_allocate, trace_table,
+    heap_allocation_plan, owned_allocation_plan, read_mapped_bytes, test_allocate, trace_table,
     write_mapped_bytes,
 };
 
@@ -130,10 +132,10 @@ fn test_reserve_shared_zeroed_misses_different_trace_class() {
     let first_trace_id = trace_table.insert(first_map.clone());
     let second_trace_id = trace_table.insert(second_map.clone());
     let (shared, mut allocator, worker, _) = test_shared_heap(&[]);
-    let first_shape = AllocationShape::new(8, 1, Some(first_trace_id), &first_map);
-    let second_shape = AllocationShape::new(8, 1, Some(second_trace_id), &second_map);
-    let first_site = allocation_site(shared.options(), first_shape);
-    let second_site = allocation_site(shared.options(), second_shape);
+    let first_shape = PayloadShape::new(8, 1, Some(first_trace_id), &first_map);
+    let second_shape = PayloadShape::new(8, 1, Some(second_trace_id), &second_map);
+    let first_site = owned_allocation_plan(shared.options(), first_shape);
+    let second_site = owned_allocation_plan(shared.options(), second_shape);
     let second_small = second_site
         .class
         .small()
@@ -362,7 +364,7 @@ fn test_collect_shared_keeps_table_traced_small_children() {
     let parent_map = shared_trace_map(&[0]);
     let mut trace_table = TraceTable::new();
     let parent_trace_id = trace_table.insert(parent_map.clone());
-    let parent_layout = AllocationShape::new(8, 1, Some(parent_trace_id), &parent_map);
+    let parent_layout = PayloadShape::new(8, 1, Some(parent_trace_id), &parent_map);
     let (shared, mut allocator, worker, _) = test_shared_heap(&[]);
 
     // root the parent and make the child reachable through table-backed metadata

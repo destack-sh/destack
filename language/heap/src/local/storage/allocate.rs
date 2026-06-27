@@ -6,15 +6,15 @@ use super::{
 };
 use crate::allocator::{PageSpan, Slot};
 use crate::{
-    AllocationPlan, Bitmap, HeapAllocationError, HeapError, HeapReference, HeapRepresentationError,
-    HeapResult, Payload, SmallAllocationPlan, SmallSpanClass, align_up,
+    Allocation, Bitmap, HeapAllocationError, HeapError, HeapReference, HeapRepresentationError,
+    HeapResult, Payload, SmallAllocationClass, SmallSpanClass, align_up,
     clear_allocation_reference_bits, clear_slot_reference_bits, write_allocation_reference_bits,
     write_slot_reference_bits,
 };
 
 impl HeapStorage {
     /// Return the projected retained-byte delta for one block plan.
-    pub(crate) fn retained_byte_delta(&self, layout: &AllocationPlan<'_>) -> HeapResult<i64> {
+    pub(crate) fn retained_byte_delta(&self, layout: &Allocation<'_>) -> HeapResult<i64> {
         // reject empty heap blocks
         if layout.is_empty() {
             return Err(HeapError::invalid_allocation(HeapAllocationError::ZeroSize));
@@ -72,7 +72,7 @@ impl HeapStorage {
 
     /// Allocate one fixed-size payload from young space.
     #[inline(always)]
-    fn reserve_young_span(&mut self, layout: &AllocationPlan<'_>) -> HeapResult<Option<YoungSlot>> {
+    fn reserve_young_span(&mut self, layout: &Allocation<'_>) -> HeapResult<Option<YoungSlot>> {
         let byte_len = layout.byte_len;
         let alignment = layout.alignment;
 
@@ -237,7 +237,7 @@ impl HeapStorage {
     /// Allocate one heap block.
     pub(crate) fn allocate(
         &mut self,
-        layout: &AllocationPlan<'_>,
+        layout: &Allocation<'_>,
         payload: Payload<'_>,
     ) -> HeapResult<HeapReference> {
         if layout.is_empty() {
@@ -267,7 +267,7 @@ impl HeapStorage {
     /// Reserve one heap block in young space.
     pub(crate) fn reserve_young_payload(
         &mut self,
-        layout: &AllocationPlan<'_>,
+        layout: &Allocation<'_>,
         payload: Payload<'_>,
     ) -> HeapResult<Option<HeapReference>> {
         let trace_map = layout.trace_map;
@@ -319,7 +319,7 @@ impl HeapStorage {
     /// Allocate one mature heap block from one block plan.
     pub(crate) fn allocate_mature(
         &mut self,
-        layout: &AllocationPlan<'_>,
+        layout: &Allocation<'_>,
         payload: Payload<'_>,
         has_initialized_bytes: bool,
     ) -> HeapResult<HeapReference> {
@@ -429,7 +429,7 @@ impl HeapStorage {
     /// Allocate one mature heap storage for the given payload.
     fn allocate_mature_place(
         &mut self,
-        layout: &AllocationPlan<'_>,
+        layout: &Allocation<'_>,
         payload: Payload<'_>,
     ) -> HeapResult<MatureAllocation> {
         // reject inconsistent block
@@ -563,7 +563,7 @@ impl HeapStorage {
     }
 
     /// Return whether one size class still has one live reusable slot.
-    fn has_available_small_slot(&self, small: &SmallAllocationPlan) -> bool {
+    fn has_available_small_slot(&self, small: &SmallAllocationClass) -> bool {
         self.small
             .partial_spans
             .get(&small.class)

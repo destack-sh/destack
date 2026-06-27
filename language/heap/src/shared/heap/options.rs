@@ -8,11 +8,11 @@ use crate::allocator::{
     SizeClassTable,
 };
 use crate::{
-    AllocationClass, AllocationShape, AllocationSite, DEFAULT_ADDRESS_SPACE_SIZE_BYTES,
+    AllocationClass, AllocationPlan, DEFAULT_ADDRESS_SPACE_SIZE_BYTES,
     DEFAULT_SHARED_SMALL_SIZE_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, GcOptions,
-    HeapConfigurationError, HeapError, allocation_class, validate_address_space_size_bytes,
-    validate_allocator_chunk_size_bytes, validate_page_size_bytes, validate_size_class_alignment,
-    validate_small_span_size_bytes,
+    HeapConfigurationError, HeapError, PayloadShape, allocation_class,
+    validate_address_space_size_bytes, validate_allocator_chunk_size_bytes,
+    validate_page_size_bytes, validate_size_class_alignment, validate_small_span_size_bytes,
 };
 
 /// The configuration for one shared heap instance.
@@ -49,17 +49,17 @@ impl Default for SharedHeapOptions {
 }
 
 impl SharedHeapOptions {
-    /// Resolve one shared heap allocation site for this allocation shape.
+    /// Resolve one shared heap allocation plan for this payload shape.
     #[inline(always)]
-    pub fn allocation_site_for_shape(&self, shape: AllocationShape<'_>) -> AllocationSite {
+    pub fn allocation_plan_for_shape(&self, shape: PayloadShape<'_>) -> AllocationPlan {
         let class = self.allocation_class_for_shape(shape);
 
-        AllocationSite::new(shape, class)
+        AllocationPlan::new(shape, class)
     }
 
     /// Resolve one shared heap allocation class for this allocation shape.
     #[inline(always)]
-    fn allocation_class_for_shape(&self, shape: AllocationShape<'_>) -> AllocationClass {
+    fn allocation_class_for_shape(&self, shape: PayloadShape<'_>) -> AllocationClass {
         if shape.trace_map.has_tagged_reference() {
             return AllocationClass::Large;
         }

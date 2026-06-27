@@ -1,5 +1,6 @@
-use crate::{HeapOptions, Payload, SizeClassTable, test_layout};
 use destack_mir::TraceMap;
+
+use crate::{HeapOptions, Payload, SizeClassTable, test_layout};
 
 use super::{TestHeapPlan, test_storage};
 
