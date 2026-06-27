@@ -1,3 +1,5 @@
+mod devirtualize;
+mod devirtualize_guarded;
 mod eliminate_dead_arguments;
 mod eliminate_dead_functions;
 mod eliminate_global_dead_code;
@@ -8,6 +10,8 @@ mod propagate_interprocedural_constants;
 mod propagate_interprocedural_sparse_constants;
 mod specialize_arguments;
 
+pub use devirtualize::*;
+pub use devirtualize_guarded::*;
 pub use eliminate_dead_arguments::*;
 pub use eliminate_dead_functions::*;
 pub use eliminate_global_dead_code::*;

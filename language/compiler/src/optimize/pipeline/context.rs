@@ -11,6 +11,15 @@ use crate::optimize::{DiagnosticEmitter, ModuleWorkItem, PackageWorkset};
 use crate::{DiagnosticAnchor, OptimizeError, OptimizeWarning};
 use destack_mir::{AnalysisOptions, HotnessThresholds, TargetLayout};
 
+/// Minimum samples required before guarded devirtualization accepts a target.
+const DEFAULT_DEVIRTUALIZE_GUARDED_MIN_COUNT: u64 = 50;
+
+/// Minimum dominant target ratio before guarded devirtualization accepts a target.
+const DEFAULT_DEVIRTUALIZE_GUARDED_MIN_RATIO: f64 = 0.90;
+
+/// Maximum unknown target ratio before guarded devirtualization accepts a target.
+const DEFAULT_DEVIRTUALIZE_GUARDED_MAX_UNKNOWN_RATIO: f64 = 0.02;
+
 /// Shared diagnostics state for pipeline contexts.
 #[derive(Debug)]
 pub struct PipelineDiagnostics {
@@ -90,6 +99,8 @@ pub struct PipelineOptions {
     pub unroll_threshold: usize,
     /// Inline budget scaling for this optimization level.
     pub inline_budget_scale_percent: u64,
+    /// Thresholds for DevirtualizeGuarded.
+    pub devirtualize_guarded: DevirtualizeGuardedOptions,
 }
 
 impl Default for PipelineOptions {
@@ -99,6 +110,7 @@ impl Default for PipelineOptions {
             analysis: AnalysisOptions::default(),
             unroll_threshold: 200,
             inline_budget_scale_percent: 100,
+            devirtualize_guarded: DevirtualizeGuardedOptions::default(),
         }
     }
 }
@@ -122,6 +134,41 @@ impl PipelineOptions {
     /// Return the inline budget scale percent for this pipeline run.
     pub fn inline_budget_scale_percent(&self) -> u64 {
         self.inline_budget_scale_percent
+    }
+}
+
+/// Thresholds for accepting one DevirtualizeGuarded rewrite.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DevirtualizeGuardedOptions {
+    /// Minimum samples for the dominant receiver and target.
+    pub min_count: u64,
+    /// Minimum dominant receiver and target ratio.
+    pub min_ratio: f64,
+    /// Maximum unknown receiver and target ratio.
+    pub max_unknown_ratio: f64,
+}
+
+impl Default for DevirtualizeGuardedOptions {
+    fn default() -> Self {
+        Self {
+            min_count: DEFAULT_DEVIRTUALIZE_GUARDED_MIN_COUNT,
+            min_ratio: DEFAULT_DEVIRTUALIZE_GUARDED_MIN_RATIO,
+            max_unknown_ratio: DEFAULT_DEVIRTUALIZE_GUARDED_MAX_UNKNOWN_RATIO,
+        }
+    }
+}
+
+impl DevirtualizeGuardedOptions {
+    /// Return true when a dominant profiled bucket is strong enough.
+    pub fn accepts(self, count: u64, unknown: u64, total: u64) -> bool {
+        if total == 0 || count < self.min_count {
+            return false;
+        }
+
+        let ratio = count as f64 / total as f64;
+        let unknown_ratio = unknown as f64 / total as f64;
+
+        ratio >= self.min_ratio && unknown_ratio <= self.max_unknown_ratio
     }
 }
 
