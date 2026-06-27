@@ -41,7 +41,7 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) statics: Option<dir::StaticTable<'static>>,
     /// Module paths used in multi-module snapshots.
     pub(super) module_path_by_id: Option<&'a BTreeMap<ModuleId, String>>,
-    /// Foreign binding tables keyed by module.
+    /// Foreign binding metadata keyed by module.
     pub(super) foreign_bindings: BTreeMap<ModuleId, dir::BindingTable<'a>>,
     /// Foreign generic tables keyed by module.
     pub(super) foreign_generics: BTreeMap<ModuleId, dir::GenericTable<'static>>,
@@ -146,7 +146,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         self
     }
 
-    /// Set binding tables used for foreign symbol labels.
+    /// Set binding metadata used for foreign symbol labels.
     pub(crate) fn with_foreign_bindings(
         mut self,
         foreign_bindings: Vec<dir::BindingTable<'a>>,

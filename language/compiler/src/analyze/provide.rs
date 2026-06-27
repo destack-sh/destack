@@ -39,8 +39,9 @@ impl Compiler {
             .map_err(CompilerError::from)?;
 
         // summarize the verified tree's linkable references
-        let analyses = mir::ModuleAnalyses::new();
-        let links = analyses.get::<mir::LinkGraph>(&verified.patch.tree);
+        let analyses =
+            mir::TreeAnalysisCache::new(&verified.dispatch, &verified.memory, &verified.effects);
+        let links = analyses.get::<mir::LinkGraph>(&verified.tree);
 
         Ok(ArtifactPayload::MirAnalyzed(Arc::new(MirAnalyzed::new(
             (*links).clone(),

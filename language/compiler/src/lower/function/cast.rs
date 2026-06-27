@@ -694,7 +694,7 @@ impl FunctionLowerer<'_> {
         // resolve the source dir type
         let source_type_id = self.type_for_expression_or_error(value_id)?;
 
-        // resolve union layout metadata
+        // resolve union layout
         let layout = self
             .context
             .type_lowerer
@@ -811,7 +811,7 @@ impl FunctionLowerer<'_> {
         // resolve the source dir type
         let source_type_id = self.type_for_expression_or_error(value_id)?;
 
-        // resolve union layout metadata
+        // resolve union layout
         let layout = self
             .context
             .type_lowerer

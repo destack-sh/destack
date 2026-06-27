@@ -8,32 +8,20 @@ use crate::{CompilerError, CompilerResult};
 const VECTOR_SHUFFLE_MASK_ARGUMENT: usize = 3;
 
 /// The ordered atomic metadata arguments appended to intrinsic calls.
-const ATOMIC_METADATA_SLOTS: [AtomicMetadataSlot; 7] = [
+const ATOMIC_METADATA_SLOTS: [AtomicMetadataSlot; 3] = [
     AtomicMetadataSlot::Ordering,
     AtomicMetadataSlot::Scope,
-    AtomicMetadataSlot::MemoryScope,
-    AtomicMetadataSlot::Regions,
-    AtomicMetadataSlot::IsVolatile,
-    AtomicMetadataSlot::IsMakeAvailable,
-    AtomicMetadataSlot::IsMakeVisible,
+    AtomicMetadataSlot::Storage,
 ];
 
 /// A single positional atomic metadata argument.
 enum AtomicMetadataSlot {
     /// The memory ordering.
     Ordering,
-    /// The synchronization scope.
+    /// The execution scope.
     Scope,
-    /// The fence memory scope.
-    MemoryScope,
-    /// The memory space set.
-    Regions,
-    /// The volatile flag.
-    IsVolatile,
-    /// The make-available flag.
-    IsMakeAvailable,
-    /// The make-visible flag.
-    IsMakeVisible,
+    /// The affected storage set.
+    Storage,
 }
 
 /// Parsed metadata values for atomic intrinsics.
@@ -1078,11 +1066,7 @@ impl FunctionLowerer<'_> {
 
         let mut ordering = None;
         let mut scope = None;
-        let mut memory_scope = None;
-        let mut spaces = None;
-        let mut is_volatile = None;
-        let mut makes_available = None;
-        let mut makes_visible = None;
+        let mut storage = None;
 
         for (slot, argument_id) in ATOMIC_METADATA_SLOTS.iter().zip(metadata_args.iter()) {
             let expression = self.argument_expression(expression_id, *argument_id)?;
@@ -1091,22 +1075,10 @@ impl FunctionLowerer<'_> {
                     ordering = Some(self.parse_memory_ordering(expression_id, expression)?);
                 }
                 AtomicMetadataSlot::Scope => {
-                    scope = Some(self.parse_sync_scope(expression_id, expression)?);
+                    scope = Some(self.parse_execution_scope(expression_id, expression)?);
                 }
-                AtomicMetadataSlot::MemoryScope => {
-                    memory_scope = Some(self.parse_memory_scope(expression_id, expression)?);
-                }
-                AtomicMetadataSlot::Regions => {
-                    spaces = Some(self.parse_memory_space_set(expression_id, expression)?);
-                }
-                AtomicMetadataSlot::IsVolatile => {
-                    is_volatile = Some(self.parse_boolean_literal(expression_id, expression)?);
-                }
-                AtomicMetadataSlot::IsMakeAvailable => {
-                    makes_available = Some(self.parse_boolean_literal(expression_id, expression)?);
-                }
-                AtomicMetadataSlot::IsMakeVisible => {
-                    makes_visible = Some(self.parse_boolean_literal(expression_id, expression)?);
+                AtomicMetadataSlot::Storage => {
+                    storage = Some(self.parse_storage_set(expression_id, expression)?);
                 }
             }
         }
@@ -1117,27 +1089,12 @@ impl FunctionLowerer<'_> {
         let scope = scope
             .ok_or_else(|| self.error(expression_id, "atomic intrinsic missing scope"))
             .map_err(CompilerError::from)?;
-        let memory_scope = memory_scope
-            .ok_or_else(|| self.error(expression_id, "atomic intrinsic missing memory scope"))
-            .map_err(CompilerError::from)?;
-        let spaces = spaces.ok_or_else(|| {
-            self.error(expression_id, "atomic intrinsic missing memory space set")
-        })?;
-        let is_volatile = is_volatile
-            .ok_or_else(|| self.error(expression_id, "atomic intrinsic missing volatile flag"))?;
-        let makes_available = makes_available.ok_or_else(|| {
-            self.error(
-                expression_id,
-                "atomic intrinsic missing make-available flag",
-            )
-        })?;
-        let makes_visible = makes_visible.ok_or_else(|| {
-            self.error(expression_id, "atomic intrinsic missing make-visible flag")
+        let storage = storage.ok_or_else(|| {
+            self.error(expression_id, "atomic intrinsic missing storage set")
         })?;
 
-        let atomic = mir::AtomicAccess::new(ordering, scope, is_volatile);
-        let flags = mir::MemoryFlags::with_flags(spaces, makes_available, makes_visible);
-        let fence = mir::FenceAccess::new(ordering, scope, memory_scope, flags);
+        let atomic = mir::AtomicAccess::new(ordering, scope);
+        let fence = mir::FenceAccess::new(ordering, scope, storage);
 
         Ok(AtomicMetadata { atomic, fence })
     }
@@ -1158,75 +1115,36 @@ impl FunctionLowerer<'_> {
         })
     }
 
-    /// Parse a synchronization scope constant from an expression.
-    fn parse_sync_scope(
+    /// Parse an execution scope constant from an expression.
+    fn parse_execution_scope(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         argument_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<mir::SyncScope> {
+    ) -> CompilerResult<mir::ExecutionScope> {
         let name = self.enum_member_name(expression_id, argument_id)?;
-        mir::SyncScope::try_from(name.as_ref()).map_err(|_| {
+        mir::ExecutionScope::try_from(name.as_ref()).map_err(|_| {
             self.error(
                 expression_id,
-                "unsupported synchronization scope for atomic intrinsic",
+                "unsupported execution scope for atomic intrinsic",
             )
             .into()
         })
     }
 
-    /// Parse a MemoryScope constant from an expression.
-    fn parse_memory_scope(
+    /// Parse a storage set constant from an expression.
+    fn parse_storage_set(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         argument_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<mir::MemoryScope> {
+    ) -> CompilerResult<mir::StorageSet> {
         let name = self.enum_member_name(expression_id, argument_id)?;
-        mir::MemoryScope::try_from(name.as_ref()).map_err(|_| {
+        mir::StorageSet::try_from(name.as_ref()).map_err(|_| {
             self.error(
                 expression_id,
-                "unsupported memory scope for atomic intrinsic",
+                "unsupported storage set for atomic intrinsic",
             )
             .into()
         })
-    }
-
-    /// Parse a memory space set constant from an expression.
-    fn parse_memory_space_set(
-        &self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-        argument_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<mir::SpaceSet> {
-        let name = self.enum_member_name(expression_id, argument_id)?;
-        mir::SpaceSet::try_from(name.as_ref()).map_err(|_| {
-            self.error(
-                expression_id,
-                "unsupported memory space set for atomic intrinsic",
-            )
-            .into()
-        })
-    }
-
-    /// Parse a boolean literal for intrinsic metadata.
-    fn parse_boolean_literal(
-        &self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-        argument_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<bool> {
-        let mut current = argument_id;
-        while let dir::Expression::Parenthesized { expression } = self.context.dir_tree.get(current)
-        {
-            current = *expression;
-        }
-
-        match self.context.dir_tree.get(current) {
-            dir::Expression::ScalarLiteral(dir::ScalarLiteral::Boolean(value)) => Ok(*value),
-            _ => Err(self
-                .error(
-                    expression_id,
-                    "atomic intrinsic metadata must be boolean literals",
-                )
-                .into()),
-        }
     }
 
     /// Resolve the enum member name for an expression.

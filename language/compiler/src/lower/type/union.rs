@@ -13,7 +13,7 @@ use crate::{LowerError, LowerResult};
 const UNION_TAG_FIELD_NAME: &str = "tag";
 const UNION_STORAGE_FIELD_NAME: &str = "storage";
 
-/// Layout metadata for a lowered union type.
+/// Layout for a lowered union type.
 #[derive(Debug, Clone)]
 pub(crate) struct UnionLayout {
     /// The tag field type.
@@ -28,7 +28,7 @@ pub(crate) struct UnionLayout {
     pub(crate) tag_field_index: u32,
     /// The storage field index in layout order.
     pub(crate) storage_field_index: u32,
-    /// Discriminant field metadata when present.
+    /// Discriminant field layout when present.
     pub(crate) discriminant: Option<UnionDiscriminant>,
 }
 
@@ -41,7 +41,7 @@ pub(crate) enum VariantStorage {
     Boxed,
 }
 
-/// Discriminant metadata for a tagged union.
+/// Discriminant layout for a tagged union.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub(crate) struct UnionDiscriminant {
@@ -112,7 +112,7 @@ pub(crate) enum DiscriminantKey {
 }
 
 impl TypeLowerer<'_> {
-    /// Return cached union layout metadata.
+    /// Return cached union layout.
     pub(crate) fn union_layout(&self, type_id: dir::LocalTypeId) -> Option<&UnionLayout> {
         self.union_cache.get(&type_id)
     }
@@ -151,7 +151,7 @@ impl TypeLowerer<'_> {
             return Ok(null_reference);
         }
 
-        // resolve discriminant metadata and tag ordering
+        // resolve discriminant layout and tag ordering
         let (source_types, discriminant) =
             self.order_union_elements_by_discriminant(types, &collected, node, builder.strings())?;
 
@@ -264,7 +264,7 @@ impl TypeLowerer<'_> {
                     message: "missing union storage field".to_string(),
                 })?;
 
-        // cache union layout metadata
+        // cache union layout
         self.union_cache.insert(
             type_id,
             UnionLayout {
@@ -547,7 +547,7 @@ impl TypeLowerer<'_> {
             field.tag_by_value = tag_by_value;
         }
 
-        // return the ordered elements and discriminant metadata
+        // return the ordered elements and discriminant layout
         Ok((
             ordered_elements,
             Some(UnionDiscriminant {

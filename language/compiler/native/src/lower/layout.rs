@@ -56,11 +56,12 @@ impl TypeLayout {
 /// Compute the layout of a MIR type.
 pub(crate) fn compute_type_layout(
     tree: &mir::Tree,
+    layouts: &mir::LayoutTable,
     type_id: mir::LocalNodeId<mir::Type>,
     pointer_bytes: u8,
 ) -> CodegenCraneliftResult<TypeLayout> {
-    // use explicit layout metadata when available
-    if let Some(layout) = tree.metadata.layouts.type_layout(type_id) {
+    // use explicit layout table when available
+    if let Some(layout) = layouts.type_layout(type_id) {
         return Ok(TypeLayout::new(layout.size, layout.alignment));
     }
 
@@ -75,7 +76,7 @@ pub(crate) fn compute_type_layout(
             | mir::Type::Function { .. }
     ) {
         return Err(CodegenCraneliftError::unsupported_type(
-            "missing layout metadata",
+            "missing layout table",
             type_id.into(),
         ));
     }
@@ -110,7 +111,7 @@ pub(crate) fn compute_type_layout(
 
         // transparent wrappers use their payload layout
         mir::Type::WithLifetimes { base, .. } | mir::Type::Atomic { value: base } => {
-            compute_type_layout(tree, *base, pointer_bytes)
+            compute_type_layout(tree, layouts, *base, pointer_bytes)
         }
 
         // pointers and references
@@ -129,7 +130,7 @@ pub(crate) fn compute_type_layout(
             length,
             copy: _,
         } => {
-            let element_layout = compute_type_layout(tree, *element, pointer_bytes)?;
+            let element_layout = compute_type_layout(tree, layouts, *element, pointer_bytes)?;
             let size = element_layout.size * (*length as u32);
             Ok(TypeLayout::new(size, element_layout.alignment))
         }
@@ -153,42 +154,42 @@ pub(crate) fn compute_type_layout(
             let length = tree.usize_type();
             let fields = vec![data, length];
 
-            compute_tuple_layout(tree, &fields, pointer_bytes)
+            compute_tuple_layout(tree, layouts, &fields, pointer_bytes)
         }
 
         // tuples: laid out like a struct with sequential fields
         mir::Type::Tuple { elements, copy: _ } => {
             let elements = elements.to_vec();
-            compute_tuple_layout(tree, &elements, pointer_bytes)
+            compute_tuple_layout(tree, layouts, &elements, pointer_bytes)
         }
 
-        // structs: read canonical layout metadata
+        // structs: read canonical layout table
         mir::Type::Struct { fields: _, copy: _ } => {
-            let Some(layout) = tree.metadata.layouts.type_layout(type_id) else {
+            let Some(layout) = layouts.type_layout(type_id) else {
                 return Err(CodegenCraneliftError::unsupported_type(
-                    "missing layout metadata",
+                    "missing layout table",
                     type_id.into(),
                 ));
             };
             Ok(TypeLayout::new(layout.size, layout.alignment))
         }
 
-        // variants: read canonical layout metadata
+        // variants: read canonical layout table
         mir::Type::Variant { .. } => {
-            let Some(layout) = tree.metadata.layouts.type_layout(type_id) else {
+            let Some(layout) = layouts.type_layout(type_id) else {
                 return Err(CodegenCraneliftError::unsupported_type(
-                    "missing layout metadata",
+                    "missing layout table",
                     type_id.into(),
                 ));
             };
             Ok(TypeLayout::new(layout.size, layout.alignment))
         }
 
-        // erased dynamic values: read canonical layout metadata
+        // erased dynamic values: read canonical layout table
         mir::Type::Dynamic { .. } => {
-            let Some(layout) = tree.metadata.layouts.type_layout(type_id) else {
+            let Some(layout) = layouts.type_layout(type_id) else {
                 return Err(CodegenCraneliftError::unsupported_type(
-                    "missing layout metadata",
+                    "missing layout table",
                     type_id.into(),
                 ));
             };
@@ -196,13 +197,13 @@ pub(crate) fn compute_type_layout(
         }
 
         // uninit tokens use the value representation while enforcing linearity
-        mir::Type::Uninit { value } => compute_type_layout(tree, *value, pointer_bytes),
+        mir::Type::Uninit { value } => compute_type_layout(tree, layouts, *value, pointer_bytes),
 
-        // function values read canonical layout metadata
+        // function values read canonical layout table
         mir::Type::Function { .. } => {
-            let Some(layout) = tree.metadata.layouts.type_layout(type_id) else {
+            let Some(layout) = layouts.type_layout(type_id) else {
                 return Err(CodegenCraneliftError::unsupported_type(
-                    "missing layout metadata",
+                    "missing layout table",
                     type_id.into(),
                 ));
             };
@@ -210,7 +211,9 @@ pub(crate) fn compute_type_layout(
         }
 
         // newtypes are transparent
-        mir::Type::Newtype { inner, .. } => compute_type_layout(tree, *inner, pointer_bytes),
+        mir::Type::Newtype { inner, .. } => {
+            compute_type_layout(tree, layouts, *inner, pointer_bytes)
+        }
 
         // vectors: packed element storage
         mir::Type::Vector {
@@ -218,7 +221,7 @@ pub(crate) fn compute_type_layout(
             lanes,
             copy: _,
         } => {
-            let element_layout = compute_type_layout(tree, *element, pointer_bytes)?;
+            let element_layout = compute_type_layout(tree, layouts, *element, pointer_bytes)?;
             let size = element_layout.size * *lanes;
             Ok(TypeLayout::new(size, element_layout.alignment))
         }
@@ -241,6 +244,7 @@ pub(crate) fn compute_type_layout(
 /// Compute the layout of a tuple type.
 fn compute_tuple_layout(
     tree: &mir::Tree,
+    layouts: &mir::LayoutTable,
     elements: &[mir::LocalNodeId<mir::Type>],
     pointer_bytes: u8,
 ) -> CodegenCraneliftResult<TypeLayout> {
@@ -253,7 +257,7 @@ fn compute_tuple_layout(
     let mut max_alignment = 1u32;
     for &element_type_id in elements {
         // element type layout
-        let element_layout = compute_type_layout(tree, element_type_id, pointer_bytes)?;
+        let element_layout = compute_type_layout(tree, layouts, element_type_id, pointer_bytes)?;
 
         // align to element's alignment
         max_end = element_layout.align_offset(max_end);
@@ -282,6 +286,7 @@ fn compute_tuple_layout(
 /// access to more information for better error reporting.
 pub(crate) fn compute_tuple_element_offset(
     tree: &mir::Tree,
+    layouts: &mir::LayoutTable,
     elements: &[mir::LocalNodeId<mir::Type>],
     index: u32,
     pointer_bytes: u8,
@@ -297,7 +302,7 @@ pub(crate) fn compute_tuple_element_offset(
     let mut offset = 0u32;
     for (i, &element_type_id) in elements.iter().enumerate() {
         // element type layout
-        let element_layout = compute_type_layout(tree, element_type_id, pointer_bytes)?;
+        let element_layout = compute_type_layout(tree, layouts, element_type_id, pointer_bytes)?;
 
         // align to element's alignment
         offset = element_layout.align_offset(offset);

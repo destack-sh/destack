@@ -564,7 +564,7 @@ impl ModuleLowerer<'_> {
             return Ok(function_id);
         }
 
-        // resolve shared function environment metadata
+        // resolve shared function environment tables
         let empty_function_environment_pointer_type =
             self.empty_function_environment_pointer_type();
 
@@ -993,7 +993,7 @@ impl ModuleLowerer<'_> {
         // resolve the implicit this symbol
         let this_symbol = self.resolve_this_symbol_for_function(method_symbol, signature);
 
-        // resolve shared function environment metadata
+        // resolve shared function environment tables
         let empty_function_environment_pointer_type =
             self.empty_function_environment_pointer_type();
         let instance = self.symbol_instance_key(method_symbol);
@@ -1246,7 +1246,7 @@ impl ModuleLowerer<'_> {
         member_id: dir::LocalNodeId<dir::Member>,
         member_node: dir::GlobalNodeIdAny,
     ) -> LowerResult<Option<dir::LocalTypeId>> {
-        // get signature type from analyzed metadata
+        // get signature type from analyzed tables
         let signature_type_id = self.signature_type_id_for_node(member_node)?;
 
         // extract return type from function signature

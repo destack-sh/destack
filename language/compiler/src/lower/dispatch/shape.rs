@@ -19,35 +19,12 @@ pub(crate) enum DynamicMember {
         /// The member node for diagnostics.
         member_id: dir::LocalNodeId<dir::TypeMember>,
     },
-    /// Getter member.
-    Getter {
-        /// The getter name.
-        name: StringId,
-        /// The signature type id.
-        signature: dir::LocalTypeId,
-        /// The member node for diagnostics.
-        member_id: dir::LocalNodeId<dir::TypeMember>,
-    },
-    /// Setter member.
-    Setter {
-        /// The setter name.
-        name: StringId,
-        /// The signature type id.
-        signature: dir::LocalTypeId,
-        /// The member node for diagnostics.
-        member_id: dir::LocalNodeId<dir::TypeMember>,
-    },
-    /// Method member.
-    Method {
-        /// The method name.
-        name: StringId,
-        /// The signature type id.
-        signature: dir::LocalTypeId,
-        /// The member node for diagnostics.
-        member_id: dir::LocalNodeId<dir::TypeMember>,
-    },
-    /// Call signature member.
-    Call {
+    /// Function member.
+    Function {
+        /// The function name, absent for call signatures.
+        name: Option<StringId>,
+        /// The function role.
+        role: Option<dir::FunctionRole>,
         /// The signature type id.
         signature: dir::LocalTypeId,
         /// The member node for diagnostics.
@@ -148,7 +125,7 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
-    /// Collect dynamic metadata for a single dynamic member.
+    /// Collect dynamic shape for a single dynamic member.
     fn collect_dynamic_member(
         &mut self,
         member_id: dir::LocalNodeId<dir::TypeMember>,
@@ -228,19 +205,19 @@ impl ModuleLowerer<'_> {
                     seen_methods.insert(member_name, vec![signature_type_id]);
                 }
 
-                // lower accessors and methods as explicit dynamic members
+                // lower callable members as dynamic functions
                 match signature.role {
-                    Some(dir::FunctionRole::Getter) => slots.push(DynamicMember::Getter {
-                        name: member_name,
-                        signature: signature_type_id,
-                        member_id,
-                    }),
-                    Some(dir::FunctionRole::Setter) => slots.push(DynamicMember::Setter {
-                        name: member_name,
-                        signature: signature_type_id,
-                        member_id,
-                    }),
-                    Some(dir::FunctionRole::Call) => slots.push(DynamicMember::Call {
+                    Some(dir::FunctionRole::Getter | dir::FunctionRole::Setter) => {
+                        slots.push(DynamicMember::Function {
+                            name: Some(member_name),
+                            role: signature.role,
+                            signature: signature_type_id,
+                            member_id,
+                        });
+                    }
+                    Some(dir::FunctionRole::Call) => slots.push(DynamicMember::Function {
+                        name: None,
+                        role: signature.role,
                         signature: signature_type_id,
                         member_id,
                     }),
@@ -255,8 +232,9 @@ impl ModuleLowerer<'_> {
                         }
                         .into());
                     }
-                    None => slots.push(DynamicMember::Method {
-                        name: member_name,
+                    None => slots.push(DynamicMember::Function {
+                        name: Some(member_name),
+                        role: None,
                         signature: signature_type_id,
                         member_id,
                     }),
@@ -265,7 +243,9 @@ impl ModuleLowerer<'_> {
             dir::TypeMember::CallSignature { .. } => {
                 let signature_type_id =
                     self.signature_type_id_for_node(member_id.into_global_any(self.module_id))?;
-                slots.push(DynamicMember::Call {
+                slots.push(DynamicMember::Function {
+                    name: None,
+                    role: Some(dir::FunctionRole::Call),
                     signature: signature_type_id,
                     member_id,
                 });
@@ -298,7 +278,7 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
-    /// Resolve a static dynamic field name for dispatch metadata.
+    /// Resolve a static dynamic field name for dispatch tables.
     fn dynamic_field_name(
         &mut self,
         member_id: dir::LocalNodeId<dir::TypeMember>,
@@ -311,7 +291,7 @@ impl ModuleLowerer<'_> {
                         .into_global_any(self.module_id)
                         .into_anchored(Some(self.profile)),
                 ),
-                message: "unsupported non-public field key in dynamic layout".to_string(),
+                message: "unsupported non-public field key in dynamic shape".to_string(),
             }
             .into());
         };
@@ -332,7 +312,7 @@ impl ModuleLowerer<'_> {
             return Ok(*field_id);
         }
 
-        // lower the field type for stable metadata typing
+        // lower the field type for stable shape typing
         let anchor = member_id
             .into_global_any(self.module_id)
             .into_anchored(Some(self.profile));

@@ -1,10 +1,11 @@
+use destack_mir::TraceMap;
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::ModuleLowerer;
 use crate::{FieldLayoutKind, LowerError, LowerResult, StructLayout};
 
 impl ModuleLowerer<'_> {
-    /// Return layout metadata for a cached aggregate layout.
+    /// Return the layout id for a cached aggregate layout.
     pub(crate) fn layout_metadata_for_type(
         &mut self,
         type_id: dir::LocalTypeId,
@@ -14,7 +15,7 @@ impl ModuleLowerer<'_> {
         self.layout_metadata_for_mir_type_with_source(Some(type_id), ty, anchor)
     }
 
-    /// Return layout metadata for one MIR type regardless of DIR source.
+    /// Return the layout id for one MIR type regardless of DIR source.
     pub(crate) fn layout_metadata_for_mir_type(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
@@ -23,15 +24,15 @@ impl ModuleLowerer<'_> {
         self.layout_metadata_for_mir_type_with_source(None, ty, anchor)
     }
 
-    /// Return layout metadata for one MIR type with an optional DIR source.
+    /// Return the layout id for one MIR type with an optional DIR source.
     fn layout_metadata_for_mir_type_with_source(
         &mut self,
         type_id: Option<dir::LocalTypeId>,
         ty: mir::LocalNodeId<mir::Type>,
         anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<Option<mir::LayoutId>> {
-        // skip if metadata already exists
-        if let Some(layout_id) = self.builder.tree().metadata.layouts.layout_id(ty) {
+        // reuse existing layout ids
+        if let Some(layout_id) = self.builder.layouts().layout_id(ty) {
             return Ok(Some(layout_id));
         }
 
@@ -43,7 +44,7 @@ impl ModuleLowerer<'_> {
             return Ok(Some(layout_id));
         }
 
-        // resolve builtin aggregate shapes that need concrete layout metadata
+        // resolve builtin aggregate shapes that need concrete layout entries
         let target = match self.builder.tree().get(ty) {
             mir::Type::Tuple { elements, copy: _ } => {
                 let Some(elements) = elements
@@ -115,7 +116,7 @@ impl ModuleLowerer<'_> {
             return Ok(None);
         };
 
-        // materialize the concrete layout metadata
+        // materialize the concrete layout entry
         match target {
             LayoutTarget::Tuple(elements) => {
                 let Some((fields, size, alignment)) = self.tuple_layout_fields(&elements) else {
@@ -142,14 +143,14 @@ impl ModuleLowerer<'_> {
                 Ok(Some(layout_id))
             }
             LayoutTarget::Function => {
-                let pointer_bytes = u32::from(self.type_lowerer.data_layout.pointer_bytes);
+                let pointer_bytes = u32::from(self.type_lowerer.pointer_bytes());
                 let layout_id = self.insert_layout_metadata_with_trace(
                     ty,
                     mir::LayoutShape::Function,
                     pointer_bytes * 2,
                     pointer_bytes,
                     Vec::new(),
-                    mir::TraceMap::Fixed {
+                    TraceMap::Fixed {
                         local_offsets: vec![pointer_bytes].into_boxed_slice(),
                         shared_offsets: Vec::new().into_boxed_slice(),
                     },
@@ -183,7 +184,7 @@ impl ModuleLowerer<'_> {
                 sharding,
                 rank,
             } => {
-                let pointer_bytes = u32::from(self.type_lowerer.data_layout.pointer_bytes);
+                let pointer_bytes = u32::from(self.type_lowerer.pointer_bytes());
                 let layout_id = self.insert_layout_metadata(
                     ty,
                     mir::LayoutShape::Tensor(mir::TensorLayout {
@@ -205,7 +206,7 @@ impl ModuleLowerer<'_> {
                 sharding,
                 rank,
             } => {
-                let pointer_bytes = u32::from(self.type_lowerer.data_layout.pointer_bytes);
+                let pointer_bytes = u32::from(self.type_lowerer.pointer_bytes());
                 let field_count = format.descriptor_slots(rank);
                 let layout_id = self.insert_layout_metadata(
                     ty,
@@ -225,7 +226,7 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Insert a concrete layout entry and attach it to the type metadata.
+    /// Insert a concrete layout entry and attach it to the MIR type table.
     pub(crate) fn insert_layout_entry(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
@@ -248,7 +249,7 @@ impl ModuleLowerer<'_> {
         self.insert_layout_metadata(ty, layout_shape, layout.size, layout.alignment, fields)
     }
 
-    /// Insert a layout entry and attach it to the type metadata.
+    /// Insert a layout entry and attach it to the MIR type table.
     fn insert_layout_metadata(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
@@ -263,11 +264,11 @@ impl ModuleLowerer<'_> {
             size,
             alignment,
             fields,
-            mir::TraceMap::empty(),
+            TraceMap::empty(),
         )
     }
 
-    /// Insert a layout entry with explicit trace metadata and attach it to the type metadata.
+    /// Insert a layout entry with an explicit trace map.
     fn insert_layout_metadata_with_trace(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
@@ -275,7 +276,7 @@ impl ModuleLowerer<'_> {
         size: u32,
         alignment: u32,
         fields: Vec<mir::LayoutField>,
-        trace_map: mir::TraceMap,
+        trace_map: TraceMap,
     ) -> mir::LayoutId {
         // attach fields to field-addressable shapes
         let layout_shape = layout_shape.with_fields(fields);
@@ -288,8 +289,8 @@ impl ModuleLowerer<'_> {
             trace_map,
         };
 
-        // attach layout metadata to the type table
-        let type_table = &mut self.builder.tree_mut().metadata.layouts;
+        // attach layout id to the MIR type table
+        let type_table = self.builder.layouts_mut();
         let layout_id = type_table.layout_table.insert(layout_entry);
         type_table.set_layout_id(ty, layout_id);
 
@@ -414,7 +415,7 @@ impl ModuleLowerer<'_> {
                 variants: Vec::new(),
             })
         }
-        // prefer dynamic layouts when present
+        // prefer dynamic value layouts when present
         else if let Some(type_id) = type_id
             && let Some(any_layout) = self.type_lowerer.dynamic_value_layout(type_id)
         {
@@ -437,7 +438,7 @@ impl ModuleLowerer<'_> {
 
             mir::LayoutShape::Dynamic
         }
-        // preserve object dispatch headers as first-class layout metadata
+        // preserve object dispatch headers as first-class layout entries
         else if layout
             .fields
             .iter()
@@ -486,7 +487,7 @@ impl ModuleLowerer<'_> {
     }
 }
 
-/// Aggregate type variants that need layout metadata.
+/// Aggregate type variants that need layout entries.
 enum LayoutTarget {
     /// Tuple element types in order.
     Tuple(Vec<mir::LocalNodeId<mir::Type>>),
@@ -507,7 +508,7 @@ enum LayoutTarget {
         /// The tensor rank.
         rank: u32,
     },
-    /// Tensor view descriptor metadata.
+    /// Tensor view descriptor layout.
     TensorView {
         /// The viewed element type.
         element: mir::LocalNodeId<mir::Type>,

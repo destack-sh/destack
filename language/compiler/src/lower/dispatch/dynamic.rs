@@ -99,9 +99,9 @@ impl ModuleLowerer<'_> {
         // lower constraint instance type
         let constraint_mir_type = self.lower_type(constraint_type_id, declaration_id)?;
 
-        // build dynamic slots and table entries
+        // build dynamic shape slots and table entries
         let mut entries = Vec::with_capacity(dynamic_members.len());
-        let mut layout_slots = Vec::with_capacity(dynamic_members.len());
+        let mut shape_slots = Vec::with_capacity(dynamic_members.len());
 
         // append dynamic slots
         for member in dynamic_members {
@@ -119,38 +119,10 @@ impl ModuleLowerer<'_> {
                         member_id,
                         declaration_id,
                     )?;
-                    entries.push(mir::DynamicEntry::Field { offset });
-                    layout_slots.push(mir::DynamicSlot::Field { field, name });
+                    entries.push(mir::DynamicEntry::FieldOffset { offset });
+                    shape_slots.push(mir::DynamicSlot::Field { field, name });
                 }
-                DynamicMember::Getter {
-                    name,
-                    signature,
-                    member_id,
-                } => {
-                    let signature_type_id = signature;
-                    let signature = self.lower_type(signature_type_id, declaration_id)?;
-                    let target_method =
-                        self.dynamic_method_target(concrete, name, signature_type_id, member_id)?;
-                    entries.push(mir::DynamicEntry::Getter {
-                        function: target_method,
-                    });
-                    layout_slots.push(mir::DynamicSlot::Getter { name, signature });
-                }
-                DynamicMember::Setter {
-                    name,
-                    signature,
-                    member_id,
-                } => {
-                    let signature_type_id = signature;
-                    let signature = self.lower_type(signature_type_id, declaration_id)?;
-                    let target_method =
-                        self.dynamic_method_target(concrete, name, signature_type_id, member_id)?;
-                    entries.push(mir::DynamicEntry::Setter {
-                        function: target_method,
-                    });
-                    layout_slots.push(mir::DynamicSlot::Setter { name, signature });
-                }
-                DynamicMember::Method {
+                DynamicMember::Function {
                     name,
                     signature,
                     member_id,
@@ -158,55 +130,43 @@ impl ModuleLowerer<'_> {
                 } => {
                     let signature_type_id = signature;
                     let signature = self.lower_type(signature_type_id, declaration_id)?;
-                    let target_method =
-                        self.dynamic_method_target(concrete, name, signature_type_id, member_id)?;
-                    entries.push(mir::DynamicEntry::Method {
-                        function: target_method,
-                    });
-                    layout_slots.push(mir::DynamicSlot::Method { name, signature });
-                }
-                DynamicMember::Call {
-                    signature,
-                    member_id,
-                } => {
-                    let signature_type_id = signature;
-                    let signature = self.lower_type(signature_type_id, declaration_id)?;
-                    let target_method = self.dynamic_method_target(
+                    let target_name = name.unwrap_or(self.dispatch_call_name);
+                    let target_method = self.dynamic_function_target(
                         concrete,
-                        self.dispatch_call_name,
+                        target_name,
                         signature_type_id,
                         member_id,
                     )?;
-                    entries.push(mir::DynamicEntry::Call {
+                    entries.push(mir::DynamicEntry::Function {
                         function: target_method,
                     });
-                    layout_slots.push(mir::DynamicSlot::Call { signature });
+                    shape_slots.push(mir::DynamicSlot::Function { name, signature });
                 }
             }
         }
 
-        // register the canonical dynamic layout
-        let dispatch_table = &mut self.builder.tree_mut().metadata.dispatch;
-        let layout = mir::DynamicLayout {
+        // register the canonical dynamic shape
+        let dispatch_table = self.builder.dispatch_mut();
+        let shape = mir::DynamicShape {
             constraint: constraint_mir_type,
-            slots: layout_slots,
+            slots: shape_slots,
         };
-        match dispatch_table.dynamic_layout(constraint_mir_type) {
-            Some(existing_layout) => {
-                if existing_layout != &layout {
+        match dispatch_table.dynamic_shape(constraint_mir_type) {
+            Some(existing_shape) => {
+                if existing_shape != &shape {
                     return Err(LowerError::UnsupportedConstruct {
                         anchor: self.diagnostic_anchor(declaration_id),
-                        message: "inconsistent dynamic layout".to_string(),
+                        message: "inconsistent dynamic shape".to_string(),
                     }
                     .into());
                 }
             }
             None => {
-                dispatch_table.insert_dynamic_layout(constraint_mir_type, layout);
+                dispatch_table.insert_dynamic_shape(shape);
             }
         }
 
-        // table metadata and static storage
+        // dispatch tables and static storage
         {
             let dynamic_table_global = self
                 .dynamic_table_globals_by_pair
@@ -226,14 +186,9 @@ impl ModuleLowerer<'_> {
             let table = mir::DynamicTable {
                 concrete: concrete_mir_type,
                 constraint: constraint_mir_type,
-                global: dynamic_table_global.global_id,
                 entries,
             };
-            self.builder
-                .tree_mut()
-                .metadata
-                .dispatch
-                .insert_dynamic_table(table);
+            self.builder.dispatch_mut().insert_dynamic_table(table);
         }
 
         // lowered table guard
@@ -286,8 +241,8 @@ impl ModuleLowerer<'_> {
         Ok(field_offset)
     }
 
-    /// Resolve the concrete method target for a dynamic method.
-    fn dynamic_method_target(
+    /// Resolve the concrete function target for a dynamic function slot.
+    fn dynamic_function_target(
         &self,
         concrete: dir::GlobalSymbolId,
         method_name: StringId,
@@ -359,7 +314,7 @@ impl ModuleLowerer<'_> {
                     .into_global_any(self.module_id)
                     .into_anchored(Some(self.profile)),
             ),
-            message: "missing dynamic method implementation".to_string(),
+            message: "missing dynamic function implementation".to_string(),
         }
         .into())
     }
@@ -379,13 +334,10 @@ impl ModuleLowerer<'_> {
         // dynamic slots
         for entry in entries {
             let element = match entry {
-                mir::DynamicEntry::Getter { function }
-                | mir::DynamicEntry::Setter { function }
-                | mir::DynamicEntry::Method { function }
-                | mir::DynamicEntry::Call { function } => {
+                mir::DynamicEntry::Function { function } => {
                     mir::GlobalInitializer::function_address((*function).into())
                 }
-                mir::DynamicEntry::Field { offset, .. } => {
+                mir::DynamicEntry::FieldOffset { offset, .. } => {
                     let constant = self.dynamic_table_field_offset_constant(*offset)?;
 
                     mir::GlobalInitializer::scalar(constant)

@@ -38,7 +38,7 @@ impl Compiler {
             profile,
             target,
             context,
-            lowered.tree.clone(),
+            (*lowered).clone(),
             self.strings(),
         );
 

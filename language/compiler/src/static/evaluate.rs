@@ -65,7 +65,7 @@ impl StaticContext<'_> {
         if self.is_import_meta_target(left) {
             self.evaluate_target_member(expression, name)
         }
-        // import.meta members read module and profile metadata
+        // import.meta members read module and profile tables
         else if self.is_import_meta(left) {
             self.evaluate_import_meta_member(expression, name)
         }

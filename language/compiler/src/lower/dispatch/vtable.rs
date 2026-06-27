@@ -137,16 +137,14 @@ impl ModuleLowerer<'_> {
         })?;
         let mir_type = self.lower_type(instance_type_id, anchor)?;
 
-        // build vtable entries with fixed prefix
-        let mut entries = Vec::with_capacity(virtual_slots.len() + 2);
-        entries.push(mir::VirtualEntry::TypeDescriptor);
-        entries.push(mir::VirtualEntry::Destructor { function: None });
+        // build method slots
+        let mut methods = Vec::with_capacity(virtual_slots.len());
         for method in virtual_slots {
             let function = self.method_function_id(method.member_id, method.symbol)?;
-            entries.push(mir::VirtualEntry::Method { function });
+            methods.push(function);
         }
 
-        // table metadata and static storage
+        // dispatch tables and static storage
         {
             let vtable_global = self
                 .vtable_globals_by_symbol
@@ -154,10 +152,10 @@ impl ModuleLowerer<'_> {
                 .copied()
                 .ok_or_else(|| LowerError::Internal {
                     anchor: (self.module_id).into(),
-                    module: self.module_id,
-                    message: format!("missing vtable global for class {symbol:?}"),
-                })?;
-            let initializer = virtual_table_initializer(&entries);
+                module: self.module_id,
+                message: format!("missing vtable global for class {symbol:?}"),
+            })?;
+            let initializer = virtual_table_initializer(&methods);
             self.builder
                 .tree_mut()
                 .get_mut(vtable_global.global_id)
@@ -165,14 +163,10 @@ impl ModuleLowerer<'_> {
 
             let table = mir::VirtualTable {
                 ty: mir_type,
-                global: vtable_global.global_id,
-                entries,
+                destructor: None,
+                methods,
             };
-            self.builder
-                .tree_mut()
-                .metadata
-                .dispatch
-                .insert_virtual_table(table);
+            self.builder.dispatch_mut().insert_virtual_table(table);
         }
 
         // lowered table guard
@@ -398,18 +392,10 @@ impl ModuleLowerer<'_> {
 }
 
 /// Build the static initializer for one virtual table.
-fn virtual_table_initializer(entries: &[mir::VirtualEntry]) -> mir::GlobalInitializer {
-    let elements = entries
+fn virtual_table_initializer(methods: &[mir::LocalNodeId<mir::Function>]) -> mir::GlobalInitializer {
+    let elements = methods
         .iter()
-        .map(|entry| match entry {
-            mir::VirtualEntry::Method { function }
-            | mir::VirtualEntry::Destructor {
-                function: Some(function),
-            } => mir::GlobalInitializer::function_address((*function).into()),
-            mir::VirtualEntry::TypeDescriptor | mir::VirtualEntry::Destructor { function: None } => {
-                mir::GlobalInitializer::zero()
-            }
-        })
+        .map(|function| mir::GlobalInitializer::function_address((*function).into()))
         .collect();
 
     mir::GlobalInitializer::aggregate(elements)

@@ -21,7 +21,7 @@ pub(crate) struct FunctionEnvironmentLayout {
 }
 
 impl FunctionEnvironmentLayout {
-    /// Find the field metadata for a captured symbol.
+    /// Find the field for a captured symbol.
     pub(crate) fn field_for_symbol(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -113,12 +113,10 @@ impl ModuleLowerer<'_> {
             .unwrap_or_else(|| format!("env.{}", symbol.local_id.id));
         let metadata_name = self.builder.intern(&metadata_name);
         self.builder
-            .tree_mut()
-            .metadata
-            .types
+            .types_mut()
             .ensure_display_name(env_type, metadata_name);
 
-        // record layout metadata for the env type
+        // record layout entry for the env type
         self.insert_layout_entry(
             env_type,
             mir::LayoutShape::Struct(mir::StructLayout { fields: Vec::new() }),
@@ -290,9 +288,7 @@ impl ModuleLowerer<'_> {
             .builder
             .intern(EMPTY_FUNCTION_ENVIRONMENT_METADATA_NAME);
         self.builder
-            .tree_mut()
-            .metadata
-            .types
+            .types_mut()
             .ensure_display_name(env_type, metadata_name);
 
         self.insert_layout_entry(

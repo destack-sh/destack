@@ -45,7 +45,7 @@ impl Compiler {
         expression_id
     }
 
-    /// Clone an expression node and copy node-level analysis metadata.
+    /// Clone an expression node and copy node-level analysis tables.
     /// TODO #Performance: revisit clone_expression_with_analysis
     pub(crate) fn clone_expression_with_analysis(
         &self,
@@ -63,7 +63,7 @@ impl Compiler {
         );
         let cloned_id = state.tree.insert_as_owner(cloned_id, expression.clone());
 
-        // copy inferred type and resolution metadata
+        // copy inferred type and resolution tables
         state.types_tail.copy_node_relations(
             origin_id.into_global_any(state.module_id),
             cloned_id.into_global_any(state.module_id),

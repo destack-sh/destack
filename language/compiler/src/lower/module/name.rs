@@ -88,8 +88,8 @@ impl ModuleLowerer<'_> {
     ) -> LowerResult<StringId> {
         let dir_type = self.types.get_type(type_id);
 
-        // skip if metadata already exists
-        if let Some(name) = self.builder.tree().metadata.types.display_name(mir_type) {
+        // skip if tables already exists
+        if let Some(name) = self.builder.types().display_name(mir_type) {
             return Ok(name);
         }
 
@@ -114,9 +114,7 @@ impl ModuleLowerer<'_> {
 
             // attach metadata for the current reference type when missing
             self.builder
-                .tree_mut()
-                .metadata
-                .types
+                .types_mut()
                 .ensure_display_name(mir_type, reference_name);
 
             return Ok(reference_name);
@@ -140,9 +138,7 @@ impl ModuleLowerer<'_> {
                 message: "missing instance metadata name for nominal type".to_string(),
             })?;
             self.builder
-                .tree_mut()
-                .metadata
-                .types
+                .types_mut()
                 .ensure_display_name(mir_type, instance_name);
             return Ok(instance_name);
         }
@@ -166,11 +162,7 @@ impl ModuleLowerer<'_> {
         let name_id = self.builder.intern(&name);
 
         // attach the metadata name
-        self.builder
-            .tree_mut()
-            .metadata
-            .types
-            .ensure_display_name(mir_type, name_id);
+        self.builder.types_mut().ensure_display_name(mir_type, name_id);
 
         Ok(name_id)
     }
@@ -296,20 +288,14 @@ impl ModuleLowerer<'_> {
             if let Some(reference_type_id) = self.nominal_reference_type_id_for_symbol(symbol)
                 && let Some(mir_type) = self.type_lowerer.cached_type(reference_type_id)
             {
-                self.builder
-                    .tree_mut()
-                    .metadata
-                    .types
-                    .ensure_display_name(mir_type, name_id);
+                self.builder.types_mut().ensure_display_name(mir_type, name_id);
             }
 
             if let Some(instance_type_id) = self.types.get_instance_type_id(symbol)
                 && let Some(mir_type) = self.type_lowerer.cached_type(instance_type_id)
             {
                 self.builder
-                    .tree_mut()
-                    .metadata
-                    .types
+                    .types_mut()
                     .ensure_display_name(mir_type, instance_name_id);
             }
 
@@ -325,9 +311,7 @@ impl ModuleLowerer<'_> {
             let reference_name_id = self.builder.intern(&reference_name);
             names.reference = Some(reference_name_id);
             self.builder
-                .tree_mut()
-                .metadata
-                .types
+                .types_mut()
                 .ensure_display_name(mir_type, reference_name_id);
         }
 
@@ -340,11 +324,7 @@ impl ModuleLowerer<'_> {
             return Ok(names);
         };
 
-        self.builder
-            .tree_mut()
-            .metadata
-            .types
-            .ensure_display_name(mir_type, name_id);
+        self.builder.types_mut().ensure_display_name(mir_type, name_id);
 
         names.instance = Some(name_id);
 
@@ -371,11 +351,7 @@ impl ModuleLowerer<'_> {
         let name_id = self.builder.intern(&name);
 
         // attach metadata when missing
-        self.builder
-            .tree_mut()
-            .metadata
-            .types
-            .ensure_display_name(mir_type, name_id);
+        self.builder.types_mut().ensure_display_name(mir_type, name_id);
         Ok(())
     }
 

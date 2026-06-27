@@ -1,4 +1,4 @@
-use destack_artifact::{DiagnosticBuilder, DiagnosticLike, MirVerified};
+use destack_artifact::{DiagnosticBuilder, DiagnosticLike, MirLowered, MirVerified};
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_repository::{ProfileId, ProviderContext};
@@ -19,6 +19,22 @@ pub(crate) struct VerifyState<'a> {
     pub(in crate::verify) context: &'a dyn ProviderContext,
     /// The MIR tree being verified.
     pub(in crate::verify) tree: mir::Tree,
+    /// Target ABI layout.
+    pub(in crate::verify) target_layout: mir::TargetLayout,
+    /// Canonical MIR type table.
+    pub(in crate::verify) types: mir::TypeTable,
+    /// Canonical MIR layout table.
+    pub(in crate::verify) layouts: mir::LayoutTable,
+    /// Canonical MIR dispatch table.
+    pub(in crate::verify) dispatch: mir::DispatchTable,
+    /// Canonical MIR drop table.
+    pub(in crate::verify) drops: mir::DropTable,
+    /// Explicit MIR memory access table.
+    pub(in crate::verify) memory: mir::MemoryTable,
+    /// Function and call effect table.
+    pub(in crate::verify) effects: mir::EffectTable,
+    /// Static profile counter table.
+    pub(in crate::verify) profile_table: mir::ProfileTable,
     /// Strings needed by generated MIR names.
     pub(in crate::verify) strings: &'a StringPool,
     /// Accumulated errors.
@@ -44,7 +60,7 @@ impl<'a> VerifyState<'a> {
         profile: ProfileId,
         target: TargetId,
         context: &'a dyn ProviderContext,
-        tree: mir::Tree,
+        lowered: MirLowered,
         strings: &'a StringPool,
     ) -> Self {
         Self {
@@ -52,7 +68,15 @@ impl<'a> VerifyState<'a> {
             profile,
             target,
             context,
-            tree,
+            tree: lowered.tree,
+            target_layout: lowered.target,
+            types: lowered.types,
+            layouts: lowered.layouts,
+            dispatch: lowered.dispatch,
+            drops: lowered.drops,
+            memory: lowered.memory,
+            effects: lowered.effects,
+            profile_table: lowered.profile,
             strings,
             errors: Vec::new(),
         }
@@ -60,7 +84,17 @@ impl<'a> VerifyState<'a> {
 
     /// Finish verified MIR.
     pub(crate) fn finish(self) -> MirVerified {
-        MirVerified::from_tree(self.tree)
+        MirVerified {
+            tree: self.tree,
+            target: self.target_layout,
+            types: self.types,
+            layouts: self.layouts,
+            dispatch: self.dispatch,
+            drops: self.drops,
+            memory: self.memory,
+            effects: self.effects,
+            profile: self.profile_table,
+        }
     }
 
     /// Create a source anchor for one MIR node.

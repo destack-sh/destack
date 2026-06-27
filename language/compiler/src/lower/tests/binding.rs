@@ -420,7 +420,7 @@ type Counter {
     value: int32;
 }
 
-readonly global Counter#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
+readonly global Counter#vtable: [ref<void, raw, readonly, nullable, space(static)>; 1], space(static) = zeroInit
 
 function Counter.borrowValue(this0: ref<Counter, managed, readonly>): ref<int32, borrowed> {
 entry(this0: ref<Counter, managed, readonly>):

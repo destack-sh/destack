@@ -157,10 +157,10 @@ impl TypeLowerer<'_> {
                 }
             }
             dir::IntegerType::Pointer { is_signed: true } => Some(ScalarType::SignedInt {
-                width: self.pointer_width_bits,
+                width: self.pointer_width_bits(),
             }),
             dir::IntegerType::Pointer { is_signed: false } => Some(ScalarType::UnsignedInt {
-                width: self.pointer_width_bits,
+                width: self.pointer_width_bits(),
             }),
         }
     }

@@ -51,7 +51,7 @@ impl Compiler {
                 continue;
             };
 
-            // resolve the match metadata for the new expression
+            // resolve the match tables for the new expression
             let match_scope = state.tree.get_scope(declarator.pattern);
             let match_symbol = self.match_symbol_for_scope(state, match_scope.0)?;
 

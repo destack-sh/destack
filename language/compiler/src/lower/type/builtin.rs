@@ -123,7 +123,7 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
             return Ok(None);
         };
 
-        // name the language string type metadata
+        // name the language string type
         self.assign_metadata_name_for_symbol(ty_struct, string_symbol);
 
         // cache the managed reference type
@@ -360,11 +360,7 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         let name_id = static_key_to_field_name(&key, self.builder);
 
         // attach the name when missing
-        self.builder
-            .tree_mut()
-            .metadata
-            .types
-            .ensure_display_name(mir_type, name_id);
+        self.builder.types_mut().ensure_display_name(mir_type, name_id);
     }
 
     /// Resolve nominal aliases to their layout type.

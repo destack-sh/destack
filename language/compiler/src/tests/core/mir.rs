@@ -1,6 +1,6 @@
 use destack_artifact::{
     ArtifactKey, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
-    DiagnosticError, DiagnosticLike,
+    DiagnosticError, DiagnosticLike, MirLowered,
 };
 use destack_core::StringPool;
 use destack_mir as mir;
@@ -13,8 +13,8 @@ use std::sync::Arc;
 
 /// MIR program under compiler tests.
 pub(crate) struct TestProgram {
-    /// MIR tree.
-    pub(crate) tree: mir::Tree,
+    /// Lowered MIR artifact.
+    pub(crate) lowered: MirLowered,
     /// String pool.
     pub(crate) strings: StringPool,
     /// Test provider context.
@@ -39,7 +39,10 @@ impl TestProgram {
                 .expect("failed to parse MIR");
 
         Self {
-            tree,
+            lowered: MirLowered {
+                tree,
+                ..MirLowered::new()
+            },
             strings,
             provider: TestMirProvider { file },
         }

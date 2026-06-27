@@ -74,7 +74,7 @@ impl VerifyState<'_> {
         building: &mut HashSet<mir::LocalNodeId<mir::Type>>,
     ) -> Option<mir::LocalNodeId<mir::Function>> {
         // reuse already generated glue
-        if let Some(glue) = self.tree.metadata.drops.drop_glue(ty) {
+        if let Some(glue) = self.drops.drop_glue(ty) {
             return glue.function();
         }
 
@@ -85,9 +85,7 @@ impl VerifyState<'_> {
 
         // declare before recursion so cycles can refer to the symbol
         let function = self.declare_drop_glue(ty)?;
-        self.tree
-            .metadata
-            .drops
+        self.drops
             .set_drop_glue(ty, mir::DropGlue::Generated { function });
 
         // build the body once per active recursion chain
@@ -106,7 +104,7 @@ impl VerifyState<'_> {
         if self.tree.get(ty).copy().is_yes() {
             return false;
         }
-        if self.tree.metadata.drops.drop_hook(ty).is_some() {
+        if self.drops.drop_hook(ty).is_some() {
             return true;
         }
 
@@ -150,7 +148,7 @@ impl VerifyState<'_> {
         ty: mir::LocalNodeId<mir::Type>,
         seen: &mut HashSet<mir::LocalNodeId<mir::Type>>,
     ) -> bool {
-        if type_emits_drop_code(&self.tree, ty) {
+        if type_emits_drop_code(&self.drops, &self.tree, ty) {
             return true;
         }
         if self.tree.get(ty).copy().is_yes() || !seen.insert(ty) {
@@ -215,7 +213,7 @@ impl VerifyState<'_> {
     /// Return a stable name stem for generated drop glue.
     fn drop_name_stem(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<String> {
         // prefer source names when the type has one
-        if let Some(display_name) = self.tree.metadata.types.display_name(ty) {
+        if let Some(display_name) = self.types.display_name(ty) {
             return Some(self.strings.get(display_name).to_string());
         }
 
@@ -369,16 +367,21 @@ impl VerifyState<'_> {
         function: mir::LocalNodeId<mir::Function>,
     ) {
         // turn the declaration into a real body
-        let mut builder =
-            mir::FunctionBuilder::from_declared(&mut self.tree, self.strings, function)
-                .unwrap_or_else(|error| unreachable!("{error}"));
+        let mut builder = mir::FunctionBuilder::from_declared(
+            &mut self.tree,
+            &mut self.effects,
+            self.strings,
+            self.target_layout.pointer_bits(),
+            function,
+        )
+        .unwrap_or_else(|error| unreachable!("{error}"));
 
         let entry = builder.block();
         builder.switch_to_block(entry);
         let value = builder.function_parameter(0);
 
         // call the user hook before structural field drops
-        if let Some(hook) = builder.tree().metadata.drops.drop_hook(ty).cloned() {
+        if let Some(hook) = self.drops.drop_hook(ty).cloned() {
             let void = builder.tree_mut().void_type();
             let signature = builder
                 .tree_mut()
@@ -391,7 +394,7 @@ impl VerifyState<'_> {
         }
 
         // emit drop then return void
-        emit_inline_drop(&mut builder, ty, value);
+        emit_inline_drop(&self.drops, &mut builder, ty, value);
         builder.return_(None);
         builder
             .finish()
@@ -401,6 +404,7 @@ impl VerifyState<'_> {
 
 /// Emit drop for a value whose own glue body is being generated.
 fn emit_inline_drop(
+    drops: &mir::DropTable,
     builder: &mut mir::FunctionBuilder<'_>,
     ty: mir::LocalNodeId<mir::Type>,
     value: mir::Value,
@@ -412,7 +416,7 @@ fn emit_inline_drop(
                 let field_ty = builder.tree().get(*field).ty;
                 let field_value = builder.field_get(value, index as u32);
 
-                emit_drop(builder, field_ty, field_value);
+                emit_drop(drops, builder, field_ty, field_value);
             }
         }
         mir::Type::Tuple { elements, .. } => {
@@ -420,14 +424,14 @@ fn emit_inline_drop(
             for (index, element) in elements.iter().enumerate() {
                 let element_value = builder.field_get(value, index as u32);
 
-                emit_drop(builder, *element, element_value);
+                emit_drop(drops, builder, *element, element_value);
             }
         }
         mir::Type::Newtype { inner, .. } => {
             // drop the wrapped value
             let inner_value = builder.field_get(value, 0);
 
-            emit_drop(builder, inner, inner_value);
+            emit_drop(drops, builder, inner, inner_value);
         }
         mir::Type::FixedArray {
             element, length, ..
@@ -436,7 +440,7 @@ fn emit_inline_drop(
             for index in 0..length {
                 let element_value = builder.field_get(value, index as u32);
 
-                emit_drop(builder, element, element_value);
+                emit_drop(drops, builder, element, element_value);
             }
         }
         mir::Type::Slice {
@@ -446,10 +450,10 @@ fn emit_inline_drop(
             access,
             ..
         } => {
-            emit_unique_slice_drop(builder, element, space, access, value);
+            emit_unique_slice_drop(drops, builder, element, space, access, value);
         }
         mir::Type::Variant { cases, .. } => {
-            emit_variant_drop(builder, value, cases);
+            emit_variant_drop(drops, builder, value, cases);
         }
         _ => {}
     }
@@ -457,6 +461,7 @@ fn emit_inline_drop(
 
 /// Emit drop for an owning slice descriptor.
 fn emit_unique_slice_drop(
+    drops: &mir::DropTable,
     builder: &mut mir::FunctionBuilder<'_>,
     element: mir::LocalNodeId<mir::Type>,
     space: mir::Space,
@@ -464,7 +469,7 @@ fn emit_unique_slice_drop(
     value: mir::Value,
 ) {
     // empty slice contents need no drop body
-    if !type_emits_drop_code(builder.tree(), element) {
+    if !type_emits_drop_code(drops, builder.tree(), element) {
         return;
     }
 
@@ -498,7 +503,7 @@ fn emit_unique_slice_drop(
     builder.switch_to_block(body);
     let pointer = builder.element_addr(value, current, element_pointer);
     let element_value = builder.load(pointer, element);
-    emit_drop(builder, element, element_value);
+    emit_drop(drops, builder, element, element_value);
 
     // advance loop
     let one = builder.usize_const(1);
@@ -511,6 +516,7 @@ fn emit_unique_slice_drop(
 
 /// Emit drop for a physical tagged sum value.
 fn emit_variant_drop(
+    drops: &mir::DropTable,
     builder: &mut mir::FunctionBuilder<'_>,
     value: mir::Value,
     cases: Vec<mir::VariantCase>,
@@ -518,7 +524,7 @@ fn emit_variant_drop(
     // keep cases with payload storage to drop
     let cases = cases
         .into_iter()
-        .filter(|case| type_emits_drop_code(builder.tree(), case.ty))
+        .filter(|case| type_emits_drop_code(drops, builder.tree(), case.ty))
         .collect::<Vec<_>>();
     if cases.is_empty() {
         return;
@@ -558,7 +564,7 @@ fn emit_variant_drop(
         // drop matching payload
         builder.switch_to_block(case_block);
         let payload = builder.variant_payload(value, case.tag);
-        emit_drop(builder, case.ty, payload);
+        emit_drop(drops, builder, case.ty, payload);
         builder.jump(done);
 
         check = failure;
@@ -569,11 +575,12 @@ fn emit_variant_drop(
 
 /// Emit drop for one value.
 fn emit_drop(
+    drops: &mir::DropTable,
     builder: &mut mir::FunctionBuilder<'_>,
     ty: mir::LocalNodeId<mir::Type>,
     value: mir::Value,
 ) {
-    emit_drop_contents(builder, ty, value);
+    emit_drop_contents(drops, builder, ty, value);
 
     // release owned storage after its contents are destroyed
     if builder.tree().get(ty).is_unique_storage() {
@@ -583,11 +590,12 @@ fn emit_drop(
 
 /// Emit drop for one value's contents.
 fn emit_drop_contents(
+    drops: &mir::DropTable,
     builder: &mut mir::FunctionBuilder<'_>,
     ty: mir::LocalNodeId<mir::Type>,
     value: mir::Value,
 ) {
-    if let Some(glue) = builder.tree().metadata.drops.drop_glue(ty).cloned() {
+    if let Some(glue) = drops.drop_glue(ty).cloned() {
         emit_drop_glue(builder, ty, value, glue);
         return;
     }
@@ -601,7 +609,7 @@ fn emit_drop_contents(
         return;
     };
 
-    emit_unique_reference_contents(builder, value, *pointee);
+    emit_unique_reference_contents(drops, builder, value, *pointee);
 }
 
 /// Emit one explicit drop glue call.
@@ -638,22 +646,25 @@ fn emit_drop_glue(
 
 /// Emit inline drop for one unique reference's pointee.
 fn emit_unique_reference_contents(
+    drops: &mir::DropTable,
     builder: &mut mir::FunctionBuilder<'_>,
     value: mir::Value,
     pointee: mir::LocalNodeId<mir::Type>,
 ) {
     // drop pointee contents before caller releases the allocation
-    if type_emits_drop_code(builder.tree(), pointee) {
+    if type_emits_drop_code(drops, builder.tree(), pointee) {
         let loaded = builder.load(value, pointee);
-        emit_drop(builder, pointee, loaded);
+        emit_drop(drops, builder, pointee, loaded);
     }
 }
 
 /// Return whether dropping a value of this type emits MIR.
-fn type_emits_drop_code(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> bool {
-    if tree
-        .metadata
-        .drops
+fn type_emits_drop_code(
+    drops: &mir::DropTable,
+    tree: &mir::Tree,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> bool {
+    if drops
         .drop_glue(ty)
         .is_some_and(|glue| !matches!(glue, mir::DropGlue::None))
     {
@@ -668,7 +679,7 @@ fn type_emits_drop_code(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> bo
             kind: mir::ReferenceKind::Unique,
             pointee,
             ..
-        } => type_emits_drop_code(tree, *pointee),
+        } => type_emits_drop_code(drops, tree, *pointee),
         _ => false,
     }
 }

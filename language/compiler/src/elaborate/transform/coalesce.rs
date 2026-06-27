@@ -506,7 +506,7 @@ impl Compiler {
             .tree
             .replace(expression_id, Expression::Block(block_id));
 
-        // restore result type metadata on rewritten nodes
+        // restore result type tables on rewritten nodes
         if let Some(result_type_id) = result_type_id {
             self.set_expression_type(state.types_tail, state.module_id, if_id, result_type_id);
             state

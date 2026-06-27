@@ -3,9 +3,9 @@ use destack_mir as mir;
 
 use crate::TestProgram;
 
-/// Lower dynamic table metadata for structs.
+/// Lower dynamic dispatch tables for structs.
 #[test]
-fn test_lower_struct_dynamic_table_metadata() {
+fn test_lower_struct_dynamic_table_entries() {
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
@@ -65,14 +65,14 @@ entry(this0: Circle):
         let offset = test.expect_dynamic_field_offset(dynamic_table, tree, strings, "color");
         assert_eq!(offset, 0);
 
-        // assert the dynamic method slot
+        // assert the dynamic function slot
         let target_name =
-            test.expect_dynamic_method_target_name(dynamic_table, tree, strings, "draw");
+            test.expect_dynamic_function_target_name(dynamic_table, tree, strings, "draw");
         assert_eq!(target_name, "Circle.draw");
     });
 }
 
-/// Lower erased dynamic layouts into dynamic values.
+/// Lower erased dynamic shapes into dynamic values.
 #[test]
 fn test_lower_interface_any_layout() {
     let test = TestProgram::memory_sequential_with_prelude();
@@ -378,13 +378,13 @@ entry(this0: Widget):
         );
 
         let shape = tree
-            .metadata
+            .tables
             .dispatch
-            .dynamic_layout(shape_table.constraint)
-            .expect("missing Shape dynamic layout");
+            .dynamic_shape(shape_table.constraint)
+            .expect("missing Shape dynamic shape");
         match (&shape_table.entries[0], &shape.slots[0]) {
             (
-                mir::DynamicEntry::Field { offset },
+                mir::DynamicEntry::FieldOffset { offset },
                 mir::DynamicSlot::Field { name, .. },
             ) => {
                 assert_eq!(strings.get(*name), "width");
@@ -394,22 +394,24 @@ entry(this0: Widget):
         }
         match (&shape_table.entries[1], &shape.slots[1]) {
             (
-                mir::DynamicEntry::Method { .. },
-                mir::DynamicSlot::Method { name, .. },
+                mir::DynamicEntry::Function { .. },
+                mir::DynamicSlot::Function {
+                    name: Some(name), ..
+                },
             ) => {
                 assert_eq!(strings.get(*name), "area");
             }
-            _ => panic!("expected dynamic method slot for area"),
+            _ => panic!("expected dynamic function slot for area"),
         }
 
         let paint = tree
-            .metadata
+            .tables
             .dispatch
-            .dynamic_layout(paint_table.constraint)
-            .expect("missing Paint dynamic layout");
+            .dynamic_shape(paint_table.constraint)
+            .expect("missing Paint dynamic shape");
         match (&paint_table.entries[0], &paint.slots[0]) {
             (
-                mir::DynamicEntry::Field { offset },
+                mir::DynamicEntry::FieldOffset { offset },
                 mir::DynamicSlot::Field { name, .. },
             ) => {
                 assert_eq!(strings.get(*name), "color");
@@ -419,19 +421,21 @@ entry(this0: Widget):
         }
         match (&paint_table.entries[1], &paint.slots[1]) {
             (
-                mir::DynamicEntry::Method { .. },
-                mir::DynamicSlot::Method { name, .. },
+                mir::DynamicEntry::Function { .. },
+                mir::DynamicSlot::Function {
+                    name: Some(name), ..
+                },
             ) => {
                 assert_eq!(strings.get(*name), "paint");
             }
-            _ => panic!("expected dynamic method slot for paint"),
+            _ => panic!("expected dynamic function slot for paint"),
         }
     });
 }
 
-/// Lower dynamic call metadata for dynamic dispatch.
+/// Lower dynamic call entries for dynamic dispatch.
 #[test]
-fn test_lower_dynamic_call_metadata() {
+fn test_lower_dynamic_call_entries() {
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
@@ -498,12 +502,12 @@ entry(this0: Circle):
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
-        // locate the dynamic call metadata
+        // locate the dynamic call table
         let info = test.dynamic_call_info_by_name(tree, strings, "useDrawable");
         let constraint_type = test.type_by_metadata_name(tree, strings, "test/test:Drawable.object");
 
         // assert the dispatch payload
-        assert_eq!(info.slot, mir::DispatchSlot::new(2));
+        assert_eq!(info.slot, mir::DispatchSlot::new(0));
         assert_eq!(info.constraint, constraint_type);
     });
 }

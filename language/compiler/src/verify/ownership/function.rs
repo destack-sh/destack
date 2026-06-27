@@ -961,11 +961,10 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         instruction: &mir::Instruction,
     ) -> Option<mir::LocalNodeId<mir::Function>> {
         instruction.call_direct_target().or_else(|| {
-            self.tree
-                .metadata
+            self.context
                 .effects
                 .call(mir::CallSite::Instruction(instruction_id))
-                .and_then(|metadata| metadata.target)
+                .and_then(|tables| tables.target)
         })
     }
 
@@ -976,11 +975,10 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         terminator: &mir::Terminator,
     ) -> Option<mir::LocalNodeId<mir::Function>> {
         terminator.call_direct_target().or_else(|| {
-            self.tree
-                .metadata
+            self.context
                 .effects
                 .call(mir::CallSite::Terminator(block_id))
-                .and_then(|metadata| metadata.target)
+                .and_then(|tables| tables.target)
         })
     }
 
@@ -1447,7 +1445,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             return false;
         };
 
-        self.tree.metadata.drops.drop_hook(ty).is_some()
+        self.context.drops.drop_hook(ty).is_some()
     }
 
     /// Return whether one value has a variant type.
