@@ -5,9 +5,9 @@ use destack_mir::{TraceMap, TraceTable};
 use crate::allocator::Allocator;
 use crate::local::storage::HeapStorage;
 use crate::{
-    AllocationPlan, AllocationSite, GcPacer, GcPressure, GcProgress, GcState, GcStats, HeapError,
+    Allocation, AllocationPlan, GcPacer, GcPressure, GcProgress, GcState, GcStats, HeapError,
     HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RootSlot, SharedHeapReference,
-    SmallAllocationSite,
+    SmallAllocationPlan,
 };
 
 /// One live heap over one shared allocator.
@@ -297,7 +297,7 @@ impl Heap {
     #[inline(always)]
     pub(crate) fn allocate_payload(
         &mut self,
-        layout: &AllocationPlan<'_>,
+        layout: &Allocation<'_>,
         payload: Payload<'_>,
     ) -> HeapResult<HeapReference> {
         let retained_byte_delta = self.storage.retained_byte_delta(layout)?;
@@ -315,33 +315,33 @@ impl Heap {
 
     /// Reserve one no-scan small payload while no local cycle is active.
     #[inline(always)]
-    pub fn reserve_small_noscan(&mut self, site: SmallAllocationSite) -> Option<HeapReference> {
+    pub fn reserve_small_noscan(&mut self, site: SmallAllocationPlan) -> Option<HeapReference> {
         // active cycles publish every new block through the slow path
         if self.storage.collector.is_collecting() {
             return None;
         }
 
         self.storage
-            .reserve_young_noscan_cursor(site.byte_len, site.span_class())
+            .reserve_young_noscan_cursor(site.byte_len(), site.span_class())
     }
 
     /// Reserve one scanned small payload while no local cycle is active.
     #[inline(always)]
-    pub fn reserve_small_scan(&mut self, site: SmallAllocationSite) -> Option<HeapReference> {
+    pub fn reserve_small_scan(&mut self, site: SmallAllocationPlan) -> Option<HeapReference> {
         // active cycles publish every new block through the slow path
         if self.storage.collector.is_collecting() {
             return None;
         }
 
         self.storage
-            .reserve_young_cursor(site.byte_len, site.span_class())
+            .reserve_young_cursor(site.byte_len(), site.span_class())
     }
 
     /// Reserve one small payload that may point into shared heap while no local cycle is active.
     #[inline(always)]
     pub fn reserve_small_shared_edge(
         &mut self,
-        site: SmallAllocationSite,
+        plan: SmallAllocationPlan,
     ) -> Option<HeapReference> {
         // active cycles publish every new block through the slow path
         if self.storage.collector.is_collecting() {
@@ -350,48 +350,48 @@ impl Heap {
 
         let reference = self
             .storage
-            .reserve_young_cursor(site.byte_len, site.span_class())?;
+            .reserve_young_cursor(plan.byte_len(), plan.span_class())?;
         self.storage.collector.track_shared_edge_root(reference);
 
         Some(reference)
     }
 
-    /// Allocate one zeroed payload from one allocation site.
+    /// Allocate one zeroed payload from one allocation plan.
     #[cold]
     #[inline(never)]
     pub fn allocate_zeroed(
         &mut self,
-        site: AllocationSite,
+        plan: AllocationPlan,
         trace_map: &TraceMap,
     ) -> HeapResult<HeapReference> {
-        let layout = site.plan(trace_map);
+        let layout = plan.allocation(trace_map);
 
         self.allocate_payload(&layout, Payload::Zeroed)
     }
 
-    /// Allocate one uninitialized payload from one allocation site.
+    /// Allocate one uninitialized payload from one allocation plan.
     #[cold]
     #[inline(never)]
     pub fn allocate_uninit(
         &mut self,
-        site: AllocationSite,
+        plan: AllocationPlan,
         trace_map: &TraceMap,
     ) -> HeapResult<HeapReference> {
-        let layout = site.plan(trace_map);
+        let layout = plan.allocation(trace_map);
 
         self.allocate_payload(&layout, Payload::Uninit)
     }
 
-    /// Allocate one byte-initialized payload from one allocation site.
+    /// Allocate one byte-initialized payload from one allocation plan.
     #[cold]
     #[inline(never)]
     pub fn allocate_bytes(
         &mut self,
-        site: AllocationSite,
+        plan: AllocationPlan,
         trace_map: &TraceMap,
         bytes: &[u8],
     ) -> HeapResult<HeapReference> {
-        let layout = site.plan(trace_map);
+        let layout = plan.allocation(trace_map);
 
         self.allocate_payload(&layout, Payload::Bytes(bytes))
     }

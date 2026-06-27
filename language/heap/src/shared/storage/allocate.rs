@@ -9,8 +9,8 @@ use super::{
 };
 use crate::allocator::{PageSpan, Slot};
 use crate::{
-    AllocationPlan, HeapAllocationError, HeapError, HeapRepresentationError, HeapResult, Payload,
-    SharedHeapReference, SmallAllocationPlan, SmallSpanClass, align_up,
+    Allocation, HeapAllocationError, HeapError, HeapRepresentationError, HeapResult, Payload,
+    SharedHeapReference, SmallAllocationClass, SmallSpanClass, align_up,
 };
 
 impl HeapStorage {
@@ -18,7 +18,7 @@ impl HeapStorage {
     pub(crate) fn allocate(
         &self,
         cache: &mut AllocationCache,
-        layout: &AllocationPlan<'_>,
+        layout: &Allocation<'_>,
         payload: Payload<'_>,
         should_keep_worker_cache: bool,
     ) -> HeapResult<SharedHeapReference> {
@@ -55,7 +55,7 @@ impl HeapStorage {
     pub(crate) fn reserve_small_from_cache(
         &self,
         cache: &mut AllocationCache,
-        small: SmallAllocationPlan,
+        small: SmallAllocationClass,
     ) -> Option<SharedHeapReference> {
         let cache_index = small.cache_index();
         if cache.small.len() <= cache_index {
@@ -163,7 +163,7 @@ impl HeapStorage {
     pub(crate) fn retained_byte_delta(
         &self,
         cache: &AllocationCache,
-        layout: &AllocationPlan<'_>,
+        layout: &Allocation<'_>,
     ) -> HeapResult<i64> {
         // heap blocks must have a physical payload
         if layout.is_empty() {
@@ -253,7 +253,7 @@ impl HeapStorage {
     fn allocate_place(
         &self,
         cache: &mut AllocationCache,
-        layout: &AllocationPlan<'_>,
+        layout: &Allocation<'_>,
         payload: Payload<'_>,
         should_keep_worker_cache: bool,
     ) -> HeapResult<HeapPlace> {
@@ -312,7 +312,7 @@ impl HeapStorage {
     }
 
     /// Return whether one size class still has one live reusable slot.
-    fn has_available_small_slot(&self, store: &HeapState, small: &SmallAllocationPlan) -> bool {
+    fn has_available_small_slot(&self, store: &HeapState, small: &SmallAllocationClass) -> bool {
         store
             .small
             .partial_spans

@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
+use destack_mir::TraceMap;
+
 use crate::allocator::Allocator;
 use crate::local::storage::{HeapStorage, HeapStorageImage, YoungImage};
 use crate::{
     Heap, HeapConfigurationError, HeapError, HeapOptions, Payload, SizeClassTable, TestLayout,
     test_allocator, test_layouts,
 };
-use destack_mir::TraceMap;
 
 use super::{
     TestHeapPlan, read_mapped_bytes, test_heap_with_limits, trace_table, write_mapped_byte,

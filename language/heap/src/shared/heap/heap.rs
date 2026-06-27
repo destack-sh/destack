@@ -10,9 +10,9 @@ use super::usage::SharedHeapUsage;
 use crate::shared::gc::{GcPhase, GcWorker, Pacer};
 use crate::shared::storage::{AllocationCache, HeapStorage, HeapStorageImage};
 use crate::{
-    AccountingRegion, AllocationPlan, AllocationSite, Allocator, GcPacer, GcPressure, GcProgress,
+    AccountingRegion, Allocation, AllocationPlan, Allocator, GcPacer, GcPressure, GcProgress,
     GcState, GcStats, HeapAllocationError, HeapError, HeapResult, Payload, SharedHeapOptions,
-    SharedHeapReference, SmallAllocationPlan, apply_byte_delta,
+    SharedHeapReference, SmallAllocationClass, apply_byte_delta,
 };
 
 /// One live shared heap.
@@ -249,7 +249,7 @@ impl SharedHeap {
         &self,
         worker: &GcWorker,
         cache: &mut AllocationCache,
-        layout: &AllocationPlan<'_>,
+        layout: &Allocation<'_>,
         block: Payload<'_>,
         trace_table: &TraceTable,
     ) -> HeapResult<SharedHeapReference> {
@@ -296,7 +296,7 @@ impl SharedHeap {
     pub fn reserve_small_from_cache(
         &self,
         cache: &mut AllocationCache,
-        small: SmallAllocationPlan,
+        small: SmallAllocationClass,
     ) -> Option<SharedHeapReference> {
         if self.gc_phase() != GcPhase::Idle {
             return None;
@@ -305,51 +305,51 @@ impl SharedHeap {
         self.storage.reserve_small_from_cache(cache, small)
     }
 
-    /// Allocate one zeroed payload from one allocation site.
+    /// Allocate one zeroed payload from one allocation plan.
     #[cold]
     #[inline(never)]
     pub fn allocate_zeroed(
         &self,
         worker: &GcWorker,
         cache: &mut AllocationCache,
-        site: AllocationSite,
+        plan: AllocationPlan,
         trace_map: &TraceMap,
         trace_table: &TraceTable,
     ) -> HeapResult<SharedHeapReference> {
-        let layout = site.plan(trace_map);
+        let layout = plan.allocation(trace_map);
 
         self.allocate_payload(worker, cache, &layout, Payload::Zeroed, trace_table)
     }
 
-    /// Allocate one uninitialized payload from one allocation site.
+    /// Allocate one uninitialized payload from one allocation plan.
     #[cold]
     #[inline(never)]
     pub fn allocate_uninit(
         &self,
         worker: &GcWorker,
         cache: &mut AllocationCache,
-        site: AllocationSite,
+        plan: AllocationPlan,
         trace_map: &TraceMap,
         trace_table: &TraceTable,
     ) -> HeapResult<SharedHeapReference> {
-        let layout = site.plan(trace_map);
+        let layout = plan.allocation(trace_map);
 
         self.allocate_payload(worker, cache, &layout, Payload::Uninit, trace_table)
     }
 
-    /// Allocate one byte-initialized payload from one allocation site.
+    /// Allocate one byte-initialized payload from one allocation plan.
     #[cold]
     #[inline(never)]
     pub fn allocate_bytes(
         &self,
         worker: &GcWorker,
         cache: &mut AllocationCache,
-        site: AllocationSite,
+        plan: AllocationPlan,
         trace_map: &TraceMap,
         bytes: &[u8],
         trace_table: &TraceTable,
     ) -> HeapResult<SharedHeapReference> {
-        let layout = site.plan(trace_map);
+        let layout = plan.allocation(trace_map);
 
         self.allocate_payload(worker, cache, &layout, Payload::Bytes(bytes), trace_table)
     }

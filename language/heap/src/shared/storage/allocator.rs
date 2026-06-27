@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::{SmallSpan, SpanList};
 use crate::allocator::Slot;
-use crate::{AllocationUsage, SharedHeapReference, SmallAllocationPlan, SmallSpanClass};
+use crate::{AllocationUsage, SharedHeapReference, SmallAllocationClass, SmallSpanClass};
 
 /// One mutator-local shared allocation cache.
 #[derive(Debug)]
@@ -72,7 +72,7 @@ impl AllocationCache {
 
     /// Ensure the exact small allocation cache entry exists.
     #[inline(always)]
-    pub(super) fn ensure_small(&mut self, small: SmallAllocationPlan) {
+    pub(super) fn ensure_small(&mut self, small: SmallAllocationClass) {
         let cache_index = small.cache_index();
 
         while self.small.len() <= cache_index {

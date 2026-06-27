@@ -1,8 +1,9 @@
+use destack_mir::TraceMap;
+
 use crate::{
     AccountingRegion, DEFAULT_YOUNG_SIZE_BYTES, HeapError, HeapLimits, HeapOptions, Payload,
     test_layout,
 };
-use destack_mir::TraceMap;
 
 use super::{TestHeapPlan, heap_allocation_plan, test_heap, test_heap_with_limits, trace_table};
 

@@ -1,14 +1,14 @@
 use crate::local::gc::Phase;
 use crate::local::storage::{HeapPlace, HeapStorage};
 use crate::{
-    AllocationShape, GcKind, GcOptions, GcProgress, Heap, HeapError, HeapOptions, HeapReference,
-    HeapResult, Payload, RootSlot, SharedHeapReference, SizeClassTable, TestLayout,
+    GcKind, GcOptions, GcProgress, Heap, HeapError, HeapOptions, HeapReference, HeapResult,
+    Payload, PayloadShape, RootSlot, SharedHeapReference, SizeClassTable, TestLayout,
     local_trace_map, shared_trace_map, test_layout, test_layouts, visit_heap_references,
 };
 use destack_mir::{TraceMap, TraceTable};
 
 use super::{
-    TestHeapPlan, allocation_site, read_mapped_bytes, test_heap, test_storage, trace_table,
+    TestHeapPlan, owned_allocation_plan, read_mapped_bytes, test_heap, test_storage, trace_table,
     write_mapped_bytes,
 };
 
@@ -158,10 +158,10 @@ fn test_reserve_local_young_span_uses_exact_trace_cache() {
     let second_trace_id = trace_table.insert(second_map.clone());
     let options = HeapOptions::local();
     let mut heap = test_heap(options);
-    let first_shape = AllocationShape::new(16, 1, Some(first_trace_id), &first_map);
-    let second_shape = AllocationShape::new(16, 1, Some(second_trace_id), &second_map);
-    let first_site = allocation_site(heap.options(), first_shape);
-    let second_site = allocation_site(heap.options(), second_shape);
+    let first_shape = PayloadShape::new(16, 1, Some(first_trace_id), &first_map);
+    let second_shape = PayloadShape::new(16, 1, Some(second_trace_id), &second_map);
+    let first_site = owned_allocation_plan(heap.options(), first_shape);
+    let second_site = owned_allocation_plan(heap.options(), second_shape);
 
     // allocate from two same-size traced classes
     let first = heap
@@ -262,7 +262,7 @@ fn test_collect_minor_promotes_table_traced_young_span_slots() {
     let parent_map = local_trace_map(&[0]);
     let mut trace_table = TraceTable::new();
     let parent_trace_id = trace_table.insert(parent_map.clone());
-    let parent_layout = AllocationShape::new(8, 1, Some(parent_trace_id), &parent_map);
+    let parent_layout = PayloadShape::new(8, 1, Some(parent_trace_id), &parent_map);
     let mut heap = test_storage(&options);
 
     // root the parent and make the child reachable only through table-backed metadata
@@ -1069,7 +1069,7 @@ fn test_step_young_gc_keeps_rooted_allocation_during_sweep() {
     // young range layouts carry one local reference and no table id
     let options = HeapOptions::local();
     let range_map = local_trace_map(&[0]);
-    let layout = AllocationShape::new(8, 1, None, &range_map);
+    let layout = PayloadShape::new(8, 1, None, &range_map);
     let mut heap = test_storage(&options);
 
     // root one survivor and leave several ranges unreachable for sweep work
@@ -1122,8 +1122,8 @@ fn test_reserve_small_noscan_keeps_allocation_during_major_sweep() {
     let options = HeapOptions::local();
     let mut heap = test_heap(options);
     let layout = test_layout(16, TraceMap::empty());
-    let site = allocation_site(heap.options(), layout.block());
-    let small_site = site.small_site().expect("site should be small");
+    let plan = owned_allocation_plan(heap.options(), layout.block());
+    let small_plan = plan.small_allocation().expect("plan should be small");
     let mut roots: Vec<HeapReference> = Vec::new();
 
     // prime the young allocation cursor with enough slots to keep sweep busy
@@ -1145,11 +1145,11 @@ fn test_reserve_small_noscan_keeps_allocation_during_major_sweep() {
     assert_eq!(heap.storage.collector.major_phase, Phase::Sweep);
 
     // close the fast path while the cycle is active
-    assert!(heap.reserve_small_noscan(small_site).is_none());
+    assert!(heap.reserve_small_noscan(small_plan).is_none());
 
     // publish the block through the slow path instead
     let reference = heap
-        .allocate_zeroed(site, &layout.trace_map)
+        .allocate_zeroed(plan, &layout.trace_map)
         .expect("slow-path block should allocate");
 
     // drain the active cycle
@@ -1177,7 +1177,7 @@ fn test_collect_minor_rewrites_pinned_young_slot_payload() {
     let parent_map = local_trace_map(&[0]);
     let mut trace_table = TraceTable::new();
     let parent_trace_id = trace_table.insert(parent_map.clone());
-    let parent_layout = AllocationShape::new(8, 1, Some(parent_trace_id), &parent_map);
+    let parent_layout = PayloadShape::new(8, 1, Some(parent_trace_id), &parent_map);
     let mut heap = test_storage(&options);
 
     // pin the parent so it survives in place while the child promotes
@@ -1257,8 +1257,8 @@ fn test_reserve_young_spans_reuse_across_noscan_trace_ids() {
     let mut trace_table = TraceTable::new();
     let first_trace_id = trace_table.insert(first_map.clone());
     let second_trace_id = trace_table.insert(second_map.clone());
-    let first_layout = AllocationShape::new(16, 1, Some(first_trace_id), &first_map);
-    let second_layout = AllocationShape::new(16, 1, Some(second_trace_id), &second_map);
+    let first_layout = PayloadShape::new(16, 1, Some(first_trace_id), &first_map);
+    let second_layout = PayloadShape::new(16, 1, Some(second_trace_id), &second_map);
     let mut heap = test_storage(&options);
 
     // allocate alternately between the two classes
@@ -1284,9 +1284,9 @@ fn test_collect_minor_rescans_card_dirtied_after_extent_scan() {
     let mature_map = local_trace_map(&[0, 256]);
     let mut trace_table = TraceTable::new();
     let mature_trace_id = trace_table.insert(mature_map.clone());
-    let mature_layout = AllocationShape::new(512, 1, Some(mature_trace_id), &mature_map);
+    let mature_layout = PayloadShape::new(512, 1, Some(mature_trace_id), &mature_map);
     let chain_map = local_trace_map(&[0]);
-    let chain_layout = AllocationShape::new(8, 1, None, &chain_map);
+    let chain_layout = PayloadShape::new(8, 1, None, &chain_map);
     let young_layout = test_layout(8, TraceMap::empty());
     let mut heap = test_storage(&options);
 
