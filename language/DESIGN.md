@@ -716,7 +716,7 @@ For the other spellings of "a collection of shapes", the element representation 
 ### Static
 
 Unlike TypeScript, Destack actually _compiles_, so we need to figure out during "compile time" the final type of each value and fill in values for all the known constants.
-To do this, the "evaluation time" of the program is conceptually split into three successive worlds that run in succession:
+To do this, we need to consider three different "evaluation times" between the source code and the actual executable:
 
 | World | Meaning | Example |
 |-------|---------|---------|
@@ -725,8 +725,8 @@ To do this, the "evaluation time" of the program is conceptually split into thre
 | Runtime | ordinary program execution | `readFile(path)`, `worker.postMessage(msg)` |
 
 Type inference and static term evaluation are one and the same, which is why we get both fast generics and powerful type evaluation using **static terms**: a small subset of the language (like TypeScript type operators) available during type inference.
-All dynamic `comptime <expr>` _execution_ happens _after_ type inference, so it can do anything that runtime code can do, except influence type inference.
-That keeps compilation fast and predictable, and thanks to TypeScript's flexible type algebra, static terms are still pretty powerful:
+All dynamic `comptime <expr>` _execution_ happens _after_ type inference, so it can do anything that runtime code can do.
+This keeps compilation fast and predictable, and thanks to TypeScript's flexible type algebra, static terms are still pretty powerful:
 
 | Input | Example |
 |-------|---------|
@@ -749,29 +749,26 @@ Type inference may flow _out_ of modules, but Destack does not support circular 
 ```ds
 type Block<comptime N: uint> = [uint8; N];
 type Payload<T> = T extends string ? Utf8Payload : BinaryPayload;
+type BufferIndex<Mode> = Mode == "inline" ? InlineIndex : ExternalIndex;
 
 struct Buffer<T, comptime Mode: "inline" | "external"> {
-    @if(Mode == "inline")
-    index: InlineIndex;
-
-    @if(Mode == "external")
-    index: ExternalIndex;
-
+    index: BufferIndex<Mode>;
     data: T[];
 }
 ```
 
-In the `Buffer` example, `Mode` is carried as a generic value until `Buffer<T, "inline">` or `Buffer<T, "external">` is instantiated.
-At that point the [`@if`](#static-if) guards become ordinary yes/no decisions and the concrete shape is known.
-The same idea applies to guarded statements: while a generic declaration is still open, a guarded statement is checked under its guard, and when the declaration is instantiated the statement is either present or gone.
+In the `Buffer` example, `Mode` is carried as a generic value and used by a conditional type.
+The declaration still has one checked field named `index`; only the field type changes by instantiation.
+Generic-dependent static terms may select types, constants, layouts, and overloads, but they do not remove source nodes from a generic declaration.
+That keeps generic declarations checked once, Rust-style, instead of turning generic instantiation into template expansion.
 
 ```ds
 function size<comptime Wide: boolean>(): Wide extends true ? 8 : 4 {
-    @if(Wide)
-    return 8;
-
-    @if(!Wide)
-    return 4;
+    if (comptime Wide) {
+        return 8;
+    } else {
+        return 4;
+    }
 }
 ```
 
@@ -2130,28 +2127,30 @@ This is very convenient since most types do in fact want all the same basic well
 
 #### Static If
 
-Destack also supports a special intrinsic `@if` decorator that gates the inclusion of certain nodes based on a static term.
-When the condition is false, the annotated item is (in effect) removed from the instantiated shape.
+Destack also supports a special intrinsic `@if` decorator that gates the inclusion of certain nodes based on a static term (roughly like `#[cfg(attr)]` in Rust).
+The static term must be based on static data (like `import.meta`), and when the condition evaluates to false, the annotated thing is ignored and removed from checking and output.
 
 ```ds
-interface FileSystem<Mode: "fast" | "slow" = "fast"> {
+interface FileSystem {
     open(path: string): Result<File, IOError>;
 
     @if(import.meta.platform != "windows")
     chmod(path: string, mode: uint16): Result<void, IOError>;
 
-    @if(import.meta.platform == "windows" && Mode == "fast")
+    @if(import.meta.platform == "windows")
     setAttributes(path: string, attrs: WindowsFileAttributes): Result<void, IOError>;
 }
 ```
 
-Static ifs may annotate any meaningfully _removable_ source contribution - if removing the annotated node would leave the parent with a coherent shape, we can guard it:
+Static ifs may annotate any meaningfully "removable" source contribution:
 
 | Context | Nodes | Static inputs |
 | --- | --- | --- |
 | Module level | imports, re-exports, top-level declarations, `module { ... }` decorators | profile, module metadata, literals |
-| Declaration members | struct fields, class / interface / extension members, enum variants | containing declaration generics and static members |
-| Expression positions | statements, match cases, call / tree / generic arguments, tuple elements, object and type literal fields | enclosing static and generic context |
+| Declaration members | struct fields, class / interface / extension members, enum variants | profile, module metadata, literals, closed constants |
+| Expression positions | statements, match cases, call / tree / generic arguments, tuple elements, object and type literal fields | profile, module metadata, literals, closed constants |
+
+When a choice depends on generic parameters, static terms don't work (since they must be evaluated ahead of inference), and we can use type algebra and regular `comptime` gating instead for concrete specialisation.
 
 ### Module
 
@@ -3007,11 +3006,7 @@ Inside a type declaration, `this` in type or static position also carries the cu
 
 ```ds
 struct Buffer<T> {
-    comptime const IsShared = PlaceOf<this> == "shared";
-
-    @if(this.IsShared)
-    lock: Mutex;
-
+    lock: PlaceOf<this> == "shared" ? Mutex : ();
     value: T;
 }
 
@@ -3019,6 +3014,7 @@ declare const localBuffer: Buffer<string>;
 declare const sharedBuffer: shared Buffer<string>;
 
 sharedBuffer.lock satisfies Mutex;
+localBuffer.lock satisfies ();
 PlaceOf<typeof localBuffer> satisfies "ambient";
 PlaceOf<typeof sharedBuffer> satisfies "shared";
 ```
