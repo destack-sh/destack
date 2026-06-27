@@ -94,7 +94,7 @@ entry(v0: int32):
     );
 }
 
-/// Preserves the function head comment when derived environment metadata adds one attribute line.
+/// Preserves the function head comment when derived environment tables adds one attribute line.
 #[test]
 fn test_format_derived_attribute_keeps_head_comment() {
     // parse
@@ -109,7 +109,7 @@ entry:
 "#,
     );
 
-    // derived environment metadata
+    // derived environment tables
     let function_id = tree
         .iter_nodes::<Function>()
         .map(|(function_id, _)| function_id)

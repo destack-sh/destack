@@ -1,6 +1,6 @@
 use super::{assert_format, assert_format_eq};
 
-/// Formats declarations with dotted metadata names canonically.
+/// Formats declarations with dotted names canonically.
 #[test]
 fn test_format_dotted_symbol_names() {
     assert_format_eq(

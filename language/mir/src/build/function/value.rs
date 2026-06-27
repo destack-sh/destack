@@ -58,7 +58,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn usize_const(&mut self, value: u128) -> Value {
         let destination = self.allocate_value();
         let ty = self.ensure_usize_type();
-        let width = self.tree.pointer_bits();
+        let width = self.pointer_bits;
         self.insert_instruction(Instruction::Const {
             destination,
             value: Constant::UInt { value, width },

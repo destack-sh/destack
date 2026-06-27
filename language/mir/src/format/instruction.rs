@@ -8,9 +8,9 @@ use super::value::{
 };
 
 use crate::{
-    AtomicAccess, CompareExchangeAccess, FenceAccess, FormatMirNode, FunctionId, GlobalId,
-    Instruction, LocalNodeId, MemoryFlags, MemoryScope, MirFormatter, SpaceSet, SyncScope,
-    TensorImmediate, TensorImmediateId, TypeId, Value,
+    AtomicAccess, CompareExchangeAccess, ExecutionScope, FenceAccess, FormatMirNode, FunctionId,
+    GlobalId, Instruction, LocalNodeId, MirFormatter, StorageSet, TensorImmediate,
+    TensorImmediateId, TypeId, Value,
 };
 
 impl<'a> FormatMirNode<'a, Instruction> for Instruction {
@@ -2254,12 +2254,12 @@ fn format_fence_access<'a>(access: FenceAccess, f: &mut MirFormatter<'a, '_>) ->
     format_fence_context(access, f)
 }
 
-/// Format non-default synchronization scope.
+/// Format non-default execution scope.
 fn format_atomic_context<'a>(
     access: AtomicAccess,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    if access.scope != SyncScope::default() {
+    if access.scope != ExecutionScope::default() {
         write!(
             f,
             [
@@ -2273,16 +2273,12 @@ fn format_atomic_context<'a>(
         )?;
     }
 
-    if access.is_volatile {
-        write!(f, [token(","), space(), token("volatile")])?;
-    }
-
     Ok(())
 }
 
-/// Format non-default fence scope and flag context.
+/// Format non-default fence scope and storage.
 fn format_fence_context<'a>(access: FenceAccess, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-    if access.scope != SyncScope::default() {
+    if access.scope != ExecutionScope::default() {
         write!(
             f,
             [
@@ -2296,75 +2292,42 @@ fn format_fence_context<'a>(access: FenceAccess, f: &mut MirFormatter<'a, '_>) -
         )?;
     }
 
-    if access.memory_scope != MemoryScope::default() {
+    if access.storage != StorageSet::ANY {
         write!(
             f,
             [
                 token(","),
                 space(),
-                token("memory"),
+                token("storage"),
                 token("("),
-                token(access.memory_scope.to_str()),
+                text(&format_storage_set(access.storage)),
                 token(")")
             ]
         )?;
     }
 
-    if access.flags != MemoryFlags::default() {
-        write!(f, [token(","), space()])?;
-        format_memory_flags(access.flags, f)?;
-    }
-
     Ok(())
 }
 
-/// Format memory flags for fences.
-fn format_memory_flags<'a>(flags: MemoryFlags, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-    // collect formatted names
-    let names = collect_memory_flag_names(flags);
-
-    // render the list or a single token
-    if names.len() == 1 {
-        write!(f, [token(names[0])])
-    } else {
-        let joined = names.join(", ");
-        write!(f, [token("["), text(&joined), token("]")])
-    }
-}
-
-/// Collect memory flag names in formatting order.
-fn collect_memory_flag_names(flags: MemoryFlags) -> Vec<&'static str> {
-    // collect location names first
-    let mut names = collect_effect_space_names(flags.spaces);
-
-    // append predicates
-    if flags.makes_available {
-        names.push("makeAvailable");
-    }
-    if flags.makes_visible {
-        names.push("makeVisible");
-    }
-
-    names
-}
-
-/// Collect named memory spaces in formatting order.
-fn collect_effect_space_names(spaces: SpaceSet) -> Vec<&'static str> {
+/// Collect named storage regions in formatting order.
+fn collect_effect_space_names(spaces: StorageSet) -> Vec<&'static str> {
     // special cases for named sets
-    if spaces == SpaceSet::NONE {
+    if spaces == StorageSet::NONE {
         return vec!["none"];
     }
-    if spaces == SpaceSet::ANY {
+    if spaces == StorageSet::ANY {
         return vec!["any"];
     }
 
     // collect named spaces in canonical order
     let mut names = Vec::new();
     let ordered = [
-        ("local", SpaceSet::LOCAL),
-        ("shared", SpaceSet::SHARED),
-        ("frame", SpaceSet::FRAME),
-        ("static", SpaceSet::STATIC),
+        ("local", StorageSet::LOCAL),
+        ("shared", StorageSet::SHARED),
+        ("frame", StorageSet::FRAME),
+        ("static", StorageSet::STATIC),
+        ("device", StorageSet::DEVICE),
+        ("workgroup", StorageSet::WORKGROUP),
     ];
     for (name, set) in ordered {
         if spaces.contains(set) {
@@ -2373,4 +2336,15 @@ fn collect_effect_space_names(spaces: SpaceSet) -> Vec<&'static str> {
     }
 
     names
+}
+
+/// Format one storage set.
+fn format_storage_set(storage: StorageSet) -> String {
+    let names = collect_effect_space_names(storage);
+
+    if names.len() == 1 {
+        names[0].to_string()
+    } else {
+        format!("[{}]", names.join(", "))
+    }
 }

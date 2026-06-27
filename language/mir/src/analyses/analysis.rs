@@ -26,21 +26,6 @@ const DEFAULT_COLD_RATIO: f64 = 0.01;
 /// Range refinement iterations before widening.
 const DEFAULT_RANGE_WIDEN_THRESHOLD: u32 = 32;
 
-/// Target layout data for MIR analysis.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TargetLayout {
-    /// Pointer width in bits for pointer sized integers.
-    pub pointer_width_bits: u16,
-}
-
-impl Default for TargetLayout {
-    fn default() -> Self {
-        Self {
-            pointer_width_bits: usize::BITS as u16,
-        }
-    }
-}
-
 /// Options for MIR execution frequency analysis.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ExecutionFrequencyOptions {
@@ -99,7 +84,7 @@ impl Default for RangeOptions {
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct AnalysisOptions {
     /// Target layout for layout sensitive analyses.
-    pub target_layout: TargetLayout,
+    pub target_layout: mir::TargetLayout,
     /// Cost weights for MIR cost analysis.
     pub cost_weights: CostWeights,
     /// Options for MIR execution frequency analysis.
@@ -112,7 +97,7 @@ pub struct AnalysisOptions {
 
 impl AnalysisOptions {
     /// Create MIR analysis options.
-    pub fn new(target_layout: TargetLayout) -> Self {
+    pub fn new(target_layout: mir::TargetLayout) -> Self {
         Self {
             target_layout,
             cost_weights: CostWeights::default(),
@@ -180,13 +165,17 @@ pub trait Analysis: 'static + Send + Sync + Sized {
 /// Function-scoped analysis.
 pub trait FunctionAnalysis: Analysis {
     /// Compute this analysis for a function.
-    fn compute(function: &mir::Function, tree: &mir::Tree, analyses: &FunctionAnalyses) -> Self;
+    fn compute(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        analyses: &FunctionAnalysisCache,
+    ) -> Self;
 }
 
 /// Module-scoped analysis.
 pub trait ModuleAnalysis: Analysis {
     /// Compute this analysis for the module.
-    fn compute(tree: &mir::Tree, analyses: &ModuleAnalyses) -> Self;
+    fn compute(tree: &mir::Tree, analyses: &TreeAnalysisCache) -> Self;
 }
 
 /// Shared cache machinery for analyses of any scope.
@@ -260,27 +249,34 @@ impl std::fmt::Debug for AnalysisCache {
     }
 }
 
-/// Caches function-scoped analyses across one function's pass sequence.
+/// Caches function-scoped analyses for one immutable table snapshot.
 ///
-/// A pipeline holds one cache per function and applies each pass's reported
-/// mutation to drop stale entries.
-#[derive(Debug, Default)]
-pub struct FunctionAnalyses {
+/// A pipeline creates a fresh cache from the current MIR tables before a pass runs.
+#[derive(Debug)]
+pub struct FunctionAnalysisCache {
     cache: AnalysisCache,
     options: AnalysisOptions,
+    memory: mir::MemoryTable,
+    effects: mir::EffectTable,
 }
 
-impl FunctionAnalyses {
-    /// Create a new function analysis cache with default options.
-    pub fn new() -> Self {
-        Self::default()
+impl FunctionAnalysisCache {
+    /// Create a new function analysis cache.
+    pub fn new(memory: &mir::MemoryTable, effects: &mir::EffectTable) -> Self {
+        Self::with_options(AnalysisOptions::default(), memory, effects)
     }
 
     /// Create a new function analysis cache with the given options.
-    pub fn with_options(options: AnalysisOptions) -> Self {
+    pub fn with_options(
+        options: AnalysisOptions,
+        memory: &mir::MemoryTable,
+        effects: &mir::EffectTable,
+    ) -> Self {
         Self {
             cache: AnalysisCache::new(),
             options,
+            memory: memory.clone(),
+            effects: effects.clone(),
         }
     }
 
@@ -290,8 +286,18 @@ impl FunctionAnalyses {
     }
 
     /// Return the target layout for this analysis run.
-    pub fn target_layout(&self) -> TargetLayout {
+    pub fn target_layout(&self) -> mir::TargetLayout {
         self.options.target_layout
+    }
+
+    /// Get the explicit memory table.
+    pub fn memory(&self) -> &mir::MemoryTable {
+        &self.memory
+    }
+
+    /// Get the effect table.
+    pub fn effects(&self) -> &mir::EffectTable {
+        &self.effects
     }
 
     /// Get or compute a function analysis for the given function.
@@ -311,26 +317,41 @@ impl FunctionAnalyses {
     }
 }
 
-/// Caches module-scoped analyses across one module's pass sequence.
-#[derive(Debug, Default)]
-pub struct ModuleAnalyses {
+/// Caches tree-scoped analyses across one MIR pass sequence.
+#[derive(Debug)]
+pub struct TreeAnalysisCache {
     cache: AnalysisCache,
-    functions: RefCell<HashMap<mir::FunctionId, Rc<FunctionAnalyses>>>,
+    functions: RefCell<HashMap<mir::FunctionId, Rc<FunctionAnalysisCache>>>,
     options: AnalysisOptions,
+    dispatch: mir::DispatchTable,
+    memory: mir::MemoryTable,
+    effects: mir::EffectTable,
 }
 
-impl ModuleAnalyses {
-    /// Create a new module analysis cache.
-    pub fn new() -> Self {
-        Self::default()
+impl TreeAnalysisCache {
+    /// Create a new tree analysis cache.
+    pub fn new(
+        dispatch: &mir::DispatchTable,
+        memory: &mir::MemoryTable,
+        effects: &mir::EffectTable,
+    ) -> Self {
+        Self::with_options(AnalysisOptions::default(), dispatch, memory, effects)
     }
 
-    /// Create a new module analysis cache with the given options.
-    pub fn with_options(options: AnalysisOptions) -> Self {
+    /// Create a new tree analysis cache with the given options.
+    pub fn with_options(
+        options: AnalysisOptions,
+        dispatch: &mir::DispatchTable,
+        memory: &mir::MemoryTable,
+        effects: &mir::EffectTable,
+    ) -> Self {
         Self {
             cache: AnalysisCache::new(),
             functions: RefCell::new(HashMap::new()),
             options,
+            dispatch: dispatch.clone(),
+            memory: memory.clone(),
+            effects: effects.clone(),
         }
     }
 
@@ -339,7 +360,22 @@ impl ModuleAnalyses {
         &self.options
     }
 
-    /// Get or compute a module analysis for the given tree.
+    /// Get the dispatch table.
+    pub fn dispatch(&self) -> &mir::DispatchTable {
+        &self.dispatch
+    }
+
+    /// Get the explicit memory table.
+    pub fn memory(&self) -> &mir::MemoryTable {
+        &self.memory
+    }
+
+    /// Get the effect table.
+    pub fn effects(&self) -> &mir::EffectTable {
+        &self.effects
+    }
+
+    /// Get or compute a tree analysis for the given tree.
     pub fn get<A: ModuleAnalysis>(&self, tree: &mir::Tree) -> Arc<A> {
         self.cache.get_or_compute(|| A::compute(tree, self))
     }
@@ -354,7 +390,13 @@ impl ModuleAnalyses {
             .functions
             .borrow_mut()
             .entry(function_id)
-            .or_insert_with(|| Rc::new(FunctionAnalyses::with_options(self.options)))
+            .or_insert_with(|| {
+                Rc::new(FunctionAnalysisCache::with_options(
+                    self.options,
+                    &self.memory,
+                    &self.effects,
+                ))
+            })
             .clone();
         let function = tree.get(function_id);
 

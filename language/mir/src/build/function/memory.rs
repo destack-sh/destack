@@ -8,9 +8,6 @@ use crate::{
 impl<'a> FunctionBuilder<'a> {
     /// Return the existing or inserted pointer-sized unsigned integer type.
     pub fn ensure_usize_type(&mut self) -> LocalNodeId<Type> {
-        if let Some(ty) = self.tree.metadata.types.usize_type() {
-            return ty;
-        }
         if let Some((ty, _)) = self
             .tree
             .iter_nodes::<Type>()
@@ -248,7 +245,7 @@ impl<'a> FunctionBuilder<'a> {
         }
     }
 
-    /// Convert a list length into u16 for instruction metadata.
+    /// Convert a list length into u16 for instruction tables.
     pub(super) fn to_u16_count(&self, count: usize, context: &str) -> BuildResult<u16> {
         u16::try_from(count).map_err(|_| BuildError::CountTooLarge {
             count,

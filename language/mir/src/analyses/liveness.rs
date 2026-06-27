@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
+use super::{Analysis, AnalysisId, FunctionAnalysis, FunctionAnalysisCache};
 use crate::{Block, Function, Instruction, Local, LocalNodeId, NodeTable, Tree, Value};
 
 /// Per-block local use and definition sets for liveness.
@@ -386,7 +386,7 @@ impl Analysis for FunctionLiveness {
 }
 
 impl FunctionAnalysis for FunctionLiveness {
-    fn compute(function: &Function, tree: &Tree, _analyses: &FunctionAnalyses) -> Self {
+    fn compute(function: &Function, tree: &Tree, _analyses: &FunctionAnalysisCache) -> Self {
         Self::build(function, tree)
     }
 }

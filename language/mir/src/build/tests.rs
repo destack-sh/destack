@@ -1,12 +1,18 @@
 use crate::build::ModuleBuilder;
 use crate::{
-    Access, Copy, FenceAccess, Lifetime, MemoryFlags, MemoryOrdering, MemoryScope,
-    MirFormatOptions, Mutability, Nullability, ReferenceKind, Space, SyncScope, Type, format_mir,
+    Access, Copy, ExecutionScope, FenceAccess, Lifetime, MemoryOrdering, MirFormatOptions,
+    Mutability, Nullability, ReferenceKind, Space, StorageSet, TargetLayout, Type, format_mir,
 };
 
 /// Format one test MIR tree.
 fn format_test_mir(tree: &crate::Tree, strings: &destack_core::StringPool) -> String {
-    format_mir(tree, strings, MirFormatOptions::default()).expect("format MIR")
+    format_mir(
+        tree,
+        TargetLayout::default(),
+        strings,
+        MirFormatOptions::default(),
+    )
+    .expect("format MIR")
 }
 
 /// Empty function with void return.
@@ -26,7 +32,7 @@ fn test_build_empty_function() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function empty(): void {
@@ -59,7 +65,7 @@ fn test_build_function_with_parameters() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function add(v0: int32, v1: int32): int32 {
@@ -93,7 +99,7 @@ fn test_build_function_with_locals() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function withLocal(): int64 {
@@ -155,7 +161,7 @@ fn test_build_function_with_branch() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function select(v0: boolean): int32 {
@@ -212,7 +218,7 @@ fn test_build_function_with_call_terminator() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 external function callee(int32): int32
@@ -247,7 +253,7 @@ fn test_build_function_with_trap_terminator() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function trapper(): void {
@@ -285,7 +291,7 @@ fn test_ssa_define_use_single_block() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function varTest(): int32 {
@@ -325,7 +331,7 @@ fn test_ssa_redefine_variable() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function redefine(): int32 {
@@ -389,7 +395,7 @@ fn test_ssa_branch_with_phi() {
     builder.finish().unwrap();
 
     // verify output - should have block parameter in merge block
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function phiTest(v0: boolean): int32 {
@@ -460,7 +466,7 @@ fn test_ssa_trivial_phi_removal() {
     builder.finish().unwrap();
 
     // verify output - no block parameter in merge block
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function trivialPhi(v0: boolean): int32 {
@@ -529,7 +535,7 @@ fn test_ssa_trivial_phi_unsealed() {
     builder.finish().unwrap();
 
     // verify output: trivial phi removal rewrites the unsealed use
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function trivialPhiUnsealed(v0: boolean): int32 {
@@ -578,7 +584,7 @@ fn test_build_arithmetic_operations() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function arithmetic(v0: int32, v1: int32): int32 {
@@ -621,7 +627,7 @@ fn test_build_comparison_operations() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function compare(v0: int32, v1: int32): boolean {
@@ -658,7 +664,7 @@ fn test_type_construction() {
     let callable_type = module.type_function(signature, environment_type);
 
     // verify types
-    let (tree, _strings) = module.finish();
+    let (tree, _strings) = module.finish_tree();
     assert!(matches!(tree.get(void_type), Type::Void));
     assert!(matches!(tree.get(bool_type), Type::Boolean));
     assert!(matches!(
@@ -723,7 +729,7 @@ fn test_seal_all_blocks() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function multiBlock(): void {
@@ -757,7 +763,7 @@ fn test_managed_reference_types() {
     let raw_mutable_type = module.type_raw_pointer_mutable(i32_type);
 
     // verify types
-    let (tree, _strings) = module.finish();
+    let (tree, _strings) = module.finish_tree();
     assert!(matches!(
         tree.get(managed_readonly_type),
         Type::Reference {
@@ -833,7 +839,7 @@ fn test_build_new_zeroed() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function allocTest(): ref<int32, managed, readonly> {
@@ -868,7 +874,7 @@ fn test_build_new_slice_zeroed() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function allocArrayTest(v0: int64): slice<int32, managed, mutable> {
@@ -913,7 +919,7 @@ fn test_build_slice_view() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function sliceTest<L0: lifetime>(v0: slice<int32, managed, mutable>, v1: int64, v2: int64): slice<int32, borrowed, lifetime(L0), mutable> {
@@ -952,7 +958,7 @@ fn test_build_frame_alloc_zeroed() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function stackAllocTest(): ref<int32, raw, readonly, space(frame)> {
@@ -992,7 +998,7 @@ fn test_build_intrinsics() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function intrinsicTest(v0: float64, v1: float64): float64 {
@@ -1019,9 +1025,8 @@ fn test_build_void_intrinsic() {
     builder.switch_to_block(entry_block);
     let access = FenceAccess::new(
         MemoryOrdering::SequentiallyConsistent,
-        SyncScope::Device,
-        MemoryScope::Device,
-        MemoryFlags::default(),
+        ExecutionScope::Device,
+        StorageSet::DEVICE,
     );
     builder.atomic_fence(access);
     builder.return_(None);
@@ -1029,12 +1034,12 @@ fn test_build_void_intrinsic() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function fenceTest(): void {
 entry:
-    atomic.fence sequentiallyConsistent, scope(device), memory(device)
+    atomic.fence sequentiallyConsistent, scope(device), storage(device)
     return
 }";
     assert_eq!(output, expected);
@@ -1070,7 +1075,7 @@ fn test_build_struct() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function makePoint(v0: int32, v1: float64): { int32, float64 } {
@@ -1107,7 +1112,7 @@ fn test_build_tuple() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function makePair(v0: int32, v1: boolean): (int32, boolean) {
@@ -1141,7 +1146,7 @@ fn test_build_array() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function makeArray(): [int32; 3] {
@@ -1182,7 +1187,7 @@ fn test_build_field_get_struct() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function getY(v0: { int32, float64 }): float64 {
@@ -1218,7 +1223,7 @@ fn test_build_field_get_tuple() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function getFirst(v0: (int32, boolean)): int32 {
@@ -1254,7 +1259,7 @@ fn test_build_field_get_array() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function getElement(v0: [int32; 3], v1: int64): int32 {
@@ -1341,7 +1346,7 @@ fn test_ssa_passthrough_intermediate_block() {
 
     // verify output
     // the key check: b3 must pass the updated x to b1
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
 
     // expected: b3 passes the updated x (v4) from b2 to b1
@@ -1431,7 +1436,7 @@ fn test_ssa_multiple_phis_at_merge() {
     builder.finish().unwrap();
 
     // verify output: two block parameters, arguments in correct order
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function multiPhi(v0: boolean): int32 {

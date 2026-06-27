@@ -62,9 +62,7 @@ impl<'a> FunctionBuilder<'a> {
             call: Call::new(arguments, TypeId::from(signature)),
         });
         if let Some(target) = target {
-            self.tree
-                .metadata
-                .effects
+            self.effects
                 .call_mut(CallSite::Instruction(instruction))
                 .target = Some(target);
         }
@@ -91,15 +89,13 @@ impl<'a> FunctionBuilder<'a> {
             call: Call::new(arguments, TypeId::from(signature)),
         });
         if let Some(target) = target {
-            self.tree
-                .metadata
-                .effects
+            self.effects
                 .call_mut(CallSite::Instruction(instruction))
                 .target = Some(target);
         }
     }
 
-    /// Call a dynamic method through a dynamic table slot.
+    /// Call a dynamic function through a dynamic table slot.
     pub fn call_dynamic(
         &mut self,
         receiver: Value,
@@ -123,7 +119,7 @@ impl<'a> FunctionBuilder<'a> {
         Some(destination)
     }
 
-    /// Call a dynamic method with no return value.
+    /// Call a dynamic function with no return value.
     pub fn call_dynamic_void(
         &mut self,
         receiver: Value,
@@ -202,7 +198,7 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Load the hidden environment pointer for the current function.
     pub fn function_environment_current(&mut self, environment_type: LocalNodeId<Type>) -> Value {
-        // record the hidden environment type on the function metadata
+        // record the hidden environment type on the function tables
         let existing_environment = {
             let requested_environment = TypeId::from(environment_type);
             let function = self.tree.get_mut(self.function_id);

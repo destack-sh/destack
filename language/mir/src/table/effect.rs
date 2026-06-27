@@ -1,20 +1,21 @@
-use destack_serde::Reflect;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{AllocationSize, CallArgumentEffect, CallSite, Function, LocalNodeId, SpaceSet};
+use destack_serde::Reflect;
 
-/// Function and call effect metadata for one MIR module.
+use crate::{CallArgumentEffect, CallSite, Function, LocalNodeId, StorageSet};
+
+/// Function and call effect tables for one MIR module.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct EffectMetadata {
+pub struct EffectTable {
     /// Effects keyed by function id.
     pub functions: HashMap<LocalNodeId<Function>, FunctionEffect>,
     /// Effects keyed by callsite.
     pub calls: HashMap<CallSite, CallEffect>,
 }
 
-impl EffectMetadata {
+impl EffectTable {
     /// Return function effects when present.
     pub fn function(&self, function: LocalNodeId<Function>) -> Option<&FunctionEffect> {
         self.functions.get(&function)
@@ -43,8 +44,6 @@ pub struct FunctionEffect {
     pub memory: MemoryEffect,
     /// Behavioral effects of this function.
     pub behavior: FunctionBehavior,
-    /// Allocation result size relation when known.
-    pub allocation_size: Option<AllocationSize>,
 }
 
 impl FunctionEffect {
@@ -53,7 +52,6 @@ impl FunctionEffect {
         Self {
             memory: MemoryEffect::none(),
             behavior: FunctionBehavior::none(),
-            allocation_size: None,
         }
     }
 
@@ -62,7 +60,6 @@ impl FunctionEffect {
         Self {
             memory,
             behavior: FunctionBehavior::none(),
-            allocation_size: None,
         }
     }
 
@@ -71,7 +68,6 @@ impl FunctionEffect {
         Self {
             memory: MemoryEffect::unknown(),
             behavior: FunctionBehavior::unknown(),
-            allocation_size: None,
         }
     }
 }
@@ -83,8 +79,6 @@ pub struct CallEffect {
     pub memory: MemoryEffect,
     /// Behavioral effects of this call.
     pub behavior: FunctionBehavior,
-    /// Allocation result size relation when known.
-    pub allocation_size: Option<AllocationSize>,
     /// Resolved direct target when dispatch analysis proves one.
     pub target: Option<LocalNodeId<Function>>,
     /// Argument memory behavior when known.
@@ -94,50 +88,50 @@ pub struct CallEffect {
 /// Memory access effect for a call or operation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct MemoryEffect {
-    /// Memory spaces this operation may read.
-    pub read: SpaceSet,
-    /// Memory spaces this operation may write.
-    pub write: SpaceSet,
+    /// Storage regions this operation may read.
+    pub read: StorageSet,
+    /// Storage regions this operation may write.
+    pub write: StorageSet,
 }
 
 impl MemoryEffect {
     /// Create an effect with no memory access.
     pub const fn none() -> Self {
         Self {
-            read: SpaceSet::NONE,
-            write: SpaceSet::NONE,
+            read: StorageSet::NONE,
+            write: StorageSet::NONE,
         }
     }
 
-    /// Create a read only effect over the provided spaces.
-    pub const fn read_only(spaces: SpaceSet) -> Self {
+    /// Create a read only effect over the provided storage.
+    pub const fn read_only(storage: StorageSet) -> Self {
         Self {
-            read: spaces,
-            write: SpaceSet::NONE,
+            read: storage,
+            write: StorageSet::NONE,
         }
     }
 
-    /// Create a write only effect over the provided spaces.
-    pub const fn write_only(spaces: SpaceSet) -> Self {
+    /// Create a write only effect over the provided storage.
+    pub const fn write_only(storage: StorageSet) -> Self {
         Self {
-            read: SpaceSet::NONE,
-            write: spaces,
+            read: StorageSet::NONE,
+            write: storage,
         }
     }
 
-    /// Create a read write effect over the provided spaces.
-    pub const fn read_write(spaces: SpaceSet) -> Self {
+    /// Create a read write effect over the provided storage.
+    pub const fn read_write(storage: StorageSet) -> Self {
         Self {
-            read: spaces,
-            write: spaces,
+            read: storage,
+            write: storage,
         }
     }
 
     /// Create an unknown effect.
     pub const fn unknown() -> Self {
         Self {
-            read: SpaceSet::ANY,
-            write: SpaceSet::ANY,
+            read: StorageSet::ANY,
+            write: StorageSet::ANY,
         }
     }
 
@@ -151,19 +145,23 @@ impl MemoryEffect {
         !self.write.is_empty()
     }
 
-    /// Return all memory spaces touched by this effect.
-    pub fn spaces(&self) -> SpaceSet {
+    /// Return all storage touched by this effect.
+    pub fn storage(&self) -> StorageSet {
         self.read.union(self.write)
     }
 
-    /// Return this effect constrained to the given spaces.
-    pub fn with_spaces(self, spaces: SpaceSet) -> Self {
+    /// Return this effect constrained to the given storage.
+    pub fn with_storage(self, storage: StorageSet) -> Self {
         Self {
-            read: if self.reads() { spaces } else { SpaceSet::NONE },
-            write: if self.writes() {
-                spaces
+            read: if self.reads() {
+                storage
             } else {
-                SpaceSet::NONE
+                StorageSet::NONE
+            },
+            write: if self.writes() {
+                storage
+            } else {
+                StorageSet::NONE
             },
         }
     }

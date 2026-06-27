@@ -323,10 +323,7 @@ impl Parser {
         self.tree.set_main_span(id, name_span);
         self.tree
             .set_side_span(id, NodeSpanType::Region(NodeSpanRegion::Type), type_span);
-        self.tree
-            .metadata
-            .types
-            .set_display_name(placeholder_id, name_id);
+        self.types.set_display_name(placeholder_id, name_id);
         self.tree.set_type_lifetimes(placeholder_id, lifetimes);
         self.tree.set_attribute_spans(id, attribute_spans);
         self.tree.set_type_field_spans(id, field_spans);
@@ -338,7 +335,10 @@ impl Parser {
                 set_type_copy(&mut resolved, copy, item_start)?;
             }
             self.tree.set(placeholder_id, resolved);
-            self.tree.metadata.copy_type_metadata(ty, placeholder_id);
+            self.types.copy_type_entries(ty, placeholder_id);
+            self.layouts.copy_type_entries(ty, placeholder_id);
+            self.dispatch.copy_type_entries(ty, placeholder_id);
+            self.drops.copy_type_entries(ty, placeholder_id);
         }
         self.type_alias_definitions.insert(name);
         self.pop_lifetime_scope();

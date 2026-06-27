@@ -12,7 +12,7 @@ use destack_source::{File, FileType, IndentStyle, LineEnding};
 use crate::source::TokenType;
 use crate::{
     Block, Function, Global, LifetimeParameter, LifetimeSlot, Local, LocalNodeId, Node, NodeType,
-    Tree, TreeImpl, Type, TypeAlias, Value,
+    TargetLayout, Tree, TreeImpl, Type, TypeAlias, Value,
 };
 
 pub type MirFormatter<'a, 'buf> = Formatter<'buf, MirFormatContext<'a>>;
@@ -78,6 +78,8 @@ pub struct MirFormatContext<'a> {
     pub options: MirFormatOptions,
     /// The MIR tree.
     pub tree: &'a Tree,
+    /// Target ABI layout.
+    pub target_layout: TargetLayout,
     /// The strings.
     pub strings: &'a StringPool,
     /// Dummy file for FIR compatibility.
@@ -111,6 +113,7 @@ impl<'a> MirFormatContext<'a> {
     /// Create a new format context.
     pub fn new(
         tree: &'a Tree,
+        target_layout: TargetLayout,
         strings: &'a StringPool,
         options: MirFormatOptions,
     ) -> FormatResult<Self> {
@@ -133,6 +136,7 @@ impl<'a> MirFormatContext<'a> {
         Ok(Self {
             options,
             tree,
+            target_layout,
             strings,
             file: File::empty_text(FileType::Destack),
             local_indices: HashMap::new(),
@@ -358,10 +362,11 @@ where
 /// Format a MIR tree to a string.
 pub fn format_mir(
     tree: &Tree,
+    target_layout: TargetLayout,
     strings: &StringPool,
     options: MirFormatOptions,
 ) -> FormatResult<String> {
-    let context = MirFormatContext::new(tree, strings, options)?;
+    let context = MirFormatContext::new(tree, target_layout, strings, options)?;
 
     // format all globals and functions
     let document = destack_fir::format!(context, [FormatAllItems])?;

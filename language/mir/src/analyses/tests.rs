@@ -1,10 +1,10 @@
 use destack_core::StringPool;
-use destack_source::FileId;
+use destack_source::{DiagnosticSeverity, FileId};
 
 use crate as mir;
-use crate::analyses::{FunctionAnalyses, ModuleAnalyses};
+use crate::analyses::{FunctionAnalysisCache, TreeAnalysisCache};
 use crate::parse::{ParseOptions, Parser};
-use crate::{Function, LocalNodeId, Tree};
+use crate::{DispatchTable, EffectTable, Function, LocalNodeId, MemoryTable, Tree};
 
 /// Parse one MIR test module and return its single function.
 pub(crate) fn parse_test_function(source: &str) -> (Tree, LocalNodeId<Function>) {
@@ -21,12 +21,36 @@ pub(crate) fn parse_test_function(source: &str) -> (Tree, LocalNodeId<Function>)
     (tree, function_id)
 }
 
+/// Create a function analysis cache with empty MIR tables.
+pub(crate) fn empty_function_analysis_cache() -> FunctionAnalysisCache {
+    let memory = MemoryTable::default();
+    let effects = EffectTable::default();
+
+    FunctionAnalysisCache::new(&memory, &effects)
+}
+
+/// Create a function analysis cache with empty MIR tables and custom options.
+pub(crate) fn empty_function_analysis_cache_with_options(
+    options: mir::AnalysisOptions,
+) -> FunctionAnalysisCache {
+    let memory = MemoryTable::default();
+    let effects = EffectTable::default();
+
+    FunctionAnalysisCache::with_options(options, &memory, &effects)
+}
+
 /// Test program for analysis tests.
 ///
 /// Parses MIR from text and exposes lookup helpers over the parsed tree.
 pub(crate) struct TestProgram {
     /// The MIR tree.
     pub(crate) tree: Tree,
+    /// Canonical MIR dispatch table.
+    pub(crate) dispatch: DispatchTable,
+    /// Explicit MIR memory access table.
+    pub(crate) memory: MemoryTable,
+    /// Function and call effect table.
+    pub(crate) effects: EffectTable,
     /// String pool for identifiers (immutable, from parser).
     strings: StringPool,
 }
@@ -35,21 +59,42 @@ pub(crate) struct TestProgram {
 impl TestProgram {
     /// Create a new test program from MIR source text.
     pub(crate) fn new(source: &str) -> Self {
-        let (tree, strings) = Parser::parse(FileId::new(0), source, ParseOptions::default())
-            .finish()
-            .expect("failed to parse MIR");
+        let parsed = Parser::parse(FileId::new(0), source, ParseOptions::default());
+        let (
+            tree,
+            _target_layout,
+            _types,
+            _layouts,
+            dispatch,
+            _drops,
+            memory,
+            effects,
+            _profile,
+            strings,
+            diagnostics,
+        ) = parsed.into_parts();
 
-        Self { tree, strings }
+        if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
+            panic!("failed to parse MIR");
+        }
+
+        Self {
+            tree,
+            dispatch,
+            memory,
+            effects,
+            strings,
+        }
     }
 
     /// Create a function analysis cache for this program.
-    pub(crate) fn function_analyses(&self) -> FunctionAnalyses {
-        FunctionAnalyses::new()
+    pub(crate) fn function_analysis_cache(&self) -> FunctionAnalysisCache {
+        FunctionAnalysisCache::new(&self.memory, &self.effects)
     }
 
-    /// Create a module analysis cache for this program.
-    pub(crate) fn module_analyses(&self) -> ModuleAnalyses {
-        ModuleAnalyses::new()
+    /// Create a tree analysis cache for this program.
+    pub(crate) fn tree_analysis_cache(&self) -> TreeAnalysisCache {
+        TreeAnalysisCache::new(&self.dispatch, &self.memory, &self.effects)
     }
 
     /// Return the entry function id, preferring a function named `test`.
@@ -184,59 +229,57 @@ impl TestProgram {
         (call_inst, *callee)
     }
 
-    /// Attach memory access metadata to an instruction.
+    /// Attach memory access entries to an instruction.
     pub(crate) fn insert_memory_accesses(
         &mut self,
         instruction: LocalNodeId<mir::Instruction>,
-        accesses: Vec<mir::MemoryAccessMetadata>,
+        accesses: Vec<mir::MemoryAccess>,
     ) {
-        // insert the metadata entries
-        self.tree
-            .metadata
-            .memory
-            .insert_memory_accesses(instruction, accesses);
+        // insert the access entries
+        self.memory.insert_memory_accesses(instruction, accesses);
     }
 
-    /// Attach reference-location metadata to an instruction.
+    /// Attach reference memory accesses to an instruction.
     pub(crate) fn insert_reference_location(
         &mut self,
         instruction: LocalNodeId<mir::Instruction>,
-        kind: mir::MemoryAccessKind,
+        kind: mir::MemoryOperation,
         pointer: mir::Value,
         size: Option<u64>,
     ) {
         self.insert_reference_location_with_options(instruction, kind, pointer, size, false, None);
     }
 
-    /// Attach reference-location metadata to an instruction with flags.
+    /// Attach reference memory accesses to an instruction with ordering.
     pub(crate) fn insert_reference_location_with_options(
         &mut self,
         instruction: LocalNodeId<mir::Instruction>,
-        kind: mir::MemoryAccessKind,
+        kind: mir::MemoryOperation,
         pointer: mir::Value,
         size: Option<u64>,
         is_volatile: bool,
         ordering: Option<mir::MemoryOrdering>,
     ) {
-        // build the access metadata
-        let access = mir::MemoryAccessMetadata {
-            kind,
-            target: mir::MemoryAccessTarget::Reference(pointer),
-            size,
-            alignment: None,
-            is_volatile,
-            is_load_invariant: false,
-            ordering,
-            scope: None,
-            memory_scope: None,
-            flags: None,
-            space: None,
+        // choose the access order
+        let order = if is_volatile {
+            mir::MemoryAccessOrder::Volatile
+        } else if let Some(ordering) = ordering {
+            mir::MemoryAccessOrder::Atomic(mir::AtomicAccess::ordered(ordering))
+        } else {
+            mir::MemoryAccessOrder::Plain
         };
 
-        // insert the metadata entry
-        self.tree
-            .metadata
-            .memory
+        // build the access
+        let access = mir::MemoryAccess {
+            operation: kind,
+            target: mir::MemoryTarget::Reference(pointer),
+            byte_len: size,
+            alignment_bytes: None,
+            order,
+        };
+
+        // insert the access
+        self.memory
             .insert_memory_accesses(instruction, vec![access]);
     }
 }

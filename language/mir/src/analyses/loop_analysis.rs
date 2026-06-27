@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate as mir;
 
-use crate::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation, NodeTable};
+use crate::{Analysis, AnalysisId, FunctionAnalysis, FunctionAnalysisCache, Mutation, NodeTable};
 
 use super::{ControlFlowGraph, DominatorTree};
 
@@ -410,7 +410,11 @@ impl Analysis for LoopAnalysis {
 }
 
 impl FunctionAnalysis for LoopAnalysis {
-    fn compute(function: &mir::Function, tree: &mir::Tree, analyses: &FunctionAnalyses) -> Self {
+    fn compute(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        analyses: &FunctionAnalysisCache,
+    ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>(function, tree);
         let domtree = analyses.get::<DominatorTree>(function, tree);
         Self::build(function, tree, &cfg, &domtree)
@@ -439,7 +443,7 @@ b1:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<LoopAnalysis>(function, &test.tree);
 
         assert_eq!(analysis.num_loops(), 1);
@@ -472,7 +476,7 @@ b2:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<LoopAnalysis>(function, &test.tree);
 
         assert_eq!(analysis.num_loops(), 1);
@@ -508,7 +512,7 @@ b3:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<LoopAnalysis>(function, &test.tree);
 
         assert_eq!(analysis.num_loops(), 1);
@@ -556,7 +560,7 @@ b4:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<LoopAnalysis>(function, &test.tree);
 
         assert_eq!(analysis.num_loops(), 2);
@@ -606,7 +610,7 @@ b3:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<LoopAnalysis>(function, &test.tree);
 
         let block0 = function.block(0);
@@ -652,7 +656,7 @@ b3:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<LoopAnalysis>(function, &test.tree);
 
         assert_eq!(analysis.num_loops(), 0);
@@ -687,7 +691,7 @@ b3:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<LoopAnalysis>(function, &test.tree);
 
         assert_eq!(analysis.num_loops(), 1);
@@ -724,7 +728,7 @@ b4:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<LoopAnalysis>(function, &test.tree);
 
         assert_eq!(analysis.num_loops(), 1);
@@ -771,7 +775,7 @@ b3:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<LoopAnalysis>(function, &test.tree);
 
         let block1 = function.block(1);
@@ -809,7 +813,7 @@ b3:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<LoopAnalysis>(function, &test.tree);
 
         let top_level: Vec<_> = analysis.top_level_loops().collect();
@@ -841,7 +845,7 @@ b3:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<LoopAnalysis>(function, &test.tree);
 
         let block1 = function.block(1);

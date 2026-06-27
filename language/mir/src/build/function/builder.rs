@@ -3,7 +3,7 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::build::{BuildError, BuildResult, FunctionHeader, Variable};
 use crate::{
-    AllocationMode, AllocationSize, Block, Function, FunctionBehavior, FunctionBody,
+    AllocationMode, Block, EffectTable, Function, FunctionBehavior, FunctionBody,
     FunctionParameter, Instruction, Linkage, LocalNodeId, MemoryEffect, Symbol, Tree, Type, TypeId,
     Value, finalize_function_names,
 };
@@ -37,8 +37,12 @@ pub struct FunctionBuilder<'a> {
     // meta
     /// The tree this function is being built in.
     pub(super) tree: &'a mut Tree,
+    /// Effect table for call and function metadata emitted by this builder.
+    pub(super) effects: &'a mut EffectTable,
     /// The string pool used for generated MIR names.
     pub(super) strings: &'a StringPool,
+    /// Pointer width in bits.
+    pub(super) pointer_bits: u16,
     /// The id of the function being built.
     pub(super) function_id: LocalNodeId<Function>,
     /// Current block we're inserting into.
@@ -73,7 +77,13 @@ pub struct FunctionBuilder<'a> {
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
     /// Create a new function builder.
-    pub fn new(tree: &'a mut Tree, strings: &'a StringPool, header: FunctionHeader) -> Self {
+    pub fn new(
+        tree: &'a mut Tree,
+        effects: &'a mut EffectTable,
+        strings: &'a StringPool,
+        pointer_bits: u16,
+        header: FunctionHeader,
+    ) -> Self {
         let FunctionHeader {
             name,
             lifetimes,
@@ -104,7 +114,9 @@ impl<'a> FunctionBuilder<'a> {
 
         Self {
             tree,
+            effects,
             strings,
+            pointer_bits,
             function_id,
             current_block: None,
             locals: Vec::new(),
@@ -124,7 +136,9 @@ impl<'a> FunctionBuilder<'a> {
     /// Create a function builder for an existing declared function.
     pub fn from_declared(
         tree: &'a mut Tree,
+        effects: &'a mut EffectTable,
         strings: &'a StringPool,
+        pointer_bits: u16,
         function_id: LocalNodeId<Function>,
     ) -> BuildResult<Self> {
         // validate the declared function is still empty
@@ -143,7 +157,9 @@ impl<'a> FunctionBuilder<'a> {
 
         Ok(Self {
             tree,
+            effects,
             strings,
+            pointer_bits,
             function_id,
             current_block: None,
             locals: Vec::new(),
@@ -171,29 +187,12 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Set the memory effect for the function.
     pub fn set_memory_effect(&mut self, effect: MemoryEffect) {
-        self.tree
-            .metadata
-            .effects
-            .function_mut(self.function_id)
-            .memory = effect;
+        self.effects.function_mut(self.function_id).memory = effect;
     }
 
     /// Set behavioral effects for the function.
     pub fn set_function_behavior(&mut self, behavior: FunctionBehavior) {
-        self.tree
-            .metadata
-            .effects
-            .function_mut(self.function_id)
-            .behavior = behavior;
-    }
-
-    /// Set allocation size metadata for the function.
-    pub fn set_allocation_size(&mut self, allocation_size: AllocationSize) {
-        self.tree
-            .metadata
-            .effects
-            .function_mut(self.function_id)
-            .allocation_size = Some(allocation_size);
+        self.effects.function_mut(self.function_id).behavior = behavior;
     }
 
     /// Set allocation mode for this function.

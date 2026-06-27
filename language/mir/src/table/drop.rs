@@ -1,27 +1,28 @@
-use destack_serde::Reflect;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use destack_serde::Reflect;
+
 use crate::{DispatchSlot, Function, LocalNodeId, Type};
 
-/// Drop metadata for one MIR module.
+/// Drop table for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
-pub struct DropMetadata {
+pub struct DropTable {
     /// Full drop glue keyed by type id.
     pub glue_by_type: HashMap<LocalNodeId<Type>, DropGlue>,
     /// User-authored drop hooks keyed by type id.
     pub hooks_by_type: HashMap<LocalNodeId<Type>, DropHook>,
 }
 
-impl DropMetadata {
-    /// Create empty drop metadata.
+impl DropTable {
+    /// Create an empty drop table.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Copy drop metadata from one type id to another.
-    pub fn copy_type_metadata(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
+    /// Copy drop table entries from one type id to another.
+    pub fn copy_type_entries(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
         if let Some(glue) = self.drop_glue(from).cloned() {
             self.set_drop_glue(to, glue);
         }

@@ -14,13 +14,13 @@ impl Mutation {
     pub const CONTROL: Self = Self(1 << 0);
     /// Values changed: instructions or operands added, removed, or rewritten.
     pub const VALUE: Self = Self(1 << 1);
-    /// Memory operations or memory metadata changed.
+    /// Memory operations or memory tables changed.
     pub const MEMORY: Self = Self(1 << 2);
-    /// Effect metadata changed.
+    /// Effect tables changed.
     pub const EFFECT: Self = Self(1 << 3);
     /// Layout or type representation data changed.
     pub const LAYOUT: Self = Self(1 << 4);
-    /// Profile metadata changed.
+    /// Profile tables changed.
     pub const PROFILE: Self = Self(1 << 5);
     /// Symbol visibility or linkage changed.
     pub const SYMBOL: Self = Self(1 << 6);

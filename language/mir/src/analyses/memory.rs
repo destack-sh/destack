@@ -29,6 +29,7 @@ impl ValueDefinitions {
         &self,
         function: &mir::Function,
         tree: &mir::Tree,
+        effects: &mir::EffectTable,
     ) -> HashSet<mir::Value> {
         // collect stack allocation bases
         let mut frame_allocs = HashSet::new();
@@ -68,11 +69,9 @@ impl ValueDefinitions {
                     | mir::Instruction::CallDynamic { .. }
                     | mir::Instruction::CallIndirect { .. } => {
                         // capture call effects for escape checks
-                        let argument_effects = tree
-                            .metadata
-                            .effects
+                        let argument_effects = effects
                             .call(mir::CallSite::Instruction(instruction_id))
-                            .map(|metadata| metadata.arguments.as_slice());
+                            .map(|tables| tables.arguments.as_slice());
 
                         // mark stack references passed to calls as escaping
                         if let Some(arg_slice) = instruction.argument_slice() {
@@ -294,12 +293,12 @@ impl ValueDefinitions {
 
 /// Report whether a call argument may escape.
 fn call_argument_escapes(arguments: Option<&[mir::CallArgumentEffect]>, index: usize) -> bool {
-    // require escape metadata before treating an argument as local
+    // require escape tables before treating an argument as local
     let Some(arguments) = arguments else {
         return true;
     };
 
-    // require escape metadata for the specific argument
+    // require escape tables for the specific argument
     let Some(argument) = arguments.get(index) else {
         return true;
     };
@@ -401,11 +400,11 @@ impl ReferenceLocation {
     }
 
     /// Return the memory spaces this location can touch.
-    pub fn spaces(&self) -> mir::SpaceSet {
+    pub fn spaces(&self) -> mir::StorageSet {
         self.reference_space
             .as_ref()
             .map(mir::Space::space_set)
-            .unwrap_or(mir::SpaceSet::ANY)
+            .unwrap_or(mir::StorageSet::ANY)
     }
 
     /// Return aliasing for another location with the same reference value.
@@ -445,7 +444,7 @@ pub enum MemoryRegion {
         /// The reference access payload.
         access: ReferenceLocation,
         /// The memory spaces the reference may touch.
-        spaces: mir::SpaceSet,
+        spaces: mir::StorageSet,
     },
     /// A precise memory place.
     Place(MemoryPlace),
@@ -454,7 +453,7 @@ pub enum MemoryRegion {
     /// Any memory in the given spaces.
     Any {
         /// The memory spaces that may be touched.
-        spaces: mir::SpaceSet,
+        spaces: mir::StorageSet,
     },
 }
 
@@ -462,12 +461,12 @@ impl MemoryRegion {
     /// Create an imprecise region for all memory spaces.
     pub fn any() -> Self {
         Self::Any {
-            spaces: mir::SpaceSet::ANY,
+            spaces: mir::StorageSet::ANY,
         }
     }
 
     /// Create an imprecise region for a set of memory spaces.
-    pub fn any_spaces(spaces: mir::SpaceSet) -> Self {
+    pub fn any_spaces(spaces: mir::StorageSet) -> Self {
         Self::Any { spaces }
     }
 
@@ -519,7 +518,7 @@ impl MemoryRegion {
                 reference_kind,
                 reference_space,
             ),
-            spaces: mir::SpaceSet::ANY,
+            spaces: mir::StorageSet::ANY,
         }
     }
 
@@ -532,17 +531,17 @@ impl MemoryRegion {
     }
 
     /// Return the memory spaces covered by this region.
-    pub fn spaces(&self) -> mir::SpaceSet {
+    pub fn spaces(&self) -> mir::StorageSet {
         match self {
             MemoryRegion::Reference { spaces, .. } => *spaces,
             MemoryRegion::Place(place) => place.root.spaces(),
-            MemoryRegion::Local(_) => mir::SpaceSet::FRAME,
+            MemoryRegion::Local(_) => mir::StorageSet::FRAME,
             MemoryRegion::Any { spaces } => *spaces,
         }
     }
 
     /// Set spaces on imprecise or reference regions.
-    pub fn set_spaces(&mut self, new_spaces: mir::SpaceSet) {
+    pub fn set_spaces(&mut self, new_spaces: mir::StorageSet) {
         match self {
             Self::Reference { spaces, .. } | Self::Any { spaces } => {
                 *spaces = new_spaces;
@@ -654,9 +653,9 @@ impl StorageRoot {
     }
 
     /// Return the memory spaces covered by this storage root.
-    pub fn spaces(&self) -> mir::SpaceSet {
+    pub fn spaces(&self) -> mir::StorageSet {
         match self {
-            StorageRoot::FrameAllocation(_) | StorageRoot::LocalSlot(_) => mir::SpaceSet::FRAME,
+            StorageRoot::FrameAllocation(_) | StorageRoot::LocalSlot(_) => mir::StorageSet::FRAME,
             StorageRoot::Static { space, .. } => space.space_set(),
             StorageRoot::Allocation { space, .. } | StorageRoot::Parameter { space, .. } => {
                 space.space_set()
@@ -1055,7 +1054,7 @@ impl<'a> MemoryRegionBuilder<'a> {
         };
 
         let key = TypeKey::from_type(element_id, self.tree);
-        match key.byte_size(self.target_layout.pointer_width_bits) {
+        match key.byte_size(self.target_layout.pointer_bits()) {
             Some(size) if size > 0 => size,
             _ => panic!("element.address requires a byte-sized element, got {element_id:?}"),
         }
@@ -1211,10 +1210,10 @@ mod tests {
             access: mir::Access::Mutable,
         };
 
-        assert_eq!(stack.spaces(), mir::SpaceSet::FRAME);
-        assert_eq!(local.spaces(), mir::SpaceSet::FRAME);
-        assert_eq!(allocation.spaces(), mir::SpaceSet::SHARED);
-        assert_eq!(parameter.spaces(), mir::SpaceSet::LOCAL);
+        assert_eq!(stack.spaces(), mir::StorageSet::FRAME);
+        assert_eq!(local.spaces(), mir::StorageSet::FRAME);
+        assert_eq!(allocation.spaces(), mir::StorageSet::SHARED);
+        assert_eq!(parameter.spaces(), mir::StorageSet::LOCAL);
     }
 
     /// Memory places track constant and indexed offsets.

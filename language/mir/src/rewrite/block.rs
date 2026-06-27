@@ -598,6 +598,7 @@ impl BlockParamForwarding {
 pub fn apply_substitutions_in_dominated_blocks(
     function: &mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     domtree: &DominatorTree,
     root: mir::LocalNodeId<mir::Block>,
     substitutions: &HashMap<mir::Value, mir::Value>,
@@ -632,7 +633,7 @@ pub fn apply_substitutions_in_dominated_blocks(
             // replace when a rewrite occurred
             if updated != instruction {
                 tree.set(instruction_id, updated);
-                remap_instruction_memory_accesses(tree, instruction_id, substitutions);
+                remap_instruction_memory_accesses(memory, instruction_id, substitutions);
                 changed = true;
             }
         }
@@ -1064,7 +1065,7 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::Tree) -> 
     changed
 }
 
-/// Threadable block metadata.
+/// Threadable block tables.
 enum ThreadableBlock {
     /// A terminator that can be absorbed by predecessors.
     Terminator(mir::Terminator),

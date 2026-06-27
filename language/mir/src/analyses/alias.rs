@@ -1,8 +1,9 @@
 use crate as mir;
 
 use crate::{
-    Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, MemoryRegion, MemoryRegionBuilder,
-    ReferenceLocation, StorageRoot, TargetLayout, ValueDefinitions, ValueTypes,
+    Analysis, AnalysisId, FunctionAnalysis, FunctionAnalysisCache, MemoryRegion,
+    MemoryRegionBuilder, ReferenceLocation, StorageRoot, TargetLayout, ValueDefinitions,
+    ValueTypes,
 };
 
 /// Alias analysis for one MIR function.
@@ -132,7 +133,11 @@ impl Analysis for AliasAnalysis {
 }
 
 impl FunctionAnalysis for AliasAnalysis {
-    fn compute(function: &mir::Function, tree: &mir::Tree, analyses: &FunctionAnalyses) -> Self {
+    fn compute(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        analyses: &FunctionAnalysisCache,
+    ) -> Self {
         let definitions = analyses.get::<ValueDefinitions>(function, tree);
         let value_types = analyses.get::<ValueTypes>(function, tree);
 
@@ -199,7 +204,7 @@ entry:
 
         let function_id = program.entry_function_id();
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
+        let analyses = program.function_analysis_cache();
         let alias = analyses.get::<AliasAnalysis>(function, &program.tree);
         let allocations = program.frame_alloc_destinations_in_entry(function_id);
 

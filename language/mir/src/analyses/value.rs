@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate as mir;
 
-use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation};
+use super::{Analysis, AnalysisId, FunctionAnalysis, FunctionAnalysisCache, Mutation};
 
 /// Definition site for one SSA value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -336,7 +336,11 @@ impl Analysis for ValueDefinitions {
 }
 
 impl FunctionAnalysis for ValueDefinitions {
-    fn compute(function: &mir::Function, tree: &mir::Tree, _analyses: &FunctionAnalyses) -> Self {
+    fn compute(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        _analyses: &FunctionAnalysisCache,
+    ) -> Self {
         Self::build(function, tree)
     }
 }
@@ -450,7 +454,11 @@ impl Analysis for ValueUses {
 }
 
 impl FunctionAnalysis for ValueUses {
-    fn compute(function: &mir::Function, tree: &mir::Tree, _analyses: &FunctionAnalyses) -> Self {
+    fn compute(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        _analyses: &FunctionAnalysisCache,
+    ) -> Self {
         Self::build(function, tree)
     }
 }
@@ -572,7 +580,11 @@ impl Analysis for ValueTypes {
 }
 
 impl FunctionAnalysis for ValueTypes {
-    fn compute(function: &mir::Function, tree: &mir::Tree, _analyses: &FunctionAnalyses) -> Self {
+    fn compute(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        _analyses: &FunctionAnalysisCache,
+    ) -> Self {
         Self::new(function, tree)
     }
 }

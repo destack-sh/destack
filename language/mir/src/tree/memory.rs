@@ -1,18 +1,19 @@
-use destack_serde::Reflect;
 use std::fmt;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-/// Set of backing memory spaces that an operation may access.
+use destack_serde::Reflect;
+
+/// Set of backing storage regions that an operation may access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct SpaceSet(
-    /// Bitset describing accessible memory spaces.
+pub struct StorageSet(
+    /// Bitset describing accessible storage regions.
     u16,
 );
 
-impl SpaceSet {
-    /// No memory spaces.
+impl StorageSet {
+    /// No storage regions.
     pub const NONE: Self = Self(0);
     /// Local storage.
     pub const LOCAL: Self = Self(1 << 0);
@@ -22,8 +23,19 @@ impl SpaceSet {
     pub const FRAME: Self = Self(1 << 2);
     /// Static storage.
     pub const STATIC: Self = Self(1 << 3);
-    /// All memory spaces.
-    pub const ANY: Self = Self(Self::LOCAL.0 | Self::SHARED.0 | Self::FRAME.0 | Self::STATIC.0);
+    /// Device storage.
+    pub const DEVICE: Self = Self(1 << 4);
+    /// Workgroup storage.
+    pub const WORKGROUP: Self = Self(1 << 5);
+    /// All storage regions.
+    pub const ANY: Self = Self(
+        Self::LOCAL.0
+            | Self::SHARED.0
+            | Self::FRAME.0
+            | Self::STATIC.0
+            | Self::DEVICE.0
+            | Self::WORKGROUP.0,
+    );
 
     /// Check if the set is empty.
     pub fn is_empty(self) -> bool {
@@ -35,54 +47,56 @@ impl SpaceSet {
         self.0 & other.0 == other.0
     }
 
-    /// Insert another set of spaces.
+    /// Insert another storage set.
     pub fn insert(&mut self, other: Self) {
         self.0 |= other.0;
     }
 
-    /// Return the union of two memory space sets.
+    /// Return the union of two storage sets.
     pub fn union(self, other: Self) -> Self {
         Self(self.0 | other.0)
     }
 
-    /// Return the intersection of two memory space sets.
+    /// Return the intersection of two storage sets.
     pub fn intersection(self, other: Self) -> Self {
         Self(self.0 & other.0)
     }
 
-    /// Check whether two memory space sets intersect.
+    /// Return whether two storage sets intersect.
     pub fn intersects(self, other: Self) -> bool {
         self.0 & other.0 != 0
     }
 
-    /// Check whether two memory space sets are disjoint.
+    /// Return whether two storage sets are disjoint.
     pub fn is_disjoint(self, other: Self) -> bool {
         self.0 & other.0 == 0
     }
 
-    /// Return whether two memory space sets may alias.
+    /// Return whether two storage sets may alias.
     pub fn may_alias(self, other: Self) -> bool {
         !self.is_disjoint(other)
     }
 }
 
-impl Default for SpaceSet {
+impl Default for StorageSet {
     fn default() -> Self {
         Self::ANY
     }
 }
 
-impl TryFrom<&str> for SpaceSet {
+impl TryFrom<&str> for StorageSet {
     type Error = ();
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "none" => Ok(SpaceSet::NONE),
-            "local" => Ok(SpaceSet::LOCAL),
-            "shared" => Ok(SpaceSet::SHARED),
-            "frame" => Ok(SpaceSet::FRAME),
-            "static" => Ok(SpaceSet::STATIC),
-            "any" => Ok(SpaceSet::ANY),
+            "none" => Ok(StorageSet::NONE),
+            "local" => Ok(StorageSet::LOCAL),
+            "shared" => Ok(StorageSet::SHARED),
+            "frame" => Ok(StorageSet::FRAME),
+            "static" => Ok(StorageSet::STATIC),
+            "device" => Ok(StorageSet::DEVICE),
+            "workgroup" => Ok(StorageSet::WORKGROUP),
+            "any" => Ok(StorageSet::ANY),
             _ => Err(()),
         }
     }
@@ -239,9 +253,9 @@ impl FromStr for AtomicRmwOperator {
     }
 }
 
-/// Synchronization scope for atomic operations and fences.
+/// Execution scope for atomic operations and fences.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum SyncScope {
+pub enum ExecutionScope {
     /// One invocation or thread.
     Invocation,
     /// One SIMD subgroup or warp.
@@ -255,161 +269,52 @@ pub enum SyncScope {
     System,
 }
 
-impl SyncScope {
+impl ExecutionScope {
     /// Text representation for formatting and parsing.
     pub fn to_str(self) -> &'static str {
         match self {
-            SyncScope::Invocation => "invocation",
-            SyncScope::Subgroup => "subgroup",
-            SyncScope::Workgroup => "workgroup",
-            SyncScope::Device => "device",
-            SyncScope::System => "system",
+            ExecutionScope::Invocation => "invocation",
+            ExecutionScope::Subgroup => "subgroup",
+            ExecutionScope::Workgroup => "workgroup",
+            ExecutionScope::Device => "device",
+            ExecutionScope::System => "system",
         }
     }
 }
 
-impl fmt::Display for SyncScope {
+impl fmt::Display for ExecutionScope {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.to_str())
     }
 }
 
-impl FromStr for SyncScope {
+impl FromStr for ExecutionScope {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "invocation" => Ok(SyncScope::Invocation),
-            "subgroup" => Ok(SyncScope::Subgroup),
-            "workgroup" => Ok(SyncScope::Workgroup),
-            "device" => Ok(SyncScope::Device),
-            "system" => Ok(SyncScope::System),
+            "invocation" => Ok(ExecutionScope::Invocation),
+            "subgroup" => Ok(ExecutionScope::Subgroup),
+            "workgroup" => Ok(ExecutionScope::Workgroup),
+            "device" => Ok(ExecutionScope::Device),
+            "system" => Ok(ExecutionScope::System),
             _ => Err(()),
         }
     }
 }
 
-impl TryFrom<&str> for SyncScope {
+impl TryFrom<&str> for ExecutionScope {
     type Error = ();
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "Invocation" => Ok(SyncScope::Invocation),
-            "Subgroup" => Ok(SyncScope::Subgroup),
-            "Workgroup" => Ok(SyncScope::Workgroup),
-            "Device" => Ok(SyncScope::Device),
-            "System" => Ok(SyncScope::System),
+            "Invocation" => Ok(ExecutionScope::Invocation),
+            "Subgroup" => Ok(ExecutionScope::Subgroup),
+            "Workgroup" => Ok(ExecutionScope::Workgroup),
+            "Device" => Ok(ExecutionScope::Device),
+            "System" => Ok(ExecutionScope::System),
             _ => Err(()),
         }
-    }
-}
-
-/// Memory scope for fences.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum MemoryScope {
-    /// One invocation or thread.
-    Invocation,
-    /// One SIMD subgroup or warp.
-    Subgroup,
-    /// One workgroup or threadgroup.
-    Workgroup,
-    /// One device.
-    Device,
-    /// The whole host system.
-    #[default]
-    System,
-}
-
-impl MemoryScope {
-    /// Text representation for formatting and parsing.
-    pub fn to_str(self) -> &'static str {
-        match self {
-            MemoryScope::Invocation => "invocation",
-            MemoryScope::Subgroup => "subgroup",
-            MemoryScope::Workgroup => "workgroup",
-            MemoryScope::Device => "device",
-            MemoryScope::System => "system",
-        }
-    }
-}
-
-impl fmt::Display for MemoryScope {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.to_str())
-    }
-}
-
-impl FromStr for MemoryScope {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "invocation" => Ok(MemoryScope::Invocation),
-            "subgroup" => Ok(MemoryScope::Subgroup),
-            "workgroup" => Ok(MemoryScope::Workgroup),
-            "device" => Ok(MemoryScope::Device),
-            "system" => Ok(MemoryScope::System),
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryFrom<&str> for MemoryScope {
-    type Error = ();
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
-            "Invocation" => Ok(MemoryScope::Invocation),
-            "Subgroup" => Ok(MemoryScope::Subgroup),
-            "Workgroup" => Ok(MemoryScope::Workgroup),
-            "Device" => Ok(MemoryScope::Device),
-            "System" => Ok(MemoryScope::System),
-            _ => Err(()),
-        }
-    }
-}
-
-/// Memory flags for fences.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct MemoryFlags {
-    /// The memory spaces affected by the fence.
-    pub spaces: SpaceSet,
-    /// Whether this makes writes available to other scopes.
-    pub makes_available: bool,
-    /// Whether this makes writes visible to other scopes.
-    pub makes_visible: bool,
-}
-
-impl MemoryFlags {
-    /// Default memory flags.
-    pub const DEFAULT: Self = Self {
-        spaces: SpaceSet::ANY,
-        makes_available: false,
-        makes_visible: false,
-    };
-
-    /// Create flags for the provided spaces.
-    pub fn new(spaces: SpaceSet) -> Self {
-        Self {
-            spaces,
-            makes_available: false,
-            makes_visible: false,
-        }
-    }
-
-    /// Create flags with explicit predicates.
-    pub fn with_flags(spaces: SpaceSet, makes_available: bool, makes_visible: bool) -> Self {
-        Self {
-            spaces,
-            makes_available,
-            makes_visible,
-        }
-    }
-}
-
-impl Default for MemoryFlags {
-    fn default() -> Self {
-        Self::DEFAULT
     }
 }
 
@@ -418,25 +323,19 @@ impl Default for MemoryFlags {
 pub struct AtomicAccess {
     /// The memory ordering.
     pub ordering: MemoryOrdering,
-    /// The synchronization scope.
-    pub scope: SyncScope,
-    /// Whether the access must be preserved as a volatile operation.
-    pub is_volatile: bool,
+    /// The execution scope.
+    pub scope: ExecutionScope,
 }
 
 impl AtomicAccess {
     /// Create one atomic access.
-    pub const fn new(ordering: MemoryOrdering, scope: SyncScope, is_volatile: bool) -> Self {
-        Self {
-            ordering,
-            scope,
-            is_volatile,
-        }
+    pub const fn new(ordering: MemoryOrdering, scope: ExecutionScope) -> Self {
+        Self { ordering, scope }
     }
 
-    /// Create one atomic access with system scope and nonvolatile access.
+    /// Create one atomic access with system scope.
     pub const fn ordered(ordering: MemoryOrdering) -> Self {
-        Self::new(ordering, SyncScope::System, false)
+        Self::new(ordering, ExecutionScope::System)
     }
 }
 
@@ -490,43 +389,30 @@ impl Default for CompareExchangeAccess {
     }
 }
 
-/// Fence ordering, scope, and memory visibility.
+/// Fence ordering, scope, and storage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct FenceAccess {
     /// The memory ordering.
     pub ordering: MemoryOrdering,
-    /// The synchronization scope.
-    pub scope: SyncScope,
-    /// The memory visibility scope.
-    pub memory_scope: MemoryScope,
-    /// The memory flags.
-    pub flags: MemoryFlags,
+    /// The execution scope.
+    pub scope: ExecutionScope,
+    /// The ordered storage regions.
+    pub storage: StorageSet,
 }
 
 impl FenceAccess {
     /// Create one fence access.
-    pub const fn new(
-        ordering: MemoryOrdering,
-        scope: SyncScope,
-        memory_scope: MemoryScope,
-        flags: MemoryFlags,
-    ) -> Self {
+    pub const fn new(ordering: MemoryOrdering, scope: ExecutionScope, storage: StorageSet) -> Self {
         Self {
             ordering,
             scope,
-            memory_scope,
-            flags,
+            storage,
         }
     }
 
-    /// Create one fence access with system scope and default flags.
+    /// Create one fence access with system scope and all storage.
     pub const fn ordered(ordering: MemoryOrdering) -> Self {
-        Self::new(
-            ordering,
-            SyncScope::System,
-            MemoryScope::System,
-            MemoryFlags::DEFAULT,
-        )
+        Self::new(ordering, ExecutionScope::System, StorageSet::ANY)
     }
 }
 

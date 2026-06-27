@@ -8,15 +8,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::source::{Token, TokenType};
 use crate::{
-    Access, Attribute, Block, BorrowedPath, CommentSpan, DynamicLayout, DynamicTable, ExtentSlice,
-    Field, FieldSpan, FlagSlice, FloatType, Function, FunctionHeaderSpans, Global, IndexSlice,
-    Instruction, Layout, LayoutId, Lifetime, LifetimeParameter, LifetimeTerm, Local, LocalNodeId,
-    MemoryAccessKind, Metadata, Node, NodeType, Nullability, Origin, OriginTable, Path, Projection,
-    ReferenceKind, Space, SwitchCase, SwitchCaseSlice, TensorConvolutionDimensionNumbers,
-    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorImmediate, TensorImmediateId, TensorScatterDimensionNumbers, Terminator, Type, TypeAlias,
-    TypeDeclarationSpans, TypeId, TypeLineage, TypeMetadata, TypedValueSpan, Value, ValueSlice,
-    VirtualTable,
+    Access, Attribute, Block, BorrowedPath, CommentSpan, ExtentSlice, Field, FieldSpan, FlagSlice,
+    FloatType, Function, FunctionHeaderSpans, Global, IndexSlice, Instruction, Lifetime,
+    LifetimeParameter, LifetimeTerm, Local, LocalNodeId, Node, NodeType, Nullability, Origin,
+    OriginTable, Path, Projection, ReferenceKind, Space, SwitchCase, SwitchCaseSlice,
+    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
+    TensorGatherDimensionNumbers, TensorImmediate, TensorImmediateId,
+    TensorScatterDimensionNumbers, Terminator, Type, TypeAlias, TypeDeclarationSpans, TypeId,
+    TypedValueSpan, Value, ValueSlice,
 };
 
 #[inline]
@@ -24,7 +23,7 @@ fn empty_source_span() -> Span {
     Span::empty(FileId::new(0))
 }
 
-/// Dense metadata for one MIR node id.
+/// Dense index entry for one MIR node id.
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Reflect)]
 pub(crate) struct NodeIndexEntry {
     /// The packed local id and node type.
@@ -95,7 +94,7 @@ pub struct Tree {
     pub(crate) first_global_id: u32,
     /// The next global node id to allocate.
     pub(crate) next_global_id: u32,
-    /// Dense local id and node type metadata by node id.
+    /// Dense local id and node type by node id.
     pub(crate) node_index_by_node_id: Vec<NodeIndexEntry>,
     /// Maps global node id → attached attributes.
     pub(crate) attributes_by_node_id: HashMap<u32, Vec<Attribute>>,
@@ -153,11 +152,6 @@ pub struct Tree {
     pub(crate) switch_cases: Vec<SwitchCase>,
     /// Structured tensor immediates.
     pub(crate) tensor_immediates: Vec<TensorImmediate>,
-
-    // metadata
-    /// Structured MIR metadata domains.
-    #[serde(default)]
-    pub metadata: Metadata,
 }
 
 impl Debug for Tree {
@@ -226,64 +220,7 @@ impl Tree {
             flags: Vec::new(),
             switch_cases: Vec::new(),
             tensor_immediates: Vec::new(),
-            metadata: Metadata::default(),
         }
-    }
-
-    /// Return whether an instruction has ordered memory access metadata.
-    pub fn instruction_has_atomic_ordering(&self, instruction: LocalNodeId<Instruction>) -> bool {
-        // atomic instructions carry ordering on the instruction
-        if matches!(
-            self.get(instruction),
-            Instruction::AtomicLoad { .. }
-                | Instruction::AtomicStore { .. }
-                | Instruction::AtomicCompareExchange { .. }
-                | Instruction::AtomicRmw { .. }
-                | Instruction::AtomicFence { .. }
-        ) {
-            return true;
-        }
-
-        // read access metadata for this instruction
-        let Some(accesses) = self.metadata.memory.memory_accesses(instruction) else {
-            return false;
-        };
-
-        // check for ordered or fenced accesses
-        accesses.iter().any(|access| {
-            access.ordering.is_some()
-                || access.flags.is_some()
-                || matches!(access.kind, MemoryAccessKind::Fence)
-        })
-    }
-
-    /// Return whether an instruction requires exact memory access behavior.
-    pub fn instruction_requires_exact_access(&self, instruction: LocalNodeId<Instruction>) -> bool {
-        // ordered instructions must preserve exact access behavior
-        if matches!(
-            self.get(instruction),
-            Instruction::AtomicLoad { .. }
-                | Instruction::AtomicStore { .. }
-                | Instruction::AtomicCompareExchange { .. }
-                | Instruction::AtomicRmw { .. }
-                | Instruction::AtomicFence { .. }
-                | Instruction::BarrierWrite { .. }
-        ) {
-            return true;
-        }
-
-        // read memory access metadata for the instruction
-        let Some(accesses) = self.metadata.memory.memory_accesses(instruction) else {
-            return false;
-        };
-
-        // require exact behavior for volatile, ordered, or fenced operations
-        accesses.iter().any(|access| {
-            access.is_volatile
-                || access.ordering.is_some()
-                || access.flags.is_some()
-                || matches!(access.kind, MemoryAccessKind::Fence)
-        })
     }
 
     /// Create a new tree with parsed source data.
@@ -743,57 +680,20 @@ impl Tree {
         None
     }
 
-    /// Insert a type node into the tree and update the primitive type cache.
+    /// Insert a type node into the tree.
     pub fn insert_type(&mut self, ty: Type) -> LocalNodeId<Type> {
-        // determine the primitive shape before moving the type
-        let primitive = TypeMetadata::primitive_type(&ty);
-        let type_id = self.insert(ty);
-
-        // record the type in the primitive type cache
-        if let Some(primitive) = primitive {
-            self.metadata
-                .types
-                .record_primitive_type(type_id, primitive);
-        }
-
-        type_id
+        self.insert(ty)
     }
 
-    /// Replace a type node and update the primitive type cache.
+    /// Replace a type node.
     pub fn set_type(&mut self, type_id: LocalNodeId<Type>, ty: Type) -> Type {
         let local_id = self.node_local_id(type_id.id);
-        let old = std::mem::replace(self.types.get_mut(local_id), ty);
-
-        // remove stale primitive entries for overwritten placeholders
-        self.metadata
-            .types
-            .primitive_types
-            .retain(|_, cached_type| *cached_type != type_id);
-
-        // record the new primitive shape when applicable
-        if let Some(primitive) = TypeMetadata::primitive_type(self.types.get(local_id)) {
-            self.metadata
-                .types
-                .record_primitive_type(type_id, primitive);
-        }
-
-        old
+        std::mem::replace(self.types.get_mut(local_id), ty)
     }
 
-    /// Insert a type node into the tree with a source DIR id and update the primitive type cache.
+    /// Insert a type node into the tree with a source DIR id.
     pub fn insert_type_from(&mut self, ty: Type, source_dir_id: u32) -> LocalNodeId<Type> {
-        // determine the primitive shape before moving the type
-        let primitive = TypeMetadata::primitive_type(&ty);
-        let type_id = self.insert_from(ty, source_dir_id);
-
-        // record the type in the primitive type cache
-        if let Some(primitive) = primitive {
-            self.metadata
-                .types
-                .record_primitive_type(type_id, primitive);
-        }
-
-        type_id
+        self.insert_from(ty, source_dir_id)
     }
 
     /// Return lifetime parameters declared by one type.
@@ -815,150 +715,61 @@ impl Tree {
 
     /// Return the boolean type id.
     pub fn boolean_type(&self) -> LocalNodeId<Type> {
-        // use the primitive type cache when available
-        if let Some(type_id) = self.metadata.types.boolean_type() {
-            return type_id;
-        }
-
-        // fall back to a structural lookup
         if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Boolean)) {
             return type_id;
         }
 
-        unreachable!("missing boolean type id in MIR primitive type cache");
+        unreachable!("missing boolean type id in MIR tree");
     }
 
     /// Return the void type id.
     pub fn void_type(&self) -> LocalNodeId<Type> {
-        // use the primitive type cache when available
-        if let Some(type_id) = self.metadata.types.void_type()
-            && matches!(self.get(type_id), Type::Void)
-        {
-            return type_id;
-        }
-
-        // fall back to a structural lookup
         if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
             return type_id;
         }
 
-        unreachable!("missing void type id in MIR primitive type cache");
+        unreachable!("missing void type id in MIR tree");
     }
 
     /// Return the type descriptor type id.
     pub fn type_descriptor_type(&self) -> LocalNodeId<Type> {
-        // use the primitive type cache when available
-        if let Some(type_id) = self.metadata.types.type_descriptor_type() {
-            return type_id;
-        }
-
-        // fall back to a structural lookup
         if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::TypeDescriptor))
         {
             return type_id;
         }
 
-        unreachable!("missing type descriptor type id in MIR primitive type cache");
+        unreachable!("missing type descriptor type id in MIR tree");
     }
 
     /// Return the type id type id.
     pub fn type_id_type(&self) -> LocalNodeId<Type> {
-        // use the primitive type cache when available
-        if let Some(type_id) = self.metadata.types.type_id_type() {
-            return type_id;
-        }
-
-        // fall back to a structural lookup
         if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::TypeId)) {
             return type_id;
         }
 
-        unreachable!("missing type id type in MIR primitive type cache");
+        unreachable!("missing type id type in MIR tree");
     }
 
     /// Return the isize type id.
     pub fn isize_type(&self) -> LocalNodeId<Type> {
-        // use the primitive type cache when available
-        if let Some(type_id) = self.metadata.types.isize_type() {
-            return type_id;
-        }
-
-        // fall back to a structural lookup
         if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Isize)) {
             return type_id;
         }
 
-        unreachable!("missing isize type id in MIR primitive type cache");
-    }
-
-    /// Return lineage metadata for a type when present.
-    pub fn type_lineage(&self, ty: LocalNodeId<Type>) -> Option<&TypeLineage> {
-        self.metadata.types.lineage(ty)
-    }
-
-    /// Return the layout id for a type when present.
-    pub fn type_layout_id(&self, ty: LocalNodeId<Type>) -> Option<LayoutId> {
-        self.metadata.layouts.layout_id(ty)
-    }
-
-    /// Return the concrete layout for a type when present.
-    pub fn type_layout(&self, ty: LocalNodeId<Type>) -> Option<&Layout> {
-        let layout_id = self.type_layout_id(ty)?;
-        Some(self.metadata.layouts.table.layout(layout_id))
-    }
-
-    /// Return the type descriptor global for a type when present.
-    pub fn type_descriptor_global(&self, ty: LocalNodeId<Type>) -> Option<LocalNodeId<Global>> {
-        self.metadata.types.descriptor_global(ty)
-    }
-
-    /// Return the virtual table metadata for a type when present.
-    pub fn type_virtual_table(&self, ty: LocalNodeId<Type>) -> Option<&VirtualTable> {
-        self.metadata.dispatch.virtual_table(ty)
-    }
-
-    /// Return the dynamic table for a concrete type and constraint when present.
-    pub fn type_dynamic_table(
-        &self,
-        concrete: LocalNodeId<Type>,
-        constraint: LocalNodeId<Type>,
-    ) -> Option<&DynamicTable> {
-        self.metadata.dispatch.dynamic_table(concrete, constraint)
-    }
-
-    /// Return the display name for a type when present.
-    pub fn type_display_name(&self, ty: LocalNodeId<Type>) -> Option<destack_core::StringId> {
-        self.metadata.types.display_name(ty)
-    }
-
-    /// Return the dynamic layout when present.
-    pub fn dynamic_layout(&self, constraint: LocalNodeId<Type>) -> Option<&DynamicLayout> {
-        self.metadata.dispatch.dynamic_layout(constraint)
+        unreachable!("missing isize type id in MIR tree");
     }
 
     /// Return the usize type id.
     pub fn usize_type(&self) -> LocalNodeId<Type> {
-        // use the primitive type cache when available
-        if let Some(type_id) = self.metadata.types.usize_type() {
-            return type_id;
-        }
-
-        // fall back to a structural lookup
         if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Usize)) {
             return type_id;
         }
 
-        unreachable!("missing usize type id in MIR primitive type cache");
+        unreachable!("missing usize type id in MIR tree");
     }
 
     /// Return an integer type id for width and signedness.
     pub fn int_type(&self, width: u16, signed: bool) -> LocalNodeId<Type> {
-        // use the primitive type cache when available
-        if let Some(type_id) = self.metadata.types.int_type(width, signed) {
-            return type_id;
-        }
-
-        // fall back to a structural lookup
         if let Some(type_id) = self.find_type_by_predicate(|ty| {
             matches!(
                 ty,
@@ -976,12 +787,6 @@ impl Tree {
 
     /// Return a float type id for format.
     pub fn float_type(&self, format: FloatType) -> LocalNodeId<Type> {
-        // use the primitive type cache when available
-        if let Some(type_id) = self.metadata.types.float_type(format) {
-            return type_id;
-        }
-
-        // fall back to a structural lookup
         if let Some(type_id) = self.find_type_by_predicate(
             |ty| matches!(ty, Type::Float(float_type) if *float_type == format),
         ) {
@@ -993,11 +798,7 @@ impl Tree {
 
     /// Return the canonical storage type for the hidden environment field in one function.
     pub fn function_environment_type(&self) -> LocalNodeId<Type> {
-        let void_type = if let Some(type_id) = self.metadata.types.void_type() {
-            type_id
-        } else if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
-            type_id
-        } else {
+        let Some(void_type) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) else {
             unreachable!("missing void type for function environment storage");
         };
 
@@ -1022,14 +823,12 @@ impl Tree {
 
     /// Ensure the canonical storage type for the hidden environment field in one function.
     pub fn ensure_function_environment_type(&mut self) -> LocalNodeId<Type> {
-        // reuse or create the canonical void type
-        let void_type = if let Some(type_id) = self.metadata.types.void_type() {
-            type_id
-        } else if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
-            type_id
-        } else {
-            self.insert_type(Type::Void)
-        };
+        let void_type =
+            if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
+                type_id
+            } else {
+                self.insert_type(Type::Void)
+            };
 
         // reuse the canonical erased environment reference when present
         if let Some(type_id) = self.find_type_by_predicate(|ty| {
@@ -1057,50 +856,6 @@ impl Tree {
             pointee: void_type,
             nullability: Nullability::Null,
         })
-    }
-
-    /// Return module pointer size in bytes.
-    pub fn pointer_bytes(&self) -> u8 {
-        self.metadata.data_layout.pointer_bytes
-    }
-
-    /// Return module pointer size in bits.
-    pub fn pointer_bits(&self) -> u16 {
-        self.metadata.data_layout.pointer_bits()
-    }
-
-    /// Update module pointer size in bytes.
-    pub fn set_pointer_bytes(&mut self, pointer_bytes: u8) {
-        match pointer_bytes {
-            4 | 8 => {
-                self.metadata.data_layout.pointer_bytes = pointer_bytes;
-            }
-            _ => {
-                unreachable!("unsupported pointer size {pointer_bytes} bytes");
-            }
-        }
-    }
-
-    /// Rebuild the primitive type cache from canonical type nodes.
-    pub fn rebuild_primitive_types(&mut self) {
-        // reset the index state
-        self.metadata.types.primitive_types.clear();
-
-        // collect primitive entries before mutating the table
-        let mut type_entries = Vec::new();
-        for (type_id, ty) in self.iter_nodes::<Type>() {
-            let Some(primitive) = TypeMetadata::primitive_type(ty) else {
-                continue;
-            };
-            type_entries.push((type_id, primitive));
-        }
-
-        // repopulate the primitive type cache in node order
-        for (type_id, primitive) in type_entries {
-            self.metadata
-                .types
-                .record_primitive_type(type_id, primitive);
-        }
     }
 
     /// Get a reference to a node by id.
@@ -1158,7 +913,7 @@ impl Tree {
         self.node_index_by_node_id.len()
     }
 
-    /// Return the local metadata index for one global node id.
+    /// Return the local node index for one global node id.
     #[inline]
     pub(crate) fn node_index(&self, node_id: u32) -> usize {
         let index = node_id

@@ -5,7 +5,7 @@ use destack_core::{FloatFormat, StringId};
 
 use crate::{
     Constant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType, SignatureParameter,
-    SpaceSet, TypeId,
+    StorageSet, TypeId,
 };
 
 /// Mutability of a storage binding.
@@ -83,12 +83,12 @@ impl Space {
     }
 
     /// Return the backing memory space set.
-    pub fn space_set(&self) -> SpaceSet {
+    pub fn space_set(&self) -> StorageSet {
         match self {
-            Space::Local => SpaceSet::LOCAL,
-            Space::Shared => SpaceSet::SHARED,
-            Space::Frame => SpaceSet::FRAME,
-            Space::Static => SpaceSet::STATIC,
+            Space::Local => StorageSet::LOCAL,
+            Space::Shared => StorageSet::SHARED,
+            Space::Frame => StorageSet::FRAME,
+            Space::Static => StorageSet::STATIC,
         }
     }
 }

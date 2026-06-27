@@ -1,40 +1,34 @@
-use destack_serde::Reflect;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
 use destack_core::StringId;
+use destack_serde::Reflect;
 
-use crate::{FloatType, Global, LocalNodeId, Type};
+use crate::{FloatType, LocalNodeId, Tree, Type};
 
-/// Canonical type metadata for one MIR module.
+/// Canonical type table for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
-pub struct TypeMetadata {
+pub struct TypeTable {
     /// Cached primitive type ids keyed by primitive shape.
     #[serde(skip, default)]
     pub(crate) primitive_types: HashMap<PrimitiveType, LocalNodeId<Type>>,
     /// Nominal lineage keyed by type id.
     pub lineage_by_type: HashMap<LocalNodeId<Type>, TypeLineage>,
-    /// Runtime type descriptor globals keyed by type id.
-    pub descriptor_by_type: HashMap<LocalNodeId<Type>, LocalNodeId<Global>>,
     /// Canonical display names keyed by type id.
     pub display_name_by_type: HashMap<LocalNodeId<Type>, StringId>,
 }
 
-impl TypeMetadata {
-    /// Create empty type metadata.
+impl TypeTable {
+    /// Create an empty type table.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Copy type metadata from one type id to another.
-    pub fn copy_type_metadata(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
+    /// Copy type table entries from one type id to another.
+    pub fn copy_type_entries(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
         if let Some(lineage) = self.lineage(from).cloned() {
             self.set_lineage(to, lineage);
-        }
-
-        if let Some(descriptor) = self.descriptor_global(from) {
-            self.set_descriptor_global(to, descriptor);
         }
 
         if let Some(display_name) = self.display_name(from) {
@@ -42,12 +36,25 @@ impl TypeMetadata {
         }
     }
 
-    /// Return lineage metadata for a type when present.
+    /// Rebuild primitive type cache from one MIR tree.
+    pub fn rebuild_primitive_types(&mut self, tree: &Tree) {
+        self.primitive_types.clear();
+
+        // collect primitive rows in node order
+        for (type_id, ty) in tree.iter_nodes::<Type>() {
+            let Some(primitive) = Self::primitive_type(ty) else {
+                continue;
+            };
+            self.record_primitive_type(type_id, primitive);
+        }
+    }
+
+    /// Return lineage for a type when present.
     pub fn lineage(&self, ty: LocalNodeId<Type>) -> Option<&TypeLineage> {
         self.lineage_by_type.get(&ty)
     }
 
-    /// Record lineage metadata for a type.
+    /// Record lineage for a type.
     pub fn set_lineage(
         &mut self,
         ty: LocalNodeId<Type>,
@@ -148,23 +155,9 @@ impl TypeMetadata {
     pub fn ensure_display_name(&mut self, ty: LocalNodeId<Type>, name: StringId) -> StringId {
         *self.display_name_by_type.entry(ty).or_insert(name)
     }
-
-    /// Return the runtime type descriptor global for a type when present.
-    pub fn descriptor_global(&self, ty: LocalNodeId<Type>) -> Option<LocalNodeId<Global>> {
-        self.descriptor_by_type.get(&ty).copied()
-    }
-
-    /// Record the runtime type descriptor global for a type.
-    pub fn set_descriptor_global(
-        &mut self,
-        ty: LocalNodeId<Type>,
-        descriptor: LocalNodeId<Global>,
-    ) -> Option<LocalNodeId<Global>> {
-        self.descriptor_by_type.insert(ty, descriptor)
-    }
 }
 
-/// Lineage metadata for nominal types.
+/// Lineage tables for nominal types.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TypeLineage {
     /// Optional parent type for class inheritance.

@@ -51,12 +51,12 @@ pub(super) enum FunctionHeaderMode {
 }
 
 impl Parser {
-    /// Resolve attributes into function metadata.
+    /// Resolve attributes into function tables.
     pub(super) fn resolve_function_attributes(
         &mut self,
         attributes: &[Attribute],
     ) -> ParseResult<Option<TypeId>> {
-        // metadata output
+        // tables output
         let mut environment_type = None;
 
         // inspect attributes
@@ -155,7 +155,7 @@ impl Parser {
         let header = self.parse_function_header(linkage, FunctionHeaderMode::Definition)?;
         let function_id = header.function_id;
 
-        // function metadata
+        // function tables
         let environment_type = self.resolve_function_attributes(&attributes)?;
         let parameter_names = self.header_parameter_names(&header.parameters);
 
@@ -1339,7 +1339,7 @@ impl Parser {
                 let divisor = self.parse_value()?;
                 Ok(CheckConstraint::DivZero { divisor })
             }
-            "dynamic" if kind_parts.get(1) == Some(&"type") => {
+            "is" if kind_parts.get(1) == Some(&"type") => {
                 if kind_parts.len() != 2 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
@@ -1351,7 +1351,7 @@ impl Parser {
                 self.eat_token(TokenType::Comma)?;
                 let (expected, _) = self.parse_type_use_part()?;
 
-                Ok(CheckConstraint::Type { value, expected })
+                Ok(CheckConstraint::IsType { value, expected })
             }
             "variant" if kind_parts.get(1) == Some(&"tag") => {
                 if kind_parts.len() != 2 {
@@ -1367,7 +1367,7 @@ impl Parser {
 
                 Ok(CheckConstraint::Variant { value, expected })
             }
-            "receiver" if kind_parts.get(1) == Some(&"type") => {
+            "is" if kind_parts.get(1) == Some(&"subtype") => {
                 if kind_parts.len() != 2 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
@@ -1375,25 +1375,11 @@ impl Parser {
                     ));
                 }
 
-                let receiver = self.parse_value()?;
+                let value = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
                 let (expected, _) = self.parse_type_use_part()?;
 
-                Ok(CheckConstraint::ReceiverType { receiver, expected })
-            }
-            "interface" if kind_parts.get(1) == Some(&"conformance") => {
-                if kind_parts.len() != 2 {
-                    return Err(ParseError::invalid(
-                        &format!("check kind '{kind_text}'"),
-                        kind_start,
-                    ));
-                }
-
-                let receiver = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let (expected, _) = self.parse_type_use_part()?;
-
-                Ok(CheckConstraint::Implements { receiver, expected })
+                Ok(CheckConstraint::IsSubtype { value, expected })
             }
             "shift" if kind_parts.get(1) == Some(&"range") => {
                 let signedness = kind_parts.get(2).copied().ok_or_else(|| {

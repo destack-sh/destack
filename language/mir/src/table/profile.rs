@@ -1,9 +1,10 @@
-use destack_serde::Reflect;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{CallSite, Edge, FunctionId, Instruction, LocalNodeId, Symbol, Value};
+use destack_serde::Reflect;
+
+use crate::{CallSite, Edge, FunctionId, Instruction, LocalNodeId, Symbol, Type, Value};
 
 /// Loaded profile-guided optimization data for a program.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
@@ -36,30 +37,30 @@ impl Profile {
     }
 }
 
-/// Static profile counter map for one MIR module.
+/// Static profile counter table for one MIR module.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ProfileMap {
-    /// Per-function profile counter maps.
-    pub functions: HashMap<FunctionId, FunctionProfileMap>,
+pub struct ProfileTable {
+    /// Per-function profile counter tables.
+    pub functions: HashMap<FunctionId, FunctionProfileTable>,
 }
 
-impl ProfileMap {
-    /// Create an empty profile map.
+impl ProfileTable {
+    /// Create an empty profile table.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Return one function's profile counter map.
-    pub fn function(&self, function: FunctionId) -> Option<&FunctionProfileMap> {
+    /// Return one function's profile counter table.
+    pub fn function(&self, function: FunctionId) -> Option<&FunctionProfileTable> {
         self.functions.get(&function)
     }
 
-    /// Insert one function's profile counter map.
+    /// Insert one function's profile counter table.
     pub fn insert_function(
         &mut self,
         function: FunctionId,
-        profile: FunctionProfileMap,
-    ) -> Option<FunctionProfileMap> {
+        profile: FunctionProfileTable,
+    ) -> Option<FunctionProfileTable> {
         self.functions.insert(function, profile)
     }
 
@@ -70,17 +71,17 @@ impl ProfileMap {
     }
 }
 
-/// Static profile counter map for one function.
+/// Static profile counter table for one function.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct FunctionProfileMap {
+pub struct FunctionProfileTable {
     /// Control-flow hash guarding against stale profile application.
     pub hash: FunctionHash,
     /// Profile points indexed by counter id.
     pub points: Vec<ProfilePoint>,
 }
 
-impl FunctionProfileMap {
-    /// Create an empty function profile map.
+impl FunctionProfileTable {
+    /// Create an empty function profile table.
     pub fn new(hash: FunctionHash) -> Self {
         Self {
             hash,
@@ -123,7 +124,7 @@ pub enum ProfilePoint {
     CallTarget(CallSite),
     /// Observed receiver type distribution for one callsite.
     ReceiverType(CallSite),
-    /// Allocation behavior for one instruction.
+    /// Observed allocation behavior for one allocation instruction.
     Allocation(LocalNodeId<Instruction>),
     /// Suspension behavior for one instruction.
     Suspension(LocalNodeId<Instruction>),
@@ -158,12 +159,12 @@ pub struct GlobalProfile {
 pub enum ValueProfile {
     /// Indirect and virtual call target distribution.
     Calls(Histogram<Symbol>),
-    /// Observed runtime type distribution at a dynamic site.
-    Types(Histogram<Symbol>),
+    /// Observed exact runtime type distribution at a dynamic site.
+    Types(Histogram<LocalNodeId<Type>>),
     /// Scalar value or size distribution.
     Scalars(Histogram<i64>),
     /// Allocation size and survival behavior.
-    Alloc(Allocation),
+    Allocation(Allocation),
     /// Suspension behavior at a suspension point.
     Suspend(Suspension),
 }
@@ -198,7 +199,7 @@ impl<T> Histogram<T> {
     }
 }
 
-/// Observed allocation behavior at one allocation site.
+/// Observed allocation behavior at one allocation instruction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Allocation {
     /// Observed payload sizes; its total is the number of allocations seen.

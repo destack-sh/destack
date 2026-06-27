@@ -1,7 +1,7 @@
 use crate as mir;
 use destack_core::BitSet;
 
-use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation};
+use super::{Analysis, AnalysisId, FunctionAnalysis, FunctionAnalysisCache, Mutation};
 
 /// Escape analysis for allocation roots in one function.
 #[derive(Debug, Clone)]
@@ -62,7 +62,11 @@ impl Analysis for EscapeAnalysis {
 
 impl FunctionAnalysis for EscapeAnalysis {
     /// Compute escape analysis for one function.
-    fn compute(function: &mir::Function, tree: &mir::Tree, _analyses: &FunctionAnalyses) -> Self {
+    fn compute(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        _analyses: &FunctionAnalysisCache,
+    ) -> Self {
         Self::build(function, tree)
     }
 }
@@ -369,7 +373,7 @@ entry:
 
         let function_id = program.entry_function_id();
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
+        let analyses = program.function_analysis_cache();
         let escape = analyses.get::<EscapeAnalysis>(function, &program.tree);
 
         assert!(escape.escapes(mir::Value::new(0)));
@@ -391,7 +395,7 @@ entry:
 
         let function_id = program.entry_function_id();
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
+        let analyses = program.function_analysis_cache();
         let escape = analyses.get::<EscapeAnalysis>(function, &program.tree);
 
         assert!(escape.stays_local(mir::Value::new(0)));
@@ -416,7 +420,7 @@ entry:
 
         let function_id = program.entry_function_id();
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
+        let analyses = program.function_analysis_cache();
         let escape = analyses.get::<EscapeAnalysis>(function, &program.tree);
 
         assert_eq!(
@@ -447,7 +451,7 @@ b2(v3: ref<int32, unique, mutable>):
 
         let function_id = program.entry_function_id();
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
+        let analyses = program.function_analysis_cache();
         let escape = analyses.get::<EscapeAnalysis>(function, &program.tree);
 
         assert_eq!(
@@ -483,7 +487,7 @@ entry:
 
         let function_id = program.function_id_by_name("test");
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
+        let analyses = program.function_analysis_cache();
         let escape = analyses.get::<EscapeAnalysis>(function, &program.tree);
 
         assert!(escape.escapes(mir::Value::new(0)));

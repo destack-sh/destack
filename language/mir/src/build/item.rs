@@ -53,7 +53,13 @@ impl ModuleBuilder {
 
     /// Start building a new function.
     pub fn function(&mut self, header: FunctionHeader) -> FunctionBuilder<'_> {
-        FunctionBuilder::new(&mut self.tree, &self.strings, header)
+        FunctionBuilder::new(
+            &mut self.tree,
+            &mut self.effects,
+            &self.strings,
+            self.target_layout.pointer_bits(),
+            header,
+        )
     }
 
     /// Start building a body for an existing declared function.
@@ -61,7 +67,13 @@ impl ModuleBuilder {
         &mut self,
         function_id: LocalNodeId<Function>,
     ) -> BuildResult<FunctionBuilder<'_>> {
-        FunctionBuilder::from_declared(&mut self.tree, &self.strings, function_id)
+        FunctionBuilder::from_declared(
+            &mut self.tree,
+            &mut self.effects,
+            &self.strings,
+            self.target_layout.pointer_bits(),
+            function_id,
+        )
     }
 
     /// Declare a local function without a body.

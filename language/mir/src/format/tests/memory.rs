@@ -92,9 +92,9 @@ fn test_format_atomic_load_store_and_fence_family() {
         r#"
 function atomics(v0: ref<atomic<int32>, raw, mutable, space(frame)>): int32 {
 entry(v0: ref<atomic<int32>, raw, mutable, space(frame)>):
-    v1: int32 = atomic.load v0, acquire, scope(device), volatile
+    v1: int32 = atomic.load v0, acquire, scope(device)
     atomic.store v0, v1, release, scope(device)
-    atomic.fence sequentiallyConsistent, scope(device), memory(device), [static, makeVisible]
+    atomic.fence sequentiallyConsistent, scope(device), storage(device)
     return v1
 }
 "#,

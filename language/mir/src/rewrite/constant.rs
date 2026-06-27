@@ -143,6 +143,7 @@ pub fn apply_constant_parameters(
     function_id: mir::LocalNodeId<mir::Function>,
     constants: &[Option<mir::Constant>],
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
 ) -> bool {
     // prepare the substitution map and new instructions
     let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
@@ -207,7 +208,7 @@ pub fn apply_constant_parameters(
             let updated = instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
             if instruction != updated {
                 *tree.get_mut(instruction_id) = updated;
-                remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
+                remap_instruction_memory_accesses(memory, instruction_id, &substitutions);
             }
         }
 

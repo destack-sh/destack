@@ -1,32 +1,50 @@
-use destack_serde::Reflect;
 use std::collections::HashMap;
 use std::num::NonZeroU32;
 
 use serde::{Deserialize, Serialize};
 
 use destack_core::StringId;
+use destack_serde::Reflect;
 
 use crate::{LocalNodeId, TensorFormat, TensorSharding, TensorViewFormat, TraceMap, Type};
 
-/// Canonical layout metadata for one MIR module.
+/// Canonical layout table for one MIR module.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct LayoutMetadata {
-    /// Layout entries for aggregate types.
-    pub table: LayoutTable,
+pub struct LayoutTable {
+    /// Layout entries indexed by LayoutId.
+    pub entries: Vec<Layout>,
     /// Layout ids keyed by type id.
     pub types: HashMap<LocalNodeId<Type>, LayoutId>,
 }
 
-impl LayoutMetadata {
-    /// Create a new empty layout table.
+impl LayoutTable {
+    /// Create an empty layout table.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Insert a layout entry and return its id.
+    pub fn insert(&mut self, layout: Layout) -> LayoutId {
+        let next_index = self.entries.len() + 1;
+        let id = LayoutId::new(next_index as u32);
+        self.entries.push(layout);
+
+        id
+    }
+
+    /// Return a layout entry for an id.
+    pub fn layout(&self, id: LayoutId) -> &Layout {
+        let index = id.index();
+        self.entries
+            .get(index)
+            .unwrap_or_else(|| unreachable!("missing layout entry {index}"))
     }
 
     /// Return the layout entry for a type id when available.
     pub fn type_layout(&self, ty: LocalNodeId<Type>) -> Option<&Layout> {
         let layout_id = self.types.get(&ty)?;
-        self.table.entries.get(layout_id.index())
+
+        self.entries.get(layout_id.index())
     }
 
     /// Return the layout id for a type when present.
@@ -43,41 +61,11 @@ impl LayoutMetadata {
         self.types.insert(ty, layout_id)
     }
 
-    /// Copy structural layout metadata from one type id to another.
-    pub fn copy_type_metadata(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
+    /// Copy structural layout table entries from one type id to another.
+    pub fn copy_type_entries(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
         if let Some(layout_id) = self.layout_id(from) {
             self.set_layout_id(to, layout_id);
         }
-    }
-}
-
-/// Shared layout table for all aggregate types.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct LayoutTable {
-    /// Layout entries indexed by LayoutId.
-    pub entries: Vec<Layout>,
-}
-
-impl LayoutTable {
-    /// Create an empty layout table.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Insert a layout entry and return its id.
-    pub fn insert(&mut self, layout: Layout) -> LayoutId {
-        let next_index = self.entries.len() + 1;
-        let id = LayoutId::new(next_index as u32);
-        self.entries.push(layout);
-        id
-    }
-
-    /// Return a layout entry for an id.
-    pub fn layout(&self, id: LayoutId) -> &Layout {
-        let index = id.index();
-        self.entries
-            .get(index)
-            .unwrap_or_else(|| unreachable!("missing layout entry {index}"))
     }
 }
 
@@ -117,7 +105,7 @@ pub struct Layout {
     pub size: u32,
     /// Alignment requirement in bytes.
     pub alignment: u32,
-    /// Managed-reference metadata for this layout.
+    /// Managed-reference trace map for this layout.
     pub trace_map: TraceMap,
 }
 

@@ -1,6 +1,6 @@
 use crate as mir;
 
-use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation};
+use super::{Analysis, AnalysisId, FunctionAnalysis, FunctionAnalysisCache, Mutation};
 use crate::{Block, NodeTable};
 
 /// MIR operation inventory and weighted score for one function.
@@ -430,7 +430,11 @@ impl Analysis for CostModel {
 
 impl FunctionAnalysis for CostModel {
     /// Compute the MIR cost model for one function.
-    fn compute(function: &mir::Function, tree: &mir::Tree, analyses: &FunctionAnalyses) -> Self {
+    fn compute(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        analyses: &FunctionAnalysisCache,
+    ) -> Self {
         Self::build(function, tree, analyses.options().cost_weights)
     }
 }
@@ -440,7 +444,7 @@ mod tests {
     use super::*;
 
     use crate::AnalysisOptions;
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::{TestProgram, empty_function_analysis_cache_with_options};
 
     /// Cost model counts factual operations separately from weighted score.
     #[test]
@@ -458,7 +462,7 @@ entry(v0: ref<int32, raw, mutable>):
 
         let function_id = program.entry_function_id();
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
+        let analyses = program.function_analysis_cache();
         let cost = analyses.get::<CostModel>(function, &program.tree);
         let weights = cost.weights();
 
@@ -492,7 +496,7 @@ entry(v0: int32):
 
         let function_id = program.entry_function_id();
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
+        let analyses = program.function_analysis_cache();
         let cost = analyses.get::<CostModel>(function, &program.tree);
         let weights = cost.weights();
 
@@ -524,7 +528,7 @@ entry(v0: ref<int32, raw, mutable>, v1: ref<atomic<int32>, raw, mutable>):
 
         let function_id = program.entry_function_id();
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
+        let analyses = program.function_analysis_cache();
         let cost = analyses.get::<CostModel>(function, &program.tree);
 
         assert_eq!(cost.function().load, 1);
@@ -569,7 +573,7 @@ entry(v0: ref<int32, raw, mutable>):
             branch: 61,
         };
         let analysis_options = AnalysisOptions::default().with_cost_weights(weights);
-        let analyses = FunctionAnalyses::with_options(analysis_options);
+        let analyses = empty_function_analysis_cache_with_options(analysis_options);
 
         let function_id = program.entry_function_id();
         let function = program.tree.get(function_id);

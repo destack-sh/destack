@@ -116,7 +116,7 @@ fn format_lifetimes<'a>(
     write!(f, [token(">")])
 }
 
-/// Format function attributes and derived metadata.
+/// Format function attributes and derived tables.
 pub(super) fn format_function_attributes<'a>(
     id: LocalNodeId<Function>,
     function: &Function,

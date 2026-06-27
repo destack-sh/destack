@@ -64,7 +64,7 @@ pub enum BuildError {
         /// The type being accessed.
         ty: LocalNodeId<Type>,
     },
-    /// A count is too large for MIR instruction metadata.
+    /// A count is too large for MIR instruction tables.
     CountTooLarge {
         /// The count that could not fit.
         count: usize,
@@ -174,10 +174,7 @@ impl std::fmt::Display for BuildError {
                 )
             }
             Self::CountTooLarge { count, context } => {
-                write!(
-                    formatter,
-                    "{context} is too large for MIR metadata: {count}"
-                )
+                write!(formatter, "{context} is too large for MIR tables: {count}")
             }
             Self::MissingFunctionSignature { ty } => {
                 write!(formatter, "callable type has no function signature: {ty:?}")

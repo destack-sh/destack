@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use destack_core::{BitSet, DenseGraph};
 use serde::{Deserialize, Serialize};
 
-use super::{Analysis, AnalysisId, CallGraph, ModuleAnalyses, ModuleAnalysis};
+use super::{Analysis, AnalysisId, CallGraph, ModuleAnalysis, TreeAnalysisCache};
 use crate::{
     Function, FunctionBehavior, Global, GlobalInitializer, Instruction, Linkage, MemoryEffect,
     Symbol, Tree,
@@ -427,7 +427,7 @@ impl Analysis for LinkGraph {
 
 impl ModuleAnalysis for LinkGraph {
     /// Build the link graph for one module from its call graph and tree.
-    fn compute(tree: &Tree, analyses: &ModuleAnalyses) -> Self {
+    fn compute(tree: &Tree, analyses: &TreeAnalysisCache) -> Self {
         let call_graph = analyses.get::<CallGraph>(tree);
         let mut graph = LinkGraph::new();
 
@@ -439,9 +439,9 @@ impl ModuleAnalysis for LinkGraph {
             }
 
             let symbol = function.symbol;
-            let metadata = tree.metadata.effects.function(function_id);
-            let memory = metadata.map(|m| m.memory.clone()).unwrap_or_default();
-            let behavior = metadata.map(|m| m.behavior.clone()).unwrap_or_default();
+            let tables = analyses.effects().function(function_id);
+            let memory = tables.map(|m| m.memory.clone()).unwrap_or_default();
+            let behavior = tables.map(|m| m.behavior.clone()).unwrap_or_default();
             graph.insert(
                 symbol,
                 LinkNode::Function {
