@@ -220,15 +220,11 @@ impl<'a> FunctionBuilder<'a> {
             unwind: None,
         };
         if let Some(target) = target {
-            self.tree
-                .metadata
-                .effects
-                .call_mut(CallSite::Terminator(block_id))
-                .target = Some(target);
+            self.effects.call_mut(CallSite::Terminator(block_id)).target = Some(target);
         }
     }
 
-    /// Call a dynamic method with an explicit continuation.
+    /// Call a dynamic function with an explicit continuation.
     pub fn call_dynamic_branch(
         &mut self,
         receiver: Value,
@@ -303,11 +299,7 @@ impl<'a> FunctionBuilder<'a> {
             call: Call::new(arguments, signature),
         };
         if let Some(target) = target {
-            self.tree
-                .metadata
-                .effects
-                .call_mut(CallSite::Terminator(block_id))
-                .target = Some(target);
+            self.effects.call_mut(CallSite::Terminator(block_id)).target = Some(target);
         }
     }
 

@@ -1,33 +1,34 @@
-use destack_serde::Reflect;
 use std::num::NonZeroU32;
 
 use serde::{Deserialize, Serialize};
 
-/// Heap trace metadata for one runtime payload.
+use destack_serde::Reflect;
+
+/// Reference trace map for one value layout.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TraceMap {
-    /// Payload contains no heap references.
+    /// The payload contains no references.
     Empty,
-    /// Payload stores heap-reference words at fixed byte offsets.
+    /// The payload stores reference words at fixed byte offsets.
     Fixed {
         /// Byte offsets of encoded local heap references.
         local_offsets: Box<[u32]>,
         /// Byte offsets of encoded shared heap references.
         shared_offsets: Box<[u32]>,
     },
-    /// Payload stores one nested map at a byte offset.
+    /// The payload stores one nested map at a byte offset.
     Nested {
         /// The byte offset of the nested payload.
         byte_offset: u32,
         /// The nested trace map.
         map: Box<TraceMap>,
     },
-    /// Payload stores multiple nested maps.
+    /// The payload stores multiple nested maps.
     Composite {
         /// The nested trace maps.
         maps: Box<[TraceMap]>,
     },
-    /// Payload stores repeated elements with one nested trace map.
+    /// The payload stores repeated elements with one nested trace map.
     Repeated {
         /// The number of elements in the payload.
         count: u32,
@@ -36,7 +37,7 @@ pub enum TraceMap {
         /// The per-element trace map.
         element: Box<TraceMap>,
     },
-    /// Payload stores a tagged variant with variant-specific trace maps.
+    /// The payload stores a tagged variant with variant-specific trace maps.
     Tagged {
         /// The byte width of the variant tag.
         tag_bytes: u8,
@@ -51,12 +52,12 @@ impl TraceMap {
         Self::Empty
     }
 
-    /// Report whether this map can reach heap references.
+    /// Return whether this map can reach any heap reference.
     pub fn has_reference(&self) -> bool {
         self.has_local_reference() || self.has_shared_reference()
     }
 
-    /// Report whether this map can reach local heap references.
+    /// Return whether this map can reach local heap references.
     pub fn has_local_reference(&self) -> bool {
         match self {
             Self::Empty => false,
@@ -70,7 +71,7 @@ impl TraceMap {
         }
     }
 
-    /// Report whether this map can reach shared heap references.
+    /// Return whether this map can reach shared heap references.
     pub fn has_shared_reference(&self) -> bool {
         match self {
             Self::Empty => false,
@@ -84,7 +85,7 @@ impl TraceMap {
         }
     }
 
-    /// Report whether this map requires reading payload tags while scanning.
+    /// Return whether this map requires reading payload tags while scanning.
     pub fn has_tagged_reference(&self) -> bool {
         match self {
             Self::Empty | Self::Fixed { .. } => false,
@@ -109,7 +110,7 @@ pub struct TraceVariant {
     pub map: TraceMap,
 }
 
-/// Stable non-zero identifier for one heap trace map.
+/// Stable non-zero identifier for one trace map.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
@@ -137,7 +138,7 @@ impl TraceId {
     }
 }
 
-/// Shared table of heap trace maps for one lowered program.
+/// Shared trace map table for one MIR module or lowered program.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TraceTable {
     /// Trace maps indexed by TraceId.

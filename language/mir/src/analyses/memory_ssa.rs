@@ -4,8 +4,8 @@ use crate as mir;
 use smallvec::SmallVec;
 
 use crate::{
-    AliasAnalysis, Analysis, AnalysisId, ControlFlowGraph, DominatorTree, FunctionAnalyses,
-    FunctionAnalysis, MemoryRegion, NodeTable, ReferenceLocation, StorageRoot, TargetLayout,
+    AliasAnalysis, Analysis, AnalysisId, ControlFlowGraph, DominatorTree, FunctionAnalysis,
+    FunctionAnalysisCache, MemoryRegion, NodeTable, ReferenceLocation, StorageRoot, TargetLayout,
     TypeKey, ValueDefinitions, ValueTypes, collect_reachable_blocks, compute_dominance_frontiers,
 };
 
@@ -82,7 +82,7 @@ impl MemoryAccessQuery {
         }
     }
 
-    /// Create a query from a region with no alias metadata.
+    /// Create a query from a region with no alias tables.
     fn from_region(region: &MemoryRegion) -> Self {
         Self {
             region: region.clone(),
@@ -228,7 +228,7 @@ impl MemoryAccessEffect {
             is_volatile: false,
             is_barrier: true,
             region: MemoryRegion::Any {
-                spaces: mir::SpaceSet::ANY,
+                spaces: mir::StorageSet::ANY,
             },
         }
     }
@@ -236,7 +236,7 @@ impl MemoryAccessEffect {
 
 /// MemorySSA access node.
 #[derive(Debug, Clone)]
-pub enum MemoryAccess {
+pub enum MemoryNode {
     /// Pseudo access that dominates all memory operations.
     LiveOnEntry,
     /// Phi node merging memory states.
@@ -247,7 +247,7 @@ pub enum MemoryAccess {
     Use(MemoryUse),
 }
 
-impl MemoryAccess {
+impl MemoryNode {
     /// Return the memory effect payload for this access if available.
     pub fn effect(&self) -> Option<&MemoryAccessEffect> {
         match self {
@@ -266,8 +266,8 @@ impl MemoryAccess {
     /// Return the source operation for this access if available.
     pub fn source(&self) -> Option<MemoryAccessSource> {
         match self {
-            MemoryAccess::Def(def) => Some(def.source),
-            MemoryAccess::Use(use_access) => Some(use_access.source),
+            MemoryNode::Def(def) => Some(def.source),
+            MemoryNode::Use(use_access) => Some(use_access.source),
             _ => None,
         }
     }
@@ -427,7 +427,7 @@ impl MemoryUse {
 #[derive(Debug)]
 pub struct MemorySSA {
     /// All memory accesses indexed by id.
-    accesses: Vec<MemoryAccess>,
+    accesses: Vec<MemoryNode>,
     /// Memory phi nodes indexed by block id.
     block_phis: NodeTable<mir::Block, Option<MemoryAccessId>>,
     /// Memory accesses indexed by instruction id.
@@ -449,6 +449,8 @@ impl MemorySSA {
         domtree: &DominatorTree,
         definitions: &ValueDefinitions,
         value_types: &ValueTypes,
+        memory_table: &mir::MemoryTable,
+        effect_table: &mir::EffectTable,
         target_layout: TargetLayout,
     ) -> Self {
         // handle imported functions
@@ -457,7 +459,7 @@ impl MemorySSA {
             None => {
                 let live_on_entry = MemoryAccessId::from_index(0);
                 return Self {
-                    accesses: vec![MemoryAccess::LiveOnEntry],
+                    accesses: vec![MemoryNode::LiveOnEntry],
                     block_phis: NodeTable::new(),
                     instruction_access: NodeTable::new(),
                     terminator_access: NodeTable::new(),
@@ -468,8 +470,15 @@ impl MemorySSA {
         };
 
         // collect memory accesses and definition blocks
-        let mut access_collector =
-            MemoryAccessCollector::new(function, tree, definitions, value_types, target_layout);
+        let mut access_collector = MemoryAccessCollector::new(
+            function,
+            tree,
+            definitions,
+            value_types,
+            memory_table,
+            effect_table,
+            target_layout,
+        );
         let collected = access_collector.collect(entry);
 
         // compute dominance frontier for memory defs
@@ -485,14 +494,14 @@ impl MemorySSA {
 
         // create memory access table with live on entry
         let mut accesses = Vec::new();
-        accesses.push(MemoryAccess::LiveOnEntry);
+        accesses.push(MemoryNode::LiveOnEntry);
         let live_on_entry = MemoryAccessId::from_index(0);
 
         // create block phis
         let mut block_phis = NodeTable::from_nodes(function.blocks(), || None);
         for block in &phi_blocks {
             let phi_id = MemoryAccessId::from_index(accesses.len());
-            accesses.push(MemoryAccess::Phi(MemoryPhi {
+            accesses.push(MemoryNode::Phi(MemoryPhi {
                 block: *block,
                 incoming: Vec::new(),
             }));
@@ -520,7 +529,7 @@ impl MemorySSA {
                 let access_id = MemoryAccessId::from_index(accesses.len());
                 match access {
                     CollectedAccess::Use { source, effect } => {
-                        accesses.push(MemoryAccess::Use(MemoryUse {
+                        accesses.push(MemoryNode::Use(MemoryUse {
                             source: *source,
                             defining_access: None,
                             effect: effect.clone(),
@@ -535,7 +544,7 @@ impl MemorySSA {
                         }
                     }
                     CollectedAccess::Def { source, effect } => {
-                        accesses.push(MemoryAccess::Def(MemoryDef {
+                        accesses.push(MemoryNode::Def(MemoryDef {
                             source: *source,
                             defining_access: None,
                             effect: effect.clone(),
@@ -580,7 +589,7 @@ impl MemorySSA {
     }
 
     /// Return the access node for an id.
-    pub fn access(&self, id: MemoryAccessId) -> &MemoryAccess {
+    pub fn access(&self, id: MemoryAccessId) -> &MemoryNode {
         &self.accesses[id.index()]
     }
 
@@ -622,7 +631,7 @@ impl MemorySSA {
         accesses
             .iter()
             .copied()
-            .find(|access_id| matches!(self.access(*access_id), MemoryAccess::Use(_)))
+            .find(|access_id| matches!(self.access(*access_id), MemoryNode::Use(_)))
     }
 
     /// Return all memory accesses for a block terminator if present.
@@ -643,8 +652,8 @@ impl MemorySSA {
     pub fn defining_access(&self, id: MemoryAccessId) -> Option<MemoryAccessId> {
         // read the defining access for uses and defs
         match self.access(id) {
-            MemoryAccess::Def(def) => def.defining_access,
-            MemoryAccess::Use(use_access) => use_access.defining_access,
+            MemoryNode::Def(def) => def.defining_access,
+            MemoryNode::Use(use_access) => use_access.defining_access,
             _ => None,
         }
     }
@@ -656,7 +665,7 @@ impl MemorySSA {
         alias: &AliasAnalysis,
     ) -> MemoryAccessId {
         // read the memory use location
-        let MemoryAccess::Use(use_access_data) = self.access(use_access) else {
+        let MemoryNode::Use(use_access_data) = self.access(use_access) else {
             panic!("expected memory use access");
         };
 
@@ -681,7 +690,7 @@ impl MemorySSA {
         alias: &AliasAnalysis,
     ) -> MemoryAccessId {
         // read the memory def location
-        let MemoryAccess::Def(def_access_data) = self.access(def_access) else {
+        let MemoryNode::Def(def_access_data) = self.access(def_access) else {
             panic!("expected memory def access");
         };
 
@@ -728,7 +737,7 @@ impl MemorySSA {
         alias: &AliasAnalysis,
     ) -> bool {
         // only defs can clobber spaces
-        let MemoryAccess::Def(def_access) = self.access(def_access) else {
+        let MemoryNode::Def(def_access) = self.access(def_access) else {
             return false;
         };
 
@@ -743,14 +752,14 @@ impl MemorySSA {
         alias: &AliasAnalysis,
     ) -> bool {
         // only defs can clobber accesses
-        let MemoryAccess::Def(def_access) = self.access(def_access) else {
+        let MemoryNode::Def(def_access) = self.access(def_access) else {
             return false;
         };
 
         // fetch the target access effect
         let target_effect = match self.access(target_access) {
-            MemoryAccess::Use(use_access) => &use_access.effect,
-            MemoryAccess::Def(def_access) => &def_access.effect,
+            MemoryNode::Use(use_access) => &use_access.effect,
+            MemoryNode::Def(def_access) => &def_access.effect,
             _ => return false,
         };
 
@@ -783,16 +792,16 @@ impl MemorySSA {
 
         // resolve clobber based on access kind
         let result = match self.access(access_id) {
-            MemoryAccess::LiveOnEntry => access_id,
+            MemoryNode::LiveOnEntry => access_id,
 
-            MemoryAccess::Use(use_access) => {
+            MemoryNode::Use(use_access) => {
                 let defining_access = use_access
                     .defining_access
                     .expect("memory use missing defining access");
                 self.clobbering_access(defining_access, query, alias, cache, visiting)
             }
 
-            MemoryAccess::Def(def_access) => {
+            MemoryNode::Def(def_access) => {
                 if def_access.clobbers_query(query, alias) {
                     access_id
                 } else {
@@ -803,7 +812,7 @@ impl MemorySSA {
                 }
             }
 
-            MemoryAccess::Phi(phi) => {
+            MemoryNode::Phi(phi) => {
                 let mut incoming_clobber: Option<MemoryAccessId> = None;
 
                 for (_, incoming) in &phi.incoming {
@@ -834,7 +843,11 @@ impl Analysis for MemorySSA {
 }
 
 impl FunctionAnalysis for MemorySSA {
-    fn compute(function: &mir::Function, tree: &mir::Tree, analyses: &FunctionAnalyses) -> Self {
+    fn compute(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        analyses: &FunctionAnalysisCache,
+    ) -> Self {
         // read dependencies
         let cfg = analyses.get::<ControlFlowGraph>(function, tree);
         let domtree = analyses.get::<DominatorTree>(function, tree);
@@ -848,6 +861,8 @@ impl FunctionAnalysis for MemorySSA {
             &domtree,
             &definitions,
             &value_types,
+            analyses.memory(),
+            analyses.effects(),
             analyses.target_layout(),
         )
     }
@@ -890,6 +905,10 @@ struct MemoryAccessCollector<'a> {
     value_types: &'a ValueTypes,
     /// Value definitions for reference provenance.
     definitions: ValueDefinitions,
+    /// Explicit memory access table.
+    memory_table: &'a mir::MemoryTable,
+    /// Explicit effect table.
+    effect_table: &'a mir::EffectTable,
     /// Type key cache.
     type_keys: HashMap<mir::LocalNodeId<mir::Type>, TypeKey>,
     /// Type context for layout sensitive operations.
@@ -903,6 +922,8 @@ impl<'a> MemoryAccessCollector<'a> {
         tree: &'a mir::Tree,
         definitions: &ValueDefinitions,
         value_types: &'a ValueTypes,
+        memory_table: &'a mir::MemoryTable,
+        effect_table: &'a mir::EffectTable,
         target_layout: TargetLayout,
     ) -> Self {
         // build collector state
@@ -911,6 +932,8 @@ impl<'a> MemoryAccessCollector<'a> {
             tree,
             value_types,
             definitions: definitions.clone(),
+            memory_table,
+            effect_table,
             type_keys: HashMap::new(),
             target_layout,
         }
@@ -991,8 +1014,8 @@ impl<'a> MemoryAccessCollector<'a> {
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
     ) -> SmallVec<[MemoryAccessEffect; 2]> {
-        // use explicit metadata when present
-        if let Some(effects) = self.metadata_effects(instruction_id) {
+        // use explicit tables when present
+        if let Some(effects) = self.table_effects(instruction_id) {
             return effects;
         }
 
@@ -1070,7 +1093,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         access_type,
                         reference_kind,
                         reference_space,
-                        self.target_layout.pointer_width_bits,
+                        self.target_layout.pointer_bits(),
                     ),
                     false,
                 );
@@ -1090,7 +1113,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         access_type,
                         reference_kind,
                         reference_space,
-                        self.target_layout.pointer_width_bits,
+                        self.target_layout.pointer_bits(),
                     ),
                     false,
                 );
@@ -1111,7 +1134,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         target_access,
                         target_kind,
                         target_space,
-                        self.target_layout.pointer_width_bits,
+                        self.target_layout.pointer_bits(),
                     ),
                     false,
                 );
@@ -1127,7 +1150,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         source_access,
                         source_kind,
                         source_space,
-                        self.target_layout.pointer_width_bits,
+                        self.target_layout.pointer_bits(),
                     ),
                     false,
                 );
@@ -1148,7 +1171,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         access_type,
                         reference_kind,
                         reference_space,
-                        self.target_layout.pointer_width_bits,
+                        self.target_layout.pointer_bits(),
                     ),
                     false,
                 );
@@ -1167,7 +1190,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         access_type,
                         reference_kind,
                         reference_space,
-                        self.target_layout.pointer_width_bits,
+                        self.target_layout.pointer_bits(),
                     ),
                     false,
                 );
@@ -1186,7 +1209,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         access_type,
                         reference_kind,
                         reference_space,
-                        self.target_layout.pointer_width_bits,
+                        self.target_layout.pointer_bits(),
                     ),
                     true,
                 );
@@ -1205,7 +1228,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         access_type,
                         reference_kind,
                         reference_space,
-                        self.target_layout.pointer_width_bits,
+                        self.target_layout.pointer_bits(),
                     ),
                     true,
                 );
@@ -1225,7 +1248,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         access_type,
                         reference_kind,
                         reference_space,
-                        self.target_layout.pointer_width_bits,
+                        self.target_layout.pointer_bits(),
                     ),
                     true,
                 );
@@ -1235,9 +1258,12 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Instruction::AtomicFence { .. } => {
                 Self::single_effect(MemoryAccessEffect::barrier())
             }
-            mir::Instruction::BarrierWrite { .. } => Self::single_effect(
-                MemoryAccessEffect::read_write(MemoryRegion::any_spaces(mir::SpaceSet::ANY), false),
-            ),
+            mir::Instruction::BarrierWrite { .. } => {
+                Self::single_effect(MemoryAccessEffect::read_write(
+                    MemoryRegion::any_spaces(mir::StorageSet::ANY),
+                    false,
+                ))
+            }
             mir::Instruction::LocalGet { local, .. } => {
                 let mut effect = MemoryAccessEffect::read(MemoryRegion::Local(*local), false);
                 self.apply_local_region(&mut effect);
@@ -1263,9 +1289,12 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. }
             | mir::Instruction::FrameAllocZeroed { .. }
-            | mir::Instruction::FrameAllocUninit { .. } => Self::single_effect(
-                MemoryAccessEffect::read_write(MemoryRegion::any_spaces(mir::SpaceSet::ANY), false),
-            ),
+            | mir::Instruction::FrameAllocUninit { .. } => {
+                Self::single_effect(MemoryAccessEffect::read_write(
+                    MemoryRegion::any_spaces(mir::StorageSet::ANY),
+                    false,
+                ))
+            }
             mir::Instruction::Intrinsic {
                 intrinsic,
                 arguments,
@@ -1296,9 +1325,12 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Terminator::NewZeroedTry { .. }
             | mir::Terminator::NewUninitTry { .. }
             | mir::Terminator::NewSliceZeroedTry { .. }
-            | mir::Terminator::NewSliceUninitTry { .. } => Self::single_effect(
-                MemoryAccessEffect::read_write(MemoryRegion::any_spaces(mir::SpaceSet::ANY), false),
-            ),
+            | mir::Terminator::NewSliceUninitTry { .. } => {
+                Self::single_effect(MemoryAccessEffect::read_write(
+                    MemoryRegion::any_spaces(mir::StorageSet::ANY),
+                    false,
+                ))
+            }
 
             mir::Terminator::Error => {
                 panic!("invalid MIR terminator reached MemorySSA");
@@ -1317,28 +1349,28 @@ impl<'a> MemoryAccessCollector<'a> {
         }
     }
 
-    /// Convert explicit memory metadata into access effects.
-    fn metadata_effects(
+    /// Convert explicit memory tables into access effects.
+    fn table_effects(
         &mut self,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
     ) -> Option<SmallVec<[MemoryAccessEffect; 2]>> {
-        // read metadata when present
-        let accesses = self.tree.metadata.memory.memory_accesses(instruction_id)?;
+        // read tables when present
+        let accesses = self.memory_table.memory_accesses(instruction_id)?;
 
-        // build effect list from metadata
+        // build effect list from tables
         let mut effects = SmallVec::new();
         for access in accesses {
-            effects.push(self.effect_from_metadata(access));
+            effects.push(self.effect_from_entry(access));
         }
 
         Some(effects)
     }
 
-    /// Map a memory access metadata entry to a MemorySSA effect.
-    fn effect_from_metadata(&mut self, access: &mir::MemoryAccessMetadata) -> MemoryAccessEffect {
+    /// Map one memory access to a MemorySSA effect.
+    fn effect_from_entry(&mut self, access: &mir::MemoryAccess) -> MemoryAccessEffect {
         // resolve the target region
         let region = match access.target {
-            mir::MemoryAccessTarget::Reference(pointer) => {
+            mir::MemoryTarget::Reference(pointer) => {
                 let access_type = self.reference_location_type(pointer);
                 let reference_kind = self.reference_kind(pointer);
                 let reference_space = self.reference_space(pointer);
@@ -1347,96 +1379,60 @@ impl<'a> MemoryAccessCollector<'a> {
                     access_type,
                     reference_kind,
                     reference_space,
-                    access.size,
-                    self.target_layout.pointer_width_bits,
+                    access.byte_len,
+                    self.target_layout.pointer_bits(),
                 )
             }
-            mir::MemoryAccessTarget::Local(local) => MemoryRegion::Local(local),
-            mir::MemoryAccessTarget::Global(global) => {
+            mir::MemoryTarget::Local(local) => MemoryRegion::Local(local),
+            mir::MemoryTarget::Global(global) => {
                 MemoryRegion::any_spaces(self.tree.get(global).space.space_set())
             }
-            mir::MemoryAccessTarget::Unknown => MemoryRegion::any_spaces(mir::SpaceSet::ANY),
         };
 
-        // map the access kind to an effect
-        let mut effect = match access.kind {
-            mir::MemoryAccessKind::Read => MemoryAccessEffect::read(region, access.is_volatile),
-            mir::MemoryAccessKind::Write => MemoryAccessEffect::write(region, access.is_volatile),
-            mir::MemoryAccessKind::ReadWrite | mir::MemoryAccessKind::ReadModifyWrite => {
-                MemoryAccessEffect::read_write(region, access.is_volatile)
-            }
-            mir::MemoryAccessKind::PrefetchRead | mir::MemoryAccessKind::PrefetchWrite => {
-                MemoryAccessEffect::read(region, access.is_volatile)
-            }
-            mir::MemoryAccessKind::Fence => {
-                let mut effect = MemoryAccessEffect::barrier();
-                effect.is_volatile = access.is_volatile;
-                effect
-            }
+        // map the access operation to an effect
+        let is_volatile = access.requires_exact_position();
+        let mut effect = match access.operation {
+            mir::MemoryOperation::Read => MemoryAccessEffect::read(region, is_volatile),
+            mir::MemoryOperation::Write => MemoryAccessEffect::write(region, is_volatile),
+            mir::MemoryOperation::ReadWrite => MemoryAccessEffect::read_write(region, is_volatile),
         };
 
-        // ordered accesses act like volatile for optimization purposes
-        if access.ordering.is_some() {
-            effect.is_volatile = true;
-        }
-
-        // flags and scopes imply atomic behavior
-        if access.flags.is_some() || access.scope.is_some() || access.memory_scope.is_some() {
-            effect.is_volatile = true;
-        }
-
-        // availability and visibility flags block reordering
-        if let Some(flags) = access.flags
-            && (flags.makes_available || flags.makes_visible)
-        {
-            effect.is_barrier = true;
-        }
-
-        // apply region metadata
-        let spaces = self.metadata_space_set(access, &effect.region);
+        // apply target storage
+        let spaces = self.entry_space_set(access);
         effect.region.set_spaces(spaces);
         effect
     }
 
-    /// Apply reference region metadata to an effect.
+    /// Apply reference region tables to an effect.
     fn apply_reference_region(&mut self, effect: &mut MemoryAccessEffect, reference: mir::Value) {
         let spaces = self.reference_space_set(reference);
         effect.region.set_spaces(spaces);
     }
 
-    /// Apply local region metadata to an effect.
+    /// Apply local region tables to an effect.
     fn apply_local_region(&mut self, effect: &mut MemoryAccessEffect) {
-        effect.region.set_spaces(mir::SpaceSet::FRAME);
+        effect.region.set_spaces(mir::StorageSet::FRAME);
     }
 
-    /// Resolve region metadata from an access description.
-    fn metadata_space_set(
-        &mut self,
-        access: &mir::MemoryAccessMetadata,
-        region: &MemoryRegion,
-    ) -> mir::SpaceSet {
-        if let Some(space) = access.space.clone() {
-            return space.space_set();
-        }
-
+    /// Resolve storage from an access target.
+    fn entry_space_set(&mut self, access: &mir::MemoryAccess) -> mir::StorageSet {
         match access.target {
-            mir::MemoryAccessTarget::Local(_) => mir::SpaceSet::FRAME,
-            mir::MemoryAccessTarget::Global(global) => self.tree.get(global).space.space_set(),
-            mir::MemoryAccessTarget::Reference(pointer) => self.reference_space_set(pointer),
-            mir::MemoryAccessTarget::Unknown => region.spaces(),
+            mir::MemoryTarget::Local(_) => mir::StorageSet::FRAME,
+            mir::MemoryTarget::Global(global) => self.tree.get(global).space.space_set(),
+            mir::MemoryTarget::Reference(pointer) => self.reference_space_set(pointer),
         }
     }
 
     /// Resolve the region set for a reference value.
-    fn reference_space_set(&mut self, reference: mir::Value) -> mir::SpaceSet {
+    fn reference_space_set(&mut self, reference: mir::Value) -> mir::StorageSet {
         let Some(space) = self.value_types.reference_space(reference, self.tree) else {
-            return mir::SpaceSet::ANY;
+            return mir::StorageSet::ANY;
         };
 
         space.space_set()
     }
 
-    /// Determine memory effects for a call instruction using metadata.
+    /// Determine memory effects for a call instruction using tables.
     fn call_effects(
         &mut self,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
@@ -1448,22 +1444,22 @@ impl<'a> MemoryAccessCollector<'a> {
         )
     }
 
-    /// Determine memory effects for a callsite using metadata.
+    /// Determine memory effects for a callsite using tables.
     fn callsite_effects(
         &self,
         callsite: mir::CallSite,
         direct_target: Option<mir::LocalNodeId<mir::Function>>,
     ) -> SmallVec<[MemoryAccessEffect; 2]> {
-        // use callsite or callee metadata for memory effects
-        let call_metadata = self.tree.metadata.effects.call(callsite);
-        let mut memory_effects = call_metadata
-            .map(|metadata| metadata.memory.clone())
+        // use callsite or callee tables for memory effects
+        let call_entries = self.effect_table.call(callsite);
+        let mut memory_effects = call_entries
+            .map(|tables| tables.memory.clone())
             .or_else(|| self.callee_memory_effects(direct_target));
 
-        // treat missing metadata as fully unknown
+        // treat missing tables as fully unknown
         let Some(effects) = memory_effects.take() else {
             return Self::single_effect(MemoryAccessEffect::read_write(
-                MemoryRegion::any_spaces(mir::SpaceSet::ANY),
+                MemoryRegion::any_spaces(mir::StorageSet::ANY),
                 false,
             ));
         };
@@ -1473,8 +1469,8 @@ impl<'a> MemoryAccessCollector<'a> {
             return SmallVec::new();
         }
 
-        // empty spaces do not touch program memory
-        if effects.spaces().is_empty() {
+        // empty storage does not touch program memory
+        if effects.storage().is_empty() {
             return SmallVec::new();
         }
 
@@ -1518,13 +1514,11 @@ impl<'a> MemoryAccessCollector<'a> {
         &self,
         function: Option<mir::LocalNodeId<mir::Function>>,
     ) -> Option<mir::MemoryEffect> {
-        // only direct calls have callee metadata
+        // only direct calls have callee tables
         let function = function?;
-        self.tree
-            .metadata
-            .effects
+        self.effect_table
             .function(function)
-            .map(|metadata| metadata.memory.clone())
+            .map(|tables| tables.memory.clone())
     }
 
     /// Determine memory effects for an intrinsic.
@@ -1593,7 +1587,7 @@ impl<'a> MemoryAccessCollector<'a> {
                                 src_kind,
                                 src_space,
                                 size,
-                                self.target_layout.pointer_width_bits,
+                                self.target_layout.pointer_bits(),
                             ),
                             false,
                         );
@@ -1607,7 +1601,7 @@ impl<'a> MemoryAccessCollector<'a> {
                                 dst_kind,
                                 dst_space,
                                 size,
-                                self.target_layout.pointer_width_bits,
+                                self.target_layout.pointer_bits(),
                             ),
                             false,
                         );
@@ -1615,7 +1609,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         effects.push(write_effect);
                     }
                     _ => effects.push(MemoryAccessEffect::read_write(
-                        MemoryRegion::any_spaces(mir::SpaceSet::ANY),
+                        MemoryRegion::any_spaces(mir::StorageSet::ANY),
                         false,
                     )),
                 }
@@ -1642,7 +1636,7 @@ impl<'a> MemoryAccessCollector<'a> {
                                 dst_kind,
                                 dst_space,
                                 size,
-                                self.target_layout.pointer_width_bits,
+                                self.target_layout.pointer_bits(),
                             ),
                             false,
                         );
@@ -1650,7 +1644,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         effects.push(effect);
                     }
                     None => effects.push(MemoryAccessEffect::write(
-                        MemoryRegion::any_spaces(mir::SpaceSet::ANY),
+                        MemoryRegion::any_spaces(mir::StorageSet::ANY),
                         false,
                     )),
                 }
@@ -1681,7 +1675,7 @@ impl<'a> MemoryAccessCollector<'a> {
                                 left_kind,
                                 left_space,
                                 size,
-                                self.target_layout.pointer_width_bits,
+                                self.target_layout.pointer_bits(),
                             ),
                             false,
                         );
@@ -1695,7 +1689,7 @@ impl<'a> MemoryAccessCollector<'a> {
                                 right_kind,
                                 right_space,
                                 size,
-                                self.target_layout.pointer_width_bits,
+                                self.target_layout.pointer_bits(),
                             ),
                             false,
                         );
@@ -1703,7 +1697,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         effects.push(right_effect);
                     }
                     _ => effects.push(MemoryAccessEffect::read(
-                        MemoryRegion::any_spaces(mir::SpaceSet::ANY),
+                        MemoryRegion::any_spaces(mir::StorageSet::ANY),
                         false,
                     )),
                 }
@@ -1728,7 +1722,7 @@ impl<'a> MemoryAccessCollector<'a> {
                                 access_type,
                                 reference_kind,
                                 reference_space,
-                                self.target_layout.pointer_width_bits,
+                                self.target_layout.pointer_bits(),
                             ),
                             false,
                         );
@@ -1736,7 +1730,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         effects.push(effect);
                     }
                     None => effects.push(MemoryAccessEffect::read(
-                        MemoryRegion::any_spaces(mir::SpaceSet::ANY),
+                        MemoryRegion::any_spaces(mir::StorageSet::ANY),
                         false,
                     )),
                 }
@@ -1925,10 +1919,10 @@ impl<'a> MemoryRenamer<'a> {
             let current = *stack.last().expect("missing memory definition");
 
             match ssa.accesses.get_mut(access_id.index()) {
-                Some(MemoryAccess::Use(use_access)) => {
+                Some(MemoryNode::Use(use_access)) => {
                     use_access.defining_access = Some(current);
                 }
-                Some(MemoryAccess::Def(def_access)) => {
+                Some(MemoryNode::Def(def_access)) => {
                     def_access.defining_access = Some(current);
                     stack.push(access_id);
                     pushed += 1;
@@ -1942,7 +1936,7 @@ impl<'a> MemoryRenamer<'a> {
         let terminator = self.tree.get(block_data.terminator);
         for successor in terminator.successors(self.tree) {
             if let Some(phi_id) = *ssa.block_phis.get(successor)
-                && let Some(MemoryAccess::Phi(phi)) = ssa.accesses.get_mut(phi_id.index())
+                && let Some(MemoryNode::Phi(phi)) = ssa.accesses.get_mut(phi_id.index())
             {
                 let incoming = *stack.last().expect("missing memory definition");
                 phi.incoming.push((block, incoming));
@@ -2014,9 +2008,9 @@ mod tests {
     fn access_effect(memory_ssa: &MemorySSA, access_id: MemoryAccessId) -> MemoryAccessEffect {
         // unwrap use or def payloads
         match memory_ssa.access(access_id) {
-            MemoryAccess::Use(use_access) => use_access.effect.clone(),
-            MemoryAccess::Def(def_access) => def_access.effect.clone(),
-            MemoryAccess::Phi(_) | MemoryAccess::LiveOnEntry => {
+            MemoryNode::Use(use_access) => use_access.effect.clone(),
+            MemoryNode::Def(def_access) => def_access.effect.clone(),
+            MemoryNode::Phi(_) | MemoryNode::LiveOnEntry => {
                 panic!("expected effectful access")
             }
         }
@@ -2081,7 +2075,7 @@ entry(v0: ref<int32, raw, mutable>):
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 
@@ -2135,7 +2129,7 @@ b3:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 
@@ -2153,7 +2147,7 @@ b3:
         assert_eq!(memory_ssa.defining_access(load_access), Some(phi_id));
 
         // phi should have incoming for both predecessors
-        let MemoryAccess::Phi(phi) = memory_ssa.access(phi_id) else {
+        let MemoryNode::Phi(phi) = memory_ssa.access(phi_id) else {
             panic!("expected memory phi");
         };
 
@@ -2181,7 +2175,7 @@ entry:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let alias = analyses.get::<AliasAnalysis>(function, &test.tree);
 
@@ -2202,118 +2196,9 @@ entry:
         assert_eq!(clobber, store_access);
     }
 
-    /// Memory metadata marks scoped effects as volatile barriers.
+    /// MemorySSA respects explicit tables over instruction semantics.
     #[test]
-    fn test_memory_ssa_metadata_marks_effects() {
-        let mut test = TestProgram::new(
-            r#"
-function test(): int32 {
-entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = load v0
-    return v1
-}
-"#,
-        );
-
-        let function_id = test.first_function_id();
-        let instructions = test.entry_instructions(function_id);
-        let load_inst = instructions[1];
-
-        let flags = mir::MemoryFlags::with_flags(mir::SpaceSet::ANY, true, false);
-        let access = mir::MemoryAccessMetadata {
-            kind: mir::MemoryAccessKind::Read,
-            target: mir::MemoryAccessTarget::Reference(mir::Value::new(0)),
-            size: Some(4),
-            alignment: None,
-            is_volatile: false,
-            is_load_invariant: false,
-            ordering: None,
-            scope: Some(mir::SyncScope::Device),
-            memory_scope: Some(mir::MemoryScope::Device),
-            flags: Some(flags),
-            space: Some(mir::Space::Frame),
-        };
-        test.insert_memory_accesses(load_inst, vec![access]);
-
-        let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
-
-        let access_id = memory_ssa
-            .instruction_access(load_inst)
-            .expect("missing load access");
-        let effect = access_effect(memory_ssa.as_ref(), access_id);
-        assert!(effect.is_volatile);
-        assert!(effect.is_barrier);
-    }
-
-    /// Backing spaces can disambiguate memory accesses.
-    #[test]
-    fn test_memory_ssa_space_disambiguate() {
-        let mut test = TestProgram::new(
-            r#"
-function test(v0: ref<int32, raw, mutable>): int32 {
-entry(v0: ref<int32, raw, mutable>):
-    v1: int32 = 1
-    store v0, v1
-    v2: int32 = load v0
-    return v2
-}
-"#,
-        );
-
-        let function_id = test.first_function_id();
-        let instructions = test.entry_instructions(function_id);
-        let store_inst = instructions[1];
-        let load_inst = instructions[2];
-
-        let store_access = mir::MemoryAccessMetadata {
-            kind: mir::MemoryAccessKind::Write,
-            target: mir::MemoryAccessTarget::Reference(mir::Value::new(0)),
-            size: Some(4),
-            alignment: None,
-            is_volatile: false,
-            is_load_invariant: false,
-            ordering: None,
-            scope: None,
-            memory_scope: None,
-            flags: None,
-            space: Some(mir::Space::Frame),
-        };
-        let load_access = mir::MemoryAccessMetadata {
-            kind: mir::MemoryAccessKind::Read,
-            target: mir::MemoryAccessTarget::Reference(mir::Value::new(0)),
-            size: Some(4),
-            alignment: None,
-            is_volatile: false,
-            is_load_invariant: false,
-            ordering: None,
-            scope: None,
-            memory_scope: None,
-            flags: None,
-            space: Some(mir::Space::Static),
-        };
-
-        test.insert_memory_accesses(store_inst, vec![store_access]);
-        test.insert_memory_accesses(load_inst, vec![load_access]);
-
-        let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
-        let alias = analyses.get::<AliasAnalysis>(function, &test.tree);
-
-        let load_access = memory_ssa
-            .instruction_access(load_inst)
-            .expect("missing load access");
-
-        let clobber = memory_ssa.clobbering_use(load_access, &alias);
-        assert_eq!(clobber, memory_ssa.live_on_entry());
-    }
-
-    /// MemorySSA respects explicit metadata over instruction semantics.
-    #[test]
-    fn test_memory_ssa_metadata_overrides_instruction() {
+    fn test_memory_ssa_entries_overrides_instruction() {
         // input test
         let mut test = TestProgram::new(
             r#"
@@ -2337,17 +2222,17 @@ entry:
         let store_v1 = instructions[5];
         let load_v0 = instructions[6];
 
-        // attach metadata that retargets the load to v1
+        // attach tables that retargets the load to v1
         test.insert_reference_location(
             load_v0,
-            mir::MemoryAccessKind::Read,
+            mir::MemoryOperation::Read,
             mir::Value::new(1),
             Some(4),
         );
 
         // build analyses
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let alias = analyses.get::<AliasAnalysis>(function, &test.tree);
 
@@ -2359,7 +2244,7 @@ entry:
             .instruction_access(store_v1)
             .expect("missing store access");
 
-        // clobber should follow the metadata target
+        // clobber should follow the tables target
         let clobber = memory_ssa.clobbering_use(load_access, &alias);
         assert_eq!(clobber, store_access);
     }
@@ -2383,7 +2268,7 @@ entry:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
 
         // locate local access
@@ -2422,7 +2307,7 @@ entry:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let alias = analyses.get::<AliasAnalysis>(function, &test.tree);
 
@@ -2457,7 +2342,7 @@ entry(v0: ref<int32, unique, mutable>):
         let free_inst = instructions[0];
 
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 
@@ -2493,7 +2378,7 @@ entry:
         let alloc_inst = instructions[0];
 
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 
@@ -2526,7 +2411,7 @@ entry:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 
@@ -2582,7 +2467,7 @@ entry:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 
@@ -2622,10 +2507,10 @@ entry:
         let volatile_load = block.instructions[1];
         let volatile_store = block.instructions[2];
 
-        // attach volatile memory access metadata
+        // attach volatile memory access entries
         test.insert_reference_location_with_options(
             volatile_load,
-            mir::MemoryAccessKind::Read,
+            mir::MemoryOperation::Read,
             mir::Value::new(0),
             Some(4),
             true,
@@ -2633,7 +2518,7 @@ entry:
         );
         test.insert_reference_location_with_options(
             volatile_store,
-            mir::MemoryAccessKind::Write,
+            mir::MemoryOperation::Write,
             mir::Value::new(0),
             Some(4),
             true,
@@ -2641,7 +2526,7 @@ entry:
         );
 
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 
@@ -2677,7 +2562,7 @@ entry:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 
@@ -2706,7 +2591,7 @@ entry:
             r#"
 function test(): int32 {
 entry:
-    atomic.fence sequentiallyConsistent, scope(device), memory(device)
+    atomic.fence sequentiallyConsistent, scope(device), storage(device)
     v0: int32 = 0
     return v0
 }
@@ -2715,7 +2600,7 @@ entry:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 
@@ -2731,7 +2616,7 @@ entry:
         assert!(matches!(fence_effect.region, MemoryRegion::Any { .. }));
     }
 
-    /// Calls without precise metadata are modeled as read and write effects over any memory.
+    /// Calls without precise tables are modeled as read and write effects over any memory.
     #[test]
     fn test_memory_ssa_call_is_any_def() {
         let test = TestProgram::new(
@@ -2755,7 +2640,7 @@ entry(v0: ref<int32, raw, mutable>):
             .expect("missing function")
             .0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 
@@ -2792,7 +2677,7 @@ b1:
 
         let function_id = test.entry_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 
@@ -2814,7 +2699,7 @@ b1:
         );
     }
 
-    /// Call metadata no memory suppresses memory accesses.
+    /// Call tables no memory suppresses memory accesses.
     #[test]
     fn test_memory_ssa_skips_no_memory_call() {
         let mut test = TestProgram::new(
@@ -2833,10 +2718,10 @@ entry(v0: ref<int32, raw, mutable>):
         let function_id = test.entry_function_id();
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
         let callsite = mir::CallSite::Instruction(call_inst);
-        test.tree.metadata.effects.call_mut(callsite).memory = mir::MemoryEffect::none();
+        test.effects.call_mut(callsite).memory = mir::MemoryEffect::none();
 
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
 
         assert!(
@@ -2845,9 +2730,9 @@ entry(v0: ref<int32, raw, mutable>):
         );
     }
 
-    /// Memory access metadata overrides default instruction effects.
+    /// Memory access entries overrides default instruction effects.
     #[test]
-    fn test_memory_ssa_access_metadata_override() {
+    fn test_memory_ssa_access_entries_override() {
         // build the test test
         let mut test = TestProgram::new(
             r#"
@@ -2874,40 +2759,26 @@ entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
         };
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
-        // build explicit access metadata
-        let read_access = mir::MemoryAccessMetadata {
-            kind: mir::MemoryAccessKind::Read,
-            target: mir::MemoryAccessTarget::Reference(param_values[0]),
-            size: Some(4),
-            alignment: None,
-            is_volatile: false,
-            is_load_invariant: false,
-            ordering: None,
-            scope: None,
-            memory_scope: None,
-            flags: None,
-            space: None,
-        };
-        let write_access = mir::MemoryAccessMetadata {
-            kind: mir::MemoryAccessKind::Write,
-            target: mir::MemoryAccessTarget::Reference(param_values[1]),
-            size: Some(4),
-            alignment: None,
-            is_volatile: false,
-            is_load_invariant: false,
-            ordering: None,
-            scope: None,
-            memory_scope: None,
-            flags: None,
-            space: None,
-        };
+        // build explicit access entries
+        let read_access = mir::MemoryAccess::plain(
+            mir::MemoryOperation::Read,
+            mir::MemoryTarget::Reference(param_values[0]),
+            Some(4),
+            None,
+        );
+        let write_access = mir::MemoryAccess::plain(
+            mir::MemoryOperation::Write,
+            mir::MemoryTarget::Reference(param_values[1]),
+            Some(4),
+            None,
+        );
 
-        // attach memory access metadata to the call
+        // attach memory access entries to the call
         test.insert_memory_accesses(call_inst, vec![read_access, write_access]);
 
         // build analyses
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 
@@ -2968,7 +2839,7 @@ b3:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 
@@ -2978,7 +2849,7 @@ b3:
             .block_phi(header_block)
             .expect("missing loop header phi");
 
-        let MemoryAccess::Phi(phi) = memory_ssa.access(phi_id) else {
+        let MemoryNode::Phi(phi) = memory_ssa.access(phi_id) else {
             panic!("expected memory phi");
         };
 
@@ -3010,7 +2881,7 @@ b1:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 

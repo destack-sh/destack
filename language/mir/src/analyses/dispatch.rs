@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate as mir;
 
 use super::{
-    Analysis, AnalysisId, ModuleAnalyses, ModuleAnalysis, Mutation, OpenCallSite, ValueTypes,
+    Analysis, AnalysisId, ModuleAnalysis, Mutation, OpenCallSite, TreeAnalysisCache, ValueTypes,
 };
 
 /// Static dispatch target analysis for MIR callsites.
@@ -27,7 +27,7 @@ impl DispatchAnalysis {
     }
 
     /// Build dispatch analysis for one MIR tree.
-    fn build(tree: &mir::Tree, analyses: &ModuleAnalyses) -> Self {
+    fn build(tree: &mir::Tree, analyses: &TreeAnalysisCache) -> Self {
         let mut analysis = Self::default();
 
         // scan each function body
@@ -36,6 +36,7 @@ impl DispatchAnalysis {
                 let value_types = analyses.get_function::<ValueTypes>(function_id, tree);
                 let mut resolver = DispatchResolver {
                     tree,
+                    dispatch: analyses.dispatch(),
                     function,
                     value_types: &value_types,
                     analysis: &mut analysis,
@@ -66,7 +67,7 @@ impl Analysis for DispatchAnalysis {
 
 impl ModuleAnalysis for DispatchAnalysis {
     /// Compute static dispatch targets for the module.
-    fn compute(tree: &mir::Tree, analyses: &ModuleAnalyses) -> Self {
+    fn compute(tree: &mir::Tree, analyses: &TreeAnalysisCache) -> Self {
         Self::build(tree, analyses)
     }
 }
@@ -75,6 +76,8 @@ impl ModuleAnalysis for DispatchAnalysis {
 struct DispatchResolver<'a, 'b> {
     /// The MIR tree being analyzed.
     tree: &'a mir::Tree,
+    /// Dispatch table being analyzed.
+    dispatch: &'a mir::DispatchTable,
     /// The function being scanned.
     function: &'a mir::Function,
     /// Value types for the function.
@@ -252,15 +255,11 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
             return None;
         }
 
-        let entry = self
-            .tree
-            .type_virtual_table(receiver_type)?
-            .entries
-            .get(slot.index())?;
-        match entry {
-            mir::VirtualEntry::Method { function } => Some(*function),
-            _ => None,
-        }
+        self.dispatch
+            .virtual_table(receiver_type)?
+            .methods
+            .get(slot.index())
+            .copied()
     }
 
     /// Resolve a dynamic dispatch target.
@@ -272,17 +271,14 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
     ) -> Option<mir::FunctionId> {
         let concrete = self.receiver_type(receiver)?;
         let entry = self
-            .tree
-            .type_dynamic_table(concrete, constraint)?
+            .dispatch
+            .dynamic_table(concrete, constraint)?
             .entries
             .get(slot.index())?;
 
         match entry {
-            mir::DynamicEntry::Getter { function }
-            | mir::DynamicEntry::Setter { function }
-            | mir::DynamicEntry::Method { function }
-            | mir::DynamicEntry::Call { function } => Some(*function),
-            mir::DynamicEntry::Field { .. } => None,
+            mir::DynamicEntry::Function { function } => Some(*function),
+            mir::DynamicEntry::FieldOffset { .. } => None,
         }
     }
 
@@ -301,8 +297,8 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
 mod tests {
     use crate as mir;
 
+    use crate::DispatchAnalysis;
     use crate::analyses::tests::TestProgram;
-    use crate::{DispatchAnalysis, ModuleAnalyses};
 
     /// Virtual calls resolve when receiver type and virtual table are closed.
     #[test]
@@ -316,7 +312,7 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call.virtual v0, int32, 2(v0): (int32) => int32
+    v1: int32 = call.virtual v0, int32, 0(v0): (int32) => int32
     return v1
 }
 "#,
@@ -327,30 +323,22 @@ entry(v0: int32):
         let (callsite, class) = first_virtual_call(&program, test);
 
         // attach the exact virtual table needed by the callsite
-        program
-            .tree
-            .metadata
-            .dispatch
-            .insert_virtual_table(mir::VirtualTable {
-                ty: class,
-                global: mir::LocalNodeId::new(0),
-                entries: vec![
-                    mir::VirtualEntry::TypeDescriptor,
-                    mir::VirtualEntry::Destructor { function: None },
-                    mir::VirtualEntry::Method { function: callee },
-                ],
-            });
+        program.dispatch.insert_virtual_table(mir::VirtualTable {
+            ty: class,
+            destructor: None,
+            methods: vec![callee],
+        });
 
-        let analyses = ModuleAnalyses::new();
+        let analyses = program.tree_analysis_cache();
         let dispatch = analyses.get::<DispatchAnalysis>(&program.tree);
 
         assert_eq!(dispatch.target(callsite), Some(callee));
         assert!(dispatch.open_callsites().is_empty());
     }
 
-    /// Virtual calls do not resolve against non-method prefix slots.
+    /// Virtual calls do not resolve when the slot is outside the method table.
     #[test]
-    fn test_dispatch_keeps_virtual_prefix_slot_open() {
+    fn test_dispatch_keeps_missing_virtual_slot_open() {
         let mut program = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
@@ -370,22 +358,14 @@ entry(v0: int32):
         let test = program.function_id_by_name("test");
         let (callsite, class) = first_virtual_call(&program, test);
 
-        // attach a real virtual table prefix before the method slot
-        program
-            .tree
-            .metadata
-            .dispatch
-            .insert_virtual_table(mir::VirtualTable {
-                ty: class,
-                global: mir::LocalNodeId::new(0),
-                entries: vec![
-                    mir::VirtualEntry::TypeDescriptor,
-                    mir::VirtualEntry::Destructor { function: None },
-                    mir::VirtualEntry::Method { function: callee },
-                ],
-            });
+        // attach one method while the call targets another slot
+        program.dispatch.insert_virtual_table(mir::VirtualTable {
+            ty: class,
+            destructor: None,
+            methods: vec![callee],
+        });
 
-        let analyses = ModuleAnalyses::new();
+        let analyses = program.tree_analysis_cache();
         let dispatch = analyses.get::<DispatchAnalysis>(&program.tree);
 
         assert_eq!(dispatch.target(callsite), None);
@@ -415,18 +395,13 @@ entry(v0: int32):
         let (callsite, concrete, constraint) = first_dynamic_call(&program, test);
 
         // attach the concrete dynamic table selected by receiver and constraint
-        program
-            .tree
-            .metadata
-            .dispatch
-            .insert_dynamic_table(mir::DynamicTable {
-                concrete,
-                constraint,
-                global: mir::LocalNodeId::new(0),
-                entries: vec![mir::DynamicEntry::Method { function: callee }],
-            });
+        program.dispatch.insert_dynamic_table(mir::DynamicTable {
+            concrete,
+            constraint,
+            entries: vec![mir::DynamicEntry::Function { function: callee }],
+        });
 
-        let analyses = ModuleAnalyses::new();
+        let analyses = program.tree_analysis_cache();
         let dispatch = analyses.get::<DispatchAnalysis>(&program.tree);
 
         assert_eq!(dispatch.target(callsite), Some(callee));
@@ -450,18 +425,13 @@ entry(v0: int32):
         let (callsite, concrete, constraint) = first_dynamic_call(&program, test);
 
         // attach the dynamic table selected by receiver and constraint
-        program
-            .tree
-            .metadata
-            .dispatch
-            .insert_dynamic_table(mir::DynamicTable {
-                concrete,
-                constraint,
-                global: mir::LocalNodeId::new(0),
-                entries: vec![mir::DynamicEntry::Field { offset: 0 }],
-            });
+        program.dispatch.insert_dynamic_table(mir::DynamicTable {
+            concrete,
+            constraint,
+            entries: vec![mir::DynamicEntry::FieldOffset { offset: 0 }],
+        });
 
-        let analyses = ModuleAnalyses::new();
+        let analyses = program.tree_analysis_cache();
         let dispatch = analyses.get::<DispatchAnalysis>(&program.tree);
 
         assert_eq!(dispatch.target(callsite), None);
@@ -475,13 +445,13 @@ entry(v0: int32):
             r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call.virtual v0, int32, 2(v0): (int32) => int32
+    v1: int32 = call.virtual v0, int32, 0(v0): (int32) => int32
     return v1
 }
 "#,
         );
 
-        let analyses = ModuleAnalyses::new();
+        let analyses = program.tree_analysis_cache();
         let dispatch = analyses.get::<DispatchAnalysis>(&program.tree);
 
         assert!(

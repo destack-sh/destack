@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate as mir;
-use crate::{MemoryAccess, MemorySSA, terminator_substitute_uses};
+use crate::{MemoryNode, MemorySSA, terminator_substitute_uses};
 
 /// Clone one call payload with remapped arguments.
 fn clone_call_with_arguments<A: Clone>(call: &mir::Call<A>, arguments: A) -> mir::Call<A> {
@@ -383,9 +383,9 @@ pub fn instruction_is_read_only_access(
     for access_id in accesses {
         // read the access effect
         let effect = match memory_ssa.access(*access_id) {
-            MemoryAccess::Use(use_access) => &use_access.effect,
-            MemoryAccess::Def(def_access) => &def_access.effect,
-            MemoryAccess::Phi(_) | MemoryAccess::LiveOnEntry => continue,
+            MemoryNode::Use(use_access) => &use_access.effect,
+            MemoryNode::Def(def_access) => &def_access.effect,
+            MemoryNode::Phi(_) | MemoryNode::LiveOnEntry => continue,
         };
 
         // reject write or ordered accesses
@@ -404,7 +404,7 @@ pub fn instruction_is_read_only_access(
 pub fn instruction_allows_read_only_motion(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &mir::Instruction,
-    tree: &mir::Tree,
+    effects: &mir::EffectTable,
 ) -> bool {
     // accept non call instructions
     let is_call = matches!(
@@ -418,15 +418,15 @@ pub fn instruction_allows_read_only_motion(
         return true;
     }
 
-    // require call metadata to be present
+    // require call tables to be present
     let callsite = mir::CallSite::Instruction(instruction_id);
-    let Some(metadata) = tree.metadata.effects.call(callsite) else {
+    let Some(tables) = effects.call(callsite) else {
         return false;
     };
-    if metadata.behavior.must_not_duplicate
-        || metadata.behavior.return_behavior.is_no_return()
-        || metadata.behavior.allocates
-        || metadata.behavior.frees
+    if tables.behavior.must_not_duplicate
+        || tables.behavior.return_behavior.is_no_return()
+        || tables.behavior.allocates
+        || tables.behavior.frees
     {
         return false;
     }
@@ -1668,6 +1668,7 @@ pub fn substitute_values(
 pub fn apply_substitutions_in_function(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     substitutions: &HashMap<mir::Value, mir::Value>,
     to_remove: Option<&HashSet<mir::LocalNodeId<mir::Instruction>>>,
 ) -> bool {
@@ -1707,7 +1708,7 @@ pub fn apply_substitutions_in_function(
                     instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
                 if updated != instruction {
                     tree.set(instruction_id, updated);
-                    remap_instruction_memory_accesses(tree, instruction_id, substitutions);
+                    remap_instruction_memory_accesses(memory, instruction_id, substitutions);
                     changed = true;
                 }
             }
@@ -1815,9 +1816,10 @@ pub fn build_value_use_counts(
     counts
 }
 
-/// Clone instruction metadata while remapping value references.
-pub fn clone_instruction_metadata(
+/// Clone instruction tables while remapping value references.
+pub fn clone_instruction_tables(
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     original: mir::LocalNodeId<mir::Instruction>,
     cloned: mir::LocalNodeId<mir::Instruction>,
     value_map: &HashMap<mir::Value, mir::Value>,
@@ -1827,26 +1829,24 @@ pub fn clone_instruction_metadata(
         tree.set_source(cloned.id, source_id);
     }
 
-    // clone memory access metadata
-    if let Some(accesses) = tree.metadata.memory.memory_accesses(original) {
+    // clone memory access entries
+    if let Some(accesses) = memory.memory_accesses(original) {
         let mut cloned_accesses = accesses.to_vec();
         for access in &mut cloned_accesses {
-            if let mir::MemoryAccessTarget::Reference(value) = access.target
+            if let mir::MemoryTarget::Reference(value) = access.target
                 && let Some(&remapped) = value_map.get(&value)
             {
-                access.target = mir::MemoryAccessTarget::Reference(remapped);
+                access.target = mir::MemoryTarget::Reference(remapped);
             }
         }
 
-        tree.metadata
-            .memory
-            .insert_memory_accesses(cloned, cloned_accesses);
+        memory.insert_memory_accesses(cloned, cloned_accesses);
     }
 }
 
-/// Remap instruction memory access metadata in place using a substitution map.
+/// Remap instruction memory access entries in place using a substitution map.
 pub fn remap_instruction_memory_accesses(
-    tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     instruction: mir::LocalNodeId<mir::Instruction>,
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) {
@@ -1855,26 +1855,24 @@ pub fn remap_instruction_memory_accesses(
         return;
     }
 
-    // read existing memory access metadata
-    let Some(accesses) = tree.metadata.memory.memory_accesses(instruction) else {
+    // read existing memory access entries
+    let Some(accesses) = memory.memory_accesses(instruction) else {
         return;
     };
 
     let mut updated = accesses.to_vec();
     for access in &mut updated {
-        if let mir::MemoryAccessTarget::Reference(value) = access.target
+        if let mir::MemoryTarget::Reference(value) = access.target
             && let Some(&remapped) = substitutions.get(&value)
         {
-            access.target = mir::MemoryAccessTarget::Reference(remapped);
+            access.target = mir::MemoryTarget::Reference(remapped);
         }
     }
 
-    tree.metadata
-        .memory
-        .insert_memory_accesses(instruction, updated);
+    memory.insert_memory_accesses(instruction, updated);
 }
 
-/// Definition metadata for instructions.
+/// Definition tables for instructions.
 #[derive(Debug, Clone)]
 pub struct InstructionRef {
     /// The instruction that defines the value.
@@ -3616,17 +3614,14 @@ pub fn terminator_remap(
                     remap_value(left);
                     remap_value(right);
                 }
-                mir::CheckConstraint::Type { value, .. } => {
+                mir::CheckConstraint::IsType { value, .. } => {
                     remap_value(value);
                 }
                 mir::CheckConstraint::Variant { value, .. } => {
                     remap_value(value);
                 }
-                mir::CheckConstraint::ReceiverType { receiver, .. } => {
-                    remap_value(receiver);
-                }
-                mir::CheckConstraint::Implements { receiver, .. } => {
-                    remap_value(receiver);
+                mir::CheckConstraint::IsSubtype { value, .. } => {
+                    remap_value(value);
                 }
             }
         }

@@ -3,7 +3,7 @@ use std::collections::{HashMap, VecDeque};
 use crate as mir;
 
 use crate::{
-    Analysis, AnalysisId, ConstantLookup, EdgeArguments, FunctionAnalyses, FunctionAnalysis,
+    Analysis, AnalysisId, ConstantLookup, EdgeArguments, FunctionAnalysis, FunctionAnalysisCache,
     NodeTable, TargetLayout, fold_binary, fold_cast, fold_unary,
 };
 
@@ -177,12 +177,8 @@ impl ConstantPropagation {
                 *block_entry.get_mut(block_id) = Some(entry_state.clone());
 
                 // compute exit state
-                let exit_state = transfer_block(
-                    block_id,
-                    &entry_state,
-                    tree,
-                    target_layout.pointer_width_bits,
-                );
+                let exit_state =
+                    transfer_block(block_id, &entry_state, tree, target_layout.pointer_bits());
                 let exit_changed = block_exit
                     .get(block_id)
                     .as_ref()
@@ -275,7 +271,11 @@ impl Analysis for ConstantPropagation {
 }
 
 impl FunctionAnalysis for ConstantPropagation {
-    fn compute(function: &mir::Function, tree: &mir::Tree, analyses: &FunctionAnalyses) -> Self {
+    fn compute(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        analyses: &FunctionAnalysisCache,
+    ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>(function, tree);
         Self::build(function, tree, &cfg, analyses.target_layout())
     }
@@ -515,7 +515,7 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<ConstantPropagation>(function, &test.tree);
 
         let block0 = function.block(0);
@@ -543,7 +543,7 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<ConstantPropagation>(function, &test.tree);
 
         let block0 = function.block(0);
@@ -571,7 +571,7 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<ConstantPropagation>(function, &test.tree);
 
         let block0 = function.block(0);
@@ -598,7 +598,7 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<ConstantPropagation>(function, &test.tree);
 
         let block0 = function.block(0);
@@ -639,7 +639,7 @@ b3(v4: boolean):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<ConstantPropagation>(function, &test.tree);
 
         let block3 = function.block(3);
@@ -671,7 +671,7 @@ b2:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<ConstantPropagation>(function, &test.tree);
 
         let success = function.block(1);
@@ -707,7 +707,7 @@ b3(v5: boolean):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<ConstantPropagation>(function, &test.tree);
 
         let block3 = function.block(3);
@@ -736,7 +736,7 @@ b1(v3: boolean):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let analysis = analyses.get::<ConstantPropagation>(function, &test.tree);
 
         let block1 = function.block(1);

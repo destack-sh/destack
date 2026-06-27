@@ -22,7 +22,7 @@ impl AttributeIdentifier {
     }
 }
 
-/// A metadata attribute attached to a MIR node.
+/// A tables attribute attached to a MIR node.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct Attribute {
     /// The attribute name.

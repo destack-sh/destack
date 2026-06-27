@@ -3,12 +3,12 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate as mir;
 
 use crate::{
-    ControlFlowGraph, DominatorTree, MemoryAccess, MemoryAccessEffect, MemoryRegion, MemorySSA,
-    clone_instruction_metadata, instruction_is_borrow_address, instruction_is_read_only_access,
+    ControlFlowGraph, DominatorTree, MemoryAccessEffect, MemoryNode, MemoryRegion, MemorySSA,
+    clone_instruction_tables, instruction_is_borrow_address, instruction_is_read_only_access,
     instruction_is_speculatable, instruction_map,
 };
 
-/// Guard branch metadata for loop headers.
+/// Guard branch tables for loop headers.
 #[derive(Debug, Clone)]
 pub struct LoopGuardBranch {
     /// Exit block outside the loop.
@@ -212,6 +212,7 @@ pub fn control_instructions_for_latch(
 pub fn collect_loop_effects(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::Tree,
+    memory: &mir::MemoryTable,
     memory_ssa: &MemorySSA,
     policy: LoopEffectPolicy,
 ) -> Option<Vec<MemoryAccessEffect>> {
@@ -222,7 +223,7 @@ pub fn collect_loop_effects(
         let block = tree.get(*block_id);
         for instruction_id in &block.instructions {
             // reject ordered accesses
-            if tree.instruction_has_atomic_ordering(*instruction_id) {
+            if memory.instruction_has_atomic_ordering(tree, *instruction_id) {
                 return None;
             }
 
@@ -248,8 +249,8 @@ pub fn collect_loop_effects(
             // record each valid memory effect
             for access_id in accesses {
                 let effect = match memory_ssa.access(*access_id) {
-                    MemoryAccess::Def(def_access) => def_access.effect.clone(),
-                    MemoryAccess::Use(use_access) => use_access.effect.clone(),
+                    MemoryNode::Def(def_access) => def_access.effect.clone(),
+                    MemoryNode::Use(use_access) => use_access.effect.clone(),
                     _ => continue,
                 };
 
@@ -283,12 +284,13 @@ pub fn clone_loop_blocks(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
 ) -> (
     HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     HashMap<mir::Value, mir::Value>,
 ) {
     // clone loop blocks and values
-    let (block_map, value_map, _) = clone_loop_blocks_internal(loop_blocks, function, tree);
+    let (block_map, value_map, _) = clone_loop_blocks_internal(loop_blocks, function, tree, memory);
     (block_map, value_map)
 }
 
@@ -298,13 +300,14 @@ pub fn clone_loop_blocks_with_instructions(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
 ) -> (
     HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     HashMap<mir::Value, mir::Value>,
     HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Instruction>>,
 ) {
     // clone loop blocks and values
-    clone_loop_blocks_internal(loop_blocks, function, tree)
+    clone_loop_blocks_internal(loop_blocks, function, tree, memory)
 }
 
 /// Clone loop blocks and return block, value, and instruction maps.
@@ -313,6 +316,7 @@ fn clone_loop_blocks_internal(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
 ) -> (
     HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     HashMap<mir::Value, mir::Value>,
@@ -383,7 +387,7 @@ fn clone_loop_blocks_internal(
             let original_instruction = tree.get(instruction_id).clone();
             let new_instruction = instruction_map(&original_instruction, &value_map, tree);
             let new_instruction_id = tree.insert(new_instruction);
-            clone_instruction_metadata(tree, instruction_id, new_instruction_id, &value_map);
+            clone_instruction_tables(tree, memory, instruction_id, new_instruction_id, &value_map);
             instruction_id_map.insert(instruction_id, new_instruction_id);
             new_instructions.push(new_instruction_id);
         }

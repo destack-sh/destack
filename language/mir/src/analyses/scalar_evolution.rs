@@ -4,9 +4,9 @@ use crate as mir;
 use destack_core::{float_from_bits, float_to_bits};
 
 use crate::{
-    Analysis, AnalysisId, BlockParamForwarding, FunctionAnalyses, FunctionAnalysis, TargetLayout,
-    ValueDefinition, ValueDefinitions, constant_is_one, constant_is_zero, constant_zero_for_type,
-    constant_zero_like, fold_binary, fold_cast, instruction_is_pure,
+    Analysis, AnalysisId, BlockParamForwarding, FunctionAnalysis, FunctionAnalysisCache,
+    TargetLayout, ValueDefinition, ValueDefinitions, constant_is_one, constant_is_zero,
+    constant_zero_for_type, constant_zero_like, fold_binary, fold_cast, instruction_is_pure,
 };
 
 use super::{ControlFlowGraph, Loop, LoopAnalysis};
@@ -177,7 +177,11 @@ impl Analysis for ScalarEvolution {
 }
 
 impl FunctionAnalysis for ScalarEvolution {
-    fn compute(function: &mir::Function, tree: &mir::Tree, analyses: &FunctionAnalyses) -> Self {
+    fn compute(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        analyses: &FunctionAnalysisCache,
+    ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>(function, tree);
         let loops = analyses.get::<LoopAnalysis>(function, tree);
         let definitions = analyses.get::<ValueDefinitions>(function, tree);
@@ -201,7 +205,7 @@ struct LoopScevBuilder<'a> {
     cfg: &'a ControlFlowGraph,
     /// Loop being analyzed.
     lp: &'a Loop,
-    /// Value definition metadata.
+    /// Value definition tables.
     definitions: &'a ValueDefinitions,
     /// Block parameter forwarding information.
     forwarding: &'a BlockParamForwarding,
@@ -493,7 +497,7 @@ impl<'a> LoopScevBuilder<'a> {
                 operator,
                 constant.clone(),
                 to_type,
-                self.target_layout.pointer_width_bits,
+                self.target_layout.pointer_bits(),
                 self.tree,
             )
         {
@@ -503,7 +507,7 @@ impl<'a> LoopScevBuilder<'a> {
         // read the target type
         let target_type = self.tree.get(to_type);
         let Some((width, _)) =
-            target_type.int_info_with_pointer_width(self.target_layout.pointer_width_bits)
+            target_type.int_info_with_pointer_width(self.target_layout.pointer_bits())
         else {
             return Scev::Unknown(destination);
         };
@@ -617,7 +621,7 @@ impl<'a> LoopScevBuilder<'a> {
             self.tree,
             self.lp.header,
             param_index,
-            self.target_layout.pointer_width_bits,
+            self.target_layout.pointer_bits(),
         )?;
         let step_zero = Scev::Constant(step_zero);
 
@@ -1329,7 +1333,7 @@ b2(v7: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let loops = analyses.get::<LoopAnalysis>(function, &test.tree);
         let scev = analyses.get::<ScalarEvolution>(function, &test.tree);
 
@@ -1383,7 +1387,7 @@ b2(v6: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let loops = analyses.get::<LoopAnalysis>(function, &test.tree);
         let scev = analyses.get::<ScalarEvolution>(function, &test.tree);
 
@@ -1424,7 +1428,7 @@ b2(v6: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let loops = analyses.get::<LoopAnalysis>(function, &test.tree);
         let scev = analyses.get::<ScalarEvolution>(function, &test.tree);
 
@@ -1480,7 +1484,7 @@ b3(v5: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let loops = analyses.get::<LoopAnalysis>(function, &test.tree);
         let scev = analyses.get::<ScalarEvolution>(function, &test.tree);
 
@@ -1537,7 +1541,7 @@ b2(v9: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let loops = analyses.get::<LoopAnalysis>(function, &test.tree);
         let scev = analyses.get::<ScalarEvolution>(function, &test.tree);
 
@@ -1597,7 +1601,7 @@ b2(v7: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let loops = analyses.get::<LoopAnalysis>(function, &test.tree);
         let scev = analyses.get::<ScalarEvolution>(function, &test.tree);
 
@@ -1657,7 +1661,7 @@ b2(v8: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let loops = analyses.get::<LoopAnalysis>(function, &test.tree);
         let scev = analyses.get::<ScalarEvolution>(function, &test.tree);
 
@@ -1716,7 +1720,7 @@ b2(v8: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let loops = analyses.get::<LoopAnalysis>(function, &test.tree);
         let scev = analyses.get::<ScalarEvolution>(function, &test.tree);
 
@@ -1773,7 +1777,7 @@ b2(v8: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let loops = analyses.get::<LoopAnalysis>(function, &test.tree);
         let scev = analyses.get::<ScalarEvolution>(function, &test.tree);
 
@@ -1830,7 +1834,7 @@ b2(v8: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let loops = analyses.get::<LoopAnalysis>(function, &test.tree);
         let scev = analyses.get::<ScalarEvolution>(function, &test.tree);
 
@@ -1887,7 +1891,7 @@ b2(v8: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let loops = analyses.get::<LoopAnalysis>(function, &test.tree);
         let scev = analyses.get::<ScalarEvolution>(function, &test.tree);
 
@@ -1947,7 +1951,7 @@ b2(v8: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let loops = analyses.get::<LoopAnalysis>(function, &test.tree);
         let scev = analyses.get::<ScalarEvolution>(function, &test.tree);
 
@@ -2027,7 +2031,7 @@ b2(v13: int64):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
+        let analyses = test.function_analysis_cache();
         let loops = analyses.get::<LoopAnalysis>(function, &test.tree);
         let scev = analyses.get::<ScalarEvolution>(function, &test.tree);
 

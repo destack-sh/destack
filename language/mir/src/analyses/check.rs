@@ -43,10 +43,9 @@ impl RangeMap {
                 right,
                 is_signed,
             } => overflow_constraint_truth(*operator, *left, *right, *is_signed, self),
-            mir::CheckConstraint::Type { .. }
+            mir::CheckConstraint::IsType { .. }
             | mir::CheckConstraint::Variant { .. }
-            | mir::CheckConstraint::ReceiverType { .. }
-            | mir::CheckConstraint::Implements { .. } => None,
+            | mir::CheckConstraint::IsSubtype { .. } => None,
         }
     }
 }

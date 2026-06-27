@@ -2,7 +2,7 @@ use std::collections::{HashMap, VecDeque};
 
 use crate as mir;
 
-use super::{Analysis, AnalysisId, CallGraph, ModuleAnalyses, ModuleAnalysis, Mutation};
+use super::{Analysis, AnalysisId, CallGraph, ModuleAnalysis, Mutation, TreeAnalysisCache};
 
 /// Module table of function effects.
 #[derive(Debug, Default)]
@@ -25,7 +25,7 @@ impl FunctionEffectAnalysis {
     }
 
     /// Build effects for all functions with bodies.
-    fn build(tree: &mir::Tree, analyses: &ModuleAnalyses) -> Self {
+    fn build(tree: &mir::Tree, analyses: &TreeAnalysisCache) -> Self {
         let callgraph = analyses.get::<CallGraph>(tree);
         let function_ids = Self::function_body_ids(tree);
         let mut effects = HashMap::new();
@@ -33,7 +33,13 @@ impl FunctionEffectAnalysis {
 
         // propagate direct-call effects to a fixpoint
         while let Some(function_id) = worklist.pop_front() {
-            let effect = FunctionEffectBuilder::compute(tree, function_id, &effects);
+            let effect = FunctionEffectBuilder::compute(
+                tree,
+                function_id,
+                analyses.memory(),
+                analyses.effects(),
+                &effects,
+            );
             let changed = effects
                 .get(&function_id)
                 .map(|existing| existing != &effect)
@@ -68,7 +74,7 @@ impl Analysis for FunctionEffectAnalysis {
 
 impl ModuleAnalysis for FunctionEffectAnalysis {
     /// Compute module function effects.
-    fn compute(tree: &mir::Tree, analyses: &ModuleAnalyses) -> Self {
+    fn compute(tree: &mir::Tree, analyses: &TreeAnalysisCache) -> Self {
         Self::build(tree, analyses)
     }
 }
@@ -79,6 +85,10 @@ struct FunctionEffectBuilder<'a> {
     tree: &'a mir::Tree,
     /// The function being analyzed.
     function: &'a mir::Function,
+    /// Explicit memory access table.
+    memory_table: &'a mir::MemoryTable,
+    /// Explicit effect table.
+    effect_table: &'a mir::EffectTable,
     /// Effects available from previous fixpoint iterations.
     effects: &'a HashMap<mir::FunctionId, mir::FunctionEffect>,
     /// Accumulated memory effect.
@@ -94,12 +104,16 @@ impl<'a> FunctionEffectBuilder<'a> {
     fn compute(
         tree: &'a mir::Tree,
         function_id: mir::FunctionId,
+        memory_table: &'a mir::MemoryTable,
+        effect_table: &'a mir::EffectTable,
         effects: &'a HashMap<mir::FunctionId, mir::FunctionEffect>,
     ) -> mir::FunctionEffect {
         let function = tree.get(function_id);
         let mut builder = Self {
             tree,
             function,
+            memory_table,
+            effect_table,
             effects,
             memory: MemoryAccumulator::new(),
             behavior: BehaviorAccumulator::new(),
@@ -116,7 +130,6 @@ impl<'a> FunctionEffectBuilder<'a> {
         mir::FunctionEffect {
             memory: builder.memory.finish(),
             behavior: builder.behavior.finish(noreturn),
-            allocation_size: None,
         }
     }
 
@@ -164,20 +177,20 @@ impl<'a> FunctionEffectBuilder<'a> {
     ) -> Option<mir::FunctionEffect> {
         instruction.call_dispatch_kind()?;
 
-        // seed effects from explicit call metadata
+        // seed effects from explicit call tables
         let callsite = mir::CallSite::Instruction(instruction_id);
-        let metadata = self.tree.metadata.effects.call(callsite);
-        let memory = metadata
-            .filter(|metadata| metadata.memory != mir::MemoryEffect::unknown())
-            .map(|metadata| metadata.memory.clone());
-        let behavior = metadata
-            .filter(|metadata| metadata.behavior != mir::FunctionBehavior::unknown())
-            .map(|metadata| metadata.behavior.clone());
+        let tables = self.effect_table.call(callsite);
+        let memory = tables
+            .filter(|tables| tables.memory != mir::MemoryEffect::unknown())
+            .map(|tables| tables.memory.clone());
+        let behavior = tables
+            .filter(|tables| tables.behavior != mir::FunctionBehavior::unknown())
+            .map(|tables| tables.behavior.clone());
 
         // fill missing effects from the best known direct target
         let callee = instruction
             .call_direct_target()
-            .or_else(|| metadata.and_then(|metadata| metadata.target));
+            .or_else(|| tables.and_then(|tables| tables.target));
 
         Some(self.call_effect(callee, memory, behavior))
     }
@@ -188,35 +201,34 @@ impl<'a> FunctionEffectBuilder<'a> {
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
     ) -> mir::FunctionEffect {
-        // prefer precise memory access metadata when present
-        if let Some(accesses) = self.tree.metadata.memory.memory_accesses(instruction_id) {
+        // prefer precise memory access entries when present
+        if let Some(accesses) = self.memory_table.memory_accesses(instruction_id) {
             let memory = MemoryAccumulator::from_accesses(accesses).finish();
             return mir::FunctionEffect {
                 memory,
                 behavior: mir::FunctionBehavior::none(),
-                allocation_size: None,
             };
         }
 
         // map MIR semantics to local effects
         match instruction {
             mir::Instruction::Load { .. } | mir::Instruction::AtomicLoad { .. } => {
-                mir::FunctionEffect::memory(mir::MemoryEffect::read_only(mir::SpaceSet::ANY))
+                mir::FunctionEffect::memory(mir::MemoryEffect::read_only(mir::StorageSet::ANY))
             }
             mir::Instruction::Store { .. } | mir::Instruction::AtomicStore { .. } => {
-                mir::FunctionEffect::memory(mir::MemoryEffect::write_only(mir::SpaceSet::ANY))
+                mir::FunctionEffect::memory(mir::MemoryEffect::write_only(mir::StorageSet::ANY))
             }
             mir::Instruction::AtomicCompareExchange { .. }
             | mir::Instruction::AtomicRmw { .. }
             | mir::Instruction::AtomicFence { .. } => {
-                mir::FunctionEffect::memory(mir::MemoryEffect::read_write(mir::SpaceSet::ANY))
+                mir::FunctionEffect::memory(mir::MemoryEffect::read_write(mir::StorageSet::ANY))
             }
             mir::Instruction::BarrierWrite { .. } => mir::FunctionEffect::none(),
             mir::Instruction::LocalGet { .. } => {
-                mir::FunctionEffect::memory(mir::MemoryEffect::read_only(mir::SpaceSet::FRAME))
+                mir::FunctionEffect::memory(mir::MemoryEffect::read_only(mir::StorageSet::FRAME))
             }
             mir::Instruction::LocalSet { .. } => {
-                mir::FunctionEffect::memory(mir::MemoryEffect::write_only(mir::SpaceSet::FRAME))
+                mir::FunctionEffect::memory(mir::MemoryEffect::write_only(mir::StorageSet::FRAME))
             }
             mir::Instruction::NewZeroed { result_type, .. }
             | mir::Instruction::NewUninit { result_type, .. }
@@ -224,16 +236,14 @@ impl<'a> FunctionEffectBuilder<'a> {
             | mir::Instruction::NewSliceUninit { result_type, .. } => mir::FunctionEffect {
                 memory: mir::MemoryEffect::write_only(self.space_set_for_type(result_type)),
                 behavior: mir::FunctionBehavior::none().with_allocates(),
-                allocation_size: None,
             },
             mir::Instruction::Free { value } => mir::FunctionEffect {
                 memory: mir::MemoryEffect::write_only(self.space_set_for_value(*value)),
                 behavior: mir::FunctionBehavior::none().with_frees(),
-                allocation_size: None,
             },
             mir::Instruction::FrameAllocZeroed { .. }
             | mir::Instruction::FrameAllocUninit { .. } => {
-                mir::FunctionEffect::memory(mir::MemoryEffect::write_only(mir::SpaceSet::FRAME))
+                mir::FunctionEffect::memory(mir::MemoryEffect::write_only(mir::StorageSet::FRAME))
             }
             mir::Instruction::NewComplete { result_type, .. } => mir::FunctionEffect::memory(
                 mir::MemoryEffect::read_write(self.space_set_for_type(result_type)),
@@ -281,12 +291,10 @@ impl<'a> FunctionEffectBuilder<'a> {
             mir::Terminator::Panic { .. } | mir::Terminator::UnwindResume => mir::FunctionEffect {
                 memory: mir::MemoryEffect::none(),
                 behavior: mir::FunctionBehavior::none().with_panic().with_noreturn(),
-                allocation_size: None,
             },
             mir::Terminator::Yield { .. } => mir::FunctionEffect {
                 memory: mir::MemoryEffect::none(),
                 behavior: mir::FunctionBehavior::none().with_suspend(),
-                allocation_size: None,
             },
             _ => mir::FunctionEffect::none(),
         }
@@ -298,25 +306,25 @@ impl<'a> FunctionEffectBuilder<'a> {
         block_id: mir::BlockId,
         terminator: &mir::Terminator,
     ) -> mir::FunctionEffect {
-        // seed effects from explicit call metadata
+        // seed effects from explicit call tables
         let callsite = mir::CallSite::Terminator(block_id);
-        let metadata = self.tree.metadata.effects.call(callsite);
-        let memory = metadata
-            .filter(|metadata| metadata.memory != mir::MemoryEffect::unknown())
-            .map(|metadata| metadata.memory.clone());
-        let behavior = metadata
-            .filter(|metadata| metadata.behavior != mir::FunctionBehavior::unknown())
-            .map(|metadata| metadata.behavior.clone());
+        let tables = self.effect_table.call(callsite);
+        let memory = tables
+            .filter(|tables| tables.memory != mir::MemoryEffect::unknown())
+            .map(|tables| tables.memory.clone());
+        let behavior = tables
+            .filter(|tables| tables.behavior != mir::FunctionBehavior::unknown())
+            .map(|tables| tables.behavior.clone());
 
         // fill missing effects from the best known direct target
         let callee = terminator
             .call_direct_target()
-            .or_else(|| metadata.and_then(|metadata| metadata.target));
+            .or_else(|| tables.and_then(|tables| tables.target));
 
         self.call_effect(callee, memory, behavior)
     }
 
-    /// Build a call effect from explicit metadata and callee effects.
+    /// Build a call effect from explicit tables and callee effects.
     fn call_effect(
         &self,
         callee: Option<mir::FunctionId>,
@@ -331,30 +339,26 @@ impl<'a> FunctionEffectBuilder<'a> {
             .or_else(|| callee_effect.map(|effect| effect.behavior.clone()))
             .unwrap_or_else(mir::FunctionBehavior::unknown);
 
-        mir::FunctionEffect {
-            memory,
-            behavior,
-            allocation_size: None,
-        }
+        mir::FunctionEffect { memory, behavior }
     }
 
     /// Resolve the backing space for one typed value.
-    fn space_set_for_value(&self, value: mir::Value) -> mir::SpaceSet {
+    fn space_set_for_value(&self, value: mir::Value) -> mir::StorageSet {
         let Some(ty) = self.function.value_type(value) else {
-            return mir::SpaceSet::ANY;
+            return mir::StorageSet::ANY;
         };
 
         self.space_set_for_type(&mir::TypeId::from(ty))
     }
 
     /// Resolve the backing space for one reference-like type.
-    fn space_set_for_type(&self, ty: &mir::TypeId) -> mir::SpaceSet {
+    fn space_set_for_type(&self, ty: &mir::TypeId) -> mir::StorageSet {
         match self.tree.get(*ty) {
             mir::Type::Uninit { value } => self.space_set_for_type(value),
             mir::Type::Reference { space, .. } | mir::Type::TensorView { space, .. } => {
                 space.space_set()
             }
-            _ => mir::SpaceSet::ANY,
+            _ => mir::StorageSet::ANY,
         }
     }
 
@@ -362,12 +366,12 @@ impl<'a> FunctionEffectBuilder<'a> {
     fn intrinsic_memory(&self, intrinsic: mir::Intrinsic) -> mir::MemoryEffect {
         match intrinsic {
             mir::Intrinsic::Memcpy | mir::Intrinsic::Memmove => {
-                mir::MemoryEffect::read_write(mir::SpaceSet::ANY)
+                mir::MemoryEffect::read_write(mir::StorageSet::ANY)
             }
-            mir::Intrinsic::Memset => mir::MemoryEffect::write_only(mir::SpaceSet::ANY),
-            mir::Intrinsic::Memcmp => mir::MemoryEffect::read_only(mir::SpaceSet::ANY),
+            mir::Intrinsic::Memset => mir::MemoryEffect::write_only(mir::StorageSet::ANY),
+            mir::Intrinsic::Memcmp => mir::MemoryEffect::read_only(mir::StorageSet::ANY),
             mir::Intrinsic::PrefetchRead | mir::Intrinsic::PrefetchWrite => {
-                mir::MemoryEffect::read_only(mir::SpaceSet::ANY)
+                mir::MemoryEffect::read_only(mir::StorageSet::ANY)
             }
             _ => mir::MemoryEffect::none(),
         }
@@ -377,22 +381,22 @@ impl<'a> FunctionEffectBuilder<'a> {
 /// Accumulated memory effects.
 struct MemoryAccumulator {
     /// Memory spaces read by this function.
-    read: mir::SpaceSet,
+    read: mir::StorageSet,
     /// Memory spaces written by this function.
-    write: mir::SpaceSet,
+    write: mir::StorageSet,
 }
 
 impl MemoryAccumulator {
     /// Create a new empty memory accumulator.
     fn new() -> Self {
         Self {
-            read: mir::SpaceSet::NONE,
-            write: mir::SpaceSet::NONE,
+            read: mir::StorageSet::NONE,
+            write: mir::StorageSet::NONE,
         }
     }
 
-    /// Build a memory accumulator from access metadata.
-    fn from_accesses(accesses: &[mir::MemoryAccessMetadata]) -> Self {
+    /// Build a memory accumulator from memory accesses.
+    fn from_accesses(accesses: &[mir::MemoryAccess]) -> Self {
         let mut builder = Self::new();
         for access in accesses {
             builder.record_access(access);
@@ -407,38 +411,27 @@ impl MemoryAccumulator {
         self.write.insert(effect.write);
     }
 
-    /// Record one memory access metadata entry.
-    fn record_access(&mut self, access: &mir::MemoryAccessMetadata) {
+    /// Record one memory access.
+    fn record_access(&mut self, access: &mir::MemoryAccess) {
         let effect = self.access_effect(access);
         self.record(&effect);
     }
 
-    /// Build a memory effect for a single access entry.
-    fn access_effect(&self, access: &mir::MemoryAccessMetadata) -> mir::MemoryEffect {
-        let mut effect = match access.kind {
-            mir::MemoryAccessKind::Read | mir::MemoryAccessKind::PrefetchRead => {
-                mir::MemoryEffect::read_only(mir::SpaceSet::ANY)
-            }
-            mir::MemoryAccessKind::Write | mir::MemoryAccessKind::PrefetchWrite => {
-                mir::MemoryEffect::write_only(mir::SpaceSet::ANY)
-            }
-            mir::MemoryAccessKind::ReadWrite
-            | mir::MemoryAccessKind::ReadModifyWrite
-            | mir::MemoryAccessKind::Fence => mir::MemoryEffect::read_write(mir::SpaceSet::ANY),
+    /// Build a memory effect for one access.
+    fn access_effect(&self, access: &mir::MemoryAccess) -> mir::MemoryEffect {
+        let mut effect = match access.operation {
+            mir::MemoryOperation::Read => mir::MemoryEffect::read_only(mir::StorageSet::ANY),
+            mir::MemoryOperation::Write => mir::MemoryEffect::write_only(mir::StorageSet::ANY),
+            mir::MemoryOperation::ReadWrite => mir::MemoryEffect::read_write(mir::StorageSet::ANY),
         };
-
-        // apply explicit memory space metadata
-        if let Some(space) = access.space.clone() {
-            effect = effect.with_spaces(space.space_set());
-        }
 
         // refine storage-specific targets
         match access.target {
-            mir::MemoryAccessTarget::Local(_) => {
-                effect = effect.with_spaces(mir::SpaceSet::FRAME);
+            mir::MemoryTarget::Local(_) => {
+                effect = effect.with_storage(mir::StorageSet::FRAME);
             }
-            mir::MemoryAccessTarget::Global(_) => {
-                effect = effect.with_spaces(mir::SpaceSet::STATIC);
+            mir::MemoryTarget::Global(_) => {
+                effect = effect.with_storage(mir::StorageSet::STATIC);
             }
             _ => {}
         }
@@ -546,7 +539,7 @@ entry(v0: int32):
 "#,
         );
 
-        let analyses = program.module_analyses();
+        let analyses = program.tree_analysis_cache();
         let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
         let function = program.function_id_by_name("pure");
         let effect = effects.function(function).expect("missing function effect");
@@ -569,7 +562,7 @@ entry:
 "#,
         );
 
-        let analyses = program.module_analyses();
+        let analyses = program.tree_analysis_cache();
         let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
         let function = program.function_id_by_name("allocate");
         let effect = effects.function(function).expect("missing function effect");
@@ -597,7 +590,7 @@ entry:
 "#,
         );
 
-        let analyses = program.module_analyses();
+        let analyses = program.tree_analysis_cache();
         let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
         let function = program.function_id_by_name("root");
         let effect = effects.function(function).expect("missing function effect");
@@ -605,7 +598,7 @@ entry:
         assert!(effect.behavior.allocates);
     }
 
-    /// Open calls stay unknown until metadata or dispatch proves a target.
+    /// Open calls stay unknown until tables or dispatch proves a target.
     #[test]
     fn test_function_effects_mark_open_calls_unknown() {
         let program = TestProgram::new(
@@ -618,7 +611,7 @@ entry(v0: fn(int32) => int32, v1: int32):
 "#,
         );
 
-        let analyses = program.module_analyses();
+        let analyses = program.tree_analysis_cache();
         let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
         let function = program.function_id_by_name("test");
         let effect = effects.function(function).expect("missing function effect");
@@ -639,7 +632,7 @@ entry(v0: ref<int32, managed, readonly>):
 "#,
         );
 
-        let analyses = program.module_analyses();
+        let analyses = program.tree_analysis_cache();
         let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
         let function = program.function_id_by_name("fail");
         let effect = effects.function(function).expect("missing function effect");

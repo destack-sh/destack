@@ -536,10 +536,10 @@ fn format_check_constraint<'a>(
             let name = format!("{}.overflow.{suffix}", overflow_check_family(*operator)?);
             write!(f, [text(&name), space(), left, token(","), space(), right])
         }
-        CheckConstraint::Type { value, expected } => write!(
+        CheckConstraint::IsType { value, expected } => write!(
             f,
             [
-                token("dynamic.type"),
+                token("is.type"),
                 space(),
                 value,
                 token(","),
@@ -558,23 +558,12 @@ fn format_check_constraint<'a>(
                 expected
             ]
         ),
-        CheckConstraint::ReceiverType { receiver, expected } => write!(
+        CheckConstraint::IsSubtype { value, expected } => write!(
             f,
             [
-                token("receiver.type"),
+                token("is.subtype"),
                 space(),
-                receiver,
-                token(","),
-                space(),
-                expected
-            ]
-        ),
-        CheckConstraint::Implements { receiver, expected } => write!(
-            f,
-            [
-                token("interface.conformance"),
-                space(),
-                receiver,
+                value,
                 token(","),
                 space(),
                 expected

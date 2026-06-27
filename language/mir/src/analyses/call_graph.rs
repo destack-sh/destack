@@ -4,7 +4,7 @@ use destack_core::{BitSet, DenseGraph};
 
 use crate as mir;
 
-use super::{Analysis, AnalysisId, ModuleAnalyses, ModuleAnalysis};
+use super::{Analysis, AnalysisId, ModuleAnalysis, TreeAnalysisCache};
 
 /// Directed edge in the call graph.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -104,7 +104,7 @@ impl CallGraph {
     }
 
     /// Build a call graph for the given module.
-    fn build(tree: &mir::Tree) -> Self {
+    fn build(tree: &mir::Tree, effects: &mir::EffectTable) -> Self {
         let mut graph = Self {
             outgoing: HashMap::new(),
             incoming: HashMap::new(),
@@ -131,7 +131,7 @@ impl CallGraph {
                         function_id,
                         instruction_id,
                         instruction,
-                        tree,
+                        effects,
                     ) else {
                         continue;
                     };
@@ -140,7 +140,7 @@ impl CallGraph {
                 }
 
                 if let Some(callsite) =
-                    ScannedCallSite::from_terminator(function_id, *block_id, terminator, tree)
+                    ScannedCallSite::from_terminator(function_id, *block_id, terminator, effects)
                 {
                     graph.insert_call(callsite);
                 }
@@ -265,8 +265,8 @@ impl Analysis for CallGraph {
 
 impl ModuleAnalysis for CallGraph {
     /// Compute the module call graph.
-    fn compute(tree: &mir::Tree, _analyses: &ModuleAnalyses) -> Self {
-        Self::build(tree)
+    fn compute(tree: &mir::Tree, analyses: &TreeAnalysisCache) -> Self {
+        Self::build(tree, analyses.effects())
     }
 }
 
@@ -290,10 +290,10 @@ impl ScannedCallSite {
         caller: mir::LocalNodeId<mir::Function>,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
-        tree: &mir::Tree,
+        effects: &mir::EffectTable,
     ) -> Option<Self> {
         let dispatch = instruction.call_dispatch_kind()?;
-        let known_target = Self::instruction_target(instruction_id, instruction, tree);
+        let known_target = Self::instruction_target(instruction_id, instruction, effects);
         let is_closed = matches!(dispatch, mir::CallDispatchKind::Direct);
 
         Some(Self {
@@ -310,7 +310,7 @@ impl ScannedCallSite {
         caller: mir::LocalNodeId<mir::Function>,
         block_id: mir::LocalNodeId<mir::Block>,
         terminator: &mir::Terminator,
-        tree: &mir::Tree,
+        effects: &mir::EffectTable,
     ) -> Option<Self> {
         let callsite = mir::CallSite::Terminator(block_id);
 
@@ -333,14 +333,14 @@ impl ScannedCallSite {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Virtual { slot: *slot },
-                known_target: Self::terminator_target(block_id, terminator, tree),
+                known_target: Self::terminator_target(block_id, terminator, effects),
                 is_closed: false,
             }),
             mir::Terminator::CallDynamic { slot, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Dynamic { slot: *slot },
-                known_target: Self::terminator_target(block_id, terminator, tree),
+                known_target: Self::terminator_target(block_id, terminator, effects),
                 is_closed: false,
             }),
             mir::Terminator::TailCall { function, .. } => Some(Self {
@@ -361,14 +361,14 @@ impl ScannedCallSite {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Virtual { slot: *slot },
-                known_target: Self::terminator_target(block_id, terminator, tree),
+                known_target: Self::terminator_target(block_id, terminator, effects),
                 is_closed: false,
             }),
             mir::Terminator::TailCallDynamic { slot, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Dynamic { slot: *slot },
-                known_target: Self::terminator_target(block_id, terminator, tree),
+                known_target: Self::terminator_target(block_id, terminator, effects),
                 is_closed: false,
             }),
             _ => None,
@@ -379,13 +379,12 @@ impl ScannedCallSite {
     fn instruction_target(
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
-        tree: &mir::Tree,
+        effects: &mir::EffectTable,
     ) -> Option<mir::LocalNodeId<mir::Function>> {
         instruction.call_direct_target().or_else(|| {
-            tree.metadata
-                .effects
+            effects
                 .call(mir::CallSite::Instruction(instruction_id))
-                .and_then(|metadata| metadata.target)
+                .and_then(|tables| tables.target)
         })
     }
 
@@ -393,13 +392,12 @@ impl ScannedCallSite {
     fn terminator_target(
         block_id: mir::LocalNodeId<mir::Block>,
         terminator: &mir::Terminator,
-        tree: &mir::Tree,
+        effects: &mir::EffectTable,
     ) -> Option<mir::LocalNodeId<mir::Function>> {
         terminator.call_direct_target().or_else(|| {
-            tree.metadata
-                .effects
+            effects
                 .call(mir::CallSite::Terminator(block_id))
-                .and_then(|metadata| metadata.target)
+                .and_then(|tables| tables.target)
         })
     }
 }
@@ -431,7 +429,7 @@ entry:
         let callee_id = test.function_id_by_name("callee");
         let test_id = test.function_id_by_name("test");
 
-        let analyses = ModuleAnalyses::new();
+        let analyses = test.tree_analysis_cache();
         let callgraph = analyses.get::<CallGraph>(&test.tree);
 
         let outgoing = callgraph.outgoing(test_id);
@@ -480,7 +478,7 @@ entry:
         let c_id = test.function_id_by_name("gamma");
         let d_id = test.function_id_by_name("delta");
 
-        let analyses = ModuleAnalyses::new();
+        let analyses = test.tree_analysis_cache();
         let callgraph = analyses.get::<CallGraph>(&test.tree);
 
         assert!(callgraph.is_recursive_function(a_id));
@@ -489,7 +487,7 @@ entry:
         assert!(!callgraph.is_recursive_function(d_id));
     }
 
-    /// Indirect calls without metadata stay open.
+    /// Indirect calls without tables stay open.
     #[test]
     fn test_call_graph_indirect_open() {
         let test = TestProgram::new(
@@ -504,7 +502,7 @@ entry(v0: fn(int32) => int32, v1: int32):
 
         let test_id = test.function_id_by_name("test");
 
-        let analyses = ModuleAnalyses::new();
+        let analyses = test.tree_analysis_cache();
         let callgraph = analyses.get::<CallGraph>(&test.tree);
 
         assert!(callgraph.outgoing(test_id).is_empty());
@@ -535,7 +533,7 @@ entry(v0: int32):
         let callee_id = test.function_id_by_name("callee");
         let test_id = test.function_id_by_name("test");
 
-        let analyses = ModuleAnalyses::new();
+        let analyses = test.tree_analysis_cache();
         let callgraph = analyses.get::<CallGraph>(&test.tree);
 
         let outgoing = callgraph.outgoing(test_id);
@@ -544,7 +542,7 @@ entry(v0: int32):
         assert!(matches!(outgoing[0].callsite, mir::CallSite::Terminator(_)));
     }
 
-    /// Tailcall.indirect remains open without metadata.
+    /// Tailcall.indirect remains open without tables.
     #[test]
     fn test_call_graph_tailcall_indirect_open() {
         let test = TestProgram::new(
@@ -558,7 +556,7 @@ entry(v0: fn(int32) => int32, v1: int32):
 
         let test_id = test.function_id_by_name("test");
 
-        let analyses = ModuleAnalyses::new();
+        let analyses = test.tree_analysis_cache();
         let callgraph = analyses.get::<CallGraph>(&test.tree);
 
         let open_callsite = callgraph.open_callsites(test_id);
@@ -590,7 +588,7 @@ entry(v0: fn(int32) => int32, v1: int32):
 
         let test_id = test.function_id_by_name("test");
 
-        let analyses = ModuleAnalyses::new();
+        let analyses = test.tree_analysis_cache();
         let callgraph = analyses.get::<CallGraph>(&test.tree);
 
         let open_callsite = callgraph.open_callsites(test_id);
@@ -624,7 +622,7 @@ b2(v2: ref<int32, managed, readonly>):
         let callee_id = test.function_id_by_name("callee");
         let test_id = test.function_id_by_name("test");
 
-        let analyses = ModuleAnalyses::new();
+        let analyses = test.tree_analysis_cache();
         let callgraph = analyses.get::<CallGraph>(&test.tree);
 
         let outgoing = callgraph.outgoing(test_id);
@@ -647,7 +645,7 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call.virtual v0, int32, 2(v0): (int32) => int32
+    v1: int32 = call.virtual v0, int32, 0(v0): (int32) => int32
     return v1
 }
 "#,
@@ -675,13 +673,11 @@ entry(v0: int32):
         }
         let call_id = call_id.expect("missing virtual call instruction");
 
-        test.tree
-            .metadata
-            .effects
+        test.effects
             .call_mut(mir::CallSite::Instruction(call_id))
             .target = Some(callee_id);
 
-        let analyses = ModuleAnalyses::new();
+        let analyses = test.tree_analysis_cache();
         let callgraph = analyses.get::<CallGraph>(&test.tree);
 
         assert_eq!(callgraph.outgoing(test_id).len(), 1);
@@ -689,7 +685,7 @@ entry(v0: int32):
         assert_eq!(
             callgraph.outgoing(test_id)[0].dispatch,
             mir::CallDispatchKind::Virtual {
-                slot: mir::DispatchSlot::new(2),
+                slot: mir::DispatchSlot::new(0),
             }
         );
         assert_eq!(callgraph.open_callsites(test_id).len(), 1);
@@ -711,7 +707,7 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    call.virtual v0, int32, 2(v0): (int32) => int32 => b1
+    call.virtual v0, int32, 0(v0): (int32) => int32 => b1
 
 b1(v1: int32):
     return v1
@@ -727,13 +723,11 @@ b2(v2: ref<int32, managed, readonly>):
         let function = test.tree.get(test_id);
         let block_id = *function.blocks().first().expect("missing entry block");
 
-        test.tree
-            .metadata
-            .effects
+        test.effects
             .call_mut(mir::CallSite::Terminator(block_id))
             .target = Some(callee_id);
 
-        let analyses = ModuleAnalyses::new();
+        let analyses = test.tree_analysis_cache();
         let callgraph = analyses.get::<CallGraph>(&test.tree);
 
         let outgoing = callgraph.outgoing(test_id);
@@ -742,7 +736,7 @@ b2(v2: ref<int32, managed, readonly>):
         assert_eq!(
             outgoing[0].dispatch,
             mir::CallDispatchKind::Virtual {
-                slot: mir::DispatchSlot::new(2),
+                slot: mir::DispatchSlot::new(0),
             }
         );
         assert!(matches!(outgoing[0].callsite, mir::CallSite::Terminator(_)));

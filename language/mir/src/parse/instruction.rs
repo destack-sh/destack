@@ -5,12 +5,12 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CastOperator, CompareExchangeAccess,
-    CounterId, DispatchSlot, FenceAccess, FunctionId, Instruction, LocalNodeId, MemoryFlags,
-    MemoryOrdering, MemoryScope, SpaceSet, SyncScope, TensorConvertMode,
-    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
-    TensorGatherDimensionNumbers, TensorIndexReduceOperator, TensorIndexTieBreak,
-    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeId,
-    UnaryOperator, Value, ValueSlice, VectorConvertMode, VectorReduceOperator,
+    CounterId, DispatchSlot, ExecutionScope, FenceAccess, FunctionId, Instruction, LocalNodeId,
+    MemoryOrdering, StorageSet, TensorConvertMode, TensorConvolutionDimensionNumbers,
+    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
+    TensorIndexReduceOperator, TensorIndexTieBreak, TensorReduceOperator,
+    TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeId, UnaryOperator, Value,
+    ValueSlice, VectorConvertMode, VectorReduceOperator,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -1971,10 +1971,7 @@ impl Parser {
             let token_text = self.tree.source_text(token.span).to_string();
 
             if token_text == "scope" {
-                access.scope = self.parse_sync_scope_clause()?;
-            } else if token_text == "volatile" {
-                self.eat_token(TokenType::Identifier)?;
-                access.is_volatile = true;
+                access.scope = self.parse_execution_scope_clause()?;
             } else {
                 return Err(ParseError::invalid("atomic access", self.pos()));
             }
@@ -1998,10 +1995,7 @@ impl Parser {
             let token_text = self.tree.source_text(token.span).to_string();
 
             if token_text == "scope" {
-                success.scope = self.parse_sync_scope_clause()?;
-            } else if token_text == "volatile" {
-                self.eat_token(TokenType::Identifier)?;
-                success.is_volatile = true;
+                success.scope = self.parse_execution_scope_clause()?;
             } else if token_text == "failure" {
                 self.eat_token(TokenType::Identifier)?;
                 self.eat_token(TokenType::OpenParenthesis)?;
@@ -2030,35 +2024,35 @@ impl Parser {
             let token_text = self.tree.source_text(token.span).to_string();
 
             if token_text == "scope" {
-                access.scope = self.parse_sync_scope_clause()?;
-            } else if token_text == "memory" {
-                access.memory_scope = self.parse_memory_scope_clause()?;
+                access.scope = self.parse_execution_scope_clause()?;
+            } else if token_text == "storage" {
+                access.storage = self.parse_storage_clause()?;
             } else {
-                access.flags = self.parse_memory_flags()?;
+                return Err(ParseError::invalid("atomic fence", self.pos()));
             }
         }
 
         Ok(access)
     }
 
-    /// Parse one `scope(...)` synchronization clause.
-    fn parse_sync_scope_clause(&mut self) -> ParseResult<SyncScope> {
+    /// Parse one `scope(...)` execution clause.
+    fn parse_execution_scope_clause(&mut self) -> ParseResult<ExecutionScope> {
         self.eat_token(TokenType::Identifier)?;
         self.eat_token(TokenType::OpenParenthesis)?;
-        let scope = self.parse_sync_scope()?;
+        let scope = self.parse_execution_scope()?;
         self.eat_token(TokenType::CloseParenthesis)?;
 
         Ok(scope)
     }
 
-    /// Parse one `memory(...)` fence clause.
-    fn parse_memory_scope_clause(&mut self) -> ParseResult<MemoryScope> {
+    /// Parse one `storage(...)` fence clause.
+    fn parse_storage_clause(&mut self) -> ParseResult<StorageSet> {
         self.eat_token(TokenType::Identifier)?;
         self.eat_token(TokenType::OpenParenthesis)?;
-        let scope = self.parse_memory_scope()?;
+        let storage = self.parse_storage_set()?;
         self.eat_token(TokenType::CloseParenthesis)?;
 
-        Ok(scope)
+        Ok(storage)
     }
 
     /// Parse one memory ordering like `sequentiallyConsistent`.
@@ -2071,47 +2065,34 @@ impl Parser {
             .map_err(|_| ParseError::invalid("memory ordering", token_start))
     }
 
-    /// Parse one synchronization scope like `device`.
-    fn parse_sync_scope(&mut self) -> ParseResult<SyncScope> {
+    /// Parse one execution scope like `device`.
+    fn parse_execution_scope(&mut self) -> ParseResult<ExecutionScope> {
         let token_start = self.pos();
         let token = self.eat_token(TokenType::Identifier)?;
         self.tree
             .source_text(token.span)
-            .parse::<SyncScope>()
-            .map_err(|_| ParseError::invalid("synchronization scope", token_start))
+            .parse::<ExecutionScope>()
+            .map_err(|_| ParseError::invalid("execution scope", token_start))
     }
 
-    /// Parse one memory scope like `device`.
-    fn parse_memory_scope(&mut self) -> ParseResult<MemoryScope> {
-        let token_start = self.pos();
-        let token = self.eat_token(TokenType::Identifier)?;
-        self.tree
-            .source_text(token.span)
-            .parse::<MemoryScope>()
-            .map_err(|_| ParseError::invalid("memory scope", token_start))
-    }
-
-    /// Parse memory flags for one fence.
-    fn parse_memory_flags(&mut self) -> ParseResult<MemoryFlags> {
-        // flags state
-        let mut spaces = SpaceSet::NONE;
-        let mut has_space = false;
+    /// Parse a storage set for one fence.
+    fn parse_storage_set(&mut self) -> ParseResult<StorageSet> {
+        let mut storage = StorageSet::NONE;
+        let mut has_storage = false;
         let mut is_space_locked = false;
-        let mut makes_available = false;
-        let mut makes_visible = false;
         let is_list = self.eat_token_maybe(TokenType::OpenBracket);
 
-        // parse one or more flag items
+        // parse one or more storage names
         loop {
             let token = self
                 .peek()
-                .ok_or_else(|| ParseError::unexpected_end("memory flags", self.pos()))?;
+                .ok_or_else(|| ParseError::unexpected_end("storage set", self.pos()))?;
             if !matches!(
                 self.token_type(token),
                 TokenType::Identifier | TokenType::Global | TokenType::Local
             ) {
                 return Err(ParseError::unexpected(
-                    "memory flags",
+                    "storage set",
                     self.token_type(token),
                     token.start,
                 ));
@@ -2121,43 +2102,29 @@ impl Parser {
             let token_start = token.start;
             self.bump();
 
-            // flags and spaces
-            match token_text.as_str() {
-                "makeAvailable" => {
-                    makes_available = true;
+            // combine storage names
+            let space = self.parse_storage(&token_text, token_start)?;
+            if space == StorageSet::ANY || space == StorageSet::NONE {
+                if has_storage && !is_space_locked {
+                    return Err(ParseError::new(
+                        "storage set cannot mix any/none with other storage",
+                        token_start,
+                    ));
                 }
-                "makeVisible" => {
-                    makes_visible = true;
+
+                storage = space;
+                has_storage = true;
+                is_space_locked = true;
+            } else {
+                if is_space_locked {
+                    return Err(ParseError::new(
+                        "storage set cannot mix any/none with other storage",
+                        token_start,
+                    ));
                 }
-                _ => {
-                    let space = self.parse_memory_space(&token_text, token_start)?;
-                    if space == SpaceSet::ANY || space == SpaceSet::NONE {
-                        if has_space && !is_space_locked {
-                            return Err(ParseError::new(
-                                "memory flags cannot mix any/none with other spaces",
-                                token_start,
-                            ));
-                        }
 
-                        spaces = space;
-                        has_space = true;
-                        is_space_locked = true;
-                    } else {
-                        if is_space_locked {
-                            return Err(ParseError::new(
-                                "memory flags cannot mix any/none with other spaces",
-                                token_start,
-                            ));
-                        }
-
-                        if !has_space {
-                            spaces = SpaceSet::NONE;
-                            has_space = true;
-                        }
-
-                        spaces.insert(space);
-                    }
-                }
+                storage.insert(space);
+                has_storage = true;
             }
 
             // single values stop after one item
@@ -2171,21 +2138,15 @@ impl Parser {
             }
         }
 
-        // close the list
         if is_list {
             self.eat_token(TokenType::CloseBracket)?;
         }
 
-        // default the space set when omitted
-        if !has_space {
-            spaces = SpaceSet::ANY;
+        if !has_storage {
+            storage = StorageSet::ANY;
         }
 
-        Ok(MemoryFlags::with_flags(
-            spaces,
-            makes_available,
-            makes_visible,
-        ))
+        Ok(storage)
     }
 
     /// Parse one atomic read-modify-write opcode suffix.

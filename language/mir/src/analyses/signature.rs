@@ -145,32 +145,8 @@ impl ParameterRemap {
         Some((index - shift) as u32)
     }
 
-    /// Remap allocation size parameter indices after removals.
-    pub fn remap_allocation_size(
-        &self,
-        allocation_size: Option<mir::AllocationSize>,
-    ) -> Option<mir::AllocationSize> {
-        // read the existing allocation size metadata
-        let allocation_size = allocation_size?;
-
-        // remap the required stride index
-        let stride_index = self.remap_parameter_index(allocation_size.stride_index)?;
-
-        // remap the optional element count index
-        let element_count_index = match allocation_size.element_count_index {
-            Some(index) => Some(self.remap_parameter_index(index)?),
-            None => None,
-        };
-
-        Some(mir::AllocationSize::new(stride_index, element_count_index))
-    }
-
-    /// Collect parameter indices that must be preserved by metadata.
-    pub fn required_indices(
-        function: &mir::Function,
-        metadata: Option<&mir::FunctionEffect>,
-        tree: &mir::Tree,
-    ) -> HashSet<usize> {
+    /// Collect parameter indices required by lifetimes and obligations.
+    pub fn required_indices(function: &mir::Function, tree: &mir::Tree) -> HashSet<usize> {
         let mut required = HashSet::new();
 
         // include return type lifetime slots
@@ -187,14 +163,6 @@ impl ParameterRemap {
                 for index in lifetime.slot_indices() {
                     required.insert(index as usize);
                 }
-            }
-        }
-
-        // include allocation size indices
-        if let Some(allocation_size) = metadata.and_then(|metadata| metadata.allocation_size) {
-            required.insert(allocation_size.stride_index as usize);
-            if let Some(count_index) = allocation_size.element_count_index {
-                required.insert(count_index as usize);
             }
         }
 

@@ -145,9 +145,11 @@ pub(super) fn format_constant_for_type<'a>(
                 is_signed: true,
             },
             Type::Isize,
-        ) if *width == f.context().tree.pointer_bits() => write!(f, [text(&value.to_string())]),
+        ) if *width == f.context().target_layout.pointer_bits() => {
+            write!(f, [text(&value.to_string())])
+        }
         (Constant::UInt { value, width }, Type::Usize)
-            if *width == f.context().tree.pointer_bits() =>
+            if *width == f.context().target_layout.pointer_bits() =>
         {
             write!(f, [text(&value.to_string())])
         }

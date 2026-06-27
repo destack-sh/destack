@@ -107,7 +107,7 @@ fn test_format_check_type_guards() {
 function guard(v0: uint32, v1: ref<void, managed, mutable>): int32 {
 entry(v0: uint32, v1: ref<void, managed, mutable>):
     v2: boolean = int.eq v0, v0
-    check dynamic.type v0, int32 => b1, b4
+    check is.type v0, int32 => b1, b4
 
 b1:
     v3: boolean = int.eq v0, v0
@@ -115,11 +115,11 @@ b1:
 
 b2:
     v4: boolean = int.eq v0, v0
-    check receiver.type v1, int32 => b2, b4
+    check is.type v1, int32 => b2, b4
 
 b3:
     v5: boolean = int.eq v0, v0
-    check interface.conformance v1, int32 => b3, b5
+    check is.subtype v1, int32 => b3, b5
 
 b4:
     v6: int32 = 0

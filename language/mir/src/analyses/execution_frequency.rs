@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::{
-    Analysis, AnalysisId, ExecutionFrequencyOptions, FunctionAnalyses, FunctionAnalysis,
+    Analysis, AnalysisId, ExecutionFrequencyOptions, FunctionAnalysis, FunctionAnalysisCache,
     LoopAnalysis, Mutation,
 };
 use crate::{
@@ -28,7 +28,7 @@ impl ExecutionFrequency {
     pub fn compute_profiled(
         function: &Function,
         tree: &Tree,
-        analyses: &FunctionAnalyses,
+        analyses: &FunctionAnalysisCache,
         profile: Option<&FunctionProfile>,
     ) -> Self {
         let loops = analyses.get::<LoopAnalysis>(function, tree);
@@ -119,7 +119,7 @@ impl ExecutionCounts {
         function: &Function,
         tree: &Tree,
         profile: Option<&Profile>,
-        analyses: &FunctionAnalyses,
+        analyses: &FunctionAnalysisCache,
     ) -> Self {
         let Some(profile) = profile else {
             return Self::default();
@@ -199,7 +199,7 @@ impl Analysis for ExecutionFrequency {
 }
 
 impl FunctionAnalysis for ExecutionFrequency {
-    fn compute(function: &Function, tree: &Tree, analyses: &FunctionAnalyses) -> Self {
+    fn compute(function: &Function, tree: &Tree, analyses: &FunctionAnalysisCache) -> Self {
         Self::compute_profiled(function, tree, analyses, None)
     }
 }
@@ -599,7 +599,7 @@ impl LevelTarget {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::parse_test_function;
+    use crate::analyses::tests::{empty_function_analysis_cache, parse_test_function};
     use crate::{Count, CounterId, FunctionHash, FunctionProfile, Successor, ValueProfile};
 
     /// Build a function profile with branch edge counts.
@@ -641,7 +641,7 @@ mod tests {
         profile: Option<&FunctionProfile>,
     ) -> ExecutionFrequency {
         let function = tree.get(function_id);
-        let analyses = FunctionAnalyses::new();
+        let analyses = empty_function_analysis_cache();
 
         ExecutionFrequency::compute_profiled(function, tree, &analyses, profile)
     }
@@ -726,7 +726,7 @@ b3:
             functions: HashMap::from([(function.symbol, function_profile)]),
             globals: HashMap::new(),
         };
-        let analyses = FunctionAnalyses::new();
+        let analyses = empty_function_analysis_cache();
         let counts = ExecutionCounts::new(function, &tree, Some(&profile), &analyses);
 
         assert_eq!(counts.block(blocks[0]), 100);

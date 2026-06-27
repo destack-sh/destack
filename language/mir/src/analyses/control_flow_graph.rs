@@ -1,4 +1,4 @@
-use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation};
+use super::{Analysis, AnalysisId, FunctionAnalysis, FunctionAnalysisCache, Mutation};
 use crate::{Block, Function, LocalNodeId, NodeTable, Tree};
 
 /// Control flow graph for one function.
@@ -73,7 +73,7 @@ impl Analysis for ControlFlowGraph {
 }
 
 impl FunctionAnalysis for ControlFlowGraph {
-    fn compute(function: &Function, tree: &Tree, _analyses: &FunctionAnalyses) -> Self {
+    fn compute(function: &Function, tree: &Tree, _analyses: &FunctionAnalysisCache) -> Self {
         Self::build(function, tree)
     }
 }

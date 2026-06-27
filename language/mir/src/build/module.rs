@@ -1,13 +1,32 @@
 use destack_core::{StringId, StringPool};
 
-use crate::Tree;
 use crate::build::FunctionHeaderBuilder;
+use crate::{
+    DispatchTable, DropTable, EffectTable, LayoutTable, MemoryTable, ProfileTable, TargetLayout,
+    Tree, TypeTable,
+};
 
 /// Builder for constructing a MIR module (collection of functions and types).
 #[derive(Debug)]
 pub struct ModuleBuilder {
     /// The tree being built.
     pub(super) tree: Tree,
+    /// Target ABI layout.
+    pub(super) target_layout: TargetLayout,
+    /// Canonical MIR type table.
+    pub(super) types: TypeTable,
+    /// Canonical MIR layout table.
+    pub(super) layouts: LayoutTable,
+    /// Canonical MIR dispatch table.
+    pub(super) dispatch: DispatchTable,
+    /// Canonical MIR drop table.
+    pub(super) drops: DropTable,
+    /// Explicit MIR memory access table.
+    pub(super) memory: MemoryTable,
+    /// Function and call effect table.
+    pub(super) effects: EffectTable,
+    /// Static profile counter table.
+    pub(super) profile: ProfileTable,
     /// String pool for names.
     pub(super) strings: StringPool,
 }
@@ -17,6 +36,14 @@ impl ModuleBuilder {
     pub fn new() -> Self {
         Self {
             tree: Tree::new(),
+            target_layout: TargetLayout::default(),
+            types: TypeTable::default(),
+            layouts: LayoutTable::default(),
+            dispatch: DispatchTable::default(),
+            drops: DropTable::default(),
+            memory: MemoryTable::default(),
+            effects: EffectTable::default(),
+            profile: ProfileTable::default(),
             strings: StringPool::new(),
         }
     }
@@ -31,6 +58,76 @@ impl ModuleBuilder {
         &mut self.tree
     }
 
+    /// Get a reference to the type table.
+    pub fn types(&self) -> &TypeTable {
+        &self.types
+    }
+
+    /// Get a mutable reference to the type table.
+    pub fn types_mut(&mut self) -> &mut TypeTable {
+        &mut self.types
+    }
+
+    /// Get a reference to the layout table.
+    pub fn layouts(&self) -> &LayoutTable {
+        &self.layouts
+    }
+
+    /// Get a mutable reference to the layout table.
+    pub fn layouts_mut(&mut self) -> &mut LayoutTable {
+        &mut self.layouts
+    }
+
+    /// Get a reference to the dispatch table.
+    pub fn dispatch(&self) -> &DispatchTable {
+        &self.dispatch
+    }
+
+    /// Get a mutable reference to the dispatch table.
+    pub fn dispatch_mut(&mut self) -> &mut DispatchTable {
+        &mut self.dispatch
+    }
+
+    /// Get a reference to the drop table.
+    pub fn drops(&self) -> &DropTable {
+        &self.drops
+    }
+
+    /// Get a mutable reference to the drop table.
+    pub fn drops_mut(&mut self) -> &mut DropTable {
+        &mut self.drops
+    }
+
+    /// Get a reference to the memory table.
+    pub fn memory(&self) -> &MemoryTable {
+        &self.memory
+    }
+
+    /// Get a mutable reference to the memory table.
+    pub fn memory_mut(&mut self) -> &mut MemoryTable {
+        &mut self.memory
+    }
+
+    /// Get a reference to the effect table.
+    pub fn effects(&self) -> &EffectTable {
+        &self.effects
+    }
+
+    /// Get a mutable reference to the effect table.
+    pub fn effects_mut(&mut self) -> &mut EffectTable {
+        &mut self.effects
+    }
+
+    /// Get a reference to the profile table.
+    pub fn profile(&self) -> &ProfileTable {
+        &self.profile
+    }
+
+    /// Get a mutable reference to the profile table.
+    pub fn profile_mut(&mut self) -> &mut ProfileTable {
+        &mut self.profile
+    }
+
     /// Get a reference to the string pool.
     pub fn strings(&self) -> &StringPool {
         &self.strings
@@ -38,12 +135,12 @@ impl ModuleBuilder {
 
     /// Return module pointer size in bytes.
     pub fn pointer_bytes(&self) -> u8 {
-        self.tree.pointer_bytes()
+        self.target_layout.pointer_bytes()
     }
 
     /// Set module pointer size in bytes.
     pub fn set_pointer_bytes(&mut self, pointer_bytes: u8) {
-        self.tree.set_pointer_bytes(pointer_bytes);
+        self.target_layout = TargetLayout::for_pointer_bytes(pointer_bytes);
     }
 
     /// Intern a string and return its id.
@@ -57,12 +154,40 @@ impl ModuleBuilder {
     }
 
     /// Finish building the module.
-    pub fn finish(self) -> (Tree, StringPool) {
-        (self.tree, self.strings)
+    pub fn finish(
+        mut self,
+    ) -> (
+        Tree,
+        TargetLayout,
+        TypeTable,
+        LayoutTable,
+        DispatchTable,
+        DropTable,
+        MemoryTable,
+        EffectTable,
+        ProfileTable,
+        StringPool,
+    ) {
+        self.types.rebuild_primitive_types(&self.tree);
+
+        (
+            self.tree,
+            self.target_layout,
+            self.types,
+            self.layouts,
+            self.dispatch,
+            self.drops,
+            self.memory,
+            self.effects,
+            self.profile,
+            self.strings,
+        )
     }
 
-    /// Finish building the module with a mutable string pool.
-    pub fn finish_mutable(self) -> (Tree, StringPool) {
+    /// Finish building the module and return only the tree and strings.
+    pub fn finish_tree(mut self) -> (Tree, StringPool) {
+        self.types.rebuild_primitive_types(&self.tree);
+
         (self.tree, self.strings)
     }
 }

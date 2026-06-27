@@ -8,8 +8,9 @@ use destack_source::{
 
 use crate::source::{Lexer, TokenType};
 use crate::{
-    Block, Field, Function, Global, LifetimeParameter, LifetimeSlot, Local, LocalNodeId, Node,
-    Tree, Type, Value, finalize_function_names,
+    Block, DispatchTable, DropTable, EffectTable, Field, Function, Global, LayoutTable,
+    LifetimeParameter, LifetimeSlot, Local, LocalNodeId, MemoryTable, Node, ProfileTable,
+    TargetLayout, Tree, Type, TypeTable, Value, finalize_function_names,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -20,6 +21,22 @@ use super::key::{FieldKey, TypeKey};
 pub struct ParsedMir {
     /// The parsed MIR tree.
     pub tree: Tree,
+    /// Target ABI layout.
+    pub target_layout: TargetLayout,
+    /// Canonical MIR type table.
+    pub types: TypeTable,
+    /// Canonical MIR layout table.
+    pub layouts: LayoutTable,
+    /// Canonical MIR dispatch table.
+    pub dispatch: DispatchTable,
+    /// Canonical MIR drop table.
+    pub drops: DropTable,
+    /// Explicit MIR memory access table.
+    pub memory: MemoryTable,
+    /// Function and call effect table.
+    pub effects: EffectTable,
+    /// Static profile counter table.
+    pub profile: ProfileTable,
     /// The parsed string pool.
     pub strings: StringPool,
     /// The collected parse diagnostics.
@@ -28,14 +45,48 @@ pub struct ParsedMir {
 
 impl ParsedMir {
     /// Return the parsed tree, strings, and diagnostics.
-    pub fn into_parts(self) -> (Tree, StringPool, DiagnosticCollection) {
-        (self.tree, self.strings, self.diagnostics)
+    pub fn into_parts(
+        self,
+    ) -> (
+        Tree,
+        TargetLayout,
+        TypeTable,
+        LayoutTable,
+        DispatchTable,
+        DropTable,
+        MemoryTable,
+        EffectTable,
+        ProfileTable,
+        StringPool,
+        DiagnosticCollection,
+    ) {
+        (
+            self.tree,
+            self.target_layout,
+            self.types,
+            self.layouts,
+            self.dispatch,
+            self.drops,
+            self.memory,
+            self.effects,
+            self.profile,
+            self.strings,
+            self.diagnostics,
+        )
     }
 
     /// Return the parsed MIR when no parse errors were emitted.
     pub fn finish(self) -> ParseResult<(Tree, StringPool)> {
         let Self {
             tree,
+            target_layout: _,
+            types: _,
+            layouts: _,
+            dispatch: _,
+            drops: _,
+            memory: _,
+            effects: _,
+            profile: _,
             strings,
             diagnostics,
         } = self;
@@ -56,7 +107,7 @@ impl ParsedMir {
 #[derive(Debug, Clone)]
 pub struct ParseOptions {
     /// Pointer size in bytes (4 for 32-bit, 8 for 64-bit).
-    /// Used for computing struct field offsets.
+    /// Used for pointer-sized MIR types and constants.
     pub pointer_bytes: u8,
 }
 
@@ -73,6 +124,22 @@ pub struct Parser {
     pub(super) pos: usize,
     /// The tree being built.
     pub(super) tree: Tree,
+    /// Target ABI layout.
+    pub(super) target_layout: TargetLayout,
+    /// Canonical MIR type table.
+    pub(super) types: TypeTable,
+    /// Canonical MIR layout table.
+    pub(super) layouts: LayoutTable,
+    /// Canonical MIR dispatch table.
+    pub(super) dispatch: DispatchTable,
+    /// Canonical MIR drop table.
+    pub(super) drops: DropTable,
+    /// Explicit MIR memory access table.
+    pub(super) memory: MemoryTable,
+    /// Function and call effect table.
+    pub(super) effects: EffectTable,
+    /// Static profile counter table.
+    pub(super) profile: ProfileTable,
     /// The string pool.
     pub(super) strings: StringPool,
     /// The source file id for spans.
@@ -119,12 +186,20 @@ impl Parser {
     /// Create a new parser for a specific file.
     pub fn new(file_id: FileId, source: &str, options: ParseOptions) -> Self {
         let content_id = ContentId::for_text(source);
-        let mut tree = Tree::with_parsed_source(source.to_string(), Lexer::lex(file_id, source));
-        tree.set_pointer_bytes(options.pointer_bytes);
+        let tree = Tree::with_parsed_source(source.to_string(), Lexer::lex(file_id, source));
+        let target_layout = TargetLayout::for_pointer_bytes(options.pointer_bytes);
 
         Self {
             pos: 0,
             tree,
+            target_layout,
+            types: TypeTable::default(),
+            layouts: LayoutTable::default(),
+            dispatch: DispatchTable::default(),
+            drops: DropTable::default(),
+            memory: MemoryTable::default(),
+            effects: EffectTable::default(),
+            profile: ProfileTable::default(),
             strings: StringPool::new(),
             file_id,
             content_id,
@@ -161,8 +236,19 @@ impl Parser {
         // synthesize any generated function names
         parser.finalize_generated_names();
 
+        // rebuild derived primitive type cache
+        parser.types.rebuild_primitive_types(&parser.tree);
+
         ParsedMir {
             tree: parser.tree,
+            target_layout: parser.target_layout,
+            types: parser.types,
+            layouts: parser.layouts,
+            dispatch: parser.dispatch,
+            drops: parser.drops,
+            memory: parser.memory,
+            effects: parser.effects,
+            profile: parser.profile,
             strings: parser.strings,
             diagnostics: parser.diagnostics.take_collection(),
         }

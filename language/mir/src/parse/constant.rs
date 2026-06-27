@@ -1,7 +1,7 @@
 use crate::source::TokenType;
 use destack_source::Span;
 
-use crate::{Constant, FloatType, Intrinsic, LocalNodeId, SpaceSet, Type};
+use crate::{Constant, FloatType, Intrinsic, LocalNodeId, StorageSet, Type};
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
@@ -153,8 +153,8 @@ impl Parser {
                 let has_suffix = token_text.chars().any(|c| c.is_ascii_alphabetic());
                 let (width, is_signed) = match self.tree.get(expected_type) {
                     Type::Int { width, is_signed } => (*width, *is_signed),
-                    Type::Isize => (self.tree.pointer_bits(), true),
-                    Type::Usize => (self.tree.pointer_bits(), false),
+                    Type::Isize => (self.target_layout.pointer_bits(), true),
+                    Type::Usize => (self.target_layout.pointer_bits(), false),
                     _ => {
                         return Err(ParseError::invalid("integer constant type", token_start));
                     }
@@ -321,20 +321,19 @@ impl Parser {
         })
     }
 
-    /// Parse a memory space keyword into a space set.
-    pub(super) fn parse_memory_space(&self, text: &str, start: usize) -> ParseResult<SpaceSet> {
+    /// Parse one storage keyword.
+    pub(super) fn parse_storage(&self, text: &str, start: usize) -> ParseResult<StorageSet> {
         let location = match text {
-            "none" => SpaceSet::NONE,
-            "any" => SpaceSet::ANY,
-            "local" => SpaceSet::LOCAL,
-            "shared" => SpaceSet::SHARED,
-            "frame" => SpaceSet::FRAME,
-            "static" => SpaceSet::STATIC,
+            "none" => StorageSet::NONE,
+            "any" => StorageSet::ANY,
+            "local" => StorageSet::LOCAL,
+            "shared" => StorageSet::SHARED,
+            "frame" => StorageSet::FRAME,
+            "static" => StorageSet::STATIC,
+            "device" => StorageSet::DEVICE,
+            "workgroup" => StorageSet::WORKGROUP,
             _ => {
-                return Err(ParseError::invalid(
-                    &format!("memory space '{text}'"),
-                    start,
-                ));
+                return Err(ParseError::invalid(&format!("storage '{text}'"), start));
             }
         };
 

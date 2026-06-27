@@ -121,11 +121,11 @@ pub enum CheckConstraint {
         /// Whether the overflow check is signed.
         is_signed: bool,
     },
-    /// Runtime type descriptor check for a value.
-    Type {
-        /// The descriptor value being checked.
+    /// Exact runtime type check for a value.
+    IsType {
+        /// The value being checked.
         value: Value,
-        /// The expected dynamic type for this descriptor.
+        /// The expected concrete runtime type.
         expected: TypeId,
     },
     /// Variant tag check for a physical tagged sum value.
@@ -135,18 +135,11 @@ pub enum CheckConstraint {
         /// The expected tag constant.
         expected: Constant,
     },
-    /// Dynamic receiver type check for a class or concrete receiver.
-    ReceiverType {
-        /// The receiver being checked.
-        receiver: Value,
-        /// The expected concrete receiver type.
-        expected: TypeId,
-    },
-    /// Interface conformance check for a receiver.
-    Implements {
-        /// The receiver being checked.
-        receiver: Value,
-        /// The expected interface type.
+    /// Runtime subtype relation check for a value.
+    IsSubtype {
+        /// The value being checked.
+        value: Value,
+        /// The expected supertype.
         expected: TypeId,
     },
 }
@@ -167,10 +160,9 @@ impl CheckConstraint {
             CheckConstraint::ShiftRange { value, .. } => smallvec![*value],
             CheckConstraint::Narrow { value, .. } => smallvec![*value],
             CheckConstraint::Overflow { left, right, .. } => smallvec![*left, *right],
-            CheckConstraint::Type { value, .. } => smallvec![*value],
+            CheckConstraint::IsType { value, .. } => smallvec![*value],
             CheckConstraint::Variant { value, .. } => smallvec![*value],
-            CheckConstraint::ReceiverType { receiver, .. } => smallvec![*receiver],
-            CheckConstraint::Implements { receiver, .. } => smallvec![*receiver],
+            CheckConstraint::IsSubtype { value, .. } => smallvec![*value],
         }
     }
 }

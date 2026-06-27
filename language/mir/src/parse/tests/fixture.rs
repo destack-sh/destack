@@ -60,7 +60,19 @@ impl<'a> TestParser<'a> {
     /// Parse one fixture and keep recovery diagnostics.
     pub(crate) fn parse_with_diagnostics(self) -> (Tree, DiagnosticCollection) {
         let parsed = Parser::parse(FileId::new(0), self.source, ParseOptions::default());
-        let (tree, _, diagnostics) = parsed.into_parts();
+        let (
+            tree,
+            _target_layout,
+            _types,
+            _layouts,
+            _dispatch,
+            _drops,
+            _memory,
+            _effects,
+            _profile,
+            _strings,
+            diagnostics,
+        ) = parsed.into_parts();
 
         (tree, diagnostics)
     }
@@ -73,8 +85,26 @@ impl<'a> TestParser<'a> {
 
     /// Assert one canonical format result.
     pub(crate) fn assert_format(self, expected: &str) {
-        let (tree, strings) = self.parse();
-        let output = format_mir(&tree, &strings, MirFormatOptions::default()).expect("format MIR");
+        let parsed = Parser::parse(FileId::new(0), self.source, ParseOptions::default());
+        let (
+            tree,
+            target_layout,
+            _types,
+            _layouts,
+            _dispatch,
+            _drops,
+            _memory,
+            _effects,
+            _profile,
+            strings,
+            diagnostics,
+        ) = parsed.into_parts();
+        assert!(
+            !diagnostics.has_diagnostics_of_severity(destack_source::DiagnosticSeverity::Error),
+            "parse failed"
+        );
+        let output = format_mir(&tree, target_layout, &strings, MirFormatOptions::default())
+            .expect("format MIR");
 
         assert_eq!(expected.trim(), output.trim(), "formatted output mismatch");
     }
