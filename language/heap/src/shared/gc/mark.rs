@@ -1,6 +1,6 @@
 use destack_mir::TraceTable;
 
-use crate::shared::gc::{GcPhase, GcWorker, MarkWork};
+use crate::shared::gc::{GcPhase, MarkWork, SharedMarkWorker};
 use crate::shared::storage::{HeapPlace, HeapStorage};
 use crate::{
     HeapError, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference, visit_references,
@@ -105,7 +105,7 @@ impl HeapStorage {
     /// Queue explicit roots that are not already marked in this cycle.
     pub(super) fn mark_roots(
         &self,
-        worker: Option<&GcWorker>,
+        worker: Option<&SharedMarkWorker>,
         references: &[SharedHeapReference],
     ) -> HeapResult<()> {
         // seed explicit roots
@@ -123,7 +123,7 @@ impl HeapStorage {
     /// Mark one shared reference and queue trace work when needed.
     pub(crate) fn mark_reference(
         &self,
-        worker: Option<&GcWorker>,
+        worker: Option<&SharedMarkWorker>,
         reference: SharedHeapReference,
     ) -> HeapResult<()> {
         if reference.is_null() {

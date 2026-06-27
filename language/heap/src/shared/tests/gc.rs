@@ -3,9 +3,9 @@ use std::sync::Arc;
 use destack_mir::{TraceMap, TraceTable};
 
 use crate::{
-    AllocationCache, Allocator, GcKind, GcOptions, GcPhase, GcProgress, GcWorker,
-    HeapAllocationError, HeapError, Payload, PayloadShape, SharedHeap, SharedHeapLimits,
-    SharedHeapOptions, SharedHeapReference, SizeClassTable, TestLayout, shared_trace_map,
+    AllocationCache, Allocator, GcKind, GcOptions, GcPhase, GcProgress, HeapAllocationError,
+    HeapError, Payload, PayloadShape, SharedHeap, SharedHeapLimits, SharedHeapOptions,
+    SharedHeapReference, SharedMarkWorker, SizeClassTable, TestLayout, shared_trace_map,
     test_layout, test_layouts,
 };
 
@@ -17,7 +17,12 @@ use super::{
 /// Build one shared heap whose pacer starts immediately in step-driven tests.
 fn test_shared_heap(
     layouts: &[(usize, TraceMap)],
-) -> (SharedHeap, AllocationCache, GcWorker, Vec<TestLayout>) {
+) -> (
+    SharedHeap,
+    AllocationCache,
+    SharedMarkWorker,
+    Vec<TestLayout>,
+) {
     let options = SharedHeapOptions {
         gc: GcOptions {
             growth_percent: 0,
@@ -42,7 +47,7 @@ fn test_shared_heap(
     .expect("shared heap should build");
 
     let allocator = heap.allocation_cache();
-    let worker = heap.register_collector_worker();
+    let worker = heap.register_mark_worker();
 
     (heap, allocator, worker, layouts)
 }
@@ -264,7 +269,7 @@ fn test_collect_shared_clears_reused_small_slot_tail() {
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocation_cache();
-    let worker = shared.register_collector_worker();
+    let worker = shared.register_mark_worker();
     let full_layout = test_layout(8, TraceMap::empty());
     let short_layout = test_layout(1, TraceMap::empty());
 
@@ -581,7 +586,7 @@ fn test_shared_heap_gc_state_roundtrips_through_image() {
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocation_cache();
-    let worker = shared.register_collector_worker();
+    let worker = shared.register_mark_worker();
     let reference = test_allocate(
         &shared,
         &worker,
@@ -621,7 +626,7 @@ fn test_shared_heap_gc_state_roundtrips_through_snapshot() {
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocation_cache();
-    let worker = shared.register_collector_worker();
+    let worker = shared.register_mark_worker();
     let reference = test_allocate(
         &shared,
         &worker,

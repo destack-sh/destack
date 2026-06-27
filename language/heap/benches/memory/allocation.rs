@@ -623,7 +623,7 @@ fn measure_parallel_shared_heap(
 
                 scope.spawn(move || {
                     let mut allocator = shared.allocation_cache();
-                    let worker = shared.register_collector_worker();
+                    let worker = shared.register_mark_worker();
                     ready.wait();
                     release.wait();
 

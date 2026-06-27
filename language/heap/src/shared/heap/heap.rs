@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::limits::SharedHeapLimits;
 use super::usage::SharedHeapUsage;
-use crate::shared::gc::{GcPhase, GcWorker, Pacer};
+use crate::shared::gc::{GcPhase, Pacer, SharedMarkWorker};
 use crate::shared::storage::{AllocationCache, HeapStorage, HeapStorageImage};
 use crate::{
     AccountingRegion, Allocation, AllocationPlan, Allocator, GcPacer, GcPressure, GcProgress,
@@ -247,7 +247,7 @@ impl SharedHeap {
     #[inline(always)]
     pub(crate) fn allocate_payload(
         &self,
-        worker: &GcWorker,
+        worker: &SharedMarkWorker,
         cache: &mut AllocationCache,
         layout: &Allocation<'_>,
         block: Payload<'_>,
@@ -310,7 +310,7 @@ impl SharedHeap {
     #[inline(never)]
     pub fn allocate_zeroed(
         &self,
-        worker: &GcWorker,
+        worker: &SharedMarkWorker,
         cache: &mut AllocationCache,
         plan: AllocationPlan,
         trace_map: &TraceMap,
@@ -326,7 +326,7 @@ impl SharedHeap {
     #[inline(never)]
     pub fn allocate_uninit(
         &self,
-        worker: &GcWorker,
+        worker: &SharedMarkWorker,
         cache: &mut AllocationCache,
         plan: AllocationPlan,
         trace_map: &TraceMap,
@@ -342,7 +342,7 @@ impl SharedHeap {
     #[inline(never)]
     pub fn allocate_bytes(
         &self,
-        worker: &GcWorker,
+        worker: &SharedMarkWorker,
         cache: &mut AllocationCache,
         plan: AllocationPlan,
         trace_map: &TraceMap,
@@ -461,15 +461,15 @@ impl SharedHeap {
         self.step_collection_for_worker(None, roots, roots_complete, budget_bytes, trace_table)
     }
 
-    /// Register one shared GC worker.
-    pub fn register_collector_worker(&self) -> GcWorker {
+    /// Register one shared mark worker.
+    pub fn register_mark_worker(&self) -> SharedMarkWorker {
         self.storage.gc.trace_queue.register_worker()
     }
 
     /// Run one shared collection step for one worker with one explicit byte budget.
     pub fn step_collection_for_worker(
         &self,
-        worker: Option<&GcWorker>,
+        worker: Option<&SharedMarkWorker>,
         roots: &[SharedHeapReference],
         roots_complete: bool,
         budget_bytes: usize,
@@ -673,7 +673,7 @@ impl SharedHeap {
     /// Run shared collector work proportional to one block.
     fn assist_allocation(
         &self,
-        worker: &GcWorker,
+        worker: &SharedMarkWorker,
         allocated_bytes: usize,
         trace_table: &TraceTable,
     ) -> HeapResult<()> {

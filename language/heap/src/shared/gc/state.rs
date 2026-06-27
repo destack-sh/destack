@@ -162,12 +162,12 @@ pub(crate) enum MarkWork {
     },
 }
 
-/// One registered shared GC worker handle.
+/// One registered shared mark worker handle.
 #[derive(Debug)]
-pub struct GcWorker {
+pub struct SharedMarkWorker {
     /// The worker registry key.
     index: usize,
-    /// Work owned by this collector worker.
+    /// Work owned by this mark worker.
     local: Worker<MarkWork>,
 }
 
@@ -176,13 +176,13 @@ pub struct GcWorker {
 pub(crate) struct MarkQueue {
     /// Work published without a worker context.
     global: Injector<MarkWork>,
-    /// Stealing handles for registered collector workers.
+    /// Stealing handles for registered mark workers.
     stealers: Mutex<Vec<Stealer<MarkWork>>>,
 }
 
 impl MarkQueue {
-    /// Register one GC worker.
-    pub(crate) fn register_worker(&self) -> GcWorker {
+    /// Register one mark worker.
+    pub(crate) fn register_worker(&self) -> SharedMarkWorker {
         let local = Worker::new_fifo();
         let stealer = local.stealer();
         let mut stealers = self.stealers.lock();
@@ -191,14 +191,14 @@ impl MarkQueue {
         // publish the stealing handle for other workers
         stealers.push(stealer);
 
-        GcWorker {
+        SharedMarkWorker {
             index: worker_index,
             local,
         }
     }
 
     /// Push one pending trace work item.
-    pub(crate) fn push(&self, worker: Option<&GcWorker>, work: MarkWork) {
+    pub(crate) fn push(&self, worker: Option<&SharedMarkWorker>, work: MarkWork) {
         // null large references are not trace work
         if let MarkWork::Large { reference, .. } = work
             && reference.is_null()
@@ -219,7 +219,7 @@ impl MarkQueue {
     /// Pop one bounded batch of pending work into the caller buffer.
     pub(crate) fn pop_batch(
         &self,
-        worker: Option<&GcWorker>,
+        worker: Option<&SharedMarkWorker>,
         batch_len: usize,
         batch: &mut Vec<MarkWork>,
     ) {
@@ -270,7 +270,12 @@ impl MarkQueue {
     }
 
     /// Pop work from one worker deque into one batch.
-    fn pop_from_worker(&self, worker: &GcWorker, batch_len: usize, batch: &mut Vec<MarkWork>) {
+    fn pop_from_worker(
+        &self,
+        worker: &SharedMarkWorker,
+        batch_len: usize,
+        batch: &mut Vec<MarkWork>,
+    ) {
         // drain the local worker queue first
         while batch.len() < batch_len {
             let Some(work) = worker.local.pop() else {
@@ -284,7 +289,7 @@ impl MarkQueue {
     /// Pop global work into one batch.
     fn pop_from_global(
         &self,
-        worker: Option<&GcWorker>,
+        worker: Option<&SharedMarkWorker>,
         batch_len: usize,
         batch: &mut Vec<MarkWork>,
     ) {
@@ -343,7 +348,7 @@ impl MarkQueue {
     /// Steal work from other worker queues into one batch.
     fn steal_from_workers(
         &self,
-        local_worker: Option<&GcWorker>,
+        local_worker: Option<&SharedMarkWorker>,
         batch_len: usize,
         batch: &mut Vec<MarkWork>,
     ) {
@@ -365,7 +370,7 @@ impl MarkQueue {
     /// Steal work from one worker queue into one batch.
     fn steal_from_worker(
         &self,
-        local_worker: Option<&GcWorker>,
+        local_worker: Option<&SharedMarkWorker>,
         stealer: &Stealer<MarkWork>,
         batch_len: usize,
         batch: &mut Vec<MarkWork>,
