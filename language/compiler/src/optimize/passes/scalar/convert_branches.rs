@@ -3,9 +3,9 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ControlFlowGraph, Mutation, clone_instruction_metadata, instruction_is_speculatable,
+    ControlFlowGraph, Mutation, clone_instruction_tables, instruction_is_speculatable,
     instruction_map,
 };
 
@@ -69,17 +69,20 @@ impl FunctionPass for ConvertBranches {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip imported functions
         if function.entry().is_none() {
             return Mutation::NONE;
         }
 
         // run if conversion
-        let changed = run_convert_branches(function, tree, ctx, analyses);
+        let changed = run_convert_branches(function, tree, memory, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -137,8 +140,9 @@ impl ConvertBranchesCandidate {
 fn run_convert_branches(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalyses,
+    analyses: &mir::FunctionAnalysisCache,
 ) -> bool {
     // build control flow graph
     let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
@@ -171,8 +175,14 @@ fn run_convert_branches(
             continue;
         }
 
-        let converted =
-            apply_convert_branches(&candidate, function, tree, execution_counts.edges(), &cost);
+        let converted = apply_convert_branches(
+            &candidate,
+            function,
+            tree,
+            memory,
+            execution_counts.edges(),
+            &cost,
+        );
         if converted {
             converted_blocks.extend(candidate.consumed_blocks());
             changed = true;
@@ -277,6 +287,7 @@ fn apply_convert_branches(
     candidate: &ConvertBranchesCandidate,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     edge_counts: &HashMap<mir::Edge, u64>,
     cost: &mir::CostModel,
 ) -> bool {
@@ -305,8 +316,20 @@ fn apply_convert_branches(
 
     // clone branch instructions into the header
     let mut new_instructions = tree.get(candidate.header).instructions.clone();
-    clone_block_instructions(tree, &then_block, &then_value_map, &mut new_instructions);
-    clone_block_instructions(tree, &else_block, &else_value_map, &mut new_instructions);
+    clone_block_instructions(
+        tree,
+        memory,
+        &then_block,
+        &then_value_map,
+        &mut new_instructions,
+    );
+    clone_block_instructions(
+        tree,
+        memory,
+        &else_block,
+        &else_value_map,
+        &mut new_instructions,
+    );
 
     // read merge arguments
     let then_terminator = tree.get(then_block.terminator);
@@ -467,6 +490,7 @@ fn build_value_map(
 /// Clone a block's instructions into a header instruction list.
 fn clone_block_instructions(
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     block: &mir::Block,
     value_map: &HashMap<mir::Value, mir::Value>,
     target: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
@@ -476,7 +500,7 @@ fn clone_block_instructions(
         let instruction = tree.get(instruction_id).clone();
         let cloned = instruction_map(&instruction, value_map, tree);
         let cloned_id = tree.insert(cloned);
-        clone_instruction_metadata(tree, instruction_id, cloned_id, value_map);
+        clone_instruction_tables(tree, memory, instruction_id, cloned_id, value_map);
         target.push(cloned_id);
     }
 }
@@ -561,7 +585,7 @@ b3(v9: int32):
         test.assert_output(expected);
     }
 
-    /// Cloned instructions keep memory access metadata with remapped values.
+    /// Cloned instructions keep memory access entries with remapped values.
     #[test]
     fn test_convert_branches_clones_memory_access_metadata() {
         let input = r#"
@@ -584,19 +608,19 @@ b3(v9: int32):
 
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
-        let function = test.tree.get(function_id);
+        let function = test.optimized.tree.get(function_id);
         let header_block_id = function.block(0);
         let then_block_id = function.block(1);
         let else_block_id = function.block(2);
 
         let then_instruction = test.instructions_in_block(then_block_id)[0];
         let else_instruction = test.instructions_in_block(else_block_id)[0];
-        let then_param = test.tree.get(then_block_id).parameters[0].value;
-        let else_param = test.tree.get(else_block_id).parameters[1].value;
+        let then_param = test.optimized.tree.get(then_block_id).parameters[0].value;
+        let else_param = test.optimized.tree.get(else_block_id).parameters[1].value;
 
         test.insert_pointer_access_with_options(
             then_instruction,
-            mir::MemoryAccessKind::Read,
+            mir::MemoryOperation::Read,
             then_param,
             Some(4),
             false,
@@ -604,7 +628,7 @@ b3(v9: int32):
         );
         test.insert_pointer_access_with_options(
             else_instruction,
-            mir::MemoryAccessKind::Read,
+            mir::MemoryOperation::Read,
             else_param,
             Some(4),
             false,
@@ -613,30 +637,26 @@ b3(v9: int32):
 
         test.run_pass(&ConvertBranches);
 
-        let header_block = test.tree.get(header_block_id);
+        let header_block = test.optimized.tree.get(header_block_id);
         let then_arg = header_block.parameters[1].value;
         let else_arg = header_block.parameters[2].value;
         let mut saw_then = false;
         let mut saw_else = false;
 
         for &instruction_id in &header_block.instructions {
-            let instruction = test.tree.get(instruction_id);
+            let instruction = test.optimized.tree.get(instruction_id);
             match instruction {
                 mir::Instruction::Binary {
                     operator: mir::BinaryOperator::Add,
                     ..
                 } => {
                     let accesses = test
-                        .tree
-                        .metadata
+                        .optimized
                         .memory
                         .memory_accesses(instruction_id)
-                        .expect("missing metadata for hoisted add");
+                        .expect("missing tables for hoisted add");
                     assert_eq!(accesses.len(), 1);
-                    assert_eq!(
-                        accesses[0].target,
-                        mir::MemoryAccessTarget::Reference(then_arg)
-                    );
+                    assert_eq!(accesses[0].target, mir::MemoryTarget::Reference(then_arg));
                     saw_then = true;
                 }
                 mir::Instruction::Binary {
@@ -644,16 +664,12 @@ b3(v9: int32):
                     ..
                 } => {
                     let accesses = test
-                        .tree
-                        .metadata
+                        .optimized
                         .memory
                         .memory_accesses(instruction_id)
-                        .expect("missing metadata for hoisted sub");
+                        .expect("missing tables for hoisted sub");
                     assert_eq!(accesses.len(), 1);
-                    assert_eq!(
-                        accesses[0].target,
-                        mir::MemoryAccessTarget::Reference(else_arg)
-                    );
+                    assert_eq!(accesses[0].target, mir::MemoryTarget::Reference(else_arg));
                     saw_else = true;
                 }
                 _ => {}

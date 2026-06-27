@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, ControlFlowGraph, LoopAnalysis, Mutation, ScalarEvolution, Scev, TypeKey,
     constant_is_zero, fold_binary, instruction_substitute_uses_in_tree,
@@ -57,10 +57,13 @@ impl FunctionPass for SimplifyInductionVariables {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip imported functions
         if function.entry().is_none() {
             return Mutation::NONE;
@@ -78,7 +81,7 @@ impl FunctionPass for SimplifyInductionVariables {
 
         // run the simplification pass
         function.recompute_next_value_id(tree);
-        let changed = run_simplify_induction_variables(function, tree, &loops, &scev, &cfg);
+        let changed = run_simplify_induction_variables(function, tree, memory, &loops, &scev, &cfg);
         if changed {
             Mutation::VALUE
         } else {
@@ -130,6 +133,7 @@ struct ParamSignature {
 fn run_simplify_induction_variables(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     loops: &LoopAnalysis,
     scev: &ScalarEvolution,
     cfg: &ControlFlowGraph,
@@ -339,7 +343,7 @@ fn run_simplify_induction_variables(
             // replace instructions that changed
             if new_instruction != instruction {
                 tree.set(instruction_id, new_instruction);
-                remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
+                remap_instruction_memory_accesses(memory, instruction_id, &substitutions);
             }
         }
     }
@@ -1051,18 +1055,24 @@ b2(v8: int32):
 
         // resolve header signatures
         let test = TestProgram::new(input);
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = test.tree.get(function_id);
-        let analyses = test.function_analyses();
-        let cfg = analyses.get::<ControlFlowGraph>(function, &test.tree);
-        let loops = analyses.get::<LoopAnalysis>(function, &test.tree);
-        let forwarding = BlockParamForwarding::build(function, &test.tree, &cfg);
+        let function_id = test
+            .optimized
+            .tree
+            .iter_nodes::<mir::Function>()
+            .next()
+            .unwrap()
+            .0;
+        let function = test.optimized.tree.get(function_id);
+        let analyses = test.function_analysis_cache();
+        let cfg = analyses.get::<ControlFlowGraph>(function, &test.optimized.tree);
+        let loops = analyses.get::<LoopAnalysis>(function, &test.optimized.tree);
+        let forwarding = BlockParamForwarding::build(function, &test.optimized.tree, &cfg);
         let header = function.block(1);
-        let header_block = test.tree.get(header);
+        let header_block = test.optimized.tree.get(header);
         let param_left = &header_block.parameters[0];
         let param_right = &header_block.parameters[1];
-        let signature_left = param_signature(header, 0, &test.tree, &cfg, &forwarding);
-        let signature_right = param_signature(header, 1, &test.tree, &cfg, &forwarding);
+        let signature_left = param_signature(header, 0, &test.optimized.tree, &cfg, &forwarding);
+        let signature_right = param_signature(header, 1, &test.optimized.tree, &cfg, &forwarding);
 
         assert!(signature_left.is_some());
         assert_eq!(signature_left, signature_right);
@@ -1071,11 +1081,11 @@ b2(v8: int32):
 
         let canonical_signatures = [CanonicalSignature {
             signature: signature_left.unwrap(),
-            ty: TypeKey::from_type(param_left.ty, &test.tree),
+            ty: TypeKey::from_type(param_left.ty, &test.optimized.tree),
             value: param_left.value,
         }];
         let canonical_value = signature_right.and_then(|signature| {
-            let param_right_ty = TypeKey::from_type(param_right.ty, &test.tree);
+            let param_right_ty = TypeKey::from_type(param_right.ty, &test.optimized.tree);
             canonical_signatures.iter().find_map(|entry| {
                 if entry.ty == param_right_ty && entry.signature == signature {
                     Some(entry.value)

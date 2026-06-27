@@ -3,17 +3,17 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ConstantPropagation, DominatorTree, LoopAnalysis, Mutation, RangeAnalysis, RangeMap,
     ValueRange, apply_substitutions_in_dominated_blocks, block_parameters_used_outside_block,
     block_uses_available_in_predecessor, build_use_def_maps, build_value_instruction_map,
-    build_value_use_counts, clone_instruction_metadata, function_thread_jumps,
+    build_value_use_counts, clone_instruction_tables, function_thread_jumps,
     instruction_is_speculatable, instruction_map, substitute_values, terminator_remap,
     terminator_substitute_uses,
 };
 
-/// Return block metadata for canonicalization.
+/// Return block tables for canonicalization.
 #[derive(Debug, Clone)]
 struct ReturnBlockInfo {
     /// Block parameters for the return block.
@@ -95,12 +95,16 @@ impl FunctionPass for SimplifyControlFlow {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // run simplify cfg with bounded fixed point
-        let changed = run_simplify_control_flow(function, tree, ctx.profile(), ctx, analyses);
+        let changed =
+            run_simplify_control_flow(function, tree, memory, ctx.profile(), ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -125,9 +129,10 @@ impl FunctionPass for SimplifyControlFlow {
 fn run_simplify_control_flow(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     profile: Option<&mir::Profile>,
     _ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalyses,
+    analyses: &mir::FunctionAnalysisCache,
 ) -> bool {
     // track whether any changes were made
     let mut changed = false;
@@ -195,7 +200,7 @@ fn run_simplify_control_flow(
         // phase 7: block merging
         // merges blocks with single predecessor/successor
         if let Some(entry) = function.entry()
-            && merge_blocks(function, tree, entry, &domtree)
+            && merge_blocks(function, tree, memory, entry, &domtree)
         {
             changed = true;
             analyses.apply(rewrite_mutation);
@@ -227,6 +232,7 @@ fn run_simplify_control_flow(
         if tail_duplicate_blocks(
             function,
             tree,
+            memory,
             profile,
             analyses,
             &domtree,
@@ -432,7 +438,7 @@ fn thread_edge_conditions(
     domtree: &DominatorTree,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
-    // build definition metadata
+    // build definition tables
     let value_def_blocks = build_use_def_maps(function, tree).def_block;
 
     // build value definition and use maps
@@ -1289,7 +1295,7 @@ fn lower_single_case_switch(
         return None;
     }
 
-    // require integer range metadata to materialize the constant
+    // require integer range tables to materialize the constant
     let ValueRange::Integer {
         width, is_signed, ..
     } = range_value?
@@ -1347,7 +1353,7 @@ fn remap_return_edge_arguments(
     return_blocks: &HashMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
     is_void_return: bool,
 ) -> Option<Vec<mir::Value>> {
-    // lookup return block metadata
+    // lookup return block tables
     let target_block = target.block;
     let info = return_blocks.get(&target_block)?;
 
@@ -1995,12 +2001,13 @@ struct JumpPredecessor {
 fn tail_duplicate_blocks(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     profile: Option<&mir::Profile>,
-    analyses: &mir::FunctionAnalyses,
+    analyses: &mir::FunctionAnalysisCache,
     domtree: &DominatorTree,
     profiled_targets: &mut HashSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
-    // build definition metadata
+    // build definition tables
     let use_def = build_use_def_maps(function, tree);
     let value_def_blocks = &use_def.def_block;
     let execution_counts = mir::ExecutionCounts::new(function, tree, profile, analyses);
@@ -2164,7 +2171,7 @@ fn tail_duplicate_blocks(
 
                 let cloned = instruction_map(&instruction, &value_map, tree);
                 let new_id = tree.insert(cloned);
-                clone_instruction_metadata(tree, *instruction_id, new_id, &value_map);
+                clone_instruction_tables(tree, memory, *instruction_id, new_id, &value_map);
                 new_instructions.push(new_id);
             }
 
@@ -2554,6 +2561,7 @@ fn split_critical_edge_target(
 fn merge_blocks(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     entry: mir::LocalNodeId<mir::Block>,
     domtree: &DominatorTree,
 ) -> bool {
@@ -2652,7 +2660,14 @@ fn merge_blocks(
             };
 
             // propagate parameter substitutions into dominated blocks
-            apply_substitutions_in_dominated_blocks(function, tree, domtree, target, &param_to_arg);
+            apply_substitutions_in_dominated_blocks(
+                function,
+                tree,
+                memory,
+                domtree,
+                target,
+                &param_to_arg,
+            );
 
             // refresh the target block after substitution
             let (target_instructions, target_terminator) = {
@@ -3782,12 +3797,14 @@ b3(v5: int32):
 
         // gather the function and its entry branch
         let function_id = test.first_function_id();
-        let mut function = test.tree.get(function_id).clone();
+        let mut function = test.optimized.tree.get(function_id).clone();
         let entry_block = function.entry().unwrap();
 
         // build dominance data for tail duplication
-        let analyses = test.function_analyses();
-        let domtree = analyses.get::<DominatorTree>(&function, &test.tree).clone();
+        let analyses = test.function_analysis_cache();
+        let domtree = analyses
+            .get::<DominatorTree>(&function, &test.optimized.tree)
+            .clone();
 
         // weight the then predecessor hot so only its edge into the tail duplicates
         let mut profile = mir::Profile::new();
@@ -3795,11 +3812,12 @@ b3(v5: int32):
         test.record_successor_weights(&mut profile, entry_block, &[100, 1]);
 
         // run tail duplication with the profile data
-        function.recompute_next_value_id(&test.tree);
+        function.recompute_next_value_id(&test.optimized.tree);
         let mut profiled_targets = HashSet::new();
         let changed = tail_duplicate_blocks(
             &mut function,
-            &mut test.tree,
+            &mut test.optimized.tree,
+            &mut test.optimized.memory,
             Some(&profile),
             &analyses,
             &domtree,
@@ -3808,7 +3826,7 @@ b3(v5: int32):
 
         // persist changes and assert the snapshot
         assert!(changed);
-        *test.tree.get_mut(function_id) = function;
+        *test.optimized.tree.get_mut(function_id) = function;
         test.assert_output(expected);
     }
 
@@ -4453,9 +4471,9 @@ b5(v9: int32):
         test.run_pass(&SimplifyControlFlow);
 
         let function_id = test.function_id_by_name("test");
-        let function = test.tree.get(function_id);
-        let mismatches = collect_argument_mismatches(function, &test.tree);
-        let undefined = collect_undefined_uses(function, &test.tree);
+        let function = test.optimized.tree.get(function_id);
+        let mismatches = collect_argument_mismatches(function, &test.optimized.tree);
+        let undefined = collect_undefined_uses(function, &test.optimized.tree);
         let output = test.format();
 
         assert!(

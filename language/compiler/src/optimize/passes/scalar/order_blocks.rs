@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     CallsiteHotness, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, Mutation,
     block_parameters_used_outside_block, block_uses_available_in_predecessor, build_use_def_maps,
-    clone_instruction_metadata, collect_reachable_blocks, ensure_edge_block,
+    clone_instruction_tables, collect_reachable_blocks, ensure_edge_block,
     instruction_is_speculatable, instruction_map, terminator_substitute_uses,
 };
 
@@ -50,10 +50,13 @@ impl FunctionPass for OrderBlocks {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip imported functions
         let Some(entry) = function.entry() else {
             return Mutation::NONE;
@@ -68,7 +71,7 @@ impl FunctionPass for OrderBlocks {
         }
 
         // compute a new layout
-        let changed = order_blocks(function, tree, entry, profile, ctx, analyses);
+        let changed = order_blocks(function, tree, memory, entry, profile, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -113,10 +116,11 @@ struct EdgePredecessor {
 fn order_blocks(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     entry: mir::LocalNodeId<mir::Block>,
     profile: &mir::Profile,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalyses,
+    analyses: &mir::FunctionAnalysisCache,
 ) -> bool {
     // derive block counts and hotness
     let execution_counts = mir::ExecutionCounts::new(function, tree, Some(profile), analyses);
@@ -137,6 +141,7 @@ fn order_blocks(
     let duplicated = duplicate_hot_edges(
         function,
         tree,
+        memory,
         execution_counts.edges(),
         &domtree,
         &mut block_counts,
@@ -318,11 +323,12 @@ fn outline_cold_edges(
 fn duplicate_hot_edges(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     edge_counts: &HashMap<mir::Edge, u64>,
     domtree: &DominatorTree,
     block_counts: &mut HashMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> bool {
-    // build definition metadata
+    // build definition tables
     let use_def = build_use_def_maps(function, tree);
     let value_def_blocks = &use_def.def_block;
 
@@ -498,7 +504,7 @@ fn duplicate_hot_edges(
 
                 let cloned = instruction_map(&instruction, &value_map, tree);
                 let new_id = tree.insert(cloned);
-                clone_instruction_metadata(tree, *instruction_id, new_id, &value_map);
+                clone_instruction_tables(tree, memory, *instruction_id, new_id, &value_map);
                 new_instructions.push(new_id);
             }
 
@@ -837,7 +843,7 @@ b2:
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
-        let entry = test.tree.get(function_id).entry().unwrap();
+        let entry = test.optimized.tree.get(function_id).entry().unwrap();
 
         // weight the else arm (b2) hot
         test.record_function_entry(&mut profile, function_id, 100);
@@ -911,7 +917,7 @@ b3:
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
-        let entry = test.tree.get(function_id).entry().unwrap();
+        let entry = test.optimized.tree.get(function_id).entry().unwrap();
 
         // weight the else arm (b2) hot and the then arm (b1) cold
         test.record_function_entry(&mut profile, function_id, 100);
@@ -960,7 +966,7 @@ b3:
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
-        let entry = test.tree.get(function_id).entry().unwrap();
+        let entry = test.optimized.tree.get(function_id).entry().unwrap();
 
         // weight the case target (b2) hot over the default (b1)
         test.record_function_entry(&mut profile, function_id, 100);
@@ -1013,7 +1019,7 @@ b3:
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
-        let entry = test.tree.get(function_id).entry().unwrap();
+        let entry = test.optimized.tree.get(function_id).entry().unwrap();
 
         // weight the success target (b2) hot over the failure (b1)
         test.record_function_entry(&mut profile, function_id, 100);
@@ -1059,7 +1065,7 @@ b1:
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
-        let entry = test.tree.get(function_id).entry().unwrap();
+        let entry = test.optimized.tree.get(function_id).entry().unwrap();
 
         // the else arm (b2) carries most of the edge frequency
         test.record_function_entry(&mut profile, function_id, 100);
@@ -1107,7 +1113,7 @@ b1_1:
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
-        let entry = test.tree.get(function_id).entry().unwrap();
+        let entry = test.optimized.tree.get(function_id).entry().unwrap();
 
         // the then edge into b2 is hot, so b2 is duplicated onto it
         test.record_function_entry(&mut profile, function_id, 100);
@@ -1161,7 +1167,7 @@ b2:
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
-        let entry = test.tree.get(function_id).entry().unwrap();
+        let entry = test.optimized.tree.get(function_id).entry().unwrap();
 
         // b1 is the hot arm; the unreachable b2 stays last
         test.record_function_entry(&mut profile, function_id, 100);

@@ -5,9 +5,9 @@ use destack_core::StringPool;
 use destack_mir as mir;
 use destack_source::{DiffOptions, FileId, ModuleId, PackageId, ProfileId, TargetId, print_diff};
 
-use crate::optimize::{FunctionPass, ModulePass, PipelineContext, PipelineOptions};
+use crate::optimize::{FunctionPass, MirOptimized, ModulePass, PipelineContext, PipelineOptions};
 use crate::{OptimizeError, OptimizeWarning};
-use destack_mir::{FunctionAnalyses, ModuleAnalyses};
+use destack_mir::{FunctionAnalysisCache, TreeAnalysisCache};
 
 /// Placeholder module id for tests.
 fn test_module_id() -> ModuleId {
@@ -60,8 +60,8 @@ fn assert_parseable_mir_text(source: &str) {
 ///
 /// Parses MIR from text, applies passes, and formats the result back to text.
 pub(crate) struct TestProgram {
-    /// The MIR tree.
-    pub(crate) tree: mir::Tree,
+    /// The optimized MIR artifact under test.
+    pub(crate) optimized: MirOptimized,
     /// String pool for identifiers (immutable, from parser).
     strings: StringPool,
     /// Thread safe string pool for optimization context.
@@ -86,7 +86,10 @@ impl TestProgram {
         strings_pool.ensure_all_from(&strings);
 
         Self {
-            tree,
+            optimized: MirOptimized {
+                tree,
+                ..MirOptimized::new()
+            },
             strings,
             strings_pool,
             errors: Vec::new(),
@@ -120,7 +123,8 @@ impl TestProgram {
     /// Return the entry function id for this program.
     pub(crate) fn entry_function_id(&self) -> mir::LocalNodeId<mir::Function> {
         // require the canonical test entry
-        self.tree
+        self.optimized
+            .tree
             .iter_nodes::<mir::Function>()
             .find(|(_, function)| {
                 function.entry().is_some() && self.strings.get(function.name) == "test"
@@ -131,7 +135,8 @@ impl TestProgram {
 
     /// Return the function id for a named function.
     pub(crate) fn function_id_by_name(&self, name: &str) -> mir::LocalNodeId<mir::Function> {
-        self.tree
+        self.optimized
+            .tree
             .iter_nodes::<mir::Function>()
             .find(|(_, function)| self.strings.get(function.name) == name)
             .expect("missing function")
@@ -144,7 +149,7 @@ impl TestProgram {
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> mir::LocalNodeId<mir::Block> {
         // read the function
-        let function = self.tree.get(function_id);
+        let function = self.optimized.tree.get(function_id);
 
         // use the explicit entry when present
         if let Some(entry) = function.entry() {
@@ -162,14 +167,14 @@ impl TestProgram {
         intrinsic: mir::Intrinsic,
     ) -> mir::LocalNodeId<mir::Instruction> {
         // read the function blocks
-        let function = self.tree.get(function_id);
+        let function = self.optimized.tree.get(function_id);
 
         // scan blocks in order
         for block_id in function.blocks() {
-            let block = self.tree.get(*block_id);
+            let block = self.optimized.tree.get(*block_id);
             for instruction_id in &block.instructions {
                 if matches!(
-                    self.tree.get(*instruction_id),
+                    self.optimized.tree.get(*instruction_id),
                     mir::Instruction::Intrinsic { intrinsic: inst, .. } if *inst == intrinsic
                 ) {
                     return *instruction_id;
@@ -188,12 +193,12 @@ impl TestProgram {
     ) -> mir::LocalNodeId<mir::Instruction> {
         // read the entry block
         let block_id = self.entry_block_id(function_id);
-        let block = self.tree.get(block_id);
+        let block = self.optimized.tree.get(block_id);
 
         // scan instructions in order
         for instruction_id in &block.instructions {
             if matches!(
-                self.tree.get(*instruction_id),
+                self.optimized.tree.get(*instruction_id),
                 mir::Instruction::Intrinsic { intrinsic: inst, .. } if *inst == intrinsic
             ) {
                 return *instruction_id;
@@ -209,7 +214,7 @@ impl TestProgram {
         block_id: mir::LocalNodeId<mir::Block>,
     ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
         // clone the instruction ids for this block
-        self.tree.get(block_id).instructions.clone()
+        self.optimized.tree.get(block_id).instructions.clone()
     }
 
     /// Return the instruction ids in the entry block.
@@ -227,14 +232,14 @@ impl TestProgram {
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
         // scan instructions in order
-        let function = self.tree.get(function_id);
+        let function = self.optimized.tree.get(function_id);
         let mut call_ids = Vec::new();
 
         for block_id in function.blocks() {
-            let block = self.tree.get(*block_id);
+            let block = self.optimized.tree.get(*block_id);
             for instruction_id in &block.instructions {
                 if matches!(
-                    self.tree.get(*instruction_id),
+                    self.optimized.tree.get(*instruction_id),
                     mir::Instruction::Call { .. }
                 ) {
                     call_ids.push(*instruction_id);
@@ -251,7 +256,8 @@ impl TestProgram {
         instruction_id: mir::LocalNodeId<mir::Instruction>,
     ) -> mir::Value {
         // extract the destination value from the instruction
-        let mir::Instruction::FrameAllocZeroed { destination, .. } = self.tree.get(instruction_id)
+        let mir::Instruction::FrameAllocZeroed { destination, .. } =
+            self.optimized.tree.get(instruction_id)
         else {
             panic!("expected stack allocation");
         };
@@ -266,7 +272,7 @@ impl TestProgram {
     ) -> Vec<mir::Value> {
         // read the entry block
         let block_id = self.entry_block_id(function_id);
-        let block = self.tree.get(block_id);
+        let block = self.optimized.tree.get(block_id);
 
         // collect stack allocation destinations in order
         block
@@ -274,7 +280,7 @@ impl TestProgram {
             .iter()
             .filter_map(|instruction_id| {
                 if let mir::Instruction::FrameAllocZeroed { destination, .. } =
-                    self.tree.get(*instruction_id)
+                    self.optimized.tree.get(*instruction_id)
                 {
                     Some(*destination)
                 } else {
@@ -291,7 +297,7 @@ impl TestProgram {
     ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
         // read the entry block
         let block_id = self.entry_block_id(function_id);
-        let block = self.tree.get(block_id);
+        let block = self.optimized.tree.get(block_id);
 
         // collect store instructions in order
         block
@@ -300,67 +306,99 @@ impl TestProgram {
             .copied()
             .filter(|instruction_id| {
                 matches!(
-                    self.tree.get(*instruction_id),
+                    self.optimized.tree.get(*instruction_id),
                     mir::Instruction::Store { .. }
                 )
             })
             .collect()
     }
 
-    /// Attach pointer access metadata to an instruction.
+    /// Attach pointer access entries to an instruction.
     pub(crate) fn insert_pointer_access(
         &mut self,
         instruction: mir::LocalNodeId<mir::Instruction>,
-        kind: mir::MemoryAccessKind,
+        kind: mir::MemoryOperation,
         pointer: mir::Value,
         size: Option<u64>,
     ) {
         self.insert_pointer_access_with_options(instruction, kind, pointer, size, false, None);
     }
 
-    /// Attach memory access metadata to an instruction.
+    /// Attach memory access entries to an instruction.
     pub(crate) fn insert_memory_accesses(
         &mut self,
         instruction: mir::LocalNodeId<mir::Instruction>,
-        accesses: Vec<mir::MemoryAccessMetadata>,
+        accesses: Vec<mir::MemoryAccess>,
     ) {
-        // insert the metadata entries
-        self.tree
-            .metadata
+        // insert the memory table entries
+        self.optimized
             .memory
             .insert_memory_accesses(instruction, accesses);
     }
 
-    /// Attach pointer access metadata to an instruction with flags.
+    /// Attach pointer memory accesses to an instruction with ordering.
     pub(crate) fn insert_pointer_access_with_options(
         &mut self,
         instruction: mir::LocalNodeId<mir::Instruction>,
-        kind: mir::MemoryAccessKind,
+        kind: mir::MemoryOperation,
         pointer: mir::Value,
         size: Option<u64>,
         is_volatile: bool,
         ordering: Option<mir::MemoryOrdering>,
     ) {
-        // build the access metadata
-        let access = mir::MemoryAccessMetadata {
-            kind,
-            target: mir::MemoryAccessTarget::Reference(pointer),
-            size,
-            alignment: None,
-            is_volatile,
-            is_load_invariant: false,
-            ordering,
-            scope: None,
-            memory_scope: None,
-            flags: None,
-            space: None,
+        // choose the access order
+        let order = if is_volatile {
+            mir::MemoryAccessOrder::Volatile
+        } else if let Some(ordering) = ordering {
+            mir::MemoryAccessOrder::Atomic(mir::AtomicAccess::ordered(ordering))
+        } else {
+            mir::MemoryAccessOrder::Plain
         };
 
-        // insert the metadata entry
-        self.tree
-            .metadata
+        // build the access
+        let access = mir::MemoryAccess {
+            operation: kind,
+            target: mir::MemoryTarget::Reference(pointer),
+            byte_len: size,
+            alignment_bytes: None,
+            order,
+        };
+
+        // insert the memory access
+        self.optimized
             .memory
             .insert_memory_accesses(instruction, vec![access]);
+    }
+
+    /// Attach one virtual method table with a method at slot 0.
+    pub(crate) fn add_virtual_method_table(&mut self, class: mir::TypeId, callee: mir::FunctionId) {
+        // build the canonical virtual table fixture
+        let table = mir::VirtualTable {
+            ty: class,
+            destructor: None,
+            methods: vec![callee],
+        };
+
+        // index the table through dispatch tables
+        self.optimized.dispatch.insert_virtual_table(table);
+    }
+
+    /// Attach one dynamic method table with a method at slot 0.
+    pub(crate) fn add_dynamic_method_table(
+        &mut self,
+        concrete: mir::TypeId,
+        constraint: mir::TypeId,
+        callee: mir::FunctionId,
+    ) {
+        // build the canonical dynamic table fixture
+        let table = mir::DynamicTable {
+            concrete,
+            constraint,
+            entries: vec![mir::DynamicEntry::Function { function: callee }],
+        };
+
+        // index the table through dispatch tables
+        self.optimized.dispatch.insert_dynamic_table(table);
     }
 
     /// Return the first call instruction and callee in the entry function.
@@ -372,21 +410,21 @@ impl TestProgram {
         mir::LocalNodeId<mir::Function>,
     ) {
         // read the entry block for the function
-        let function = self.tree.get(function_id);
-        let block = self.tree.get(function.block(0));
+        let function = self.optimized.tree.get(function_id);
+        let block = self.optimized.tree.get(function.block(0));
 
         // locate the first call instruction
         let call_inst = block
             .instructions
             .iter()
             .copied()
-            .find(|id| matches!(self.tree.get(*id), mir::Instruction::Call { .. }))
+            .find(|id| matches!(self.optimized.tree.get(*id), mir::Instruction::Call { .. }))
             .expect("missing call instruction");
 
         // read the callee from the call instruction
         let mir::Instruction::Call {
             function: callee, ..
-        } = self.tree.get(call_inst)
+        } = self.optimized.tree.get(call_inst)
         else {
             panic!("expected call instruction");
         };
@@ -400,7 +438,7 @@ impl TestProgram {
         callee: mir::LocalNodeId<mir::Function>,
     ) -> mir::LocalNodeId<mir::Type> {
         // read the callee signature
-        let callee_function = self.tree.get(callee);
+        let callee_function = self.optimized.tree.get(callee);
         let param_tys = callee_function
             .parameters
             .iter()
@@ -409,11 +447,13 @@ impl TestProgram {
         let return_ty = callee_function.return_type;
 
         // insert the function reference type
-        self.tree.insert_type(mir::Type::FunctionSignature {
-            lifetimes: Vec::new(),
-            parameters: param_tys,
-            result: return_ty,
-        })
+        self.optimized
+            .tree
+            .insert_type(mir::Type::FunctionSignature {
+                lifetimes: Vec::new(),
+                parameters: param_tys,
+                result: return_ty,
+            })
     }
 
     /// Internal implementation that handles the borrow correctly.
@@ -435,6 +475,7 @@ impl TestProgram {
 
         // collect function ids
         let function_ids: Vec<_> = self
+            .optimized
             .tree
             .iter_nodes::<mir::Function>()
             .map(|(id, _)| id)
@@ -442,28 +483,18 @@ impl TestProgram {
 
         // run pass on each function
         for function_id in function_ids {
-            let mut function = self.tree.get(function_id).clone();
+            let mut function = self.optimized.tree.get(function_id).clone();
 
             // skip imported functions (no body)
             if function.entry().is_none() {
                 continue;
             }
 
-            // enforce pass requirements
-            if !context.enforce_function_requirements(
-                pass.metadata(),
-                function_id,
-                &function,
-                &self.tree,
-            ) {
-                continue;
-            }
-
             // recompute next_value_id so passes can allocate fresh values
-            function.recompute_next_value_id(&self.tree);
-            let analyses = context.new_function_analyses();
-            pass.run(&mut function, &mut self.tree, &context, &analyses);
-            *self.tree.get_mut(function_id) = function;
+            function.recompute_next_value_id(&self.optimized.tree);
+            let analyses = self.function_analysis_cache();
+            pass.run(&mut function, &mut self.optimized, &context, &analyses);
+            *self.optimized.tree.get_mut(function_id) = function;
         }
 
         // collect diagnostics after pass completes
@@ -481,7 +512,8 @@ impl TestProgram {
 
     /// Return the first function id in the program.
     pub(crate) fn first_function_id(&self) -> mir::LocalNodeId<mir::Function> {
-        self.tree
+        self.optimized
+            .tree
             .iter_nodes::<mir::Function>()
             .next()
             .expect("missing function")
@@ -495,8 +527,8 @@ impl TestProgram {
     ) -> (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>) {
         // read the entry block
         let entry = function.entry().expect("missing entry block");
-        let entry_block = self.tree.get(entry);
-        let terminator = self.tree.get(entry_block.terminator);
+        let entry_block = self.optimized.tree.get(entry);
+        let terminator = self.optimized.tree.get(entry_block.terminator);
 
         // extract the branch targets
         let mir::Terminator::Branch {
@@ -518,8 +550,8 @@ impl TestProgram {
         block_id: mir::LocalNodeId<mir::Block>,
     ) -> mir::LocalNodeId<mir::Block> {
         // read the block terminator
-        let block = self.tree.get(block_id);
-        let terminator = self.tree.get(block.terminator);
+        let block = self.optimized.tree.get(block_id);
+        let terminator = self.optimized.tree.get(block.terminator);
         let mir::Terminator::Jump { target, .. } = terminator else {
             panic!("expected jump terminator");
         };
@@ -536,7 +568,7 @@ impl TestProgram {
         count: u64,
     ) {
         // store the entry count that scales the function's block frequencies
-        let symbol = self.tree.get(function).symbol;
+        let symbol = self.optimized.tree.get(function).symbol;
         profile.functions.insert(
             symbol,
             mir::FunctionProfile {
@@ -546,6 +578,93 @@ impl TestProgram {
                 counts: Vec::new(),
                 values: HashMap::new(),
             },
+        );
+    }
+
+    /// Build profile data for one hot dispatch callsite.
+    pub(crate) fn profile_dispatch_call(
+        &mut self,
+        caller: mir::FunctionId,
+        callsite: mir::CallSite,
+        callee: mir::FunctionId,
+        receiver_type: mir::TypeId,
+        hot_count: u64,
+        unknown_count: u64,
+    ) -> mir::Profile {
+        let mut profile = mir::Profile::new();
+
+        // record the function entry and receiver type samples
+        self.record_function_entry(&mut profile, caller, hot_count + unknown_count);
+
+        // record the two profiles consumed by dispatch specialization
+        self.record_call_target_profile(
+            &mut profile,
+            caller,
+            callsite,
+            callee,
+            hot_count,
+            unknown_count,
+        );
+        self.record_receiver_type_profile(
+            &mut profile,
+            caller,
+            callsite,
+            receiver_type,
+            hot_count,
+            unknown_count,
+        );
+
+        profile
+    }
+
+    /// Record one observed call target distribution.
+    pub(crate) fn record_call_target_profile(
+        &mut self,
+        profile: &mut mir::Profile,
+        function: mir::FunctionId,
+        callsite: mir::CallSite,
+        callee: mir::FunctionId,
+        hot_count: u64,
+        unknown_count: u64,
+    ) {
+        // build the observed callee histogram
+        let callee_symbol = self.optimized.tree.get(callee).symbol;
+        let value = mir::ValueProfile::Calls(mir::Histogram {
+            buckets: vec![(callee_symbol, mir::Count::new(hot_count))],
+            unknown: mir::Count::new(unknown_count),
+        });
+
+        // attach it to the static profile point
+        self.record_value_profile(
+            profile,
+            function,
+            mir::ProfilePoint::CallTarget(callsite),
+            value,
+        );
+    }
+
+    /// Record one observed receiver type distribution.
+    pub(crate) fn record_receiver_type_profile(
+        &mut self,
+        profile: &mut mir::Profile,
+        function: mir::FunctionId,
+        callsite: mir::CallSite,
+        receiver_type: mir::TypeId,
+        hot_count: u64,
+        unknown_count: u64,
+    ) {
+        // build the observed receiver histogram
+        let value = mir::ValueProfile::Types(mir::Histogram {
+            buckets: vec![(receiver_type, mir::Count::new(hot_count))],
+            unknown: mir::Count::new(unknown_count),
+        });
+
+        // attach it to the static profile point
+        self.record_value_profile(
+            profile,
+            function,
+            mir::ProfilePoint::ReceiverType(callsite),
+            value,
         );
     }
 
@@ -561,6 +680,7 @@ impl TestProgram {
     ) {
         // find the function that owns this block
         let (_, function) = self
+            .optimized
             .tree
             .iter_nodes::<mir::Function>()
             .find(|(_, function)| function.blocks().contains(&block))
@@ -573,8 +693,11 @@ impl TestProgram {
             .expect("missing function profile for successor weights");
 
         // record each structural successor edge
-        let terminator = self.tree.get(self.tree.get(block).terminator);
-        let targets = terminator.targets(&self.tree, block);
+        let terminator = self
+            .optimized
+            .tree
+            .get(self.optimized.tree.get(block).terminator);
+        let targets = terminator.targets(&self.optimized.tree, block);
         assert_eq!(
             targets.len(),
             weights.len(),
@@ -587,11 +710,56 @@ impl TestProgram {
         }
     }
 
+    /// Record one value profile at a semantic profile point.
+    fn record_value_profile(
+        &mut self,
+        profile: &mut mir::Profile,
+        function: mir::FunctionId,
+        point: mir::ProfilePoint,
+        value: mir::ValueProfile,
+    ) {
+        // map the semantic profile point to a stable counter id
+        let counter = self.profile_counter(function, point);
+
+        // write the observed profile data under the function's persistent symbol
+        let symbol = self.optimized.tree.get(function).symbol;
+        let function_profile = profile
+            .functions
+            .get_mut(&symbol)
+            .expect("missing function profile");
+        function_profile.values.insert(counter, value);
+    }
+
+    /// Return the counter id for one semantic profile point.
+    fn profile_counter(
+        &mut self,
+        function: mir::FunctionId,
+        point: mir::ProfilePoint,
+    ) -> mir::CounterId {
+        // create the function profile table when this is the first profiled point
+        let profile_map = self
+            .optimized
+            .profile
+            .functions
+            .entry(function)
+            .or_insert_with(|| mir::FunctionProfileTable::new(mir::FunctionHash(0)));
+
+        // reuse an existing counter when this point was already registered
+        if let Some(counter) = profile_map.counter(&point) {
+            counter
+        }
+        // otherwise append a new semantic point
+        else {
+            profile_map.insert(point)
+        }
+    }
+
     /// Build a module-scoped program analysis from the current tree.
     ///
     /// A test module is a standalone program, so its exported symbols are the roots.
     fn module_program_analysis(&self) -> Arc<destack_artifact::ProgramAnalysis> {
-        let links = ModuleAnalyses::new().get::<mir::LinkGraph>(&self.tree);
+        let analyses = self.tree_analysis_cache();
+        let links = analyses.get::<mir::LinkGraph>(&self.optimized.tree);
         let roots: Vec<_> = links
             .nodes()
             .filter(|(_, node)| node.linkage().is_exported())
@@ -618,11 +786,9 @@ impl TestProgram {
             program_analysis,
         );
 
-        // enforce pass requirements
-        if context.enforce_module_requirements(pass.metadata(), &self.tree) {
-            let analyses = ModuleAnalyses::new();
-            pass.run(&mut self.tree, &context, &analyses);
-        }
+        // run the pass against the whole optimized artifact
+        let analyses = self.tree_analysis_cache();
+        pass.run(&mut self.optimized, &context, &analyses);
 
         // collect diagnostics after pass completes
         self.errors = context
@@ -654,11 +820,9 @@ impl TestProgram {
             program_analysis,
         );
 
-        // enforce pass requirements
-        if context.enforce_module_requirements(pass.metadata(), &self.tree) {
-            let analyses = ModuleAnalyses::new();
-            pass.run(&mut self.tree, &context, &analyses);
-        }
+        // run the pass against the whole optimized artifact
+        let analyses = self.tree_analysis_cache();
+        pass.run(&mut self.optimized, &context, &analyses);
 
         // collect diagnostics after pass completes
         self.errors = context
@@ -690,11 +854,9 @@ impl TestProgram {
             program_analysis,
         );
 
-        // enforce pass requirements
-        if context.enforce_module_requirements(pass.metadata(), &self.tree) {
-            let analyses = ModuleAnalyses::new();
-            pass.run(&mut self.tree, &context, &analyses);
-        }
+        // run the pass against the whole optimized artifact
+        let analyses = self.tree_analysis_cache();
+        pass.run(&mut self.optimized, &context, &analyses);
 
         // collect diagnostics after pass completes
         self.errors = context
@@ -712,7 +874,13 @@ impl TestProgram {
     /// Format the MIR back to text.
     pub(crate) fn format(&self) -> String {
         let strings = self.strings_pool.clone();
-        mir::format_mir(&self.tree, &strings, mir::MirFormatOptions::default()).expect("format MIR")
+        mir::format_mir(
+            &self.optimized.tree,
+            self.optimized.target,
+            &strings,
+            mir::MirFormatOptions::default(),
+        )
+        .expect("format MIR")
     }
 
     /// Get string by id from the string pool.
@@ -756,8 +924,13 @@ impl TestProgram {
         )
         .finish()
         .expect("failed to parse expected MIR");
-        let expected =
-            mir::format_mir(&tree, &strings, mir::MirFormatOptions::default()).expect("format MIR");
+        let expected = mir::format_mir(
+            &tree,
+            mir::TargetLayout::default(),
+            &strings,
+            mir::MirFormatOptions::default(),
+        )
+        .expect("format MIR");
 
         self.assert_output(&expected);
     }
@@ -825,13 +998,17 @@ impl TestProgram {
     }
 
     /// Create a function analysis cache for this test program.
-    pub(crate) fn function_analyses(&self) -> FunctionAnalyses {
-        FunctionAnalyses::new()
+    pub(crate) fn function_analysis_cache(&self) -> FunctionAnalysisCache {
+        FunctionAnalysisCache::new(&self.optimized.memory, &self.optimized.effects)
     }
 
-    /// Create module analyses for this test program.
-    pub(crate) fn module_analyses(&self) -> ModuleAnalyses {
-        ModuleAnalyses::new()
+    /// Create a tree analysis cache for this test program.
+    pub(crate) fn tree_analysis_cache(&self) -> TreeAnalysisCache {
+        TreeAnalysisCache::new(
+            &self.optimized.dispatch,
+            &self.optimized.memory,
+            &self.optimized.effects,
+        )
     }
 }
 
@@ -839,7 +1016,6 @@ impl TestProgram {
 mod tests {
     use std::sync::Arc;
 
-    use crate::optimize::declare_pass;
     use destack_core::StringPool;
     use destack_mir as mir;
     use destack_mir::{
@@ -847,7 +1023,7 @@ mod tests {
     };
 
     use super::*;
-    use crate::OptimizeError;
+
     /// Simple test analysis with no dependencies.
     struct TestAnalysisA {
         computed: bool,
@@ -863,7 +1039,7 @@ mod tests {
         fn compute(
             _function: &mir::Function,
             _tree: &mir::Tree,
-            _analyses: &FunctionAnalyses,
+            _analyses: &FunctionAnalysisCache,
         ) -> Self {
             Self { computed: true }
         }
@@ -882,7 +1058,7 @@ mod tests {
         fn compute(
             function: &mir::Function,
             tree: &mir::Tree,
-            analyses: &FunctionAnalyses,
+            analyses: &FunctionAnalysisCache,
         ) -> Self {
             let a = analyses.get::<TestAnalysisA>(function, tree);
             Self {
@@ -904,7 +1080,7 @@ mod tests {
         fn compute(
             function: &mir::Function,
             tree: &mir::Tree,
-            analyses: &FunctionAnalyses,
+            analyses: &FunctionAnalysisCache,
         ) -> Self {
             let b = analyses.get::<TestAnalysisB>(function, tree);
             Self {
@@ -924,20 +1100,26 @@ entry:
 "#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
+        let function_id = program
+            .optimized
+            .tree
+            .iter_nodes::<mir::Function>()
+            .next()
+            .unwrap()
+            .0;
+        let function = program.optimized.tree.get(function_id);
+        let analyses = program.function_analysis_cache();
 
         // initially not cached
         assert!(!analyses.is_cached::<TestAnalysisA>());
 
         // get computes and caches
-        let a = analyses.get::<TestAnalysisA>(function, &program.tree);
+        let a = analyses.get::<TestAnalysisA>(function, &program.optimized.tree);
         assert!(a.computed);
         assert!(analyses.is_cached::<TestAnalysisA>());
 
         // second get returns cached
-        let a2 = analyses.get::<TestAnalysisA>(function, &program.tree);
+        let a2 = analyses.get::<TestAnalysisA>(function, &program.optimized.tree);
         assert!(Arc::ptr_eq(&a, &a2));
     }
 
@@ -975,12 +1157,18 @@ entry:
 "#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
+        let function_id = program
+            .optimized
+            .tree
+            .iter_nodes::<mir::Function>()
+            .next()
+            .unwrap()
+            .0;
+        let function = program.optimized.tree.get(function_id);
+        let analyses = program.function_analysis_cache();
 
         // get B, which depends on A
-        let b = analyses.get::<TestAnalysisB>(function, &program.tree);
+        let b = analyses.get::<TestAnalysisB>(function, &program.optimized.tree);
         assert!(b.a_computed);
 
         // A should now be cached (computed as dependency)
@@ -998,12 +1186,18 @@ entry:
 "#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
+        let function_id = program
+            .optimized
+            .tree
+            .iter_nodes::<mir::Function>()
+            .next()
+            .unwrap()
+            .0;
+        let function = program.optimized.tree.get(function_id);
+        let analyses = program.function_analysis_cache();
 
         // get C, which depends on B, which depends on A
-        let c = analyses.get::<TestAnalysisC>(function, &program.tree);
+        let c = analyses.get::<TestAnalysisC>(function, &program.optimized.tree);
         assert!(c.b_a_computed);
 
         // all should be cached
@@ -1023,12 +1217,18 @@ entry:
 "#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
+        let function_id = program
+            .optimized
+            .tree
+            .iter_nodes::<mir::Function>()
+            .next()
+            .unwrap()
+            .0;
+        let function = program.optimized.tree.get(function_id);
+        let analyses = program.function_analysis_cache();
 
         // compute all
-        let _ = analyses.get::<TestAnalysisC>(function, &program.tree);
+        let _ = analyses.get::<TestAnalysisC>(function, &program.optimized.tree);
 
         // a pass that changed nothing keeps every analysis
         analyses.apply(Mutation::NONE);
@@ -1050,12 +1250,18 @@ entry:
 "#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
+        let function_id = program
+            .optimized
+            .tree
+            .iter_nodes::<mir::Function>()
+            .next()
+            .unwrap()
+            .0;
+        let function = program.optimized.tree.get(function_id);
+        let analyses = program.function_analysis_cache();
 
         // compute all
-        let _ = analyses.get::<TestAnalysisC>(function, &program.tree);
+        let _ = analyses.get::<TestAnalysisC>(function, &program.optimized.tree);
 
         // a pass that changed everything clears every analysis
         analyses.apply(Mutation::ALL);
@@ -1077,14 +1283,20 @@ entry:
 "#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
+        let function_id = program
+            .optimized
+            .tree
+            .iter_nodes::<mir::Function>()
+            .next()
+            .unwrap()
+            .0;
+        let function = program.optimized.tree.get(function_id);
+        let analyses = program.function_analysis_cache();
 
         // compute a structural analysis (invalidated by control flow only) and a
         // data-flow analysis (invalidated by any change)
-        let _ = analyses.get::<mir::ControlFlowGraph>(function, &program.tree);
-        let _ = analyses.get::<mir::ConstantPropagation>(function, &program.tree);
+        let _ = analyses.get::<mir::ControlFlowGraph>(function, &program.optimized.tree);
+        let _ = analyses.get::<mir::ConstantPropagation>(function, &program.optimized.tree);
 
         // a value-only change preserves the control-flow graph and invalidates the
         // value-dependent analysis
@@ -1114,138 +1326,6 @@ entry:
 
         // distinct kinds do not intersect
         assert!(!Mutation::CONTROL.intersects(Mutation::VALUE));
-    }
-
-    declare_pass! {
-        /// Require memory access metadata for validation in tests.
-        #[pass(id = "test-memory-access", requires(memory_access_metadata))]
-        pub(super) TestMemoryAccessPass,
-        "Test memory access metadata requirement enforcement"
-    }
-
-    declare_pass! {
-        /// Require profile data for validation in tests.
-        #[pass(id = "test-profile", requires(profile_data))]
-        pub(super) TestProfilePass,
-        "Test profile requirement enforcement"
-    }
-
-    declare_pass! {
-        /// Require type layout metadata for validation in tests.
-        #[pass(id = "test-layout", requires(type_layouts))]
-        pub(super) TestLayoutPass,
-        "Test layout requirement enforcement"
-    }
-
-    impl FunctionPass for TestMemoryAccessPass {
-        fn run(
-            &self,
-            _function: &mut mir::Function,
-            _tree: &mut mir::Tree,
-            _ctx: &PipelineContext<'_>,
-            _analyses: &FunctionAnalyses,
-        ) -> Mutation {
-            Mutation::NONE
-        }
-
-        fn name(&self) -> &'static str {
-            "TestMemoryAccessPass"
-        }
-    }
-
-    impl ModulePass for TestProfilePass {
-        fn run(
-            &self,
-            _tree: &mut mir::Tree,
-            _ctx: &PipelineContext<'_>,
-            _analyses: &ModuleAnalyses,
-        ) -> Mutation {
-            Mutation::NONE
-        }
-
-        fn name(&self) -> &'static str {
-            "TestProfilePass"
-        }
-    }
-
-    impl ModulePass for TestLayoutPass {
-        fn run(
-            &self,
-            _tree: &mut mir::Tree,
-            _ctx: &PipelineContext<'_>,
-            _analyses: &ModuleAnalyses,
-        ) -> Mutation {
-            Mutation::NONE
-        }
-
-        fn name(&self) -> &'static str {
-            "TestLayoutPass"
-        }
-    }
-
-    /// Emits an error when memory access metadata is missing.
-    #[test]
-    fn test_requirements_memory_access_metadata() {
-        let input = r#"
-function test(v0: ref<int32, raw, mutable>): int32 {
-entry(v0: ref<int32, raw, mutable>):
-    v1: int32 = load v0
-    return v1
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-
-        test.run_pass(&TestMemoryAccessPass);
-        test.assert_error(|e| matches!(e, OptimizeError::MissingRequiredMetadata { .. }));
-    }
-
-    /// Emits an error when profile data is required but missing.
-    #[test]
-    fn test_requirements_profile_data() {
-        let input = r#"
-function test(): void {
-entry:
-    return
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_module_pass(&TestProfilePass);
-        test.assert_error(|e| matches!(e, OptimizeError::MissingRequiredMetadata { .. }));
-    }
-
-    /// Emits an error when type layout metadata is missing.
-    #[test]
-    fn test_requirements_type_layouts() {
-        let input = r#"
-type Point {
-    int32;
-    int32;
-}
-
-function makePoint(v0: int32, v1: int32): Point {
-entry(v0: int32, v1: int32):
-    v2: Point = struct Point (v0, v1)
-    return v2
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-
-        // remove layout metadata for the struct type
-        let struct_type_id = test
-            .tree
-            .iter_nodes::<mir::Type>()
-            .find_map(|(type_id, ty)| match ty {
-                mir::Type::Struct { .. } => Some(type_id),
-                _ => None,
-            })
-            .unwrap_or_else(|| panic!("missing struct type"));
-        let _ = test.tree.metadata.layouts.types.remove(&struct_type_id);
-
-        test.run_module_pass(&TestLayoutPass);
-        test.assert_error(|e| matches!(e, OptimizeError::MissingRequiredMetadata { .. }));
     }
 
     /// Borrow address instructions are not speculatable.

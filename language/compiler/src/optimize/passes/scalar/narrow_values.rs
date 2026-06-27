@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{Mutation, RangeAnalysis, RangeMap, ValueRange, ValueTypes};
 
 /// Integer widths supported by the textual MIR primitive type grammar.
@@ -42,10 +42,12 @@ impl FunctionPass for NarrowValues {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+
         // skip imported functions
         if function.entry().is_none() {
             return Mutation::NONE;

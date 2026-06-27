@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AliasAnalysis, ConstantPropagation, ControlFlowGraph, DominatorTree, EdgeSplitPolicy,
-    MemoryAccess, MemoryAccessEffect, MemoryAccessId, MemoryRegion, MemorySSA, Mutation,
+    MemoryAccessEffect, MemoryAccessId, MemoryNode, MemoryRegion, MemorySSA, Mutation,
     ValueDefinitions, ValueEquivalence, build_use_def_maps, ensure_edge_block,
     instruction_is_read_only_access, instruction_is_speculatable, resolve_edge_value,
     value_available_in_block,
@@ -59,17 +59,20 @@ impl FunctionPass for EliminatePartialRedundantStores {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip imported functions
         if function.entry().is_none() {
             return Mutation::NONE;
         }
 
         // run store PRE
-        let changed = run_eliminate_partial_redundant_stores(function, tree, ctx, analyses);
+        let changed = run_eliminate_partial_redundant_stores(function, tree, memory, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -137,8 +140,9 @@ struct EdgeStorePlan {
 fn run_eliminate_partial_redundant_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     _ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalyses,
+    analyses: &mir::FunctionAnalysisCache,
 ) -> bool {
     // gather analyses
     let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
@@ -203,6 +207,7 @@ fn run_eliminate_partial_redundant_stores(
                 value,
                 kind,
                 tree,
+                memory,
                 memory_ssa.as_ref(),
             ) else {
                 continue;
@@ -225,6 +230,7 @@ fn run_eliminate_partial_redundant_stores(
                     &use_def.def_block,
                     &function_params,
                     &param_indices,
+                    memory,
                     memory_ssa.as_ref(),
                     &alias,
                     &mut equivalence,
@@ -261,7 +267,7 @@ fn run_eliminate_partial_redundant_stores(
                 // insert a new store at the edge block
                 let store_id =
                     insert_store_for_plan(function, tree, insertion_block, plan, candidate.kind);
-                clone_store_metadata(tree, candidate.instruction, store_id, plan.pointer);
+                clone_store_metadata(memory, candidate.instruction, store_id, plan.pointer);
             }
 
             // record removal of the original store
@@ -281,9 +287,9 @@ fn run_eliminate_partial_redundant_stores(
         function.replace_block_instructions(block_id, instructions, tree);
     }
 
-    // drop memory metadata for removed stores
+    // drop memory tables for removed stores
     for instruction_id in &to_remove {
-        tree.metadata.memory.remove_memory_accesses(*instruction_id);
+        memory.remove_memory_accesses(*instruction_id);
     }
 
     true
@@ -298,11 +304,12 @@ fn store_access_info(
     value: mir::Value,
     kind: StoreKind,
     tree: &mir::Tree,
+    memory: &mir::MemoryTable,
     memory_ssa: &MemorySSA,
 ) -> Option<StoreCandidate> {
     // resolve the memory ssa def access
     let access_id = memory_ssa.instruction_access(instruction_id)?;
-    let MemoryAccess::Def(def_access) = memory_ssa.access(access_id) else {
+    let MemoryNode::Def(def_access) = memory_ssa.access(access_id) else {
         return None;
     };
 
@@ -312,7 +319,7 @@ fn store_access_info(
     }
 
     // skip ordered stores
-    if tree.instruction_has_atomic_ordering(instruction_id) {
+    if memory.instruction_has_atomic_ordering(tree, instruction_id) {
         return None;
     }
 
@@ -408,6 +415,7 @@ fn collect_edge_insertions(
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     function_params: &HashSet<mir::Value>,
     param_indices: &HashMap<mir::Value, usize>,
+    memory: &mir::MemoryTable,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
     equivalence: &mut ValueEquivalence<'_>,
@@ -422,7 +430,7 @@ fn collect_edge_insertions(
     }
 
     // resolve incoming memory accesses for the store block
-    let MemoryAccess::Phi(phi) = memory_ssa.access(memory_ssa.block_phi(store.block)?) else {
+    let MemoryNode::Phi(phi) = memory_ssa.access(memory_ssa.block_phi(store.block)?) else {
         return None;
     };
     let incoming_by_pred: HashMap<_, _> = phi
@@ -474,6 +482,7 @@ fn collect_edge_insertions(
             incoming_access,
             pointer,
             value,
+            memory,
             memory_ssa,
             alias,
             tree,
@@ -499,13 +508,14 @@ fn incoming_def_matches(
     incoming_access: MemoryAccessId,
     pointer: Option<mir::Value>,
     value: mir::Value,
+    memory: &mir::MemoryTable,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
     tree: &mir::Tree,
     equivalence: &mut ValueEquivalence<'_>,
 ) -> bool {
     // require a memory def on the edge
-    let MemoryAccess::Def(def_access) = memory_ssa.access(incoming_access) else {
+    let MemoryNode::Def(def_access) = memory_ssa.access(incoming_access) else {
         return false;
     };
 
@@ -519,7 +529,7 @@ fn incoming_def_matches(
         return false;
     }
 
-    // require the same region metadata
+    // require the same region tables
     if !store.effect.matches_region(alias, &def_access.effect) {
         return false;
     }
@@ -530,7 +540,7 @@ fn incoming_def_matches(
     };
 
     // require the instruction to match the store kind
-    if tree.instruction_has_atomic_ordering(def_instruction) {
+    if memory.instruction_has_atomic_ordering(tree, def_instruction) {
         return false;
     }
     let (def_kind, def_pointer, def_local, def_value) = match tree.get(def_instruction) {
@@ -592,31 +602,29 @@ fn insert_store_for_plan(
     instruction_id
 }
 
-/// Clone store metadata to a new instruction.
+/// Clone store tables to a new instruction.
 fn clone_store_metadata(
-    tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     source: mir::LocalNodeId<mir::Instruction>,
     destination: mir::LocalNodeId<mir::Instruction>,
     pointer: Option<mir::Value>,
 ) {
-    // skip when there is no metadata to clone
-    let Some(accesses) = tree.metadata.memory.memory_accesses(source) else {
+    // skip when there is no tables to clone
+    let Some(accesses) = memory.memory_accesses(source) else {
         return;
     };
 
-    // update reference targets for cloned metadata
+    // update reference targets for cloned tables
     let mut cloned = Vec::with_capacity(accesses.len());
     for access in accesses {
         let mut updated = access.clone();
-        if let (Some(pointer), mir::MemoryAccessTarget::Reference(_)) = (pointer, updated.target) {
-            updated.target = mir::MemoryAccessTarget::Reference(pointer);
+        if let (Some(pointer), mir::MemoryTarget::Reference(_)) = (pointer, updated.target) {
+            updated.target = mir::MemoryTarget::Reference(pointer);
         }
         cloned.push(updated);
     }
 
-    tree.metadata
-        .memory
-        .insert_memory_accesses(destination, cloned);
+    memory.insert_memory_accesses(destination, cloned);
 }
 
 #[cfg(test)]

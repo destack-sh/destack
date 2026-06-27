@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AliasAnalysis, BlockParamForwarding, ControlFlowGraph, DominatorTree, LoopAnalysis, Mutation,
     RangeAnalysis, ScalarEvolution, Scev, TypeKey, UseDefMaps, ValueDefinitions, ValueRange,
@@ -71,16 +71,19 @@ impl FunctionPass for RecognizeLoopIdioms {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip imported functions
         if function.entry().is_none() {
             return Mutation::NONE;
         }
 
-        let changed = run_recognize_loop_idioms(function, tree, ctx, analyses);
+        let changed = run_recognize_loop_idioms(function, tree, memory, ctx, analyses);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -112,8 +115,9 @@ struct GuardInfo {
 fn run_recognize_loop_idioms(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalyses,
+    analyses: &mir::FunctionAnalysisCache,
 ) -> bool {
     let mut changed = false;
     loop {
@@ -191,14 +195,14 @@ fn run_recognize_loop_idioms(
             // require consistent unsigned types for induction and bound
             let Some(induction_width) = value_types.unsigned_int_width(
                 guard.induction,
-                ctx.target_layout().pointer_width_bits,
+                ctx.target_layout().pointer_bits(),
                 tree,
             ) else {
                 continue;
             };
             let Some(bound_width) = value_types.unsigned_int_width(
                 bound_value,
-                ctx.target_layout().pointer_width_bits,
+                ctx.target_layout().pointer_bits(),
                 tree,
             ) else {
                 continue;
@@ -208,7 +212,7 @@ fn run_recognize_loop_idioms(
             }
             let Some(start_width) = value_types.unsigned_int_width(
                 start_value,
-                ctx.target_layout().pointer_width_bits,
+                ctx.target_layout().pointer_bits(),
                 tree,
             ) else {
                 continue;
@@ -227,7 +231,7 @@ fn run_recognize_loop_idioms(
 
             // attempt to replace the loop with memset
             if let Some(pattern) =
-                match_memset_pattern(lp, guard.induction, tree, &value_definitions)
+                match_memset_pattern(lp, guard.induction, tree, memory, &value_definitions)
             {
                 // require the store to be in this loop, not a nested one
                 let Some(inner_loop) = loops.innermost_loop(pattern.store_block) else {
@@ -344,9 +348,14 @@ fn run_recognize_loop_idioms(
             }
 
             // attempt to replace the loop with memcpy or memmove
-            let Some(pattern) =
-                match_memcpy_pattern(lp, guard.induction, tree, &value_definitions, &use_counts)
-            else {
+            let Some(pattern) = match_memcpy_pattern(
+                lp,
+                guard.induction,
+                tree,
+                memory,
+                &value_definitions,
+                &use_counts,
+            ) else {
                 continue;
             };
 
@@ -391,8 +400,7 @@ fn run_recognize_loop_idioms(
                 continue;
             }
 
-            let Some(element_size) = dest_key.byte_size(ctx.target_layout().pointer_width_bits)
-            else {
+            let Some(element_size) = dest_key.byte_size(ctx.target_layout().pointer_bits()) else {
                 continue;
             };
 
@@ -547,6 +555,7 @@ fn match_memset_pattern(
     lp: &mir::Loop,
     induction: mir::Value,
     tree: &mir::Tree,
+    memory: &mir::MemoryTable,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<MemsetPattern> {
     // scan loop blocks for a single store with a speculatable body
@@ -568,7 +577,7 @@ fn match_memset_pattern(
             let inst = tree.get(inst_id);
 
             // reject volatile or ordered memory accesses
-            if tree.instruction_requires_exact_access(inst_id) {
+            if memory.instruction_requires_exact_access(tree, inst_id) {
                 return None;
             }
 
@@ -616,6 +625,7 @@ fn match_memcpy_pattern(
     lp: &mir::Loop,
     induction: mir::Value,
     tree: &mir::Tree,
+    memory: &mir::MemoryTable,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     use_counts: &HashMap<mir::Value, usize>,
 ) -> Option<MemcpyPattern> {
@@ -641,7 +651,7 @@ fn match_memcpy_pattern(
             let inst = tree.get(inst_id);
 
             // reject volatile or ordered memory accesses
-            if tree.instruction_requires_exact_access(inst_id) {
+            if memory.instruction_requires_exact_access(tree, inst_id) {
                 return None;
             }
 
@@ -1477,14 +1487,16 @@ b3:
 
         let mut test = TestProgram::new(input);
         let function_id = test.entry_function_id();
-        let function = test.tree.get(function_id);
+        let function = test.optimized.tree.get(function_id);
 
         let mut store_id = None;
         let mut store_reference = None;
         for block_id in function.blocks() {
-            let block = test.tree.get(*block_id);
+            let block = test.optimized.tree.get(*block_id);
             for instruction_id in &block.instructions {
-                if let mir::Instruction::Store { pointer, .. } = test.tree.get(*instruction_id) {
+                if let mir::Instruction::Store { pointer, .. } =
+                    test.optimized.tree.get(*instruction_id)
+                {
                     store_id = Some(*instruction_id);
                     store_reference = Some(*pointer);
                     break;
@@ -1499,7 +1511,7 @@ b3:
         let store_reference = store_reference.expect("missing store pointer");
         test.insert_pointer_access_with_options(
             store_id,
-            mir::MemoryAccessKind::Write,
+            mir::MemoryOperation::Write,
             store_reference,
             None,
             true,

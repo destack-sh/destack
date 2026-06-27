@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ConstantPropagation, ControlFlowGraph, DominatorTree, Mutation, ValueRange,
     apply_substitutions_in_dominated_blocks, build_use_def_maps, build_value_instruction_map,
@@ -60,10 +60,13 @@ impl FunctionPass for PropagateCorrelatedValues {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip imported functions
         if function.entry().is_none() {
             return Mutation::NONE;
@@ -75,7 +78,8 @@ impl FunctionPass for PropagateCorrelatedValues {
         let constants = analyses.get::<ConstantPropagation>(function, tree).clone();
 
         // run correlated propagation
-        let changed = run_propagate_correlated_values(function, tree, &domtree, &cfg, &constants);
+        let changed =
+            run_propagate_correlated_values(function, tree, memory, &domtree, &cfg, &constants);
 
         // report what this pass changed
         if changed {
@@ -98,6 +102,7 @@ impl FunctionPass for PropagateCorrelatedValues {
 fn run_propagate_correlated_values(
     function: &mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     domtree: &DominatorTree,
     cfg: &ControlFlowGraph,
     constants: &ConstantPropagation,
@@ -171,6 +176,7 @@ fn run_propagate_correlated_values(
                     let applied = apply_substitutions_in_dominated_blocks(
                         function,
                         tree,
+                        memory,
                         domtree,
                         equality_block,
                         &substitutions,

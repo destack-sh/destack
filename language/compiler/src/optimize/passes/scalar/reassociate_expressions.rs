@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ConstantMap, ConstantPropagation, InstructionRef, Mutation, ValueTypes,
     build_value_instruction_refs, fold_binary,
@@ -50,10 +50,12 @@ impl FunctionPass for ReassociateExpressions {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+
         // collect constant propagation state
         let constants = { analyses.get::<ConstantPropagation>(function, tree).clone() };
         let value_types = analyses.get::<ValueTypes>(function, tree);

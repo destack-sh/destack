@@ -1,15 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::optimize::declare_pass;
+use crate::optimize::passes::scalar::{
+    EliminateDeadCode, FoldConstants, PropagateSparseConstants, SimplifyControlFlow,
+};
 use destack_mir as mir;
 
-use crate::optimize::passes::scalar::{
-    EliminateDeadCode, PropagateSparseConstants, SimplifyControlFlow,
+use crate::optimize::{
+    FunctionPass, MirOptimized, ModulePass, PipelineContext, run_function_passes,
 };
-use crate::optimize::{ModulePass, PipelineContext, run_function_passes_always};
 use destack_mir::{
     CallGraph, CallsiteHotness, ConstantPropagation, Mutation, ParameterRemap, SignatureKey,
-    apply_constant_parameters, clone_instruction_metadata, constant_arguments_for_parameters,
+    apply_constant_parameters, clone_instruction_tables, constant_arguments_for_parameters,
     instruction_map_with_locals, terminator_remap,
 };
 
@@ -70,12 +72,12 @@ impl ModulePass for SpecializeArguments {
     /// Run argument specialization for the module.
     fn run(
         &self,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::ModuleAnalyses,
+        analyses: &mir::TreeAnalysisCache,
     ) -> Mutation {
         // run the specialization pass
-        let changed = run_specialize_arguments(tree, ctx, analyses);
+        let changed = run_specialize_arguments(optimized, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -97,7 +99,7 @@ impl ModulePass for SpecializeArguments {
     }
 }
 
-/// Direct callsite metadata for specialization.
+/// Direct callsite tables for specialization.
 #[derive(Debug, Clone)]
 struct DirectCallSite {
     /// The caller function id.
@@ -153,114 +155,130 @@ enum ConstantKey {
 
 /// Run argument specialization over the module.
 fn run_specialize_arguments(
-    tree: &mut mir::Tree,
+    optimized: &mut MirOptimized,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::ModuleAnalyses,
+    analyses: &mir::TreeAnalysisCache,
 ) -> bool {
-    // collect callsite information
-    let call_data = collect_call_data(tree);
+    let mut specialized_functions = Vec::new();
 
-    // collect call graph components for recursion checks
-    let callgraph = analyses.get::<CallGraph>(tree);
-
-    // build constant propagation maps for callers
-    let constants_by_function = build_constant_maps(tree, ctx.target_layout());
-
-    // track specialization state
-    let mut changed = false;
-    let mut specialization_cache: HashMap<SpecializationKey, mir::LocalNodeId<mir::Function>> =
-        HashMap::new();
-    let mut specialization_counts: HashMap<mir::LocalNodeId<mir::Function>, usize> = HashMap::new();
-    let mut total_specializations = 0usize;
-    let mut function_analyses: HashMap<mir::FunctionId, mir::FunctionAnalyses> = HashMap::new();
-    let mut caller_counts: HashMap<mir::FunctionId, mir::ExecutionCounts> = HashMap::new();
-
-    // process callsites for specialization
-    for callsite in &call_data.callsites {
-        // skip recursive callees
-        if callgraph.is_recursive_function(callsite.callee) {
-            continue;
-        }
-
-        // skip external callees
-        if tree.get(callsite.callee).entry().is_none() {
-            continue;
-        }
-
-        // skip callsites without constant arguments
-        let Some(constants) = callsite_constants(callsite, &constants_by_function, tree, ctx)
-        else {
-            continue;
-        };
-
-        // skip callsites with no constant values
-        if constants.iter().all(|constant| constant.is_none()) {
-            continue;
-        }
-
-        // skip cold callsites when profile data is present
-        caller_counts.entry(callsite.caller).or_insert_with(|| {
-            let analyses = function_analyses
-                .entry(callsite.caller)
-                .or_insert_with(|| ctx.new_function_analyses());
-            mir::ExecutionCounts::new(tree.get(callsite.caller), tree, ctx.profile(), analyses)
-        });
-        let entry_count = ctx
-            .profile()
-            .and_then(|profile| profile.function(tree.get(callsite.caller).symbol))
-            .map(|function_profile| function_profile.entry.get())
-            .unwrap_or(0);
-        let block_count = caller_counts[&callsite.caller].block(callsite.block);
-        if ctx.profile().is_some() {
-            match ctx.hotness_thresholds().classify(block_count, entry_count) {
-                CallsiteHotness::Hot => {}
-                CallsiteHotness::Unknown | CallsiteHotness::Cold => continue,
-            }
-        }
-
-        // compute removal indices for constant parameters
-        let removal_indices = removable_constant_parameters(
-            callsite.callee,
-            tree.get(callsite.callee),
-            &constants,
+    // specialize callsites while holding the mutable MIR tables
+    let changed = {
+        let MirOptimized {
             tree,
-        );
+            memory,
+            effects,
+            ..
+        } = optimized;
 
-        // compute specialization key and check cache
-        let key = specialization_key(callsite.callee, &constants);
-        let new_callee = if let Some(existing) = specialization_cache.get(&key) {
-            *existing
-        } else {
-            let count = specialization_counts.entry(callsite.callee).or_insert(0);
-            if *count >= MAX_SPECIALIZE_PER_FUNCTION {
+        let call_data = collect_call_data(tree);
+        let callgraph = analyses.get::<CallGraph>(tree);
+        let constants_by_function = build_constant_maps(tree, ctx.target_layout());
+
+        let mut changed = false;
+        let mut specialization_cache: HashMap<SpecializationKey, mir::LocalNodeId<mir::Function>> =
+            HashMap::new();
+        let mut specialization_counts: HashMap<mir::LocalNodeId<mir::Function>, usize> =
+            HashMap::new();
+        let mut total_specializations = 0usize;
+        let mut function_analysis_cache: HashMap<mir::FunctionId, mir::FunctionAnalysisCache> =
+            HashMap::new();
+        let mut caller_counts: HashMap<mir::FunctionId, mir::ExecutionCounts> = HashMap::new();
+
+        // process callsites for specialization
+        for callsite in &call_data.callsites {
+            // skip recursive callees
+            if callgraph.is_recursive_function(callsite.callee) {
                 continue;
             }
-            if total_specializations >= MAX_SPECIALIZE_TOTAL {
+
+            // skip external callees
+            if tree.get(callsite.callee).entry().is_none() {
                 continue;
             }
 
-            // clone and specialize the callee
-            let new_callee = specialize_callee(
-                callsite.callee,
-                *count,
-                &constants,
-                &removal_indices,
-                tree,
-                ctx,
-            );
-            specialization_cache.insert(key, new_callee);
-            *count += 1;
-            total_specializations += 1;
-            new_callee
-        };
+            // skip callsites without constant arguments
+            let Some(constants) = callsite_constants(callsite, &constants_by_function, tree, ctx)
+            else {
+                continue;
+            };
 
-        // update the callsite to use the specialized clone
-        if update_callsite(callsite, new_callee, &removal_indices, tree) {
-            changed = true;
+            // skip callsites with no constant values
+            if constants.iter().all(|constant| constant.is_none()) {
+                continue;
+            }
+
+            // skip cold callsites when profile data is present
+            caller_counts.entry(callsite.caller).or_insert_with(|| {
+                let analyses = function_analysis_cache
+                    .entry(callsite.caller)
+                    .or_insert_with(|| {
+                        mir::FunctionAnalysisCache::with_options(
+                            ctx.options.analysis,
+                            memory,
+                            effects,
+                        )
+                    });
+                mir::ExecutionCounts::new(tree.get(callsite.caller), tree, ctx.profile(), analyses)
+            });
+            let entry_count = ctx
+                .profile()
+                .and_then(|profile| profile.function(tree.get(callsite.caller).symbol))
+                .map(|function_profile| function_profile.entry.get())
+                .unwrap_or(0);
+            let block_count = caller_counts[&callsite.caller].block(callsite.block);
+            if ctx.profile().is_some() {
+                match ctx.hotness_thresholds().classify(block_count, entry_count) {
+                    CallsiteHotness::Hot => {}
+                    CallsiteHotness::Unknown | CallsiteHotness::Cold => continue,
+                }
+            }
+
+            // compute removal indices for constant parameters
+            let removal_indices =
+                removable_constant_parameters(tree.get(callsite.callee), &constants, tree);
+
+            // compute specialization key and check cache
+            let key = specialization_key(callsite.callee, &constants);
+            let new_callee = if let Some(existing) = specialization_cache.get(&key) {
+                *existing
+            } else {
+                let count = specialization_counts.entry(callsite.callee).or_insert(0);
+                if *count >= MAX_SPECIALIZE_PER_FUNCTION {
+                    continue;
+                }
+                if total_specializations >= MAX_SPECIALIZE_TOTAL {
+                    continue;
+                }
+
+                // clone and specialize the callee
+                let new_callee = specialize_callee(
+                    callsite.callee,
+                    *count,
+                    &constants,
+                    &removal_indices,
+                    tree,
+                    memory,
+                    ctx,
+                );
+                specialization_cache.insert(key, new_callee);
+                specialized_functions.push(new_callee);
+                *count += 1;
+                total_specializations += 1;
+                changed = true;
+                new_callee
+            };
+
+            // update the callsite to use the specialized clone
+            if update_callsite(callsite, new_callee, &removal_indices, tree, effects) {
+                changed = true;
+            }
         }
-    }
 
-    changed
+        changed
+    };
+    let simplified = simplify_specialized_functions(&specialized_functions, optimized, ctx);
+
+    changed || simplified
 }
 
 /// Collect direct callsites and indirect signatures for the module.
@@ -361,7 +379,7 @@ fn callsite_constants(
         &callsite.arguments,
         &callee.parameters,
         block_constants,
-        ctx.target_layout().pointer_width_bits,
+        ctx.target_layout().pointer_bits(),
         tree,
     )
 }
@@ -421,6 +439,7 @@ fn specialize_callee(
     constants: &[Option<mir::Constant>],
     removal_indices: &[usize],
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     ctx: &PipelineContext<'_>,
 ) -> mir::LocalNodeId<mir::Function> {
     // build the specialized function name
@@ -429,10 +448,10 @@ fn specialize_callee(
     let name = ctx.strings.intern(&format!("{base_name}{suffix}"));
 
     // clone the function body
-    let new_function_id = clone_function(callee, name, tree);
+    let new_function_id = clone_function(callee, name, tree, memory);
 
     // insert constant parameters into the clone
-    apply_constant_parameters(new_function_id, constants, tree);
+    apply_constant_parameters(new_function_id, constants, tree, memory);
 
     // remove parameters that are constant and not required
     if !removal_indices.is_empty() {
@@ -440,12 +459,27 @@ fn specialize_callee(
         apply_parameter_removals(new_function_id, &remap, tree);
     }
 
-    // run cleanup passes on the specialized clone
-    let sccp = PropagateSparseConstants;
-    let simplify = SimplifyControlFlow;
-    let dce = EliminateDeadCode;
-    run_function_passes_always(new_function_id, tree, ctx, &[&sccp, &simplify, &dce]);
     new_function_id
+}
+
+/// Simplify newly specialized functions.
+fn simplify_specialized_functions(
+    function_ids: &[mir::LocalNodeId<mir::Function>],
+    optimized: &mut MirOptimized,
+    ctx: &PipelineContext<'_>,
+) -> bool {
+    let propagate = PropagateSparseConstants;
+    let fold = FoldConstants;
+    let simplify = SimplifyControlFlow;
+    let eliminate = EliminateDeadCode;
+    let passes: [&dyn FunctionPass; 4] = [&propagate, &fold, &simplify, &eliminate];
+
+    let mut changed = false;
+    for function_id in function_ids {
+        changed |= run_function_passes(*function_id, optimized, ctx, &passes);
+    }
+
+    changed
 }
 
 /// Create a suffix for specialized function names.
@@ -458,6 +492,7 @@ fn clone_function(
     function_id: mir::LocalNodeId<mir::Function>,
     name: destack_core::StringId,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
 ) -> mir::LocalNodeId<mir::Function> {
     // read the original function
     let original = tree.get(function_id).clone();
@@ -503,8 +538,8 @@ fn clone_function(
             let remapped = instruction_map_with_locals(&instruction, &value_map, &local_map, tree);
             let new_id = tree.insert(remapped);
 
-            // preserve memory access metadata for the cloned instruction
-            clone_instruction_metadata(tree, instruction_id, new_id, &value_map);
+            // preserve memory access entries for the cloned instruction
+            clone_instruction_tables(tree, memory, instruction_id, new_id, &value_map);
 
             new_instructions.push(new_id);
         }
@@ -552,14 +587,12 @@ fn clone_function(
 
 /// Identify constant parameters that can be removed.
 fn removable_constant_parameters(
-    function_id: mir::LocalNodeId<mir::Function>,
     function: &mir::Function,
     constants: &[Option<mir::Constant>],
     tree: &mir::Tree,
 ) -> Vec<usize> {
     // collect required parameter indices
-    let metadata = tree.metadata.effects.function(function_id);
-    let required = ParameterRemap::required_indices(function, metadata, tree);
+    let required = ParameterRemap::required_indices(function, tree);
 
     // collect removable indices
     let mut removable = Vec::new();
@@ -593,11 +626,6 @@ fn apply_parameter_removals(
         function.entry().expect("defined function has entry block")
     };
 
-    // update function metadata
-    if let Some(metadata) = tree.metadata.effects.functions.get_mut(&function_id) {
-        metadata.allocation_size = remap.remap_allocation_size(metadata.allocation_size);
-    }
-
     // update entry block parameters to match the new signature
     let entry = tree.get_mut(entry_id);
     entry.parameters = remap.filter_by_index(&entry.parameters);
@@ -609,6 +637,7 @@ fn update_callsite(
     new_callee: mir::LocalNodeId<mir::Function>,
     removal_indices: &[usize],
     tree: &mut mir::Tree,
+    effects: &mut mir::EffectTable,
 ) -> bool {
     // prepare removal remapping data
     let remap = ParameterRemap::new(removal_indices);
@@ -648,10 +677,9 @@ fn update_callsite(
     tree.set(callsite.call_instruction, updated);
 
     let callsite_id = mir::CallSite::Instruction(callsite.call_instruction);
-    if let Some(metadata) = tree.metadata.effects.calls.get_mut(&callsite_id) {
-        metadata.arguments = remap.filter_by_index(&metadata.arguments);
-        metadata.allocation_size = remap.remap_allocation_size(metadata.allocation_size);
-        metadata.target = Some(new_callee);
+    if let Some(tables) = effects.calls.get_mut(&callsite_id) {
+        tables.arguments = remap.filter_by_index(&tables.arguments);
+        tables.target = Some(new_callee);
     }
 
     true
@@ -708,9 +736,9 @@ entry:
         test.assert_output(expected);
     }
 
-    /// Call metadata is remapped after specialization.
+    /// Call effect entries are remapped after specialization.
     #[test]
-    fn test_specialize_arguments_updates_call_metadata() {
+    fn test_specialize_arguments_updates_call_entries() {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -753,23 +781,22 @@ entry:
         let root_id = test.function_id_by_name("root");
         let (call_id, _callee_id) = test.first_call_in_entry(root_id);
         let callsite = mir::CallSite::Instruction(call_id);
-        test.tree.metadata.effects.call_mut(callsite).arguments =
+        test.optimized.effects.call_mut(callsite).arguments =
             vec![mir::CallArgumentEffect::default(); 2];
 
         test.run_module_pass(&SpecializeArguments);
         test.assert_output(expected);
 
         let (call_id, callee_id) = test.first_call_in_entry(root_id);
-        let callee = test.tree.get(callee_id);
+        let callee = test.optimized.tree.get(callee_id);
         let callsite = mir::CallSite::Instruction(call_id);
-        let metadata = test
-            .tree
-            .metadata
+        let tables = test
+            .optimized
             .effects
             .call(callsite)
             .expect("missing call metadata");
-        let instruction = test.tree.get(call_id);
-        let signature = test.tree.get(
+        let instruction = test.optimized.tree.get(call_id);
+        let signature = test.optimized.tree.get(
             instruction
                 .call_signature()
                 .expect("call signature should be concrete"),
@@ -784,11 +811,11 @@ entry:
             result: callee.return_type,
         };
 
-        assert!(metadata.arguments.is_empty());
+        assert!(tables.arguments.is_empty());
         assert_eq!(signature, &expected_signature);
     }
 
-    /// Specialization remaps memory access metadata for cloned functions.
+    /// Specialization remaps memory access entries for cloned functions.
     #[test]
     fn test_specialize_arguments_remaps_memory_access_metadata() {
         let input = r#"
@@ -812,13 +839,15 @@ entry:
         let mut test = TestProgram::new(input);
 
         let callee_id = test.function_id_by_name("callee");
-        let callee = test.tree.get(callee_id);
+        let callee = test.optimized.tree.get(callee_id);
         let mut callee_load = None;
         let mut callee_pointer = None;
         for block_id in callee.blocks() {
-            let block = test.tree.get(*block_id);
+            let block = test.optimized.tree.get(*block_id);
             for instruction_id in &block.instructions {
-                if let mir::Instruction::Load { pointer, .. } = test.tree.get(*instruction_id) {
+                if let mir::Instruction::Load { pointer, .. } =
+                    test.optimized.tree.get(*instruction_id)
+                {
                     callee_load = Some(*instruction_id);
                     callee_pointer = Some(*pointer);
                     break;
@@ -833,7 +862,7 @@ entry:
         let callee_pointer = callee_pointer.expect("missing callee pointer");
         test.insert_pointer_access(
             callee_load,
-            mir::MemoryAccessKind::Read,
+            mir::MemoryOperation::Read,
             callee_pointer,
             None,
         );
@@ -842,6 +871,7 @@ entry:
 
         let root_id = test.function_id_by_name("root");
         let specialized_ids: Vec<_> = test
+            .optimized
             .tree
             .iter_nodes::<mir::Function>()
             .map(|(id, _)| id)
@@ -849,13 +879,15 @@ entry:
             .collect();
         assert_eq!(specialized_ids.len(), 1);
         let specialized_id = specialized_ids[0];
-        let specialized = test.tree.get(specialized_id);
+        let specialized = test.optimized.tree.get(specialized_id);
         let mut specialized_load = None;
         let mut specialized_pointer = None;
         for block_id in specialized.blocks() {
-            let block = test.tree.get(*block_id);
+            let block = test.optimized.tree.get(*block_id);
             for instruction_id in &block.instructions {
-                if let mir::Instruction::Load { pointer, .. } = test.tree.get(*instruction_id) {
+                if let mir::Instruction::Load { pointer, .. } =
+                    test.optimized.tree.get(*instruction_id)
+                {
                     specialized_load = Some(*instruction_id);
                     specialized_pointer = Some(*pointer);
                     break;
@@ -869,14 +901,13 @@ entry:
         let specialized_load = specialized_load.expect("missing specialized load");
         let specialized_pointer = specialized_pointer.expect("missing specialized pointer");
         let accesses = test
-            .tree
-            .metadata
+            .optimized
             .memory
             .memory_accesses(specialized_load)
-            .expect("missing specialized access metadata");
+            .expect("missing specialized access entries");
         assert_eq!(accesses.len(), 1);
         match accesses[0].target {
-            mir::MemoryAccessTarget::Reference(value) => {
+            mir::MemoryTarget::Reference(value) => {
                 assert_eq!(value, specialized_pointer);
             }
             _ => panic!("unexpected access target"),
@@ -984,55 +1015,6 @@ entry:
         test.record_function_entry(&mut profile, root_id, 100);
 
         test.run_module_pass_with_profile(&SpecializeArguments, profile);
-        test.assert_output(expected);
-    }
-
-    /// Required alloc size parameters are not removed.
-    #[test]
-    fn test_specialize_arguments_keeps_alloc_size_param() {
-        let input = r#"
-function callee(v0: int32): int32 {
-entry(v0: int32):
-    return v0
-}
-
-function root(): int32 {
-entry:
-    v0: int32 = 7
-    v1: int32 = call callee(v0)
-    return v1
-}
-"#;
-
-        let expected = r#"
-function callee(v0: int32): int32 {
-entry(v0: int32):
-    return v0
-}
-
-function root(): int32 {
-entry:
-    v0: int32 = 7
-    v1: int32 = call callee_spec0(v0)
-    return v1
-}
-
-function callee_spec0(v0: int32): int32 {
-entry(v0: int32):
-    v1: int32 = 7
-    return v1
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-        let callee_id = test.function_id_by_name("callee");
-        test.tree
-            .metadata
-            .effects
-            .function_mut(callee_id)
-            .allocation_size = Some(mir::AllocationSize::new(0, None));
-
-        test.run_module_pass(&SpecializeArguments);
         test.assert_output(expected);
     }
 

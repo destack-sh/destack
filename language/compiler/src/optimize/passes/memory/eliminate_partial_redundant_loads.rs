@@ -3,9 +3,9 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, MemoryAccess, MemoryAccessId,
+    AliasAnalysis, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, MemoryAccessId, MemoryNode,
     MemorySSA, Mutation, append_edge_arguments, apply_substitutions_in_function,
     build_use_def_maps, ensure_edge_block, instruction_allows_read_only_motion,
     instruction_has_side_effects, instruction_is_read_only_access, instruction_is_speculatable,
@@ -57,17 +57,22 @@ impl FunctionPass for EliminatePartialRedundantLoads {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+        let effects = &mut optimized.effects;
+
         // skip imported functions
         if function.entry().is_none() {
             return Mutation::NONE;
         }
 
         // run load PRE
-        let changed = run_eliminate_partial_redundant_loads(function, tree, ctx, analyses);
+        let changed =
+            run_eliminate_partial_redundant_loads(function, tree, memory, effects, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -123,8 +128,10 @@ struct EdgeInsertion {
 fn run_eliminate_partial_redundant_loads(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
+    effects: &mir::EffectTable,
     _ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalyses,
+    analyses: &mir::FunctionAnalysisCache,
 ) -> bool {
     // gather analyses
     let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
@@ -189,7 +196,8 @@ fn run_eliminate_partial_redundant_loads(
             };
 
             // validate load eligibility
-            let Some(access_info) = load_access_info(&load, &block, tree, memory_ssa.as_ref())
+            let Some(access_info) =
+                load_access_info(&load, &block, tree, effects, memory_ssa.as_ref())
             else {
                 continue;
             };
@@ -260,8 +268,8 @@ fn run_eliminate_partial_redundant_loads(
                         tree,
                     );
 
-                    // clone memory access metadata when present
-                    clone_load_metadata(tree, load.load_id, load_id, insertion.pointer);
+                    // clone memory access entries when present
+                    clone_load_metadata(memory, load.load_id, load_id, insertion.pointer);
                     load_value
                 };
 
@@ -281,11 +289,12 @@ fn run_eliminate_partial_redundant_loads(
     }
 
     // apply substitutions and removals
-    let updated = apply_substitutions_in_function(function, tree, &substitutions, Some(&to_remove));
+    let updated =
+        apply_substitutions_in_function(function, tree, memory, &substitutions, Some(&to_remove));
 
-    // drop memory metadata for removed loads
+    // drop memory tables for removed loads
     for load_id in &to_remove {
-        tree.metadata.memory.remove_memory_accesses(*load_id);
+        memory.remove_memory_accesses(*load_id);
     }
 
     changed || updated
@@ -296,6 +305,7 @@ fn load_access_info(
     load: &LoadCandidate,
     block: &mir::Block,
     tree: &mir::Tree,
+    effects: &mir::EffectTable,
     memory_ssa: &MemorySSA,
 ) -> Option<LoadAccessInfo> {
     // resolve the memory ssa use access
@@ -308,7 +318,7 @@ fn load_access_info(
     }
 
     // require a known reference location
-    let MemoryAccess::Use(use_access) = memory_ssa.access(use_access_id) else {
+    let MemoryNode::Use(use_access) = memory_ssa.access(use_access_id) else {
         return None;
     };
     // require a trackable effect
@@ -317,7 +327,7 @@ fn load_access_info(
     }
 
     // ensure the load can move to block entry
-    if !load_can_move_to_entry(load.load_id, block, tree, memory_ssa) {
+    if !load_can_move_to_entry(load.load_id, block, tree, effects, memory_ssa) {
         return None;
     }
 
@@ -329,6 +339,7 @@ fn load_can_move_to_entry(
     load_id: mir::LocalNodeId<mir::Instruction>,
     block: &mir::Block,
     tree: &mir::Tree,
+    effects: &mir::EffectTable,
     memory_ssa: &MemorySSA,
 ) -> bool {
     // inspect instructions before the load
@@ -341,13 +352,13 @@ fn load_can_move_to_entry(
         // read the instruction data
         let instruction = tree.get(instruction_id);
 
-        // allow read only accesses with safe metadata
+        // allow read only accesses with safe tables
         let read_only_access = instruction_is_read_only_access(instruction_id, memory_ssa);
 
         // reject side effecting instructions
         if instruction_has_side_effects(instruction) {
             if read_only_access
-                && instruction_allows_read_only_motion(instruction_id, instruction, tree)
+                && instruction_allows_read_only_motion(instruction_id, instruction, effects)
             {
                 continue;
             }
@@ -398,7 +409,7 @@ fn collect_edge_insertions(
     }
 
     // resolve incoming memory accesses for the load block
-    let MemoryAccess::Phi(phi) = memory_ssa.access(access_info.phi_access) else {
+    let MemoryNode::Phi(phi) = memory_ssa.access(access_info.phi_access) else {
         return None;
     };
     let incoming_by_pred: HashMap<_, _> = phi
@@ -492,7 +503,7 @@ fn reusable_predecessor_load(
         let Some(use_access_id) = memory_ssa.first_use_access(instruction_id) else {
             continue;
         };
-        let MemoryAccess::Use(use_access) = memory_ssa.access(use_access_id) else {
+        let MemoryNode::Use(use_access) = memory_ssa.access(use_access_id) else {
             continue;
         };
 
@@ -511,31 +522,29 @@ fn reusable_predecessor_load(
     reusable
 }
 
-/// Clone load metadata to a new instruction.
+/// Clone load tables to a new instruction.
 fn clone_load_metadata(
-    tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     source: mir::LocalNodeId<mir::Instruction>,
     destination: mir::LocalNodeId<mir::Instruction>,
     pointer: mir::Value,
 ) {
-    // skip when there is no metadata to clone
-    let Some(accesses) = tree.metadata.memory.memory_accesses(source) else {
+    // skip when there is no tables to clone
+    let Some(accesses) = memory.memory_accesses(source) else {
         return;
     };
 
-    // update reference targets for cloned metadata
+    // update reference targets for cloned tables
     let mut cloned = Vec::with_capacity(accesses.len());
     for access in accesses {
         let mut updated = access.clone();
-        if matches!(updated.target, mir::MemoryAccessTarget::Reference(_)) {
-            updated.target = mir::MemoryAccessTarget::Reference(pointer);
+        if matches!(updated.target, mir::MemoryTarget::Reference(_)) {
+            updated.target = mir::MemoryTarget::Reference(pointer);
         }
         cloned.push(updated);
     }
 
-    tree.metadata
-        .memory
-        .insert_memory_accesses(destination, cloned);
+    memory.insert_memory_accesses(destination, cloned);
 }
 
 #[cfg(test)]
@@ -706,13 +715,13 @@ external function readOnly(): void
 
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
-        let function = test.tree.get(function_id);
+        let function = test.optimized.tree.get(function_id);
         let join_block = function.block(3);
         let call_inst = test.instructions_in_block(join_block)[0];
         let callsite = mir::CallSite::Instruction(call_inst);
-        let metadata = test.tree.metadata.effects.call_mut(callsite);
-        metadata.memory = mir::MemoryEffect::read_only(mir::SpaceSet::ANY);
-        metadata.behavior = mir::FunctionBehavior::none();
+        let tables = test.optimized.effects.call_mut(callsite);
+        tables.memory = mir::MemoryEffect::read_only(mir::StorageSet::ANY);
+        tables.behavior = mir::FunctionBehavior::none();
 
         test.run_pass(&EliminatePartialRedundantLoads);
         test.assert_output(expected);
@@ -741,64 +750,18 @@ b3:
 
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
+        let function = test.optimized.tree.get(function_id);
         let join_block = function.block(3);
         let load_inst = test.instructions_in_block(join_block)[0];
 
         test.insert_pointer_access_with_options(
             load_inst,
-            mir::MemoryAccessKind::Read,
+            mir::MemoryOperation::Read,
             mir::Value::new(1),
             Some(4),
             true,
             None,
         );
-
-        test.run_pass(&EliminatePartialRedundantLoads);
-        test.assert_output(input);
-    }
-
-    /// Unknown memory locations are not moved.
-    #[test]
-    fn test_eliminate_partial_redundant_loads_skips_unknown_location() {
-        let input = r#"
-function test(v0: boolean): int32 {
-entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-
-b1:
-    jump b3
-
-b2:
-    jump b3
-
-b3:
-    v2: int32 = load v1
-    return v2
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-        let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let join_block = function.block(3);
-        let load_inst = test.instructions_in_block(join_block)[0];
-
-        let access = mir::MemoryAccessMetadata {
-            kind: mir::MemoryAccessKind::Read,
-            target: mir::MemoryAccessTarget::Unknown,
-            size: None,
-            alignment: None,
-            is_volatile: false,
-            is_load_invariant: false,
-            ordering: None,
-            scope: None,
-            memory_scope: None,
-            flags: None,
-            space: None,
-        };
-        test.insert_memory_accesses(load_inst, vec![access]);
 
         test.run_pass(&EliminatePartialRedundantLoads);
         test.assert_output(input);

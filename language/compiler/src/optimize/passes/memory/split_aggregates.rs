@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ConstantPropagation, Mutation, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, terminator_substitute_uses,
@@ -56,10 +56,13 @@ impl FunctionPass for SplitAggregates {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip empty functions
         let entry = match function.entry() {
             Some(entry) => entry,
@@ -73,6 +76,7 @@ impl FunctionPass for SplitAggregates {
         let changed = run_split_aggregates(
             function,
             tree,
+            memory,
             entry,
             ctx.options.split_aggregates_max_array_elements,
             &constants,
@@ -101,13 +105,14 @@ impl FunctionPass for SplitAggregates {
 fn run_split_aggregates(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     entry: mir::LocalNodeId<mir::Block>,
     max_array_elements: usize,
     constants: &ConstantPropagation,
 ) -> bool {
     // find splittable allocations
     let candidates =
-        find_splittable_allocations_core(function, tree, max_array_elements, constants);
+        find_splittable_allocations_core(function, tree, memory, max_array_elements, constants);
     if candidates.is_empty() {
         return false;
     }
@@ -118,7 +123,7 @@ fn run_split_aggregates(
     // split each candidate
     let mut made_changes = false;
     for candidate in candidates {
-        if split_allocation(&candidate, function, tree, entry) {
+        if split_allocation(&candidate, function, tree, memory, entry) {
             made_changes = true;
         }
     }
@@ -132,7 +137,7 @@ struct SplitCandidate {
     alloc_instruction: mir::LocalNodeId<mir::Instruction>,
     /// The aggregate layout type.
     layout: mir::LocalNodeId<mir::Type>,
-    /// Reference metadata for derived stack slots.
+    /// Reference tables for derived stack slots.
     reference_spec: ReferenceSpec,
     /// The element types after splitting.
     element_types: Vec<mir::LocalNodeId<mir::Type>>,
@@ -205,6 +210,7 @@ struct AllocationUses {
 fn find_splittable_allocations_core(
     function: &mir::Function,
     tree: &mir::Tree,
+    memory: &mir::MemoryTable,
     max_array_elements: usize,
     constants: &ConstantPropagation,
 ) -> Vec<SplitCandidate> {
@@ -242,7 +248,7 @@ fn find_splittable_allocations_core(
                 };
 
                 // analyze uses to determine if splittable
-                let uses = match analyze_uses(destination, function, tree, constants) {
+                let uses = match analyze_uses(destination, function, tree, memory, constants) {
                     Some(uses) => uses,
                     None => continue,
                 };
@@ -327,6 +333,7 @@ fn analyze_uses(
     alloc_value: mir::Value,
     function: &mir::Function,
     tree: &mir::Tree,
+    memory: &mir::MemoryTable,
     constants: &ConstantPropagation,
 ) -> Option<AllocationUses> {
     let mut uses = Vec::new();
@@ -387,7 +394,7 @@ fn analyze_uses(
 
                     // loads and stores are allowed, base reference uses are recorded
                     mir::Instruction::Load { pointer, .. } if *pointer == value => {
-                        if tree.instruction_requires_exact_access(inst_id) {
+                        if memory.instruction_requires_exact_access(tree, inst_id) {
                             return None;
                         }
                         if value == alloc_value {
@@ -396,7 +403,7 @@ fn analyze_uses(
                     }
 
                     mir::Instruction::Store { pointer, .. } if *pointer == value => {
-                        if tree.instruction_requires_exact_access(inst_id) {
+                        if memory.instruction_requires_exact_access(tree, inst_id) {
                             return None;
                         }
                         if value == alloc_value {
@@ -482,6 +489,7 @@ fn split_allocation(
     candidate: &SplitCandidate,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     entry: mir::LocalNodeId<mir::Block>,
 ) -> bool {
     // create new allocations for each element
@@ -538,7 +546,7 @@ fn split_allocation(
     }
 
     // apply substitutions to all instructions
-    apply_substitutions(&substitutions, function, tree);
+    apply_substitutions(&substitutions, function, tree, memory);
 
     // collect instructions to remove after rewriting
     let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
@@ -724,6 +732,7 @@ fn apply_substitutions(
     substitutions: &HashMap<mir::Value, mir::Value>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
 ) {
     if substitutions.is_empty() {
         return;
@@ -741,7 +750,7 @@ fn apply_substitutions(
             let new_instruction =
                 instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
             tree.set(inst_id, new_instruction);
-            remap_instruction_memory_accesses(tree, inst_id, substitutions);
+            remap_instruction_memory_accesses(memory, inst_id, substitutions);
         }
 
         // substitute in terminator
@@ -762,11 +771,14 @@ mod tests {
         test: &TestProgram,
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> mir::LocalNodeId<mir::Instruction> {
-        let function = test.tree.get(function_id);
+        let function = test.optimized.tree.get(function_id);
         for block_id in function.blocks() {
-            let block = test.tree.get(*block_id);
+            let block = test.optimized.tree.get(*block_id);
             for &instruction_id in &block.instructions {
-                if matches!(test.tree.get(instruction_id), mir::Instruction::Load { .. }) {
+                if matches!(
+                    test.optimized.tree.get(instruction_id),
+                    mir::Instruction::Load { .. }
+                ) {
                     return instruction_id;
                 }
             }
@@ -1341,7 +1353,7 @@ entry:
         let load_id = first_load_id(&test, function_id);
         test.insert_pointer_access_with_options(
             load_id,
-            mir::MemoryAccessKind::Read,
+            mir::MemoryOperation::Read,
             mir::Value::new(1),
             Some(4),
             true,

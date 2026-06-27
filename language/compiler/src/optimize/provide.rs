@@ -93,7 +93,17 @@ impl Compiler {
         let verified = artifacts
             .mir_verified(module, profile, *target)
             .map_err(CompilerError::from)?;
-        let mut tree = verified.patch.tree.clone();
+        let mut optimized = MirOptimized {
+            tree: verified.tree.clone(),
+            target: verified.target,
+            types: verified.types.clone(),
+            layouts: verified.layouts.clone(),
+            dispatch: verified.dispatch.clone(),
+            drops: verified.drops.clone(),
+            memory: verified.memory.clone(),
+            effects: verified.effects.clone(),
+            profile: verified.profile.clone(),
+        };
 
         // load analysis for the optimization program scope
         let program_analysis = if level.uses_program_analysis() {
@@ -123,7 +133,7 @@ impl Compiler {
             None,
             program_analysis,
         );
-        pipeline.run(&mut tree, &mut pipeline_context);
+        pipeline.run(&mut optimized, &mut pipeline_context);
 
         // collect accumulated diagnostics from verification passes
         for error in pipeline_context.take_errors() {
@@ -133,12 +143,7 @@ impl Compiler {
             self.emit_diagnostic::<OptimizeWarning>(context, warning)?;
         }
 
-        // freeze optimized MIR patch
-        let payload = MirOptimized {
-            patches: vec![mir::Patch::from_tree("optimize", tree)],
-        };
-
-        Ok(payload)
+        Ok(optimized)
     }
 
     /// Resolve the optimization level for a target configuration.
@@ -155,26 +160,26 @@ impl Compiler {
         _context: &dyn ProviderContext,
     ) -> PipelineOptions {
         // resolve pointer width from target configuration
-        let pointer_width_bits = self.pointer_width_bits_for_target(target);
+        let pointer_bytes = self.pointer_bytes_for_target(target);
 
         PipelineOptions {
-            analysis: AnalysisOptions::new(TargetLayout { pointer_width_bits }),
+            analysis: AnalysisOptions::new(TargetLayout::for_pointer_bytes(pointer_bytes)),
             unroll_threshold: level.unroll_threshold(),
             inline_budget_scale_percent: level.inline_budget_scale_percent(),
             ..Default::default()
         }
     }
 
-    /// Resolve pointer width in bits for a target configuration.
-    fn pointer_width_bits_for_target(&self, target: &Target) -> u16 {
+    /// Resolve pointer size in bytes for a target configuration.
+    fn pointer_bytes_for_target(&self, target: &Target) -> u8 {
         // prefer explicit triple for pointer width
         if let Some(triple) = target.resolved_target_triple()
             && let Ok(triple) = Triple::from_str(&triple)
             && let Ok(pointer_width) = triple.pointer_width()
         {
             let bits = pointer_width.bits() as u16;
-            if matches!(bits, 16 | 32 | 64) {
-                return bits;
+            if matches!(bits, 32 | 64) {
+                return (bits / 8) as u8;
             }
         }
 
@@ -197,8 +202,8 @@ impl Compiler {
                 | TargetArch::Wasm32 => 32,
                 TargetArch::Other(_) => (mem::size_of::<usize>() * 8) as u16,
             };
-            if matches!(bits, 16 | 32 | 64) {
-                return bits;
+            if matches!(bits, 32 | 64) {
+                return (bits / 8) as u8;
             }
         }
 
@@ -210,10 +215,10 @@ impl Compiler {
         };
 
         // ensure supported sizes
-        if matches!(bits, 16 | 32 | 64) {
-            bits
+        if matches!(bits, 32 | 64) {
+            (bits / 8) as u8
         } else {
-            (mem::size_of::<usize>() * 8) as u16
+            mem::size_of::<usize>() as u8
         }
     }
 

@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, CallsiteHotness, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis,
-    Mutation, ScalarEvolution, Scev, ValueTypes, build_use_def_maps, clone_instruction_metadata,
+    Mutation, ScalarEvolution, Scev, ValueTypes, build_use_def_maps, clone_instruction_tables,
     clone_loop_blocks, instruction_is_speculatable, instruction_map, terminator_remap,
 };
 
@@ -157,17 +157,20 @@ impl FunctionPass for UnrollLoops {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip imported functions
         if function.entry().is_none() {
             return Mutation::NONE;
         }
 
         // run loop unrolling
-        let changed = run_unroll_loops(function, tree, ctx, analyses);
+        let changed = run_unroll_loops(function, tree, memory, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -193,17 +196,20 @@ impl FunctionPass for UnrollAndJamLoops {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip imported functions
         if function.entry().is_none() {
             return Mutation::NONE;
         }
 
         // run loop unroll and jam
-        let changed = run_unroll_loops_and_jam(function, tree, ctx, analyses);
+        let changed = run_unroll_loops_and_jam(function, tree, memory, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -350,8 +356,9 @@ struct UnrollIteration {
 fn run_unroll_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalyses,
+    analyses: &mir::FunctionAnalysisCache,
 ) -> bool {
     // read the unroll threshold from the pipeline options
     let unroll_threshold = ctx.unroll_threshold();
@@ -440,7 +447,7 @@ fn run_unroll_loops(
 
         // apply transformation
         function.recompute_next_value_id(tree);
-        if !unroll_loop(function, tree, &candidate, mode, &cfg, &domtree) {
+        if !unroll_loop(function, tree, memory, &candidate, mode, &cfg, &domtree) {
             break;
         }
 
@@ -463,8 +470,9 @@ fn run_unroll_loops(
 fn run_unroll_loops_and_jam(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalyses,
+    analyses: &mir::FunctionAnalysisCache,
 ) -> bool {
     // read the unroll threshold from the pipeline options
     let unroll_threshold = ctx.unroll_threshold();
@@ -569,6 +577,7 @@ fn run_unroll_loops_and_jam(
         if !unroll_and_jam_loop(
             function,
             tree,
+            memory,
             ctx,
             &candidate,
             plan,
@@ -1546,6 +1555,7 @@ fn select_jam_plan(
 fn unroll_and_jam_loop(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     ctx: &PipelineContext<'_>,
     candidate: &JamCandidate,
     plan: JamPlan,
@@ -1560,7 +1570,15 @@ fn unroll_and_jam_loop(
 
     // peel remainder iterations before unroll and jam
     if plan.remainder > 0 {
-        let peeled = peel_jam_remainder(function, tree, candidate, cfg, domtree, plan.remainder);
+        let peeled = peel_jam_remainder(
+            function,
+            tree,
+            memory,
+            candidate,
+            cfg,
+            domtree,
+            plan.remainder,
+        );
         if !peeled {
             return false;
         }
@@ -1581,6 +1599,7 @@ fn unroll_and_jam_loop(
     if !jam_inner_body(
         function,
         tree,
+        memory,
         ctx,
         candidate,
         plan.factor,
@@ -1636,6 +1655,7 @@ fn find_jam_preheader(
 fn peel_jam_remainder(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     candidate: &JamCandidate,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
@@ -1651,7 +1671,8 @@ fn peel_jam_remainder(
     let mut peeled_iterations = Vec::new();
     for _ in 0..remainder {
         // clone loop blocks and values
-        let (block_map, value_map) = clone_loop_blocks(&candidate.outer_blocks, function, tree);
+        let (block_map, value_map) =
+            clone_loop_blocks(&candidate.outer_blocks, function, tree, memory);
 
         // remap cloned terminators
         for &cloned_id in block_map.values() {
@@ -1707,7 +1728,7 @@ fn peel_jam_remainder(
     true
 }
 
-/// Metadata about the inner loop update instruction.
+/// Tables about the inner loop update instruction.
 struct InnerUpdateInfo {
     /// The update instruction id.
     update_instruction: mir::LocalNodeId<mir::Instruction>,
@@ -1809,7 +1830,7 @@ fn rewrite_outer_latch_step(
     // resolve the outer induction type
     let outer_type = value_types.expect_value_type(candidate.outer_induction);
 
-    let pointer_width_bits = ctx.target_layout().pointer_width_bits;
+    let pointer_width_bits = ctx.target_layout().pointer_bits();
     let scaled_constant = match scaled_step_constant(
         candidate.outer_step,
         factor,
@@ -1873,6 +1894,7 @@ fn rewrite_outer_latch_step(
 fn jam_inner_body(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     ctx: &PipelineContext<'_>,
     candidate: &JamCandidate,
     factor: u64,
@@ -1882,7 +1904,7 @@ fn jam_inner_body(
     // resolve the outer induction type
     let outer_type = value_types.expect_value_type(candidate.outer_induction);
 
-    let pointer_width_bits = ctx.target_layout().pointer_width_bits;
+    let pointer_width_bits = ctx.target_layout().pointer_bits();
     let mut new_instructions = Vec::new();
     new_instructions.extend(update_info.body_instructions.iter().copied());
 
@@ -1933,7 +1955,7 @@ fn jam_inner_body(
 
             let cloned = instruction_map(&instruction, &value_map, tree);
             let cloned_id = tree.insert(cloned);
-            clone_instruction_metadata(tree, instruction_id, cloned_id, &value_map);
+            clone_instruction_tables(tree, memory, instruction_id, cloned_id, &value_map);
             new_instructions.push(cloned_id);
         }
     }
@@ -2081,6 +2103,7 @@ fn select_unroll_mode(candidate: &UnrollCandidate, limits: &UnrollLimits) -> Opt
 fn unroll_loop(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     candidate: &UnrollCandidate,
     mode: UnrollMode,
     cfg: &ControlFlowGraph,
@@ -2090,7 +2113,7 @@ fn unroll_loop(
     if let UnrollMode::Partial { remainder, .. } = mode
         && remainder > 0
     {
-        let peeled = peel_remainder(function, tree, candidate, cfg, domtree, remainder);
+        let peeled = peel_remainder(function, tree, memory, candidate, cfg, domtree, remainder);
         if !peeled {
             return false;
         }
@@ -2107,7 +2130,7 @@ fn unroll_loop(
         return false;
     }
 
-    // build iteration metadata
+    // build iteration tables
     let mut iteration_data = Vec::new();
     iteration_data.push(UnrollIteration {
         latch: candidate.latch,
@@ -2117,7 +2140,8 @@ fn unroll_loop(
     // clone loop blocks for each extra iteration
     for _ in 1..iterations {
         // clone blocks and values
-        let (block_map, value_map) = clone_loop_blocks(&candidate.loop_blocks, function, tree);
+        let (block_map, value_map) =
+            clone_loop_blocks(&candidate.loop_blocks, function, tree, memory);
 
         // remap terminators to cloned targets
         for &cloned_id in block_map.values() {
@@ -2177,6 +2201,7 @@ fn unroll_loop(
 fn peel_remainder(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     candidate: &UnrollCandidate,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
@@ -2196,7 +2221,8 @@ fn peel_remainder(
     let mut peeled_iterations = Vec::new();
     for _ in 0..remainder {
         // clone loop blocks and values
-        let (block_map, value_map) = clone_loop_blocks(&candidate.loop_blocks, function, tree);
+        let (block_map, value_map) =
+            clone_loop_blocks(&candidate.loop_blocks, function, tree, memory);
 
         // remap cloned terminators
         for &cloned_id in block_map.values() {
@@ -3246,7 +3272,7 @@ b3(v7: int32):
         test.run_pass(&SimplifyLoops);
 
         let function_id = test.entry_function_id();
-        let header = test.tree.get(function_id).blocks()[1];
+        let header = test.optimized.tree.get(function_id).blocks()[1];
 
         // a cold function leaves its loops unrolled
         let mut profile = mir::Profile::new();

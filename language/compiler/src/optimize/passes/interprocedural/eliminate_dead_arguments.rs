@@ -3,14 +3,14 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{ModulePass, PipelineContext};
+use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
 use destack_mir::{Mutation, ParameterRemap, SignatureKey, build_use_def_maps};
 
 declare_pass! {
     /// Remove unused parameters from local functions and their callsites.
     ///
     /// This pass removes parameters that are not used by a function body, updates
-    /// direct callsites, and trims any callsite metadata. Indirect calls are
+    /// direct callsites, and trims any callsite tables. Indirect calls are
     /// treated conservatively and block changes for matching signatures.
     ///
     /// ```mir
@@ -45,11 +45,14 @@ impl ModulePass for EliminateDeadArguments {
     /// Run dead argument elimination for the module.
     fn run(
         &self,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mir::ModuleAnalyses,
+        _analyses: &mir::TreeAnalysisCache,
     ) -> Mutation {
-        let changed = run_eliminate_dead_arguments(tree);
+        let tree = &mut optimized.tree;
+        let effects = &mut optimized.effects;
+
+        let changed = run_eliminate_dead_arguments(tree, effects);
 
         // report what this pass changed
         if changed {
@@ -90,7 +93,7 @@ struct CallData {
 }
 
 /// Run dead argument elimination over the module.
-fn run_eliminate_dead_arguments(tree: &mut mir::Tree) -> bool {
+fn run_eliminate_dead_arguments(tree: &mut mir::Tree, effects: &mut mir::EffectTable) -> bool {
     // collect callsite information up front
     let call_data = collect_call_data(tree);
 
@@ -118,7 +121,7 @@ fn run_eliminate_dead_arguments(tree: &mut mir::Tree) -> bool {
         }
 
         // collect unused parameter indices
-        let unused = unused_parameter_indices(function_id, function, tree);
+        let unused = unused_parameter_indices(function, tree);
         if unused.is_empty() {
             continue;
         }
@@ -128,7 +131,7 @@ fn run_eliminate_dead_arguments(tree: &mut mir::Tree) -> bool {
 
         // update direct callsites that target this function
         if let Some(calls) = call_data.direct_calls.get(&function_id) {
-            update_call_sites(function_id, calls, &unused, tree);
+            update_call_sites(function_id, calls, &unused, tree, effects);
         }
 
         changed = true;
@@ -220,17 +223,12 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 }
 
 /// Collect unused parameter indices for a function body.
-fn unused_parameter_indices(
-    function_id: mir::LocalNodeId<mir::Function>,
-    function: &mir::Function,
-    tree: &mir::Tree,
-) -> Vec<usize> {
+fn unused_parameter_indices(function: &mir::Function, tree: &mir::Tree) -> Vec<usize> {
     // collect uses without treating parameters as implicitly used
     let use_def = build_use_def_maps(function, tree);
 
-    // collect parameters that are required by metadata
-    let metadata = tree.metadata.effects.function(function_id);
-    let required = ParameterRemap::required_indices(function, metadata, tree);
+    // collect parameters required by signature obligations
+    let required = ParameterRemap::required_indices(function, tree);
 
     // collect parameters that have no uses
     let mut unused = Vec::new();
@@ -268,11 +266,6 @@ fn apply_parameter_removals(
             .unwrap_or_else(|| panic!("missing entry for rewritten function: {function_id:?}"))
     };
 
-    // update function metadata
-    if let Some(metadata) = tree.metadata.effects.functions.get_mut(&function_id) {
-        metadata.allocation_size = remap.remap_allocation_size(metadata.allocation_size);
-    }
-
     // update entry block parameters to match the new signature
     let entry = tree.get_mut(entry_id);
     entry.parameters = remap.filter_by_index(&entry.parameters);
@@ -284,6 +277,7 @@ fn update_call_sites(
     call_sites: &[DirectCallSite],
     unused: &[usize],
     tree: &mut mir::Tree,
+    effects: &mut mir::EffectTable,
 ) {
     // prepare removal remapping data
     let remap = ParameterRemap::new(unused);
@@ -330,11 +324,9 @@ fn update_call_sites(
                 };
                 *tree.get_mut(instruction_id) = updated;
 
-                // preserve metadata when the callsite carries it
-                if let Some(metadata) = tree.metadata.effects.calls.get_mut(&callsite) {
-                    metadata.arguments = remap.filter_by_index(&metadata.arguments);
-                    metadata.allocation_size =
-                        remap.remap_allocation_size(metadata.allocation_size);
+                // preserve tables when the callsite carries it
+                if let Some(tables) = effects.calls.get_mut(&callsite) {
+                    tables.arguments = remap.filter_by_index(&tables.arguments);
                 }
             }
             DirectCallSite::Terminator(block_id) => {
@@ -390,12 +382,10 @@ fn update_call_sites(
                     _ => panic!("stale direct callsite terminator: {block_id:?}"),
                 }
 
-                // preserve metadata when the terminator carries it
+                // preserve tables when the terminator carries it
                 let callsite = mir::CallSite::Terminator(block_id);
-                if let Some(metadata) = tree.metadata.effects.calls.get_mut(&callsite) {
-                    metadata.arguments = remap.filter_by_index(&metadata.arguments);
-                    metadata.allocation_size =
-                        remap.remap_allocation_size(metadata.allocation_size);
+                if let Some(tables) = effects.calls.get_mut(&callsite) {
+                    tables.arguments = remap.filter_by_index(&tables.arguments);
                 }
             }
         }
@@ -560,9 +550,9 @@ entry(v0: fn(int32, int32) => int32, v1: int32, v2: int32):
         test.assert_output(input);
     }
 
-    /// Call metadata argument lists are trimmed alongside arguments.
+    /// Call tables argument lists are trimmed alongside arguments.
     #[test]
-    fn test_eliminate_dead_arguments_updates_call_metadata() {
+    fn test_eliminate_dead_arguments_updates_call_entries() {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -596,14 +586,14 @@ entry(v0: int32):
             .into_iter()
             .find(|instruction_id| {
                 matches!(
-                    test.tree.get(*instruction_id),
+                    test.optimized.tree.get(*instruction_id),
                     mir::Instruction::Call { .. }
                 )
             })
             .expect("missing call instruction");
 
         let callsite = mir::CallSite::Instruction(call_id);
-        test.tree.metadata.effects.call_mut(callsite).arguments = vec![
+        test.optimized.effects.call_mut(callsite).arguments = vec![
             mir::CallArgumentEffect::default(),
             mir::CallArgumentEffect::default(),
         ];
@@ -611,156 +601,11 @@ entry(v0: int32):
         test.run_module_pass(&EliminateDeadArguments);
         test.assert_output(expected);
         let callsite = mir::CallSite::Instruction(call_id);
-        let metadata = test
-            .tree
-            .metadata
+        let tables = test
+            .optimized
             .effects
             .call(callsite)
             .expect("missing call metadata");
-        assert_eq!(metadata.arguments.len(), 1);
-    }
-
-    /// Metadata parameter indices are remapped after removal.
-    #[test]
-    fn test_eliminate_dead_arguments_remaps_metadata_indices() {
-        let input = r#"
-function callee(v0: int32, v1: int32, v2: int32): int32 {
-entry(v0: int32, v1: int32, v2: int32):
-    return v0
-}
-
-function root(v0: int32, v1: int32, v2: int32): int32 {
-entry(v0: int32, v1: int32, v2: int32):
-    v3: int32 = call callee(v0, v1, v2)
-    return v3
-}
-"#;
-
-        let expected = r#"
-function callee(v0: int32, v1: int32): int32 {
-entry(v0: int32, v1: int32):
-    return v0
-}
-
-function root(v0: int32, v1: int32): int32 {
-entry(v0: int32, v1: int32):
-    v3: int32 = call callee(v0, v1)
-    return v3
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-        let callee_id = test.function_id_by_name("callee");
-        test.tree
-            .metadata
-            .effects
-            .function_mut(callee_id)
-            .allocation_size = Some(mir::AllocationSize::new(2, Some(0)));
-
-        test.run_module_pass(&EliminateDeadArguments);
-        test.assert_output(expected);
-
-        let metadata = test
-            .tree
-            .metadata
-            .effects
-            .function(callee_id)
-            .expect("missing function metadata");
-        assert_eq!(
-            metadata.allocation_size,
-            Some(mir::AllocationSize::new(1, Some(0)))
-        );
-    }
-
-    /// Allocation metadata prevents removing its parameters.
-    #[test]
-    fn test_eliminate_dead_arguments_preserves_alloc_size_param() {
-        let input = r#"
-function callee(v0: int32, v1: int32): int32 {
-entry(v0: int32, v1: int32):
-    return v0
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-        let callee_id = test.function_id_by_name("callee");
-        test.tree
-            .metadata
-            .effects
-            .function_mut(callee_id)
-            .allocation_size = Some(mir::AllocationSize::new(1, None));
-
-        test.run_module_pass(&EliminateDeadArguments);
-        test.assert_output(input);
-        let metadata = test
-            .tree
-            .metadata
-            .effects
-            .function(callee_id)
-            .expect("missing function metadata");
-        assert_eq!(
-            metadata.allocation_size,
-            Some(mir::AllocationSize::new(1, None))
-        );
-    }
-
-    /// Allocation metadata is remapped at callsites.
-    #[test]
-    fn test_eliminate_dead_arguments_remaps_call_allocation_size() {
-        let input = r#"
-function callee(v0: int32, v1: int32, v2: int32): int32 {
-entry(v0: int32, v1: int32, v2: int32):
-    return v0
-}
-
-function root(v0: int32, v1: int32, v2: int32): int32 {
-entry(v0: int32, v1: int32, v2: int32):
-    v3: int32 = call callee(v0, v1, v2)
-    return v3
-}
-"#;
-
-        let expected = r#"
-function callee(v0: int32): int32 {
-entry(v0: int32):
-    return v0
-}
-
-function root(v0: int32): int32 {
-entry(v0: int32):
-    v3: int32 = call callee(v0)
-    return v3
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-        let root_id = test.function_id_by_name("root");
-        let call_id = test
-            .entry_instructions(root_id)
-            .into_iter()
-            .find(|instruction_id| {
-                matches!(
-                    test.tree.get(*instruction_id),
-                    mir::Instruction::Call { .. }
-                )
-            })
-            .expect("missing call instruction");
-
-        let callsite = mir::CallSite::Instruction(call_id);
-        test.tree
-            .metadata
-            .effects
-            .call_mut(callsite)
-            .allocation_size = Some(mir::AllocationSize::new(2, Some(0)));
-
-        test.run_module_pass(&EliminateDeadArguments);
-        test.assert_output(expected);
-        let metadata = test
-            .tree
-            .metadata
-            .effects
-            .call(callsite)
-            .expect("missing call metadata");
-        assert_eq!(metadata.allocation_size, None);
+        assert_eq!(tables.arguments.len(), 1);
     }
 }

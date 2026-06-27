@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ControlFlowGraph, DominatorTree, LoopAnalysis, LoopEffectPolicy, MemorySSA, Mutation,
     build_value_definition_blocks, collect_loop_effects, loop_guard_branch, loop_preheader,
@@ -77,18 +77,28 @@ impl FunctionPass for InterchangeLoops {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // gather analyses
         let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
         let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
         let domtree = analyses.get::<DominatorTree>(function, tree).clone();
         let memory_ssa = analyses.get::<MemorySSA>(function, tree);
         // run loop interchange
-        let changed =
-            run_interchange_loops(function, tree, &loops, &cfg, &domtree, memory_ssa.as_ref());
+        let changed = run_interchange_loops(
+            function,
+            tree,
+            memory,
+            &loops,
+            &cfg,
+            &domtree,
+            memory_ssa.as_ref(),
+        );
 
         // report what this pass changed
         if changed {
@@ -133,6 +143,7 @@ struct InterchangeCandidate {
 fn run_interchange_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mir::MemoryTable,
     loops: &LoopAnalysis,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
@@ -157,6 +168,7 @@ fn run_interchange_loops(
             cfg,
             domtree,
             tree,
+            memory,
             memory_ssa,
             &def_blocks,
             &function_params,
@@ -177,6 +189,7 @@ fn build_interchange_candidate(
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     tree: &mir::Tree,
+    memory: &mir::MemoryTable,
     memory_ssa: &MemorySSA,
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     function_params: &HashSet<mir::Value>,
@@ -284,7 +297,7 @@ fn build_interchange_candidate(
     }
 
     // reject non speculatable instructions
-    if !loops_are_read_only(outer, inner, tree, memory_ssa) {
+    if !loops_are_read_only(outer, inner, tree, memory, memory_ssa) {
         return None;
     }
 
@@ -337,12 +350,26 @@ fn loops_are_read_only(
     outer: &mir::Loop,
     inner: &mir::Loop,
     tree: &mir::Tree,
+    memory: &mir::MemoryTable,
     memory_ssa: &MemorySSA,
 ) -> bool {
     // require read only effects for each loop
-    collect_loop_effects(&outer.blocks, tree, memory_ssa, LoopEffectPolicy::ReadOnly).is_some()
-        && collect_loop_effects(&inner.blocks, tree, memory_ssa, LoopEffectPolicy::ReadOnly)
-            .is_some()
+    collect_loop_effects(
+        &outer.blocks,
+        tree,
+        memory,
+        memory_ssa,
+        LoopEffectPolicy::ReadOnly,
+    )
+    .is_some()
+        && collect_loop_effects(
+            &inner.blocks,
+            tree,
+            memory,
+            memory_ssa,
+            LoopEffectPolicy::ReadOnly,
+        )
+        .is_some()
 }
 
 /// Apply loop interchange to a candidate.

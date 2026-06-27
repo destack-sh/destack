@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     Mutation, TargetLayout, build_use_def_maps, fold_binary, fold_cast, fold_intrinsic, fold_unary,
     instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
@@ -58,13 +58,16 @@ impl FunctionPass for PropagateSparseConstants {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mir::FunctionAnalyses,
+        _analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // run SCCP
         let (cfg_changed, value_changed) =
-            run_propagate_sparse_constants(function, tree, ctx.target_layout());
+            run_propagate_sparse_constants(function, tree, memory, ctx.target_layout());
 
         if cfg_changed || value_changed {
             Mutation::CONTROL | Mutation::VALUE
@@ -86,6 +89,7 @@ impl FunctionPass for PropagateSparseConstants {
 fn run_propagate_sparse_constants(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     target_layout: TargetLayout,
 ) -> (bool, bool) {
     // skip external functions
@@ -103,7 +107,7 @@ fn run_propagate_sparse_constants(
     let result = state.run();
 
     // apply constant folding and reachability
-    apply_propagate_sparse_constants_result(function, tree, &result)
+    apply_propagate_sparse_constants_result(function, tree, memory, &result)
 }
 
 /// Lattice state for SCCP values.
@@ -700,7 +704,7 @@ impl<'a> PropagateSparseConstantsState<'a> {
                         *operator,
                         value,
                         *to_type,
-                        self.target_layout.pointer_width_bits,
+                        self.target_layout.pointer_bits(),
                         self.tree,
                     )
                     .map(LatticeValue::Constant)
@@ -873,6 +877,7 @@ fn select_switch_target(value: i128, cases: &[mir::SwitchCase]) -> Option<&mir::
 fn apply_propagate_sparse_constants_result(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     result: &PropagateSparseConstantsResult,
 ) -> (bool, bool) {
     // track cfg and value changes
@@ -945,7 +950,7 @@ fn apply_propagate_sparse_constants_result(
 
     // substitute constant uses after folding
     if !substitutions.is_empty() {
-        value_changed |= function_substitute_constant_uses(function, tree, &substitutions);
+        value_changed |= function_substitute_constant_uses(function, tree, memory, &substitutions);
     }
 
     // remove unreachable blocks
@@ -1044,6 +1049,7 @@ fn function_insert_block_param_constants(
 fn function_substitute_constant_uses(
     function: &mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) -> bool {
     // track whether any substitutions occur
@@ -1074,7 +1080,7 @@ fn function_substitute_constant_uses(
             // update instruction when rewritten
             if new_instruction != instruction {
                 tree.set(instruction_id, new_instruction);
-                remap_instruction_memory_accesses(tree, instruction_id, substitutions);
+                remap_instruction_memory_accesses(memory, instruction_id, substitutions);
                 changed = true;
             }
         }

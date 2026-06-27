@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::MirLowered;
+use destack_artifact::MirOptimized;
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
@@ -18,7 +18,7 @@ pub struct ModuleWorkItem {
     /// The target id for this work item.
     target_id: TargetId,
     /// The local mutable MIR state for this work item.
-    mir: Arc<RwLock<MirLowered>>,
+    mir: Arc<RwLock<MirOptimized>>,
     /// Shared strings referenced by this MIR.
     strings: Arc<StringPool>,
     /// The pipeline options for this module.
@@ -31,7 +31,7 @@ impl ModuleWorkItem {
         module_id: ModuleId,
         profile_id: ProfileId,
         target_id: TargetId,
-        mir: MirLowered,
+        mir: MirOptimized,
         strings: Arc<StringPool>,
         options: PipelineOptions,
     ) -> Self {
@@ -71,10 +71,10 @@ impl ModuleWorkItem {
         f(&mir.tree)
     }
 
-    /// Mutate the MIR tree for this module.
-    pub fn with_tree_mut<T>(&self, f: impl FnOnce(&mut mir::Tree) -> T) -> T {
+    /// Mutate the optimized MIR for this module.
+    pub fn with_optimized_mut<T>(&self, f: impl FnOnce(&mut MirOptimized) -> T) -> T {
         let mut mir = self.mir.write();
-        f(&mut mir.tree)
+        f(&mut mir)
     }
 
     /// Access the module string pool.
@@ -93,7 +93,7 @@ impl ModuleWorkItem {
     }
 
     /// Access the module MIR data.
-    pub fn with_mir<T>(&self, f: impl FnOnce(&MirLowered) -> T) -> T {
+    pub fn with_mir<T>(&self, f: impl FnOnce(&MirOptimized) -> T) -> T {
         let mir = self.mir.read();
         f(&mir)
     }

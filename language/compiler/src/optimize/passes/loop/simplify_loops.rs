@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext, declare_pass};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext, declare_pass};
 use destack_mir::{
     ControlFlowGraph, LoopAnalysis, Mutation, instruction_substitute_uses_in_tree,
     terminator_substitute_uses,
@@ -36,10 +36,12 @@ impl FunctionPass for SimplifyLoops {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+
         let entry = match function.entry() {
             Some(entry) => entry,
             None => return Mutation::NONE,
@@ -788,8 +790,14 @@ b1:
         test.assert_output(expected);
 
         // verify entry changed to preheader
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = test.tree.get(function_id);
+        let function_id = test
+            .optimized
+            .tree
+            .iter_nodes::<mir::Function>()
+            .next()
+            .unwrap()
+            .0;
+        let function = test.optimized.tree.get(function_id);
         assert_eq!(function.entry().unwrap(), function.block(0));
         assert_ne!(function.entry().unwrap(), function.block(1));
     }
@@ -966,8 +974,14 @@ entry_1(v1: boolean):
         test.assert_output(expected);
 
         // verify entry changed to preheader
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = test.tree.get(function_id);
+        let function_id = test
+            .optimized
+            .tree
+            .iter_nodes::<mir::Function>()
+            .next()
+            .unwrap()
+            .0;
+        let function = test.optimized.tree.get(function_id);
         assert_eq!(function.entry().unwrap(), function.block(0));
         assert_ne!(function.entry().unwrap(), function.block(1));
     }

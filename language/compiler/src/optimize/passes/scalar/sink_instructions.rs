@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis, MemorySSA, Mutation,
     ReferenceLocation, ValueDefinitions, build_use_def_maps, instruction_is_memory_read,
@@ -60,10 +60,13 @@ impl FunctionPass for SinkInstructions {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip empty functions
         let entry = match function.entry() {
             Some(entry) => entry,
@@ -82,6 +85,7 @@ impl FunctionPass for SinkInstructions {
             entry,
             function,
             tree,
+            memory,
             &cfg,
             &domtree,
             &loops,
@@ -113,6 +117,7 @@ fn run_sink(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mir::MemoryTable,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     loops: &LoopAnalysis,
@@ -149,7 +154,7 @@ fn run_sink(
             let instruction = tree.get(instruction_id);
 
             // do not sink instructions that require exact access semantics
-            if tree.instruction_requires_exact_access(instruction_id) {
+            if memory.instruction_requires_exact_access(tree, instruction_id) {
                 continue;
             }
 
@@ -567,7 +572,7 @@ b2:
             .into_iter()
             .find(|instruction_id| {
                 matches!(
-                    test.tree.get(*instruction_id),
+                    test.optimized.tree.get(*instruction_id),
                     mir::Instruction::Load { .. }
                 )
             })
@@ -575,7 +580,7 @@ b2:
 
         test.insert_pointer_access_with_options(
             load_id,
-            mir::MemoryAccessKind::Read,
+            mir::MemoryOperation::Read,
             mir::Value::new(1),
             Some(4),
             true,

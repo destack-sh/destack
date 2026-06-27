@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AliasAnalysis, MemorySSA, Mutation, ReferenceLocation, instruction_has_side_effects,
 };
@@ -42,16 +42,19 @@ impl FunctionPass for EliminateDeadCode {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // build memory analyses for local dead store elimination
         let alias = analyses.get::<AliasAnalysis>(function, tree);
         let memory_ssa = analyses.get::<MemorySSA>(function, tree);
 
         // run dead code elimination
-        let changed = run_dead_code_elimination(function, tree, &alias, &memory_ssa);
+        let changed = run_dead_code_elimination(function, tree, memory, &alias, &memory_ssa);
 
         // report what this pass changed
         if changed {
@@ -74,11 +77,12 @@ impl FunctionPass for EliminateDeadCode {
 fn run_dead_code_elimination(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mir::MemoryTable,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
 ) -> bool {
     // drop dead stores before liveness
-    let mut changed = remove_dead_stores(function, tree, alias, memory_ssa);
+    let mut changed = remove_dead_stores(function, tree, memory, alias, memory_ssa);
 
     // build value to defining instruction map
     let mut value_to_instruction: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> =
@@ -109,7 +113,7 @@ fn run_dead_code_elimination(
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
             if (instruction_has_side_effects(instruction)
-                || tree.instruction_requires_exact_access(instruction_id))
+                || memory.instruction_requires_exact_access(tree, instruction_id))
                 && live.insert(instruction_id)
             {
                 worklist.push_back(instruction_id);
@@ -178,6 +182,7 @@ fn run_dead_code_elimination(
 fn remove_dead_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mir::MemoryTable,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
 ) -> bool {
@@ -216,7 +221,7 @@ fn remove_dead_stores(
                 mir::Instruction::Store { pointer, .. } => {
                     let pointer = *pointer;
 
-                    if tree.instruction_requires_exact_access(instruction_id) {
+                    if memory.instruction_requires_exact_access(tree, instruction_id) {
                         continue;
                     }
 
@@ -501,7 +506,7 @@ entry:
             .into_iter()
             .find(|instruction_id| {
                 matches!(
-                    test.tree.get(*instruction_id),
+                    test.optimized.tree.get(*instruction_id),
                     mir::Instruction::Load { .. }
                 )
             })
@@ -509,7 +514,7 @@ entry:
 
         test.insert_pointer_access_with_options(
             load_id,
-            mir::MemoryAccessKind::Read,
+            mir::MemoryOperation::Read,
             mir::Value::new(0),
             Some(4),
             true,
@@ -542,7 +547,7 @@ entry:
             .into_iter()
             .find(|instruction_id| {
                 matches!(
-                    test.tree.get(*instruction_id),
+                    test.optimized.tree.get(*instruction_id),
                     mir::Instruction::Store { .. }
                 )
             })
@@ -550,7 +555,7 @@ entry:
 
         test.insert_pointer_access_with_options(
             store_id,
-            mir::MemoryAccessKind::Write,
+            mir::MemoryOperation::Write,
             mir::Value::new(0),
             Some(4),
             true,

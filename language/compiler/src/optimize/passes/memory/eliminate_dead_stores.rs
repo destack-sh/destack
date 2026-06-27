@@ -3,9 +3,9 @@ use std::collections::HashSet;
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ByteRange, MemoryAccess, MemoryAccessId, MemoryPlace, MemoryRegion,
+    AliasAnalysis, ByteRange, MemoryAccessId, MemoryNode, MemoryPlace, MemoryRegion,
     MemoryRegionBuilder, MemorySSA, Mutation, PostDominatorTree, RangeRelation, TargetLayout,
     ValueDefinitions, ValueTypes,
 };
@@ -57,10 +57,13 @@ impl FunctionPass for EliminateDeadStores {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let effects = &mut optimized.effects;
+
         // skip empty functions
         let _entry = match function.entry() {
             Some(entry) => entry,
@@ -79,6 +82,7 @@ impl FunctionPass for EliminateDeadStores {
         let changed = run_eliminate_dead_stores(
             function,
             tree,
+            effects,
             &aa,
             memory_ssa.as_ref(),
             &value_types,
@@ -109,6 +113,7 @@ impl FunctionPass for EliminateDeadStores {
 fn run_eliminate_dead_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    effects: &mir::EffectTable,
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     value_types: &ValueTypes,
@@ -131,7 +136,8 @@ fn run_eliminate_dead_stores(
 
     // collect non escaping stack allocations
     let value_definitions = ValueDefinitions::build(function, tree);
-    let non_escaping_frame_allocs = value_definitions.non_escaping_frame_allocs(function, tree);
+    let non_escaping_frame_allocs =
+        value_definitions.non_escaping_frame_allocs(function, tree, effects);
     let frame_alloc_reads = collect_frame_alloc_reads(
         function,
         memory_ssa,
@@ -277,7 +283,7 @@ fn collect_store_candidates(
 
             // record each MemorySSA def access
             for &access_id in accesses {
-                let MemoryAccess::Def(def_access) = memory_ssa.access(access_id) else {
+                let MemoryNode::Def(def_access) = memory_ssa.access(access_id) else {
                     continue;
                 };
 
@@ -328,7 +334,7 @@ fn collect_def_accesses(
 
             // record each def access
             for &access_id in accesses {
-                let MemoryAccess::Def(_def_access) = memory_ssa.access(access_id) else {
+                let MemoryNode::Def(_def_access) = memory_ssa.access(access_id) else {
                     continue;
                 };
 
@@ -369,12 +375,12 @@ fn collect_live_defs(
             // mark clobbering defs for reads
             for &access_id in accesses {
                 match memory_ssa.access(access_id) {
-                    MemoryAccess::Use(_use_access) => {
+                    MemoryNode::Use(_use_access) => {
                         // record the def that feeds this use
                         let clobber = memory_ssa.clobbering_use(access_id, aa);
                         record_live_clobber(clobber, memory_ssa, &mut live_defs);
                     }
-                    MemoryAccess::Def(def_access) => {
+                    MemoryNode::Def(def_access) => {
                         // skip defs that do not read memory
                         if !def_access.effect.reads {
                             continue;
@@ -412,20 +418,20 @@ fn record_live_clobber(
 
         // record defs and expand through phis and uses
         match memory_ssa.access(current) {
-            MemoryAccess::Def(_) => {
+            MemoryNode::Def(_) => {
                 live_defs.insert(current);
             }
-            MemoryAccess::Phi(phi) => {
+            MemoryNode::Phi(phi) => {
                 for (_, incoming) in &phi.incoming {
                     worklist.push(*incoming);
                 }
             }
-            MemoryAccess::Use(use_access) => {
+            MemoryNode::Use(use_access) => {
                 if let Some(defining) = use_access.defining_access {
                     worklist.push(defining);
                 }
             }
-            MemoryAccess::LiveOnEntry => {}
+            MemoryNode::LiveOnEntry => {}
         }
     }
 }
@@ -455,7 +461,7 @@ fn collect_frame_alloc_reads(
 
             // track pointer reads that touch stack allocations
             for &access_id in accesses {
-                let MemoryAccess::Use(use_access) = memory_ssa.access(access_id) else {
+                let MemoryNode::Use(use_access) = memory_ssa.access(access_id) else {
                     continue;
                 };
                 let MemoryRegion::Reference { access, .. } = &use_access.effect.region else {
@@ -543,7 +549,7 @@ fn store_is_postdominated_by_clobber(
         if !postdom.postdominates(def.block, store.block) {
             continue;
         }
-        let MemoryAccess::Def(def_access) = memory_ssa.access(def.access) else {
+        let MemoryNode::Def(def_access) = memory_ssa.access(def.access) else {
             continue;
         };
 
@@ -651,7 +657,7 @@ mod tests {
         *pointer
     }
 
-    /// Attach store access metadata for a store instruction.
+    /// Attach store access entries for a store instruction.
     fn tag_store_access(
         test: &mut TestProgram,
         store_id: mir::LocalNodeId<mir::Instruction>,
@@ -659,11 +665,11 @@ mod tests {
         is_volatile: bool,
         ordering: Option<mir::MemoryOrdering>,
     ) {
-        let pointer = store_pointer(&test.tree, store_id);
+        let pointer = store_pointer(&test.optimized.tree, store_id);
 
         test.insert_pointer_access_with_options(
             store_id,
-            mir::MemoryAccessKind::Write,
+            mir::MemoryOperation::Write,
             pointer,
             Some(size),
             is_volatile,
@@ -854,9 +860,9 @@ entry:
         };
 
         let call = mir::CallSite::Instruction(call_inst);
-        let metadata = test.tree.metadata.effects.call_mut(call);
-        metadata.memory = mir::MemoryEffect::none();
-        metadata.arguments = vec![arg0];
+        let tables = test.optimized.effects.call_mut(call);
+        tables.memory = mir::MemoryEffect::none();
+        tables.arguments = vec![arg0];
 
         test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
@@ -1284,7 +1290,7 @@ entry(v0: ref<Point, raw, mutable>):
 "#;
         let expected = input;
 
-        // attach unknown size metadata to both stores
+        // attach unknown size tables to both stores
         let mut test = TestProgram::new(input);
         let function_id = test.entry_function_id();
         let store_ids = test.store_instructions_in_entry(function_id);
@@ -1294,13 +1300,13 @@ entry(v0: ref<Point, raw, mutable>):
 
         test.insert_pointer_access(
             *first_store,
-            mir::MemoryAccessKind::Write,
+            mir::MemoryOperation::Write,
             mir::Value::new(0),
             None,
         );
         test.insert_pointer_access(
             *second_store,
-            mir::MemoryAccessKind::Write,
+            mir::MemoryOperation::Write,
             mir::Value::new(0),
             None,
         );

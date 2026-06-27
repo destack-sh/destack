@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ConstantMap, ConstantPropagation, Mutation, RangeAnalysis, RangeMap, TargetLayout,
     constant_all_ones_like, constant_is_all_ones, constant_is_one, constant_is_zero,
@@ -59,15 +59,24 @@ impl FunctionPass for CombineInstructions {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // collect analyses and options
         let constants = analyses.get::<ConstantPropagation>(function, tree).clone();
         let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
-        let changed =
-            run_combine_instructions(function, tree, &constants, &ranges, ctx.target_layout());
+        let changed = run_combine_instructions(
+            function,
+            tree,
+            memory,
+            &constants,
+            &ranges,
+            ctx.target_layout(),
+        );
 
         // report what this pass changed
         if changed {
@@ -108,6 +117,7 @@ struct FieldGetEntry {
 fn run_combine_instructions(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     constants: &ConstantPropagation,
     ranges: &RangeAnalysis,
     target_layout: TargetLayout,
@@ -311,7 +321,7 @@ fn run_combine_instructions(
                     instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
                 if new_instruction != instruction {
                     tree.set(instruction_id, new_instruction);
-                    remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
+                    remap_instruction_memory_accesses(memory, instruction_id, &substitutions);
                 }
             }
         }
@@ -657,7 +667,7 @@ fn update_constant_map(
                     *operator,
                     argument,
                     *to_type,
-                    target_layout.pointer_width_bits,
+                    target_layout.pointer_bits(),
                     tree,
                 )
             {

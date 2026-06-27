@@ -3,9 +3,9 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, DominatorTree, MemoryAccess, MemoryAccessEffect, MemoryAccessId, MemoryRegion,
+    AliasAnalysis, DominatorTree, MemoryAccessEffect, MemoryAccessId, MemoryNode, MemoryRegion,
     MemorySSA, Mutation, TargetLayout, ValueTypes, apply_substitutions_in_function,
     resolve_substitution_chains,
 };
@@ -69,10 +69,13 @@ impl FunctionPass for ForwardStoredValues {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalyses,
+        analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // skip empty functions
         let entry = match function.entry() {
             Some(entry) => entry,
@@ -95,6 +98,7 @@ impl FunctionPass for ForwardStoredValues {
             entry,
             function,
             tree,
+            memory,
             &aa,
             memory_ssa.as_ref(),
             &dom_children,
@@ -124,6 +128,7 @@ fn run_forward_stored_values(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
@@ -150,7 +155,7 @@ fn run_forward_stored_values(
     let substitutions = resolve_substitution_chains(substitutions);
 
     // apply substitutions and remove forwarded loads
-    apply_substitutions_in_function(function, tree, &substitutions, Some(&to_remove));
+    apply_substitutions_in_function(function, tree, memory, &substitutions, Some(&to_remove));
 
     true
 }
@@ -389,7 +394,7 @@ fn process_block(
                 };
 
                 // read the def access data
-                let MemoryAccess::Def(def_access) = memory_ssa.access(def_access_id) else {
+                let MemoryNode::Def(def_access) = memory_ssa.access(def_access_id) else {
                     continue;
                 };
 
@@ -415,7 +420,7 @@ fn process_block(
                 };
 
                 // read the use access data
-                let MemoryAccess::Use(use_access) = memory_ssa.access(use_access_id) else {
+                let MemoryNode::Use(use_access) = memory_ssa.access(use_access_id) else {
                     continue;
                 };
 
@@ -454,7 +459,7 @@ fn process_block(
                 };
 
                 // read the use access data
-                let MemoryAccess::Use(use_access) = memory_ssa.access(use_access_id) else {
+                let MemoryNode::Use(use_access) = memory_ssa.access(use_access_id) else {
                     continue;
                 };
 
@@ -513,7 +518,7 @@ fn def_access_id(
     // find the first def access for the instruction
     let accesses = memory_ssa.instruction_accesses(instruction_id)?;
     for &access_id in accesses {
-        if matches!(memory_ssa.access(access_id), MemoryAccess::Def(_)) {
+        if matches!(memory_ssa.access(access_id), MemoryNode::Def(_)) {
             return Some(access_id);
         }
     }
@@ -528,7 +533,7 @@ fn use_access_id(
     // find the first use access for the instruction
     let accesses = memory_ssa.instruction_accesses(instruction_id)?;
     for &access_id in accesses {
-        if matches!(memory_ssa.access(access_id), MemoryAccess::Use(_)) {
+        if matches!(memory_ssa.access(access_id), MemoryNode::Use(_)) {
             return Some(access_id);
         }
     }
@@ -549,7 +554,7 @@ fn resolve_trivial_clobber(
             return None;
         }
 
-        let MemoryAccess::Phi(phi) = memory_ssa.access(current) else {
+        let MemoryNode::Phi(phi) = memory_ssa.access(current) else {
             return Some(current);
         };
 
@@ -1208,7 +1213,7 @@ entry:
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
         let callsite = mir::CallSite::Instruction(call_inst);
-        test.tree.metadata.effects.call_mut(callsite).memory = mir::MemoryEffect::none();
+        test.optimized.effects.call_mut(callsite).memory = mir::MemoryEffect::none();
 
         test.run_pass(&ForwardStoredValues);
         test.assert_output(expected);
@@ -1271,12 +1276,12 @@ entry:
 
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let block = test.tree.get(function.block(0));
+        let function = test.optimized.tree.get(function_id);
+        let block = test.optimized.tree.get(function.block(0));
         let volatile_load = block.instructions[2];
         test.insert_pointer_access_with_options(
             volatile_load,
-            mir::MemoryAccessKind::Read,
+            mir::MemoryOperation::Read,
             mir::Value::new(1),
             Some(4),
             true,
@@ -1317,12 +1322,12 @@ entry:
 
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let block = test.tree.get(function.block(0));
+        let function = test.optimized.tree.get(function_id);
+        let block = test.optimized.tree.get(function.block(0));
         let volatile_store = block.instructions[3];
         test.insert_pointer_access_with_options(
             volatile_store,
-            mir::MemoryAccessKind::Write,
+            mir::MemoryOperation::Write,
             mir::Value::new(1),
             Some(4),
             true,
@@ -1387,7 +1392,7 @@ entry:
     v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 42
     store v0, v1
-    atomic.fence sequentiallyConsistent, scope(device), memory(device)
+    atomic.fence sequentiallyConsistent, scope(device), storage(device)
     v2: int32 = load v0
     return v2
 }
@@ -1425,14 +1430,14 @@ entry:
         // attach mismatched sizes to block forwarding
         test.insert_pointer_access(
             store_v0,
-            mir::MemoryAccessKind::Write,
+            mir::MemoryOperation::Write,
             mir::Value::new(0),
             Some(8),
         );
 
         test.insert_pointer_access(
             load_v0,
-            mir::MemoryAccessKind::Read,
+            mir::MemoryOperation::Read,
             mir::Value::new(0),
             Some(4),
         );

@@ -3,9 +3,9 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{ModulePass, PipelineContext};
+use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
 use destack_mir::{
-    CallGraph, CallsiteHotness, Mutation, ValueDefinitions, ValueTypes, clone_instruction_metadata,
+    CallGraph, CallsiteHotness, Mutation, ValueDefinitions, ValueTypes, clone_instruction_tables,
     constant_for_value, instruction_map_with_locals, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, terminator_remap, terminator_substitute_uses,
 };
@@ -50,11 +50,15 @@ impl ModulePass for InlineFunctions {
     /// Run the inline pass over a module.
     fn run(
         &self,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::ModuleAnalyses,
+        analyses: &mir::TreeAnalysisCache,
     ) -> Mutation {
-        let changed = run_inline(tree, ctx, analyses);
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+        let effects = &mut optimized.effects;
+
+        let changed = run_inline(tree, memory, effects, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -135,8 +139,10 @@ const INLINE_ALWAYS_INLINE_COST: u64 = 40;
 /// InlineFunctions pass main entry.
 fn run_inline(
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
+    effects: &mir::EffectTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::ModuleAnalyses,
+    analyses: &mir::TreeAnalysisCache,
 ) -> bool {
     // load module analysis state
     let callgraph = analyses.get::<CallGraph>(tree);
@@ -145,7 +151,8 @@ fn run_inline(
         inline_budget_for_module(tree, ctx.profile(), inline_budget_scale_percent);
     let mut component_budgets =
         inline_component_budgets(tree, &callgraph, ctx.profile(), inline_budget_scale_percent);
-    let mut function_analyses: HashMap<mir::FunctionId, mir::FunctionAnalyses> = HashMap::new();
+    let mut function_analysis_cache: HashMap<mir::FunctionId, mir::FunctionAnalysisCache> =
+        HashMap::new();
 
     // collect function ids for stable iteration
     let function_ids: Vec<_> = tree
@@ -180,9 +187,11 @@ fn run_inline(
         let mut component_budget = component
             .and_then(|id| component_budgets.get(&id).copied())
             .unwrap_or(INLINE_COMPONENT_BUDGET_BASE);
-        let analyses = function_analyses
+        let analyses = function_analysis_cache
             .entry(function_id)
-            .or_insert_with(|| ctx.new_function_analyses());
+            .or_insert_with(|| {
+                mir::FunctionAnalysisCache::with_options(ctx.options.analysis, memory, effects)
+            });
         let execution_counts = mir::ExecutionCounts::new(&function, tree, ctx.profile(), analyses);
 
         // iterate inline sites until the budget is exhausted
@@ -211,7 +220,9 @@ fn run_inline(
                 ctx.profile(),
                 inline_budget_scale_percent,
                 &value_definitions,
-                &mut function_analyses,
+                &mut function_analysis_cache,
+                memory,
+                effects,
                 execution_counts.blocks(),
                 available_budget,
             );
@@ -220,8 +231,15 @@ fn run_inline(
             };
 
             // attempt to inline the selected callsite
-            let did_inline =
-                inline_callsite(&mut function, tree, &site.site, ctx, &mut function_analyses);
+            let did_inline = inline_callsite(
+                &mut function,
+                tree,
+                memory,
+                effects,
+                &site.site,
+                ctx,
+                &mut function_analysis_cache,
+            );
             if !did_inline {
                 break;
             }
@@ -233,7 +251,7 @@ fn run_inline(
             component_budget = component_budget.saturating_sub(site.cost);
 
             // discard caller analyses invalidated by the cloned callee body
-            if let Some(analyses) = function_analyses.get(&function_id) {
+            if let Some(analyses) = function_analysis_cache.get(&function_id) {
                 analyses.apply(Mutation::CONTROL | Mutation::VALUE);
             }
             changed = true;
@@ -294,7 +312,9 @@ fn find_inline_site(
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
+    function_analysis_cache: &mut HashMap<mir::FunctionId, mir::FunctionAnalysisCache>,
+    memory: &mir::MemoryTable,
+    effects: &mir::EffectTable,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     inline_budget: u64,
 ) -> Option<InlineFunctionsCandidate> {
@@ -325,7 +345,9 @@ fn find_inline_site(
                 profile,
                 inline_budget_scale_percent,
                 value_definitions,
-                function_analyses,
+                function_analysis_cache,
+                memory,
+                effects,
                 block_counts,
                 InlineFunctionsSite {
                     block_id,
@@ -368,7 +390,9 @@ fn inline_candidate(
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
+    function_analysis_cache: &mut HashMap<mir::FunctionId, mir::FunctionAnalysisCache>,
+    memory: &mir::MemoryTable,
+    effects: &mir::EffectTable,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     site: InlineFunctionsSite,
 ) -> Option<InlineFunctionsCandidate> {
@@ -383,7 +407,9 @@ fn inline_candidate(
         profile,
         inline_budget_scale_percent,
         value_definitions,
-        function_analyses,
+        function_analysis_cache,
+        memory,
+        effects,
         block_count,
         &site.arguments,
     )?;
@@ -395,7 +421,7 @@ fn inline_candidate(
     })
 }
 
-/// InlineFunctions scoring metadata.
+/// InlineFunctions scoring tables.
 #[derive(Debug, Clone, Copy)]
 struct InlineFunctionsScore {
     /// InlineFunctions cost score.
@@ -429,7 +455,9 @@ fn inline_score(
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
+    function_analysis_cache: &mut HashMap<mir::FunctionId, mir::FunctionAnalysisCache>,
+    memory: &mir::MemoryTable,
+    effects: &mir::EffectTable,
     block_count: u64,
     arguments: &[mir::Value],
 ) -> Option<InlineFunctionsScore> {
@@ -450,9 +478,25 @@ fn inline_score(
 
     // compute size metrics
     let caller = tree.get(caller_id);
-    let caller_cost = function_cost_for(tree, caller_id, caller, ctx, function_analyses);
+    let caller_cost = function_cost_for(
+        tree,
+        caller_id,
+        caller,
+        ctx,
+        function_analysis_cache,
+        memory,
+        effects,
+    );
     let callee = tree.get(callee_id);
-    let callee_cost = function_cost_for(tree, callee_id, callee, ctx, function_analyses);
+    let callee_cost = function_cost_for(
+        tree,
+        callee_id,
+        callee,
+        ctx,
+        function_analysis_cache,
+        memory,
+        effects,
+    );
 
     // reject callsites that do not meet heuristic thresholds
     let should_inline = should_inline(
@@ -541,7 +585,7 @@ fn should_inline(
     hotness: CallsiteHotness,
     inline_budget_scale_percent: u64,
 ) -> bool {
-    // load the callee metadata
+    // load the callee tables
     let callee = tree.get(callee_id);
 
     // reject callees without bodies or with unsupported forms
@@ -613,9 +657,11 @@ fn should_inline(
 fn inline_callsite(
     caller: &mut mir::Function,
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
+    effects: &mir::EffectTable,
     site: &InlineFunctionsSite,
     ctx: &PipelineContext<'_>,
-    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
+    function_analysis_cache: &mut HashMap<mir::FunctionId, mir::FunctionAnalysisCache>,
 ) -> bool {
     // load the callee and entry block
     let callee = tree.get(site.callee_id).clone();
@@ -659,9 +705,11 @@ fn inline_callsite(
 
     // clone locals and blocks before rewriting the caller
     let local_map = clone_locals(caller, tree, &callee);
-    let callee_analyses = function_analyses
+    let callee_analyses = function_analysis_cache
         .entry(site.callee_id)
-        .or_insert_with(|| ctx.new_function_analyses());
+        .or_insert_with(|| {
+            mir::FunctionAnalysisCache::with_options(ctx.options.analysis, memory, effects)
+        });
     let callee_value_types = callee_analyses.get::<ValueTypes>(&callee, tree);
     let (block_map, value_map) =
         clone_callee_blocks(caller, tree, &callee, &argument_map, &callee_value_types);
@@ -686,13 +734,14 @@ fn inline_callsite(
 
     // substitute the call result in the continuation block
     if let (Some(destination), Some(result_value)) = (site.destination, split.result_value) {
-        substitute_value_in_function(tree, caller, destination, result_value);
+        substitute_value_in_function(tree, memory, caller, destination, result_value);
     }
 
     // remap the inlined blocks and rewrite returns
     let call_source = tree.get_source(site.call_instruction_id.id);
     remap_inline_blocks(
         tree,
+        memory,
         &callee,
         &block_map,
         &value_map,
@@ -706,10 +755,8 @@ fn inline_callsite(
         site.destination.is_some(),
     );
 
-    // clean up metadata for the removed call instruction
-    tree.metadata
-        .memory
-        .remove_memory_accesses(site.call_instruction_id);
+    // clean up tables for the removed call instruction
+    memory.remove_memory_accesses(site.call_instruction_id);
     true
 }
 
@@ -885,6 +932,7 @@ fn split_block_for_inline(
 /// Substitute a value inside a single block.
 fn substitute_value_in_function(
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     function: &mir::Function,
     from: mir::Value,
     to: mir::Value,
@@ -900,7 +948,7 @@ fn substitute_value_in_function(
             let instruction = tree.get(*instruction_id).clone();
             let updated = instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
             tree.set(*instruction_id, updated);
-            remap_instruction_memory_accesses(tree, *instruction_id, &substitutions);
+            remap_instruction_memory_accesses(memory, *instruction_id, &substitutions);
         }
 
         let terminator = tree.get(block.terminator).clone();
@@ -914,6 +962,7 @@ fn substitute_value_in_function(
 /// Remap values and locals in inlined blocks.
 fn remap_inline_blocks(
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     callee: &mir::Function,
     block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     value_map: &HashMap<mir::Value, mir::Value>,
@@ -937,8 +986,8 @@ fn remap_inline_blocks(
             let remapped = instruction_map_with_locals(&instruction, value_map, local_map, tree);
             let new_id = tree.insert(remapped);
 
-            // clone memory access metadata onto the new instruction
-            clone_instruction_metadata(tree, instruction_id, new_id, value_map);
+            // clone memory access entries onto the new instruction
+            clone_instruction_tables(tree, memory, instruction_id, new_id, value_map);
 
             // use call source when the callee instruction has no source
             if tree.get_source(new_id.id).is_none()
@@ -1042,11 +1091,15 @@ fn function_cost_for(
     function_id: mir::FunctionId,
     function: &mir::Function,
     ctx: &PipelineContext<'_>,
-    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
+    function_analysis_cache: &mut HashMap<mir::FunctionId, mir::FunctionAnalysisCache>,
+    memory: &mir::MemoryTable,
+    effects: &mir::EffectTable,
 ) -> mir::OperationCost {
-    let analyses = function_analyses
+    let analyses = function_analysis_cache
         .entry(function_id)
-        .or_insert_with(|| ctx.new_function_analyses());
+        .or_insert_with(|| {
+            mir::FunctionAnalysisCache::with_options(ctx.options.analysis, memory, effects)
+        });
     let cost = analyses.get::<mir::CostModel>(function, tree);
 
     *cost.function()
@@ -1396,7 +1449,7 @@ b2(v5: int32):
         test.assert_output(expected);
     }
 
-    /// InlineFunctionsd memory access metadata remaps reference targets.
+    /// InlineFunctionsd memory access entries remaps reference targets.
     #[test]
     fn test_inline_remaps_memory_access_metadata() {
         let input = r#"
@@ -1419,13 +1472,15 @@ entry:
         let mut test = TestProgram::new(input);
 
         let callee_id = test.function_id_by_name("callee");
-        let callee = test.tree.get(callee_id);
+        let callee = test.optimized.tree.get(callee_id);
         let mut callee_load = None;
         let mut callee_pointer = None;
         for block_id in callee.blocks() {
-            let block = test.tree.get(*block_id);
+            let block = test.optimized.tree.get(*block_id);
             for instruction_id in &block.instructions {
-                if let mir::Instruction::Load { pointer, .. } = test.tree.get(*instruction_id) {
+                if let mir::Instruction::Load { pointer, .. } =
+                    test.optimized.tree.get(*instruction_id)
+                {
                     callee_load = Some(*instruction_id);
                     callee_pointer = Some(*pointer);
                     break;
@@ -1440,7 +1495,7 @@ entry:
         let callee_pointer = callee_pointer.expect("missing callee pointer");
         test.insert_pointer_access(
             callee_load,
-            mir::MemoryAccessKind::Read,
+            mir::MemoryOperation::Read,
             callee_pointer,
             None,
         );
@@ -1448,13 +1503,15 @@ entry:
         test.run_module_pass(&InlineFunctions);
 
         let caller_id = test.function_id_by_name("caller");
-        let caller = test.tree.get(caller_id);
+        let caller = test.optimized.tree.get(caller_id);
         let mut inlined_load = None;
         let mut inlined_pointer = None;
         for block_id in caller.blocks() {
-            let block = test.tree.get(*block_id);
+            let block = test.optimized.tree.get(*block_id);
             for instruction_id in &block.instructions {
-                if let mir::Instruction::Load { pointer, .. } = test.tree.get(*instruction_id) {
+                if let mir::Instruction::Load { pointer, .. } =
+                    test.optimized.tree.get(*instruction_id)
+                {
                     inlined_load = Some(*instruction_id);
                     inlined_pointer = Some(*pointer);
                     break;
@@ -1468,14 +1525,13 @@ entry:
         let inlined_load = inlined_load.expect("missing inlined load");
         let inlined_pointer = inlined_pointer.expect("missing inlined pointer");
         let accesses = test
-            .tree
-            .metadata
+            .optimized
             .memory
             .memory_accesses(inlined_load)
-            .expect("missing inlined access metadata");
+            .expect("missing inlined access entries");
         assert_eq!(accesses.len(), 1);
         match accesses[0].target {
-            mir::MemoryAccessTarget::Reference(value) => {
+            mir::MemoryTarget::Reference(value) => {
                 assert_eq!(value, inlined_pointer);
             }
             _ => panic!("unexpected access target"),
@@ -1678,8 +1734,9 @@ entry0:
         let mut profile = mir::Profile::new();
         test.record_function_entry(&mut profile, function_id, 500);
 
-        let base = inline_budget_for_function(&test.tree, function_id, None, 100);
-        let scaled = inline_budget_for_function(&test.tree, function_id, Some(&profile), 100);
+        let base = inline_budget_for_function(&test.optimized.tree, function_id, None, 100);
+        let scaled =
+            inline_budget_for_function(&test.optimized.tree, function_id, Some(&profile), 100);
 
         assert!(scaled > base);
         assert!(scaled <= INLINE_BUDGET_MAX);

@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     Mutation, instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
     resolve_substitution_chains, terminator_substitute_uses,
@@ -45,12 +45,15 @@ impl FunctionPass for PropagateCopies {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        _analyses: &mir::FunctionAnalyses,
+        _analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
+        let tree = &mut optimized.tree;
+        let memory = &mut optimized.memory;
+
         // run copy propagation
-        let changed = run_propagate_copies(function, tree);
+        let changed = run_propagate_copies(function, tree, memory);
 
         // report what this pass changed
         if changed {
@@ -71,7 +74,11 @@ impl FunctionPass for PropagateCopies {
 
 /// Core copy propagation logic.
 #[allow(clippy::type_complexity)]
-fn run_propagate_copies(function: &mut mir::Function, tree: &mut mir::Tree) -> bool {
+fn run_propagate_copies(
+    function: &mut mir::Function,
+    tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
+) -> bool {
     // build predecessor map: block -> list of (predecessor_block, arguments passed)
     let mut predecessors: HashMap<
         mir::LocalNodeId<mir::Block>,
@@ -276,7 +283,7 @@ fn run_propagate_copies(function: &mut mir::Function, tree: &mut mir::Tree) -> b
             // replace instructions when substitutions apply
             if new_instruction != instruction {
                 tree.set(instruction_id, new_instruction);
-                remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
+                remap_instruction_memory_accesses(memory, instruction_id, &substitutions);
             }
         }
     }

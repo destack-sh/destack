@@ -1,54 +1,3 @@
-/// Requirements for running a MIR pass.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PassRequirements {
-    /// Bitmask storing requirement flags.
-    bits: u32,
-}
-
-impl PassRequirements {
-    /// No special requirements.
-    pub const NONE: Self = Self { bits: 0 };
-    /// Memory access instructions must carry memory access metadata.
-    pub const MEMORY_ACCESS_METADATA: Self = Self { bits: 1 << 0 };
-    /// Profile data must be present in the pipeline context.
-    pub const PROFILE_DATA: Self = Self { bits: 1 << 1 };
-    /// Aggregate types must carry layout metadata.
-    pub const TYPE_LAYOUTS: Self = Self { bits: 1 << 2 };
-
-    /// Return true when no requirements are set.
-    pub const fn is_empty(self) -> bool {
-        self.bits == 0
-    }
-
-    /// Return true when all bits in other are present.
-    pub const fn contains(self, other: Self) -> bool {
-        (self.bits & other.bits) == other.bits
-    }
-
-    /// Return the union of two requirement sets.
-    pub const fn union(self, other: Self) -> Self {
-        Self {
-            bits: self.bits | other.bits,
-        }
-    }
-}
-
-impl std::ops::BitOr for PassRequirements {
-    type Output = Self;
-
-    fn bitor(self, rhs: Self) -> Self::Output {
-        Self {
-            bits: self.bits | rhs.bits,
-        }
-    }
-}
-
-impl std::ops::BitOrAssign for PassRequirements {
-    fn bitor_assign(&mut self, rhs: Self) {
-        self.bits |= rhs.bits;
-    }
-}
-
 /// Static metadata about a MIR pass.
 #[derive(Debug, Clone, Copy)]
 pub struct PassMetadata {
@@ -58,8 +7,6 @@ pub struct PassMetadata {
     pub name: &'static str,
     /// Human-readable description.
     pub description: &'static str,
-    /// Metadata required before this pass can run.
-    pub requirements: PassRequirements,
 }
 
 /// Base trait for MIR passes.
@@ -72,7 +19,7 @@ pub trait Pass: Send + Sync {
 macro_rules! declare_pass {
     (
         $(#[doc = $doc:literal])*
-        #[pass(id = $id:literal $(, requires($($requirement:ident),* $(,)?))?)]
+        #[pass(id = $id:literal)]
         $visibility:vis $name:ident,
         $description:literal $(,)?
     ) => {
@@ -93,7 +40,6 @@ macro_rules! declare_pass {
                     id: $id,
                     name: stringify!($name),
                     description: $description,
-                    requirements: declare_pass!(@requirements $($($requirement),*)?),
             };
 
             /// Return the pass metadata.
@@ -103,25 +49,6 @@ macro_rules! declare_pass {
         }
     };
 
-    (@requirements) => {
-        $crate::optimize::PassRequirements::NONE
-    };
-
-    (@requirements $first:ident $(, $rest:ident)*) => {
-        declare_pass!(@requirement $first)$(.union(declare_pass!(@requirement $rest)))*
-    };
-
-    (@requirement memory_access_metadata) => {
-        $crate::optimize::PassRequirements::MEMORY_ACCESS_METADATA
-    };
-
-    (@requirement profile_data) => {
-        $crate::optimize::PassRequirements::PROFILE_DATA
-    };
-
-    (@requirement type_layouts) => {
-        $crate::optimize::PassRequirements::TYPE_LAYOUTS
-    };
 }
 
 pub(crate) use declare_pass;
@@ -129,9 +56,10 @@ pub(crate) use declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{
-    PackagePipelineContext, PackageWorkset, PipelineContext, ProgramPipelineContext, ProgramWorkset,
+    MirOptimized, PackagePipelineContext, PackageWorkset, PipelineContext, ProgramPipelineContext,
+    ProgramWorkset,
 };
-use destack_mir::{FunctionAnalyses, ModuleAnalyses, Mutation};
+use destack_mir::{FunctionAnalysisCache, Mutation, TreeAnalysisCache};
 
 /// Trait for optimization passes that operate on individual functions.
 pub trait FunctionPass: Pass + Send + Sync {
@@ -142,9 +70,9 @@ pub trait FunctionPass: Pass + Send + Sync {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         context: &PipelineContext<'_>,
-        analyses: &FunctionAnalyses,
+        analyses: &FunctionAnalysisCache,
     ) -> Mutation;
 
     /// Return the pass name.
@@ -161,9 +89,9 @@ pub trait ModulePass: Pass + Send + Sync {
     /// Run the pass on a module.
     fn run(
         &self,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         context: &PipelineContext<'_>,
-        analyses: &ModuleAnalyses,
+        analyses: &TreeAnalysisCache,
     ) -> Mutation;
 
     /// Return the pass name.
@@ -206,36 +134,40 @@ pub trait ProgramPass: Pass + Send + Sync {
 /// Run function passes on one cloned function.
 pub fn run_function_passes(
     function_id: mir::LocalNodeId<mir::Function>,
-    tree: &mut mir::Tree,
+    optimized: &mut MirOptimized,
     context: &PipelineContext<'_>,
     passes: &[&dyn FunctionPass],
 ) -> bool {
-    let mut function = tree.get(function_id).clone();
+    let mut function = optimized.tree.get(function_id).clone();
     if function.entry().is_none() {
         return false;
     }
 
     // one analysis cache lives across this function's whole pass sequence
-    let analyses = context.new_function_analyses();
+    let analyses = FunctionAnalysisCache::with_options(
+        context.options.analysis,
+        &optimized.memory,
+        &optimized.effects,
+    );
 
     // seal the value counter once on entry; passes maintain it via next_value
-    function.recompute_next_value_id(tree);
-    function.rebuild_instruction_index(tree);
+    function.recompute_next_value_id(&optimized.tree);
+    function.rebuild_instruction_index(&optimized.tree);
 
     let mut changed = false;
     for pass in passes {
-        let mutation = pass.run(&mut function, tree, context, &analyses);
+        let mutation = pass.run(&mut function, optimized, context, &analyses);
 
         // drop the analyses this pass's mutation invalidates
         analyses.apply(mutation);
         if !mutation.is_none() {
-            function.rebuild_instruction_index(tree);
+            function.rebuild_instruction_index(&optimized.tree);
             changed = true;
         }
     }
 
     if changed {
-        *tree.get_mut(function_id) = function;
+        *optimized.tree.get_mut(function_id) = function;
     }
 
     changed
@@ -244,29 +176,33 @@ pub fn run_function_passes(
 /// Run function passes on one cloned function and write it back.
 pub fn run_function_passes_always(
     function_id: mir::LocalNodeId<mir::Function>,
-    tree: &mut mir::Tree,
+    optimized: &mut MirOptimized,
     context: &PipelineContext<'_>,
     passes: &[&dyn FunctionPass],
 ) {
-    let mut function = tree.get(function_id).clone();
+    let mut function = optimized.tree.get(function_id).clone();
     if function.entry().is_none() {
         return;
     }
 
     // one analysis cache lives across this function's whole pass sequence
-    let analyses = context.new_function_analyses();
+    let analyses = FunctionAnalysisCache::with_options(
+        context.options.analysis,
+        &optimized.memory,
+        &optimized.effects,
+    );
 
     // seal the value counter once on entry; passes maintain it via next_value
-    function.recompute_next_value_id(tree);
-    function.rebuild_instruction_index(tree);
+    function.recompute_next_value_id(&optimized.tree);
+    function.rebuild_instruction_index(&optimized.tree);
 
     for pass in passes {
-        let mutation = pass.run(&mut function, tree, context, &analyses);
+        let mutation = pass.run(&mut function, optimized, context, &analyses);
         analyses.apply(mutation);
         if !mutation.is_none() {
-            function.rebuild_instruction_index(tree);
+            function.rebuild_instruction_index(&optimized.tree);
         }
     }
 
-    *tree.get_mut(function_id) = function;
+    *optimized.tree.get_mut(function_id) = function;
 }

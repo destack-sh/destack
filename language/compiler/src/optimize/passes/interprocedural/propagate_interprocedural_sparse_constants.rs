@@ -4,7 +4,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::passes::scalar::{PropagateSparseConstants, SimplifyControlFlow};
-use crate::optimize::{ModulePass, PipelineContext, run_function_passes};
+use crate::optimize::{MirOptimized, ModulePass, PipelineContext, run_function_passes};
 use destack_mir::{
     ConstantPropagation, FunctionEffectAnalysis, Mutation, SignatureKey, apply_constant_parameters,
     constant_arguments_for_parameters, constant_matches_type, constant_type_of,
@@ -51,13 +51,27 @@ impl ModulePass for PropagateInterproceduralSparseConstants {
     /// Run interprocedural SCCP for the module.
     fn run(
         &self,
-        tree: &mut mir::Tree,
+        optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::ModuleAnalyses,
+        analyses: &mir::TreeAnalysisCache,
     ) -> Mutation {
         // run the interprocedural pass
-        let effects = analyses.get::<FunctionEffectAnalysis>(tree);
-        let changed = run_interprocedural_sccp(tree, ctx, &effects);
+        let function_effects = analyses.get::<FunctionEffectAnalysis>(&optimized.tree);
+        let (mut changed, cleanup_functions) = {
+            let tree = &mut optimized.tree;
+            let memory = &mut optimized.memory;
+            let effects = &optimized.effects;
+            run_interprocedural_sccp(tree, memory, effects, ctx, &function_effects)
+        };
+
+        // clean up functions changed by interprocedural propagation
+        for function_id in cleanup_functions {
+            let sccp = PropagateSparseConstants;
+            let simplify = SimplifyControlFlow;
+            if run_function_passes(function_id, optimized, ctx, &[&sccp, &simplify]) {
+                changed = true;
+            }
+        }
 
         // report what this pass changed
         if changed {
@@ -112,7 +126,7 @@ struct FunctionState {
     is_exposed: bool,
 }
 
-/// Direct callsite metadata for SCCP.
+/// Direct callsite tables for SCCP.
 #[derive(Debug, Clone)]
 struct DirectCallSite {
     /// The caller function id.
@@ -139,9 +153,11 @@ struct CallData {
 /// Run interprocedural SCCP over the module.
 fn run_interprocedural_sccp(
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
+    effects: &mir::EffectTable,
     ctx: &PipelineContext<'_>,
-    effects: &FunctionEffectAnalysis,
-) -> bool {
+    function_effects: &FunctionEffectAnalysis,
+) -> (bool, HashSet<mir::FunctionId>) {
     // collect callsite information up front
     let call_data = collect_call_data(tree);
 
@@ -195,31 +211,29 @@ fn run_interprocedural_sccp(
 
         // apply constant substitutions and track updates
         let constants = state_constants(state);
-        if apply_constant_parameters(*function_id, &constants, tree) {
+        if apply_constant_parameters(*function_id, &constants, tree, memory) {
             cleanup_functions.insert(*function_id);
             changed = true;
         }
     }
 
     // replace pure constant calls with literals
-    if replace_constant_calls(tree, &call_data, &states, ctx.target_layout(), effects) {
+    if replace_constant_calls(
+        tree,
+        memory,
+        &call_data,
+        &states,
+        ctx.target_layout(),
+        effects,
+        function_effects,
+    ) {
         for callsite in &call_data.callsites {
             cleanup_functions.insert(callsite.caller);
         }
         changed = true;
     }
 
-    // run cleanup passes for modified functions
-    for function_id in cleanup_functions {
-        let sccp = PropagateSparseConstants;
-        let simplify = SimplifyControlFlow;
-        if run_function_passes(function_id, tree, ctx, &[&sccp, &simplify]) {
-            changed = true;
-        }
-    }
-
-    // return whether changes occurred
-    changed
+    (changed, cleanup_functions)
 }
 
 /// Seed function lattice state for each defined function.
@@ -315,7 +329,7 @@ fn update_parameter_states(
                     &callsite.arguments,
                     &function.parameters,
                     block_constants,
-                    target_layout.pointer_width_bits,
+                    target_layout.pointer_bits(),
                     tree,
                 ) else {
                     continue;
@@ -445,7 +459,7 @@ fn return_state_for_function(
         if !constant_matches_type(
             constant_type,
             return_type,
-            target_layout.pointer_width_bits,
+            target_layout.pointer_bits(),
             tree,
         ) {
             return LatticeConstant::Overdefined;
@@ -526,10 +540,12 @@ fn state_constants(state: &FunctionState) -> Vec<Option<mir::Constant>> {
 /// Replace pure callsites with constant returns.
 fn replace_constant_calls(
     tree: &mut mir::Tree,
+    memory: &mut mir::MemoryTable,
     call_data: &CallData,
     states: &HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
     target_layout: mir::TargetLayout,
-    effects: &FunctionEffectAnalysis,
+    effects: &mir::EffectTable,
+    function_effects: &FunctionEffectAnalysis,
 ) -> bool {
     // track whether any calls were replaced
     let mut changed = false;
@@ -566,7 +582,7 @@ fn replace_constant_calls(
         };
 
         // skip calls that are not pure
-        if !call_is_pure(tree, call_instruction, function, effects) {
+        if !call_is_pure(call_instruction, function, effects, function_effects) {
             continue;
         }
 
@@ -576,7 +592,7 @@ fn replace_constant_calls(
         if !constant_matches_type(
             constant_type,
             return_type,
-            target_layout.pointer_width_bits,
+            target_layout.pointer_bits(),
             tree,
         ) {
             continue;
@@ -590,9 +606,7 @@ fn replace_constant_calls(
                 value: constant.clone(),
             },
         );
-        tree.metadata
-            .memory
-            .remove_memory_accesses(call_instruction);
+        memory.remove_memory_accesses(call_instruction);
         changed = true;
     }
 
@@ -711,28 +725,25 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 
 /// Check whether a call is pure enough to replace with a constant.
 fn call_is_pure(
-    tree: &mir::Tree,
     call_instruction: mir::LocalNodeId<mir::Instruction>,
     callee: mir::LocalNodeId<mir::Function>,
-    effects: &FunctionEffectAnalysis,
+    effects: &mir::EffectTable,
+    function_effects: &FunctionEffectAnalysis,
 ) -> bool {
     // resolve callsite effects when present
     let callsite = mir::CallSite::Instruction(call_instruction);
-    let call_metadata = tree.metadata.effects.call(callsite);
-    let function_effect = effects.function(callee);
-    let function_metadata = tree.metadata.effects.function(callee);
-    let memory = call_metadata
-        .filter(|metadata| metadata.memory != mir::MemoryEffect::unknown())
-        .map(|metadata| metadata.memory.clone())
-        .or_else(|| function_effect.map(|effect| effect.memory.clone()))
-        .or_else(|| function_metadata.map(|metadata| metadata.memory.clone()));
-    let behavior = call_metadata
-        .filter(|metadata| metadata.behavior != mir::FunctionBehavior::unknown())
-        .map(|metadata| metadata.behavior.clone())
-        .or_else(|| function_effect.map(|effect| effect.behavior.clone()))
-        .or_else(|| function_metadata.map(|metadata| metadata.behavior.clone()));
+    let call_entries = effects.call(callsite);
+    let function_effect = function_effects.function(callee);
+    let memory = call_entries
+        .filter(|effect| effect.memory != mir::MemoryEffect::unknown())
+        .map(|effect| effect.memory.clone())
+        .or_else(|| function_effect.map(|effect| effect.memory.clone()));
+    let behavior = call_entries
+        .filter(|effect| effect.behavior != mir::FunctionBehavior::unknown())
+        .map(|effect| effect.behavior.clone())
+        .or_else(|| function_effect.map(|effect| effect.behavior.clone()));
 
-    // reject calls with no effect metadata
+    // reject calls with no effect tables
     let Some(memory) = memory else {
         return false;
     };
