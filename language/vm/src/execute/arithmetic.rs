@@ -13,9 +13,8 @@ use super::scalar::{
 use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use destack_program::vm::{
-    BinaryFloat, ConstValue, ConstValueId, Instruction, ScalarLayout, UnaryFloat,
-};
+use destack_program::ScalarFormat;
+use destack_program::vm::{BinaryFloat, ConstValue, ConstValueId, Instruction, UnaryFloat};
 
 const INTEGER_SIGN_BIT: u32 = 1 << 16;
 const INTEGER_WIDTH_MASK: u32 = INTEGER_SIGN_BIT - 1;
@@ -51,11 +50,11 @@ fn integer_width(field: u32) -> u8 {
 
 /// Unpack one wide integer layout.
 #[inline(always)]
-fn wide_integer_layout(field: u32) -> ScalarLayout {
+fn wide_integer_layout(field: u32) -> ScalarFormat {
     let width = (field & INTEGER_WIDTH_MASK) as u16;
     let is_signed = field & INTEGER_SIGN_BIT != 0;
 
-    ScalarLayout::Int { width, is_signed }
+    ScalarFormat::Int { width, is_signed }
 }
 
 /// Store one scalar operation result.
@@ -79,8 +78,8 @@ fn store_scalar_value(
 
 /// Return the byte width of one wide integer layout.
 #[inline(always)]
-fn wide_integer_byte_len(layout: ScalarLayout) -> usize {
-    let ScalarLayout::Int { width, .. } = layout else {
+fn wide_integer_byte_len(layout: ScalarFormat) -> usize {
+    let ScalarFormat::Int { width, .. } = layout else {
         return 0;
     };
 
@@ -208,7 +207,7 @@ pub(crate) fn execute_load_const_aggregate(
 fn execute_wide_binary(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    operation: fn(ScalarLayout, &[u8], &[u8]) -> Result<ScalarResult, Error>,
+    operation: fn(ScalarFormat, &[u8], &[u8]) -> Result<ScalarResult, Error>,
 ) -> Result<(), Error> {
     let dest = instruction.a;
     let left = instruction.b;
@@ -573,7 +572,7 @@ pub(crate) fn execute_binary_float(
 ) -> Result<(), Error> {
     let operation = BinaryFloat::from_field(instruction.d);
     let (format, kernel) = operation.decode()?;
-    let layout = ScalarLayout::Float { format };
+    let layout = ScalarFormat::Float { format };
     let (dest, left, right) = load_binary_cell_values(activation, instruction);
     let result = super::scalar::binary_float(layout, kernel, left, right)?;
 
@@ -1241,7 +1240,7 @@ pub(crate) fn execute_ge_cell_uint(
 fn execute_wide_unary(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    operation: fn(ScalarLayout, &[u8]) -> Result<Vec<u8>, Error>,
+    operation: fn(ScalarFormat, &[u8]) -> Result<Vec<u8>, Error>,
 ) -> Result<(), Error> {
     let dest = instruction.a;
     let arg = instruction.b;
@@ -1333,7 +1332,7 @@ pub(crate) fn execute_unary_float(
 ) -> Result<(), Error> {
     let operation = UnaryFloat::from_field(instruction.d);
     let (format, kernel) = operation.decode()?;
-    let layout = ScalarLayout::Float { format };
+    let layout = ScalarFormat::Float { format };
     let (dest, value) = load_unary_cell_value(activation, instruction);
     let result = super::scalar::unary_float(layout, kernel, value)?;
 

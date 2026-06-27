@@ -1,11 +1,10 @@
 use crate::Cell;
 
-use super::frame::{FrameValue, store_frame_value};
+use super::frame::{FrameValue, move_slot_from_frame_slot, store_frame_slot_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Frame, Machine};
-use destack_mir as mir;
-use destack_program::Program;
 use destack_program::vm::FrameBinding;
+use destack_program::{FrameLayout, FrameStateId, Program};
 
 /// Saved frame value used while binding parameters.
 enum SavedFrameValue {
@@ -18,7 +17,7 @@ enum SavedFrameValue {
 /// Bind frame parameters within one frame.
 fn bind_frame_parameters(
     program: &Program,
-    layout: &mir::FrameLayout,
+    layout: &FrameLayout,
     frame: &mut Frame,
     bindings: &[FrameBinding],
 ) -> RuntimeResult<()> {
@@ -76,7 +75,7 @@ impl Machine {
         &mut self,
         program: &Program,
         frame_index: usize,
-        frame_state_id: mir::FrameStateId,
+        frame_state_id: FrameStateId,
         received_value: Option<FrameValue>,
     ) -> RuntimeResult<()> {
         // resolve target position
@@ -117,11 +116,11 @@ impl Machine {
             let Some(frame_value) = received_value else {
                 return Err(RuntimeError::new(Error::invalid_instruction()));
             };
-            let received_value = frame_layout
-                .value_for_slot(received_value_slot)
+            let received_slot = frame_layout
+                .slot(received_value_slot)
                 .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-            store_frame_value(program, frame, mir::Value::new(received_value), frame_value)
-                .map_err(RuntimeError::new)?;
+            let received_slot = move_slot_from_frame_slot(program, received_slot);
+            store_frame_slot_value(frame, received_slot, frame_value).map_err(RuntimeError::new)?;
         }
 
         // advance the frame to the resumed position
@@ -135,7 +134,7 @@ impl Machine {
     pub(crate) fn enter_caller_state(
         &mut self,
         program: &Program,
-        frame_state_id: mir::FrameStateId,
+        frame_state_id: FrameStateId,
         value: FrameValue,
     ) -> RuntimeResult<()> {
         let frame_index = self

@@ -152,8 +152,8 @@ pub(crate) fn execute_address_frame_slice_element(
     Ok(())
 }
 
-/// Execute slice element addr on static addresses.
-pub(crate) fn execute_static_address_slice_element(
+/// Execute slice element addr on global addresses.
+pub(crate) fn execute_global_address_slice_element(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -161,7 +161,7 @@ pub(crate) fn execute_static_address_slice_element(
 
     let data = load_slice_data(activation, slice, access);
     let value =
-        address::element_static(activation, data.as_static_address(), access.element, index)?;
+        address::element_global(activation, data.as_global_address(), access.element, index)?;
 
     store_slice_element_address(activation, dest, value);
 

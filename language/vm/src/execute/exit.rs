@@ -1,6 +1,6 @@
 use crate::Cell;
 
-use super::frame::{frame_value_from_cell, materialize_value, store_frame_value};
+use super::frame::{frame_value_from_cell, materialize_value, store_frame_slot_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Outcome};
 use destack_program::Program;
@@ -22,11 +22,8 @@ impl Activation<'_> {
             .functions()
             .get(callee.function())
             .ok_or_else(|| RuntimeError::new(Error::undefined_function(callee.function())))?
-            .return_type;
-        let return_type = program
-            .types()
-            .mir_type_id(return_type)
-            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
+            .signature
+            .result;
         let returned =
             frame_value_from_cell(program, self.machine.frames.as_slice(), return_type, value)
                 .map_err(RuntimeError::new)?;
@@ -46,7 +43,7 @@ impl Activation<'_> {
                 self.heap,
                 self.shared,
                 self.shared_cache,
-                self.shared_gc,
+                self.shared_mark_worker,
                 returned,
             )
             .map_err(RuntimeError::new)?;
@@ -78,7 +75,7 @@ impl Activation<'_> {
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let point = program.point(caller.function(), caller.block, caller.pc as u32);
         if let Some(destination) = program.return_destination_at(point).map_err(Error::from)? {
-            store_frame_value(program, caller, destination, returned).map_err(RuntimeError::new)?;
+            store_frame_slot_value(caller, destination, returned).map_err(RuntimeError::new)?;
         }
 
         Ok(None)

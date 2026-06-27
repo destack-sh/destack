@@ -2,14 +2,12 @@ use std::sync::atomic::{
     AtomicI8, AtomicI16, AtomicI32, AtomicI64, AtomicU8, AtomicU16, AtomicU32, AtomicU64,
 };
 
-use destack_mir as mir;
-
 use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use destack_program::vm::{
     AtomicAddress, AtomicCompareExchange, AtomicOrder, AtomicReadModifyWriteOperator,
-    AtomicReadModifyWriteShape, AtomicShape, AtomicWidth, Instruction,
+    AtomicReadModifyWriteShape, AtomicShape, AtomicWidth, Instruction, MoveSlot,
 };
 
 macro_rules! atomic_ref {
@@ -78,7 +76,7 @@ pub(crate) fn execute_atomic_compare_exchange(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    // decode aggregate result metadata
+    // decode aggregate result tables
     let compare_exchange = *activation.side::<AtomicCompareExchange>(instruction);
     let pointer = activation.load_cell_at(compare_exchange.pointer_offset);
     let expected = activation.load_cell_at(compare_exchange.expected_offset);
@@ -159,7 +157,7 @@ fn atomic_address(
         AtomicAddress::Stack => pointer.as_stack_pointer().address(),
         AtomicAddress::Frame => pointer.as_frame_pointer().address(),
         AtomicAddress::Static => {
-            activation.static_native_address(pointer.as_static_address(), width.byte_len())?
+            activation.static_native_address(pointer.as_global_address(), width.byte_len())?
         }
     };
 
@@ -169,20 +167,11 @@ fn atomic_address(
 /// Store the compare exchange pair result.
 fn store_compare_exchange_result(
     activation: &mut Activation<'_>,
-    destination: mir::Value,
+    destination: MoveSlot,
     value: Cell,
     success: bool,
 ) -> Result<(), Error> {
-    // write old value and success flag into the destination tuple
-    super::frame::store_frame_fields(
-        activation,
-        destination,
-        |_machine, index, _ty| match index {
-            0 => Ok(value),
-            1 => Ok(Cell::bool(success)),
-            _ => Err(Error::invalid_instruction()),
-        },
-    )?;
+    super::frame::store_frame_pair(activation, destination, value, Cell::bool(success))?;
 
     Ok(())
 }

@@ -7,13 +7,11 @@
 
 pub mod diagnostic;
 pub(crate) mod execute;
-pub mod lower;
 pub mod machine;
 pub mod options;
 mod value;
 
 pub use diagnostic::*;
-pub use lower::ProgramLowerer;
 pub use machine::*;
 pub use options::*;
 pub use value::*;

@@ -6,16 +6,17 @@ use smallvec::SmallVec;
 
 use crate::Cell;
 use crate::diagnostic::{Error, RuntimeResult};
+use destack_program::AddressSpace;
 use destack_program::vm::{
-    AddressSpace, ArgumentRange, Instruction, Intrinsic, IntrinsicDest, ValueShape,
+    ArgumentRange, Instruction, IntrinsicCall, IntrinsicDest, IntrinsicOperand, MoveSlot,
 };
 
 use crate::machine::Activation;
 
 /// Intrinsic arguments decoded from one pooled argument range.
 struct IntrinsicArguments {
-    /// Argument layouts.
-    layouts: SmallVec<[ValueShape; 16]>,
+    /// Argument operands.
+    operands: SmallVec<[IntrinsicOperand; 16]>,
     /// Argument cells.
     cells: SmallVec<[Cell; 16]>,
 }
@@ -25,25 +26,31 @@ struct IntrinsicArguments {
 fn load_intrinsic_arguments(
     activation: &mut Activation<'_>,
     arguments: ArgumentRange,
-    layouts: &[ValueShape],
-) -> IntrinsicArguments {
+    operands: &[IntrinsicOperand],
+) -> Result<IntrinsicArguments, Error> {
     let argument_slice = activation.argument_slice(arguments);
-    debug_assert_eq!(argument_slice.len(), layouts.len());
+    debug_assert_eq!(argument_slice.len(), operands.len());
 
-    let mut stored_layouts = SmallVec::with_capacity(argument_slice.len());
+    let mut stored_operands = SmallVec::with_capacity(argument_slice.len());
     let mut cells = SmallVec::with_capacity(argument_slice.len());
 
-    for (argument, layout) in argument_slice.iter().zip(layouts) {
-        let cell = activation.load_value(*argument);
+    for (argument, operand) in argument_slice.iter().zip(operands) {
+        if !argument.is_cell {
+            return Err(Error::type_mismatch(
+                "cell intrinsic argument",
+                format!("{} frame bytes", argument.byte_len),
+            ));
+        }
+        let cell = activation.load_cell_at(argument.offset);
 
-        stored_layouts.push(*layout);
+        stored_operands.push(*operand);
         cells.push(cell);
     }
 
-    IntrinsicArguments {
-        layouts: stored_layouts,
+    Ok(IntrinsicArguments {
+        operands: stored_operands,
         cells,
-    }
+    })
 }
 
 /// Finish one intrinsic result.
@@ -74,10 +81,7 @@ fn finish_intrinsic_result(
 }
 
 /// Return the frame destination for one frame intrinsic.
-fn require_frame_dest(
-    activation: &Activation<'_>,
-    dest: IntrinsicDest,
-) -> RuntimeResult<mir::Value> {
+fn require_frame_dest(activation: &Activation<'_>, dest: IntrinsicDest) -> RuntimeResult<MoveSlot> {
     match dest {
         IntrinsicDest::Frame(value) => Ok(value),
         IntrinsicDest::None => Err(activation
@@ -97,9 +101,9 @@ fn require_cell_dest(
 ) -> RuntimeResult<IntrinsicDest> {
     match dest {
         IntrinsicDest::None | IntrinsicDest::Cell(_) => Ok(dest),
-        IntrinsicDest::Frame(value) => Err(activation.machine.runtime_error(Error::type_mismatch(
+        IntrinsicDest::Frame(slot) => Err(activation.machine.runtime_error(Error::type_mismatch(
             "cell intrinsic destination",
-            format!("frame-backed value: {value:?}"),
+            format!("frame-backed slot: {slot:?}"),
         ))),
     }
 }
@@ -134,13 +138,13 @@ macro_rules! cell_intrinsic {
             activation: &mut Activation<'_>,
             instruction: &Instruction,
         ) -> Result<(), Error> {
-            let intrinsic = *activation.side::<Intrinsic>(instruction);
+            let intrinsic = *activation.side::<IntrinsicCall>(instruction);
             let arguments = load_intrinsic_arguments(
                 activation,
                 intrinsic.arguments,
-                intrinsic.layouts(),
-            );
-            let result = activation.$method(arguments.layouts.as_slice(), arguments.cells.as_slice());
+                intrinsic.operands(),
+            )?;
+            let result = activation.$method(arguments.operands.as_slice(), arguments.cells.as_slice());
 
             finish_cell_intrinsic_result(activation, intrinsic.dest, result)
         }
@@ -154,7 +158,7 @@ macro_rules! destination_intrinsic {
             activation: &mut Activation<'_>,
             instruction: &Instruction,
         ) -> Result<(), Error> {
-            let intrinsic = *activation.side::<Intrinsic>(instruction);
+            let intrinsic = *activation.side::<IntrinsicCall>(instruction);
             let destination = match require_frame_dest(activation, intrinsic.dest) {
                 Ok(destination) => destination,
                 Err(error) => return Err(error.error),
@@ -162,11 +166,11 @@ macro_rules! destination_intrinsic {
             let arguments = load_intrinsic_arguments(
                 activation,
                 intrinsic.arguments,
-                intrinsic.layouts(),
-            );
+                intrinsic.operands(),
+            )?;
             let result = activation.$method(
                 destination,
-                arguments.layouts.as_slice(),
+                arguments.operands.as_slice(),
                 arguments.cells.as_slice(),
             );
 
@@ -466,7 +470,7 @@ pub(crate) fn execute_intrinsic(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let kernel = activation.side::<Intrinsic>(instruction).kernel;
+    let kernel = activation.side::<IntrinsicCall>(instruction).kernel;
 
     match kernel {
         mir::Intrinsic::LeadingZeroCount => {
@@ -544,15 +548,11 @@ impl Activation<'_> {
     /// Store one 2-field result in field order.
     fn store_pair(
         &mut self,
-        destination: mir::Value,
+        destination: MoveSlot,
         first: Cell,
         second: Cell,
     ) -> RuntimeResult<Cell> {
-        super::frame::store_frame_fields(self, destination, |_machine, index, _ty| match index {
-            0 => Ok(first),
-            1 => Ok(second),
-            _ => Err(Error::invalid_instruction()),
-        })?;
+        super::frame::store_frame_pair(self, destination, first, second)?;
 
         Ok(Cell::ZERO)
     }
@@ -572,14 +572,14 @@ impl Activation<'_> {
         })
     }
 
-    /// Return one intrinsic argument layout.
-    fn intrinsic_layout(
+    /// Return one intrinsic argument operand.
+    fn intrinsic_operand(
         &self,
         intrinsic: mir::Intrinsic,
-        layouts: &[ValueShape],
+        operands: &[IntrinsicOperand],
         index: usize,
-    ) -> RuntimeResult<ValueShape> {
-        layouts.get(index).copied().ok_or_else(|| {
+    ) -> RuntimeResult<IntrinsicOperand> {
+        operands.get(index).copied().ok_or_else(|| {
             self.machine
                 .runtime_error(Error::invalid_intrinsic_arguments(
                     intrinsic.to_str().to_string(),
@@ -591,29 +591,30 @@ impl Activation<'_> {
     fn integer_argument(
         &self,
         intrinsic: mir::Intrinsic,
-        arguments: &[ValueShape],
+        arguments: &[IntrinsicOperand],
         args: &[Cell],
         index: usize,
     ) -> RuntimeResult<(Cell, u8, bool)> {
         let value = *self.intrinsic_value(intrinsic, args, index)?;
-        let layout = self.intrinsic_layout(intrinsic, arguments, index)?;
+        let operand = self.intrinsic_operand(intrinsic, arguments, index)?;
 
-        match layout {
-            ValueShape::Int { width, signed } if width <= Cell::BIT_LEN as u16 => {
-                Ok((value, width as u8, signed))
-            }
+        match operand {
+            IntrinsicOperand::Int {
+                width,
+                is_signed: signed,
+            } if width <= Cell::BIT_LEN as u16 => Ok((value, width as u8, signed)),
             _ => Err(self.machine.runtime_error(Error::type_mismatch(
                 "cell-sized integer",
-                format!("{layout:?}"),
+                format!("{operand:?}"),
             ))),
         }
     }
 
-    /// Return two integer arguments that share one MIR integer layout.
+    /// Return two integer arguments that share one MIR integer operand.
     fn integer_pair(
         &self,
         intrinsic: mir::Intrinsic,
-        arguments: &[ValueShape],
+        arguments: &[IntrinsicOperand],
         args: &[Cell],
     ) -> RuntimeResult<(Cell, Cell, u8, bool)> {
         let (left, width, signed) = self.integer_argument(intrinsic, arguments, args, 0)?;
@@ -634,29 +635,29 @@ impl Activation<'_> {
     fn float_argument(
         &self,
         intrinsic: mir::Intrinsic,
-        arguments: &[ValueShape],
+        arguments: &[IntrinsicOperand],
         args: &[Cell],
         index: usize,
     ) -> RuntimeResult<(Cell, u8)> {
         let value = *self.intrinsic_value(intrinsic, args, index)?;
-        let layout = self.intrinsic_layout(intrinsic, arguments, index)?;
+        let operand = self.intrinsic_operand(intrinsic, arguments, index)?;
 
-        match layout {
-            ValueShape::Float { format } if format.width() <= Cell::BIT_LEN as u16 => {
+        match operand {
+            IntrinsicOperand::Float { format } if format.width() <= Cell::BIT_LEN as u16 => {
                 Ok((value, format.width() as u8))
             }
             _ => Err(self.machine.runtime_error(Error::type_mismatch(
                 "cell-sized float",
-                format!("{layout:?}"),
+                format!("{operand:?}"),
             ))),
         }
     }
 
-    /// Return two floating point arguments that share one MIR float layout.
+    /// Return two floating point arguments that share one MIR float operand.
     fn float_pair(
         &self,
         intrinsic: mir::Intrinsic,
-        arguments: &[ValueShape],
+        arguments: &[IntrinsicOperand],
         args: &[Cell],
     ) -> RuntimeResult<(Cell, Cell, u8)> {
         let (left, width) = self.float_argument(intrinsic, arguments, args, 0)?;
@@ -676,21 +677,21 @@ impl Activation<'_> {
     fn raw_address_argument(
         &self,
         intrinsic: mir::Intrinsic,
-        arguments: &[ValueShape],
+        arguments: &[IntrinsicOperand],
         args: &[Cell],
         index: usize,
     ) -> RuntimeResult<usize> {
         let value = *self.intrinsic_value(intrinsic, args, index)?;
-        let layout = self.intrinsic_layout(intrinsic, arguments, index)?;
+        let operand = self.intrinsic_operand(intrinsic, arguments, index)?;
 
-        match layout {
-            ValueShape::Pointer {
+        match operand {
+            IntrinsicOperand::Reference {
                 address_space: AddressSpace::Raw,
                 ..
             } => Ok(value.as_address()),
             _ => Err(self
                 .machine
-                .runtime_error(Error::invalid_pointer_type(format!("{layout:?}")))),
+                .runtime_error(Error::invalid_pointer_type(format!("{operand:?}")))),
         }
     }
 
@@ -724,7 +725,11 @@ impl Activation<'_> {
     // bit manipulation
 
     /// Count leading zeros.
-    fn leading_zero_count(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn leading_zero_count(
+        &self,
+        arguments: &[IntrinsicOperand],
+        args: &[Cell],
+    ) -> RuntimeResult<Cell> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::LeadingZeroCount, arguments, args, 0)?;
         let count = if signed {
@@ -747,7 +752,11 @@ impl Activation<'_> {
     }
 
     /// Count trailing zeros.
-    fn trailing_zero_count(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn trailing_zero_count(
+        &self,
+        arguments: &[IntrinsicOperand],
+        args: &[Cell],
+    ) -> RuntimeResult<Cell> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::TrailingZeroCount, arguments, args, 0)?;
         let count = if signed {
@@ -770,7 +779,11 @@ impl Activation<'_> {
     }
 
     /// Count set bits (population count).
-    fn population_count(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn population_count(
+        &self,
+        arguments: &[IntrinsicOperand],
+        args: &[Cell],
+    ) -> RuntimeResult<Cell> {
         let (arg, width, _) =
             self.integer_argument(mir::Intrinsic::PopulationCount, arguments, args, 0)?;
 
@@ -778,7 +791,7 @@ impl Activation<'_> {
     }
 
     /// Reverse byte order (endianness swap).
-    fn byte_swap(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn byte_swap(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::ByteSwap, arguments, args, 0)?;
 
@@ -806,7 +819,7 @@ impl Activation<'_> {
     }
 
     /// Reverse all bits in an integer.
-    fn bit_reverse(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn bit_reverse(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::BitReverse, arguments, args, 0)?;
 
@@ -836,7 +849,7 @@ impl Activation<'_> {
     }
 
     /// Rotate bits left.
-    fn rotate_left(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn rotate_left(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::RotateLeft, arguments, args, 0)?;
         let amount = self.byte_count_argument(mir::Intrinsic::RotateLeft, args, 1)? as u32;
@@ -867,7 +880,7 @@ impl Activation<'_> {
     }
 
     /// Rotate bits right.
-    fn rotate_right(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn rotate_right(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::RotateRight, arguments, args, 0)?;
         let amount = self.byte_count_argument(mir::Intrinsic::RotateRight, args, 1)? as u32;
@@ -903,8 +916,8 @@ impl Activation<'_> {
     #[inline]
     fn add_overflow(
         &mut self,
-        destination: mir::Value,
-        arguments: &[ValueShape],
+        destination: MoveSlot,
+        arguments: &[IntrinsicOperand],
         args: &[Cell],
     ) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
@@ -957,8 +970,8 @@ impl Activation<'_> {
     #[inline]
     fn sub_overflow(
         &mut self,
-        destination: mir::Value,
-        arguments: &[ValueShape],
+        destination: MoveSlot,
+        arguments: &[IntrinsicOperand],
         args: &[Cell],
     ) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
@@ -1011,8 +1024,8 @@ impl Activation<'_> {
     #[inline]
     fn mul_overflow(
         &mut self,
-        destination: mir::Value,
-        arguments: &[ValueShape],
+        destination: MoveSlot,
+        arguments: &[IntrinsicOperand],
         args: &[Cell],
     ) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
@@ -1064,7 +1077,7 @@ impl Activation<'_> {
     // unchecked arithmetic
 
     /// Add without overflow checking (wrapping).
-    fn add_unchecked(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn add_unchecked(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::AddUnchecked, arguments, args)?;
 
@@ -1079,7 +1092,7 @@ impl Activation<'_> {
     }
 
     /// Subtract without overflow checking (wrapping).
-    fn sub_unchecked(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn sub_unchecked(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::SubUnchecked, arguments, args)?;
 
@@ -1094,7 +1107,7 @@ impl Activation<'_> {
     }
 
     /// Multiply without overflow checking (wrapping).
-    fn mul_unchecked(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn mul_unchecked(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::MulUnchecked, arguments, args)?;
 
@@ -1109,7 +1122,7 @@ impl Activation<'_> {
     }
 
     /// Divide without overflow checking.
-    fn div_unchecked(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn div_unchecked(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::DivUnchecked, arguments, args)?;
 
@@ -1132,7 +1145,7 @@ impl Activation<'_> {
     }
 
     /// Remainder without overflow checking.
-    fn rem_unchecked(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn rem_unchecked(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::RemUnchecked, arguments, args)?;
 
@@ -1155,7 +1168,7 @@ impl Activation<'_> {
     }
 
     /// Shift left without overflow checking.
-    fn shl_unchecked(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn shl_unchecked(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::ShlUnchecked, arguments, args, 0)?;
         let amount = self.byte_count_argument(mir::Intrinsic::ShlUnchecked, args, 1)? as u32;
@@ -1168,7 +1181,7 @@ impl Activation<'_> {
     }
 
     /// Shift right without overflow checking.
-    fn shr_unchecked(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn shr_unchecked(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::ShrUnchecked, arguments, args, 0)?;
         let amount = self.byte_count_argument(mir::Intrinsic::ShrUnchecked, args, 1)? as u32;
@@ -1183,7 +1196,7 @@ impl Activation<'_> {
     // saturating arithmetic
 
     /// Saturating addition.
-    fn sat_add(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn sat_add(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::SatAdd, arguments, args)?;
 
@@ -1213,7 +1226,7 @@ impl Activation<'_> {
     }
 
     /// Saturating subtraction.
-    fn sat_sub(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn sat_sub(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::SatSub, arguments, args)?;
 
@@ -1248,18 +1261,18 @@ impl Activation<'_> {
     fn float_unary(
         &self,
         intrinsic: mir::Intrinsic,
-        arguments: &[ValueShape],
+        arguments: &[IntrinsicOperand],
         args: &[Cell],
         f64_op: fn(f64) -> f64,
         f32_op: fn(f32) -> f32,
     ) -> RuntimeResult<Cell> {
-        let layout = self.intrinsic_layout(intrinsic, arguments, 0)?;
+        let operand = self.intrinsic_operand(intrinsic, arguments, 0)?;
 
         if matches!(intrinsic, mir::Intrinsic::Abs)
-            && let ValueShape::Int {
+            && let IntrinsicOperand::Int {
                 width,
-                signed: true,
-            } = layout
+                is_signed: true,
+            } = operand
         {
             let value = self.intrinsic_value(intrinsic, args, 0)?.as_i64();
 
@@ -1277,7 +1290,7 @@ impl Activation<'_> {
     fn float_binary(
         &self,
         intrinsic: mir::Intrinsic,
-        arguments: &[ValueShape],
+        arguments: &[IntrinsicOperand],
         args: &[Cell],
         f64_op: fn(f64, f64) -> f64,
         f32_op: fn(f32, f32) -> f32,
@@ -1291,67 +1304,67 @@ impl Activation<'_> {
     }
 
     /// Evaluate square root.
-    fn sqrt(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn sqrt(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Sqrt, arguments, args, f64::sqrt, f32::sqrt)
     }
 
     /// Evaluate absolute value.
-    fn abs(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn abs(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Abs, arguments, args, f64::abs, f32::abs)
     }
 
     /// Evaluate sine.
-    fn sin(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn sin(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Sin, arguments, args, f64::sin, f32::sin)
     }
 
     /// Evaluate cosine.
-    fn cos(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn cos(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Cos, arguments, args, f64::cos, f32::cos)
     }
 
     /// Evaluate tangent.
-    fn tan(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn tan(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Tan, arguments, args, f64::tan, f32::tan)
     }
 
     /// Evaluate arc sine.
-    fn asin(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn asin(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Asin, arguments, args, f64::asin, f32::asin)
     }
 
     /// Evaluate arc cosine.
-    fn acos(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn acos(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Acos, arguments, args, f64::acos, f32::acos)
     }
 
     /// Evaluate arc tangent.
-    fn atan(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn atan(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Atan, arguments, args, f64::atan, f32::atan)
     }
 
     /// Evaluate natural exponent.
-    fn exp(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn exp(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Exp, arguments, args, f64::exp, f32::exp)
     }
 
     /// Evaluate base-two exponent.
-    fn exp2(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn exp2(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Exp2, arguments, args, f64::exp2, f32::exp2)
     }
 
     /// Evaluate natural logarithm.
-    fn log(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn log(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Log, arguments, args, f64::ln, f32::ln)
     }
 
     /// Evaluate base-two logarithm.
-    fn log2(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn log2(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Log2, arguments, args, f64::log2, f32::log2)
     }
 
     /// Evaluate base-ten logarithm.
-    fn log10(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn log10(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(
             mir::Intrinsic::Log10,
             arguments,
@@ -1362,7 +1375,7 @@ impl Activation<'_> {
     }
 
     /// Evaluate floor.
-    fn floor(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn floor(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(
             mir::Intrinsic::Floor,
             arguments,
@@ -1373,12 +1386,12 @@ impl Activation<'_> {
     }
 
     /// Evaluate ceiling.
-    fn ceil(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn ceil(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Ceil, arguments, args, f64::ceil, f32::ceil)
     }
 
     /// Evaluate truncation.
-    fn trunc(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn trunc(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(
             mir::Intrinsic::Trunc,
             arguments,
@@ -1389,7 +1402,7 @@ impl Activation<'_> {
     }
 
     /// Evaluate rounding.
-    fn round(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn round(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(
             mir::Intrinsic::Round,
             arguments,
@@ -1400,17 +1413,17 @@ impl Activation<'_> {
     }
 
     /// Evaluate minimum.
-    fn min(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn min(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_binary(mir::Intrinsic::Min, arguments, args, f64::min, f32::min)
     }
 
     /// Evaluate maximum.
-    fn max(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn max(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_binary(mir::Intrinsic::Max, arguments, args, f64::max, f32::max)
     }
 
     /// Evaluate sign copy.
-    fn copy_sign(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn copy_sign(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_binary(
             mir::Intrinsic::CopySign,
             arguments,
@@ -1421,7 +1434,7 @@ impl Activation<'_> {
     }
 
     /// Evaluate two-argument arc tangent.
-    fn atan2(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn atan2(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_binary(
             mir::Intrinsic::Atan2,
             arguments,
@@ -1432,12 +1445,12 @@ impl Activation<'_> {
     }
 
     /// Evaluate power.
-    fn pow(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn pow(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_binary(mir::Intrinsic::Pow, arguments, args, f64::powf, f32::powf)
     }
 
     /// Fused multiply-add.
-    fn fma(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn fma(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let (left, width) = self.float_argument(mir::Intrinsic::Fma, arguments, args, 0)?;
         let (middle, middle_width) =
             self.float_argument(mir::Intrinsic::Fma, arguments, args, 1)?;
@@ -1463,7 +1476,7 @@ impl Activation<'_> {
     // comparison
 
     /// Bitwise equality comparison.
-    fn raw_eq(&self, _arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn raw_eq(&self, _arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         if args.len() < 2 {
             return Err(self
                 .machine
@@ -1474,19 +1487,23 @@ impl Activation<'_> {
     }
 
     /// Reinterpret one cell.
-    fn transmute(&self, _arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn transmute(&self, _arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.first_argument(mir::Intrinsic::Transmute, args)
     }
 
     /// Cast between spaces.
-    fn space_cast(&self, _arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn space_cast(&self, _arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.first_argument(mir::Intrinsic::SpaceCast, args)
     }
 
     // pointer operations
 
     /// Compute pointer difference.
-    fn ptr_offset_from(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn ptr_offset_from(
+        &self,
+        arguments: &[IntrinsicOperand],
+        args: &[Cell],
+    ) -> RuntimeResult<Cell> {
         let a = self.raw_address_argument(mir::Intrinsic::PointerOffsetFrom, arguments, args, 0)?;
         let b = self.raw_address_argument(mir::Intrinsic::PointerOffsetFrom, arguments, args, 1)?;
 
@@ -1496,7 +1513,7 @@ impl Activation<'_> {
     // memory operations
 
     /// Copy memory between locations.
-    fn memcpy(&mut self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn memcpy(&mut self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let destination = self.raw_address_argument(mir::Intrinsic::Memcpy, arguments, args, 0)?;
         let source = self.raw_address_argument(mir::Intrinsic::Memcpy, arguments, args, 1)?;
         let len = self.byte_count_argument(mir::Intrinsic::Memcpy, args, 2)?;
@@ -1510,12 +1527,12 @@ impl Activation<'_> {
     }
 
     /// Move memory (handles overlapping regions).
-    fn memmove(&mut self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn memmove(&mut self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.memcpy(arguments, args)
     }
 
     /// Fill memory with a byte value.
-    fn memset(&mut self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn memset(&mut self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let destination = self.raw_address_argument(mir::Intrinsic::Memset, arguments, args, 0)?;
         let byte = self
             .intrinsic_value(mir::Intrinsic::Memset, args, 1)?
@@ -1531,7 +1548,7 @@ impl Activation<'_> {
     }
 
     /// Compare memory ranges.
-    fn memcmp(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn memcmp(&self, arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         let left = self.raw_address_argument(mir::Intrinsic::Memcmp, arguments, args, 0)?;
         let right = self.raw_address_argument(mir::Intrinsic::Memcmp, arguments, args, 1)?;
         let len = self.byte_count_argument(mir::Intrinsic::Memcmp, args, 2)?;
@@ -1545,24 +1562,32 @@ impl Activation<'_> {
     }
 
     /// Ignore read prefetch in the activation.
-    fn prefetch_read(&self, _arguments: &[ValueShape], _args: &[Cell]) -> RuntimeResult<Cell> {
+    fn prefetch_read(
+        &self,
+        _arguments: &[IntrinsicOperand],
+        _args: &[Cell],
+    ) -> RuntimeResult<Cell> {
         Ok(Cell::ZERO)
     }
 
     /// Ignore write prefetch in the activation.
-    fn prefetch_write(&self, _arguments: &[ValueShape], _args: &[Cell]) -> RuntimeResult<Cell> {
+    fn prefetch_write(
+        &self,
+        _arguments: &[IntrinsicOperand],
+        _args: &[Cell],
+    ) -> RuntimeResult<Cell> {
         Ok(Cell::ZERO)
     }
 
     /// Ignore breakpoint in the activation.
-    fn breakpoint(&self, _arguments: &[ValueShape], _args: &[Cell]) -> RuntimeResult<Cell> {
+    fn breakpoint(&self, _arguments: &[IntrinsicOperand], _args: &[Cell]) -> RuntimeResult<Cell> {
         Ok(Cell::ZERO)
     }
 
     /// Return the current return address.
     fn return_address_intrinsic(
         &self,
-        _arguments: &[ValueShape],
+        _arguments: &[IntrinsicOperand],
         _args: &[Cell],
     ) -> RuntimeResult<Cell> {
         self.return_address()
@@ -1571,19 +1596,19 @@ impl Activation<'_> {
     /// Return the current frame address.
     fn frame_address_intrinsic(
         &self,
-        _arguments: &[ValueShape],
+        _arguments: &[IntrinsicOperand],
         _args: &[Cell],
     ) -> RuntimeResult<Cell> {
         self.frame_address()
     }
 
     /// Return the hinted value.
-    fn expect(&self, _arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn expect(&self, _arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.first_argument(mir::Intrinsic::Expect, args)
     }
 
     /// Return the black box value.
-    fn black_box(&self, _arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
+    fn black_box(&self, _arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.first_argument(mir::Intrinsic::BlackBox, args)
     }
 

@@ -20,13 +20,14 @@ use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use destack_program::vm::{
-    CellLayout, ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, ScalarLayout,
-    TensorAddress, TensorBinary, TensorBroadcast, TensorConcat, TensorContiguousBinary,
-    TensorContiguousUnary, TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract,
-    TensorFill, TensorGather, TensorIndexReduce, TensorLayout, TensorLayoutId, TensorLoad,
-    TensorPad, TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore,
-    TensorTranspose, TensorUnary, TensorView, TensorViewCast, U32RangeId, tensor_element_span_len,
+    ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, TensorAddress, TensorBinary,
+    TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorContiguousUnary, TensorConvert,
+    TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather,
+    TensorIndexReduce, TensorLayout, TensorLayoutId, TensorLoad, TensorPad, TensorReduce,
+    TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore, TensorTranspose,
+    TensorUnary, TensorView, TensorViewCast, U32RangeId, tensor_element_span_len,
 };
+use destack_program::{CellLayout, ScalarFormat};
 
 const POINTER_BYTE_LEN: usize = usize::BITS as usize / 8;
 
@@ -218,7 +219,7 @@ fn load_static_tensor_element(
 ) -> Result<Cell, Error> {
     let access = element;
 
-    access::load_static_scalar_by_layout(activation, pointer.as_static_address(), access)
+    access::load_static_scalar_by_layout(activation, pointer.as_global_address(), access)
 }
 
 /// Store one tensor-view element through local heap memory.
@@ -306,7 +307,7 @@ fn store_static_tensor_element(
 ) -> Result<(), Error> {
     let access = element;
 
-    access::store_static_scalar_by_layout(activation, pointer.as_static_address(), access, value)
+    access::store_static_scalar_by_layout(activation, pointer.as_global_address(), access, value)
 }
 
 /// Load one tensor-view element through selected memory.
@@ -495,7 +496,7 @@ pub(crate) fn load_tensor_element_at(
 fn execute_tensor_binary_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    operation: fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error>,
+    operation: fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode side record
     let TensorBinary {
@@ -552,7 +553,7 @@ pub(crate) fn execute_tensor_binary(
 /// Return the scalar operation for one tensor binary kernel.
 fn tensor_binary_operation(
     kernel: ElementBinaryKernel,
-) -> fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error> {
+) -> fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error> {
     match kernel {
         ElementBinaryKernel::AndBool => super::scalar::and_bool,
         ElementBinaryKernel::OrBool => super::scalar::or_bool,
@@ -644,7 +645,7 @@ pub(crate) fn execute_tensor_contiguous_binary(
 fn execute_tensor_unary_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    operation: fn(ScalarLayout, Cell) -> Result<Cell, Error>,
+    operation: fn(ScalarFormat, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode fixed fields
     let TensorUnary {
@@ -702,7 +703,7 @@ pub(crate) fn execute_tensor_unary(
 /// Return the scalar operation for one tensor unary kernel.
 fn tensor_unary_operation(
     kernel: ElementUnaryKernel,
-) -> fn(ScalarLayout, Cell) -> Result<Cell, Error> {
+) -> fn(ScalarFormat, Cell) -> Result<Cell, Error> {
     match kernel {
         ElementUnaryKernel::NotBool => super::scalar::not_bool,
         ElementUnaryKernel::NegInt => super::scalar::neg_int,
@@ -714,29 +715,29 @@ fn tensor_unary_operation(
 }
 
 /// Return the cell layout for one tensor scalar layout.
-fn tensor_cell_layout(layout: ScalarLayout) -> Result<CellLayout, Error> {
+fn tensor_cell_layout(layout: ScalarFormat) -> Result<CellLayout, Error> {
     let layout = match layout {
-        ScalarLayout::Int {
+        ScalarFormat::Int {
             width,
             is_signed: true,
         } if width <= u64::BITS as u16 => CellLayout::Int { width: width as u8 },
-        ScalarLayout::Int {
+        ScalarFormat::Int {
             width,
             is_signed: false,
         } if width <= u64::BITS as u16 => CellLayout::Uint { width: width as u8 },
-        ScalarLayout::Float {
+        ScalarFormat::Float {
             format: mir::FloatType::Float16,
         } => CellLayout::Float16,
-        ScalarLayout::Float {
+        ScalarFormat::Float {
             format: mir::FloatType::Bfloat16,
         } => CellLayout::Bfloat16,
-        ScalarLayout::Float {
+        ScalarFormat::Float {
             format: mir::FloatType::Float32,
         } => CellLayout::Float32,
-        ScalarLayout::Float {
+        ScalarFormat::Float {
             format: mir::FloatType::Float64,
         } => CellLayout::Float64,
-        ScalarLayout::Bool => CellLayout::Bool,
+        ScalarFormat::Boolean => CellLayout::Boolean,
         _ => return Err(Error::invalid_instruction()),
     };
 
@@ -1088,29 +1089,29 @@ macro_rules! execute_contiguous_unary {
 fn execute_contiguous_tensor_binary_typed(
     addresses: (*mut u8, *const u8, *const u8),
     element_count: usize,
-    element_layout: ScalarLayout,
+    element_layout: ScalarFormat,
     kernel: ElementBinaryKernel,
 ) -> Option<Result<(), Error>> {
     let (dest, left, right) = addresses;
 
     // select one typed loop before walking elements
     let result = match (kernel, element_layout) {
-        (ElementBinaryKernel::AndBool, ScalarLayout::Bool) => {
+        (ElementBinaryKernel::AndBool, ScalarFormat::Boolean) => {
             execute_contiguous_binary!(dest, left, right, element_count, u8, |a, b| Ok(a & b))
         }
-        (ElementBinaryKernel::OrBool, ScalarLayout::Bool) => {
+        (ElementBinaryKernel::OrBool, ScalarFormat::Boolean) => {
             execute_contiguous_binary!(dest, left, right, element_count, u8, |a, b| Ok(a | b))
         }
-        (ElementBinaryKernel::XorBool, ScalarLayout::Bool) => {
+        (ElementBinaryKernel::XorBool, ScalarFormat::Boolean) => {
             execute_contiguous_binary!(dest, left, right, element_count, u8, |a, b| Ok(a ^ b))
         }
-        (ElementBinaryKernel::EqBool, ScalarLayout::Bool) => {
+        (ElementBinaryKernel::EqBool, ScalarFormat::Boolean) => {
             execute_contiguous_compare!(dest, left, right, element_count, u8, |a, b| a == b)
         }
-        (ElementBinaryKernel::NeBool, ScalarLayout::Bool) => {
+        (ElementBinaryKernel::NeBool, ScalarFormat::Boolean) => {
             execute_contiguous_compare!(dest, left, right, element_count, u8, |a, b| a != b)
         }
-        (ElementBinaryKernel::AddInt, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementBinaryKernel::AddInt, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_add_u32(
                 dest.cast::<u32>(),
                 left.cast::<u32>(),
@@ -1118,57 +1119,57 @@ fn execute_contiguous_tensor_binary_typed(
                 element_count,
             )
         }
-        (ElementBinaryKernel::SubInt, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementBinaryKernel::SubInt, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u32, |a, b| {
                 Ok(a.wrapping_sub(b))
             })
         }
-        (ElementBinaryKernel::MulInt, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementBinaryKernel::MulInt, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u32, |a, b| {
                 Ok(a.wrapping_mul(b))
             })
         }
         (
             ElementBinaryKernel::DivInt,
-            ScalarLayout::Int {
+            ScalarFormat::Int {
                 width: 32,
                 is_signed: true,
             },
         ) => {
             execute_contiguous_binary!(dest, left, right, element_count, i32, divide_i32)
         }
-        (ElementBinaryKernel::DivUint, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementBinaryKernel::DivUint, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u32, divide_u32)
         }
         (
             ElementBinaryKernel::RemInt,
-            ScalarLayout::Int {
+            ScalarFormat::Int {
                 width: 32,
                 is_signed: true,
             },
         ) => {
             execute_contiguous_binary!(dest, left, right, element_count, i32, remainder_i32)
         }
-        (ElementBinaryKernel::RemUint, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementBinaryKernel::RemUint, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u32, remainder_u32)
         }
-        (ElementBinaryKernel::AndInt, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementBinaryKernel::AndInt, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u32, |a, b| Ok(a & b))
         }
-        (ElementBinaryKernel::OrInt, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementBinaryKernel::OrInt, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u32, |a, b| Ok(a | b))
         }
-        (ElementBinaryKernel::XorInt, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementBinaryKernel::XorInt, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u32, |a, b| Ok(a ^ b))
         }
-        (ElementBinaryKernel::ShlInt, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementBinaryKernel::ShlInt, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u32, |a, b| {
                 Ok(a.wrapping_shl(b))
             })
         }
         (
             ElementBinaryKernel::ShrInt,
-            ScalarLayout::Int {
+            ScalarFormat::Int {
                 width: 32,
                 is_signed: true,
             },
@@ -1177,121 +1178,121 @@ fn execute_contiguous_tensor_binary_typed(
                 Ok(a.wrapping_shr(b as u32))
             })
         }
-        (ElementBinaryKernel::ShrUint, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementBinaryKernel::ShrUint, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u32, |a, b| {
                 Ok(a.wrapping_shr(b))
             })
         }
-        (ElementBinaryKernel::EqInt, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementBinaryKernel::EqInt, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_compare!(dest, left, right, element_count, u32, |a, b| a == b)
         }
-        (ElementBinaryKernel::NeInt, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementBinaryKernel::NeInt, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_compare!(dest, left, right, element_count, u32, |a, b| a != b)
         }
         (
             ElementBinaryKernel::LtInt,
-            ScalarLayout::Int {
+            ScalarFormat::Int {
                 width: 32,
                 is_signed: true,
             },
         ) => {
             execute_contiguous_compare!(dest, left, right, element_count, i32, |a, b| a < b)
         }
-        (ElementBinaryKernel::LtUint, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementBinaryKernel::LtUint, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_compare!(dest, left, right, element_count, u32, |a, b| a < b)
         }
         (
             ElementBinaryKernel::LeInt,
-            ScalarLayout::Int {
+            ScalarFormat::Int {
                 width: 32,
                 is_signed: true,
             },
         ) => {
             execute_contiguous_compare!(dest, left, right, element_count, i32, |a, b| a <= b)
         }
-        (ElementBinaryKernel::LeUint, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementBinaryKernel::LeUint, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_compare!(dest, left, right, element_count, u32, |a, b| a <= b)
         }
         (
             ElementBinaryKernel::GtInt,
-            ScalarLayout::Int {
+            ScalarFormat::Int {
                 width: 32,
                 is_signed: true,
             },
         ) => {
             execute_contiguous_compare!(dest, left, right, element_count, i32, |a, b| a > b)
         }
-        (ElementBinaryKernel::GtUint, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementBinaryKernel::GtUint, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_compare!(dest, left, right, element_count, u32, |a, b| a > b)
         }
         (
             ElementBinaryKernel::GeInt,
-            ScalarLayout::Int {
+            ScalarFormat::Int {
                 width: 32,
                 is_signed: true,
             },
         ) => {
             execute_contiguous_compare!(dest, left, right, element_count, i32, |a, b| a >= b)
         }
-        (ElementBinaryKernel::GeUint, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementBinaryKernel::GeUint, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_compare!(dest, left, right, element_count, u32, |a, b| a >= b)
         }
-        (ElementBinaryKernel::AddInt, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementBinaryKernel::AddInt, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u64, |a, b| {
                 Ok(a.wrapping_add(b))
             })
         }
-        (ElementBinaryKernel::SubInt, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementBinaryKernel::SubInt, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u64, |a, b| {
                 Ok(a.wrapping_sub(b))
             })
         }
-        (ElementBinaryKernel::MulInt, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementBinaryKernel::MulInt, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u64, |a, b| {
                 Ok(a.wrapping_mul(b))
             })
         }
         (
             ElementBinaryKernel::DivInt,
-            ScalarLayout::Int {
+            ScalarFormat::Int {
                 width: 64,
                 is_signed: true,
             },
         ) => {
             execute_contiguous_binary!(dest, left, right, element_count, i64, divide_i64)
         }
-        (ElementBinaryKernel::DivUint, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementBinaryKernel::DivUint, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u64, divide_u64)
         }
         (
             ElementBinaryKernel::RemInt,
-            ScalarLayout::Int {
+            ScalarFormat::Int {
                 width: 64,
                 is_signed: true,
             },
         ) => {
             execute_contiguous_binary!(dest, left, right, element_count, i64, remainder_i64)
         }
-        (ElementBinaryKernel::RemUint, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementBinaryKernel::RemUint, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u64, remainder_u64)
         }
-        (ElementBinaryKernel::AndInt, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementBinaryKernel::AndInt, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u64, |a, b| Ok(a & b))
         }
-        (ElementBinaryKernel::OrInt, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementBinaryKernel::OrInt, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u64, |a, b| Ok(a | b))
         }
-        (ElementBinaryKernel::XorInt, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementBinaryKernel::XorInt, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u64, |a, b| Ok(a ^ b))
         }
-        (ElementBinaryKernel::ShlInt, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementBinaryKernel::ShlInt, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u64, |a, b| {
                 Ok(a.wrapping_shl(b as u32))
             })
         }
         (
             ElementBinaryKernel::ShrInt,
-            ScalarLayout::Int {
+            ScalarFormat::Int {
                 width: 64,
                 is_signed: true,
             },
@@ -1300,68 +1301,68 @@ fn execute_contiguous_tensor_binary_typed(
                 Ok(a.wrapping_shr(b as u32))
             })
         }
-        (ElementBinaryKernel::ShrUint, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementBinaryKernel::ShrUint, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_binary!(dest, left, right, element_count, u64, |a, b| {
                 Ok(a.wrapping_shr(b as u32))
             })
         }
-        (ElementBinaryKernel::EqInt, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementBinaryKernel::EqInt, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_compare!(dest, left, right, element_count, u64, |a, b| a == b)
         }
-        (ElementBinaryKernel::NeInt, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementBinaryKernel::NeInt, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_compare!(dest, left, right, element_count, u64, |a, b| a != b)
         }
         (
             ElementBinaryKernel::LtInt,
-            ScalarLayout::Int {
+            ScalarFormat::Int {
                 width: 64,
                 is_signed: true,
             },
         ) => {
             execute_contiguous_compare!(dest, left, right, element_count, i64, |a, b| a < b)
         }
-        (ElementBinaryKernel::LtUint, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementBinaryKernel::LtUint, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_compare!(dest, left, right, element_count, u64, |a, b| a < b)
         }
         (
             ElementBinaryKernel::LeInt,
-            ScalarLayout::Int {
+            ScalarFormat::Int {
                 width: 64,
                 is_signed: true,
             },
         ) => {
             execute_contiguous_compare!(dest, left, right, element_count, i64, |a, b| a <= b)
         }
-        (ElementBinaryKernel::LeUint, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementBinaryKernel::LeUint, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_compare!(dest, left, right, element_count, u64, |a, b| a <= b)
         }
         (
             ElementBinaryKernel::GtInt,
-            ScalarLayout::Int {
+            ScalarFormat::Int {
                 width: 64,
                 is_signed: true,
             },
         ) => {
             execute_contiguous_compare!(dest, left, right, element_count, i64, |a, b| a > b)
         }
-        (ElementBinaryKernel::GtUint, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementBinaryKernel::GtUint, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_compare!(dest, left, right, element_count, u64, |a, b| a > b)
         }
         (
             ElementBinaryKernel::GeInt,
-            ScalarLayout::Int {
+            ScalarFormat::Int {
                 width: 64,
                 is_signed: true,
             },
         ) => {
             execute_contiguous_compare!(dest, left, right, element_count, i64, |a, b| a >= b)
         }
-        (ElementBinaryKernel::GeUint, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementBinaryKernel::GeUint, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_compare!(dest, left, right, element_count, u64, |a, b| a >= b)
         }
         (
             ElementBinaryKernel::AddF32,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float32,
             },
         ) => {
@@ -1369,7 +1370,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::SubF32,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float32,
             },
         ) => {
@@ -1377,7 +1378,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::MulF32,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float32,
             },
         ) => {
@@ -1385,7 +1386,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::DivF32,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float32,
             },
         ) => {
@@ -1393,7 +1394,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::EqF32,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float32,
             },
         ) => {
@@ -1401,7 +1402,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::NeF32,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float32,
             },
         ) => {
@@ -1409,7 +1410,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::LtF32,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float32,
             },
         ) => {
@@ -1417,7 +1418,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::LeF32,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float32,
             },
         ) => {
@@ -1425,7 +1426,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::GtF32,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float32,
             },
         ) => {
@@ -1433,7 +1434,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::GeF32,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float32,
             },
         ) => {
@@ -1441,7 +1442,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::AddF64,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float64,
             },
         ) => {
@@ -1449,7 +1450,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::SubF64,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float64,
             },
         ) => {
@@ -1457,7 +1458,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::MulF64,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float64,
             },
         ) => {
@@ -1465,7 +1466,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::DivF64,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float64,
             },
         ) => {
@@ -1473,7 +1474,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::EqF64,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float64,
             },
         ) => {
@@ -1481,7 +1482,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::NeF64,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float64,
             },
         ) => {
@@ -1489,7 +1490,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::LtF64,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float64,
             },
         ) => {
@@ -1497,7 +1498,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::LeF64,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float64,
             },
         ) => {
@@ -1505,7 +1506,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::GtF64,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float64,
             },
         ) => {
@@ -1513,7 +1514,7 @@ fn execute_contiguous_tensor_binary_typed(
         }
         (
             ElementBinaryKernel::GeF64,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float64,
             },
         ) => {
@@ -1530,7 +1531,7 @@ fn execute_contiguous_tensor_binary_elements(
     activation: &mut Activation<'_>,
     offsets: (u32, u32, u32),
     layout: &TensorLayout,
-    element_layout: ScalarLayout,
+    element_layout: ScalarFormat,
     kernel: ElementBinaryKernel,
 ) -> Result<(), Error> {
     let dest_layout = layout
@@ -1585,43 +1586,43 @@ fn execute_contiguous_tensor_binary_elements(
 fn execute_contiguous_tensor_unary_typed(
     addresses: (*mut u8, *const u8),
     element_count: usize,
-    element_layout: ScalarLayout,
+    element_layout: ScalarFormat,
     kernel: ElementUnaryKernel,
 ) -> Option<Result<(), Error>> {
     let (dest, argument) = addresses;
 
     // select one typed loop before walking elements
     let result = match (kernel, element_layout) {
-        (ElementUnaryKernel::NotBool, ScalarLayout::Bool) => {
+        (ElementUnaryKernel::NotBool, ScalarFormat::Boolean) => {
             execute_contiguous_unary!(dest, argument, element_count, u8, |a| u8::from(a == 0))
         }
         (
             ElementUnaryKernel::NegInt,
-            ScalarLayout::Int {
+            ScalarFormat::Int {
                 width: 32,
                 is_signed: true,
             },
         ) => {
             execute_contiguous_unary!(dest, argument, element_count, i32, |a| a.wrapping_neg())
         }
-        (ElementUnaryKernel::NotInt, ScalarLayout::Int { width: 32, .. }) => {
+        (ElementUnaryKernel::NotInt, ScalarFormat::Int { width: 32, .. }) => {
             execute_contiguous_unary!(dest, argument, element_count, u32, |a| !a)
         }
         (
             ElementUnaryKernel::NegInt,
-            ScalarLayout::Int {
+            ScalarFormat::Int {
                 width: 64,
                 is_signed: true,
             },
         ) => {
             execute_contiguous_unary!(dest, argument, element_count, i64, |a| a.wrapping_neg())
         }
-        (ElementUnaryKernel::NotInt, ScalarLayout::Int { width: 64, .. }) => {
+        (ElementUnaryKernel::NotInt, ScalarFormat::Int { width: 64, .. }) => {
             execute_contiguous_unary!(dest, argument, element_count, u64, |a| !a)
         }
         (
             ElementUnaryKernel::NegF32,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float32,
             },
         ) => {
@@ -1629,7 +1630,7 @@ fn execute_contiguous_tensor_unary_typed(
         }
         (
             ElementUnaryKernel::NegF64,
-            ScalarLayout::Float {
+            ScalarFormat::Float {
                 format: mir::FloatType::Float64,
             },
         ) => {
@@ -1646,7 +1647,7 @@ fn execute_contiguous_tensor_unary_elements(
     activation: &mut Activation<'_>,
     offsets: (u32, u32),
     layout: &TensorLayout,
-    element_layout: ScalarLayout,
+    element_layout: ScalarFormat,
     kernel: ElementUnaryKernel,
 ) -> Result<(), Error> {
     let dest_layout = layout
@@ -1878,11 +1879,11 @@ pub(crate) fn offset_static_view_pointer(
 ) -> Result<Cell, Error> {
     let byte_offset = element_byte_offset(element, offset, length)?;
     let pointer = value
-        .as_static_address()
+        .as_global_address()
         .add_bytes(byte_offset)
         .ok_or(Error::invalid_instruction())?;
 
-    Ok(Cell::static_address(pointer))
+    Ok(Cell::global_address(pointer))
 }
 
 /// Offset a tensor view pointer through selected memory.
@@ -2651,7 +2652,7 @@ pub(crate) fn execute_tensor_concat(
 
     // resolve input tensors
     let tensor_offsets = frame_offsets(activation, *tensors).to_vec();
-    // validate input metadata
+    // validate input tables
     if tensor_offsets.len() != tensor_layouts.len() {
         return Err(Error::invalid_instruction());
     }
@@ -2725,7 +2726,7 @@ pub(crate) fn execute_tensor_reduce(
 fn execute_tensor_reduce_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    operation: fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error>,
+    operation: fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode side records
     let TensorReduce {
@@ -2833,7 +2834,7 @@ fn execute_tensor_reduce_elements(
 /// Return the scalar kernel for one tensor reduction.
 fn tensor_reduce_operation(
     kernel: mir::TensorReduceOperator,
-) -> fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error> {
+) -> fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error> {
     match kernel {
         mir::TensorReduceOperator::Add => reduce_add,
         mir::TensorReduceOperator::Multiply => reduce_multiply,
@@ -3022,8 +3023,8 @@ pub(crate) fn execute_tensor_index_reduce(
 }
 
 /// Return whether an index result layout can store every reduced position.
-fn tensor_index_layout_can_store(layout: ScalarLayout, element_count: u64) -> bool {
-    let ScalarLayout::Int {
+fn tensor_index_layout_can_store(layout: ScalarFormat, element_count: u64) -> bool {
+    let ScalarFormat::Int {
         width,
         is_signed: false,
     } = layout
@@ -3039,7 +3040,7 @@ fn tensor_index_layout_can_store(layout: ScalarLayout, element_count: u64) -> bo
 
 /// Return whether `candidate` should replace `current`.
 fn tensor_index_reduce_select(
-    layout: ScalarLayout,
+    layout: ScalarFormat,
     operator: mir::TensorIndexReduceOperator,
     tie_break: mir::TensorIndexTieBreak,
     current: Cell,
@@ -3057,13 +3058,13 @@ fn tensor_index_reduce_select(
 }
 
 /// Compare two tensor scalar cells.
-fn compare_tensor_cells(layout: ScalarLayout, left: Cell, right: Cell) -> Result<Ordering, Error> {
+fn compare_tensor_cells(layout: ScalarFormat, left: Cell, right: Cell) -> Result<Ordering, Error> {
     let ordering = match layout {
-        ScalarLayout::Int {
+        ScalarFormat::Int {
             is_signed: true, ..
         } => left.as_i64().cmp(&right.as_i64()),
-        ScalarLayout::Int { .. } => left.as_u64().cmp(&right.as_u64()),
-        ScalarLayout::Float { format } => {
+        ScalarFormat::Int { .. } => left.as_u64().cmp(&right.as_u64()),
+        ScalarFormat::Float { format } => {
             let left = float_from_bits(format.format(), left.bits());
             let right = float_from_bits(format.format(), right.bits());
 
@@ -3640,7 +3641,7 @@ pub(crate) fn execute_tensor_scatter(
 fn execute_tensor_scatter_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    combine: fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error>,
+    combine: fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode side records
     let TensorScatter {
@@ -3811,7 +3812,7 @@ fn execute_tensor_scatter_elements(
 /// Return the scalar kernel for one tensor scatter.
 fn tensor_scatter_operation(
     mode: mir::TensorScatterMode,
-) -> fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error> {
+) -> fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error> {
     match mode {
         mir::TensorScatterMode::Replace => scatter_replace,
         mir::TensorScatterMode::Add => reduce_add,
@@ -3825,7 +3826,7 @@ fn tensor_scatter_operation(
 }
 
 /// Return the replacement scatter value.
-fn scatter_replace(_layout: ScalarLayout, _current: Cell, update: Cell) -> Result<Cell, Error> {
+fn scatter_replace(_layout: ScalarFormat, _current: Cell, update: Cell) -> Result<Cell, Error> {
     Ok(update)
 }
 
@@ -3844,7 +3845,7 @@ pub(crate) fn execute_tensor_convert(
 fn execute_tensor_convert_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    convert: fn(Cell, ScalarLayout, ScalarLayout) -> Result<Cell, Error>,
+    convert: fn(Cell, ScalarFormat, ScalarFormat) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode side records
     let TensorConvert {
@@ -3891,7 +3892,7 @@ fn execute_tensor_convert_elements(
 /// Return the scalar kernel for one tensor conversion.
 fn tensor_convert_operation(
     mode: mir::TensorConvertMode,
-) -> fn(Cell, ScalarLayout, ScalarLayout) -> Result<Cell, Error> {
+) -> fn(Cell, ScalarFormat, ScalarFormat) -> Result<Cell, Error> {
     match mode {
         mir::TensorConvertMode::Exact => convert_scalar_exact,
         mir::TensorConvertMode::RoundTiesEven => convert_scalar_round_ties_even,

@@ -1,4 +1,5 @@
 use destack_mir as mir;
+use destack_program as program;
 
 use super::Activation;
 use crate::diagnostic::Error;
@@ -30,13 +31,10 @@ impl Activation<'_> {
 
     /// Return the canonical layout for one MIR type.
     #[inline]
-    pub(crate) fn require_layout(
-        &self,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) -> Result<&mir::Layout, Error> {
+    pub(crate) fn require_layout(&self, ty: program::TypeId) -> Result<&program::Layout, Error> {
         self.machine
             .program
-            .layout(self.machine.program.types().type_id(ty))
+            .layout(ty)
             .ok_or_else(|| Error::type_mismatch("compiled layout", format!("{ty:?}")))
     }
 

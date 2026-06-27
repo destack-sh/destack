@@ -3,6 +3,7 @@ use crate::diagnostic::Error;
 use crate::machine::Activation;
 
 use super::Transfer;
+use destack_program::TypeId;
 use destack_program::vm::{
     BoundsCheck, Check, CheckId, Edge, EdgeId, Instruction, MoveRange, NarrowCheck, Op,
     OverflowCheck, ShiftRangeCheck, SwitchCasesId, SwitchTableId, VariantCheck,
@@ -401,10 +402,17 @@ fn evaluate_check(activation: &Activation<'_>, constraint: &Check) -> Result<boo
         Check::OverflowMulUint(check) => Ok(overflow_mul_uint(activation, *check)),
         Check::OverflowDivInt(check) => overflow_div_int(activation, *check),
         Check::OverflowDivUint(check) => overflow_div_uint(activation, *check),
-        Check::Type { value, expected } => {
+        Check::TypeId { value, expected } => {
             let value = activation.load_cell_at(*value);
 
             Ok(value.as_u64() == u64::from(*expected))
+        }
+        Check::SubtypeId { value, expected } => {
+            let concrete = activation.load_cell_at(*value);
+            let concrete = TypeId(concrete.as_u64() as u32);
+            let expected = TypeId(*expected);
+
+            Ok(activation.machine.program.is_subtype(concrete, expected))
         }
         Check::Variant(check) => Ok(variant_check(activation, *check)),
     }

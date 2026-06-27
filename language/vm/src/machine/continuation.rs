@@ -1,12 +1,12 @@
-use destack_mir as mir;
-
 use super::{
     Frame, FrameImage, Stack, StackImage, visit_frame_slot_root_slots, visit_materialized_slots,
 };
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::options::MachineOptions;
 use destack_heap::{HeapResult, RootSlot};
-use destack_program::{ContinuationImage, Program};
+use destack_program::{
+    ContinuationImage, FrameLayout, FrameMaterialization, FrameSlot, FrameStateId, Program,
+};
 
 /// Suspended machine state captured at a yield terminator.
 #[derive(Debug)]
@@ -18,7 +18,7 @@ pub struct Continuation {
     /// The frame index to resume execution in.
     pub(crate) resume_frame_index: usize,
     /// The frame state for this continuation.
-    pub(crate) frame_state: mir::FrameStateId,
+    pub(crate) frame_state: FrameStateId,
 }
 
 impl Continuation {
@@ -153,7 +153,7 @@ impl Continuation {
         program: &'a Program,
         frame: &Frame,
         frame_index: usize,
-    ) -> Result<&'a mir::FrameMaterialization, Error> {
+    ) -> Result<&'a FrameMaterialization, Error> {
         let (_frame_state, materialization) =
             self.frame_state_and_materialization(program, frame, frame_index)?;
 
@@ -166,7 +166,7 @@ impl Continuation {
         program: &'a Program,
         frame: &Frame,
         frame_index: usize,
-    ) -> Result<(mir::FrameStateId, &'a mir::FrameMaterialization), Error> {
+    ) -> Result<(FrameStateId, &'a FrameMaterialization), Error> {
         let frame_state = self.frame_state(program, frame, frame_index)?;
 
         let frame_materialization =
@@ -191,7 +191,7 @@ impl Continuation {
         program: &Program,
         frame: &Frame,
         frame_index: usize,
-    ) -> Result<mir::FrameStateId, Error> {
+    ) -> Result<FrameStateId, Error> {
         if frame_index == self.resume_frame_index {
             return Ok(self.frame_state);
         }
@@ -211,7 +211,7 @@ impl Continuation {
 }
 
 /// Capture one frame image from one live frame.
-fn capture_frame_image(frame: &Frame, frame_state: mir::FrameStateId) -> FrameImage {
+fn capture_frame_image(frame: &Frame, frame_state: FrameStateId) -> FrameImage {
     FrameImage {
         frame_state,
         return_state: frame.return_state,
@@ -238,7 +238,7 @@ fn visit_frame_image_root_slots(
 fn frame_image_materialization<'a>(
     frame: &FrameImage,
     program: &'a Program,
-) -> Result<(&'a mir::FrameLayout, &'a mir::FrameMaterialization), Error> {
+) -> Result<(&'a FrameLayout, &'a FrameMaterialization), Error> {
     let materialization = program
         .frame_materialization(frame.frame_state)
         .ok_or(Error::invalid_continuation())?;
@@ -257,7 +257,7 @@ fn visit_frame_image_slot_root_slots(
     frame: &mut FrameImage,
     stack: &mut StackImage,
     program: &Program,
-    slot: &mir::FrameSlot,
+    slot: &FrameSlot,
     visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
 ) -> Result<(), Error> {
     let start = slot.offset as usize;

@@ -1,10 +1,10 @@
 use crate::Cell;
 use crate::tests::{
-    create_machine, create_machine_with_data_layout, run_mir_expect, run_mir_ok,
+    create_machine, create_machine_with_target_layout, run_mir_expect, run_mir_ok,
     run_mir_with_frame_ok,
 };
 use destack_heap::{HeapReference, SharedHeap, SharedHeapReference};
-use destack_mir::{DataLayout, TraceMap};
+use destack_mir::{TargetLayout, TraceMap};
 use destack_program::Value;
 
 /// Decode one native-width heap reference from materialized bytes.
@@ -616,7 +616,7 @@ entry:
     assert_eq!(
         machine
             .heap
-            .trace_map(reference, machine.machine.trace_table().as_ref()),
+            .trace_map(reference, machine.machine.trace_table()),
         Ok(TraceMap::empty())
     );
 }
@@ -666,9 +666,9 @@ entry:
     return v0
 }
 "#;
-    let data_layout = DataLayout { pointer_bytes: 8 };
+    let target_layout = TargetLayout::for_pointer_bytes(8);
 
-    let mut machine = create_machine_with_data_layout(mir, data_layout);
+    let mut machine = create_machine_with_target_layout(mir, target_layout);
     let output = machine
         .run_function_by_name("allocPacked", &[])
         .expect("execution failed");
@@ -679,7 +679,7 @@ entry:
     assert_eq!(
         machine
             .heap
-            .trace_map(reference, machine.machine.trace_table().as_ref()),
+            .trace_map(reference, machine.machine.trace_table()),
         Ok(TraceMap::Fixed {
             local_offsets: vec![8].into_boxed_slice(),
             shared_offsets: Vec::new().into_boxed_slice(),
@@ -698,9 +698,9 @@ entry:
     return v1
 }
 "#;
-    let data_layout = DataLayout { pointer_bytes: 8 };
+    let target_layout = TargetLayout::for_pointer_bytes(8);
 
-    let mut machine = create_machine_with_data_layout(mir, data_layout);
+    let mut machine = create_machine_with_target_layout(mir, target_layout);
     let output = machine
         .run_function_by_name("allocArray", &[])
         .expect("execution failed");
@@ -713,7 +713,7 @@ entry:
     assert_eq!(
         machine
             .heap
-            .trace_map(reference, machine.machine.trace_table().as_ref()),
+            .trace_map(reference, machine.machine.trace_table()),
         Ok(TraceMap::Fixed {
             local_offsets: vec![0, 8].into_boxed_slice(),
             shared_offsets: Vec::new().into_boxed_slice(),
@@ -807,12 +807,12 @@ entry:
     return v5
 }
 "#;
-    let data_layout = DataLayout { pointer_bytes: 4 };
-    let error = match std::panic::catch_unwind(|| create_machine_with_data_layout(mir, data_layout))
-    {
-        Ok(_) => panic!("narrow heap reference storage should be rejected loudly"),
-        Err(error) => error,
-    };
+    let target_layout = TargetLayout::for_pointer_bytes(4);
+    let error =
+        match std::panic::catch_unwind(|| create_machine_with_target_layout(mir, target_layout)) {
+            Ok(_) => panic!("narrow heap reference storage should be rejected loudly"),
+            Err(error) => error,
+        };
     let message = if let Some(message) = error.downcast_ref::<String>() {
         message.as_str()
     } else if let Some(message) = error.downcast_ref::<&str>() {

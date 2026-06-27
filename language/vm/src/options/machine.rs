@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 pub struct MachineOptions {
     /// Resource limits and execution budgets.
     pub limits: LimitOptions,
-    /// Local heap shape used to lower allocation sites.
+    /// Local heap shape used to lower allocation plans.
     pub heap: HeapOptions,
-    /// Shared heap shape used to lower allocation sites.
+    /// Shared heap shape used to lower allocation plans.
     pub shared_heap: SharedHeapOptions,
 }
 

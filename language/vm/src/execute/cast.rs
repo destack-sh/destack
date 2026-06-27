@@ -5,9 +5,10 @@ use super::scalar::{convert_integer_bytes, integer_bytes_to_cell};
 use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
+use destack_program::CellLayout;
 use destack_program::vm::{
-    AggregateSelect, CellLayout, FloatCast, FloatToIntCast, Instruction, IntToFloatCast,
-    IntegerCast, PointerCast, WideIntegerCast,
+    AggregateSelect, FloatCast, FloatToIntCast, Instruction, IntToFloatCast, IntegerCast,
+    PointerCast, WideIntegerCast,
 };
 
 /// Execute one lowered cell cast.

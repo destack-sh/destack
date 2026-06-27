@@ -1,7 +1,7 @@
 use destack_heap::{HeapError, HeapReferenceKind};
 use destack_memory::MemoryError;
 use destack_mir::{Block, Local, LocalNodeId, Value};
-use destack_program::{FunctionId, StaticId, vm};
+use destack_program::{FunctionId, GlobalId, vm};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -43,7 +43,7 @@ pub enum ProgramError {
     /// Attempted to access an undefined local variable.
     UndefinedLocal { local: LocalNodeId<Local> },
     /// Attempted to access an undefined global variable.
-    UndefinedGlobal { global: StaticId },
+    UndefinedGlobal { global: GlobalId },
     /// Type mismatch during execution.
     TypeMismatch { expected: String, actual: String },
     /// Invalid instruction.
@@ -82,7 +82,7 @@ pub enum Trap {
     /// Reference space does not match the pointer value.
     InvalidSpace { expected: String, actual: String },
     /// Attempted to write to an immutable global.
-    ImmutableGlobalWrite { global: StaticId },
+    ImmutableGlobalWrite { global: GlobalId },
     /// Attempted to write through a readonly reference.
     ImmutableReferenceWrite { reference: String },
     /// Reached unreachable code.
@@ -166,7 +166,7 @@ impl Error {
 
     /// Return an undefined global error.
     #[inline]
-    pub fn undefined_global(global: StaticId) -> Self {
+    pub fn undefined_global(global: GlobalId) -> Self {
         Self::Program {
             reason: ProgramError::UndefinedGlobal { global },
         }
@@ -382,7 +382,7 @@ impl Error {
 
     /// Return an immutable global write error.
     #[inline]
-    pub fn immutable_global_write(global: StaticId) -> Self {
+    pub fn immutable_global_write(global: GlobalId) -> Self {
         Self::Trap {
             reason: Trap::ImmutableGlobalWrite { global },
         }
@@ -732,6 +732,9 @@ impl From<vm::Error> for Error {
             vm::Error::TypeMismatch { expected, actual } => Self::type_mismatch(expected, actual),
             vm::Error::InvalidInstruction => Self::invalid_instruction(),
             vm::Error::InvalidCast => Self::invalid_cast(),
+            vm::Error::InvalidFieldAccess { index, field_count } => {
+                Self::invalid_field_access(index, field_count)
+            }
             vm::Error::InvalidPointerType { actual } => Self::invalid_pointer_type(actual),
             vm::Error::UnsupportedInstruction { name } => Self::unsupported_instruction(name),
             vm::Error::UnsupportedZeroValue { ty } => Self::unsupported_zero_value(ty),

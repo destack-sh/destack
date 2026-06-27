@@ -2,10 +2,17 @@ use crate::Cell;
 use crate::diagnostic::Error;
 use crate::tests::{
     allocate_local_zeroed, assert_runtime_error_matches, run_mir, run_mir_expect, run_mir_ok,
-    run_mir_with_frame, run_mir_with_frame_ok, shared_allocation_site,
+    run_mir_with_frame, run_mir_with_frame_ok, shared_allocation_plan,
 };
-use destack_mir as mir;
-use destack_program::{UnsignedInt, Value};
+use destack_program::{LayoutShape, Program, TypeId, UnsignedInt, Value};
+
+/// Return the pointee type for a reference parameter.
+fn reference_pointee_type(program: &Program, ty: TypeId) -> TypeId {
+    match program.layout(ty).map(|layout| &layout.shape) {
+        Some(LayoutShape::Reference(reference)) => reference.pointee,
+        _ => panic!("test parameter should be one reference"),
+    }
+}
 
 #[test]
 fn test_intrinsic_clz() {
@@ -646,10 +653,7 @@ entry(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
 "#;
     run_mir_with_frame(mir, "test", |machine| {
         let reference_type = machine.parameter_type("test", 0);
-        let pointee_type = match machine.machine.program.types().get(reference_type) {
-            Some(mir::Type::Reference { pointee, .. }) => *pointee,
-            _ => panic!("test parameter should be one heap reference"),
-        };
+        let pointee_type = reference_pointee_type(machine.machine.program.as_ref(), reference_type);
         let layout_id = machine
             .machine
             .layout_id_for_type(pointee_type)
@@ -682,10 +686,7 @@ entry(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
 "#;
     run_mir_with_frame(mir, "test", |machine| {
         let reference_type = machine.parameter_type("test", 0);
-        let pointee_type = match machine.machine.program.types().get(reference_type) {
-            Some(mir::Type::Reference { pointee, .. }) => *pointee,
-            _ => panic!("test parameter should be one shared heap reference"),
-        };
+        let pointee_type = reference_pointee_type(machine.machine.program.as_ref(), reference_type);
         let layout_id = machine
             .machine
             .layout_id_for_type(pointee_type)
@@ -695,15 +696,15 @@ entry(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
             .allocation_shape(layout_id)
             .expect("managed pointee layout should resolve");
         let mut allocator = machine.shared_heap.allocation_cache();
-        let site = shared_allocation_site(&machine.shared_heap, shape);
+        let plan = shared_allocation_plan(&machine.shared_heap, shape);
         let handle = machine
             .shared_heap
             .allocate_zeroed(
-                &machine.shared_gc,
+                &machine.shared_mark_worker,
                 &mut allocator,
-                site,
+                plan,
                 shape.trace_map,
-                machine.machine.trace_table().as_ref(),
+                machine.machine.trace_table(),
             )
             .expect("shared heap allocation should succeed");
         machine.shared_heap.flush_allocation_cache(&mut allocator);
@@ -728,10 +729,7 @@ entry(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
 "#;
     let result = run_mir_with_frame(mir, "test", |machine| {
         let reference_type = machine.parameter_type("test", 0);
-        let pointee_type = match machine.machine.program.types().get(reference_type) {
-            Some(mir::Type::Reference { pointee, .. }) => *pointee,
-            _ => panic!("test parameter should be one heap reference"),
-        };
+        let pointee_type = reference_pointee_type(machine.machine.program.as_ref(), reference_type);
         let layout_id = machine
             .machine
             .layout_id_for_type(pointee_type)

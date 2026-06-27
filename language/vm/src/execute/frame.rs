@@ -1,18 +1,18 @@
 use std::ptr;
 
-use destack_heap::{AllocationCache, GcWorker, Heap, SharedHeap};
+use destack_heap::{AllocationCache, Heap, SharedHeap, SharedMarkWorker};
 use destack_mir as mir;
 use destack_program as program;
 use smallvec::SmallVec;
 
+use crate::Cell;
 use crate::diagnostic::{Error, ReferenceKind};
 use crate::machine::{Activation, Frame};
-use crate::{Cell, FramePointer};
-use destack_program::Program;
 use destack_program::vm::{
-    AddressSpace, ArgumentRange, Instruction, MovePair, MoveRange, MoveSlot, MoveSource,
-    Projection, ProjectionId, ValueShape, address_space_from_reference, encode_cell_bytes,
+    ArgumentRange, Instruction, MovePair, MoveRange, MoveSlot, MoveSource, Projection,
+    ProjectionId, encode_cell_bytes,
 };
+use destack_program::{AddressSpace, CellLayout, FrameSlot, Program, ScalarFormat, TypeId};
 
 use super::access;
 
@@ -146,11 +146,11 @@ pub(crate) enum FrameValueBody {
     Bytes(Box<[u8]>),
 }
 
-/// One owned value copied out of a frame with its MIR type.
+/// One owned value copied out of a frame with its program type.
 #[derive(Clone, Debug)]
 pub(crate) struct FrameValue {
-    /// The MIR type carried with the raw value bits.
-    ty: mir::LocalNodeId<mir::Type>,
+    /// The program type carried with the raw value bits.
+    ty: TypeId,
     /// The owned value body.
     body: FrameValueBody,
 }
@@ -158,7 +158,7 @@ pub(crate) struct FrameValue {
 impl FrameValue {
     /// Create one cell value.
     #[inline]
-    pub(crate) fn cell(ty: mir::LocalNodeId<mir::Type>, value: Cell) -> Self {
+    pub(crate) fn cell(ty: TypeId, value: Cell) -> Self {
         Self {
             ty,
             body: FrameValueBody::Cell(value),
@@ -167,7 +167,7 @@ impl FrameValue {
 
     /// Create one byte value.
     #[inline]
-    pub(crate) fn bytes(ty: mir::LocalNodeId<mir::Type>, bytes: Box<[u8]>) -> Self {
+    pub(crate) fn bytes(ty: TypeId, bytes: Box<[u8]>) -> Self {
         Self {
             ty,
             body: FrameValueBody::Bytes(bytes),
@@ -175,26 +175,29 @@ impl FrameValue {
     }
 }
 
+/// Return the cell layout for a type that must fit in one VM cell.
+fn require_cell_layout(program: &Program, ty: TypeId) -> Result<CellLayout, Error> {
+    program
+        .cell_layout(ty)
+        .ok_or_else(|| Error::type_mismatch("scalar or reference cell", format!("{ty:?}")))
+}
+
 /// Encode one function entry argument into frame bytes.
 pub(crate) fn encode_argument_bytes(
     activation: &mut Activation<'_>,
-    ty: mir::LocalNodeId<mir::Type>,
+    ty: TypeId,
     value: Cell,
 ) -> Result<Vec<u8>, Error> {
     let layout = activation.require_layout(ty)?.clone();
-    if activation
-        .machine
-        .program
-        .is_cell_type(activation.machine.program.types().type_id(ty))
-    {
-        return Ok(encode_cell_bytes(
-            activation.machine.program.types(),
-            activation.machine.program.types().type_id(ty),
+    if activation.machine.program.is_cell_type(ty) {
+        let cell_layout = require_cell_layout(&activation.machine.program, ty)?;
+        let bytes = encode_cell_bytes(
+            cell_layout,
             value,
             activation.machine.program.pointer_bytes(),
-        )?
-        .as_slice()
-        .to_vec());
+        );
+
+        return Ok(bytes.as_slice().to_vec());
     }
 
     let mut bytes = vec![0u8; layout.byte_len()];
@@ -203,75 +206,20 @@ pub(crate) fn encode_argument_bytes(
     Ok(bytes)
 }
 
-/// Store one field value into destination frame bytes.
-pub(crate) fn store_frame_fields<F>(
-    activation: &mut Activation<'_>,
-    destination: mir::Value,
-    mut field_value: F,
-) -> Result<(), Error>
-where
-    F: FnMut(&mut Activation<'_>, u32, mir::LocalNodeId<mir::Type>) -> Result<Cell, Error>,
-{
-    let ty = activation.value_type(destination)?;
-    let layout = activation.require_layout(ty)?.clone();
-    let field_count = layout
-        .field_count()
-        .ok_or(Error::type_mismatch("field frame value", format!("{ty:?}")))?;
-
-    // validate the destination once before incremental writes
-    if activation.value_bytes(destination)?.len() != layout.byte_len() {
-        return Err(Error::invalid_instruction());
-    }
-
-    // encode each field into its physical byte range
-    for index in 0..field_count {
-        let index = index as u32;
-        let field = layout
-            .field_at(index)
-            .ok_or(Error::invalid_field_access(index, field_count))?;
-        let value = field_value(activation, index, field.ty)?;
-        let field_offset = field.offset as usize;
-        let field_size = field.size as usize;
-        let value_end = field_offset + field_size;
-        let value_bytes = encode_cell_bytes(
-            activation.machine.program.types(),
-            activation.machine.program.types().type_id(field.ty),
-            value,
-            activation.machine.program.pointer_bytes(),
-        )?;
-        if value_bytes.len() != field_size {
-            return Err(Error::invalid_instruction());
-        }
-
-        let destination_bytes = activation.value_bytes_mut(destination)?;
-        let value_window = destination_bytes
-            .get_mut(field_offset..value_end)
-            .ok_or(Error::invalid_field_access(index, layout.byte_len()))?;
-
-        value_window.copy_from_slice(value_bytes.as_slice());
-    }
-
-    Ok(())
-}
-
 /// Store one function entry argument into one byte range.
 fn store_argument_bytes(
     activation: &mut Activation<'_>,
-    ty: mir::LocalNodeId<mir::Type>,
+    ty: TypeId,
     value: Cell,
     destination: &mut [u8],
 ) -> Result<(), Error> {
-    if activation
-        .machine
-        .program
-        .is_cell_type(activation.machine.program.types().type_id(ty))
-    {
+    if activation.machine.program.is_cell_type(ty) {
+        let cell_layout = require_cell_layout(&activation.machine.program, ty)?;
         let bytes = encode_cell_bytes(
-            activation.machine.program.types(),
-            activation.machine.program.types().type_id(ty),
+            cell_layout,
             value,
             activation.machine.program.pointer_bytes(),
-        )?;
+        );
         if bytes.len() != destination.len() {
             return Err(Error::invalid_reference(ReferenceKind::Heap));
         }
@@ -304,52 +252,19 @@ fn store_argument_bytes(
     ))
 }
 
-/// Return the MIR type stored in one frame value.
-pub(crate) fn frame_value_type(
-    program: &Program,
-    frame: &Frame,
-    value: mir::Value,
-) -> Result<mir::LocalNodeId<mir::Type>, Error> {
-    let frame_layout = program
-        .frame_layout_by_id(frame.frame_layout())
-        .ok_or(Error::invalid_instruction())?;
-    let slot = frame_layout
-        .value(value.0)
-        .ok_or(Error::invalid_instruction())?;
-
-    Ok(slot.ty)
-}
-
-/// Return the addressable cell for one frame value.
-fn frame_value_cell(program: &Program, frame: &Frame, value: mir::Value) -> Result<Cell, Error> {
-    let frame_layout = program
-        .frame_layout_by_id(frame.frame_layout())
-        .ok_or(Error::invalid_instruction())?;
-    let slot = frame_layout
-        .value(value.0)
-        .ok_or(Error::invalid_instruction())?;
-    if program.frame_slot_is_cell(slot) {
-        return Ok(frame.read_cell(slot));
-    }
-
-    Ok(Cell::frame_pointer(FramePointer::from_address(
-        frame.slot_address(slot),
-    )))
-}
-
 /// Load one cell or frame byte range into an owned frame value.
 pub(crate) fn frame_value_from_cell(
     program: &Program,
     frames: &[Frame],
-    ty: mir::LocalNodeId<mir::Type>,
+    ty: TypeId,
     value: Cell,
 ) -> Result<FrameValue, Error> {
-    if program.is_cell_type(program.types().type_id(ty)) {
+    if program.is_cell_type(ty) {
         return Ok(FrameValue::cell(ty, value));
     }
 
     let byte_len = program
-        .type_byte_len(program.types().type_id(ty))
+        .type_byte_len(ty)
         .ok_or_else(|| Error::internal(format!("missing frame storage layout: type={ty:?}")))?;
     let pointer = value.as_frame_pointer();
     let frame = frames
@@ -371,19 +286,6 @@ pub(crate) fn frame_value_from_cell(
     Ok(FrameValue::bytes(ty, bytes))
 }
 
-/// Load one frame value into an owned value.
-fn load_frame_value(
-    program: &Program,
-    frames: &[Frame],
-    frame: &Frame,
-    value: mir::Value,
-) -> Result<FrameValue, Error> {
-    let ty = frame_value_type(program, frame, value)?;
-    let value = frame_value_cell(program, frame, value)?;
-
-    frame_value_from_cell(program, frames, ty, value)
-}
-
 /// Load one lowered frame slot into an owned value.
 fn load_frame_slot_value(frame: &Frame, slot: MoveSlot) -> FrameValue {
     if slot.is_cell {
@@ -393,48 +295,6 @@ fn load_frame_slot_value(frame: &Frame, slot: MoveSlot) -> FrameValue {
     let bytes = move_slot_bytes(frame, slot).to_vec().into_boxed_slice();
 
     FrameValue::bytes(slot.ty, bytes)
-}
-
-/// Store one owned frame value into a destination frame slot.
-pub(crate) fn store_frame_value(
-    program: &Program,
-    dest_frame: &mut Frame,
-    destination: mir::Value,
-    value: FrameValue,
-) -> Result<(), Error> {
-    let frame_layout = program
-        .frame_layout_by_id(dest_frame.frame_layout())
-        .ok_or(Error::invalid_instruction())?;
-    let slot = frame_layout
-        .value(destination.0)
-        .ok_or(Error::invalid_instruction())?;
-    let is_cell = program.frame_slot_is_cell(slot);
-    match (is_cell, value.body) {
-        (true, FrameValueBody::Cell(value)) => dest_frame.write_cell(slot, value),
-        (false, FrameValueBody::Bytes(bytes)) if bytes.len() == slot.byte_len as usize => {
-            dest_frame.slot_bytes_mut(slot).copy_from_slice(&bytes);
-        }
-        (false, FrameValueBody::Cell(value)) => {
-            return Err(Error::type_mismatch(
-                "byte frame value",
-                format!("{value:?}"),
-            ));
-        }
-        (true, FrameValueBody::Bytes(bytes)) => {
-            return Err(Error::type_mismatch(
-                "cell frame value",
-                format!("{} bytes", bytes.len()),
-            ));
-        }
-        (false, FrameValueBody::Bytes(bytes)) => {
-            return Err(Error::type_mismatch(
-                format!("{} bytes", slot.byte_len),
-                format!("{} bytes", bytes.len()),
-            ));
-        }
-    }
-
-    Ok(())
 }
 
 /// One buffered frame slot value.
@@ -451,7 +311,7 @@ pub(crate) fn materialize_value(
     heap: &mut Heap,
     shared: &SharedHeap,
     shared_cache: &mut AllocationCache,
-    shared_gc: &GcWorker,
+    shared_mark_worker: &SharedMarkWorker,
     value: FrameValue,
 ) -> Result<program::Value, Error> {
     match value.body {
@@ -462,23 +322,23 @@ pub(crate) fn materialize_value(
             }
 
             let layout_id = program
-                .layout_id_for_type(program.types().type_id(value.ty))
+                .layout_id_for_type(value.ty)
                 .ok_or(Error::invalid_instruction())?;
             let shape = program.allocation_shape(layout_id)?;
 
-            match boundary_address_space(program, value.ty) {
+            match boundary_address_space(program, value.ty)? {
                 AddressSpace::Local => {
-                    let site = heap.options().allocation_site_for_shape(shape);
-                    let reference = heap.allocate_bytes(site, shape.trace_map, &bytes)?;
+                    let plan = heap.options().allocation_plan_for_shape(shape);
+                    let reference = heap.allocate_bytes(plan, shape.trace_map, &bytes)?;
 
                     Ok(program::Value::HeapReference(reference))
                 }
                 AddressSpace::Shared => {
-                    let site = shared.options().allocation_site_for_shape(shape);
+                    let plan = shared.options().allocation_plan_for_shape(shape);
                     let reference = shared.allocate_bytes(
-                        shared_gc,
+                        shared_mark_worker,
                         shared_cache,
-                        site,
+                        plan,
                         shape.trace_map,
                         &bytes,
                         program.trace_table(),
@@ -495,15 +355,14 @@ pub(crate) fn materialize_value(
 /// Materialize one frame-backed scalar when the engine boundary can carry it.
 fn materialize_scalar_bytes(
     program: &Program,
-    ty: mir::LocalNodeId<mir::Type>,
+    ty: TypeId,
     bytes: &[u8],
 ) -> Result<Option<program::Value>, Error> {
-    let ty = program.types().repr_type(program.types().type_id(ty));
-    let Some(mir::Type::Int { width, is_signed }) = program.types().get(ty) else {
+    let Some(ScalarFormat::Int { width, is_signed }) = program.scalar_format(ty) else {
         return Ok(None);
     };
 
-    if *width > 128 {
+    if width > 128 {
         return Err(Error::type_mismatch(
             "engine boundary integer up to 128 bits",
             format!("{width}-bit integer"),
@@ -514,19 +373,13 @@ fn materialize_scalar_bytes(
     raw[..bytes.len()].copy_from_slice(bytes);
     let raw = u128::from_le_bytes(raw);
 
-    if *is_signed {
-        let value = sign_extend_i128(raw, *width);
+    if is_signed {
+        let value = sign_extend_i128(raw, width);
 
-        return Ok(Some(program::Value::Int {
-            value,
-            width: *width,
-        }));
+        return Ok(Some(program::Value::Int { value, width }));
     }
 
-    Ok(Some(program::Value::UInt {
-        value: raw,
-        width: *width,
-    }))
+    Ok(Some(program::Value::UInt { value: raw, width }))
 }
 
 /// Sign-extend an integer with the given bit width into i128.
@@ -541,15 +394,24 @@ fn sign_extend_i128(value: u128, width: u16) -> i128 {
 }
 
 /// Return the address space used to package one non-cell boundary value.
-fn boundary_address_space(program: &Program, ty: mir::LocalNodeId<mir::Type>) -> AddressSpace {
-    let ty = program.types().repr_type(program.types().type_id(ty));
+fn boundary_address_space(program: &Program, ty: TypeId) -> Result<AddressSpace, Error> {
+    let layout = program
+        .layout(ty)
+        .ok_or_else(|| Error::invalid_program(format!("missing boundary layout for {ty:?}")))?;
 
-    match program.types().get(ty) {
-        Some(mir::Type::Slice { kind, space, .. }) => {
-            address_space_from_reference(space.clone(), *kind)
+    let address_space = match &layout.shape {
+        program::LayoutShape::Reference(reference) => {
+            reference.address_space().ok_or_else(|| {
+                Error::invalid_program(format!("missing reference address space for {ty:?}"))
+            })?
         }
+        program::LayoutShape::Slice(slice) => slice.data.address_space().ok_or_else(|| {
+            Error::invalid_program(format!("missing slice address space for {ty:?}"))
+        })?,
         _ => AddressSpace::Local,
-    }
+    };
+
+    Ok(address_space)
 }
 
 /// Dematerialize one engine boundary value into frame representation.
@@ -557,10 +419,10 @@ pub(crate) fn dematerialize_value(
     program: &Program,
     heap: &Heap,
     shared: &SharedHeap,
-    ty: mir::LocalNodeId<mir::Type>,
+    ty: TypeId,
     value: &program::Value,
 ) -> Result<FrameValue, Error> {
-    if !program.is_cell_type(program.types().type_id(ty)) {
+    if !program.is_cell_type(ty) {
         return dematerialize_bytes(program, heap, shared, ty, value);
     }
 
@@ -582,12 +444,58 @@ pub(crate) fn dematerialize_value(
     Ok(FrameValue::cell(ty, cell))
 }
 
+/// Return the lowered move slot for one program frame slot.
+pub(crate) fn move_slot_from_frame_slot(program: &Program, slot: &FrameSlot) -> MoveSlot {
+    MoveSlot {
+        ty: slot.ty,
+        offset: slot.offset,
+        byte_len: slot.byte_len,
+        is_cell: program.frame_slot_is_cell(slot),
+    }
+}
+
+/// Store one two-field frame result in field order.
+pub(crate) fn store_frame_pair(
+    activation: &mut Activation<'_>,
+    destination: MoveSlot,
+    first: Cell,
+    second: Cell,
+) -> Result<(), Error> {
+    let layout = activation.require_layout(destination.ty)?.clone();
+    let first_field = layout
+        .field_at(0)
+        .ok_or_else(|| Error::type_mismatch("2-field result", format!("{layout:?}")))?;
+    let second_field = layout
+        .field_at(1)
+        .ok_or_else(|| Error::type_mismatch("2-field result", format!("{layout:?}")))?;
+
+    let first_layout = require_cell_layout(&activation.machine.program, first_field.ty)?;
+    let second_layout = require_cell_layout(&activation.machine.program, second_field.ty)?;
+    let first_bytes = encode_cell_bytes(
+        first_layout,
+        first,
+        activation.machine.program.pointer_bytes(),
+    );
+    let second_bytes = encode_cell_bytes(
+        second_layout,
+        second,
+        activation.machine.program.pointer_bytes(),
+    );
+
+    let first_offset = destination.offset + first_field.offset;
+    let second_offset = destination.offset + second_field.offset;
+    activation.store_frame_bytes_at(first_offset, first_bytes.as_slice());
+    activation.store_frame_bytes_at(second_offset, second_bytes.as_slice());
+
+    Ok(())
+}
+
 /// Dematerialize one engine boundary value into frame bytes.
 fn dematerialize_bytes(
     program: &Program,
     heap: &Heap,
     shared: &SharedHeap,
-    ty: mir::LocalNodeId<mir::Type>,
+    ty: TypeId,
     value: &program::Value,
 ) -> Result<FrameValue, Error> {
     if let Some(bytes) = dematerialize_scalar_bytes(program, ty, value)? {
@@ -595,11 +503,11 @@ fn dematerialize_bytes(
     }
 
     let byte_len = program
-        .type_byte_len(program.types().type_id(ty))
+        .type_byte_len(ty)
         .ok_or(Error::invalid_instruction())?;
     let mut bytes = vec![0u8; byte_len];
 
-    match (boundary_address_space(program, ty), value) {
+    match (boundary_address_space(program, ty)?, value) {
         (AddressSpace::Local, program::Value::HeapReference(reference)) => {
             let address = heap.heap_base_address() + reference.offset();
 
@@ -624,15 +532,14 @@ fn dematerialize_bytes(
 /// Dematerialize one engine boundary scalar into frame bytes.
 fn dematerialize_scalar_bytes(
     program: &Program,
-    ty: mir::LocalNodeId<mir::Type>,
+    ty: TypeId,
     value: &program::Value,
 ) -> Result<Option<Box<[u8]>>, Error> {
-    let ty = program.types().repr_type(program.types().type_id(ty));
-    let Some(mir::Type::Int { width, is_signed }) = program.types().get(ty) else {
+    let Some(ScalarFormat::Int { width, is_signed }) = program.scalar_format(ty) else {
         return Ok(None);
     };
 
-    let byte_len = (*width as usize).div_ceil(8);
+    let byte_len = (width as usize).div_ceil(8);
     let raw = match (is_signed, value) {
         (
             true,
@@ -640,14 +547,14 @@ fn dematerialize_scalar_bytes(
                 value,
                 width: value_width,
             },
-        ) if value_width == width => *value as u128,
+        ) if *value_width == width => *value as u128,
         (
             false,
             program::Value::UInt {
                 value,
                 width: value_width,
             },
-        ) if value_width == width => *value,
+        ) if *value_width == width => *value,
         _ => {
             return Err(Error::type_mismatch(
                 format!("{width}-bit integer"),
@@ -676,110 +583,73 @@ fn copy_address_to_slice(address: usize, destination: &mut [u8]) {
 /// Materialize one cell into one engine boundary value.
 pub(crate) fn materialize_cell(
     program: &Program,
-    ty: mir::LocalNodeId<mir::Type>,
+    ty: TypeId,
     value: Cell,
 ) -> Result<program::Value, Error> {
-    match program.value_shape(program.types().type_id(ty)) {
-        Some(ValueShape::Void) => Ok(program::Value::Void),
-        Some(ValueShape::Bool) => Ok(program::Value::Bool(value.as_bool())),
-        Some(ValueShape::Int {
+    let Some(layout) = program.layout(ty) else {
+        return Err(Error::type_mismatch(
+            "cell value layout",
+            format!("missing layout for {ty:?}"),
+        ));
+    };
+
+    match &layout.shape {
+        program::LayoutShape::None => Ok(program::Value::Void),
+        program::LayoutShape::Scalar(ScalarFormat::Boolean) => {
+            Ok(program::Value::Bool(value.as_bool()))
+        }
+        program::LayoutShape::Scalar(ScalarFormat::Int {
             width,
-            signed: true,
+            is_signed: true,
         }) => Ok(program::Value::Int {
             value: value.as_i64() as i128,
-            width,
+            width: *width,
         }),
-        Some(ValueShape::Int {
+        program::LayoutShape::Scalar(ScalarFormat::Int {
             width,
-            signed: false,
+            is_signed: false,
         }) => Ok(program::Value::UInt {
             value: value.as_u64() as u128,
-            width,
+            width: *width,
         }),
-        Some(ValueShape::Float {
+        program::LayoutShape::Scalar(ScalarFormat::Float {
             format: mir::FloatType::Float16,
         }) => Ok(program::Value::float16_bits(value.bits() as u16)),
-        Some(ValueShape::Float {
+        program::LayoutShape::Scalar(ScalarFormat::Float {
             format: mir::FloatType::Bfloat16,
         }) => Ok(program::Value::bfloat16_bits(value.bits() as u16)),
-        Some(ValueShape::Float {
+        program::LayoutShape::Scalar(ScalarFormat::Float {
             format: mir::FloatType::Float32,
         }) => Ok(program::Value::Float32 {
             bits: value.as_f32().to_bits(),
         }),
-        Some(ValueShape::Float {
+        program::LayoutShape::Scalar(ScalarFormat::Float {
             format: mir::FloatType::Float64,
         }) => Ok(program::Value::Float64 {
             bits: value.as_f64().to_bits(),
         }),
-        Some(ValueShape::Char) => {
-            let value = value.as_char().ok_or(Error::invalid_instruction())?;
-
-            Ok(program::Value::Char(value))
+        program::LayoutShape::Reference(reference)
+            if reference.address_space() == Some(AddressSpace::Local) =>
+        {
+            Ok(program::Value::HeapReference(value.as_heap_reference()))
         }
-        Some(ValueShape::Pointer {
-            address_space: AddressSpace::Local,
-            ..
-        }) => Ok(program::Value::HeapReference(value.as_heap_reference())),
-        Some(ValueShape::Pointer {
-            address_space: AddressSpace::Shared,
-            ..
-        }) => Ok(program::Value::SharedHeapReference(
-            value.as_shared_heap_reference(),
-        )),
-        Some(ValueShape::Pointer {
-            address_space: AddressSpace::Raw,
-            ..
-        }) => Ok(program::Value::Address(value.as_address())),
+        program::LayoutShape::Reference(reference)
+            if reference.address_space() == Some(AddressSpace::Shared) =>
+        {
+            Ok(program::Value::SharedHeapReference(
+                value.as_shared_heap_reference(),
+            ))
+        }
+        program::LayoutShape::Reference(reference)
+            if reference.address_space() == Some(AddressSpace::Raw) =>
+        {
+            Ok(program::Value::Address(value.as_address()))
+        }
         _ => Err(Error::type_mismatch(
             "cell value",
-            format!("{:?}", program.value_shape(program.types().type_id(ty))),
+            format!("{:?}", layout.shape),
         )),
     }
-}
-
-/// Move one frame value into another frame.
-pub(crate) fn move_frame_value(
-    program: &Program,
-    source_frame: &Frame,
-    source: mir::Value,
-    dest_frame: &mut Frame,
-    destination: mir::Value,
-) -> Result<(), Error> {
-    let source_layout = program
-        .frame_layout_by_id(source_frame.frame_layout())
-        .ok_or(Error::invalid_instruction())?;
-    let dest_layout = program
-        .frame_layout_by_id(dest_frame.frame_layout())
-        .ok_or(Error::invalid_instruction())?;
-
-    let source_slot = source_layout
-        .value(source.0)
-        .ok_or(Error::invalid_instruction())?;
-    let dest_slot = dest_layout
-        .value(destination.0)
-        .ok_or(Error::invalid_instruction())?;
-
-    let source_is_cell = program.frame_slot_is_cell(source_slot);
-    let dest_is_cell = program.frame_slot_is_cell(dest_slot);
-    if source_slot.byte_len != dest_slot.byte_len || source_is_cell != dest_is_cell {
-        return Err(Error::type_mismatch(
-            format!("{} bytes, cell={dest_is_cell}", dest_slot.byte_len),
-            format!("{} bytes, cell={source_is_cell}", source_slot.byte_len),
-        ));
-    }
-
-    if dest_is_cell {
-        let value = source_frame.read_cell(source_slot);
-        dest_frame.write_cell(dest_slot, value);
-
-        return Ok(());
-    }
-
-    let bytes = source_frame.slot_bytes(source_slot);
-    dest_frame.slot_bytes_mut(dest_slot).copy_from_slice(bytes);
-
-    Ok(())
 }
 
 /// Move one lowered frame slot into another frame.
@@ -808,30 +678,6 @@ fn move_frame_slot(
 
     let bytes = move_slot_bytes(source_frame, source);
     move_slot_bytes_mut(dest_frame, destination).copy_from_slice(bytes);
-
-    Ok(())
-}
-
-/// Write void to one frame value.
-fn store_void_value(
-    program: &Program,
-    frame: &mut Frame,
-    destination: mir::Value,
-) -> Result<(), Error> {
-    let frame_layout = program
-        .frame_layout_by_id(frame.frame_layout())
-        .ok_or(Error::invalid_instruction())?;
-    let slot = frame_layout
-        .value(destination.0)
-        .ok_or(Error::invalid_instruction())?;
-
-    if program.frame_slot_is_cell(slot) {
-        frame.write_cell(slot, Cell::ZERO);
-
-        return Ok(());
-    }
-
-    frame.slot_bytes_mut(slot).fill(0);
 
     Ok(())
 }
@@ -865,12 +711,11 @@ fn move_slot_bytes_mut(frame: &mut Frame, slot: MoveSlot) -> &mut [u8] {
 
 /// Move call arguments between two frames.
 pub(crate) fn move_arguments_between_frames(
-    program: &Program,
     source_frame: &Frame,
     dest_frame: &mut Frame,
-    param_pool: &[mir::Value],
+    param_pool: &[MoveSlot],
     params: ArgumentRange,
-    argument_pool: &[mir::Value],
+    argument_pool: &[MoveSlot],
     arguments: ArgumentRange,
 ) -> Result<(), Error> {
     let argument_slice = arguments.slice(argument_pool);
@@ -878,12 +723,12 @@ pub(crate) fn move_arguments_between_frames(
 
     for (index, param) in param_slice.iter().enumerate() {
         let Some(argument) = argument_slice.get(index) else {
-            store_void_value(program, dest_frame, *param)?;
+            store_void_slot(dest_frame, *param);
 
             continue;
         };
 
-        move_frame_value(program, source_frame, *argument, dest_frame, *param)?;
+        move_frame_slot(source_frame, *argument, dest_frame, *param)?;
     }
 
     Ok(())
@@ -1014,16 +859,14 @@ pub(crate) fn move_values_within_frame(
 
 /// Copy one ordered argument list out of the current frame.
 pub(crate) fn load_arguments(
-    program: &Program,
-    frames: &[Frame],
     frame: &Frame,
-    argument_pool: &[mir::Value],
+    argument_pool: &[MoveSlot],
     arguments: ArgumentRange,
 ) -> Result<SmallVec<[FrameValue; 16]>, Error> {
     let argument_slice = arguments.slice(argument_pool);
     let mut collected_arguments = SmallVec::with_capacity(argument_slice.len());
     for argument in argument_slice {
-        let value = load_frame_value(program, frames, frame, *argument)?;
+        let value = load_frame_slot_value(frame, *argument);
 
         collected_arguments.push(value);
     }
@@ -1053,9 +896,8 @@ pub(crate) fn load_moved_arguments(
 
 /// Write owned frame values into parameter slots.
 pub(crate) fn store_parameters(
-    program: &Program,
     frame: &mut Frame,
-    param_pool: &[mir::Value],
+    param_pool: &[MoveSlot],
     params: ArgumentRange,
     arguments: &[FrameValue],
 ) -> Result<(), Error> {
@@ -1065,12 +907,46 @@ pub(crate) fn store_parameters(
         let value = match arguments.get(index).cloned() {
             Some(value) => value,
             None => {
-                let ty = frame_value_type(program, frame, *param)?;
+                let ty = param.ty;
                 FrameValue::cell(ty, Cell::ZERO)
             }
         };
 
-        store_frame_value(program, frame, *param, value)?;
+        store_frame_slot_value(frame, *param, value)?;
+    }
+
+    Ok(())
+}
+
+/// Store one owned frame value into a lowered frame slot.
+pub(crate) fn store_frame_slot_value(
+    frame: &mut Frame,
+    destination: MoveSlot,
+    value: FrameValue,
+) -> Result<(), Error> {
+    match (destination.is_cell, value.body) {
+        (true, FrameValueBody::Cell(value)) => frame.write_cell_at(destination.offset, value),
+        (false, FrameValueBody::Bytes(bytes)) if bytes.len() == destination.byte_len as usize => {
+            move_slot_bytes_mut(frame, destination).copy_from_slice(&bytes);
+        }
+        (false, FrameValueBody::Cell(value)) => {
+            return Err(Error::type_mismatch(
+                "byte frame value",
+                format!("{value:?}"),
+            ));
+        }
+        (true, FrameValueBody::Bytes(bytes)) => {
+            return Err(Error::type_mismatch(
+                "cell frame value",
+                format!("{} bytes", bytes.len()),
+            ));
+        }
+        (false, FrameValueBody::Bytes(bytes)) => {
+            return Err(Error::type_mismatch(
+                format!("{} frame bytes", destination.byte_len),
+                format!("{} frame bytes", bytes.len()),
+            ));
+        }
     }
 
     Ok(())

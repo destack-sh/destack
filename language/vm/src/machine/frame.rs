@@ -5,8 +5,10 @@ use destack_mir as mir;
 use super::Activation;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::{Cell, FramePointer};
-use destack_program::vm::{ArgumentRange, Function, ProgramPoint};
-use destack_program::{FrameImage, FunctionId, Program};
+use destack_program::vm::{ArgumentRange, Function, MoveSlot, ProgramPoint};
+use destack_program::{
+    FrameImage, FrameLayout, FrameLayoutId, FrameSlot, FrameStateId, FunctionId, Program,
+};
 
 /// Call frame in the VM machine.
 ///
@@ -16,13 +18,13 @@ pub struct Frame {
     /// Current function id.
     pub(crate) function: FunctionId,
     /// The logical frame layout id.
-    pub(crate) frame_layout: mir::FrameLayoutId,
+    pub(crate) frame_layout: FrameLayoutId,
     /// The current block index in the lowered function.
     pub(crate) block: u32,
     /// Program counter within the current block.
     pub(crate) pc: usize,
     /// The caller frame state after one callee returns.
-    pub(crate) return_state: Option<mir::FrameStateId>,
+    pub(crate) return_state: Option<FrameStateId>,
     /// The byte offset in the machine stack arena.
     pub(crate) stack_offset: usize,
     /// The frame byte width.
@@ -39,7 +41,7 @@ impl Frame {
     pub(crate) fn new(
         function: &Function,
         block: u32,
-        layout: &mir::FrameLayout,
+        layout: &FrameLayout,
         stack_offset: usize,
         base: usize,
     ) -> Self {
@@ -63,7 +65,7 @@ impl Frame {
 
     /// Return the logical frame layout id.
     #[inline(always)]
-    pub(crate) fn frame_layout(&self) -> mir::FrameLayoutId {
+    pub(crate) fn frame_layout(&self) -> FrameLayoutId {
         self.frame_layout
     }
 
@@ -114,7 +116,7 @@ impl Frame {
 
     /// Return a pointer to one frame slot.
     #[inline(always)]
-    pub(crate) fn slot_address(&self, slot: &mir::FrameSlot) -> usize {
+    pub(crate) fn slot_address(&self, slot: &FrameSlot) -> usize {
         self.base_address() + slot.offset as usize
     }
 
@@ -142,7 +144,7 @@ impl Frame {
 
     /// Read one cell from a slot.
     #[inline(always)]
-    pub(crate) fn read_cell(&self, slot: &mir::FrameSlot) -> Cell {
+    pub(crate) fn read_cell(&self, slot: &FrameSlot) -> Cell {
         debug_assert!(slot.byte_len as usize >= Cell::BYTE_LEN);
         debug_assert_eq!((self.slot_address(slot) % mem::align_of::<Cell>()), 0);
 
@@ -152,7 +154,7 @@ impl Frame {
 
     /// Write one cell into a slot.
     #[inline(always)]
-    pub(crate) fn write_cell(&mut self, slot: &mir::FrameSlot, value: Cell) {
+    pub(crate) fn write_cell(&mut self, slot: &FrameSlot, value: Cell) {
         debug_assert!(slot.byte_len as usize >= Cell::BYTE_LEN);
         debug_assert_eq!((self.slot_address(slot) % mem::align_of::<Cell>()), 0);
 
@@ -163,7 +165,7 @@ impl Frame {
     }
 
     /// Borrow one slot byte range.
-    pub(crate) fn slot_bytes(&self, slot: &mir::FrameSlot) -> &[u8] {
+    pub(crate) fn slot_bytes(&self, slot: &FrameSlot) -> &[u8] {
         let start = slot.offset as usize;
         let end = start + slot.byte_len as usize;
 
@@ -171,7 +173,7 @@ impl Frame {
     }
 
     /// Borrow one slot byte range mutably.
-    pub(crate) fn slot_bytes_mut(&mut self, slot: &mir::FrameSlot) -> &mut [u8] {
+    pub(crate) fn slot_bytes_mut(&mut self, slot: &FrameSlot) -> &mut [u8] {
         let start = slot.offset as usize;
         let end = start + slot.byte_len as usize;
 
@@ -181,7 +183,7 @@ impl Frame {
     /// Return the address of one local value.
     pub(crate) fn local_address(
         &self,
-        layout: &mir::FrameLayout,
+        layout: &FrameLayout,
         local: mir::LocalNodeId<mir::Local>,
     ) -> Result<usize, Error> {
         let slot = layout
@@ -192,10 +194,7 @@ impl Frame {
     }
 
     /// Return the function environment for this frame.
-    pub(crate) fn load_environment(
-        &self,
-        layout: &mir::FrameLayout,
-    ) -> Result<Option<Cell>, Error> {
+    pub(crate) fn load_environment(&self, layout: &FrameLayout) -> Result<Option<Cell>, Error> {
         let Some(slot) = layout.environment() else {
             return Ok(None);
         };
@@ -206,7 +205,7 @@ impl Frame {
     /// Store the function environment for this frame.
     pub(crate) fn store_environment(
         &mut self,
-        layout: &mir::FrameLayout,
+        layout: &FrameLayout,
         value: Option<Cell>,
     ) -> Result<(), Error> {
         let Some(slot) = layout.environment() else {
@@ -220,7 +219,7 @@ impl Frame {
     }
 
     /// Clear all values (but keep locals).
-    pub(crate) fn clear_values(&mut self, layout: &mir::FrameLayout) {
+    pub(crate) fn clear_values(&mut self, layout: &FrameLayout) {
         for slot in layout.values() {
             self.slot_bytes_mut(slot).fill(0);
         }
@@ -257,13 +256,6 @@ impl Frame {
                 "missing frame state for image point: {point:?}"
             )))
         })?;
-        program
-            .mir_point_for_frame_state(frame_state)
-            .ok_or_else(|| {
-                RuntimeError::new(Error::internal(format!(
-                    "missing MIR point for frame state: {frame_state:?}"
-                )))
-            })?;
 
         Ok(FrameImage {
             frame_state,
@@ -312,54 +304,6 @@ impl Frame {
 }
 
 impl Activation<'_> {
-    /// Return the MIR type stored in one SSA value.
-    #[inline]
-    pub(crate) fn value_type(
-        &self,
-        value: mir::Value,
-    ) -> Result<mir::LocalNodeId<mir::Type>, Error> {
-        let slot = self
-            .frame_layout()
-            .value(value.0)
-            .ok_or(Error::invalid_instruction())?;
-
-        Ok(slot.ty)
-    }
-
-    /// Return the frame slot for one SSA value.
-    #[inline]
-    pub(crate) fn value_slot(&self, value: mir::Value) -> Result<&mir::FrameSlot, Error> {
-        self.frame_layout()
-            .value(value.0)
-            .ok_or(Error::invalid_instruction())
-    }
-
-    /// Return whether one SSA value is stored as one cell.
-    #[inline]
-    pub(crate) fn value_is_cell(&self, value: mir::Value) -> Result<bool, Error> {
-        let slot = self.value_slot(value)?;
-
-        Ok(self.machine.program.frame_slot_is_cell(slot))
-    }
-
-    /// Borrow one SSA value's bytes.
-    #[inline]
-    pub(crate) fn value_bytes(&self, value: mir::Value) -> Result<&[u8], Error> {
-        let slot = self.value_slot(value)?;
-        let frame = self.active_frame();
-
-        Ok(frame.slot_bytes(slot))
-    }
-
-    /// Borrow one SSA value's bytes mutably.
-    #[inline]
-    pub(crate) fn value_bytes_mut(&mut self, value: mir::Value) -> Result<&mut [u8], Error> {
-        let slot = self.value_slot(value)?.clone();
-        let frame = self.active_frame_mut();
-
-        Ok(frame.slot_bytes_mut(&slot))
-    }
-
     /// Move the machine to another live frame.
     pub(crate) fn enter_frame(&mut self, frame_index: usize) -> Result<(), Error> {
         self.bind_frame(frame_index)
@@ -387,7 +331,7 @@ impl Activation<'_> {
 
     /// Borrow the current frame layout.
     #[inline(always)]
-    pub(crate) fn frame_layout(&self) -> &mir::FrameLayout {
+    pub(crate) fn frame_layout(&self) -> &FrameLayout {
         let layout = self.machine.program.frame_layout_by_id(self.frame_layout);
         debug_assert!(layout.is_some());
 
@@ -445,22 +389,6 @@ impl Activation<'_> {
             .map_err(|_| Error::stack_overflow())?;
 
         Ok(address)
-    }
-
-    /// Load one SSA value as a VM cell.
-    #[inline(always)]
-    pub(crate) fn load_value(&self, v: mir::Value) -> Cell {
-        let slot = self.value_slot_unchecked(v);
-
-        // cell values live inline in the frame
-        if self.machine.program.frame_slot_is_cell(slot) {
-            return self.read_frame_cell(slot.offset);
-        }
-
-        // aggregate SSA values are represented by their frame address
-        Cell::frame_pointer(FramePointer::from_address(
-            self.frame_base + slot.offset as usize,
-        ))
     }
 
     /// Read one cell by frame byte offset.
@@ -541,31 +469,6 @@ impl Activation<'_> {
         unsafe { ptr::read(address as *const Cell) }
     }
 
-    /// Return the frame slot for one SSA value without bounds checks.
-    #[inline(always)]
-    fn value_slot_unchecked(&self, v: mir::Value) -> &mir::FrameSlot {
-        let index = v.0 as usize;
-        let layout = self.frame_layout();
-        debug_assert!(
-            index < layout.values().len(),
-            "ssa value out of bounds: {v:?}"
-        );
-
-        // SAFETY: lower only emits SSA values present in the active frame layout
-        unsafe { layout.values().get_unchecked(index) }
-    }
-
-    /// Store one cell into an SSA value.
-    #[inline(always)]
-    pub(crate) fn store_value_cell(&mut self, v: mir::Value, val: Cell) {
-        let slot = self.value_slot_unchecked(v);
-        let is_cell = self.machine.program.frame_slot_is_cell(slot);
-        let offset = slot.offset;
-
-        debug_assert!(is_cell, "attempted cell write into frame bytes");
-        self.write_frame_cell(offset, val);
-    }
-
     /// Write one cell by frame byte offset.
     #[inline(always)]
     pub(crate) fn store_cell_at(&mut self, offset: u32, val: Cell) {
@@ -607,7 +510,7 @@ impl Activation<'_> {
 
     /// Return the argument slice for the given range.
     #[inline(always)]
-    pub(crate) fn argument_slice(&self, range: ArgumentRange) -> &[mir::Value] {
+    pub(crate) fn argument_slice(&self, range: ArgumentRange) -> &[MoveSlot] {
         let function = self
             .machine
             .program

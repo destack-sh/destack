@@ -4,9 +4,8 @@ use crate::Cell;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Continuation, Outcome, Stack};
 use crate::options::LimitOptions;
-use destack_mir as mir;
 use destack_program::vm::{ArgumentRange, CallTarget, Function, MoveRange};
-use destack_program::{FunctionId, Program, TypeId};
+use destack_program::{FrameStateId, FunctionId, Program, TypeId};
 
 use super::frame::move_values_within_frame;
 
@@ -48,7 +47,7 @@ pub(crate) enum Transfer {
         /// Optional function environment to pass.
         env: Option<Cell>,
         /// The continuation frame state.
-        target_state: mir::FrameStateId,
+        target_state: FrameStateId,
     },
     /// Tail call another function.
     TailCall {
@@ -70,7 +69,7 @@ pub(crate) enum Transfer {
         /// The yielded value type.
         source_type: TypeId,
         /// The frame state captured in the continuation.
-        frame_state: mir::FrameStateId,
+        frame_state: FrameStateId,
     },
     /// Return from current function.
     Return(Cell),
@@ -83,7 +82,7 @@ impl Activation<'_> {
     pub(crate) fn capture_continuation(
         &mut self,
         resume_frame_index: usize,
-        frame_state: mir::FrameStateId,
+        frame_state: FrameStateId,
         limits: LimitOptions,
     ) -> RuntimeResult<Continuation> {
         // move execution stack into the continuation
@@ -132,16 +131,12 @@ impl Activation<'_> {
         limits: LimitOptions,
         value: Cell,
         source_type: TypeId,
-        frame_state: mir::FrameStateId,
+        frame_state: FrameStateId,
     ) -> RuntimeResult<Outcome> {
         // capture the logical yield position first
         let resume_frame_index = self.machine.frames.len() - 1;
 
         // capture the yielded result before moving the stack into the continuation
-        let source_type = program
-            .types()
-            .mir_type_id(source_type)
-            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let value = super::frame::frame_value_from_cell(
             program,
             self.machine.frames.as_slice(),
@@ -154,7 +149,7 @@ impl Activation<'_> {
                 self.heap,
                 self.shared,
                 self.shared_cache,
-                self.shared_gc,
+                self.shared_mark_worker,
                 value,
             )
         })

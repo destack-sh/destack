@@ -6,8 +6,8 @@ use crate::{Cell, StackPointer};
 use super::Transfer;
 use destack_heap::{HeapError, HeapReferenceKind};
 use destack_program::vm::{
-    AllocationBranch, AllocationSiteId, Edge, Instruction, SliceAllocationBranch,
-    SliceProjectionId, SmallAllocationSiteId,
+    AllocationBranch, AllocationPlanId, Edge, Instruction, SliceAllocationBranch,
+    SliceProjectionId, SmallAllocationPlanId,
 };
 
 /// Decode one power-of-two alignment from an instruction field.
@@ -48,9 +48,9 @@ pub(crate) fn execute_allocate_heap_zeroed(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = AllocationSiteId(instruction.b);
+    let allocation = AllocationPlanId(instruction.b);
 
-    // allocate from the allocation site
+    // allocate from the allocation plan
     let reference = activation.allocate_zeroed_heap(allocation)?;
 
     // store result
@@ -66,7 +66,7 @@ pub(crate) fn execute_allocate_heap_uninit(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = AllocationSiteId(instruction.b);
+    let allocation = AllocationPlanId(instruction.b);
 
     let reference = activation.allocate_uninit_heap(allocation)?;
     activation.store_cell_at(dest, Cell::heap_reference(reference));
@@ -81,9 +81,9 @@ pub(crate) fn execute_allocate_heap_small_noscan_zeroed(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = SmallAllocationSiteId(instruction.b);
+    let allocation = SmallAllocationPlanId(instruction.b);
 
-    // allocate from the small allocation site
+    // allocate from the small allocation plan
     let reference = activation.allocate_zeroed_heap_small_noscan(allocation)?;
 
     // store result
@@ -99,7 +99,7 @@ pub(crate) fn execute_allocate_heap_small_noscan_uninit(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = SmallAllocationSiteId(instruction.b);
+    let allocation = SmallAllocationPlanId(instruction.b);
 
     let reference = activation.allocate_uninit_heap_small_noscan(allocation)?;
     activation.store_cell_at(dest, Cell::heap_reference(reference));
@@ -114,9 +114,9 @@ pub(crate) fn execute_allocate_heap_small_scan_zeroed(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = SmallAllocationSiteId(instruction.b);
+    let allocation = SmallAllocationPlanId(instruction.b);
 
-    // allocate from the small allocation site
+    // allocate from the small allocation plan
     let reference = activation.allocate_zeroed_heap_small_scan(allocation)?;
 
     // store result
@@ -132,7 +132,7 @@ pub(crate) fn execute_allocate_heap_small_scan_uninit(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = SmallAllocationSiteId(instruction.b);
+    let allocation = SmallAllocationPlanId(instruction.b);
 
     let reference = activation.allocate_uninit_heap_small_scan(allocation)?;
     activation.store_cell_at(dest, Cell::heap_reference(reference));
@@ -147,9 +147,9 @@ pub(crate) fn execute_allocate_heap_small_shared_edge_zeroed(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = SmallAllocationSiteId(instruction.b);
+    let allocation = SmallAllocationPlanId(instruction.b);
 
-    // allocate from the small allocation site
+    // allocate from the small allocation plan
     let reference = activation.allocate_zeroed_heap_small_shared_edge(allocation)?;
 
     // store result
@@ -165,7 +165,7 @@ pub(crate) fn execute_allocate_heap_small_shared_edge_uninit(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = SmallAllocationSiteId(instruction.b);
+    let allocation = SmallAllocationPlanId(instruction.b);
 
     let reference = activation.allocate_uninit_heap_small_shared_edge(allocation)?;
     activation.store_cell_at(dest, Cell::heap_reference(reference));
@@ -179,9 +179,9 @@ pub(crate) fn execute_allocate_shared_heap_zeroed(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = AllocationSiteId(instruction.b);
+    let allocation = AllocationPlanId(instruction.b);
 
-    // allocate from the allocation site
+    // allocate from the allocation plan
     let reference = activation.allocate_zeroed_shared_heap(allocation)?;
 
     // store result
@@ -196,7 +196,7 @@ pub(crate) fn execute_allocate_shared_heap_uninit(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = AllocationSiteId(instruction.b);
+    let allocation = AllocationPlanId(instruction.b);
 
     let reference = activation.allocate_uninit_shared_heap(allocation)?;
     activation.store_cell_at(dest, Cell::shared_heap_reference(reference));
@@ -210,9 +210,9 @@ pub(crate) fn execute_allocate_shared_heap_small_zeroed(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = SmallAllocationSiteId(instruction.b);
+    let allocation = SmallAllocationPlanId(instruction.b);
 
-    // allocate from the small allocation site
+    // allocate from the small allocation plan
     let reference = activation.allocate_zeroed_shared_heap_small(allocation)?;
 
     // store result
@@ -227,7 +227,7 @@ pub(crate) fn execute_allocate_shared_heap_small_uninit(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = SmallAllocationSiteId(instruction.b);
+    let allocation = SmallAllocationPlanId(instruction.b);
 
     let reference = activation.allocate_uninit_shared_heap_small(allocation)?;
     activation.store_cell_at(dest, Cell::shared_heap_reference(reference));
@@ -296,7 +296,7 @@ fn execute_allocate_branch<const IS_SHARED: bool, const IS_ZEROED: bool>(
 #[inline(always)]
 fn allocate_branch_payload<const IS_SHARED: bool, const IS_ZEROED: bool>(
     activation: &mut Activation<'_>,
-    allocation: AllocationSiteId,
+    allocation: AllocationPlanId,
 ) -> Result<Cell, Error> {
     if IS_SHARED && IS_ZEROED {
         activation
@@ -325,7 +325,7 @@ pub(crate) fn execute_allocate_slice_zeroed(
     // decode fixed fields
     let dest = instruction.a;
     let length = instruction.b;
-    let element = AllocationSiteId(instruction.c);
+    let element = AllocationPlanId(instruction.c);
     let access = SliceProjectionId(instruction.d);
     let access = activation.slice_projection(access);
 
@@ -350,7 +350,7 @@ pub(crate) fn execute_allocate_slice_uninit(
 ) -> Result<(), Error> {
     let dest = instruction.a;
     let length = instruction.b;
-    let element = AllocationSiteId(instruction.c);
+    let element = AllocationPlanId(instruction.c);
     let access = SliceProjectionId(instruction.d);
     let access = activation.slice_projection(access);
 
@@ -372,7 +372,7 @@ pub(crate) fn execute_allocate_shared_slice_zeroed(
     // decode fixed fields
     let dest = instruction.a;
     let length = instruction.b;
-    let element = AllocationSiteId(instruction.c);
+    let element = AllocationPlanId(instruction.c);
     let access = SliceProjectionId(instruction.d);
     let access = activation.slice_projection(access);
 
@@ -397,7 +397,7 @@ pub(crate) fn execute_allocate_shared_slice_uninit(
 ) -> Result<(), Error> {
     let dest = instruction.a;
     let length = instruction.b;
-    let element = AllocationSiteId(instruction.c);
+    let element = AllocationPlanId(instruction.c);
     let access = SliceProjectionId(instruction.d);
     let access = activation.slice_projection(access);
 
@@ -491,7 +491,7 @@ fn execute_allocate_slice_branch<const IS_SHARED: bool, const IS_ZEROED: bool>(
 #[inline(always)]
 fn allocate_slice_branch_payload<const IS_SHARED: bool, const IS_ZEROED: bool>(
     activation: &mut Activation<'_>,
-    allocation: AllocationSiteId,
+    allocation: AllocationPlanId,
     length: usize,
 ) -> Result<Cell, Error> {
     if IS_SHARED && IS_ZEROED {

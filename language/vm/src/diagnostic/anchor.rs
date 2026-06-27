@@ -31,8 +31,8 @@ pub enum DiagnosticAnchor {
 pub struct StackTraceFrame {
     /// The function being executed.
     pub function: FunctionId,
-    /// The block being executed.
-    pub block: LocalNodeId<Block>,
+    /// The executable block index being executed.
+    pub block: u32,
     /// Function name, if available.
     pub function_name: Option<String>,
 }

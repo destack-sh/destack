@@ -1,4 +1,4 @@
-use destack_program::{StaticAddress, StaticId, StaticSpace};
+use destack_program::{GlobalAddress, GlobalId, StaticSpace};
 
 use super::Activation;
 use crate::diagnostic::Error;
@@ -28,20 +28,20 @@ impl Activation<'_> {
         self.shared_static
     }
 
-    /// Return the static address for one global.
+    /// Return the global address for one global.
     #[inline]
-    pub(crate) fn static_address(&self, id: StaticId) -> Option<StaticAddress> {
+    pub(crate) fn global_address(&self, global: GlobalId) -> Option<GlobalAddress> {
         self.local_statics()
-            .address(id)
-            .or_else(|| self.shared_statics().address(id))
-            .or_else(|| self.machine.program.static_address(id))
+            .address(global)
+            .or_else(|| self.shared_statics().address(global))
+            .or_else(|| self.machine.program.global_address(global))
     }
 
     /// Resolve one static byte range to a native address.
     #[inline]
     pub(crate) fn static_native_address(
         &self,
-        address: StaticAddress,
+        address: GlobalAddress,
         byte_len: usize,
     ) -> Result<usize, Error> {
         self.local_statics()
@@ -60,7 +60,7 @@ impl Activation<'_> {
     #[inline]
     pub(crate) fn static_native_address_mut(
         &mut self,
-        address: StaticAddress,
+        address: GlobalAddress,
         byte_len: usize,
     ) -> Result<usize, Error> {
         // prefer mutable local worker statics
@@ -81,12 +81,12 @@ impl Activation<'_> {
 
         // reject writes into immutable local statics
         if self.local_statics().owns_address_range(address, byte_len) {
-            return Err(Error::immutable_global_write(address.id()));
+            return Err(Error::immutable_global_write(address.global()));
         }
 
         // reject writes into immutable shared statics
         if self.shared_statics().owns_address_range(address, byte_len) {
-            return Err(Error::immutable_global_write(address.id()));
+            return Err(Error::immutable_global_write(address.global()));
         }
 
         // reject writes into immutable program constants
@@ -96,7 +96,7 @@ impl Activation<'_> {
             .constants()
             .owns_address_range(address, byte_len)
         {
-            return Err(Error::immutable_global_write(address.id()));
+            return Err(Error::immutable_global_write(address.global()));
         }
 
         Err(Error::invalid_instruction())

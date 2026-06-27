@@ -420,7 +420,7 @@ b1(v3: Pair, v4: int32):
         .machine
         .continuation_image(&continuation)
         .expect("continuation image should capture");
-    let trace_table = machine.machine.trace_table();
+    let program = machine.machine.program_handle();
     let mut heap_roots =
         |visit: &mut dyn FnMut(destack_heap::RootSlot<'_>) -> destack_heap::HeapResult<()>| {
             machine
@@ -432,7 +432,7 @@ b1(v3: Pair, v4: int32):
         };
     let stats = machine
         .heap
-        .collect_full(&mut heap_roots, trace_table.as_ref())
+        .collect_full(&mut heap_roots, program.trace_table())
         .expect("heap should collect");
 
     assert_eq!(stats.live_allocations, 1);

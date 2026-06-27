@@ -1,12 +1,12 @@
 use std::ptr;
 
 use destack_heap::{HeapReference, SharedHeapReference};
-use destack_program::StaticAddress;
+use destack_program::vm::{Projection, SlotProjection};
+use destack_program::{CellLayout, GlobalAddress};
 
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use crate::{Cell, FramePointer, StackPointer};
-use destack_program::vm::{CellLayout, Projection, SlotProjection};
 
 const POINTER_BYTE_LEN: usize = usize::BITS as usize / 8;
 
@@ -19,7 +19,7 @@ fn debug_assert_cell_access(access: Projection) {
 
 /// Return one lowered scalar layout.
 #[inline(always)]
-fn scalar_layout(access: Projection) -> CellLayout {
+fn scalar_format(access: Projection) -> CellLayout {
     debug_assert!(access.cell_layout.is_some());
 
     // SAFETY: scalar projections are lowered with a cell layout and asserted in debug builds
@@ -196,7 +196,7 @@ pub(crate) fn load_raw_scalar_by_layout(
 
     let address = raw_address(pointer.as_address(), access.byte_offset);
 
-    load_scalar_by_layout_at_address(address, scalar_layout(access))
+    load_scalar_by_layout_at_address(address, scalar_format(access))
 }
 
 /// Store one scalar into raw memory.
@@ -209,7 +209,7 @@ pub(crate) fn store_raw_scalar_by_layout(
     debug_assert_cell_access(access);
     let address = raw_address(pointer.as_address(), access.byte_offset);
 
-    store_scalar_by_layout_at_address(address, scalar_layout(access), value);
+    store_scalar_by_layout_at_address(address, scalar_format(access), value);
 }
 
 /// Store bytes into a raw pointer.
@@ -302,11 +302,11 @@ pub(crate) fn load_frame_bytes(
     Ok(())
 }
 
-/// Load bytes from a static address.
+/// Load bytes from a global address.
 #[inline(always)]
 pub(crate) fn load_static_bytes(
     activation: &mut Activation<'_>,
-    address: StaticAddress,
+    address: GlobalAddress,
     access: Projection,
     destination: *mut u8,
     destination_len: usize,
@@ -370,11 +370,11 @@ pub(crate) fn load_stack_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(pointer.address())
 }
 
-/// Load one scalar from a static address.
+/// Load one scalar from a global address.
 #[inline(always)]
 pub(crate) fn load_static_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     activation: &mut Activation<'_>,
-    address: StaticAddress,
+    address: GlobalAddress,
     byte_offset: usize,
 ) -> Result<Cell, Error> {
     let address = address
@@ -439,11 +439,11 @@ pub(crate) fn store_stack_scalar<const BYTE_LEN: usize>(
     store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
 }
 
-/// Store one scalar through a static address.
+/// Store one scalar through a global address.
 #[inline(always)]
 pub(crate) fn store_static_scalar<const BYTE_LEN: usize>(
     activation: &mut Activation<'_>,
-    address: StaticAddress,
+    address: GlobalAddress,
     byte_offset: usize,
     value: Cell,
 ) -> Result<(), Error> {
@@ -468,7 +468,7 @@ pub(crate) fn load_heap_scalar_by_layout(
     debug_assert_cell_access(access);
     let address = local_heap_address(activation, reference, access.byte_offset);
 
-    load_scalar_by_layout_at_address(address, scalar_layout(access))
+    load_scalar_by_layout_at_address(address, scalar_format(access))
 }
 
 /// Load one scalar from a shared heap reference.
@@ -483,7 +483,7 @@ pub(crate) fn load_shared_heap_scalar_by_layout(
     debug_assert_cell_access(access);
     let address = shared_heap_address(activation, reference, access.byte_offset);
 
-    load_scalar_by_layout_at_address(address, scalar_layout(access))
+    load_scalar_by_layout_at_address(address, scalar_format(access))
 }
 
 /// Load one scalar from a stack pointer.
@@ -497,7 +497,7 @@ pub(crate) fn load_stack_scalar_by_layout(
 
     debug_assert_cell_access(access);
 
-    load_scalar_by_layout_at_address(pointer.address(), scalar_layout(access))
+    load_scalar_by_layout_at_address(pointer.address(), scalar_format(access))
 }
 
 /// Load one scalar from a frame pointer.
@@ -511,7 +511,7 @@ pub(crate) fn load_frame_scalar_by_layout(
 
     debug_assert_cell_access(access);
 
-    load_scalar_by_layout_at_address(pointer.address(), scalar_layout(access))
+    load_scalar_by_layout_at_address(pointer.address(), scalar_format(access))
 }
 
 /// Load one physical slot from a frame pointer.
@@ -528,11 +528,11 @@ pub(crate) fn load_frame_slot_by_layout(
     load_scalar_by_layout_at_address(pointer.address(), slot_layout(access))
 }
 
-/// Load one scalar from a static address.
+/// Load one scalar from a global address.
 #[inline(always)]
 pub(crate) fn load_static_scalar_by_layout(
     activation: &mut Activation<'_>,
-    address: StaticAddress,
+    address: GlobalAddress,
     access: Projection,
 ) -> Result<Cell, Error> {
     let address = address
@@ -544,7 +544,7 @@ pub(crate) fn load_static_scalar_by_layout(
 
     Ok(load_scalar_by_layout_at_address(
         address,
-        scalar_layout(access),
+        scalar_format(access),
     ))
 }
 
@@ -562,7 +562,7 @@ pub(crate) fn store_heap_scalar_by_layout(
     let start = access.byte_offset;
     let address = local_heap_address(activation, reference, start);
 
-    store_scalar_by_layout_at_address(address, scalar_layout(access), value);
+    store_scalar_by_layout_at_address(address, scalar_format(access), value);
 }
 
 /// Store bytes into a local heap reference.
@@ -596,7 +596,7 @@ pub(crate) fn store_shared_heap_scalar_by_layout(
     let start = access.byte_offset;
     let address = shared_heap_address(activation, reference, start);
 
-    store_scalar_by_layout_at_address(address, scalar_layout(access), value);
+    store_scalar_by_layout_at_address(address, scalar_format(access), value);
 }
 
 /// Store bytes into a shared heap reference.
@@ -627,7 +627,7 @@ pub(crate) fn store_stack_scalar_by_layout(
     debug_assert_cell_access(access);
     let pointer = pointer.add_bytes(access.byte_offset);
 
-    store_scalar_by_layout_at_address(pointer.address(), scalar_layout(access), value);
+    store_scalar_by_layout_at_address(pointer.address(), scalar_format(access), value);
 }
 
 /// Store bytes into a stack pointer.
@@ -656,7 +656,7 @@ pub(crate) fn store_frame_scalar_by_layout(
     debug_assert_cell_access(access);
     let pointer = pointer.add_bytes(access.byte_offset);
 
-    store_scalar_by_layout_at_address(pointer.address(), scalar_layout(access), value);
+    store_scalar_by_layout_at_address(pointer.address(), scalar_format(access), value);
 }
 
 /// Store one physical slot through a frame pointer.
@@ -674,11 +674,11 @@ pub(crate) fn store_frame_slot_by_layout(
     store_scalar_by_layout_at_address(pointer.address(), slot_layout(access), value);
 }
 
-/// Store one scalar through a static address.
+/// Store one scalar through a global address.
 #[inline(always)]
 pub(crate) fn store_static_scalar_by_layout(
     activation: &mut Activation<'_>,
-    address: StaticAddress,
+    address: GlobalAddress,
     access: Projection,
     value: Cell,
 ) -> Result<(), Error> {
@@ -688,15 +688,15 @@ pub(crate) fn store_static_scalar_by_layout(
         .ok_or(Error::invalid_instruction())?;
     let address = activation.static_native_address_mut(address, access.byte_len)?;
 
-    store_scalar_by_layout_at_address(address, scalar_layout(access), value);
+    store_scalar_by_layout_at_address(address, scalar_format(access), value);
     Ok(())
 }
 
-/// Store bytes into a static address.
+/// Store bytes into a global address.
 #[inline(always)]
 pub(crate) fn store_static_bytes(
     activation: &mut Activation<'_>,
-    address: StaticAddress,
+    address: GlobalAddress,
     access: Projection,
     bytes: &[u8],
 ) -> Result<(), Error> {

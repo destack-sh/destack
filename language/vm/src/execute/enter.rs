@@ -1,5 +1,4 @@
 use crate::Cell;
-use destack_mir as mir;
 
 use super::frame::{
     FrameValue, load_arguments, load_moved_arguments, move_arguments_between_frames, move_values,
@@ -9,7 +8,7 @@ use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Frame, Outcome};
 use crate::options::LimitOptions;
 use destack_program::vm::{ArgumentRange, CallTarget, Function, MoveRange};
-use destack_program::{FunctionId, Program};
+use destack_program::{FrameStateId, FunctionId, Program};
 
 /// Local lowered function target.
 struct LocalFunction<'a> {
@@ -45,7 +44,7 @@ impl Activation<'_> {
     fn imported_call_error(&self, program: &Program, function_id: FunctionId) -> RuntimeError {
         let Some(function) = program.functions().get(function_id) else {
             return self.machine.runtime_error(Error::invalid_program(format!(
-                "missing function metadata for {function_id:?}"
+                "missing function tables for {function_id:?}"
             )));
         };
 
@@ -64,14 +63,14 @@ impl Activation<'_> {
         env: Option<Cell>,
         moves: Option<MoveRange>,
         resume_pc: usize,
-        return_state: Option<mir::FrameStateId>,
+        return_state: Option<FrameStateId>,
     ) -> RuntimeResult<()> {
         // reject stack overflow before allocating anything
         if self.machine.frames.len() >= limits.max_stack_depth {
             return Err(self.machine.runtime_error(Error::stack_overflow()));
         }
 
-        // load callee entry metadata
+        // load callee entry tables
         let entry_block = callee.function.entry;
         let frame_layout = callee.function.frame_layout;
         let frame_layout = program
@@ -115,7 +114,6 @@ impl Activation<'_> {
             .map_err(RuntimeError::new)?;
         } else {
             move_arguments_between_frames(
-                program,
                 caller,
                 &mut new_frame,
                 callee.function.argument_pool.as_slice(),
@@ -139,7 +137,7 @@ impl Activation<'_> {
         arguments: &[FrameValue],
         env: Option<Cell>,
     ) -> RuntimeResult<()> {
-        // load the callee entry metadata first
+        // load the callee entry tables first
         let entry_block = callee.function.entry;
         let frame_layout = callee.function.frame_layout;
         let frame_layout = program
@@ -176,7 +174,6 @@ impl Activation<'_> {
 
         // bind the new arguments into the reused frame
         store_parameters(
-            program,
             frame,
             callee.function.argument_pool.as_slice(),
             callee.function.parameters,
@@ -230,7 +227,7 @@ impl Activation<'_> {
         target: CallTarget,
         arguments: ArgumentRange,
         env: Option<Cell>,
-        target_state: mir::FrameStateId,
+        target_state: FrameStateId,
     ) -> RuntimeResult<()> {
         // imported calls resume the continuation immediately
         if matches!(target, CallTarget::Import) {
@@ -286,13 +283,7 @@ impl Activation<'_> {
         let argument_values = if let Some(moves) = moves {
             load_moved_arguments(caller, current_func.move_pool.as_slice(), moves)?
         } else {
-            load_arguments(
-                program,
-                self.machine.frames.as_slice(),
-                caller,
-                current_func.argument_pool.as_slice(),
-                arguments,
-            )?
+            load_arguments(caller, current_func.argument_pool.as_slice(), arguments)?
         };
 
         // complete binding tail calls before returning to the caller
