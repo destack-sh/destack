@@ -28,7 +28,7 @@ fn shared_heap_retained_bytes_after_allocate(bytes: &[u8]) -> u64 {
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocation_cache();
-    let worker = shared.register_collector_worker();
+    let worker = shared.register_mark_worker();
 
     test_allocate(
         &shared,
@@ -69,7 +69,7 @@ fn test_track_shared_small_span_retained_bytes() {
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocation_cache();
-    let worker = shared.register_collector_worker();
+    let worker = shared.register_mark_worker();
 
     // allocate enough objects to cover several shared span slots
     for _ in 0..SMALL_ALLOCATION_COUNT {
@@ -106,7 +106,7 @@ fn test_flush_publishes_worker_shared_small_allocations() {
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocation_cache();
-    let worker = shared.register_collector_worker();
+    let worker = shared.register_mark_worker();
 
     let first = test_allocate(
         &shared,
@@ -151,7 +151,7 @@ fn test_free_clears_worker_shared_small_liveness() {
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocation_cache();
-    let worker = shared.register_collector_worker();
+    let worker = shared.register_mark_worker();
 
     // allocate into the worker-local cursor without publishing it globally
     let reference = test_allocate(
@@ -192,7 +192,7 @@ fn test_allocate_shared_honors_layout_alignment() {
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocation_cache();
-    let worker = shared.register_collector_worker();
+    let worker = shared.register_mark_worker();
 
     let first = test_allocate(
         &shared,
@@ -231,7 +231,7 @@ fn test_reject_shared_heap_allocation_when_limit_exceeded() {
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocation_cache();
-    let worker = shared.register_collector_worker();
+    let worker = shared.register_mark_worker();
 
     // reject before mutating shared heap accounting
     let error = shared
@@ -269,7 +269,7 @@ fn test_reject_shared_heap_image_when_limits_start_over_budget() {
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocation_cache();
-    let worker = shared.register_collector_worker();
+    let worker = shared.register_mark_worker();
     test_allocate(
         &shared,
         &worker,

@@ -4,8 +4,8 @@ use destack_mir::TraceTable;
 
 use crate::shared::storage::HeapStorage;
 use crate::{
-    Allocation, AllocationCache, AllocationClass, AllocationPlan, GcWorker, Payload, PayloadShape,
-    SharedHeap, SharedHeapOptions, SharedHeapReference, allocation_class,
+    Allocation, AllocationCache, AllocationClass, AllocationPlan, Payload, PayloadShape,
+    SharedHeap, SharedHeapOptions, SharedHeapReference, SharedMarkWorker, allocation_class,
 };
 
 static TRACE_TABLE: OnceLock<TraceTable> = OnceLock::new();
@@ -87,7 +87,7 @@ pub(crate) fn heap_allocation_plan<'a>(
 /// Allocate one shared block through one worker-local cache.
 pub(crate) fn test_allocate(
     shared: &SharedHeap,
-    worker: &GcWorker,
+    worker: &SharedMarkWorker,
     cache: &mut AllocationCache,
     shape: PayloadShape<'_>,
     payload: Payload<'_>,

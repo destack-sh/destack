@@ -2,7 +2,7 @@ use std::sync::atomic::Ordering;
 
 use destack_mir::TraceTable;
 
-use crate::shared::gc::{GcPhase, GcWorker, MarkWork};
+use crate::shared::gc::{GcPhase, MarkWork, SharedMarkWorker};
 use crate::shared::storage::{HeapPlace, HeapStorage, small_slot_offset};
 use crate::{
     GcStats, HeapConfigurationError, HeapError, HeapGcStateError, HeapResult, ReferenceInput,
@@ -65,7 +65,7 @@ impl HeapStorage {
     /// Perform bounded shared mark work.
     pub(crate) fn step_mark(
         &self,
-        worker: Option<&GcWorker>,
+        worker: Option<&SharedMarkWorker>,
         roots: &[SharedHeapReference],
         budget_bytes: usize,
         trace_table: &TraceTable,
@@ -150,7 +150,7 @@ impl HeapStorage {
     /// Trace one shared mark batch.
     fn trace_batch(
         &self,
-        worker: Option<&GcWorker>,
+        worker: Option<&SharedMarkWorker>,
         batch: &[MarkWork],
         budget_bytes: usize,
         trace_table: &TraceTable,
@@ -214,7 +214,7 @@ impl HeapStorage {
     /// Trace one page-sized range from one shared large block.
     fn trace_large_range(
         &self,
-        worker: Option<&GcWorker>,
+        worker: Option<&SharedMarkWorker>,
         reference: SharedHeapReference,
         start: usize,
         trace_table: &TraceTable,
@@ -278,7 +278,7 @@ impl HeapStorage {
     /// Trace one shared small-span work item.
     fn trace_small_span(
         &self,
-        worker: Option<&GcWorker>,
+        worker: Option<&SharedMarkWorker>,
         span_index: usize,
         budget_bytes: usize,
         trace_table: &TraceTable,
