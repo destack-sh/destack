@@ -1,40 +1,43 @@
 use destack_serde::Reflect;
-use std::sync::Arc;
 
-use destack_heap as heap;
 use destack_heap::{
-    HeapEdge, HeapReference, HeapResult, ReferenceRange, RootSlot, SharedHeapReference,
-    visit_heap_root_slots,
+    HeapEdge, HeapOptions, HeapReference, HeapResult, PayloadShape, ReferenceRange, RootSlot,
+    SharedHeapOptions, SharedHeapReference, visit_heap_root_slots,
 };
-use destack_mir as mir;
-use destack_mir::LayoutId;
+use destack_mir::{ReferenceKind, TargetLayout, TraceId, TraceMap, TraceTable};
+use destack_source::ContentId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    EntryPoint, FunctionId, FunctionTable, StaticAddress, StaticId, StaticSpace, TypeId, TypeTable,
-    native, vm,
+    AddressSpace, CellLayout, DispatchTable, FrameLayout, FrameLayoutId, FrameMaterialization,
+    FrameSlot, FrameStateId, FrameTable, FunctionId, FunctionTable, GlobalAddress, GlobalId,
+    Layout, LayoutId, LayoutShape, LayoutTable, ProgramInfo, ScalarFormat, StaticSpace, TypeId,
+    TypeTable, native, vm,
 };
 use vm::error::{Error, Result};
-use vm::{CellLayout, FrameEntry, ProgramPoint, ResumeTable, SideTable, ValueShape};
 
 use super::ProgramHeader;
 
-/// Durable executable program produced by the toolchain.
+/// Executable program produced by the toolchain.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Program {
     /// Serialized program compatibility header.
     pub header: ProgramHeader,
 
-    /// Runtime type metadata.
+    /// Runtime type table.
     pub types: TypeTable,
     /// Runtime layouts keyed by layout id.
-    pub layouts: mir::LayoutTable,
-    /// Runtime frame metadata.
-    pub frames: mir::FrameMetadata,
-    /// Runtime function metadata.
+    pub layouts: LayoutTable,
+    /// Runtime frame table.
+    pub frames: FrameTable,
+    /// Executable function table.
     pub functions: FunctionTable,
-    /// Canonical trace table used by heap metadata.
-    pub traces: Arc<mir::TraceTable>,
+    /// Runtime dispatch table.
+    pub dispatch: DispatchTable,
+    /// Canonical trace table used by heap tables.
+    pub traces: TraceTable,
+    /// Reflectable program table.
+    pub info: ProgramInfo,
 
     /// Immutable constant storage owned by this program.
     pub constant_space: StaticSpace,
@@ -50,17 +53,19 @@ pub struct Program {
 }
 
 impl Program {
-    /// Create one durable program.
+    /// Create one executable program from its durable image parts.
     pub fn new(
         header: ProgramHeader,
         types: TypeTable,
-        layouts: mir::LayoutTable,
-        frames: mir::FrameMetadata,
+        layouts: LayoutTable,
+        frames: FrameTable,
         functions: FunctionTable,
+        dispatch: DispatchTable,
+        traces: TraceTable,
+        info: ProgramInfo,
         constant_space: StaticSpace,
         shared_static_space: StaticSpace,
         local_static_space: StaticSpace,
-        traces: Arc<mir::TraceTable>,
         vm: vm::Code,
         native: Option<native::Code>,
     ) -> Self {
@@ -70,17 +75,19 @@ impl Program {
             layouts,
             frames,
             functions,
+            dispatch,
+            traces,
+            info,
             constant_space,
             shared_static_space,
             local_static_space,
-            traces,
             vm,
             native,
         }
     }
 
     /// Return all content ids referenced by this program.
-    pub fn content_ids(&self) -> Vec<destack_source::ContentId> {
+    pub fn content_ids(&self) -> Vec<ContentId> {
         let mut ids = self.vm.content_ids();
 
         if let Some(native) = &self.native {
@@ -90,34 +97,54 @@ impl Program {
         ids
     }
 
-    /// Return runtime type metadata.
+    /// Return runtime type table.
     pub fn types(&self) -> &TypeTable {
         &self.types
     }
 
+    /// Return the target ABI layout used by this program.
+    pub fn target_layout(&self) -> TargetLayout {
+        self.header.target_layout
+    }
+
     /// Return the pointer byte width used by this program.
-    pub const fn pointer_bytes(&self) -> u8 {
-        self.header.pointer_bytes
+    pub fn pointer_bytes(&self) -> u8 {
+        self.target_layout().pointer_bytes()
     }
 
     /// Return local heap options required by this program.
-    pub fn heap_options(&self) -> &heap::HeapOptions {
+    pub fn heap_options(&self) -> &HeapOptions {
         &self.header.local_heap
     }
 
     /// Return shared heap options required by this program.
-    pub fn shared_heap_options(&self) -> &heap::SharedHeapOptions {
+    pub fn shared_heap_options(&self) -> &SharedHeapOptions {
         &self.header.shared_heap
     }
 
-    /// Return runtime function metadata.
+    /// Return executable function table.
     pub fn functions(&self) -> &FunctionTable {
         &self.functions
+    }
+
+    /// Return runtime dispatch table.
+    pub fn dispatch(&self) -> &DispatchTable {
+        &self.dispatch
+    }
+
+    /// Return whether one concrete type satisfies one runtime type.
+    pub fn is_subtype(&self, concrete: TypeId, expected: TypeId) -> bool {
+        self.types.is_subtype(concrete, expected)
     }
 
     /// Return immutable constant storage owned by this program.
     pub fn constants(&self) -> &StaticSpace {
         &self.constant_space
+    }
+
+    /// Return native code when this program carries it.
+    pub fn native_code(&self) -> Option<&native::Code> {
+        self.native.as_ref()
     }
 
     /// Return initial shared static storage for new runtimes.
@@ -143,74 +170,54 @@ impl Program {
         local_static.clone_from(self.local_statics());
     }
 
-    /// Resolve one execution entry into its function id.
-    pub fn function_for_entry(&self, entry: EntryPoint) -> FunctionId {
-        entry.function()
-    }
-
     /// Resolve one function id by source name.
     pub fn function_id_by_name(&self, name: &str) -> Option<FunctionId> {
         self.functions.id_by_name(name)
     }
 
-    /// Return the MIR layouts for this program.
-    pub fn layouts(&self) -> &mir::LayoutTable {
+    /// Return runtime layouts for this program.
+    pub fn layouts(&self) -> &LayoutTable {
         &self.layouts
     }
 
     /// Return the heap allocation shape for one layout id.
-    pub fn allocation_shape(&self, layout_id: LayoutId) -> Result<heap::AllocationShape<'_>> {
-        let Some(layout) = self.layouts().entries.get(layout_id.index()) else {
-            return Err(Error::internal(format!("missing MIR layout {layout_id:?}")));
+    pub fn allocation_shape(&self, layout_id: LayoutId) -> Result<PayloadShape<'_>> {
+        let Some(layout) = self.layouts().get(layout_id) else {
+            return Err(Error::internal(format!(
+                "missing program layout {layout_id:?}"
+            )));
         };
 
-        if layout.trace_map.has_reference() {
-            let Some(trace_id) = self.traces.id(&layout.trace_map) else {
-                return Err(Error::internal(format!(
-                    "missing MIR trace map for layout {layout_id:?}"
-                )));
-            };
+        let trace_map = self.trace_map(layout.trace)?;
+        let trace_id = trace_map.has_reference().then_some(layout.trace);
 
-            return Ok(heap::AllocationShape::new(
-                layout.size as usize,
-                layout.alignment as usize,
-                Some(trace_id),
-                &layout.trace_map,
-            ));
-        }
-
-        Ok(heap::AllocationShape::new(
+        Ok(PayloadShape::new(
             layout.size as usize,
             layout.alignment as usize,
-            None,
-            &layout.trace_map,
+            trace_id,
+            trace_map,
         ))
     }
 
     /// Borrow one program trace map.
-    pub fn trace_map(&self, id: mir::TraceId) -> Result<&mir::TraceMap> {
+    pub fn trace_map(&self, id: TraceId) -> Result<&TraceMap> {
         self.traces
             .trace(id)
             .ok_or_else(|| Error::internal(format!("missing program trace map {id:?}")))
     }
 
     /// Return the canonical program trace table.
-    pub fn trace_table(&self) -> &mir::TraceTable {
-        self.traces.as_ref()
+    pub fn trace_table(&self) -> &TraceTable {
+        &self.traces
     }
 
-    /// Return the canonical program trace table handle.
-    pub fn trace_table_handle(&self) -> Arc<mir::TraceTable> {
-        self.traces.clone()
-    }
-
-    /// Return the constant address for one static id.
-    pub fn static_address(&self, id: StaticId) -> Option<StaticAddress> {
-        self.constant_space.address(id)
+    /// Return the constant address for one global.
+    pub fn global_address(&self, global: GlobalId) -> Option<GlobalAddress> {
+        self.constant_space.address(global)
     }
 
     /// Return VM resume states.
-    pub fn resume(&self) -> &ResumeTable {
+    pub fn resume(&self) -> &vm::ResumeTable {
         self.vm.resume()
     }
 
@@ -220,61 +227,72 @@ impl Program {
     }
 
     /// Return the compact VM side table.
-    pub fn side_table(&self) -> &SideTable {
+    pub fn side_table(&self) -> &vm::SideTable {
         self.vm.side_table()
     }
 
     /// Return the frame layout for one layout id when present.
-    pub fn frame_layout_by_id(
-        &self,
-        frame_layout: mir::FrameLayoutId,
-    ) -> Option<&mir::FrameLayout> {
+    pub fn frame_layout_by_id(&self, frame_layout: FrameLayoutId) -> Option<&FrameLayout> {
         self.frames.layout(frame_layout)
     }
 
     /// Return the single frame materialization for one resume state.
     pub fn frame_materialization(
         &self,
-        frame_state: mir::FrameStateId,
-    ) -> Option<&mir::FrameMaterialization> {
+        frame_state: FrameStateId,
+    ) -> Option<&FrameMaterialization> {
         self.frames.materialization(frame_state)
     }
 
     /// Convert one current frame location into one lowered program point.
-    pub fn point(&self, function: FunctionId, block: u32, pc: u32) -> ProgramPoint {
-        ProgramPoint::new(function, block, pc)
+    pub fn point(&self, function: FunctionId, block: u32, pc: u32) -> vm::ProgramPoint {
+        vm::ProgramPoint::new(function, block, pc)
     }
 
     /// Return the canonical layout for one type.
-    pub fn layout(&self, ty: TypeId) -> Option<&mir::Layout> {
-        let layout_id = self.types.layout_id(ty)?;
+    pub fn layout(&self, ty: TypeId) -> Option<&Layout> {
+        let layout_id = self.types().layout_id(ty)?;
 
-        Some(self.layouts.layout(layout_id))
+        Some(self.layouts().layout(layout_id))
     }
 
     /// Return the layout id for one type.
     pub fn layout_id_for_type(&self, ty: TypeId) -> Option<LayoutId> {
-        self.types.layout_id(ty)
+        self.types().layout_id(ty)
     }
 
     /// Return whether one type is stored in one VM cell.
     pub fn is_cell_type(&self, ty: TypeId) -> bool {
-        self.types.is_cell_type(ty, self.pointer_bytes())
+        self.cell_layout(ty)
+            .map(|layout| layout.byte_len(self.pointer_bytes() as usize) <= vm::Cell::BYTE_LEN)
+            .unwrap_or(false)
     }
 
     /// Return the native cell layout for one type.
     pub fn cell_layout(&self, ty: TypeId) -> Option<CellLayout> {
-        self.types.cell_layout(ty, self.pointer_bytes())
+        let layout = self.layout(ty)?;
+
+        layout.cell_layout()
     }
 
-    /// Return the runtime value shape for one type.
-    pub fn value_shape(&self, ty: TypeId) -> Option<ValueShape> {
-        self.types.value_shape(ty, self.pointer_bytes())
+    /// Return the scalar layout for one type.
+    pub fn scalar_format(&self, ty: TypeId) -> Option<ScalarFormat> {
+        let layout = self.layout(ty)?;
+
+        layout.scalar_format()
+    }
+
+    /// Return the environment cell layout for one function closure.
+    pub fn function_environment_layout(&self, function: FunctionId) -> Option<CellLayout> {
+        let function = self.functions().get(function)?;
+        let environment = function.environment?;
+
+        self.cell_layout(environment)
     }
 
     /// Return whether one frame slot is stored in one VM cell.
-    pub fn frame_slot_is_cell(&self, slot: &mir::FrameSlot) -> bool {
-        self.is_cell_type(self.types.type_id(slot.ty))
+    pub fn frame_slot_is_cell(&self, slot: &FrameSlot) -> bool {
+        self.is_cell_type(slot.ty)
     }
 
     /// Return the byte width for one type in a VM frame.
@@ -322,7 +340,9 @@ impl Program {
             )));
         }
 
-        visit_heap_root_slots(&layout.trace_map, 0, bytes, ReferenceRange::All, visit)
+        let trace_map = self.trace_map(layout.trace)?;
+
+        visit_heap_root_slots(trace_map, 0, bytes, ReferenceRange::All, visit)
             .map_err(|error| Error::internal(error.to_string()))
     }
 
@@ -332,17 +352,17 @@ impl Program {
         static_space: &mut StaticSpace,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<()> {
-        let static_ids = static_space.ids().collect::<Vec<_>>();
+        let globals = static_space.globals().collect::<Vec<_>>();
 
-        // static regions
-        for id in static_ids {
+        // visit each global region
+        for global in globals {
             let region = static_space
-                .region(id)
+                .region(global)
                 .cloned()
-                .ok_or_else(|| Error::internal(format!("missing static region {id:?}")))?;
+                .ok_or_else(|| Error::internal(format!("missing global region {global:?}")))?;
             let bytes = static_space
-                .bytes_mut(id)
-                .ok_or_else(|| Error::internal(format!("missing static bytes {id:?}")))?;
+                .bytes_mut(global)
+                .ok_or_else(|| Error::internal(format!("missing global bytes {global:?}")))?;
             self.visit_byte_root_slots(region.ty, bytes, visit)?;
         }
 
@@ -355,72 +375,62 @@ impl Program {
             return Ok(None);
         }
 
-        let repr_ty = self.types.repr_type(ty);
         let bits = value.bits() as usize;
 
-        match self.types.get(repr_ty) {
-            Some(mir::Type::Reference {
-                kind:
-                    mir::ReferenceKind::Managed
-                    | mir::ReferenceKind::Unique
-                    | mir::ReferenceKind::Borrowed,
-                space: mir::Space::Local,
-                ..
-            }) if bits == 0 => Ok(None),
-            Some(mir::Type::Reference {
-                kind:
-                    mir::ReferenceKind::Managed
-                    | mir::ReferenceKind::Unique
-                    | mir::ReferenceKind::Borrowed,
-                space: mir::Space::Local,
-                ..
-            }) => Ok(Some(HeapEdge::Local(HeapReference::from_bits(bits)))),
-            Some(mir::Type::Reference {
-                kind:
-                    mir::ReferenceKind::Managed
-                    | mir::ReferenceKind::Unique
-                    | mir::ReferenceKind::Borrowed,
-                space: mir::Space::Shared,
-                ..
-            }) if bits == 0 => Ok(None),
-            Some(mir::Type::Reference {
-                kind:
-                    mir::ReferenceKind::Managed
-                    | mir::ReferenceKind::Unique
-                    | mir::ReferenceKind::Borrowed,
-                space: mir::Space::Shared,
-                ..
-            }) => Ok(Some(HeapEdge::Shared(SharedHeapReference::from_bits(bits)))),
+        let ty = self
+            .types()
+            .repr_type(ty)
+            .ok_or_else(|| Error::internal(format!("missing program type {ty:?}")))?;
+        let Some(LayoutShape::Reference(reference)) = self.layout(ty).map(|layout| &layout.shape)
+        else {
+            return Ok(None);
+        };
+        let Some(ReferenceKind::Managed | ReferenceKind::Unique | ReferenceKind::Borrowed) =
+            reference.flags.kind()
+        else {
+            return Ok(None);
+        };
+
+        // null references are not roots
+        if bits == 0 {
+            return Ok(None);
+        }
+
+        match reference.address_space() {
+            Some(AddressSpace::Local) => Ok(Some(HeapEdge::Local(HeapReference::from_bits(bits)))),
+            Some(AddressSpace::Shared) => {
+                Ok(Some(HeapEdge::Shared(SharedHeapReference::from_bits(bits))))
+            }
             _ => Ok(None),
         }
     }
 
     /// Return the lowered program point for one resume state.
-    pub fn point_for_frame_state(&self, frame_state: mir::FrameStateId) -> Option<ProgramPoint> {
+    pub fn point_for_frame_state(&self, frame_state: FrameStateId) -> Option<vm::ProgramPoint> {
         self.resume().state(frame_state).map(|state| state.point)
     }
 
-    /// Return the source MIR point for one resume state.
-    pub fn mir_point_for_frame_state(&self, frame_state: mir::FrameStateId) -> Option<u32> {
+    /// Return the source instruction point for one resume state.
+    pub fn source_point_for_frame_state(&self, frame_state: FrameStateId) -> Option<u32> {
         self.resume()
             .state(frame_state)
-            .map(|state| state.mir_point)
+            .and_then(|state| state.source_point)
     }
 
     /// Return the entry data for one resume state.
-    pub fn frame_entry(&self, frame_state: mir::FrameStateId) -> Option<&FrameEntry> {
+    pub fn frame_entry(&self, frame_state: FrameStateId) -> Option<&vm::FrameEntry> {
         self.resume()
             .state(frame_state)
             .and_then(|state| state.entry.as_ref())
     }
 
     /// Return one resume state id for one lowered program point.
-    pub fn frame_state_at(&self, point: ProgramPoint) -> Option<mir::FrameStateId> {
+    pub fn frame_state_at(&self, point: vm::ProgramPoint) -> Option<FrameStateId> {
         self.resume().state_id_at(point)
     }
 
     /// Return the caller return destination implied by one lowered program point.
-    pub fn return_destination_at(&self, point: ProgramPoint) -> Result<Option<mir::Value>> {
+    pub fn return_destination_at(&self, point: vm::ProgramPoint) -> Result<Option<vm::MoveSlot>> {
         let Some(frame_state) = self.resume().state_id_at(point) else {
             return Ok(None);
         };
@@ -434,7 +444,7 @@ impl Program {
     }
 
     /// Return the frame layout for one function when present.
-    pub fn frame_layout(&self, function: FunctionId) -> Option<&mir::FrameLayout> {
+    pub fn frame_layout(&self, function: FunctionId) -> Option<&FrameLayout> {
         let function = self.vm_functions().function_by_id(function)?;
 
         self.frame_layout_by_id(function.frame_layout)

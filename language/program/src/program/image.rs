@@ -1,6 +1,17 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
+use super::FrameStateId;
+
+/// Durable continuation image captured at one managed safepoint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ContinuationImage {
+    /// The captured stack bytes.
+    pub stack: StackImage,
+    /// The captured frames from outermost to innermost.
+    pub frames: Vec<FrameImage>,
+}
+
 /// Durable stack image captured at one managed safepoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct StackImage {
@@ -45,4 +56,17 @@ impl StackImage {
 
         self.bytes.get_mut(stack_offset..end)
     }
+}
+
+/// Durable frame image captured at one managed safepoint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct FrameImage {
+    /// The captured frame state.
+    pub frame_state: FrameStateId,
+    /// The caller return frame state.
+    pub return_state: Option<FrameStateId>,
+    /// The byte offset inside the captured stack image.
+    pub stack_offset: usize,
+    /// The captured frame byte width.
+    pub byte_len: usize,
 }
