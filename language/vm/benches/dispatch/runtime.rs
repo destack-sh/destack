@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
+use destack_compiler::ProgramLinker;
 use destack_heap::{
-    AllocationCache, Allocator, GcWorker, Heap, HeapLimits, HeapOptions, SharedHeap,
-    SharedHeapLimits, SharedHeapOptions,
+    AllocationCache, Allocator, Heap, HeapLimits, HeapOptions, SharedHeap, SharedHeapLimits,
+    SharedHeapOptions, SharedMarkWorker,
 };
 use destack_mir as mir;
 use destack_program::{FunctionId, StaticSpace, Value};
-use destack_source::FileId;
+use destack_source::{DiagnosticSeverity, FileId};
 use destack_vm::{Machine, MachineOptions};
 use mir::parse::{ParseOptions, Parser};
 
@@ -24,8 +25,8 @@ pub(crate) struct Runtime {
     shared: SharedHeap,
     /// The worker-local shared allocation cache.
     shared_cache: AllocationCache,
-    /// The shared collector worker.
-    shared_gc: GcWorker,
+    /// The shared mark worker.
+    shared_mark_worker: SharedMarkWorker,
     /// The benchmark entry function.
     entry: FunctionId,
 }
@@ -34,21 +35,37 @@ impl Runtime {
     /// Build one benchmark runtime from MIR text and entry name.
     pub(crate) fn new(program: &str, entry: &str) -> Self {
         // parse the benchmark program
-        let (tree, strings) = Parser::parse(FileId::new(0), program, ParseOptions::default())
-            .finish()
-            .expect("benchmark MIR should parse");
-
-        // build the VM machine
-        let mut machine = Machine::build_with_options(tree, strings, MachineOptions::unbounded())
-            .expect("benchmark machine should build");
+        let parsed = Parser::parse(FileId::new(0), program, ParseOptions::default());
+        let (tree, target_layout, types, layouts, dispatch, _, _, _, _, strings, diagnostics) =
+            parsed.into_parts();
+        if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
+            panic!("benchmark MIR should parse");
+        }
 
         // build runtime memory
+        let options = MachineOptions::unbounded();
         let mut local_static = StaticSpace::empty();
         let mut shared_static = StaticSpace::empty();
         let heap = heap();
         let shared = shared_heap();
-        let shared_gc = shared.register_collector_worker();
+        let shared_mark_worker = shared.register_mark_worker();
         let shared_cache = shared.allocation_cache();
+
+        // build the VM machine
+        let program = ProgramLinker::new(
+            tree,
+            target_layout,
+            types,
+            layouts,
+            dispatch,
+            strings,
+            options.heap.clone(),
+            options.shared_heap.clone(),
+        )
+        .build()
+        .expect("benchmark program should link");
+        let mut machine =
+            Machine::new(Arc::new(program), options).expect("benchmark machine should build");
 
         // initialize program statics
         machine
@@ -67,7 +84,7 @@ impl Runtime {
             heap,
             shared,
             shared_cache,
-            shared_gc,
+            shared_mark_worker,
             entry,
         }
     }
@@ -88,7 +105,7 @@ impl Runtime {
                 &mut self.heap,
                 &self.shared,
                 &mut self.shared_cache,
-                &self.shared_gc,
+                &self.shared_mark_worker,
                 entry,
                 arguments,
             )
@@ -107,7 +124,7 @@ impl Runtime {
         let trace_table = self.machine.trace_table();
 
         self.heap
-            .fork(trace_table.as_ref())
+            .fork(trace_table)
             .expect("benchmark heap should fork")
     }
 }

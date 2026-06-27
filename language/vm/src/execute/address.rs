@@ -1,5 +1,5 @@
 use destack_heap::{HeapReference, SharedHeapReference};
-use destack_program::StaticAddress;
+use destack_program::GlobalAddress;
 
 use crate::diagnostic::Error;
 use crate::machine::Activation;
@@ -64,14 +64,14 @@ pub(crate) fn offset_frame(pointer: FramePointer, byte_offset: usize) -> Cell {
     Cell::frame_pointer(pointer)
 }
 
-/// Compute a fixed-offset address from a static address.
+/// Compute a fixed-offset address from a global address.
 #[inline(always)]
-pub(crate) fn offset_static(address: StaticAddress, byte_offset: usize) -> Result<Cell, Error> {
+pub(crate) fn offset_global(address: GlobalAddress, byte_offset: usize) -> Result<Cell, Error> {
     let address = address
         .add_bytes(byte_offset)
         .ok_or(Error::invalid_instruction())?;
 
-    Ok(Cell::static_address(address))
+    Ok(Cell::global_address(address))
 }
 
 /// Compute an element address from a heap reference.
@@ -144,11 +144,11 @@ pub(crate) fn element_frame(
     Cell::frame_pointer(pointer)
 }
 
-/// Compute an element address from a static address.
+/// Compute an element address from a global address.
 #[inline(always)]
-pub(crate) fn element_static(
+pub(crate) fn element_global(
     _machine: &mut Activation<'_>,
-    address: StaticAddress,
+    address: GlobalAddress,
     element: Projection,
     index: u64,
 ) -> Result<Cell, Error> {
@@ -157,5 +157,5 @@ pub(crate) fn element_static(
         .add_bytes(element_offset)
         .ok_or(Error::invalid_instruction())?;
 
-    Ok(Cell::static_address(address))
+    Ok(Cell::global_address(address))
 }

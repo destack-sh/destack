@@ -2,7 +2,7 @@ use crate::diagnostic::Error;
 use crate::machine::Activation;
 
 use crate::Cell;
-use destack_program::vm::CellLayout;
+use destack_program::CellLayout;
 
 use super::access;
 
@@ -70,12 +70,7 @@ pub(crate) fn decode_function(
     let environment_layout = activation
         .machine
         .program
-        .functions()
-        .environment_layout(
-            activation.machine.program.types(),
-            activation.machine.program.pointer_bytes(),
-            function_id,
-        )
+        .function_environment_layout(function_id)
         .ok_or(Error::invalid_instruction())?;
     let environment_address =
         word_address(activation, value_offset, environment_offset(activation));

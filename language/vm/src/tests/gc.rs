@@ -1,7 +1,7 @@
 use crate::Cell;
 use crate::tests::{allocate_local_bytes, allocate_local_zeroed, create_test_heap, trace_table};
 use destack_heap::{
-    AllocationShape, Heap, HeapAllocationError, HeapError, HeapReference, HeapResult, RootSlot,
+    Heap, HeapAllocationError, HeapError, HeapReference, HeapResult, PayloadShape, RootSlot,
     visit_heap_references,
 };
 use destack_mir::TraceMap;
@@ -9,7 +9,7 @@ use destack_mir::TraceMap;
 /// Allocate one managed cell for tests.
 fn allocate(heap: &mut Heap) -> HeapReference {
     let trace_map = TraceMap::empty();
-    let shape = AllocationShape::new(1, 1, None, &trace_map);
+    let shape = PayloadShape::new(1, 1, None, &trace_map);
 
     allocate_local_bytes(heap, shape, &[0]).expect("heap allocation should succeed")
 }
@@ -34,7 +34,7 @@ fn allocate_with_values(heap: &mut Heap, values: Vec<Cell>) -> HeapReference {
             shared_offsets: Vec::new().into_boxed_slice(),
         }
     };
-    let shape = AllocationShape::new(bytes.len(), Cell::BYTE_LEN, None, &trace_map);
+    let shape = PayloadShape::new(bytes.len(), Cell::BYTE_LEN, None, &trace_map);
 
     allocate_local_bytes(heap, shape, &bytes).expect("heap allocation should succeed")
 }
@@ -101,7 +101,7 @@ fn assert_cell_prefix(heap: &Heap, reference: HeapReference, expected: &[u8]) {
 fn test_reject_zero_byte_heap_allocation() {
     let mut heap = create_test_heap();
     let trace_map = TraceMap::empty();
-    let shape = AllocationShape::new(0, 1, None, &trace_map);
+    let shape = PayloadShape::new(0, 1, None, &trace_map);
 
     let result = allocate_local_zeroed(&mut heap, shape);
 
@@ -189,7 +189,7 @@ fn test_gc_handles_cycles() {
         local_offsets: vec![0].into_boxed_slice(),
         shared_offsets: Vec::new().into_boxed_slice(),
     };
-    let shape = AllocationShape::new(Cell::BYTE_LEN, Cell::BYTE_LEN, None, &trace_map);
+    let shape = PayloadShape::new(Cell::BYTE_LEN, Cell::BYTE_LEN, None, &trace_map);
     let a = allocate_local_zeroed(&mut heap, shape).expect("heap allocation should succeed");
     let b = allocate_local_zeroed(&mut heap, shape).expect("heap allocation should succeed");
 

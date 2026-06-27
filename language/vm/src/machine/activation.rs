@@ -1,5 +1,4 @@
-use destack_heap::{AllocationCache, GcWorker, Heap, SharedHeap};
-use destack_mir as mir;
+use destack_heap::{AllocationCache, Heap, SharedHeap, SharedMarkWorker};
 use destack_program as program;
 
 use crate::diagnostic::Error;
@@ -18,8 +17,8 @@ pub(crate) struct Activation<'run> {
     pub(crate) heap: &'run mut Heap,
     /// Runtime shared heap for this execution.
     pub(crate) shared: &'run SharedHeap,
-    /// Shared collector worker for this execution.
-    pub(crate) shared_gc: &'run GcWorker,
+    /// Shared mark worker for this execution.
+    pub(crate) shared_mark_worker: &'run SharedMarkWorker,
     /// Worker shared allocation cache for this execution.
     pub(crate) shared_cache: &'run mut AllocationCache,
     /// Index of the active frame in the machine stack.
@@ -27,7 +26,7 @@ pub(crate) struct Activation<'run> {
     /// Native address of the active frame bytes.
     pub(crate) frame_base: usize,
     /// Active frame layout.
-    pub(crate) frame_layout: mir::FrameLayoutId,
+    pub(crate) frame_layout: program::FrameLayoutId,
 }
 
 impl<'run> Activation<'run> {
@@ -38,7 +37,7 @@ impl<'run> Activation<'run> {
         shared_static: &'run mut program::StaticSpace,
         heap: &'run mut Heap,
         shared: &'run SharedHeap,
-        shared_gc: &'run GcWorker,
+        shared_mark_worker: &'run SharedMarkWorker,
         shared_cache: &'run mut AllocationCache,
     ) -> Self {
         Self {
@@ -47,7 +46,7 @@ impl<'run> Activation<'run> {
             shared_static,
             heap,
             shared,
-            shared_gc,
+            shared_mark_worker,
             shared_cache,
             frame_index: 0,
             frame_base: 0,

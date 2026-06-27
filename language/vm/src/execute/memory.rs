@@ -129,7 +129,7 @@ pub(crate) fn execute_load_static_aggregate(
 
     access::load_static_bytes(
         activation,
-        address.as_static_address(),
+        address.as_global_address(),
         access,
         destination,
         destination_len,
@@ -221,7 +221,7 @@ pub(crate) fn execute_store_static_aggregate(
     let (address, access, source, byte_len) = decode_aggregate_store(activation, instruction);
 
     activation.with_frame_bytes_at(source, byte_len, |activation, source| {
-        access::store_static_bytes(activation, address.as_static_address(), access, source)
+        access::store_static_bytes(activation, address.as_global_address(), access, source)
     })?;
 
     Ok(())
@@ -281,19 +281,19 @@ pub(crate) fn execute_local_address(
     Ok(())
 }
 
-/// Execute static address.
-pub(crate) fn execute_static_address(
+/// Execute global address.
+pub(crate) fn execute_global_address(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
 
     let global = instruction.b.into();
-    let address = match activation.static_address(global) {
+    let address = match activation.global_address(global) {
         Some(address) => address,
         None => return Err(Error::undefined_global(global)),
     };
-    let pointer = Cell::static_address(address);
+    let pointer = Cell::global_address(address);
 
     activation.store_cell_at(dest, pointer);
 
@@ -391,7 +391,7 @@ pub(crate) fn execute_load_static_scalar<const BYTE_LEN: usize, const IS_SIGNED:
 
     let value = access::load_static_scalar::<BYTE_LEN, IS_SIGNED>(
         activation,
-        pointer.as_static_address(),
+        pointer.as_global_address(),
         byte_offset,
     )?;
     activation.store_cell_at(dest, value);
@@ -457,7 +457,7 @@ pub(crate) fn execute_store_static_scalar<const BYTE_LEN: usize>(
     let (pointer, value, byte_offset) = store_fields(activation, instruction);
     access::store_static_scalar::<BYTE_LEN>(
         activation,
-        pointer.as_static_address(),
+        pointer.as_global_address(),
         byte_offset,
         value,
     )?;

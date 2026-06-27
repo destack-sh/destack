@@ -14,10 +14,11 @@ use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use destack_mir as mir;
+use destack_program::ScalarFormat;
 use destack_program::vm::{
-    ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, ScalarLayout, VectorBinary,
-    VectorConvert, VectorExtract, VectorInsert, VectorReduce, VectorSelect, VectorShuffle,
-    VectorSplat, VectorUnary,
+    ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, VectorBinary, VectorConvert,
+    VectorExtract, VectorInsert, VectorReduce, VectorSelect, VectorShuffle, VectorSplat,
+    VectorUnary,
 };
 
 macro_rules! packed_binary_executor {
@@ -212,7 +213,7 @@ where
 fn execute_vector_binary_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    operation: fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error>,
+    operation: fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
     let VectorBinary {
@@ -259,7 +260,7 @@ pub(crate) fn execute_vector_binary(
 /// Return the scalar operation for one vector binary kernel.
 fn vector_binary_operation(
     kernel: ElementBinaryKernel,
-) -> fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error> {
+) -> fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error> {
     match kernel {
         ElementBinaryKernel::AndBool => super::scalar::and_bool,
         ElementBinaryKernel::OrBool => super::scalar::or_bool,
@@ -326,7 +327,7 @@ fn vector_binary_operation(
 fn execute_vector_unary_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    operation: fn(ScalarLayout, Cell) -> Result<Cell, Error>,
+    operation: fn(ScalarFormat, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
     let VectorUnary {
@@ -374,7 +375,7 @@ pub(crate) fn execute_vector_unary(
 /// Return the scalar operation for one vector unary kernel.
 fn vector_unary_operation(
     kernel: ElementUnaryKernel,
-) -> fn(ScalarLayout, Cell) -> Result<Cell, Error> {
+) -> fn(ScalarFormat, Cell) -> Result<Cell, Error> {
     match kernel {
         ElementUnaryKernel::NotBool => super::scalar::not_bool,
         ElementUnaryKernel::NegInt => super::scalar::neg_int,
@@ -849,7 +850,7 @@ pub(crate) fn execute_vector_select(
 fn execute_vector_reduce_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    operation: fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error>,
+    operation: fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
     let VectorReduce {
@@ -916,7 +917,7 @@ pub(crate) fn execute_vector_reduce(
 fn execute_vector_convert_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    convert: fn(Cell, ScalarLayout, ScalarLayout) -> Result<Cell, Error>,
+    convert: fn(Cell, ScalarFormat, ScalarFormat) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
     let VectorConvert {

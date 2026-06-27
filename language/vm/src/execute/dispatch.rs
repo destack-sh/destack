@@ -128,7 +128,7 @@ macro_rules! dispatch_instruction {
                 $step!(super::execute_select_aggregate($activation, instruction))
             }
             Op::LocalAddress => $step!(super::execute_local_address($activation, instruction)),
-            Op::StaticAddress => $step!(super::execute_static_address($activation, instruction)),
+            Op::GlobalAddress => $step!(super::execute_global_address($activation, instruction)),
             Op::FunctionAddress => {
                 $step!(super::execute_function_address($activation, instruction))
             }
@@ -536,8 +536,8 @@ macro_rules! dispatch_instruction {
                     instruction
                 ))
             }
-            Op::StaticAddressOffset => {
-                $step!(super::execute_static_address_offset(
+            Op::GlobalAddressOffset => {
+                $step!(super::execute_global_address_offset(
                     $activation,
                     instruction
                 ))
@@ -569,8 +569,8 @@ macro_rules! dispatch_instruction {
                     instruction
                 ))
             }
-            Op::StaticAddressElement => {
-                $step!(super::execute_static_address_element(
+            Op::GlobalAddressElement => {
+                $step!(super::execute_global_address_element(
                     $activation,
                     instruction
                 ))
@@ -605,8 +605,8 @@ macro_rules! dispatch_instruction {
                     instruction
                 ))
             }
-            Op::StaticAddressSliceElement => {
-                $step!(super::execute_static_address_slice_element(
+            Op::GlobalAddressSliceElement => {
+                $step!(super::execute_global_address_slice_element(
                     $activation,
                     instruction
                 ))
@@ -1292,7 +1292,7 @@ fn dispatch_block_inner(
     };
 
     loop {
-        // guard against malformed block metadata
+        // guard against malformed block tables
         if pc >= block_end {
             return Transfer::Error(Error::invalid_instruction());
         }

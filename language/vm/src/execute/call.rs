@@ -1,5 +1,5 @@
 use destack_program as program;
-use destack_program::FunctionId;
+use destack_program::{FrameStateId, FunctionId};
 
 use super::frame::{
     FrameValue, load_arguments, load_moved_arguments, move_values, store_parameters,
@@ -8,14 +8,13 @@ use super::{access, function};
 use crate::diagnostic::Error;
 use crate::machine::{Activation, Frame};
 use crate::{Cell, FunctionPointer};
+use destack_program::CellLayout;
 
 use super::Transfer;
-use destack_mir as mir;
 use destack_program::vm::{
     ArgumentRange, Call, CallBranch, CallDynamic, CallDynamicBranch, CallTarget, CallVirtual,
-    CallVirtualBranch, CellLayout, Function, FunctionBind, IndirectCall, IndirectCallBranch,
-    IndirectTailCall, Instruction, MoveRange, Projection, TailCall, TailCallDynamic,
-    TailCallVirtual,
+    CallVirtualBranch, Function, FunctionBind, IndirectCall, IndirectCallBranch, IndirectTailCall,
+    Instruction, MoveRange, Projection, TailCall, TailCallDynamic, TailCallVirtual,
 };
 
 /// Load one lowered call table field from a receiver.
@@ -42,7 +41,7 @@ fn load_receiver_field<const IS_SHARED: bool>(
 /// Load one function target from an immutable dispatch table.
 fn load_dispatch_slot(
     activation: &Activation<'_>,
-    table_address: program::StaticAddress,
+    table_address: program::GlobalAddress,
     slot: u32,
 ) -> Result<FunctionId, Error> {
     // dispatch table slots are target pointers
@@ -62,7 +61,7 @@ fn load_dispatch_slot(
 /// Load one function address from static memory.
 fn load_function_pointer(
     activation: &Activation<'_>,
-    address: program::StaticAddress,
+    address: program::GlobalAddress,
     pointer_bytes: usize,
 ) -> Result<Cell, Error> {
     let address = activation.static_native_address(address, pointer_bytes)?;
@@ -88,7 +87,7 @@ fn resolve_virtual_callee<const IS_SHARED: bool>(
 ) -> Result<FunctionId, Error> {
     // load the vtable pointer from the receiver
     let vtable_value = load_receiver_field::<IS_SHARED>(activation, receiver, table_field)?;
-    let vtable_pointer = vtable_value.as_static_address();
+    let vtable_pointer = vtable_value.as_global_address();
 
     load_dispatch_slot(activation, vtable_pointer, slot)
 }
@@ -102,7 +101,7 @@ fn resolve_dynamic_callee<const IS_SHARED: bool>(
 ) -> Result<FunctionId, Error> {
     // load the dynamic table pointer from the erased receiver
     let dynamic_table_value = load_receiver_field::<IS_SHARED>(activation, receiver, table_field)?;
-    let dynamic_table_pointer = dynamic_table_value.as_static_address();
+    let dynamic_table_pointer = dynamic_table_value.as_global_address();
 
     load_dispatch_slot(activation, dynamic_table_pointer, slot)
 }
@@ -367,7 +366,7 @@ fn call_branch_transfer(
     target: CallTarget,
     arguments: ArgumentRange,
     env: Option<Cell>,
-    target_state: mir::FrameStateId,
+    target_state: FrameStateId,
 ) -> Transfer {
     // call terminators always use explicit transfer handling
     Transfer::CallBranch {
@@ -637,7 +636,7 @@ pub(crate) fn execute_call_dynamic_shared_branch(
     execute_call_dynamic_branch::<true>(activation, instruction)
 }
 
-/// Execute an indirect call with a statically known callee shape.
+/// Execute an indirect call with a statically known callee.
 fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
@@ -659,9 +658,12 @@ fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
     let function = function_id;
 
     if let Err(error) = activation.machine.program.functions().validate_signature(
-        activation.machine.program.types(),
         function_id,
-        activation.machine.program.types().type_id(*signature),
+        activation
+            .machine
+            .program
+            .side_table()
+            .signature(*signature),
     ) {
         return Transfer::Error(error.into());
     }
@@ -701,7 +703,7 @@ pub(crate) fn execute_call_function(
     execute_indirect_call::<true>(activation, instruction, pc)
 }
 
-/// Execute an indirect call terminator with a statically known callee shape.
+/// Execute an indirect call terminator with a statically known callee.
 fn execute_indirect_call_branch<const HAS_ENVIRONMENT: bool>(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
@@ -719,9 +721,12 @@ fn execute_indirect_call_branch<const HAS_ENVIRONMENT: bool>(
             Err(error) => return Transfer::Error(error),
         };
     if let Err(error) = activation.machine.program.functions().validate_signature(
-        activation.machine.program.types(),
         function_id,
-        activation.machine.program.types().type_id(*signature),
+        activation
+            .machine
+            .program
+            .side_table()
+            .signature(*signature),
     ) {
         return Transfer::Error(error.into());
     }
@@ -783,14 +788,12 @@ fn enter_tail_call(
         frame.store_environment(&layout, env)?;
     }
 
-    // bind dispatch metadata for the retargeted frame
+    // bind dispatch tables for the retargeted frame
     let frame_index = activation.frame_index;
     activation.bind_frame(frame_index)?;
 
     // bind function parameters
-    let program = activation.machine.program.clone();
     store_parameters(
-        &program,
         activation.active_frame_mut(),
         callee.argument_pool.as_slice(),
         callee.parameters,
@@ -904,13 +907,7 @@ pub(crate) fn execute_tail_call_self(
             Err(error) => return Transfer::Error(error),
         };
 
-        match load_arguments(
-            &activation.machine.program,
-            activation.machine.frames.as_slice(),
-            caller,
-            function.argument_pool.as_slice(),
-            arguments,
-        ) {
+        match load_arguments(caller, function.argument_pool.as_slice(), arguments) {
             Ok(arguments) => arguments,
             Err(error) => return Transfer::Error(error),
         }
@@ -940,16 +937,14 @@ pub(crate) fn execute_tail_call_self(
         frame.clear_values(&frame_layout);
     }
 
-    // bind dispatch metadata after replacing frame bytes
+    // bind dispatch tables after replacing frame bytes
     let frame_index = activation.frame_index;
     if let Err(error) = activation.bind_frame(frame_index) {
         return Transfer::Error(error);
     }
 
     // bind function parameters
-    let program = activation.machine.program.clone();
     if let Err(error) = store_parameters(
-        &program,
         activation.active_frame_mut(),
         function.argument_pool.as_slice(),
         function.parameters,
@@ -1079,7 +1074,7 @@ pub(crate) fn execute_tail_call_dynamic_shared(
     execute_tail_call_dynamic::<true>(activation, instruction)
 }
 
-/// Execute an indirect tail call with a statically known callee shape.
+/// Execute an indirect tail call with a statically known callee.
 fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
@@ -1100,9 +1095,12 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     let function = function_id;
 
     if let Err(error) = activation.machine.program.functions().validate_signature(
-        activation.machine.program.types(),
         function_id,
-        activation.machine.program.types().type_id(*signature),
+        activation
+            .machine
+            .program
+            .side_table()
+            .signature(*signature),
     ) {
         return Transfer::Error(error.into());
     }
@@ -1157,16 +1155,11 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
         Some(function) => function,
         None => return Transfer::Error(Error::invalid_instruction()),
     };
-    let argument_values = match load_arguments(
-        &activation.machine.program,
-        activation.machine.frames.as_slice(),
-        caller,
-        caller_function.argument_pool.as_slice(),
-        *arguments,
-    ) {
-        Ok(arguments) => arguments,
-        Err(error) => return Transfer::Error(error),
-    };
+    let argument_values =
+        match load_arguments(caller, caller_function.argument_pool.as_slice(), *arguments) {
+            Ok(arguments) => arguments,
+            Err(error) => return Transfer::Error(error),
+        };
 
     // enter tail call
     if let Err(error) = enter_tail_call(activation, &callee, &argument_values, env) {

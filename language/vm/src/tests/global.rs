@@ -10,7 +10,7 @@ readonly global value: int32 = 42
 
 function read(): int32 {
 entry:
-    v0: ref<int32, raw, readonly> = global.address value
+    v0: ref<int32, raw, readonly, space(static)> = global.address value
     v1: int32 = load v0
     return v1
 }
@@ -26,7 +26,7 @@ global counter: int32 = 0
 
 function increment(): int32 {
 entry:
-    v0: ref<int32, raw, mutable> = global.address counter
+    v0: ref<int32, raw, mutable, space(static)> = global.address counter
     v1: int32 = load v0
     v2: int32 = 1
     v3: int32 = int.add v1, v2
@@ -46,7 +46,7 @@ readonly global CONST: int32 = 42
 
 function badWrite(): void {
 entry:
-    v0: ref<int32, raw, readonly> = global.address CONST
+    v0: ref<int32, raw, readonly, space(static)> = global.address CONST
     v1: int32 = 99
     store v0, v1
     return
@@ -70,7 +70,7 @@ global counter: int32 = 0
 
 function inc(): void {
 entry:
-    v0: ref<int32, raw, mutable> = global.address counter
+    v0: ref<int32, raw, mutable, space(static)> = global.address counter
     v1: int32 = load v0
     v2: int32 = 1
     v3: int32 = int.add v1, v2
@@ -80,7 +80,7 @@ entry:
 
 function get(): int32 {
 entry:
-    v0: ref<int32, raw, mutable> = global.address counter
+    v0: ref<int32, raw, mutable, space(static)> = global.address counter
     v1: int32 = load v0
     return v1
 }
@@ -105,7 +105,7 @@ global data: int32 = zeroInit
 
 function read(): int32 {
 entry:
-    v0: ref<int32, raw, mutable> = global.address data
+    v0: ref<int32, raw, mutable, space(static)> = global.address data
     v1: int32 = load v0
     return v1
 }
@@ -121,7 +121,7 @@ global data: float64 = zeroInit
 
 function read(): float64 {
 entry:
-    v0: ref<float64, raw, mutable> = global.address data
+    v0: ref<float64, raw, mutable, space(static)> = global.address data
     v1: float64 = load v0
     return v1
 }
@@ -137,7 +137,7 @@ global flag: boolean = zeroInit
 
 function read(): boolean {
 entry:
-    v0: ref<boolean, raw, mutable> = global.address flag
+    v0: ref<boolean, raw, mutable, space(static)> = global.address flag
     v1: boolean = load v0
     return v1
 }
@@ -153,7 +153,7 @@ readonly global pair: (int32, int32) = {10int32, 20int32}
 
 function getSecond(): int32 {
 entry:
-    v0: ref<(int32, int32), raw, readonly> = global.address pair
+    v0: ref<(int32, int32), raw, readonly, space(static)> = global.address pair
     v1: (int32, int32) = load v0
     v2: int32 = field.get v1, 1
     return v2
@@ -170,7 +170,7 @@ readonly global message: [uint8; 4] = b"boom"
 
 function readSecond(): uint8 {
 entry:
-    v0: ref<[uint8; 4], raw, readonly> = global.address message
+    v0: ref<[uint8; 4], raw, readonly, space(static)> = global.address message
     v1: [uint8; 4] = load v0
     v2: uint8 = field.get v1, 1
     return v2
@@ -191,11 +191,11 @@ global third: int32 = 30
 
 function sum(): int32 {
 entry:
-    v0: ref<int32, raw, readonly> = global.address first
+    v0: ref<int32, raw, readonly, space(static)> = global.address first
     v1: int32 = load v0
-    v2: ref<int32, raw, readonly> = global.address second
+    v2: ref<int32, raw, readonly, space(static)> = global.address second
     v3: int32 = load v2
-    v4: ref<int32, raw, mutable> = global.address third
+    v4: ref<int32, raw, mutable, space(static)> = global.address third
     v5: int32 = load v4
     v6: int32 = int.add v1, v3
     v7: int32 = int.add v6, v5
@@ -213,7 +213,7 @@ global value: int32 = 0
 
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, mutable> = global.address value
+    v0: ref<int32, raw, mutable, space(static)> = global.address value
     v1: int32 = 10
     store v0, v1
     v2: int32 = 20
@@ -235,7 +235,7 @@ readonly global neg: int32 = -42
 
 function read(): int32 {
 entry:
-    v0: ref<int32, raw, readonly> = global.address neg
+    v0: ref<int32, raw, readonly, space(static)> = global.address neg
     v1: int32 = load v0
     return v1
 }
@@ -251,7 +251,7 @@ readonly global pi: float64 = 3.14159
 
 function read(): float64 {
 entry:
-    v0: ref<float64, raw, readonly> = global.address pi
+    v0: ref<float64, raw, readonly, space(static)> = global.address pi
     v1: float64 = load v0
     return v1
 }
@@ -270,7 +270,7 @@ global flag: boolean = true
 
 function toggle(): boolean {
 entry:
-    v0: ref<boolean, raw, mutable> = global.address flag
+    v0: ref<boolean, raw, mutable, space(static)> = global.address flag
     v1: boolean = load v0
     v2: boolean = int.not v1
     store v0, v2

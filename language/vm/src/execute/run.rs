@@ -1,14 +1,13 @@
-use destack_mir as mir;
 use destack_program as program;
-use program::{FunctionId, StaticSpace};
+use program::{FrameStateId, FunctionId, StaticSpace};
 
-use super::frame::{dematerialize_value, frame_value_type};
+use super::frame::dematerialize_value;
 use super::{dispatch_block, dispatch_block_counted};
 use crate::Cell;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Continuation, Frame, Machine, Outcome};
 use crate::options::LimitOptions;
-use destack_heap::{AllocationCache, GcWorker, Heap, SharedHeap};
+use destack_heap::{AllocationCache, Heap, SharedHeap, SharedMarkWorker};
 use destack_program::Program;
 use destack_program::vm::CallTarget;
 
@@ -16,7 +15,7 @@ impl Machine {
     /// Execute a function by id.
     ///
     /// Uses the lowered op loop for maximum performance.
-    /// Functions are lowered when the machine is created.
+    /// Functions are linked into VM code before the machine is created.
     pub(crate) fn execute_function_cells(
         &mut self,
         program: &Program,
@@ -26,7 +25,7 @@ impl Machine {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
-        shared_gc: &GcWorker,
+        shared_mark_worker: &SharedMarkWorker,
         function_id: FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<program::Value> {
@@ -38,7 +37,7 @@ impl Machine {
             heap,
             shared,
             shared_cache,
-            shared_gc,
+            shared_mark_worker,
             function_id,
             arguments,
         )?;
@@ -61,7 +60,7 @@ impl Machine {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
-        shared_gc: &GcWorker,
+        shared_mark_worker: &SharedMarkWorker,
         function_id: FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<Outcome> {
@@ -76,7 +75,7 @@ impl Machine {
                     .map(|function| function.name.clone())
                     .ok_or_else(|| {
                         self.runtime_error(Error::invalid_program(format!(
-                            "missing function metadata for {function_id:?}"
+                            "missing function tables for {function_id:?}"
                         )))
                     })?;
 
@@ -98,7 +97,7 @@ impl Machine {
             heap,
             shared,
             shared_cache,
-            shared_gc,
+            shared_mark_worker,
             function_id,
             arguments,
         )
@@ -116,7 +115,7 @@ impl Machine {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
-        shared_gc: &GcWorker,
+        shared_mark_worker: &SharedMarkWorker,
         continuation: Continuation,
         received_value: program::Value,
     ) -> RuntimeResult<Outcome> {
@@ -135,7 +134,7 @@ impl Machine {
             heap,
             shared,
             shared_cache,
-            shared_gc,
+            shared_mark_worker,
             continuation.resume_frame_index,
             continuation.frame_state,
             received_value,
@@ -152,7 +151,7 @@ impl Machine {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
-        shared_gc: &GcWorker,
+        shared_mark_worker: &SharedMarkWorker,
         continuation: Continuation,
     ) -> RuntimeResult<Outcome> {
         if !self.frames.is_empty() {
@@ -170,7 +169,7 @@ impl Machine {
             heap,
             shared,
             shared_cache,
-            shared_gc,
+            shared_mark_worker,
             continuation.resume_frame_index,
             continuation.frame_state,
         )
@@ -186,9 +185,9 @@ impl Machine {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
-        shared_gc: &GcWorker,
+        shared_mark_worker: &SharedMarkWorker,
         resume_frame_index: usize,
-        frame_state: mir::FrameStateId,
+        frame_state: FrameStateId,
         received_value: program::Value,
     ) -> RuntimeResult<Outcome> {
         let frame_entry = program.frame_entry(frame_state);
@@ -202,11 +201,10 @@ impl Machine {
         let layout = program
             .frame_layout_by_id(frame.frame_layout())
             .ok_or_else(|| self.runtime_error(Error::invalid_continuation()))?;
-        let received_value_id = layout
-            .value_for_slot(received_value_slot)
+        let received_slot = layout
+            .slot(received_value_slot)
             .ok_or_else(|| self.runtime_error(Error::invalid_continuation()))?;
-        let received_type = frame_value_type(program, frame, mir::Value::new(received_value_id))
-            .map_err(|_| self.runtime_error(Error::invalid_continuation()))?;
+        let received_type = received_slot.ty;
         let received_value =
             dematerialize_value(program, heap, shared, received_type, &received_value)
                 .map_err(|_| self.runtime_error(Error::invalid_continuation()))?;
@@ -229,7 +227,7 @@ impl Machine {
             shared_static,
             heap,
             shared,
-            shared_gc,
+            shared_mark_worker,
             shared_cache,
         );
 
@@ -246,9 +244,9 @@ impl Machine {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
-        shared_gc: &GcWorker,
+        shared_mark_worker: &SharedMarkWorker,
         frame_index: usize,
-        frame_state: mir::FrameStateId,
+        frame_state: FrameStateId,
     ) -> RuntimeResult<Outcome> {
         self.enter_frame_state(program, frame_index, frame_state, None)
             .map_err(|error| RuntimeError {
@@ -263,7 +261,7 @@ impl Machine {
             shared_static,
             heap,
             shared,
-            shared_gc,
+            shared_mark_worker,
             shared_cache,
         );
 
@@ -285,11 +283,11 @@ impl Machine {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
-        shared_gc: &GcWorker,
+        shared_mark_worker: &SharedMarkWorker,
         function_id: FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<Outcome> {
-        // resolve the lowered entry metadata
+        // resolve the lowered entry tables
         let function = program
             .vm_functions()
             .function_by_id(function_id)
@@ -330,7 +328,7 @@ impl Machine {
             shared_static,
             heap,
             shared,
-            shared_gc,
+            shared_mark_worker,
             shared_cache,
         );
 
@@ -341,20 +339,23 @@ impl Machine {
             .map_err(RuntimeError::new)?;
         for (index, param) in parameter_slice.iter().enumerate() {
             let value = arguments[index];
-            let is_cell = activation
-                .value_is_cell(*param)
-                .map_err(RuntimeError::new)?;
-            if is_cell {
-                activation.store_value_cell(*param, value);
+
+            if param.is_cell {
+                activation
+                    .active_frame_mut()
+                    .write_cell_at(param.offset, value);
                 continue;
             }
 
-            let ty = activation.value_type(*param).map_err(RuntimeError::new)?;
-            let bytes = super::frame::encode_argument_bytes(&mut activation, ty, value)
+            let bytes = super::frame::encode_argument_bytes(&mut activation, param.ty, value)
                 .map_err(RuntimeError::new)?;
+            let start = param.offset as usize;
+            let end = start + param.byte_len as usize;
             let destination = activation
-                .value_bytes_mut(*param)
-                .map_err(RuntimeError::new)?;
+                .active_frame_mut()
+                .bytes_mut()
+                .get_mut(start..end)
+                .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
             if destination.len() != bytes.len() {
                 return Err(RuntimeError::new(Error::invalid_instruction()));
             }

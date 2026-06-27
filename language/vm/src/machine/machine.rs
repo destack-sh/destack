@@ -2,21 +2,20 @@ use destack_serde::Reflect;
 use std::fmt;
 use std::sync::Arc;
 
-use destack_core::{Capture, CaptureMode, SnapshotCodec, StringPool};
+use destack_core::{Capture, CaptureMode, SnapshotCodec};
 use destack_heap::{
-    AllocationCache, AllocationShape, GcWorker, Heap, HeapReference, HeapResult, RootSlot,
-    SharedHeap,
+    AllocationCache, Heap, HeapReference, HeapResult, PayloadShape, RootSlot, SharedHeap,
+    SharedMarkWorker,
 };
-use destack_mir as mir;
+use destack_mir::TraceTable;
 use destack_program as program;
+use destack_program::{FrameLayout, Program};
 use program::StaticSpace;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult, StackTraceFrame};
-use crate::lower::ProgramLowerer;
 use crate::options::{LimitOptions, MachineOptions};
 use crate::{Cell, Result as VmResult};
-use destack_program::Program;
 
 use super::{Continuation, ContinuationImage, Frame, FrameImage, Stack, StackImage};
 
@@ -81,8 +80,8 @@ impl Machine {
 
     /// Return the canonical program trace table.
     #[inline]
-    pub fn trace_table(&self) -> Arc<mir::TraceTable> {
-        self.program.trace_table_handle()
+    pub fn trace_table(&self) -> &TraceTable {
+        self.program.trace_table()
     }
 
     /// Return immutable program constants.
@@ -112,23 +111,7 @@ impl Machine {
         })
     }
 
-    /// Build a new machine with custom options.
-    pub fn build_with_options(
-        tree: mir::Tree,
-        strings: StringPool,
-        options: MachineOptions,
-    ) -> RuntimeResult<Self> {
-        let program = ProgramLowerer::new(
-            tree,
-            strings,
-            options.heap.clone(),
-            options.shared_heap.clone(),
-        )
-        .build()?;
-        Self::new(Arc::new(program), options)
-    }
-
-    /// Initialize heap-shaped program metadata and static bytes.
+    /// Initialize heap-shaped program tables and static bytes.
     pub fn initialize(
         &mut self,
         heap: &Heap,
@@ -168,11 +151,6 @@ impl Machine {
         Ok(program::EntryPoint::from(function))
     }
 
-    /// Resolve one execution entry into a function id.
-    pub fn function_for_entry(&self, entry: program::EntryPoint) -> program::FunctionId {
-        self.program.function_for_entry(entry)
-    }
-
     /// Run a function by id and return its output.
     pub fn run_function(
         &mut self,
@@ -181,7 +159,7 @@ impl Machine {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
-        shared_gc: &GcWorker,
+        shared_mark_worker: &SharedMarkWorker,
         func_id: program::FunctionId,
         arguments: &[program::Value],
     ) -> RuntimeResult<program::Value> {
@@ -193,7 +171,7 @@ impl Machine {
             heap,
             shared,
             shared_cache,
-            shared_gc,
+            shared_mark_worker,
             func_id,
             &arguments,
         )
@@ -207,7 +185,7 @@ impl Machine {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
-        shared_gc: &GcWorker,
+        shared_mark_worker: &SharedMarkWorker,
         func_id: program::FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<program::Value> {
@@ -222,7 +200,7 @@ impl Machine {
             heap,
             shared,
             shared_cache,
-            shared_gc,
+            shared_mark_worker,
             func_id,
             arguments,
         )
@@ -236,7 +214,7 @@ impl Machine {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
-        shared_gc: &GcWorker,
+        shared_mark_worker: &SharedMarkWorker,
         func_id: program::FunctionId,
         arguments: &[program::Value],
     ) -> RuntimeResult<Outcome> {
@@ -248,7 +226,7 @@ impl Machine {
             heap,
             shared,
             shared_cache,
-            shared_gc,
+            shared_mark_worker,
             func_id,
             &arguments,
         )
@@ -262,7 +240,7 @@ impl Machine {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
-        shared_gc: &GcWorker,
+        shared_mark_worker: &SharedMarkWorker,
         func_id: program::FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<Outcome> {
@@ -277,7 +255,7 @@ impl Machine {
             heap,
             shared,
             shared_cache,
-            shared_gc,
+            shared_mark_worker,
             func_id,
             arguments,
         )
@@ -291,7 +269,7 @@ impl Machine {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
-        shared_gc: &GcWorker,
+        shared_mark_worker: &SharedMarkWorker,
         continuation: Continuation,
         resume_value: program::Value,
     ) -> RuntimeResult<Outcome> {
@@ -306,7 +284,7 @@ impl Machine {
             heap,
             shared,
             shared_cache,
-            shared_gc,
+            shared_mark_worker,
             continuation,
             resume_value,
         )
@@ -336,7 +314,7 @@ impl Machine {
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
-        shared_gc: &GcWorker,
+        shared_mark_worker: &SharedMarkWorker,
         image: &ContinuationImage,
     ) -> RuntimeResult<Outcome> {
         let program = Arc::clone(&self.program);
@@ -351,7 +329,7 @@ impl Machine {
             heap,
             shared,
             shared_cache,
-            shared_gc,
+            shared_mark_worker,
             continuation,
         )
     }
@@ -462,10 +440,7 @@ impl Machine {
     }
 
     /// Allocate one frame byte record in the stack arena.
-    pub(crate) fn allocate_frame(
-        &mut self,
-        layout: &mir::FrameLayout,
-    ) -> RuntimeResult<(usize, usize)> {
+    pub(crate) fn allocate_frame(&mut self, layout: &FrameLayout) -> RuntimeResult<(usize, usize)> {
         let base = self
             .stack
             .allocate_zeroed(layout.byte_len as usize, Cell::BYTE_LEN)?;
@@ -506,7 +481,7 @@ impl Machine {
         let stack = Stack::from_image(stack_image, options.limits.stack_bytes)?;
         let mut frames = Vec::with_capacity(frame_images.len());
 
-        // restore frame metadata over stack image byte ranges
+        // restore frame tables over stack image byte ranges
         for frame_image in frame_images {
             let frame_base = stack.address(frame_image.stack_offset, frame_image.byte_len)?;
             let frame =
@@ -543,10 +518,10 @@ impl Machine {
                     .vm_functions()
                     .function_by_id(function)
                     .ok_or_else(|| Error::undefined_function(function))?;
-                let block = function_ref
+                let block = frame.block;
+                function_ref
                     .blocks
-                    .get(frame.block as usize)
-                    .map(|block| block.mir_block)
+                    .get(block as usize)
                     .ok_or_else(Error::invalid_instruction)?;
                 let function_name = program
                     .functions()
@@ -624,24 +599,23 @@ impl Machine {
     }
 
     /// Borrow the canonical runtime layout table.
-    pub fn layout_table(&self) -> &mir::LayoutTable {
+    pub fn layout_table(&self) -> &program::LayoutTable {
         self.program.layouts()
     }
 
-    /// Return the canonical layout id for one MIR type.
-    pub fn layout_id_for_type(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<mir::LayoutId> {
-        self.program
-            .layout_id_for_type(self.program.types().type_id(ty))
+    /// Return the canonical layout id for one program type.
+    pub fn layout_id_for_type(&self, ty: program::TypeId) -> Option<program::LayoutId> {
+        self.program.layout_id_for_type(ty)
     }
 
-    /// Return the canonical layout for one MIR type.
+    /// Return the canonical layout for one program type.
     #[cfg(test)]
-    pub(crate) fn layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<&mir::Layout> {
-        self.program.layout(self.program.types().type_id(ty))
+    pub(crate) fn layout(&self, ty: program::TypeId) -> Option<&program::Layout> {
+        self.program.layout(ty)
     }
 
     /// Return the heap allocation shape for one layout id.
-    pub fn allocation_shape(&self, layout_id: mir::LayoutId) -> VmResult<AllocationShape<'_>> {
+    pub fn allocation_shape(&self, layout_id: program::LayoutId) -> VmResult<PayloadShape<'_>> {
         Ok(self.program.allocation_shape(layout_id)?)
     }
 }

@@ -1,13 +1,15 @@
+use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 
+use destack_compiler::ProgramLinker;
 use destack_heap::{
-    AllocationCache, AllocationShape, AllocationSite, Allocator, GcStats, GcWorker, Heap,
-    HeapLimits, HeapOptions, HeapReference, SharedHeap, SharedHeapLimits, SharedHeapOptions,
+    AllocationCache, AllocationPlan, Allocator, GcStats, Heap, HeapLimits, HeapOptions,
+    HeapReference, PayloadShape, SharedHeap, SharedHeapLimits, SharedHeapOptions, SharedMarkWorker,
 };
 use destack_mir::parse::{ParseOptions, Parser};
-use destack_mir::{DataLayout, TensorDimension, TraceMap, TraceTable, Type};
-use destack_program::{StaticSpace, TypeId, Value};
-use destack_source::FileId;
+use destack_mir::{LocalNodeId, TargetLayout, TensorDimension, TraceMap, TraceTable, Type};
+use destack_program::{Layout, LayoutShape, StaticSpace, TypeId, Value};
+use destack_source::{DiagnosticSeverity, FileId};
 
 use crate::diagnostic::{Error, RuntimeResult};
 use crate::{Cell, Continuation, Machine, MachineOptions, Outcome};
@@ -24,6 +26,12 @@ pub(crate) fn trace_table() -> &'static TraceTable {
 
 /// The machine and authoritative heap used by one test runtime.
 pub(crate) struct TestMachine {
+    /// The MIR tree used to build this fixture.
+    pub tree: destack_mir::Tree,
+    /// Program type ids keyed by MIR type id.
+    type_ids: HashMap<LocalNodeId<Type>, TypeId>,
+    /// MIR type ids keyed by program type id.
+    type_nodes: Vec<LocalNodeId<Type>>,
     /// The VM machine under test.
     pub machine: Machine,
     /// The worker-local static space used by the machine.
@@ -34,8 +42,8 @@ pub(crate) struct TestMachine {
     pub heap: Heap,
     /// The runtime-shared heap for the machine.
     pub shared_heap: SharedHeap,
-    /// The shared collector worker used by this machine.
-    pub shared_gc: GcWorker,
+    /// The shared mark worker used by this machine.
+    pub shared_mark_worker: SharedMarkWorker,
     /// The worker-local shared allocation cache.
     pub shared_cache: AllocationCache,
 }
@@ -64,38 +72,35 @@ pub(crate) fn create_test_shared_heap() -> SharedHeap {
         .expect("test shared heap should build")
 }
 
-/// Build one explicit local heap allocation site for VM tests.
-pub(crate) fn local_allocation_site(heap: &Heap, shape: AllocationShape<'_>) -> AllocationSite {
-    heap.options().allocation_site_for_shape(shape)
+/// Build one explicit local heap allocation plan for VM tests.
+pub(crate) fn local_allocation_plan(heap: &Heap, shape: PayloadShape<'_>) -> AllocationPlan {
+    heap.options().allocation_plan_for_shape(shape)
 }
 
-/// Build one explicit shared heap allocation site for VM tests.
-pub(crate) fn shared_allocation_site(
-    heap: &SharedHeap,
-    shape: AllocationShape<'_>,
-) -> AllocationSite {
-    heap.options().allocation_site_for_shape(shape)
+/// Build one explicit shared heap allocation plan for VM tests.
+pub(crate) fn shared_allocation_plan(heap: &SharedHeap, shape: PayloadShape<'_>) -> AllocationPlan {
+    heap.options().allocation_plan_for_shape(shape)
 }
 
 /// Allocate one zeroed local heap payload for VM tests.
 pub(crate) fn allocate_local_zeroed(
     heap: &mut Heap,
-    shape: AllocationShape<'_>,
+    shape: PayloadShape<'_>,
 ) -> destack_heap::HeapResult<HeapReference> {
-    let site = local_allocation_site(heap, shape);
+    let plan = local_allocation_plan(heap, shape);
 
-    heap.allocate_zeroed(site, shape.trace_map)
+    heap.allocate_zeroed(plan, shape.trace_map)
 }
 
 /// Allocate one byte-initialized local heap payload for VM tests.
 pub(crate) fn allocate_local_bytes(
     heap: &mut Heap,
-    shape: AllocationShape<'_>,
+    shape: PayloadShape<'_>,
     bytes: &[u8],
 ) -> destack_heap::HeapResult<HeapReference> {
-    let site = local_allocation_site(heap, shape);
+    let plan = local_allocation_plan(heap, shape);
 
-    heap.allocate_bytes(site, shape.trace_map, bytes)
+    heap.allocate_bytes(plan, shape.trace_map, bytes)
 }
 
 /// Create heap options for ordinary local VM tests.
@@ -123,21 +128,95 @@ fn test_machine_options() -> MachineOptions {
     }
 }
 
+/// Parse one MIR test program and preserve all executable tables.
+fn parse_test_mir(
+    mir_text: &str,
+    options: ParseOptions,
+) -> (
+    destack_mir::Tree,
+    TargetLayout,
+    destack_mir::TypeTable,
+    destack_mir::LayoutTable,
+    destack_mir::DispatchTable,
+    destack_core::StringPool,
+) {
+    let file_id = FileId::from_source_bytes(mir_text.as_bytes());
+    let parsed = Parser::parse(file_id, mir_text, options);
+    let (tree, target_layout, types, layouts, dispatch, _, _, _, _, strings, diagnostics) =
+        parsed.into_parts();
+
+    if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
+        let diagnostic = diagnostics
+            .iter()
+            .next()
+            .unwrap_or_else(|| panic!("parser emitted an empty error set"));
+
+        panic!("failed to parse MIR: {diagnostic:?}");
+    }
+
+    (tree, target_layout, types, layouts, dispatch, strings)
+}
+
+/// Build one executable program from MIR test input.
+fn build_test_program(
+    tree: destack_mir::Tree,
+    target_layout: TargetLayout,
+    types: destack_mir::TypeTable,
+    layouts: destack_mir::LayoutTable,
+    dispatch: destack_mir::DispatchTable,
+    strings: destack_core::StringPool,
+) -> destack_program::Program {
+    let options = test_machine_options();
+
+    ProgramLinker::new(
+        tree,
+        target_layout,
+        types,
+        layouts,
+        dispatch,
+        strings,
+        options.heap,
+        options.shared_heap,
+    )
+    .build()
+    .unwrap_or_else(|error| panic!("failed to lower test program: {error:?}"))
+}
+
+/// Assign test-local type id maps for one MIR tree.
+fn type_maps(
+    tree: &destack_mir::Tree,
+) -> (HashMap<LocalNodeId<Type>, TypeId>, Vec<LocalNodeId<Type>>) {
+    let type_nodes = tree
+        .iter_nodes::<Type>()
+        .map(|(ty, _)| ty)
+        .collect::<Vec<_>>();
+    let type_ids = type_nodes
+        .iter()
+        .copied()
+        .enumerate()
+        .map(|(index, ty)| (ty, TypeId::from(index as u32)))
+        .collect();
+
+    (type_ids, type_nodes)
+}
+
 impl TestMachine {
     /// Build one test machine from MIR text.
     pub(crate) fn new(mir_text: &str) -> Self {
-        let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
-            .finish()
-            .expect("failed to parse MIR");
+        let (tree, target_layout, types, layouts, dispatch, strings) =
+            parse_test_mir(mir_text, ParseOptions::default());
+        let (type_ids, type_nodes) = type_maps(&tree);
+        let source_tree = tree.clone();
 
-        let mut machine = Machine::build_with_options(tree, strings, test_machine_options())
+        let program = build_test_program(tree, target_layout, types, layouts, dispatch, strings);
+        let mut machine = Machine::new(Arc::new(program), test_machine_options())
             .unwrap_or_else(|error| panic!("failed to initialize machine: {error}"));
 
         let mut local_static = StaticSpace::empty();
         let mut shared_static = StaticSpace::empty();
         let heap = create_test_heap();
         let shared_heap = create_test_shared_heap();
-        let shared_gc = shared_heap.register_collector_worker();
+        let shared_mark_worker = shared_heap.register_mark_worker();
         let shared_cache = shared_heap.allocation_cache();
 
         machine
@@ -145,14 +224,30 @@ impl TestMachine {
             .unwrap_or_else(|error| panic!("failed to initialize machine globals: {error}"));
 
         Self {
+            tree: source_tree,
+            type_ids,
+            type_nodes,
             machine,
             local_static,
             shared_static,
             heap,
             shared_heap,
-            shared_gc,
+            shared_mark_worker,
             shared_cache,
         }
+    }
+
+    /// Return the MIR type for one program type.
+    pub(crate) fn mir_type(&self, ty: TypeId) -> destack_mir::LocalNodeId<destack_mir::Type> {
+        self.type_nodes
+            .get(ty.index())
+            .copied()
+            .unwrap_or_else(|| panic!("missing MIR type id for program type {ty:?}"))
+    }
+
+    /// Return the program type for one MIR type.
+    pub(crate) fn program_type(&self, ty: destack_mir::LocalNodeId<destack_mir::Type>) -> TypeId {
+        self.type_ids[&ty]
     }
 
     /// Resolve one function parameter type by name and position.
@@ -166,8 +261,9 @@ impl TestMachine {
             .program
             .functions()
             .get(function_id)
-            .unwrap_or_else(|| panic!("missing function metadata for '{function}'"));
+            .unwrap_or_else(|| panic!("missing function tables for '{function}'"));
         function_record
+            .signature
             .parameters
             .get(argument_index)
             .unwrap_or_else(|| panic!("missing argument {argument_index} for '{function}'"))
@@ -176,27 +272,22 @@ impl TestMachine {
 
     /// Materialize one value for the given program type.
     pub(crate) fn materialize_value_for_type(&mut self, ty: TypeId, values: Vec<Cell>) -> Cell {
-        let mir_type = self
+        // tensors are handles to heap payloads
+        let ty = self
             .machine
             .program
             .types()
-            .mir_type_id(ty)
-            .unwrap_or_else(|| panic!("missing MIR type id for program type {ty:?}"));
-        let layout = self
-            .machine
-            .layout(mir_type)
-            .unwrap_or_else(|| panic!("missing layout for type {mir_type:?}"));
-
-        // tensors are handles to heap payloads
-        if matches!(
-            self.machine
-                .program
-                .types()
-                .get(self.machine.program.types().repr_type(ty)),
-            Some(Type::Tensor { .. })
-        ) {
+            .repr_type(ty)
+            .unwrap_or_else(|| panic!("missing program type {ty:?}"));
+        let mir_type = self.mir_type(ty);
+        if matches!(self.tree.get(mir_type), Type::Tensor { .. }) {
             return self.materialize_tensor_for_type(ty, values);
         }
+
+        let layout = self
+            .machine
+            .layout(ty)
+            .unwrap_or_else(|| panic!("missing layout for type {ty:?}"));
 
         // scalars travel directly as VM cells
         if self.machine.program.is_cell_type(ty) {
@@ -205,11 +296,11 @@ impl TestMachine {
             return values[0];
         }
 
-        let bytes = materialize_value_bytes(&self.machine, &self.heap, mir_type, layout, &values);
+        let bytes = materialize_value_bytes(&self.machine, &self.heap, layout, &values);
         let layout_id = self
             .machine
-            .layout_id_for_type(mir_type)
-            .unwrap_or_else(|| panic!("missing layout id for type {mir_type:?}"));
+            .layout_id_for_type(ty)
+            .unwrap_or_else(|| panic!("missing layout id for type {ty:?}"));
         let shape = self
             .machine
             .allocation_shape(layout_id)
@@ -222,11 +313,17 @@ impl TestMachine {
 
     /// Materialize one tensor value as a local heap payload.
     fn materialize_tensor_for_type(&mut self, ty: TypeId, values: Vec<Cell>) -> Cell {
-        let types = self.machine.program.types();
-        let ty = types.repr_type(ty);
-        let Some(Type::Tensor { element, shape, .. }) = types.get(ty) else {
+        let ty = self
+            .machine
+            .program
+            .types()
+            .repr_type(ty)
+            .unwrap_or_else(|| panic!("missing program type {ty:?}"));
+        let mir_type = self.mir_type(ty);
+        let Type::Tensor { element, shape, .. } = self.tree.get(mir_type) else {
             panic!("type {ty:?} is not a tensor");
         };
+        let element = self.program_type(*element);
         let shape = static_tensor_shape(shape);
         let element_count = tensor_element_count(&shape);
         assert_eq!(
@@ -237,7 +334,7 @@ impl TestMachine {
 
         let element_layout = self
             .machine
-            .layout(*element)
+            .layout(element)
             .unwrap_or_else(|| panic!("missing tensor element layout for type {element:?}"));
         let stride = align_to(element_layout.byte_len(), element_layout.alignment as usize);
         let byte_len = stride
@@ -250,14 +347,14 @@ impl TestMachine {
             write_materialized_value(
                 &self.machine,
                 &self.heap,
-                *element,
+                element,
                 value,
                 &mut bytes[start..],
             );
         }
 
         let trace_map = TraceMap::empty();
-        let shape = AllocationShape::new(
+        let shape = PayloadShape::new(
             byte_len,
             element_layout.alignment as usize,
             None,
@@ -283,7 +380,7 @@ impl TestMachine {
             &mut self.heap,
             &self.shared_heap,
             &mut self.shared_cache,
-            &self.shared_gc,
+            &self.shared_mark_worker,
             function,
             arguments,
         )
@@ -303,7 +400,7 @@ impl TestMachine {
             &mut self.heap,
             &self.shared_heap,
             &mut self.shared_cache,
-            &self.shared_gc,
+            &self.shared_mark_worker,
             function,
             arguments,
         )
@@ -323,7 +420,7 @@ impl TestMachine {
             &mut self.heap,
             &self.shared_heap,
             &mut self.shared_cache,
-            &self.shared_gc,
+            &self.shared_mark_worker,
             function,
             arguments,
         )
@@ -341,7 +438,7 @@ impl TestMachine {
             &mut self.heap,
             &self.shared_heap,
             &mut self.shared_cache,
-            &self.shared_gc,
+            &self.shared_mark_worker,
             continuation,
             resume_value,
         )
@@ -366,7 +463,7 @@ impl TestMachine {
                 Ok(())
             })
             .expect("failed to collect shared roots");
-        let trace_table = self.machine.trace_table();
+        let program = self.machine.program_handle();
         let mut heap_roots =
             |visit: &mut dyn FnMut(destack_heap::RootSlot<'_>) -> destack_heap::HeapResult<()>| {
                 self.machine
@@ -377,11 +474,11 @@ impl TestMachine {
             };
         let mut stats = self
             .heap
-            .collect_full(&mut heap_roots, trace_table.as_ref())
+            .collect_full(&mut heap_roots, program.trace_table())
             .expect("failed to collect heap");
         let shared_stats = self
             .shared_heap
-            .collect_full(&shared_roots, trace_table.as_ref())
+            .collect_full(&shared_roots, program.trace_table())
             .expect("failed to collect shared heap");
 
         stats.freed_allocations += shared_stats.freed_allocations;
@@ -398,8 +495,7 @@ impl TestMachine {
 fn materialize_value_bytes(
     machine: &Machine,
     heap: &Heap,
-    ty: destack_mir::LocalNodeId<destack_mir::Type>,
-    layout: &destack_mir::Layout,
+    layout: &Layout,
     values: &[Cell],
 ) -> Vec<u8> {
     let mut bytes = vec![0u8; layout.byte_len()];
@@ -414,7 +510,7 @@ fn materialize_value_bytes(
         for (index, value) in values.iter().copied().enumerate() {
             let field = layout
                 .field_at(index as u32)
-                .unwrap_or_else(|| panic!("missing field {index} for type {ty:?}"));
+                .unwrap_or_else(|| panic!("missing field {index} for layout {layout:?}"));
             write_materialized_value(
                 machine,
                 heap,
@@ -428,10 +524,10 @@ fn materialize_value_bytes(
     }
 
     // elements
-    let elements = layout
-        .shape
-        .elements()
-        .unwrap_or_else(|| panic!("type {ty:?} is not materializable as an aggregate"));
+    let elements = match &layout.shape {
+        LayoutShape::Array(elements) | LayoutShape::Vector(elements) => elements,
+        _ => panic!("layout {layout:?} is not materializable as an aggregate"),
+    };
     let element_count = elements.count;
     assert_eq!(
         values.len(),
@@ -449,7 +545,7 @@ fn materialize_value_bytes(
 fn write_materialized_value(
     machine: &Machine,
     heap: &Heap,
-    ty: destack_mir::LocalNodeId<destack_mir::Type>,
+    ty: TypeId,
     value: Cell,
     destination: &mut [u8],
 ) {
@@ -459,13 +555,11 @@ fn write_materialized_value(
 
     // scalar values encode inline
     if is_cell_type(machine, ty) {
-        let encoded = encode_cell_bytes(
-            machine.program.types(),
-            machine.program.types().type_id(ty),
-            value,
-            machine.program.pointer_bytes(),
-        )
-        .unwrap_or_else(|error| panic!("failed to encode materialized cell: {error:?}"));
+        let cell_layout = machine
+            .program
+            .cell_layout(ty)
+            .unwrap_or_else(|| panic!("missing cell layout for nested type {ty:?}"));
+        let encoded = encode_cell_bytes(cell_layout, value, machine.program.pointer_bytes());
         destination[..encoded.len()].copy_from_slice(encoded.as_slice());
 
         return;
@@ -479,10 +573,8 @@ fn write_materialized_value(
 }
 
 /// Return whether one type is represented by one VM cell.
-fn is_cell_type(machine: &Machine, ty: destack_mir::LocalNodeId<destack_mir::Type>) -> bool {
-    machine
-        .program
-        .is_cell_type(machine.program.types().type_id(ty))
+fn is_cell_type(machine: &Machine, ty: TypeId) -> bool {
+    machine.program.is_cell_type(ty)
 }
 
 /// Return the static tensor shape.
@@ -535,41 +627,50 @@ pub(crate) fn create_machine(mir_text: &str) -> TestMachine {
     TestMachine::new(mir_text)
 }
 
-/// Parse MIR text and create one test machine with explicit data layout.
-pub(crate) fn create_machine_with_data_layout(
+/// Parse MIR text and create one test machine with an explicit target layout.
+pub(crate) fn create_machine_with_target_layout(
     mir_text: &str,
-    data_layout: DataLayout,
+    target_layout: TargetLayout,
 ) -> TestMachine {
-    let (tree, strings) = Parser::parse(
-        FileId::new(0),
-        mir_text,
-        ParseOptions {
-            pointer_bytes: data_layout.pointer_bytes,
-        },
-    )
-    .finish()
-    .expect("failed to parse MIR");
-    assert_eq!(tree.metadata.data_layout, data_layout);
+    let options = ParseOptions {
+        pointer_bytes: target_layout.pointer_bytes(),
+    };
+    let (tree, parsed_target_layout, types, layouts, dispatch, strings) =
+        parse_test_mir(mir_text, options);
+    assert_eq!(parsed_target_layout, target_layout);
+    let (type_ids, type_nodes) = type_maps(&tree);
+    let source_tree = tree.clone();
 
-    let mut machine = Machine::build_with_options(tree, strings, test_machine_options())
+    let program = build_test_program(
+        tree,
+        parsed_target_layout,
+        types,
+        layouts,
+        dispatch,
+        strings,
+    );
+    let mut machine = Machine::new(Arc::new(program), test_machine_options())
         .unwrap_or_else(|error| panic!("failed to initialize machine: {error}"));
     let mut local_static = StaticSpace::empty();
     let mut shared_static = StaticSpace::empty();
     let heap = create_test_heap();
     let shared = create_test_shared_heap();
-    let shared_gc = shared.register_collector_worker();
+    let shared_mark_worker = shared.register_mark_worker();
     let shared_cache = shared.allocation_cache();
     machine
         .initialize(&heap, &shared, &mut local_static, &mut shared_static)
         .unwrap_or_else(|error| panic!("failed to initialize machine globals: {error}"));
 
     TestMachine {
+        tree: source_tree,
+        type_ids,
+        type_nodes,
         machine,
         local_static,
         shared_static,
         heap,
         shared_heap: shared,
-        shared_gc,
+        shared_mark_worker,
         shared_cache,
     }
 }
@@ -771,7 +872,7 @@ entry:
 }
 
 /// The dynamic dispatch forwards the concrete object receiver to the selected method.
-#[ignore = "text MIR fixtures cannot declare dynamic table metadata"]
+#[ignore = "text MIR fixtures cannot declare dynamic tables"]
 #[test]
 fn test_interface_call_forwards_concrete_receiver() {
     let mir_text = r#"
@@ -789,7 +890,7 @@ type Greeter#object {
     greet: () => int32;
 }
 
-readonly global GreeterImpl#vtable: [ref<void, raw, readonly, nullable>; 3] = zeroInit
+readonly global GreeterImpl#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
 
 external function Greeter.greet(Greeter#object): int32
 
@@ -815,8 +916,8 @@ entry:
 function GreeterImpl.constructor(v0: int32): ref<GreeterImpl, managed, readonly> {
 entry(v0: int32):
     v1: ref<GreeterImpl, managed, readonly> = new.zeroed GreeterImpl
-    v2: ref<[ref<void, raw, readonly, nullable>; 3], raw, readonly> = global.address GreeterImpl#vtable
-    v3: ref<void, raw, readonly> = cast.bit v2 -> ref<void, raw, readonly>
+    v2: ref<[ref<void, raw, readonly, nullable, space(static)>; 3], raw, readonly, space(static)> = global.address GreeterImpl#vtable
+    v3: ref<void, raw, readonly, space(static)> = cast.bit v2 -> ref<void, raw, readonly, space(static)>
     v4: int32 = 0
     v5: GreeterImpl = struct GreeterImpl (v3, v4)
     store v1, v5

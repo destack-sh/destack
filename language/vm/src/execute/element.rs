@@ -105,8 +105,8 @@ pub(crate) fn execute_address_frame_element(
     Ok(())
 }
 
-/// Execute element addr on static addresses.
-pub(crate) fn execute_static_address_element(
+/// Execute element addr on global addresses.
+pub(crate) fn execute_global_address_element(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -114,7 +114,7 @@ pub(crate) fn execute_static_address_element(
     let array = activation.load_cell_at(instruction.b);
     let index = load_array_index_at(activation, instruction.c);
     let element = instruction_element(activation, instruction.d);
-    let value = address::element_static(activation, array.as_static_address(), element, index)?;
+    let value = address::element_global(activation, array.as_global_address(), element, index)?;
     publish_element_address(activation, dest, value);
 
     Ok(())

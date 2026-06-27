@@ -88,15 +88,15 @@ pub(crate) fn execute_address_frame_offset(
     Ok(())
 }
 
-/// Execute fixed-offset address on static addresses.
-pub(crate) fn execute_static_address_offset(
+/// Execute fixed-offset address on global addresses.
+pub(crate) fn execute_global_address_offset(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
     let base = activation.load_cell_at(instruction.b);
     let byte_offset = instruction_byte_offset(instruction);
-    let value = address::offset_static(base.as_static_address(), byte_offset)?;
+    let value = address::offset_global(base.as_global_address(), byte_offset)?;
     publish_offset_address(activation, dest, value);
 
     Ok(())
