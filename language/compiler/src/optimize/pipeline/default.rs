@@ -1,8 +1,8 @@
 use crate::CompositePipeline;
 use crate::optimize::passes::{
-    CombineInstructions, ConvertBranches, DistributeLoops, EliminateBoundsChecks,
-    EliminateDeadArguments, EliminateDeadCode, EliminateDeadFunctions, EliminateDeadLoops,
-    EliminateDeadStores, EliminateGuards, EliminateInterproceduralDeadCode,
+    CombineInstructions, ConvertBranches, Devirtualize, DevirtualizeGuarded, DistributeLoops,
+    EliminateBoundsChecks, EliminateDeadArguments, EliminateDeadCode, EliminateDeadFunctions,
+    EliminateDeadLoops, EliminateDeadStores, EliminateGuards, EliminateInterproceduralDeadCode,
     EliminateLocalCommonSubexpressions, EliminateLoopBoundsChecks, EliminatePartialRedundancy,
     EliminatePartialRedundantLoads, EliminatePartialRedundantStores, EliminateRedundantExpressions,
     EliminateRedundantMemory, EliminateTailCalls, FoldConstants, ForwardStoredValues, FuseLoops,
@@ -237,6 +237,7 @@ fn o2_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         // propagate interprocedural constants before inlining
         .module_pass(PropagateInterproceduralConstants)
         .module_pass(PropagateInterproceduralSparseConstants)
+        .module_pass(Devirtualize)
         .module_pass(EliminateDeadArguments)
         .module_pass(InlineFunctions)
         .module_pass(OptimizeGlobals)
@@ -281,6 +282,8 @@ fn o3_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         // propagate interprocedural constants before inlining
         .module_pass(PropagateInterproceduralConstants)
         .module_pass(PropagateInterproceduralSparseConstants)
+        .module_pass(Devirtualize)
+        .module_pass(DevirtualizeGuarded)
         .module_pass(SpecializeArguments)
         .module_pass(EliminateDeadArguments)
         .module_pass(InlineFunctions)
@@ -329,6 +332,8 @@ fn o4_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         // propagate interprocedural constants before inlining
         .module_pass(PropagateInterproceduralConstants)
         .module_pass(PropagateInterproceduralSparseConstants)
+        .module_pass(Devirtualize)
+        .module_pass(DevirtualizeGuarded)
         .module_pass(SpecializeArguments)
         .module_pass(EliminateDeadArguments)
         .module_pass(InlineFunctions)
