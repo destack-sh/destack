@@ -8,6 +8,22 @@ use serde::{Deserialize, Serialize};
 pub struct MirLowered {
     /// The MIR tree.
     pub tree: mir::Tree,
+    /// Target ABI layout.
+    pub target: mir::TargetLayout,
+    /// Canonical MIR type table.
+    pub types: mir::TypeTable,
+    /// Canonical MIR layout table.
+    pub layouts: mir::LayoutTable,
+    /// Canonical MIR dispatch table.
+    pub dispatch: mir::DispatchTable,
+    /// Canonical MIR drop table.
+    pub drops: mir::DropTable,
+    /// Explicit MIR memory access table.
+    pub memory: mir::MemoryTable,
+    /// Function and call effect table.
+    pub effects: mir::EffectTable,
+    /// Static profile counter table.
+    pub profile: mir::ProfileTable,
 }
 
 impl MirLowered {
@@ -15,6 +31,29 @@ impl MirLowered {
     pub fn new() -> Self {
         Self {
             tree: mir::Tree::new(),
+            target: mir::TargetLayout::default(),
+            types: mir::TypeTable::default(),
+            layouts: mir::LayoutTable::default(),
+            dispatch: mir::DispatchTable::default(),
+            drops: mir::DropTable::default(),
+            memory: mir::MemoryTable::default(),
+            effects: mir::EffectTable::default(),
+            profile: mir::ProfileTable::default(),
+        }
+    }
+
+    /// Create a verified MIR artifact from this lowered artifact and rewritten tree.
+    pub fn into_verified(self, tree: mir::Tree) -> MirVerified {
+        MirVerified {
+            tree,
+            target: self.target,
+            types: self.types,
+            layouts: self.layouts,
+            dispatch: self.dispatch,
+            drops: self.drops,
+            memory: self.memory,
+            effects: self.effects,
+            profile: self.profile,
         }
     }
 }
@@ -25,18 +64,42 @@ impl Default for MirLowered {
     }
 }
 
-/// Verified MIR patch after required semantic verification.
+/// Verified MIR after required semantic verification.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirVerified {
-    /// Required verification patch.
-    pub patch: mir::Patch,
+    /// The verified MIR tree.
+    pub tree: mir::Tree,
+    /// Target ABI layout.
+    pub target: mir::TargetLayout,
+    /// Canonical MIR type table.
+    pub types: mir::TypeTable,
+    /// Canonical MIR layout table.
+    pub layouts: mir::LayoutTable,
+    /// Canonical MIR dispatch table.
+    pub dispatch: mir::DispatchTable,
+    /// Canonical MIR drop table.
+    pub drops: mir::DropTable,
+    /// Explicit MIR memory access table.
+    pub memory: mir::MemoryTable,
+    /// Function and call effect table.
+    pub effects: mir::EffectTable,
+    /// Static profile counter table.
+    pub profile: mir::ProfileTable,
 }
 
 impl MirVerified {
-    /// Create a verified MIR payload from a rewritten tree.
-    pub fn from_tree(tree: mir::Tree) -> Self {
-        Self {
-            patch: mir::Patch::from_tree("verify", tree),
+    /// Create an optimized MIR artifact from this verified artifact and rewritten tree.
+    pub fn into_optimized(self, tree: mir::Tree) -> MirOptimized {
+        MirOptimized {
+            tree,
+            target: self.target,
+            types: self.types,
+            layouts: self.layouts,
+            dispatch: self.dispatch,
+            drops: self.drops,
+            memory: self.memory,
+            effects: self.effects,
+            profile: self.profile,
         }
     }
 }
@@ -44,21 +107,45 @@ impl MirVerified {
 /// Optimized MIR payload after pipeline transforms.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirOptimized {
-    /// Ordered optimization patches.
-    pub patches: Vec<mir::Patch>,
+    /// The optimized MIR tree.
+    pub tree: mir::Tree,
+    /// Target ABI layout.
+    pub target: mir::TargetLayout,
+    /// Canonical MIR type table.
+    pub types: mir::TypeTable,
+    /// Canonical MIR layout table.
+    pub layouts: mir::LayoutTable,
+    /// Canonical MIR dispatch table.
+    pub dispatch: mir::DispatchTable,
+    /// Canonical MIR drop table.
+    pub drops: mir::DropTable,
+    /// Explicit MIR memory access table.
+    pub memory: mir::MemoryTable,
+    /// Function and call effect table.
+    pub effects: mir::EffectTable,
+    /// Static profile counter table.
+    pub profile: mir::ProfileTable,
 }
 
 impl MirOptimized {
     /// Create a new optimized MIR payload.
     pub fn new() -> Self {
         Self {
-            patches: Vec::new(),
+            tree: mir::Tree::new(),
+            target: mir::TargetLayout::default(),
+            types: mir::TypeTable::default(),
+            layouts: mir::LayoutTable::default(),
+            dispatch: mir::DispatchTable::default(),
+            drops: mir::DropTable::default(),
+            memory: mir::MemoryTable::default(),
+            effects: mir::EffectTable::default(),
+            profile: mir::ProfileTable::default(),
         }
     }
 
-    /// Return the tree owned by the last optimization patch.
-    pub fn latest_patch_tree(&self) -> Option<&mir::Tree> {
-        self.patches.last().map(|patch| &patch.tree)
+    /// Return the optimized MIR tree.
+    pub fn tree(&self) -> &mir::Tree {
+        &self.tree
     }
 }
 
