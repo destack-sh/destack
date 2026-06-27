@@ -30,6 +30,7 @@ struct StaticElement {
 /// Lower one MIR global initializer to native static data.
 pub(crate) fn lower_static_data(
     tree: &mir::Tree,
+    layouts: &mir::LayoutTable,
     init: &mir::GlobalInitializer,
     ty: mir::LocalNodeId<mir::Type>,
     pointer_bytes: u8,
@@ -37,7 +38,7 @@ pub(crate) fn lower_static_data(
     match init {
         mir::GlobalInitializer::Zero => {
             // zero data is sized from the target layout
-            let layout = compute_type_layout(tree, ty, pointer_bytes)?;
+            let layout = compute_type_layout(tree, layouts, ty, pointer_bytes)?;
 
             Ok(StaticData {
                 bytes: vec![0u8; layout.size as usize],
@@ -74,8 +75,9 @@ pub(crate) fn lower_static_data(
         }
         mir::GlobalInitializer::Aggregate(elements) => {
             // aggregate data includes target padding
-            let layout = compute_type_layout(tree, ty, pointer_bytes)?;
-            let static_elements = static_elements(tree, ty, elements.len(), pointer_bytes)?;
+            let layout = compute_type_layout(tree, layouts, ty, pointer_bytes)?;
+            let static_elements =
+                static_elements(tree, layouts, ty, elements.len(), pointer_bytes)?;
             let mut data = StaticData {
                 bytes: vec![0u8; layout.size as usize],
                 relocations: Vec::new(),
@@ -84,7 +86,7 @@ pub(crate) fn lower_static_data(
             // copy initialized elements into layout offsets
             for (element_init, element) in elements.iter().zip(static_elements.iter()) {
                 let element_data =
-                    lower_static_data(tree, element_init, element.ty, pointer_bytes)?;
+                    lower_static_data(tree, layouts, element_init, element.ty, pointer_bytes)?;
                 let end = element.byte_offset + element_data.bytes.len();
 
                 if end > data.bytes.len() {
@@ -111,19 +113,28 @@ pub(crate) fn lower_static_data(
 /// Return aggregate initializer elements in source order.
 fn static_elements(
     tree: &mir::Tree,
+    layouts: &mir::LayoutTable,
     ty: mir::LocalNodeId<mir::Type>,
     expected_len: usize,
     pointer_bytes: u8,
 ) -> CodegenCraneliftResult<Vec<StaticElement>> {
     match tree.get(ty) {
         mir::Type::Struct { .. } | mir::Type::Tuple { .. } | mir::Type::Slice { .. } => {
-            record_static_elements(tree, ty, expected_len)
+            record_static_elements(layouts, ty, expected_len)
         }
         mir::Type::FixedArray {
             element,
             length,
             copy: _,
-        } => array_static_elements(tree, ty, *element, *length, expected_len, pointer_bytes),
+        } => array_static_elements(
+            tree,
+            layouts,
+            ty,
+            *element,
+            *length,
+            expected_len,
+            pointer_bytes,
+        ),
         mir_type => Err(CodegenCraneliftError::unsupported_type(
             format!("aggregate initializer for non-aggregate type: {mir_type:?}"),
             ty.into_any(),
@@ -131,15 +142,15 @@ fn static_elements(
     }
 }
 
-/// Return record-like initializer elements from layout metadata.
+/// Return record-like initializer elements from layout table.
 fn record_static_elements(
-    tree: &mir::Tree,
+    layouts: &mir::LayoutTable,
     ty: mir::LocalNodeId<mir::Type>,
     expected_len: usize,
 ) -> CodegenCraneliftResult<Vec<StaticElement>> {
     // record layouts carry authoritative field offsets
-    let layout = tree.metadata.layouts.type_layout(ty).ok_or_else(|| {
-        CodegenCraneliftError::unsupported_type("missing layout metadata", ty.into_any())
+    let layout = layouts.type_layout(ty).ok_or_else(|| {
+        CodegenCraneliftError::unsupported_type("missing layout table", ty.into_any())
     })?;
     let fields = layout.shape.fields();
     if fields.len() != expected_len {
@@ -164,6 +175,7 @@ fn record_static_elements(
 /// Return array initializer elements from element stride.
 fn array_static_elements(
     tree: &mir::Tree,
+    layouts: &mir::LayoutTable,
     array: mir::LocalNodeId<mir::Type>,
     element: mir::TypeId,
     length: u64,
@@ -177,7 +189,7 @@ fn array_static_elements(
         });
     }
 
-    let stride = array_static_stride(tree, array, element, pointer_bytes)?;
+    let stride = array_static_stride(tree, layouts, array, element, pointer_bytes)?;
     let elements = (0..count)
         .map(|index| StaticElement {
             ty: element,
@@ -191,19 +203,20 @@ fn array_static_elements(
 /// Return the byte stride for one array element type.
 fn array_static_stride(
     tree: &mir::Tree,
+    layouts: &mir::LayoutTable,
     array: mir::LocalNodeId<mir::Type>,
     element: mir::LocalNodeId<mir::Type>,
     pointer_bytes: u8,
 ) -> CodegenCraneliftResult<usize> {
-    // layout metadata is authoritative when present
-    if let Some(layout) = tree.metadata.layouts.type_layout(array)
+    // layout table is authoritative when present
+    if let Some(layout) = layouts.type_layout(array)
         && let mir::LayoutShape::Array(layout) = &layout.shape
     {
         return Ok(layout.stride as usize);
     }
 
     // otherwise use the computed element layout
-    let element_layout = compute_type_layout(tree, element, pointer_bytes)?;
+    let element_layout = compute_type_layout(tree, layouts, element, pointer_bytes)?;
     let stride = align_to(element_layout.size, element_layout.alignment);
 
     Ok(stride as usize)

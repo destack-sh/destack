@@ -242,9 +242,9 @@ function makePoint(a: number, b: number): Point {
     test.check_has_diagnostic("EM200");
 }
 
-/// Lower struct field map metadata for nominal layouts.
+/// Lower struct field map tables for nominal layouts.
 #[test]
-fn test_lower_struct_field_map_metadata() {
+fn test_lower_struct_field_map_entries() {
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
@@ -283,7 +283,7 @@ entry(v0: FieldMapBox):
 "#,
     );
 
-    // inspect the lowered mir metadata
+    // inspect the lowered mir tables
     test.with_mir_tree(module_id, "native", |tree, strings| {
         // locate the struct payload type
         let struct_type = test.type_by_metadata_name(tree, strings, "test/test:FieldMapBox");

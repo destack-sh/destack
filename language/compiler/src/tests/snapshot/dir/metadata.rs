@@ -4,20 +4,20 @@ use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 impl DirSnapshotBuilder<'_> {
     /// Add metadata snapshot rows for selected prefixes.
     pub(crate) fn add_metadata(&mut self, prefixes: &[&'static str], content: &str) {
-        let metadata = parse_metadata(content);
+        let entries = parse_metadata(content);
 
         for prefix in prefixes {
-            self.add_metadata_row(prefix, &metadata);
+            self.add_metadata_row(prefix, &entries);
         }
     }
 
     /// Add one metadata row by prefix.
-    fn add_metadata_row(&mut self, prefix: &'static str, metadata: &[MetadataEntry<'_>]) {
+    fn add_metadata_row(&mut self, prefix: &'static str, entries: &[MetadataEntry<'_>]) {
         let (table, entry) = metadata_row_tag(prefix);
         let field_prefix = format!("{prefix}.");
         let mut row = SnapshotRow::new(SnapshotAnchor::End, table, entry);
 
-        for entry in metadata {
+        for entry in entries {
             let Some(field) = entry.key.strip_prefix(&field_prefix) else {
                 continue;
             };
@@ -50,7 +50,7 @@ struct MetadataEntry<'a> {
 
 /// Parse key value metadata lines.
 fn parse_metadata(content: &str) -> Vec<MetadataEntry<'_>> {
-    let mut metadata = Vec::new();
+    let mut entries = Vec::new();
 
     for line in content.lines() {
         let line = line.trim();
@@ -62,13 +62,13 @@ fn parse_metadata(content: &str) -> Vec<MetadataEntry<'_>> {
             panic!("invalid metadata line `{line}`");
         };
 
-        metadata.push(MetadataEntry {
+        entries.push(MetadataEntry {
             key: key.trim(),
             value: value.trim(),
         });
     }
 
-    metadata
+    entries
 }
 
 /// Split one metadata row prefix into snapshot row tags.

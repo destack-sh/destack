@@ -131,13 +131,13 @@ type PacketHeader {
     packetSize: int32;
 }
 
-readonly global PacketHeader#vtable: [ref<void, raw, readonly, nullable, space(static)>; 2], space(static) = zeroInit
+readonly global PacketHeader#vtable: [ref<void, raw, readonly, nullable, space(static)>; 0], space(static) = zeroInit
 
-readonly global MessageHeader#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
+readonly global MessageHeader#vtable: [ref<void, raw, readonly, nullable, space(static)>; 1], space(static) = zeroInit
 
 function readPacketSize(v0: int32): int32 {
 entry(v0: int32):
-    v1: ref<[ref<void, raw, readonly, nullable, space(static)>; 2], raw, readonly, space(static)> = global.address PacketHeader#vtable
+    v1: ref<[ref<void, raw, readonly, nullable, space(static)>; 0], raw, readonly, space(static)> = global.address PacketHeader#vtable
     v2: ref<void, raw, readonly, space(static)> = cast.bit v1 -> ref<void, raw, readonly, space(static)>
     v3: PacketHeader = struct PacketHeader (v2, v0)
     v4: ref<PacketHeader, managed, readonly> = new.zeroed PacketHeader
@@ -264,9 +264,9 @@ function computeClass(base: int32, delta: int32): int32 {
     );
 }
 
-/// Lower class vtable metadata with override reuse.
+/// Lower class dispatch tables with override reuse.
 #[test]
-fn test_lower_class_vtable_metadata() {
+fn test_lower_class_vtable_entries() {
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
@@ -307,13 +307,13 @@ type Dog {
     breed: int32;
 }
 
-readonly global Animal#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
+readonly global Animal#vtable: [ref<void, raw, readonly, nullable, space(static)>; 1], space(static) = zeroInit
 
-readonly global Dog#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
+readonly global Dog#vtable: [ref<void, raw, readonly, nullable, space(static)>; 1], space(static) = zeroInit
 
 function useDog(v0: ref<Dog, managed, readonly>): int32 {
 entry(v0: ref<Dog, managed, readonly>):
-    v1: int32 = call.virtual v0, Dog, 2(v0): (ref<Dog, managed, readonly>) => int32
+    v1: int32 = call.virtual v0, Dog, 0(v0): (ref<Dog, managed, readonly>) => int32
     return v1
 }
 
@@ -336,14 +336,11 @@ entry(this0: ref<Dog, managed, readonly>):
         let vtables = test.class_dispatch_tables(tree);
         assert_eq!(vtables.len(), 2);
 
-        // resolve vtables by class metadata names
+        // resolve vtables by class names
         let animal_type = test.type_by_metadata_name(tree, strings, "test/test:Animal");
         let animal_table = test.type_vtable(tree, animal_type);
         let dog_type = test.type_by_metadata_name(tree, strings, "test/test:Dog");
         let dog_table = test.type_vtable(tree, dog_type);
-
-        // assert the fixed vtable prefix
-        test.assert_vtable_prefix(animal_table);
 
         // count the class method slots
         let animal_methods = test.count_vtable_methods(animal_table);
@@ -387,9 +384,9 @@ type Vehicle {
     vtable: ref<void, raw, readonly, space(static)>;
 }
 
-readonly global Vehicle#vtable: [ref<void, raw, readonly, nullable, space(static)>; 4], space(static) = zeroInit
+readonly global Vehicle#vtable: [ref<void, raw, readonly, nullable, space(static)>; 2], space(static) = zeroInit
 
-readonly global Car#vtable: [ref<void, raw, readonly, nullable, space(static)>; 5], space(static) = zeroInit
+readonly global Car#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
 
 function Vehicle.start(this0: ref<Vehicle, managed, readonly>): int32 {
 entry(this0: ref<Vehicle, managed, readonly>):
@@ -435,9 +432,9 @@ entry(this0: ref<Vehicle, managed, readonly>):
     });
 }
 
-/// Lower virtual call metadata for virtual dispatch.
+/// Lower virtual call entries for virtual dispatch.
 #[test]
-fn test_lower_class_call_metadata() {
+fn test_lower_class_call_entries() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
@@ -486,13 +483,13 @@ type FileLogger {
     fileMode: int32;
 }
 
-readonly global Logger#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
+readonly global Logger#vtable: [ref<void, raw, readonly, nullable, space(static)>; 1], space(static) = zeroInit
 
-readonly global FileLogger#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
+readonly global FileLogger#vtable: [ref<void, raw, readonly, nullable, space(static)>; 1], space(static) = zeroInit
 
 function callLogger(v0: ref<Logger, managed, readonly>): int32 {
 entry(v0: ref<Logger, managed, readonly>):
-    v1: int32 = call.virtual v0, Logger, 2(v0): (ref<Logger, managed, readonly>) => int32
+    v1: int32 = call.virtual v0, Logger, 0(v0): (ref<Logger, managed, readonly>) => int32
     return v1
 }
 
@@ -510,13 +507,13 @@ entry(this0: ref<FileLogger, managed, readonly>):
 "#,
     );
 
-    // inspect call metadata
+    // inspect call tables
     test.with_mir_tree(module_id, "native", |tree, strings| {
         let derived_type = test.type_by_metadata_name(tree, strings, "test/test:FileLogger");
         let base_type = test.type_parent(tree, derived_type);
 
         let call_logger_info = test.class_call_info_by_name(tree, strings, "callLogger");
-        assert_eq!(call_logger_info.slot, mir::DispatchSlot::new(2));
+        assert_eq!(call_logger_info.slot, mir::DispatchSlot::new(0));
         assert_eq!(call_logger_info.class, base_type);
     });
 }
@@ -557,13 +554,13 @@ type Logger {
     vtable: ref<void, raw, readonly, space(static)>;
 }
 
-readonly global Logger#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
+readonly global Logger#vtable: [ref<void, raw, readonly, nullable, space(static)>; 1], space(static) = zeroInit
 
-readonly global FileLogger#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
+readonly global FileLogger#vtable: [ref<void, raw, readonly, nullable, space(static)>; 1], space(static) = zeroInit
 
 function callLogger(v0: ref<Logger, managed, readonly>): int32 {
 entry(v0: ref<Logger, managed, readonly>):
-    v1: int32 = call.virtual v0, Logger, 2(v0): (ref<Logger, managed, readonly>) => int32
+    v1: int32 = call.virtual v0, Logger, 0(v0): (ref<Logger, managed, readonly>) => int32
     return v1
 }
 
@@ -624,9 +621,9 @@ function callNotification(): int32 {
     );
 }
 
-/// Lower class lineage metadata for inheritance and interfaces.
+/// Lower class lineage for inheritance and interfaces.
 #[test]
-fn test_lower_class_lineage_metadata() {
+fn test_lower_class_lineage_entries() {
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
@@ -651,20 +648,20 @@ class TaggedWidget extends WidgetBase implements Taggable {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    // inspect the lowered mir metadata
+    // inspect the lowered mir tables
     test.with_mir_tree(module_id, "native", |tree, strings| {
         // locate the base and derived payload types
         let base_type = test.type_by_metadata_name(tree, strings, "test/test:WidgetBase");
         let derived_type = test.type_by_metadata_name(tree, strings, "test/test:TaggedWidget");
 
-        // assert lineage metadata for the derived type
+        // assert lineage tables for the derived type
         let lineage = test.type_lineage(tree, derived_type);
         assert_eq!(lineage.parent, Some(base_type));
         assert_eq!(lineage.interfaces.len(), 1);
         assert!(!lineage.is_interface);
         assert!(!lineage.is_abstract);
 
-        // assert interface metadata is flagged correctly
+        // assert interface lineage is flagged correctly
         let interface_type = lineage.interfaces[0];
         let interface_lineage = test.type_lineage(tree, interface_type);
         assert!(interface_lineage.is_interface);
@@ -672,9 +669,9 @@ class TaggedWidget extends WidgetBase implements Taggable {
     });
 }
 
-/// Lower class layout metadata for inherited fields.
+/// Lower class layout entries for inherited fields.
 #[test]
-fn test_lower_class_layout_inheritance() {
+fn test_lower_class_layout_entries() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
@@ -697,12 +694,12 @@ class SavingsAccount extends Account {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    // inspect layout metadata
+    // inspect layout entries
     test.with_mir_tree(module_id, "native", |tree, strings| {
         // resolve the derived type
         let derived_type = test.type_by_metadata_name(tree, strings, "test/test:SavingsAccount");
 
-        // resolve the base type from lineage metadata
+        // resolve the base type from lineage tables
         let base_type = test.type_parent(tree, derived_type);
 
         // collect base and derived field offsets

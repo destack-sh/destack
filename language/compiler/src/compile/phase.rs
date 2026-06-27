@@ -4,7 +4,7 @@
 pub enum CompilerPhase {
     /// Bind source into base DIR.
     Bind = 1,
-    /// Resolve import specifiers into module tables.
+    /// Resolve import specifiers into module metadata.
     Import = 2,
     /// Expand macros into DIR patches.
     Expand = 3,
@@ -65,7 +65,7 @@ impl CompilerPhase {
     pub fn description(&self) -> &str {
         match self {
             Self::Bind => "parse and bind source into DIR",
-            Self::Import => "resolve import specifiers into module tables",
+            Self::Import => "resolve import specifiers into module metadata",
             Self::Expand => "expand macros into DIR patches",
             Self::Export => "resolve exports over expanded DIR",
             Self::Resolve => "resolve imports into symbol targets",

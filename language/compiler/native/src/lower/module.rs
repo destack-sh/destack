@@ -29,6 +29,8 @@ pub(crate) struct ModuleLowerer<'a> {
     isa: Arc<dyn TargetIsa>,
     /// String pool for interned names.
     strings: &'a StringPool,
+    /// Canonical MIR layout table.
+    layouts: &'a mir::LayoutTable,
     /// The Cranelift object module.
     cl_module: ObjectModule,
     /// Mapping from MIR function ids to Cranelift function ids.
@@ -43,7 +45,12 @@ pub(crate) struct ModuleLowerer<'a> {
 
 impl<'a> ModuleLowerer<'a> {
     /// Create a new module lowering context.
-    pub(crate) fn new(isa: Arc<dyn TargetIsa>, strings: &'a StringPool, name: &str) -> Self {
+    pub(crate) fn new(
+        isa: Arc<dyn TargetIsa>,
+        strings: &'a StringPool,
+        layouts: &'a mir::LayoutTable,
+        name: &str,
+    ) -> Self {
         let builder =
             ObjectBuilder::new(isa.clone(), name, cranelift_module::default_libcall_names())
                 .expect("failed to create object builder");
@@ -51,6 +58,7 @@ impl<'a> ModuleLowerer<'a> {
         Self {
             isa,
             strings,
+            layouts,
             cl_module: module,
             cl_function_ids: HashMap::new(),
             cl_global_data_ids: HashMap::new(),
@@ -119,7 +127,7 @@ impl<'a> ModuleLowerer<'a> {
 
             // define the data if we have an initializer (not for imports)
             if let Some(ref init) = global.initializer {
-                let data = lower_static_data(tree, init, global.ty, pointer_bytes)?;
+                let data = lower_static_data(tree, self.layouts, init, global.ty, pointer_bytes)?;
                 let mut data_description = cranelift_module::DataDescription::new();
                 data_description.define(data.bytes.into_boxed_slice());
                 for relocation in data.relocations {
@@ -167,6 +175,7 @@ impl<'a> ModuleLowerer<'a> {
             // lower the function body
             let function_lowerer = FunctionLowerer::new(
                 tree,
+                self.layouts,
                 function,
                 &self.isa,
                 &mut self.cl_module,

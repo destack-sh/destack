@@ -17,6 +17,8 @@ use crate::{CodegenCraneliftError, CodegenCraneliftResult, trap};
 pub(crate) struct FunctionLowerer<'a> {
     /// The MIR tree.
     tree: &'a mir::Tree,
+    /// Canonical MIR layout table.
+    layouts: &'a mir::LayoutTable,
     /// The MIR function being lowered.
     function: &'a mir::Function,
     /// The target ISA.
@@ -39,10 +41,12 @@ pub(crate) struct FunctionLowerer<'a> {
     environment_param: Option<cir::Value>,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> FunctionLowerer<'a> {
     /// Create a new function lowerer.
     pub(crate) fn new(
         tree: &'a mir::Tree,
+        layouts: &'a mir::LayoutTable,
         function: &'a mir::Function,
         isa: &'a Arc<dyn TargetIsa>,
         cl_module: &'a mut ObjectModule,
@@ -52,6 +56,7 @@ impl<'a> FunctionLowerer<'a> {
     ) -> Self {
         Self {
             tree,
+            layouts,
             function,
             isa,
             cl_module,
@@ -77,7 +82,7 @@ impl<'a> FunctionLowerer<'a> {
         // capture function environment type before lowering
         self.environment_type = self.function.environment;
 
-        // phase 0.5: pre-declare all referenced functions in the current function
+        // phase 0.5: predeclare all referenced functions in the current function
         // (must be done before creating the FunctionBuilder)
         self.declare_referenced_functions(target)?;
 
@@ -112,7 +117,7 @@ impl<'a> FunctionLowerer<'a> {
         Ok(())
     }
 
-    /// Pre-declare all functions that this function references.
+    /// Predeclare all functions that this function references.
     /// Populates `self.function_ref_map` with the mapping.
     fn declare_referenced_functions(
         &mut self,
@@ -487,7 +492,12 @@ impl<'a> FunctionLowerer<'a> {
                 let function_node = function.into_any();
 
                 // allocate the function value and store semantic components
-                let layout = compute_type_layout(self.tree, destination_type, self.pointer_bytes)?;
+                let layout = compute_type_layout(
+                    self.tree,
+                    self.layouts,
+                    destination_type,
+                    self.pointer_bytes,
+                )?;
                 let align_shift = layout.alignment.trailing_zeros() as u8;
                 let slot = builder.create_sized_stack_slot(cir::StackSlotData::new(
                     cir::StackSlotKind::ExplicitSlot,
@@ -731,7 +741,7 @@ impl<'a> FunctionLowerer<'a> {
                 value_map.insert(destination, element_ptr);
             }
 
-            // call: direct function call via pre-declared FuncRef
+            // call: direct function call via predeclared FuncRef
             mir::Instruction::Call {
                 destination,
                 function,
@@ -884,7 +894,7 @@ impl<'a> FunctionLowerer<'a> {
                 };
 
                 // compute layout and allocate stack slot
-                let layout = compute_type_layout(self.tree, ty, self.pointer_bytes)?;
+                let layout = compute_type_layout(self.tree, self.layouts, ty, self.pointer_bytes)?;
                 let align_shift = layout.alignment.trailing_zeros() as u8;
                 let slot = builder.create_sized_stack_slot(cir::StackSlotData::new(
                     cir::StackSlotKind::ExplicitSlot,
@@ -938,7 +948,7 @@ impl<'a> FunctionLowerer<'a> {
                 let element_values = self.tree.get_values(*elements);
 
                 // compute layout and allocate stack slot
-                let layout = compute_type_layout(self.tree, ty, self.pointer_bytes)?;
+                let layout = compute_type_layout(self.tree, self.layouts, ty, self.pointer_bytes)?;
                 let align_shift = layout.alignment.trailing_zeros() as u8;
                 let slot = builder.create_sized_stack_slot(cir::StackSlotData::new(
                     cir::StackSlotKind::ExplicitSlot,
@@ -951,6 +961,7 @@ impl<'a> FunctionLowerer<'a> {
                 for (i, element_value) in element_values.iter().enumerate() {
                     let offset = compute_tuple_element_offset(
                         self.tree,
+                        self.layouts,
                         &element_types,
                         i as u32,
                         self.pointer_bytes,
@@ -987,7 +998,7 @@ impl<'a> FunctionLowerer<'a> {
                 let element_values = self.tree.get_values(*elements);
 
                 // compute layout and allocate stack slot
-                let layout = compute_type_layout(self.tree, ty, self.pointer_bytes)?;
+                let layout = compute_type_layout(self.tree, self.layouts, ty, self.pointer_bytes)?;
                 let align_shift = layout.alignment.trailing_zeros() as u8;
                 let slot = builder.create_sized_stack_slot(cir::StackSlotData::new(
                     cir::StackSlotKind::ExplicitSlot,
@@ -1684,7 +1695,7 @@ impl<'a> FunctionLowerer<'a> {
         }
     }
 
-    /// Resolve an aggregate field offset and type from canonical layout metadata.
+    /// Resolve an aggregate field offset and type from canonical layout table.
     fn aggregate_field_offset_and_type(
         &self,
         aggregate_type: mir::LocalNodeId<mir::Type>,
@@ -1729,8 +1740,8 @@ impl<'a> FunctionLowerer<'a> {
             }
         };
 
-        let layout = self.tree.type_layout(aggregate_type).ok_or_else(|| {
-            CodegenCraneliftError::unsupported_type("missing aggregate layout metadata", node)
+        let layout = self.layouts.type_layout(aggregate_type).ok_or_else(|| {
+            CodegenCraneliftError::unsupported_type("missing aggregate layout table", node)
         })?;
 
         if let Some(elements) = layout.shape.elements() {

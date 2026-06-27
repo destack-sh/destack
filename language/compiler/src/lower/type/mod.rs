@@ -1,10 +1,9 @@
 mod aggregate;
 mod builtin;
-mod function;
 mod declare;
-mod descriptor;
 mod dynamic;
 mod r#enum;
+mod function;
 mod layout;
 mod lineage;
 mod lower;

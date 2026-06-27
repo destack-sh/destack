@@ -26,12 +26,7 @@ impl Compiler {
         let mir_lowered = artifacts
             .mir_lowered(module_id, profile, *target_id)
             .map_err(CompilerError::from)?;
-        let state = NativeEmitState::new(
-            module_id,
-            mir_optimized
-                .latest_patch_tree()
-                .unwrap_or(&mir_lowered.tree),
-        );
+        let state = NativeEmitState::new(module_id, &mir_optimized.tree);
 
         // emit one native output through the current backend
         let (output, errors) = destack_codegen_native::NativeOutputGenerator::new(

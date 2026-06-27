@@ -47,9 +47,9 @@ impl FunctionLowerer<'_> {
 
         // prefer dynamic dispatch when available
         if let Some(constraint_symbol) = constraint_symbol {
-            let slot = self.dynamic_method_slot(expression_id, constraint_symbol, method_key)?;
+            let slot = self.dynamic_function_slot(expression_id, constraint_symbol, method_key)?;
             let signature =
-                self.dynamic_method_signature(expression_id, constraint_symbol, method_key)?;
+                self.dynamic_function_signature(expression_id, constraint_symbol, method_key)?;
             let constraint = self.dynamic_constraint_type(expression_id, constraint_symbol)?;
             return Ok(Some(DispatchTarget::Dynamic {
                 constraint,
@@ -123,8 +123,8 @@ impl FunctionLowerer<'_> {
         }
     }
 
-    /// Resolve the dynamic dispatch slot for a method key.
-    fn dynamic_method_slot(
+    /// Resolve the dynamic dispatch function slot for a method key.
+    fn dynamic_function_slot(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         constraint_symbol: dir::GlobalSymbolId,
@@ -148,19 +148,17 @@ impl FunctionLowerer<'_> {
 
         // locate the matching dynamic slot
         let slot_index = slots.iter().position(|slot| {
-            let (name, signature, role) = match slot {
-                DynamicMember::Getter {
-                    name, signature, ..
-                } => (*name, *signature, Some(dir::FunctionRole::Getter)),
-                DynamicMember::Setter {
-                    name, signature, ..
-                } => (*name, *signature, Some(dir::FunctionRole::Setter)),
-                DynamicMember::Method {
-                    name, signature, ..
-                } => (*name, *signature, None),
-                DynamicMember::Call { signature, .. } => {
-                    (self.context.dispatch_call_name, *signature, Some(dir::FunctionRole::Call))
-                }
+            let (name, role, signature) = match slot {
+                DynamicMember::Function {
+                    name,
+                    role,
+                    signature,
+                    ..
+                } => (
+                    (*name).unwrap_or(self.context.dispatch_call_name),
+                    *role,
+                    *signature,
+                ),
                 DynamicMember::Field { .. } => return false,
             };
 
@@ -177,7 +175,7 @@ impl FunctionLowerer<'_> {
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
                 ),
-                message: "dynamic method slot missing".to_string(),
+                message: "dynamic function slot missing".to_string(),
             }
             .into());
         };
@@ -185,8 +183,8 @@ impl FunctionLowerer<'_> {
         Ok(mir::DynamicTable::slot_for_index(slot_index))
     }
 
-    /// Resolve the dynamic member signature for a method key.
-    fn dynamic_method_signature(
+    /// Resolve the dynamic function signature for a method key.
+    fn dynamic_function_signature(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         constraint_symbol: dir::GlobalSymbolId,
@@ -208,19 +206,17 @@ impl FunctionLowerer<'_> {
             .map_err(CompilerError::from)?;
 
         for slot in slots {
-            let (name, signature, role) = match slot {
-                DynamicMember::Getter {
-                    name, signature, ..
-                } => (*name, *signature, Some(dir::FunctionRole::Getter)),
-                DynamicMember::Setter {
-                    name, signature, ..
-                } => (*name, *signature, Some(dir::FunctionRole::Setter)),
-                DynamicMember::Method {
-                    name, signature, ..
-                } => (*name, *signature, None),
-                DynamicMember::Call { signature, .. } => {
-                    (self.context.dispatch_call_name, *signature, Some(dir::FunctionRole::Call))
-                }
+            let (name, role, signature) = match slot {
+                DynamicMember::Function {
+                    name,
+                    role,
+                    signature,
+                    ..
+                } => (
+                    (*name).unwrap_or(self.context.dispatch_call_name),
+                    *role,
+                    *signature,
+                ),
                 DynamicMember::Field { .. } => continue,
             };
 
@@ -249,7 +245,7 @@ impl FunctionLowerer<'_> {
                     .into_global_any(self.context.module_id)
                     .into_anchored(Some(self.context.profile)),
             ),
-            message: "dynamic method signature missing".to_string(),
+            message: "dynamic function signature missing".to_string(),
         }
         .into())
     }

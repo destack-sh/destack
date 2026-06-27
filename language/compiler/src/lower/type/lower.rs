@@ -65,7 +65,7 @@ pub(crate) struct TypeLowerer<'a> {
     pub(crate) ty_f64: mir::LocalNodeId<mir::Type>,
     /// Cached MIR string reference type.
     pub(crate) ty_string: Option<mir::LocalNodeId<mir::Type>>,
-    /// Cached union layout metadata by DIR type id.
+    /// Cached union layouts by DIR type id.
     pub(crate) union_cache: HashMap<dir::LocalTypeId, UnionLayout>,
     /// Cached dynamic value layouts by DIR type id.
     pub(crate) dynamic_value_layout_cache: HashMap<dir::LocalTypeId, DynamicValueLayout>,
@@ -247,7 +247,7 @@ impl<'a> TypeLowerer<'a> {
 
     /// Get the pointer size in bytes for this target.
     pub(crate) fn pointer_bytes(&self) -> u8 {
-        (self.pointer_width_bits / 8) as u8
+        (self.pointer_width_bits() / 8) as u8
     }
 
     /// Get the cached string type, if initialized.

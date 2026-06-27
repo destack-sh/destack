@@ -166,7 +166,7 @@ impl Compiler {
         state.tree.insert_as_owner(expression_id, expression)
     }
 
-    /// Insert a type literal expression with inferred type metadata.
+    /// Insert a type literal expression with inferred type tables.
     pub(crate) fn insert_type_literal_expression(
         &self,
         state: &mut ElaborateState<'_>,

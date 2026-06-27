@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
 use crate::{LowerError, LowerResult};
 
-/// Layout metadata for erased dynamic values.
+/// Layout for erased dynamic values.
 #[derive(Debug, Clone)]
 pub(crate) struct DynamicValueLayout {
     /// Field index for the value pointer.
@@ -19,7 +19,7 @@ pub(crate) struct DynamicValueLayout {
 }
 
 impl TypeLowerer<'_> {
-    /// Return cached dynamic value layout metadata.
+    /// Return cached dynamic value layout.
     pub(crate) fn dynamic_value_layout(
         &self,
         type_id: dir::LocalTypeId,
@@ -126,7 +126,7 @@ impl TypeLowerer<'_> {
         let mir_type = builder.type_dynamic(constraint_type);
         self.layout_cache.insert(mir_type, layout.clone());
 
-        // resolve field indices for dynamic metadata
+        // resolve field indices for dynamic values
         let value_field_index =
             layout
                 .field_index(value_name)
@@ -142,7 +142,7 @@ impl TypeLowerer<'_> {
                     message: "missing dynamic table field".to_string(),
                 })?;
 
-        // cache dynamic value metadata
+        // cache dynamic value layout
         self.dynamic_value_layout_cache.insert(
             type_id,
             DynamicValueLayout {

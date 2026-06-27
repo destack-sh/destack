@@ -3,7 +3,7 @@ use std::sync::Arc;
 use {destack_dir as dir, destack_mir as mir};
 
 use destack_artifact::{
-    DiagnosticAnchor, DirBound, DirParsed, GlobalEnvironment, LanguageIntrinsics,
+    DiagnosticAnchor, DirBound, DirParsed, GlobalEnvironment, LanguageIntrinsics, MirLowered,
 };
 use destack_core::StringPool;
 use destack_source::{ModuleId, TargetId};
@@ -814,7 +814,7 @@ impl<'a> ModuleLowerer<'a> {
         // lower reachable bodies and lazily realize types to fixpoint
         self.lower()?;
 
-        // finish deferred tables and metadata
+        // finish deferred dispatch and type metadata
         self.finish_lowering()?;
 
         Ok(())
@@ -856,7 +856,7 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Finish deferred module artifacts after body lowering.
     fn finish_lowering(&mut self) -> LowerResult<()> {
-        // emit final dispatch tables and type metadata
+        // emit final dispatch and type metadata
         self.emit_dispatch()?;
         self.emit_type_metadata()?;
 
@@ -1019,7 +1019,7 @@ impl<'a> ModuleLowerer<'a> {
         Ok(())
     }
 
-    /// Finalize metadata for all cached types.
+    /// Finalize tables for all cached types.
     fn emit_type_metadata(&mut self) -> LowerResult<()> {
         // collect cached types
         let mut cached_types = Vec::new();
@@ -1038,7 +1038,7 @@ impl<'a> ModuleLowerer<'a> {
             cached_types.push((*type_id, mir_type));
         }
 
-        // collect all MIR types so synthetic aggregate layouts get metadata too
+        // collect all MIR types so synthetic aggregate layouts get entries too
         let all_mir_types: Vec<_> = self
             .builder
             .tree()
@@ -1050,17 +1050,17 @@ impl<'a> ModuleLowerer<'a> {
             .into_global(self.module_id)
             .into_anchored(Some(self.profile));
 
-        // finalize metadata for each cached type
+        // finalize tables for each cached type
         for (type_id, mir_type) in cached_types {
             let anchor = self.type_anchor(type_id);
             self.metadata_name_for_type(type_id, mir_type, anchor)?;
             self.layout_metadata_for_type(type_id, mir_type, anchor)?;
             if let Some(symbol) = self.types.symbol_for_instance_type(type_id) {
-                self.lineage_metadata_for_symbol(symbol, mir_type, anchor)?;
+                self.lineage_for_symbol(symbol, mir_type, anchor)?;
             }
         }
 
-        // finish raw layout metadata for MIR-only aggregate repr types
+        // finish layout entries for MIR-only aggregate repr types
         for mir_type in all_mir_types {
             self.layout_metadata_for_mir_type(mir_type, synthetic_anchor)?;
         }
@@ -1069,7 +1069,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Finish the module lowering process and return the resulting MIR tree and string pool.
-    pub(crate) fn finish(mut self) -> (mir::Tree, StringPool) {
+    pub(crate) fn finish(mut self) -> (MirLowered, StringPool) {
         // copy final DIR source spans into MIR
         for node_id in 0..self.builder.tree().node_count() as u32 {
             let Some(source_id) = self.builder.tree().get_source(node_id) else {
@@ -1082,7 +1082,32 @@ impl<'a> ModuleLowerer<'a> {
             self.builder.tree_mut().set_span_by_id(node_id, span);
         }
 
-        self.builder.finish_mutable()
+        let (
+            tree,
+            target_layout,
+            types,
+            layouts,
+            dispatch,
+            drops,
+            memory,
+            effects,
+            profile,
+            strings,
+        ) = self.builder.finish();
+
+        let lowered = MirLowered {
+            tree,
+            target_layout,
+            types,
+            layouts,
+            dispatch,
+            drops,
+            memory,
+            effects,
+            profile,
+        };
+
+        (lowered, strings)
     }
 
     /// Declare nominal aliases in the MIR tree.

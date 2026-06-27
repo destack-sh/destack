@@ -297,7 +297,7 @@ impl FunctionLowerer<'_> {
             return Ok(None);
         };
 
-        // resolve discriminant metadata for the member access
+        // resolve discriminant tables for the member access
         let Some(name) = *name else {
             return Ok(None);
         };
@@ -651,7 +651,7 @@ impl FunctionLowerer<'_> {
             return None;
         }
 
-        // require discriminant metadata for this union
+        // require discriminant tables for this union
         let layout = self
             .context
             .type_lowerer

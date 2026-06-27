@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use destack_core::StringPool;
 use destack_dir as dir;
 
-/// Result union metadata resolved from a type id.
+/// Result union shape resolved from a type id.
 #[derive(Debug, Clone)]
 pub(crate) struct ResultUnionInfo {
     /// Union type id for the Result.
@@ -18,7 +18,7 @@ pub(crate) struct ResultUnionInfo {
     pub(crate) err_value_type: dir::LocalTypeId,
 }
 
-/// Resolve the Ok/Err union metadata for a Result-like type.
+/// Resolve the Ok/Err union shape for a Result-like type.
 pub(crate) fn resolve_result_union(
     types: &dir::TypeTable<'_>,
     strings: &StringPool,

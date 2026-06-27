@@ -7,7 +7,7 @@ use crate::lower::{
     resolve_result_union,
 };
 
-/// Cached layout metadata for runtime status values.
+/// Cached layout for runtime status values.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct RuntimeStatusLayout {
     /// MIR type id for RuntimeStatus.
@@ -18,7 +18,7 @@ pub(crate) struct RuntimeStatusLayout {
     pub(crate) error_id_field_index: u32,
 }
 
-/// Result metadata for binding ABI lowering.
+/// Result shape for binding ABI lowering.
 #[derive(Debug, Clone)]
 pub(crate) struct BindingResultInfo {
     /// MIR type for the Ok value payload.
@@ -30,7 +30,7 @@ pub(crate) struct BindingResultInfo {
 }
 
 impl ModuleLowerer<'_> {
-    /// Resolve the binding result metadata for ABI lowering.
+    /// Resolve the binding result shape for ABI lowering.
     pub(crate) fn binding_result_info(
         &mut self,
         return_type_id: dir::LocalTypeId,

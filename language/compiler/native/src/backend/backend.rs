@@ -139,10 +139,11 @@ impl CodegenCraneliftBackend {
     pub(crate) fn compile_module(
         &self,
         tree: &mir::Tree,
+        layouts: &mir::LayoutTable,
         strings: &StringPool,
         name: &str,
     ) -> Result<ModuleLowerOutput, CodegenCraneliftError> {
-        let mut lowerer = ModuleLowerer::new(self.isa.clone(), strings, name);
+        let mut lowerer = ModuleLowerer::new(self.isa.clone(), strings, layouts, name);
         lowerer.lower_module(tree)?;
         lowerer.finish()
     }
@@ -151,10 +152,11 @@ impl CodegenCraneliftBackend {
     pub fn compile_to_clif(
         &self,
         tree: &mir::Tree,
+        layouts: &mir::LayoutTable,
         strings: &StringPool,
         name: &str,
     ) -> CodegenCraneliftResult<String> {
-        let mut lowerer = ModuleLowerer::new(self.isa.clone(), strings, name);
+        let mut lowerer = ModuleLowerer::new(self.isa.clone(), strings, layouts, name);
         lowerer.lower_module(tree)?;
         lowerer.as_clif_string()
     }

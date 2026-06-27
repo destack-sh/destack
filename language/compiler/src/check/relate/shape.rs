@@ -86,7 +86,7 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        // compare element metadata and collect type pairs in one pure pass
+        // compare element shapes and collect type pairs in one pure pass
         let pairs = {
             let (dir::Type::Tuple(left), dir::Type::Tuple(right)) =
                 (self.ty(left)?, self.ty(right)?)
@@ -122,7 +122,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        // compare element metadata and collect type pairs in one pure pass
+        // compare element shapes and collect type pairs in one pure pass
         let pairs = {
             let (dir::Type::Tuple(source), dir::Type::Tuple(target)) =
                 (self.ty(source)?, self.ty(target)?)
@@ -157,7 +157,7 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        // compare member metadata and collect type pairs in one pure pass
+        // compare member shapes and collect type pairs in one pure pass
         let pairs = {
             let (dir::Type::Shape(left), dir::Type::Shape(right)) =
                 (self.ty(left)?, self.ty(right)?)
@@ -434,7 +434,7 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        // compare signature metadata and collect type pairs in one pure pass
+        // compare signature shapes and collect type pairs in one pure pass
         let pairs = {
             let (dir::Type::FunctionSignature(left), dir::Type::FunctionSignature(right)) =
                 (self.ty(left)?, self.ty(right)?)

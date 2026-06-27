@@ -60,12 +60,11 @@ impl ModuleLowerer<'_> {
                 .into_global_any(self.module_id)
                 .into_anchored(Some(self.profile));
 
-            let vtable_global =
-                self.create_vtable_global(symbol, slots.len() as u64 + 2, anchor)?;
+            let vtable_global = self.create_vtable_global(symbol, slots.len() as u64, anchor)?;
             self.insert_vtable_global(symbol, vtable_global)?;
 
             for (index, slot) in slots.iter().enumerate() {
-                let dispatch_slot = index as u32 + 2;
+                let dispatch_slot = index as u32;
                 self.insert_virtual_method_slot(
                     symbol,
                     slot.key(),
