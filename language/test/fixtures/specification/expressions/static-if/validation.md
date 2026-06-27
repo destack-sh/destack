@@ -39,6 +39,34 @@ const value = 1;
 
 - contains: static if condition must be static
 
+### @if requires statically decidable conditions
+
+`@if` conditions cannot depend on open generic parameters.
+
+```ds
+function demo<comptime Enabled: bool>(): void {
+    @if(Enabled)
+    const value = 1;
+}
+```
+
+- contains: static @if condition must be statically decidable
+
+### @if rejects contextual this conditions
+
+`@if` conditions cannot depend on the instantiated form of `this`.
+
+```ds
+struct Buffer<T> {
+    @if(PlaceOf<this> == "shared")
+    lock: Mutex;
+
+    value: T;
+}
+```
+
+- contains: static @if condition must be statically decidable
+
 ### @if requires a condition
 
 `@if` requires exactly one condition argument.
