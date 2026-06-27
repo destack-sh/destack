@@ -2,7 +2,7 @@ use std::mem::size_of;
 use std::sync::Once;
 
 use destack_heap::{
-    AllocationCache, Allocator, GcWorker, Heap, HeapOptions, SharedHeap, SharedHeapOptions,
+    AllocationCache, Allocator, Heap, HeapOptions, SharedHeap, SharedHeapOptions, SharedMarkWorker,
     SizeClassTable,
 };
 use destack_program::StaticSpace;
@@ -86,7 +86,7 @@ fn print_component_sizes() {
         ("heap", "HeapOptions", size_of::<HeapOptions>()),
         ("heap", "SharedHeapOptions", size_of::<SharedHeapOptions>()),
         ("heap", "AllocationCache", size_of::<AllocationCache>()),
-        ("heap", "GcWorker", size_of::<GcWorker>()),
+        ("heap", "SharedMarkWorker", size_of::<SharedMarkWorker>()),
         ("host", "ResourceTable", size_of::<ResourceTable>()),
         ("host", "BindingRegistry", size_of::<BindingRegistry>()),
         ("runtime", "EventLoop", size_of::<EventLoop>()),
@@ -161,7 +161,8 @@ fn print_vm_machine_breakdown(vm: VmSetup) {
     let (mut shared_statics, shared_statics_empty) = ALLOCATOR.capture(StaticSpace::empty);
     let (heap, local_heap) = ALLOCATOR.capture(|| vm.local_heap());
     let (shared, shared_heap) = ALLOCATOR.capture(|| vm.shared_heap());
-    let (_shared_gc, shared_gc) = ALLOCATOR.capture(|| shared.register_collector_worker());
+    let (_shared_mark_worker, shared_mark_worker) =
+        ALLOCATOR.capture(|| shared.register_mark_worker());
     let (_shared_cache, shared_cache) = ALLOCATOR.capture(|| shared.allocation_cache());
     let initialize = ALLOCATOR.measure(|| {
         machine
@@ -174,7 +175,7 @@ fn print_vm_machine_breakdown(vm: VmSetup) {
         ("vm.shared_static.empty", shared_statics_empty),
         ("vm.local_heap.new", local_heap),
         ("vm.shared_heap.new", shared_heap),
-        ("vm.shared_gc_worker.new", shared_gc),
+        ("vm.shared_mark_worker.new", shared_mark_worker),
         ("vm.shared_cache.new", shared_cache),
         ("vm.machine.initialize", initialize),
     ];

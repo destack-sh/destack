@@ -41,7 +41,6 @@ destack_program = { workspace = true }
 destack_fir = { workspace = true }
 destack_heap = { workspace = true }
 destack_mir = { workspace = true }
-destack_native = { workspace = true }
 destack_query = { workspace = true }
 destack_serde = { workspace = true }
 destack_source = { workspace = true }

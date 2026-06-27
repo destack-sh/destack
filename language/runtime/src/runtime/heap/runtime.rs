@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_heap::{self as heap, SharedHeapReference};
-use destack_mir as mir;
+use destack_program as program;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::heap::{SharedRootEpoch, SharedRootSet, resolve_shared_heap_options};
@@ -15,8 +15,8 @@ pub(crate) struct RuntimeHeap {
     pub(crate) allocator: Arc<heap::Allocator>,
     /// Shared heap visible to every worker in this runtime.
     pub(crate) shared: Arc<heap::SharedHeap>,
-    /// Program trace table used by shared heap metadata.
-    trace: Arc<mir::TraceTable>,
+    /// Durable program owning executable metadata for this heap.
+    program: Arc<program::Program>,
     /// Shared heap roots published by workers for the active mark cycle.
     roots: Arc<SharedRootSet>,
     /// Runtime-owned GC state for this shared heap.
@@ -31,7 +31,7 @@ impl RuntimeHeap {
         allocator: Arc<heap::Allocator>,
         collector: Arc<SharedCollector>,
         options: &RuntimeOptions,
-        trace_table: Arc<mir::TraceTable>,
+        program: Arc<program::Program>,
     ) -> RuntimeResult<Self> {
         let shared_heap_options = resolve_shared_heap_options(&options.heap)?;
         let shared = Arc::new(
@@ -43,7 +43,7 @@ impl RuntimeHeap {
             .map_err(Box::<RuntimeError>::from)?,
         );
 
-        Ok(Self::from_heap(allocator, shared, collector, trace_table))
+        Ok(Self::from_heap(allocator, shared, collector, program))
     }
 
     /// Restore runtime-owned shared heap state from a snapshot.
@@ -52,7 +52,7 @@ impl RuntimeHeap {
         options: &RuntimeOptions,
         allocator: Arc<heap::Allocator>,
         collector: Arc<SharedCollector>,
-        trace_table: Arc<mir::TraceTable>,
+        program: Arc<program::Program>,
     ) -> RuntimeResult<Self> {
         let shared_heap_options = resolve_shared_heap_options(&options.heap)?;
         let shared = Arc::new(
@@ -64,7 +64,7 @@ impl RuntimeHeap {
             .map_err(Box::<RuntimeError>::from)?,
         );
 
-        Ok(Self::from_heap(allocator, shared, collector, trace_table))
+        Ok(Self::from_heap(allocator, shared, collector, program))
     }
 
     /// Fork runtime-owned shared heap state for one child world.
@@ -75,7 +75,7 @@ impl RuntimeHeap {
             self.allocator.clone(),
             shared,
             collector,
-            self.trace.clone(),
+            self.program.clone(),
         ))
     }
 
@@ -87,19 +87,19 @@ impl RuntimeHeap {
             .map_err(Box::<RuntimeError>::from)
     }
 
+    /// Return the durable program backing this runtime heap.
+    pub(crate) fn program(&self) -> &Arc<program::Program> {
+        &self.program
+    }
+
     /// Borrow the shared root set.
     pub(crate) fn roots(&self) -> &SharedRootSet {
         &self.roots
     }
 
-    /// Register one shared GC worker.
-    pub(crate) fn register_collector_worker(&self) -> heap::GcWorker {
-        self.shared.register_collector_worker()
-    }
-
-    /// Return the runtime program trace table.
-    pub(crate) fn trace_table(&self) -> &mir::TraceTable {
-        self.trace.as_ref()
+    /// Register one shared mark worker.
+    pub(crate) fn register_mark_worker(&self) -> heap::SharedMarkWorker {
+        self.shared.register_mark_worker()
     }
 
     /// Return whether shared GC work is active.
@@ -122,13 +122,13 @@ impl RuntimeHeap {
         self.gc.resume();
 
         if self.collector.mode().is_concurrent() && self.shared.gc_phase() != heap::GcPhase::Idle {
-            self.collector.wake(&self.gc);
+            self.collector.wake(&self.gc, self.program());
         }
     }
 
     /// Wake concurrent shared GC work.
     pub(crate) fn wake(&self) {
-        self.collector.wake(&self.gc);
+        self.collector.wake(&self.gc, self.program());
     }
 
     /// Return whether the shared heap is currently marking.
@@ -208,15 +208,15 @@ impl RuntimeHeap {
         allocator: Arc<heap::Allocator>,
         shared: Arc<heap::SharedHeap>,
         collector: Arc<SharedCollector>,
-        trace: Arc<mir::TraceTable>,
+        program: Arc<program::Program>,
     ) -> Self {
         let roots = Arc::new(SharedRootSet::default());
-        let gc = SharedGc::new(shared.clone(), roots.clone(), trace.clone());
+        let gc = SharedGc::new(shared.clone(), roots.clone());
 
         Self {
             allocator,
             shared,
-            trace,
+            program,
             roots,
             gc,
             collector,

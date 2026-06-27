@@ -11,7 +11,7 @@ use crate::host::resource::ResourceTableSnapshot;
 use crate::host::{HostEventKind, ResourceId, ResourceTable};
 use crate::runtime::RuntimeHeap;
 use crate::runtime::heap::resolve_local_heap_options;
-use crate::runtime::machine::{Continuation, Execution, Image, Machine, MachineId, RuntimeMemory};
+use crate::runtime::machine::{Continuation, Execution, Image, Machine, MachineId, ProgramStorage};
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, Readiness, Waiter};
 use crate::world::{Entity, EntityKind, RestoreContext, RuntimeId, WorldState};
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
@@ -33,8 +33,8 @@ pub struct Worker {
     pub(crate) diagnostics: Arc<DiagnosticStore>,
     /// External binding registry and policy enforcement.
     pub(crate) bindings: BindingRegistry,
-    /// Shared GC worker queue handle.
-    pub(crate) shared_gc_worker: heap::GcWorker,
+    /// Shared mark worker queue handle.
+    pub(crate) shared_mark_worker: heap::SharedMarkWorker,
     /// Worker-local shared allocation cache.
     pub(crate) shared_cache: heap::AllocationCache,
     /// Authoritative worker heap.
@@ -263,13 +263,13 @@ impl Worker {
         .map_err(Box::<RuntimeError>::from)?;
         let mut heap = heap;
         let mut local_static = program::StaticSpace::empty();
-        let shared_gc_worker = runtime_heap.register_collector_worker();
+        let shared_mark_worker = runtime_heap.register_mark_worker();
         let mut shared_cache = runtime_heap.shared.allocation_cache();
-        let context = RuntimeMemory {
+        let context = ProgramStorage {
             heap: &mut heap,
             shared_heap: runtime_heap.shared.as_ref(),
             shared_cache: &mut shared_cache,
-            shared_gc_worker: &shared_gc_worker,
+            shared_mark_worker: &shared_mark_worker,
             local_static: &mut local_static,
             shared_static,
             constant_space,
@@ -287,7 +287,7 @@ impl Worker {
             resources,
             diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
             bindings,
-            shared_gc_worker,
+            shared_mark_worker,
             shared_cache,
             heap,
             local_static,
@@ -496,7 +496,7 @@ impl Worker {
     /// Run one budgeted local collection step using the current root set.
     pub fn step_local_collection(&mut self) -> RuntimeResult<heap::GcProgress> {
         let budget_bytes = self.heap.take_collection_budget_bytes();
-        let trace_table = self.machine.trace_table();
+        let program = self.machine.program();
         let machine = &mut self.machine;
         let event_loop = &mut self.event_loop;
         let local_static = &mut self.local_static;
@@ -508,7 +508,7 @@ impl Worker {
         };
 
         self.heap
-            .step_collection(&mut roots, budget_bytes, trace_table.as_ref())
+            .step_collection(&mut roots, budget_bytes, program.trace_table())
     }
 
     /// Collect shared heap roots from machine, scheduler, and registered providers.
@@ -549,7 +549,7 @@ impl Worker {
         let trace_table = self.machine.trace_table();
 
         self.heap
-            .trace_shared_roots(roots, budget_bytes, trace_table.as_ref())
+            .trace_shared_roots(roots, budget_bytes, trace_table)
             .map_err(Box::<RuntimeError>::from)
     }
 
@@ -590,11 +590,11 @@ impl Worker {
                     .boxed()
                 })?,
             local_static: self.local_static.clone(),
-            machine_image: self.machine.image(program::RuntimeMemory {
+            machine_image: self.machine.image(program::ProgramStorage {
                 heap: &mut self.heap,
                 shared_heap: runtime_heap.shared.as_ref(),
                 shared_cache: &mut self.shared_cache,
-                shared_gc_worker: &self.shared_gc_worker,
+                shared_mark_worker: &self.shared_mark_worker,
                 local_static: &mut self.local_static,
                 shared_static,
                 constant_space,
@@ -609,7 +609,7 @@ impl Worker {
         runtime_heap: &RuntimeHeap,
         shared_static: &mut program::StaticSpace,
         constant_space: &program::StaticSpace,
-        shared_gc_worker: heap::GcWorker,
+        shared_mark_worker: heap::SharedMarkWorker,
     ) -> RuntimeResult<Option<Self>> {
         // diagnostics state
         let diagnostics = match self.diagnostics.try_fork()? {
@@ -629,14 +629,14 @@ impl Worker {
         bindings.apply_runtime_defaults(&self.options);
 
         let trace_table = self.machine.trace_table();
-        let mut heap = self.heap.fork(trace_table.as_ref())?;
+        let mut heap = self.heap.fork(trace_table)?;
         let mut local_static = self.local_static.clone();
         let mut shared_cache = runtime_heap.shared.allocation_cache();
-        let mut machine = self.machine.fork(program::RuntimeMemory {
+        let mut machine = self.machine.fork(program::ProgramStorage {
             heap: &mut heap,
             shared_heap: runtime_heap.shared.as_ref(),
             shared_cache: &mut shared_cache,
-            shared_gc_worker: &shared_gc_worker,
+            shared_mark_worker: &shared_mark_worker,
             local_static: &mut local_static,
             shared_static,
             constant_space,
@@ -651,7 +651,7 @@ impl Worker {
             resources,
             diagnostics,
             bindings,
-            shared_gc_worker,
+            shared_mark_worker,
             shared_cache,
             heap,
             local_static,
@@ -697,38 +697,36 @@ impl Worker {
             &image.machine_image,
             execution,
         )?;
-        let trace_table = program.trace_table_handle();
-
         // heap
         let heap_options = resolve_local_heap_options(&options.heap)?;
         let mut heap = heap::Heap::from_snapshot_with_allocator(
             &image.heap,
             runtime_heap.allocator.clone(),
             heap_options.limits,
-            trace_table.as_ref(),
+            program.trace_table(),
         )
         .map_err(Box::<RuntimeError>::from)?;
         let mut local_static = image.local_static.clone();
-        let shared_gc_worker = runtime_heap.register_collector_worker();
+        let shared_mark_worker = runtime_heap.register_mark_worker();
         let mut shared_cache = runtime_heap.shared.allocation_cache();
 
         // restore machine state over the restored heap
-        let context = RuntimeMemory {
+        let context = ProgramStorage {
             heap: &mut heap,
             shared_heap: runtime_heap.shared.as_ref(),
             shared_cache: &mut shared_cache,
-            shared_gc_worker: &shared_gc_worker,
+            shared_mark_worker: &shared_mark_worker,
             local_static: &mut local_static,
             shared_static,
             constant_space,
         };
         machine.initialize(context)?;
         machine.restore(
-            program::RuntimeMemory {
+            program::ProgramStorage {
                 heap: &mut heap,
                 shared_heap: runtime_heap.shared.as_ref(),
                 shared_cache: &mut shared_cache,
-                shared_gc_worker: &shared_gc_worker,
+                shared_mark_worker: &shared_mark_worker,
                 local_static: &mut local_static,
                 shared_static,
                 constant_space,
@@ -749,7 +747,7 @@ impl Worker {
             resources,
             diagnostics,
             bindings,
-            shared_gc_worker,
+            shared_mark_worker,
             shared_cache,
             heap,
             local_static,

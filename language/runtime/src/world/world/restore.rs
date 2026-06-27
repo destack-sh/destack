@@ -1,7 +1,7 @@
-use destack_native as native;
 use std::fmt;
 
 use crate::host::resource::ResourceRebinders;
+use crate::runtime::machine::native;
 
 /// External capabilities used while rebuilding one world image.
 #[derive(Clone, Copy)]
