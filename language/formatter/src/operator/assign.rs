@@ -514,12 +514,15 @@ fn assign_pattern_field_contains_expression(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     match context.tree.get(field_id) {
-        // named and spread fields
-        AssignPatternField::Named { pattern, .. } | AssignPatternField::Spread { pattern } => {
-            pattern.is_some_and(|pattern_id| {
-                assign_pattern_contains_expression(context, pattern_id, expression_id)
-            })
+        // named fields
+        AssignPatternField::Named { pattern, .. } => {
+            assign_pattern_contains_expression(context, *pattern, expression_id)
         }
+
+        // spread fields
+        AssignPatternField::Spread { pattern } => pattern.is_some_and(|pattern_id| {
+            assign_pattern_contains_expression(context, pattern_id, expression_id)
+        }),
 
         // keyed and positional fields
         AssignPatternField::Computed { key, pattern } => {
@@ -1752,7 +1755,16 @@ fn assignment_target_is_complex_destructuring(
                 is_shorthand,
                 pattern,
                 ..
-            } => !is_shorthand || pattern.is_some(),
+            } => {
+                !is_shorthand
+                    || matches!(
+                        context.tree.get(*pattern),
+                        AssignPattern::Default { .. }
+                            | AssignPattern::Object { .. }
+                            | AssignPattern::Sequence { .. }
+                            | AssignPattern::Tuple { .. }
+                    )
+            }
 
             // computed keys
             AssignPatternField::Computed { .. } => true,

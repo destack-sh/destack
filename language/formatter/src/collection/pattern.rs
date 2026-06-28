@@ -636,7 +636,7 @@ fn object_assign_pattern_field_has_direct_nested_pattern(
     match tree.get(field_id) {
         // nested value
         AssignPatternField::Named {
-            pattern: Some(pattern_id),
+            pattern: pattern_id,
             ..
         }
         | AssignPatternField::Computed {
@@ -648,9 +648,7 @@ fn object_assign_pattern_field_has_direct_nested_pattern(
         } => assign_pattern_is_direct_object_or_array_like(tree, *pattern_id),
 
         // flat field
-        AssignPatternField::Named { pattern: None, .. }
-        | AssignPatternField::Spread { .. }
-        | AssignPatternField::Elision => false,
+        AssignPatternField::Spread { .. } | AssignPatternField::Elision => false,
     }
 }
 
@@ -1067,15 +1065,17 @@ impl<'ast> FormatNode<'ast, AssignPatternField> for AssignPatternField {
             } => {
                 // expanded field
                 if !is_shorthand {
-                    let pattern = pattern.expect("expanded named assign pattern field");
                     write!(f, [name, token(":"), space(), pattern])?;
                 }
-                // shorthand assignment field
-                else if let Some(pattern) = pattern {
+                // shorthand default
+                else if matches!(
+                    f.context().tree.get(*pattern),
+                    AssignPattern::Default { .. }
+                ) {
                     write!(f, [name])?;
                     write_shorthand_assign_pattern_value(f, *pattern)?;
                 }
-                // plain shorthand field
+                // shorthand target
                 else {
                     write!(f, [name])?;
                 }
