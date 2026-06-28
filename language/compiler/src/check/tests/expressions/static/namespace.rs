@@ -38,7 +38,7 @@ export const value = 1;
 /// @type.symbol symbol=value source=value type=1
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 terms=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 
 === main.ds ===
 
@@ -55,7 +55,7 @@ const result = dep.value;
 /// @type.node source=dep.value type=1
 /// @resolution.name source=dep.value target=dep.value
 
-/// @check.stats.solve variables=0 terms=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -95,12 +95,13 @@ dep.value;
 import * as dep from "./dep.ds";
 
 dep.value;
+/// @type.node source=dep.value type=<error>
 
-/// @check.stats.solve variables=0 terms=1 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
-/// @diagnostic.error code=EC308 message="unresolved reference 'dep.value'"
-/// @diagnostic.label line=4 column=1 source="dep.value;"
+/// @diagnostic.error code=EC308 message="cannot find 'dep.value'"
+/// @diagnostic.label line=4 column=5 span="value" line_source="dep.value;"
 "#,
     );
 }

@@ -57,7 +57,7 @@ const value: int32 = "text";
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"text\"' is not assignable to type 'int32'"
-/// @diagnostic.label line=3 column=22 source="const value: int32 = \"text\";"
+/// @diagnostic.label line=3 column=22 span="\"text\"" line_source="const value: int32 = \"text\";"
 "#,
     );
 }
@@ -86,7 +86,7 @@ const value = 1;
 "#,
         r#"
 /// @diagnostic.error code=EC401 message="static condition must evaluate to a boolean"
-/// @diagnostic.label line=2 column=5 source="@if(1)"
+/// @diagnostic.label line=2 column=5 span="1" line_source="@if(1)"
 "#,
     );
 }
@@ -110,7 +110,7 @@ const value = 1;
 let enabled: boolean = true;
 
 @if(enabled)
-const value: 1 = 1;
+const value = 1;
 
 === checked ===
 let enabled = true;
@@ -119,13 +119,11 @@ let enabled = true;
 
 @if(enabled)
 const value = 1;
-/// @type.symbol symbol=value source=value type=1
-/// @type.node source=1 type=1
 
 "#,
         r#"
-/// @diagnostic.error code=EC401 message="static condition must evaluate to a boolean"
-/// @diagnostic.label line=4 column=5 source="@if(enabled)"
+/// @diagnostic.error code=EC404 message="static @if condition must be statically decidable"
+/// @diagnostic.label line=4 column=5 span="enabled" line_source="@if(enabled)"
 "#,
     );
 }
