@@ -24,4 +24,4 @@ export {
     ThisType,
 } from "./object.ds";
 export { Capitalize, Lowercase, Uncapitalize, Uppercase } from "./string.ds";
-export { Symbol, SymbolDescription } from "./symbol.ds";
+export { Symbol } from "./symbol.ds";
