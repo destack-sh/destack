@@ -50,6 +50,13 @@ impl SnapshotTable for dir::BindingSegment {
                 row = row.field("origin", DirSnapshotBuilder::variant_label(symbol.origin));
             }
 
+            if symbol.visibility == dir::SymbolVisibility::Member {
+                row = row.field(
+                    "visibility",
+                    DirSnapshotBuilder::variant_label(symbol.visibility),
+                );
+            }
+
             if let Some(export_kind) = symbol.export_kind {
                 row = row.field("export", DirSnapshotBuilder::variant_label(export_kind));
             }

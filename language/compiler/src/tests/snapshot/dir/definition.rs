@@ -267,8 +267,7 @@ fn add_field(
         .optional_field("static", static_label(field.space))
         .optional_field("abstract", field.is_abstract.then(|| "true".to_string()))
         .optional_field("override", field.is_override.then(|| "true".to_string()))
-        .optional_field("condition", condition_label(builder, field.condition))
-        .type_field("type", builder.global_type_label(field.ty));
+        .type_field("type", builder.global_symbol_type_label(field.symbol));
 
     builder.push(row);
 }
@@ -292,8 +291,7 @@ fn add_method(
         .optional_field("role", method.role.map(DirSnapshotBuilder::variant_label))
         .optional_field("abstraction", abstraction)
         .optional_field("override", method.is_override.then(|| "true".to_string()))
-        .optional_field("condition", condition_label(builder, method.condition))
-        .type_field("type", builder.global_type_label(method.ty));
+        .type_field("type", builder.global_symbol_type_label(method.symbol));
 
     builder.push(row);
 }
@@ -320,8 +318,7 @@ fn add_associated_type(
     .optional_field(
         "value",
         ty.value.map(|value| builder.global_type_label(value)),
-    )
-    .optional_field("condition", condition_label(builder, ty.condition));
+    );
 
     builder.push(row);
 }
@@ -340,12 +337,11 @@ fn add_associated_const(
     .field("symbol", builder.symbol_path_label(value.symbol))
     .optional_field("source", builder.node_source(value.source))
     .field("key", builder.static_key(value.key))
-    .type_field("type", builder.global_type_label(value.ty))
+    .type_field("type", builder.global_symbol_type_label(value.symbol))
     .optional_field(
         "value",
         value.value.map(|value| builder.global_static_label(value)),
-    )
-    .optional_field("condition", condition_label(builder, value.condition));
+    );
 
     builder.push(row);
 }
@@ -365,8 +361,7 @@ fn add_variant(
             variant
                 .value
                 .map(|value| builder.global_static_label(value)),
-        )
-        .optional_field("condition", condition_label(builder, variant.condition));
+        );
 
     builder.push(row);
 }
@@ -381,7 +376,6 @@ fn add_signature(
     let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "signature")
         .field("kind", kind)
         .optional_field("source", builder.node_source(signature.source))
-        .optional_field("condition", condition_label(builder, signature.condition))
         .type_field("type", builder.global_type_label(signature.ty));
 
     builder.push(row);
@@ -393,14 +387,6 @@ fn static_label(space: dir::MemberSpace) -> Option<String> {
         dir::MemberSpace::Instance => None,
         dir::MemberSpace::Static => Some("true".to_string()),
     }
-}
-
-/// Return one rendered @if condition label.
-fn condition_label(
-    builder: &mut DirSnapshotBuilder<'_>,
-    condition: Option<dir::GlobalTypeId>,
-) -> Option<String> {
-    condition.map(|condition| builder.global_type_label(condition))
 }
 
 /// Return one member slot label.
