@@ -437,10 +437,10 @@ impl Parser {
                 value,
                 is_shorthand,
             } => {
-                let pattern = if is_shorthand && self.expression_is_identifier_name(value, &name) {
-                    None
+                let pattern = if is_shorthand {
+                    self.shorthand_assignment_pattern(name, value)?
                 } else {
-                    Some(self.assignment_pattern_from_expression(value)?)
+                    self.assignment_pattern_from_expression(value)?
                 };
 
                 AssignPatternField::Named {
@@ -478,20 +478,45 @@ impl Parser {
         Ok(self.insert_node(field, span))
     }
 
-    /// Return whether one expression is the shorthand value for a name.
-    fn expression_is_identifier_name(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-        name: &Name,
-    ) -> bool {
-        let Name::Identifier(expected) = name else {
-            return false;
+    /// Build the place target for one shorthand assignment field.
+    fn shorthand_assignment_pattern(
+        &mut self,
+        name: Name,
+        value: LocalNodeId<Expression>,
+    ) -> ParserResult<LocalNodeId<AssignPattern>> {
+        let value_span = self.tree.get_span(value);
+
+        match self.tree.get(value).clone() {
+            Expression::Assign {
+                operator: AssignOperator::Assign,
+                left,
+                right,
+                ..
+            } => Ok(self.insert_node(
+                AssignPattern::Default {
+                    pattern: left,
+                    value: right,
+                },
+                value_span,
+            )),
+            Expression::Assign { .. } => Err(ParserError::unexpected(value_span)),
+            _ => self.shorthand_assignment_place(name, value_span),
+        }
+    }
+
+    /// Build one shorthand assignment place expression.
+    fn shorthand_assignment_place(
+        &mut self,
+        name: destack_dir::Name,
+        span: Span,
+    ) -> ParserResult<LocalNodeId<AssignPattern>> {
+        let destack_dir::Name::Identifier(name) = name else {
+            return Err(ParserError::unexpected(span));
         };
 
-        matches!(
-            self.tree.get(expression_id),
-            Expression::Identifier { name } if name == expected
-        )
+        let expression = self.insert_node(Expression::Identifier { name }, span);
+
+        Ok(self.insert_node(AssignPattern::Place { expression }, span))
     }
 
     /// Return whether one expression is a simple assignment target.

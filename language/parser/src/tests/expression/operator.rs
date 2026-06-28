@@ -24,6 +24,7 @@ fn assert_defaulted_assign_pattern(
 ) {
     assert_node!(parser.tree, pattern_id, AssignPattern::Default { pattern, value } => {
         assert_assign_pattern_path(parser, *pattern, expected_pattern);
+        assert_eq!(parser.get_span_str(parser.tree.get_span(*pattern)), expected_pattern);
         assert_expression_path!(parser, parser.tree.get(*value), expected_value);
     });
 }
@@ -745,13 +746,13 @@ fn test_parse_object_destructuring_assignment_defaults() {
                 assert_node!(parser.tree, fields[0], AssignPatternField::Named { name, is_shorthand, pattern } => {
                     assert_name!(parser, *name, "x");
                     assert!(*is_shorthand);
-                    assert_defaulted_assign_pattern(&parser, pattern.expect("expected default"), "x", "fallback");
+                    assert_defaulted_assign_pattern(&parser, *pattern, "x", "fallback");
                 });
 
                 assert_node!(parser.tree, fields[1], AssignPatternField::Named { name, is_shorthand, pattern } => {
                     assert_name!(parser, *name, "y");
                     assert!(!*is_shorthand);
-                    assert_defaulted_assign_pattern(&parser, pattern.expect("expected default"), "z", "other");
+                    assert_defaulted_assign_pattern(&parser, *pattern, "z", "other");
                 });
 
                 assert_node!(parser.tree, fields[2], AssignPatternField::Computed { key, pattern } => {
@@ -845,7 +846,7 @@ fn test_parse_nested_destructuring_assignment_defaults() {
                     assert_name!(parser, *name, "a");
                     assert!(!*is_shorthand);
 
-                    assert_node!(parser.tree, pattern.expect("expected nested default"), AssignPattern::Default { pattern, value } => {
+                    assert_node!(parser.tree, *pattern, AssignPattern::Default { pattern, value } => {
                         assert_expression_path!(parser, parser.tree.get(*value), "d");
 
                         assert_node!(parser.tree, *pattern, AssignPattern::Object { fields } => {
@@ -854,7 +855,7 @@ fn test_parse_nested_destructuring_assignment_defaults() {
                             assert_node!(parser.tree, fields[0], AssignPatternField::Named { name, is_shorthand, pattern } => {
                                 assert_name!(parser, *name, "b");
                                 assert!(*is_shorthand);
-                                assert_defaulted_assign_pattern(&parser, pattern.expect("expected default"), "b", "c");
+                                assert_defaulted_assign_pattern(&parser, *pattern, "b", "c");
                             });
                         });
                     });
@@ -864,7 +865,7 @@ fn test_parse_nested_destructuring_assignment_defaults() {
                     assert_name!(parser, *name, "e");
                     assert!(!*is_shorthand);
 
-                    assert_node!(parser.tree, pattern.expect("expected nested array"), AssignPattern::Sequence { fields } => {
+                    assert_node!(parser.tree, *pattern, AssignPattern::Sequence { fields } => {
                         assert_eq!(fields.len(), 1);
 
                         assert_node!(parser.tree, fields[0], AssignPatternField::Positional { pattern } => {
@@ -877,7 +878,7 @@ fn test_parse_nested_destructuring_assignment_defaults() {
                     assert_name!(parser, *name, "t");
                     assert!(!*is_shorthand);
 
-                    assert_node!(parser.tree, pattern.expect("expected nested tuple"), AssignPattern::Tuple { fields } => {
+                    assert_node!(parser.tree, *pattern, AssignPattern::Tuple { fields } => {
                         assert_eq!(fields.len(), 1);
 
                         assert_node!(parser.tree, fields[0], AssignPatternField::Positional { pattern } => {
@@ -909,7 +910,7 @@ fn test_parse_destructuring_assignment_member_targets() {
                 assert_node!(parser.tree, fields[0], AssignPatternField::Named { name, is_shorthand, pattern } => {
                     assert_name!(parser, *name, "value");
                     assert!(!*is_shorthand);
-                    assert_node!(parser.tree, pattern.expect("expected member target"), AssignPattern::Place { expression: value } => {
+                    assert_node!(parser.tree, *pattern, AssignPattern::Place { expression: value } => {
                         assert_node!(parser.tree, *value, Expression::Member { left, name: Some(name), .. } => {
                             assert_expression_path!(parser, parser.tree.get(*left), "object");
                             assert_string!(parser, *name, "property");
