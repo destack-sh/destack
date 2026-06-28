@@ -34,7 +34,7 @@ const ok = value instanceof User;
 /// @type.node source="value instanceof User" type=boolean
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
-/// @resolution.predicate source="value instanceof User" kind=instanceof value=unknown target=User
+/// @resolution.guard source="value instanceof User" kind=instanceof value=unknown target=User target_type=User predicate="unknown is subtype(User)" narrowed=User
 /// @type.node source=User type=User
 /// @resolution.name source=User target=User
 "#,
@@ -45,11 +45,11 @@ const ok = value instanceof User;
 fn test_instanceof_narrows_positive_branch_to_class_arm() {
     let session = TestSession::single(
         r#"
-class User {
+declare class User {
     name: string;
 }
 
-class Team {
+declare class Team {
     title: string;
 }
 
@@ -66,11 +66,11 @@ if (value instanceof User) {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-class User {
+declare class User {
     name: string;
 }
 
-class Team {
+declare class Team {
     title: string;
 }
 
@@ -81,7 +81,7 @@ if (value instanceof User) {
 }
 
 === checked ===
-class User {
+declare class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
@@ -91,7 +91,7 @@ class User {
 
 }
 
-class Team {
+declare class Team {
 /// @type.symbol symbol=Team type=Team
 /// @definition.class symbol=Team
 /// @definition.field symbol=Team.title source="title: string" key=title type=string
@@ -107,11 +107,11 @@ declare const value: User | Team;
 /// @resolution.name source=Team target=Team
 
 if (value instanceof User) {
-/// @type.node type=void | void
+/// @type.node type=void
 /// @type.node source="value instanceof User" type=boolean
 /// @type.node source=value type=User | Team
 /// @resolution.name source=value target=value
-/// @resolution.predicate source="value instanceof User" kind=instanceof value=User | Team target=User
+/// @resolution.guard source="value instanceof User" kind=instanceof value=User | Team target=User target_type=User predicate="User | Team is subtype(User)" narrowed=User
 /// @type.node source=User type=User
 /// @resolution.name source=User target=User
 
@@ -131,11 +131,11 @@ if (value instanceof User) {
 fn test_instanceof_narrows_negative_branch_by_removing_class_arm() {
     let session = TestSession::single(
         r#"
-class User {
+declare class User {
     name: string;
 }
 
-class Team {
+declare class Team {
     title: string;
 }
 
@@ -153,11 +153,11 @@ if (value instanceof User) {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-class User {
+declare class User {
     name: string;
 }
 
-class Team {
+declare class Team {
     title: string;
 }
 
@@ -169,7 +169,7 @@ if (value instanceof User) {
 }
 
 === checked ===
-class User {
+declare class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
@@ -179,7 +179,7 @@ class User {
 
 }
 
-class Team {
+declare class Team {
 /// @type.symbol symbol=Team type=Team
 /// @definition.class symbol=Team
 /// @definition.field symbol=Team.title source="title: string" key=title type=string
@@ -195,11 +195,11 @@ declare const value: User | Team;
 /// @resolution.name source=Team target=Team
 
 if (value instanceof User) {
-/// @type.node type=void | void
+/// @type.node type=void
 /// @type.node source="value instanceof User" type=boolean
 /// @type.node source=value type=User | Team
 /// @resolution.name source=value target=value
-/// @resolution.predicate source="value instanceof User" kind=instanceof value=User | Team target=User
+/// @resolution.guard source="value instanceof User" kind=instanceof value=User | Team target=User target_type=User predicate="User | Team is subtype(User)" narrowed=User
 /// @type.node source=User type=User
 /// @resolution.name source=User target=User
 
@@ -241,7 +241,7 @@ interface Named {
 
 declare const value: unknown;
 
-const ok: boolean = value instanceof Named;
+const ok = value instanceof Named;
 
 === checked ===
 interface Named {
@@ -258,17 +258,14 @@ declare const value: unknown;
 /// @type.symbol symbol=value source=value type=unknown
 
 const ok = value instanceof Named;
-/// @type.symbol symbol=ok source=ok type=boolean
-/// @type.node source="value instanceof Named" type=boolean
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
-/// @resolution.predicate source="value instanceof Named" kind=instanceof value=unknown target=Named
 /// @type.node source=Named type=Named
 /// @resolution.name source=Named target=Named
 "#,
         r#"
 /// @diagnostic.error code=EC317 message="right-hand side of 'instanceof' must be a class"
-/// @diagnostic.label line=8 column=29 source="const ok = value instanceof Named;"
+/// @diagnostic.label line=8 column=29 span="Named" line_source="const ok = value instanceof Named;"
 "#,
     );
 }
@@ -307,13 +304,13 @@ const ok = value instanceof User;
 /// @type.node source="value instanceof User" type=boolean
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
-/// @resolution.predicate source="value instanceof User" kind=instanceof value=string target=User
+/// @resolution.guard source="value instanceof User" kind=instanceof value=string target=User target_type=User predicate="string is subtype(User)" narrowed=User
 /// @type.node source=User type=User
 /// @resolution.name source=User target=User
 "#,
         r#"
 /// @diagnostic.error code=EC318 message="type 'string' can never be an instance of 'User'"
-/// @diagnostic.label line=5 column=12 source="const ok = value instanceof User;"
+/// @diagnostic.label line=5 column=12 span="value" line_source="const ok = value instanceof User;"
 "#,
     );
 }

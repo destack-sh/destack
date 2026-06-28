@@ -28,11 +28,11 @@ declare const value: unknown;
 /// @type.symbol symbol=value source=value type=unknown
 
 if (value is string) {
-/// @type.node type=void | void
+/// @type.node type=void
 /// @type.node source="value is string" type=boolean
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
-/// @resolution.predicate source="value is string" kind=is value=unknown target=string
+/// @resolution.guard source="value is string" kind=is value=unknown target=string predicate="unknown is string" narrowed=string
 
     value satisfies string;
     /// @type.node source="value satisfies string" type=string
@@ -71,12 +71,11 @@ declare const value: Dynamic<unknown>;
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
 
 if (value is { name: string }) {
-/// @type.node type=void | void
+/// @type.node type=void
 /// @type.node source="value is { name: string }" type=boolean
-/// @type.node source=value type=memory.dynamic.Dynamic<unknown>
+/// @type.node source=value type=Dynamic<unknown>
 /// @resolution.name source=value target=value
-/// @resolution.guard source="value is { name: string }" kind=is value=Dynamic<unknown> target={ name: string } predicate=never
-/// @generic.instance source=value id=memory.dynamic.Dynamic<unknown>
+/// @resolution.guard source="value is { name: string }" kind=is value=Dynamic<unknown> target={ name: string } predicate="Dynamic<unknown> is never"
 
 }
 
@@ -84,7 +83,7 @@ if (value is { name: string }) {
 "#,
         r#"
 /// @diagnostic.error code=EC320 message="type '{ name: string }' cannot be tested at runtime"
-/// @diagnostic.label line=4 column=14 source="if (value is { name: string }) {"
+/// @diagnostic.label line=4 column=14 span="{ name: string }" line_source="if (value is { name: string }) {"
 "#,
     );
 }
@@ -121,11 +120,11 @@ declare const value: string | int32;
 /// @type.symbol symbol=value source=value type=string | int32
 
 if (value is string) {
-/// @type.node type=void | void
+/// @type.node type=void
 /// @type.node source="value is string" type=boolean
 /// @type.node source=value type=string | int32
 /// @resolution.name source=value target=value
-/// @resolution.predicate source="value is string" kind=is value=string | int32 target=string
+/// @resolution.guard source="value is string" kind=is value=string | int32 target=string predicate="string | int32 is string" narrowed=string
 
     value satisfies string;
     /// @type.node source="value satisfies string" type=string
@@ -169,17 +168,17 @@ declare const value: string;
 /// @type.symbol symbol=value source=value type=string
 
 if (value is int32) {
-/// @type.node type=void | void
+/// @type.node type=void
 /// @type.node source="value is int32" type=boolean
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
-/// @resolution.predicate source="value is int32" kind=is value=string target=int32
+/// @resolution.guard source="value is int32" kind=is value=string target=int32 predicate="string is int32" narrowed=int32
 
 }
 "#,
         r#"
 /// @diagnostic.error code=EC319 message="type 'string' can never satisfy runtime check 'int32'"
-/// @diagnostic.label line=4 column=5 source="if (value is int32) {"
+/// @diagnostic.label line=4 column=5 span="value" line_source="if (value is int32) {"
 "#,
     );
 }
@@ -230,11 +229,11 @@ declare const value: unknown;
 /// @type.symbol symbol=value source=value type=unknown
 
 if (value is &readonly Node) {
-/// @type.node type=void | void
+/// @type.node type=void
 /// @type.node source="value is &readonly Node" type=boolean
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
-/// @resolution.predicate source="value is &readonly Node" kind=is value=unknown target=Borrowed<Node, "frame", "readonly">
+/// @resolution.guard source="value is &readonly Node" kind=is value=unknown target=Borrowed<Node, "frame", "readonly"> predicate="unknown is type(Borrowed<Node, \"frame\", \"readonly\">)" narrowed=Borrowed<Node, "frame", "readonly">
 /// @resolution.name source=Node target=Node
 
     value.id satisfies int32;
@@ -278,11 +277,11 @@ function check<T>(value: unknown): void {
 /// @type.symbol symbol=value source="value: unknown" type=unknown
 
     if (value is T) {
-    /// @type.node type=void | void
+    /// @type.node type=void
     /// @type.node source="value is T" type=boolean
     /// @type.node source=value type=unknown
     /// @resolution.name source=value target=value
-    /// @resolution.predicate source="value is T" kind=is value=unknown target=T
+    /// @resolution.guard source="value is T" kind=is value=unknown target=T predicate="unknown is never"
     /// @resolution.name source=T target=check.T
 
     }
@@ -290,7 +289,7 @@ function check<T>(value: unknown): void {
 "#,
         r#"
 /// @diagnostic.error code=EC504 message="type 'T' is not dynamic-safe"
-/// @diagnostic.label line=3 column=18 source="if (value is T) {"
+/// @diagnostic.label line=3 column=18 span="T" line_source="if (value is T) {"
 "#,
     );
 }

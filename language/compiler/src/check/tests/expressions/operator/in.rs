@@ -23,17 +23,17 @@ hasX satisfies boolean;
 
 === checked ===
 const point = { x: 1, y: 2 };
-/// @type.symbol symbol=point source=point type=Managed<{ x: float64; y: float64 }>
-/// @type.node source={ x: 1, y: 2 } type=Managed<{ x: float64; y: float64 }>
-/// @type.node source=1 type=float64
-/// @type.node source=2 type=float64
+/// @type.symbol symbol=point source=point type={ x: float64; y: float64 }
+/// @type.node source={ x: 1, y: 2 } type={ x: 1; y: 2 }
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
 
 const hasX = "x" in point;
 /// @type.symbol symbol=hasX source=hasX type=boolean
 /// @type.node source="\"x\" in point" type=boolean
 /// @type.node source="\"x\"" type="x"
-/// @resolution.guard source="\"x\" in point" kind=in key_type="x" receiver=Managed<{ x: float64; y: float64 }> target=property key=x predicate=has(x)
-/// @type.node source=point type=Managed<{ x: float64; y: float64 }>
+/// @resolution.guard source="\"x\" in point" kind=in key_type="x" receiver={ x: float64; y: float64 } predicate="has({ x: float64; y: float64 }, x)" narrowed={ x: float64; y: float64 }
+/// @type.node source=point type={ x: float64; y: float64 }
 /// @resolution.name source=point target=point
 
 hasX satisfies boolean;
@@ -67,17 +67,17 @@ hasName satisfies boolean;
 
 === checked ===
 const point = { x: 1, y: 2 };
-/// @type.symbol symbol=point source=point type=Managed<{ x: float64; y: float64 }>
-/// @type.node source={ x: 1, y: 2 } type=Managed<{ x: float64; y: float64 }>
-/// @type.node source=1 type=float64
-/// @type.node source=2 type=float64
+/// @type.symbol symbol=point source=point type={ x: float64; y: float64 }
+/// @type.node source={ x: 1, y: 2 } type={ x: 1; y: 2 }
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
 
 const hasName = "name" in point;
 /// @type.symbol symbol=hasName source=hasName type=boolean
 /// @type.node source="\"name\" in point" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.guard source="\"name\" in point" kind=in key_type="name" receiver=Managed<{ x: float64; y: float64 }> target=property key=name predicate=has(name)
-/// @type.node source=point type=Managed<{ x: float64; y: float64 }>
+/// @resolution.guard source="\"name\" in point" kind=in key_type="name" receiver={ x: float64; y: float64 } predicate="has({ x: float64; y: float64 }, name)" narrowed=never
+/// @type.node source=point type={ x: float64; y: float64 }
 /// @resolution.name source=point target=point
 
 hasName satisfies boolean;
@@ -126,12 +126,12 @@ class Bag implements Has<string> {
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.class symbol=Bag
 /// @definition.implements symbol=Bag source=Has<string> target=ops.subscript.Has arguments=(string)
-/// @definition.method symbol=Bag.has slot=has type=(this: Bag, Borrowed<string, has.L0, "readonly">) => boolean
+/// @definition.method symbol=Bag.has slot=has type=<comptime has.L0: Lifetime>(this: Bag, Borrowed<string, has.L0, "readonly">) => boolean
 /// @resolution.name source=Has target=ops.subscript.Has
 
     has(key: &readonly string): boolean {
     /// @generic.template symbol=Bag.has parameters=(comptime L0: Lifetime origin=induced.form)
-    /// @type.symbol symbol=Bag.has type=(this: Bag, Borrowed<string, has.L0, "readonly">) => boolean
+    /// @type.symbol symbol=Bag.has type=<comptime has.L0: Lifetime>(this: Bag, Borrowed<string, has.L0, "readonly">) => boolean
     /// @type.symbol symbol=key source="key: &readonly string" type=Borrowed<string, has.L0, "readonly">
 
         return true;
@@ -148,7 +148,8 @@ const found = "name" in bag;
 /// @type.symbol symbol=found source=found type=boolean
 /// @type.node source="\"name\" in bag" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.guard source="\"name\" in bag" kind=in key_type="name" receiver=Bag target=operator method=Bag.has receiver=Bag
+/// @resolution.guard source="\"name\" in bag" kind=in key_type="name" receiver=Bag predicate=call(Bag.has)
+/// @generic.instance source="\"name\" in bag" id="Bag.has<\"frame\">"
 /// @type.node source=bag type=Bag
 /// @resolution.name source=bag target=bag
 
@@ -156,6 +157,62 @@ found satisfies boolean;
 /// @type.node source="found satisfies boolean" type=boolean
 /// @type.node source=found type=boolean
 /// @resolution.name source=found target=found
+
+/// @generic.instance id="Bag.has<\"frame\">" template=Bag.has arguments=("frame")
+"#,
+    );
+}
+
+#[test]
+fn test_in_rejects_nominal_receiver_without_has() {
+    let session = TestSession::single(
+        r#"
+declare class User {
+    name: string;
+}
+
+declare const user: User;
+
+"name" in user;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare class User {
+    name: string;
+}
+
+declare const user: User;
+
+"name" in user;
+
+=== checked ===
+declare class User {
+/// @type.symbol symbol=User type=User
+/// @definition.class symbol=User
+/// @definition.field symbol=User.name source="name: string" key=name type=string
+
+    name: string;
+    /// @type.symbol symbol=User.name source="name: string" type=string
+
+}
+
+declare const user: User;
+/// @type.symbol symbol=user source=user type=User
+/// @resolution.name source=User target=User
+
+"name" in user;
+/// @type.node source="\"name\"" type="name"
+/// @type.node source=user type=User
+/// @resolution.name source=user target=user
+"#,
+        r#"
+/// @diagnostic.error code=EC306 message="operator 'in' is not defined for '\"name\"' and 'User'"
+/// @diagnostic.label line=8 column=8 span="in" line_source="\"name\" in user;"
 "#,
     );
 }
@@ -204,11 +261,11 @@ declare const value: Named | Numbered;
 /// @resolution.name source=Numbered target=Numbered
 
 if ("name" in value) {
-/// @type.node type=void | void
+/// @type.node type=void
 /// @type.node source="\"name\" in value" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered target=property key=name predicate=has(name)
-/// @type.node source=value type=Named | Numbered
+/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered predicate="has(Named | Numbered, name)" narrowed={ name: string }
+/// @type.node source=value type={ name: string } | { id: int32 }
 /// @resolution.name source=value target=value
 
     value.name satisfies string;
@@ -242,7 +299,7 @@ fn test_in_rejects_primitive_receiver() {
 "x" in 1;
 /// @type.node source="\"x\" in 1" type=boolean
 /// @type.node source="\"x\"" type="x"
-/// @resolution.guard source="\"x\" in 1" kind=in key_type="x" receiver=1 target=property key=x predicate=has(x)
+/// @resolution.guard source="\"x\" in 1" kind=in key_type="x" receiver=1 predicate="has(1, x)" narrowed=never
 /// @type.node source=1 type=1
 "#,
         r#"
@@ -273,15 +330,15 @@ true in point;
 
 === checked ===
 const point = { x: 1 };
-/// @type.symbol symbol=point source=point type=Managed<{ x: float64 }>
-/// @type.node source={ x: 1 } type=Managed<{ x: float64 }>
-/// @type.node source=1 type=float64
+/// @type.symbol symbol=point source=point type={ x: float64 }
+/// @type.node source={ x: 1 } type={ x: 1 }
+/// @type.node source=1 type=1
 
 true in point;
 /// @type.node source="true in point" type=boolean
 /// @type.node source=true type=true
-/// @resolution.guard source="true in point" kind=in key_type=true receiver=Managed<{ x: float64 }> target=property predicate=has(runtime)
-/// @type.node source=point type=Managed<{ x: float64 }>
+/// @resolution.guard source="true in point" kind=in key_type=true receiver={ x: float64 } predicate="has({ x: float64 }, true)"
+/// @type.node source=point type={ x: float64 }
 /// @resolution.name source=point target=point
 "#,
         r#"
@@ -317,7 +374,7 @@ declare const value: unknown;
 "name" in value;
 /// @type.node source="\"name\" in value" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=unknown target=property key=name predicate=has(name)
+/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=unknown predicate="has(unknown, name)" narrowed={ name: unknown }
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
 "#,
