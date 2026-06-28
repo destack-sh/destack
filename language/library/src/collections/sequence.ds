@@ -18,4 +18,7 @@ export newtype interface Sequence<T> {
         start: usize,
         end?: usize,
     ): WithAccess<&this.View, A>;
+
+    /// Return the elements from `start..end` as an owned array.
+    rest(start: usize, end?: usize): T[];
 }

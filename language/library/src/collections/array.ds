@@ -68,6 +68,11 @@ extension<T, comptime N: number> of FixedArray<T, N>
         todo("FixedArray.view")
     }
 
+    /// Return the elements from `start..end` as an owned array.
+    rest(start: usize, end?: usize): T[] {
+        todo("FixedArray.rest")
+    }
+
     /// Borrow the element at `index`.
     index<comptime A: Access = "readonly">(
         this: WithAccess<&FixedArray<T, N>, A>,
@@ -262,6 +267,11 @@ extension<T> of Array<T>
         let view = this.as();
 
         view.slice(start, end)
+    }
+
+    /// Return the elements from `start..end` as an owned array.
+    rest(start: usize, end?: usize): T[] {
+        todo("Array.rest")
     }
 
     /// Return the element at `index`, counting from the end when negative.
