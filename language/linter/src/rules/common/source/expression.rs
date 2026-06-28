@@ -178,13 +178,7 @@ pub fn assign_pattern_fields_are_equal(
         ) => {
             left_name == right_name
                 && left_is_shorthand == right_is_shorthand
-                && match (left_pattern, right_pattern) {
-                    (Some(left_pattern), Some(right_pattern)) => {
-                        assign_patterns_are_equal(ctx, *left_pattern, *right_pattern)
-                    }
-                    (None, None) => true,
-                    _ => false,
-                }
+                && assign_patterns_are_equal(ctx, *left_pattern, *right_pattern)
         }
         (
             dir::AssignPatternField::Computed {

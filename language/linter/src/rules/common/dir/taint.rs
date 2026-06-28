@@ -219,14 +219,12 @@ impl<'a> TaintAnalysis<'a> {
 
         match assign_pattern_field {
             dir::AssignPatternField::Named { pattern, .. } => {
-                if let Some(pattern_id) = pattern {
-                    let pattern_labels = self.assign_pattern_taint_labels_inner(
-                        *pattern_id,
-                        expression_stack,
-                        symbol_stack,
-                    );
-                    labels.merge(&pattern_labels);
-                }
+                let pattern_labels = self.assign_pattern_taint_labels_inner(
+                    *pattern,
+                    expression_stack,
+                    symbol_stack,
+                );
+                labels.merge(&pattern_labels);
             }
             dir::AssignPatternField::Computed { key, pattern } => {
                 let key_labels =
