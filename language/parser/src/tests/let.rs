@@ -6,9 +6,7 @@ use destack_dir::{
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
 use crate::parse::DeclarationHeader;
-use crate::{
-    TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
-};
+use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
 #[test]
 fn test_parse_let_scalar() {
@@ -309,11 +307,15 @@ fn test_parse_let_array_pattern_readonly_identifier() {
         assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
             assert_node!(parser.tree, *pattern, Pattern::Sequence { fields } => {
                 assert_eq!(fields.len(), 2);
-                assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: true, pattern: None } => {
-                    assert_name!(parser, *name, "readonly");
+                assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
+                    assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+                        assert_string!(parser, *name, "readonly");
+                    });
                 });
-                assert_node!(parser.tree, fields[1], PatternField::Named { name, is_shorthand: true, pattern: None } => {
-                    assert_name!(parser, *name, "setReadonly");
+                assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
+                    assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+                        assert_string!(parser, *name, "setReadonly");
+                    });
                 });
             });
             assert_node!(parser.tree, value.expect("expected initializer"), Expression::Call { left, .. } => {
@@ -424,12 +426,16 @@ const (x, y) = foo()
             assert_node!(parser.tree, *pattern, Pattern::Tuple { fields, .. } => {
                 assert_eq!(fields.len(), 2);
                 // x
-                assert_node!(parser.tree, fields[0], PatternField::Named { name, .. } => {
-                    assert_name!(parser, *name, "x");
+                assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
+                    assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+                        assert_string!(parser, *name, "x");
+                    });
                 });
                 // y
-                assert_node!(parser.tree, fields[1], PatternField::Named { name, .. } => {
-                    assert_name!(parser, *name, "y");
+                assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
+                    assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+                        assert_string!(parser, *name, "y");
+                    });
                 });
             });
 

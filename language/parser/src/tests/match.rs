@@ -165,9 +165,10 @@ match (pair) {
                 assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
                     assert_node!(parser.tree, *pattern, Pattern::Wildcard);
                 });
-                assert_node!(parser.tree, fields[1], PatternField::Named { name: _, is_shorthand, pattern } => {
-                    assert!(*is_shorthand);
-                    assert!(pattern.is_none());
+                assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
+                    assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+                        assert_string!(parser, *name, "count");
+                    });
                 });
             });
 
