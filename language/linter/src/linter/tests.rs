@@ -17,9 +17,8 @@ use destack_parser::{Parser, ParserOptions};
 use destack_repository::{
     DependencySetResolution, DestackLayoutOverride, Edit, Environment, LintCategory, LintSeverity,
     LinterOptions, Module, Profile, ProviderContext, ProviderError, ProviderResult, Ref,
-    Repository, Revision, Settings,
+    Repository, Revision, Settings, open_repository_from_fs,
 };
-use destack_repository::open_repository_from_fs;
 use destack_source::{
     ContentId, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, DiffOptions, File,
     FileId, FileSystem, FileType, LanguageType, Loader, ModuleId, OverlayFileSystem, PackageId,
