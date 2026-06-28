@@ -10,7 +10,7 @@ use crate::{
 /// Examples:
 /// ```ds
 /// value is string       // Unary
-/// value is Shape.Circle // Unary over VariantTag, success projects VariantPayload
+/// value is Shape.Circle // Unary over VariantTag, projection: VariantPayload
 /// "name" in value       // Has
 /// key in bag            // Call
 /// value is "a" | "b"    // Any
@@ -19,30 +19,40 @@ use crate::{
 pub struct Predicate {
     /// The test to execute.
     pub test: PredicateTest,
-    /// The value projection available after the predicate succeeds.
-    pub success: Option<Projection>,
+    /// The narrowed value type after the predicate succeeds.
+    pub narrowed: Option<GlobalTypeId>,
+    /// The projected value available after the predicate succeeds.
+    pub projection: Option<Projection>,
 }
 
 impl Predicate {
-    /// Create a predicate without a success projection.
+    /// Create a predicate without a success narrowing.
     pub fn new(test: PredicateTest) -> Self {
         Self {
             test,
-            success: None,
+            narrowed: None,
+            projection: None,
         }
     }
 
     /// Create a unary predicate.
-    pub fn unary(input: Projection, condition: PredicateCondition) -> Self {
+    pub fn unary(input: PredicateOperand, condition: PredicateCondition) -> Self {
         Self::new(PredicateTest::Unary(PredicateUnaryTest {
             input,
             condition,
         }))
     }
 
-    /// Create a predicate with a success projection.
-    pub fn with_success(mut self, success: Projection) -> Self {
-        self.success = Some(success);
+    /// Set the narrowed type available after this predicate succeeds.
+    pub fn with_narrowed(mut self, narrowed: GlobalTypeId) -> Self {
+        self.narrowed = Some(narrowed);
+
+        self
+    }
+
+    /// Set the projected value available after this predicate succeeds.
+    pub fn with_projection(mut self, projection: Projection) -> Self {
+        self.projection = Some(projection);
 
         self
     }
@@ -59,6 +69,39 @@ impl Predicate {
     }
 }
 
+/// Value tested by one executable predicate.
+///
+/// Examples:
+/// ```ds
+/// value          // projection: none
+/// dynamic.type   // projection: DynamicType
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct PredicateOperand {
+    /// The operand value type.
+    pub ty: GlobalTypeId,
+    /// The projection used to compute the tested value, when one is needed.
+    pub projection: Option<Projection>,
+}
+
+impl PredicateOperand {
+    /// Create a predicate operand from an unprojected value type.
+    pub fn new(ty: GlobalTypeId) -> Self {
+        Self {
+            ty,
+            projection: None,
+        }
+    }
+
+    /// Create a predicate operand from a selected projection.
+    pub fn projected(projection: Projection) -> Self {
+        Self {
+            ty: projection.ty(),
+            projection: Some(projection),
+        }
+    }
+}
+
 /// Predicate test selected during checking.
 ///
 /// Examples:
@@ -70,7 +113,7 @@ impl Predicate {
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum PredicateTest {
-    /// Unary test over one projected input value.
+    /// Unary test over one input value.
     ///
     /// Examples:
     /// ```ds
@@ -101,22 +144,22 @@ pub enum PredicateTest {
     Any(Vec<Predicate>),
 }
 
-/// Unary predicate over one projected input value.
+/// Unary predicate over one input value.
 ///
 /// Examples:
 /// ```ds
-/// value is string       // input: Identity, condition: Primitive
+/// value is string       // input: value, condition: Primitive
 /// value is Shape.Circle // input: VariantTag, condition: Literal
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct PredicateUnaryTest {
-    /// The value projection tested by this predicate.
-    pub input: Projection,
+    /// The value tested by this predicate.
+    pub input: PredicateOperand,
     /// The condition applied to the projected input.
     pub condition: PredicateCondition,
 }
 
-/// Condition applied to one projected predicate input.
+/// Condition applied to one predicate input.
 ///
 /// Examples:
 /// ```ds
@@ -190,8 +233,8 @@ pub enum PredicateCondition {
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct PredicateHasTest {
-    /// The projected receiver value.
-    pub receiver: Projection,
+    /// The receiver value.
+    pub receiver: PredicateOperand,
     /// The tested key.
     pub key: PredicateKey,
 }
@@ -218,7 +261,7 @@ pub enum PredicateKey {
     /// ```ds
     /// key in value
     /// ```
-    Dynamic(Projection),
+    Dynamic(PredicateOperand),
 }
 
 /// Scalar interval condition.
