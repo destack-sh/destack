@@ -83,6 +83,94 @@ pub enum LinkError {
         message: String,
     },
 
+    /// Invalid executable input.
+    #[diagnostic(code = "EK107", message = "invalid input: {context}")]
+    InvalidInput {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        context: String,
+    },
+
+    /// Type mismatch while linking executable output.
+    #[diagnostic(
+        code = "EK108",
+        message = "type mismatch: expected {expected}, found {actual}"
+    )]
+    TypeMismatch {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        expected: String,
+        actual: String,
+    },
+
+    /// Invalid instruction while linking executable output.
+    #[diagnostic(code = "EK109", message = "invalid instruction: {context}")]
+    InvalidInstruction {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        context: String,
+    },
+
+    /// Invalid cast while linking executable output.
+    #[diagnostic(code = "EK110", message = "invalid cast: {context}")]
+    InvalidCast {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        context: String,
+    },
+
+    /// Invalid field access while linking executable output.
+    #[diagnostic(
+        code = "EK111",
+        message = "invalid field access: field {index} but value has {field_count} field(s)"
+    )]
+    InvalidFieldAccess {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        index: u32,
+        field_count: usize,
+    },
+
+    /// Invalid pointer type while linking executable output.
+    #[diagnostic(code = "EK112", message = "invalid pointer type: {actual}")]
+    InvalidPointerType {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        actual: String,
+    },
+
+    /// Unsupported instruction while linking executable output.
+    #[diagnostic(code = "EK113", message = "unsupported instruction: {name}")]
+    UnsupportedInstruction {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        name: String,
+    },
+
+    /// Unsupported zero initializer while linking executable output.
+    #[diagnostic(code = "EK114", message = "unsupported zero initializer: {ty}")]
+    UnsupportedZeroInitializer {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        ty: String,
+    },
+
+    /// Undefined function while linking executable output.
+    #[diagnostic(code = "EK115", message = "undefined function: {function}")]
+    UndefinedFunction {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        function: String,
+    },
+
+    /// Executable layout cannot encode a value.
+    #[diagnostic(code = "EK116", message = "layout overflow: {context}")]
+    LayoutOverflow {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        context: String,
+    },
+
     // -------------------------------------------------------------------------
     // 9xx: Internal
     // -------------------------------------------------------------------------
