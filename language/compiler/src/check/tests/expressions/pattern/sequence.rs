@@ -27,15 +27,15 @@ second satisfies int32;
 
 === checked ===
 declare const values: [int32; 2];
-/// @type.symbol symbol=values source=values type=[int32; 2]
+/// @type.symbol symbol=values source=values type=FixedArray<int32, 2>
 
 let [first, second] = values;
+/// @resolution.pattern source=[first, second] kind=sequence element=int32 arity=2 fields=(first, second)
 /// @type.symbol symbol=first source=first type=int32
-/// @type.symbol symbol=second source=second type=int32
-/// @resolution.pattern source="[first, second]" kind=sequence sequence=fixed_array length=2 fields=(first, second)
 /// @resolution.pattern source=first kind=binding target=first
+/// @type.symbol symbol=second source=second type=int32
 /// @resolution.pattern source=second kind=binding target=second
-/// @type.node source=values type=[int32; 2]
+/// @type.node source=values type=FixedArray<int32, 2>
 /// @resolution.name source=values target=values
 
 first satisfies int32;
@@ -75,17 +75,12 @@ declare const point: { x: int32; y: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
 
 let [x, y] = point;
-/// @type.symbol symbol=x source=x type=<error>
-/// @type.symbol symbol=y source=y type=<error>
-/// @resolution.pattern source="[x, y]" kind=sequence fields=(x, y)
-/// @resolution.pattern source=x kind=binding target=x
-/// @resolution.pattern source=y kind=binding target=y
 /// @type.node source=point type={ x: int32; y: int32 }
 /// @resolution.name source=point target=point
 "#,
         r#"
 /// @diagnostic.error code=EC425 message="type '{ x: int32; y: int32 }' cannot be destructured as a sequence pattern"
-/// @diagnostic.label line=4 column=5 source="[x, y]"
+/// @diagnostic.label line=4 column=5 span="[x, y]" line_source="let [x, y] = point;"
 "#,
     );
 }
