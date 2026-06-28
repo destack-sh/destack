@@ -221,7 +221,7 @@ pub enum MemoryLiteral {
     /// Storage space singleton, like `"local"` or `"shared"`.
     Space(Space),
     /// Placement singleton, like `"ambient"` or a concrete space.
-    Place(MemoryPlace),
+    Place(Place),
     /// Lifetime singleton, like `"static"` or a lifetime parameter.
     Lifetime(Lifetime),
 }
@@ -243,11 +243,11 @@ impl MemoryLiteral {
             Self::Access(Access::Readonly) => "readonly",
             Self::Access(Access::Mutable) => "mutable",
             Self::Access(Access::Exclusive) => "exclusive",
-            Self::Space(Space::Local) | Self::Place(MemoryPlace::Space(Space::Local)) => "local",
-            Self::Space(Space::Shared) | Self::Place(MemoryPlace::Space(Space::Shared)) => "shared",
-            Self::Space(Space::Static) | Self::Place(MemoryPlace::Space(Space::Static)) => "static",
-            Self::Space(Space::Frame) | Self::Place(MemoryPlace::Space(Space::Frame)) => "frame",
-            Self::Place(MemoryPlace::Ambient) => "ambient",
+            Self::Space(Space::Local) | Self::Place(Place::Space(Space::Local)) => "local",
+            Self::Space(Space::Shared) | Self::Place(Place::Space(Space::Shared)) => "shared",
+            Self::Space(Space::Static) | Self::Place(Place::Space(Space::Static)) => "static",
+            Self::Space(Space::Frame) | Self::Place(Place::Space(Space::Frame)) => "frame",
+            Self::Place(Place::Ambient) => "ambient",
             Self::Lifetime(Lifetime::Frame) => "frame",
             Self::Lifetime(_) => "static",
         }
@@ -280,7 +280,7 @@ pub enum Space {
 
 /// Normalized memory placement value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum MemoryPlace {
+pub enum Place {
     /// Ambient placement.
     Ambient,
     /// Concrete storage space.
@@ -1315,6 +1315,14 @@ impl From<&ScalarLiteral> for Type {
 }
 
 impl Type {
+    /// Return whether this type is the undefined singleton.
+    pub fn is_undefined(&self) -> bool {
+        matches!(
+            self,
+            Self::Undefined | Self::Literal(ScalarLiteral::Undefined)
+        )
+    }
+
     /// Return this type's direct scalar domain.
     pub fn scalar_domain(&self) -> Option<ScalarDomain> {
         let domain = match self {
