@@ -58,7 +58,6 @@ class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
-/// @definition.method symbol=User.constructor slot=constructor role=constructor implicit=true type=() => User
 
     name: string;
     /// @type.symbol symbol=User.name source="name: string" type=string
@@ -67,7 +66,7 @@ class User {
 "#,
         r#"
 /// @diagnostic.error code=EC613 message="field 'name' is not initialized on every constructor path"
-/// @diagnostic.label line=3 column=5 source="name: string"
+/// @diagnostic.label line=3 column=5 span="name" line_source="name: string;"
 "#,
     );
 }
@@ -104,20 +103,21 @@ class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
-/// @definition.method symbol=User.constructor source="constructor(name: string) {\n        this.name = name;\n    }" slot=constructor role=constructor type=(string) => User
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(string) => User
 
     name: string;
     /// @type.symbol symbol=User.name source="name: string" type=string
 
     constructor(name: string) {
-    /// @type.symbol symbol=User.constructor source="constructor(name: string) {\n        this.name = name;\n    }" type=(string) => User
+    /// @type.symbol symbol=User.constructor type=(string) => User
     /// @type.symbol symbol=name source="name: string" type=string
 
         this.name = name;
         /// @type.node source="this.name = name" type=string
-        /// @type.node source=this.name type=string
         /// @type.node source=this type=User
-        /// @resolution.member source=this.name receiver=User kind=symbol target=User.name
+        /// @type.node source=this.name type=string
+        /// @resolution.receiver source=this kind=this declaration=User type=User
+        /// @resolution.pattern.assign source=this.name kind=place place=field(User.name) type=string
         /// @type.node source=name type=string
         /// @resolution.name source=name target=name
 
@@ -163,13 +163,13 @@ class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
-/// @definition.method symbol=User.constructor source="constructor(enabled: boolean, name: string) {\n        if (enabled) {\n            this.name = name;\n        }\n    }" slot=constructor role=constructor type=(boolean, string) => User
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(boolean, string) => User
 
     name: string;
     /// @type.symbol symbol=User.name source="name: string" type=string
 
     constructor(enabled: boolean, name: string) {
-    /// @type.symbol symbol=User.constructor source="constructor(enabled: boolean, name: string) {\n        if (enabled) {\n            this.name = name;\n        }\n    }" type=(boolean, string) => User
+    /// @type.symbol symbol=User.constructor type=(boolean, string) => User
     /// @type.symbol symbol=enabled source="enabled: boolean" type=boolean
     /// @type.symbol symbol=name source="name: string" type=string
 
@@ -180,9 +180,10 @@ class User {
 
             this.name = name;
             /// @type.node source="this.name = name" type=string
-            /// @type.node source=this.name type=string
             /// @type.node source=this type=User
-            /// @resolution.member source=this.name receiver=User kind=symbol target=User.name
+            /// @type.node source=this.name type=string
+            /// @resolution.receiver source=this kind=this declaration=User type=User
+            /// @resolution.pattern.assign source=this.name kind=place place=field(User.name) type=string
             /// @type.node source=name type=string
             /// @resolution.name source=name target=name
 
@@ -192,7 +193,7 @@ class User {
 "#,
         r#"
 /// @diagnostic.error code=EC613 message="field 'name' is not initialized on every constructor path"
-/// @diagnostic.label line=3 column=5 source="name: string"
+/// @diagnostic.label line=3 column=5 span="name" line_source="name: string;"
 "#,
     );
 }

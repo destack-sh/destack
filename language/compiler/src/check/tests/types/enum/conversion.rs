@@ -32,31 +32,36 @@ const mode: Mode = 1;
 === checked ===
 @repr("uint8")
 /// @type.symbol symbol=Mode type=Mode
+/// @definition.enum symbol=Mode
+/// @definition.variant symbol=Mode.Read source="Read = 1" key=Read
+/// @definition.variant symbol=Mode.Write source="Write = 2" key=Write
 /// @layout.type type=Mode shape=enum size=1 align=1 backing=uint8
+/// @layout.type type=uint8 shape=scalar size=1 align=1
+/// @resolution.name source=repr target=decorator.representation.repr
 
 enum Mode {
     Read = 1,
-    /// @type.symbol symbol=Mode.Read type=Mode
+    /// @type.symbol symbol=Mode.Read source="Read = 1" type=Mode.Read
 
     Write = 2,
-    /// @type.symbol symbol=Mode.Write type=Mode
+    /// @type.symbol symbol=Mode.Write source="Write = 2" type=Mode.Write
+
 }
 
 const raw: uint8 = Mode.Read;
-/// @type.symbol symbol=raw type=uint8
+/// @type.symbol symbol=raw source=raw type=uint8
 /// @resolution.name source=Mode target=Mode
 /// @resolution.member source=Mode.Read receiver=Mode kind=symbol target=Mode.Read
 
 const mode: Mode = 1;
-/// @type.symbol symbol=mode type=Mode
+/// @type.symbol symbol=mode source=mode type=Mode
 /// @resolution.name source=Mode target=Mode
-/// @type.node source=1 type=1
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Mode' is not assignable to type 'uint8'"
-/// @diagnostic.label line=8 column=7 source="const raw: uint8 = Mode.Read;"
 /// @diagnostic.error code=EC200 message="type '1' is not assignable to type 'Mode'"
-/// @diagnostic.label line=9 column=7 source="const mode: Mode = 1;"
+/// @diagnostic.label line=9 column=20 span="1" line_source="const mode: Mode = 1;"
+/// @diagnostic.error code=EC200 message="type 'Mode.Read' is not assignable to type 'uint8'"
+/// @diagnostic.label line=8 column=25 span="Read" line_source="const raw: uint8 = Mode.Read;"
 "#,
     );
 }
