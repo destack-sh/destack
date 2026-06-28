@@ -9,7 +9,7 @@ use destack_heap::{
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_mir::{LocalNodeId, TargetLayout, TensorDimension, TraceMap, TraceTable, Type};
 use destack_program::{Layout, LayoutShape, StaticSpace, TypeId, Value};
-use destack_source::{DiagnosticSeverity, FileId};
+use destack_source::{DiagnosticSeverity, FileId, PackageId, Uri};
 
 use crate::diagnostic::{Error, RuntimeResult};
 use crate::{Cell, Continuation, Machine, MachineOptions, Outcome};
@@ -128,6 +128,11 @@ fn test_machine_options() -> MachineOptions {
     }
 }
 
+/// Return the package id used by VM tests.
+fn test_package_id() -> PackageId {
+    PackageId::from_uri(&Uri::logical("test/vm"))
+}
+
 /// Parse one MIR test program and preserve all executable tables.
 fn parse_test_mir(
     mir_text: &str,
@@ -169,6 +174,7 @@ fn build_test_program(
     let options = test_machine_options();
 
     ProgramLinker::new(
+        test_package_id(),
         tree,
         target_layout,
         types,

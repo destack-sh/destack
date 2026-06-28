@@ -7,7 +7,7 @@ use destack_heap::{
 };
 use destack_mir as mir;
 use destack_program::{FunctionId, StaticSpace, Value};
-use destack_source::{DiagnosticSeverity, FileId};
+use destack_source::{DiagnosticSeverity, FileId, PackageId, Uri};
 use destack_vm::{Machine, MachineOptions};
 use mir::parse::{ParseOptions, Parser};
 
@@ -35,7 +35,8 @@ impl Runtime {
     /// Build one benchmark runtime from MIR text and entry name.
     pub(crate) fn new(program: &str, entry: &str) -> Self {
         // parse the benchmark program
-        let parsed = Parser::parse(FileId::new(0), program, ParseOptions::default());
+        let file_id = FileId::from_source_bytes(program.as_bytes());
+        let parsed = Parser::parse(file_id, program, ParseOptions::default());
         let (tree, target_layout, types, layouts, dispatch, _, _, _, _, strings, diagnostics) =
             parsed.into_parts();
         if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
@@ -53,6 +54,7 @@ impl Runtime {
 
         // build the VM machine
         let program = ProgramLinker::new(
+            benchmark_package_id(),
             tree,
             target_layout,
             types,
@@ -127,6 +129,11 @@ impl Runtime {
             .fork(trace_table)
             .expect("benchmark heap should fork")
     }
+}
+
+/// Return the package id used by VM dispatch benchmarks.
+fn benchmark_package_id() -> PackageId {
+    PackageId::from_uri(&Uri::logical("bench/vm-dispatch"))
 }
 
 /// Create one worker heap for benchmark execution.
