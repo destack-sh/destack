@@ -193,6 +193,11 @@ extension<T> of Slice<T> implements Sequence<T>, Index<usize>, IndexSet<usize, T
         this.slice(start, end)
     }
 
+    /// Return the elements from `start..end` as an owned array.
+    rest(start: usize, end?: usize): T[] {
+        todo("Slice.rest")
+    }
+
     /// Borrow the element at `index`.
     index<comptime A: Access = "readonly">(
         this: WithAccess<&Slice<T>, A>,
