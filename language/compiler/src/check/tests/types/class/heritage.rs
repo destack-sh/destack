@@ -64,7 +64,7 @@ class Document extends Drawable {}
 "#,
         r#"
 /// @diagnostic.error code=EC202 message="type 'Document' does not extend 'Drawable'"
-/// @diagnostic.label line=4 column=24 source="class Document extends Drawable {}"
+/// @diagnostic.label line=4 column=24 span="Drawable" line_source="class Document extends Drawable {}"
 "#,
     );
 }
@@ -107,7 +107,7 @@ class Document extends Alias {}
 "#,
         r#"
 /// @diagnostic.error code=EC202 message="type 'Document' does not extend 'Alias'"
-/// @diagnostic.label line=5 column=24 source="class Document extends Alias {}"
+/// @diagnostic.label line=5 column=24 span="Alias" line_source="class Document extends Alias {}"
 "#,
     );
 }
@@ -265,7 +265,7 @@ class Document implements Alias {
 "#,
         r#"
 /// @diagnostic.error code=EC616 message="type 'Document' can only implement interfaces, not 'Alias'"
-/// @diagnostic.label line=7 column=27 source="class Document implements Alias {"
+/// @diagnostic.label line=7 column=27 span="Alias" line_source="class Document implements Alias {"
 "#,
     );
 }
@@ -322,7 +322,7 @@ class Point implements Drawable {
 "#,
         r#"
 /// @diagnostic.error code=EC203 message="type 'Point' does not implement interface 'Drawable'"
-/// @diagnostic.label line=6 column=24 source="class Point implements Drawable {"
+/// @diagnostic.label line=6 column=24 span="Drawable" line_source="class Point implements Drawable {"
 "#,
     );
 }
@@ -399,7 +399,7 @@ class Point implements Drawable {
 "#,
         r#"
 /// @diagnostic.error code=EC203 message="type 'Point' does not implement interface 'Drawable'"
-/// @diagnostic.label line=10 column=24 source="class Point implements Drawable {"
+/// @diagnostic.label line=10 column=24 span="Drawable" line_source="class Point implements Drawable {"
 "#,
     );
 }
@@ -436,9 +436,9 @@ class Right extends Left {}
 "#,
         r#"
 /// @diagnostic.error code=EC618 message="type 'Left' has circular heritage"
-/// @diagnostic.label line=2 column=20 source="class Left extends Right {}"
+/// @diagnostic.label line=2 column=20 span="Right" line_source="class Left extends Right {}"
 /// @diagnostic.error code=EC618 message="type 'Right' has circular heritage"
-/// @diagnostic.label line=3 column=21 source="class Right extends Left {}"
+/// @diagnostic.label line=3 column=21 span="Left" line_source="class Right extends Left {}"
 "#,
     );
 }
@@ -475,7 +475,7 @@ class Document {
 "#,
         r#"
 /// @diagnostic.error code=EC600 message="'print' does not override an inherited member"
-/// @diagnostic.label line=3 column=5 source="override print(): void {}"
+/// @diagnostic.label line=3 column=14 span="print" line_source="override print(): void {}"
 "#,
     );
 }
@@ -532,7 +532,7 @@ class Document extends Base {
 "#,
         r#"
 /// @diagnostic.error code=EC606 message="'print' shadows an inherited member and must be declared 'override'"
-/// @diagnostic.label line=7 column=5 source="print(): void {}"
+/// @diagnostic.label line=7 column=5 span="print" line_source="print(): void {}"
 "#,
     );
 }
@@ -589,7 +589,7 @@ class Document extends Base {
 "#,
         r#"
 /// @diagnostic.error code=EC607 message="cannot override 'print': the inherited member is not virtual"
-/// @diagnostic.label line=7 column=5 source="override print(): void {}"
+/// @diagnostic.label line=7 column=14 span="print" line_source="override print(): void {}"
 "#,
     );
 }
@@ -626,7 +626,7 @@ class Header extends Packet {}
 "#,
         r#"
 /// @diagnostic.error code=EC608 message="final class 'Packet' cannot be extended"
-/// @diagnostic.label line=4 column=1 source="class Header extends Packet {}"
+/// @diagnostic.label line=4 column=7 span="Header" line_source="class Header extends Packet {}"
 "#,
     );
 }
@@ -664,7 +664,7 @@ class Writer {
 "#,
         r#"
 /// @diagnostic.error code=EC609 message="abstract member 'write' requires an abstract class"
-/// @diagnostic.label line=3 column=5 source="abstract write(value: string): void;"
+/// @diagnostic.label line=3 column=14 span="write" line_source="abstract write(value: string): void;"
 "#,
     );
 }
@@ -712,7 +712,7 @@ class FileWriter extends Writer {}
 "#,
         r#"
 /// @diagnostic.error code=EC601 message="abstract member 'write' is not implemented"
-/// @diagnostic.label line=6 column=1 source="class FileWriter extends Writer {}"
+/// @diagnostic.label line=6 column=7 span="FileWriter" line_source="class FileWriter extends Writer {}"
 "#,
     );
 }
@@ -746,7 +746,7 @@ new Writer();
 "#,
         r#"
 /// @diagnostic.error code=EC602 message="abstract class 'Writer' cannot be constructed"
-/// @diagnostic.label line=4 column=1 source="new Writer();"
+/// @diagnostic.label line=4 column=1 span="new Writer()" line_source="new Writer();"
 "#,
     );
 }
@@ -819,7 +819,7 @@ class Parser extends Base {
 "#,
         r#"
 /// @diagnostic.error code=EC610 message="override 'parse' has type '(string) => int32', which is not assignable to the inherited type '(string) => string'"
-/// @diagnostic.label line=9 column=5 source="override parse(value: string): int32 {"
+/// @diagnostic.label line=9 column=14 span="parse" line_source="override parse(value: string): int32 {"
 "#,
     );
 }
