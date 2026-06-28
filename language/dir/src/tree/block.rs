@@ -78,6 +78,14 @@ impl Block {
             .or_else(|| self.leading_expressions.last().copied())
     }
 
+    /// Return the expression that produces this block's value.
+    pub fn value_expression(&self) -> Option<LocalNodeId<Expression>> {
+        match self.context {
+            BlockContext::Expression => self.tail_expression,
+            BlockContext::Statement => None,
+        }
+    }
+
     /// Iterate the block expressions in source order.
     pub fn iter_expressions(&self) -> impl Iterator<Item = LocalNodeId<Expression>> + '_ {
         self.leading_expressions

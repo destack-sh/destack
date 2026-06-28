@@ -674,14 +674,12 @@ pub struct FieldDefinition {
     pub source: GlobalNodeIdAny,
     /// The field key.
     pub key: StaticKey,
-    /// The checked field type.
-    pub ty: GlobalTypeId,
+    /// The field initializer expression, when one is declared.
+    pub initializer: Option<GlobalNodeIdAny>,
     /// Whether subclasses must provide the field.
     pub is_abstract: bool,
     /// Whether the field overrides an inherited member.
     pub is_override: bool,
-    /// The @if availability condition guarding this member, when guarded.
-    pub condition: Option<GlobalTypeId>,
 }
 
 /// One method member.
@@ -697,14 +695,10 @@ pub struct MethodDefinition {
     pub slot: MemberSlot,
     /// The method role.
     pub role: Option<FunctionRole>,
-    /// The checked method type.
-    pub ty: GlobalTypeId,
     /// The abstraction mode governing overrides.
     pub abstraction: MethodAbstraction,
     /// Whether the method overrides an inherited member.
     pub is_override: bool,
-    /// The @if availability condition guarding this member, when guarded.
-    pub condition: Option<GlobalTypeId>,
 }
 
 /// One checked associated type.
@@ -720,8 +714,6 @@ pub struct AssociatedTypeDefinition {
     pub constraint: Option<GlobalTypeId>,
     /// The concrete associated type value.
     pub value: Option<GlobalTypeId>,
-    /// The @if availability condition guarding this member, when guarded.
-    pub condition: Option<GlobalTypeId>,
 }
 
 /// One checked associated constant.
@@ -733,12 +725,8 @@ pub struct AssociatedConstDefinition {
     pub source: GlobalNodeIdAny,
     /// The associated const key.
     pub key: StaticKey,
-    /// The checked static type.
-    pub ty: GlobalTypeId,
     /// The checked static value.
     pub value: Option<GlobalStaticId>,
-    /// The @if availability condition guarding this member, when guarded.
-    pub condition: Option<GlobalTypeId>,
 }
 
 /// One checked enum variant.
@@ -750,12 +738,8 @@ pub struct VariantDefinition {
     pub source: GlobalNodeIdAny,
     /// The variant key.
     pub key: StaticKey,
-    /// The checked variant type.
-    pub ty: GlobalTypeId,
     /// The checked variant value.
     pub value: Option<GlobalStaticId>,
-    /// The @if availability condition guarding this member, when guarded.
-    pub condition: Option<GlobalTypeId>,
 }
 
 /// One checked symbol-free signature member.
@@ -765,8 +749,6 @@ pub struct SignatureDefinition {
     pub source: GlobalNodeIdAny,
     /// The checked signature type.
     pub ty: GlobalTypeId,
-    /// The @if availability condition guarding this member, when guarded.
-    pub condition: Option<GlobalTypeId>,
 }
 
 /// Member namespace selected by member lookup.
@@ -781,9 +763,9 @@ pub enum MemberSpace {
 /// One checked declaration member.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum DefinitionMember {
-    /// Field member with a checked type.
+    /// Field member.
     Field(FieldDefinition),
-    /// Method member with a checked type.
+    /// Method member.
     Method(MethodDefinition),
     /// Associated type member.
     AssociatedType(AssociatedTypeDefinition),
@@ -800,20 +782,6 @@ pub enum DefinitionMember {
 }
 
 impl DefinitionMember {
-    /// Return the @if availability condition guarding this member.
-    pub fn condition(&self) -> Option<GlobalTypeId> {
-        match self {
-            Self::Field(field) => field.condition,
-            Self::Method(method) => method.condition,
-            Self::AssociatedType(associated) => associated.condition,
-            Self::AssociatedConst(associated) => associated.condition,
-            Self::Variant(variant) => variant.condition,
-            Self::CallSignature(signature)
-            | Self::ConstructSignature(signature)
-            | Self::IndexSignature(signature) => signature.condition,
-        }
-    }
-
     /// Return the source node declaring this member.
     pub fn source(&self) -> GlobalNodeIdAny {
         match self {
@@ -873,20 +841,6 @@ impl DefinitionMember {
             Self::AssociatedConst(associated) => Some(associated.key),
             Self::Variant(variant) => Some(variant.key),
             Self::CallSignature(_) | Self::ConstructSignature(_) | Self::IndexSignature(_) => None,
-        }
-    }
-
-    /// Return the checked member type when the member declares one.
-    pub fn ty(&self) -> Option<GlobalTypeId> {
-        match self {
-            Self::Field(field) => Some(field.ty),
-            Self::Method(method) => Some(method.ty),
-            Self::AssociatedType(associated) => associated.value,
-            Self::AssociatedConst(associated) => Some(associated.ty),
-            Self::Variant(variant) => Some(variant.ty),
-            Self::CallSignature(signature)
-            | Self::ConstructSignature(signature)
-            | Self::IndexSignature(signature) => Some(signature.ty),
         }
     }
 

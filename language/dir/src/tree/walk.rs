@@ -2057,10 +2057,8 @@ pub fn walk_assign_pattern_field<V: NodeVisitor + ?Sized>(
             is_shorthand: _,
             pattern,
         } => {
-            if let Some(pattern_id) = pattern {
-                let pattern_node = tree.get(*pattern_id);
-                visitor.visit_assign_pattern(tree, *pattern_id, pattern_node);
-            }
+            let pattern_node = tree.get(*pattern);
+            visitor.visit_assign_pattern(tree, *pattern, pattern_node);
         }
         AssignPatternField::Computed { key, pattern } => {
             let key_expression = tree.get(*key);

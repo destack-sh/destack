@@ -2,8 +2,10 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ArgumentBinding, BinaryOperator, ClassConstructor, GenericArgumentBinding, GlobalNodeIdAny,
-    GlobalSymbolId, GlobalTypeId, Predicate, Projection, ScalarLiteral, StaticKey, UnaryOperator,
+    ArgumentBinding, BinaryOperator, ClassConstructor, DereferenceRead, DereferenceWrite,
+    GenericArgumentBinding, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Predicate, Projection,
+    ProjectionField, PropertyRead, PropertyWrite, ScalarLiteral, StaticKey, SubscriptRead,
+    SubscriptWrite, UnaryOperator,
 };
 
 /// Receiver selected by contextual lookup, such as `this` or `super`.
@@ -295,28 +297,73 @@ impl CallResolution {
     }
 }
 
-/// Paired accessor calls for one place read and written together.
-///
-/// Compound assignment reads through one accessor and writes its
-/// result back through the other.
+/// Place selected by a checked expression.
 ///
 /// Examples:
 /// ```ds
-/// values[index] += 1    // read: index(usize), write: indexSet(usize, T)
+/// value          // Binding
+/// object.field   // Field
+/// object.name    // Property, when backed by get/set accessors
+/// values[index]  // Subscript
+/// *pointer       // Dereference
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct ReadWriteResolution {
-    /// The read accessor call.
-    pub read: CallResolution,
-    /// The write accessor call.
-    pub write: CallResolution,
+pub struct PlaceResolution {
+    /// The expression node that designates the place.
+    pub source: GlobalNodeIdAny,
+    /// The selected storage location.
+    pub place: Place,
+    /// The value type stored in the place.
+    pub ty: GlobalTypeId,
 }
 
-impl ReadWriteResolution {
-    /// Create a read-write resolution.
-    pub fn new(read: CallResolution, write: CallResolution) -> Self {
-        Self { read, write }
-    }
+/// Writable storage location selected by a place expression.
+///
+/// Examples:
+/// ```ds
+/// value          // Binding
+/// object.field   // Field
+/// object.name    // Property, when backed by a setter
+/// values[index]  // Subscript
+/// *pointer       // Dereference
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum Place {
+    /// Local or imported value binding.
+    Binding {
+        /// The selected binding symbol.
+        symbol: GlobalSymbolId,
+    },
+    /// Structural or nominal field storage.
+    Field {
+        /// The receiver type.
+        receiver: GlobalTypeId,
+        /// The selected field.
+        field: ProjectionField,
+    },
+    /// Accessor-backed property storage.
+    Property {
+        /// The selected property read operation, when the source operator reads first.
+        read: Option<PropertyRead>,
+        /// The selected property write operation.
+        write: PropertyWrite,
+    },
+    /// Dynamically selected subscript storage.
+    Subscript {
+        /// The source node providing the subscript key.
+        index: GlobalNodeIdAny,
+        /// The selected subscript read operation, when the source operator reads first.
+        read: Option<SubscriptRead>,
+        /// The selected subscript write operation.
+        write: SubscriptWrite,
+    },
+    /// Dereferenced storage.
+    Dereference {
+        /// The selected dereference read operation, when the source operator reads first.
+        read: Option<DereferenceRead>,
+        /// The selected dereference write operation.
+        write: DereferenceWrite,
+    },
 }
 
 /// Callable target selected at a call site.
@@ -998,7 +1045,7 @@ pub struct PatternFieldResolution {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum AssignPatternResolution {
     /// Direct writable place target, like `value` or `object.field`.
-    Place(AssignPatternPlaceResolution),
+    Place(PlaceResolution),
     /// Defaulted assignment target, like `value = fallback`.
     Default(AssignPatternDefaultResolution),
     /// Ordered destructuring target, like `[head, ...tail]`.
@@ -1007,13 +1054,6 @@ pub enum AssignPatternResolution {
     Tuple(AssignPatternTupleResolution),
     /// Object destructuring target, like `{ name, age: years }`.
     Object(AssignPatternObjectResolution),
-}
-
-/// Direct assignment place selected during checking.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct AssignPatternPlaceResolution {
-    /// The expression node that designates the writable place.
-    pub place: GlobalNodeIdAny,
 }
 
 /// Defaulted assignment target selected during checking.

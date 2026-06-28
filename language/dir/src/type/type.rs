@@ -221,7 +221,7 @@ pub enum MemoryLiteral {
     /// Storage space singleton, like `"local"` or `"shared"`.
     Space(Space),
     /// Placement singleton, like `"ambient"` or a concrete space.
-    Place(Place),
+    Place(MemoryPlace),
     /// Lifetime singleton, like `"static"` or a lifetime parameter.
     Lifetime(Lifetime),
 }
@@ -243,11 +243,11 @@ impl MemoryLiteral {
             Self::Access(Access::Readonly) => "readonly",
             Self::Access(Access::Mutable) => "mutable",
             Self::Access(Access::Exclusive) => "exclusive",
-            Self::Space(Space::Local) | Self::Place(Place::Space(Space::Local)) => "local",
-            Self::Space(Space::Shared) | Self::Place(Place::Space(Space::Shared)) => "shared",
-            Self::Space(Space::Static) | Self::Place(Place::Space(Space::Static)) => "static",
-            Self::Space(Space::Frame) | Self::Place(Place::Space(Space::Frame)) => "frame",
-            Self::Place(Place::Ambient) => "ambient",
+            Self::Space(Space::Local) | Self::Place(MemoryPlace::Space(Space::Local)) => "local",
+            Self::Space(Space::Shared) | Self::Place(MemoryPlace::Space(Space::Shared)) => "shared",
+            Self::Space(Space::Static) | Self::Place(MemoryPlace::Space(Space::Static)) => "static",
+            Self::Space(Space::Frame) | Self::Place(MemoryPlace::Space(Space::Frame)) => "frame",
+            Self::Place(MemoryPlace::Ambient) => "ambient",
             Self::Lifetime(Lifetime::Frame) => "frame",
             Self::Lifetime(_) => "static",
         }
@@ -278,9 +278,9 @@ pub enum Space {
     Frame,
 }
 
-/// Normalized place value.
+/// Normalized memory placement value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum Place {
+pub enum MemoryPlace {
     /// Ambient placement.
     Ambient,
     /// Concrete storage space.

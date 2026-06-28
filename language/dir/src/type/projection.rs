@@ -2,7 +2,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Access, GenericArgumentBinding, GlobalSymbolId, GlobalTypeId, ScalarLiteral, StaticKey,
+    Access, CallResolution, GenericArgumentBinding, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId,
+    MemberResolution, ScalarLiteral, StaticKey,
 };
 
 /// Value projection selected during checking.
@@ -11,6 +12,8 @@ use crate::{
 /// ```ds
 /// value                 // Identity
 /// point.x               // FieldGet
+/// user.name             // PropertyGet, when backed by a getter
+/// bag[key]              // SubscriptGet
 /// values.length         // SliceLength
 /// dynamic.payload       // DynamicPayload
 /// dynamic.type          // DynamicType
@@ -20,7 +23,7 @@ use crate::{
 /// ^value                // Move
 /// *box                  // Dereference
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Projection {
     /// Keep the same runtime value and view it as a narrower type.
     ///
@@ -43,6 +46,32 @@ pub enum Projection {
     FieldGet {
         /// The selected field.
         field: ProjectionField,
+        /// The projected value type.
+        ty: GlobalTypeId,
+    },
+    /// Read one accessor-backed property value.
+    ///
+    /// Examples:
+    /// ```ds
+    /// user.name // selects get name()
+    /// ```
+    PropertyGet {
+        /// The selected property read operation.
+        read: PropertyRead,
+        /// The projected value type.
+        ty: GlobalTypeId,
+    },
+    /// Read one dynamically selected subscript value.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const { [key]: value } = object;
+    /// ```
+    SubscriptGet {
+        /// The source node providing the subscript key.
+        index: GlobalNodeIdAny,
+        /// The selected subscript read operation.
+        read: SubscriptRead,
         /// The projected value type.
         ty: GlobalTypeId,
     },
@@ -153,9 +182,82 @@ pub enum Projection {
     /// match *box { Point { x, y } => ... }
     /// ```
     Dereference {
+        /// The selected dereference read operation.
+        read: DereferenceRead,
         /// The projected pointee type.
         ty: GlobalTypeId,
     },
+}
+
+impl Projection {
+    /// Return the projected value type.
+    pub fn ty(&self) -> GlobalTypeId {
+        match self {
+            Self::Identity { ty }
+            | Self::FieldGet { ty, .. }
+            | Self::PropertyGet { ty, .. }
+            | Self::SubscriptGet { ty, .. }
+            | Self::SliceLength { ty }
+            | Self::DynamicPayload { ty }
+            | Self::DynamicType { ty }
+            | Self::VariantTag { ty }
+            | Self::VariantPayload { ty, .. }
+            | Self::NewtypePayload { ty, .. }
+            | Self::Borrow { ty, .. }
+            | Self::Move { ty, .. }
+            | Self::Dereference { ty, .. } => *ty,
+        }
+    }
+}
+
+/// Property read operation selected by one projection.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum PropertyRead {
+    /// Getter method selected by property read syntax.
+    Getter(MemberResolution),
+}
+
+/// Property write operation selected by one place.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum PropertyWrite {
+    /// Setter method selected by property write syntax.
+    Setter(MemberResolution),
+}
+
+/// Subscript read operation selected by one projection.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum SubscriptRead {
+    /// Structural tuple, field, or index-signature selection.
+    Member(MemberResolution),
+    /// Protocol-backed subscript read call.
+    Call(CallResolution),
+}
+
+/// Subscript write operation selected by one place.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum SubscriptWrite {
+    /// Structural field, tuple element, or index-signature write.
+    Member(MemberResolution),
+    /// Protocol-backed subscript write call.
+    Call(CallResolution),
+}
+
+/// Dereference read operation selected by one projection.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum DereferenceRead {
+    /// Direct dereference of a physical reference or pointer form.
+    Direct,
+    /// Protocol-backed dereference read call.
+    Call(CallResolution),
+}
+
+/// Dereference write operation selected by one place.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum DereferenceWrite {
+    /// Direct write through a physical reference or pointer form.
+    Direct,
+    /// Protocol-backed dereference write call.
+    Call(CallResolution),
 }
 
 /// Static field selected by one projection.

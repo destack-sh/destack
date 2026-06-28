@@ -163,7 +163,7 @@ pub enum AssignPatternField {
     /// Named field like `{ x }` or `{ x: y }`.
     Named {
         name: Name,
-        pattern: Option<LocalNodeId<AssignPattern>>,
+        pattern: LocalNodeId<AssignPattern>,
         is_shorthand: bool,
     },
     /// Computed field like `{ [key]: value }`.
