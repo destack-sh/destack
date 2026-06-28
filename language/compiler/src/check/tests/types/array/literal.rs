@@ -19,10 +19,10 @@ const pair: [int32; 2] = [1, 2];
 const pair: [int32; 2] = [1, 2];
 /// @type.symbol symbol=pair source=pair type=FixedArray<int32, 2>
 /// @type.node source=[1, 2] type=FixedArray<int32, 2>
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
 
-/// @check.stats.solve variables=1 types=9 constraints=6 obligations=0 solutions=1 bounds=3 decisions=0
+/// @check.stats.solve variables=0 types=8 constraints=3 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -46,14 +46,14 @@ const pair: [int32; 2] = [1, 2, 3];
 const pair: [int32; 2] = [1, 2, 3];
 /// @type.symbol symbol=pair source=pair type=FixedArray<int32, 2>
 /// @type.node source=[1, 2, 3] type=FixedArray<int32, 3>
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
-/// @type.node source=3 type=int32
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
 
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'FixedArray<int32, 3>' is not assignable to type 'FixedArray<int32, 2>'"
-/// @diagnostic.label line=2 column=26 source="const pair: [int32; 2] = [1, 2, 3];"
+/// @diagnostic.label line=2 column=26 span="[1, 2, 3]" line_source="const pair: [int32; 2] = [1, 2, 3];"
 "#,
     );
 }
@@ -77,12 +77,12 @@ const bytes: [uint8; 4] = [1, 2, 3, 4];
 const bytes: [uint8; _] = [1, 2, 3, 4];
 /// @type.symbol symbol=bytes source=bytes type=FixedArray<uint8, 4>
 /// @type.node source=[1, 2, 3, 4] type=FixedArray<uint8, 4>
-/// @type.node source=1 type=uint8
-/// @type.node source=2 type=uint8
-/// @type.node source=3 type=uint8
-/// @type.node source=4 type=uint8
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
+/// @type.node source=4 type=4
 
-/// @check.stats.solve variables=2 types=12 constraints=11 obligations=0 solutions=2 bounds=7 decisions=0
+/// @check.stats.solve variables=1 types=10 constraints=5 obligations=0 solutions=1 bounds=2 decisions=0
 "#,
     );
 }
@@ -106,10 +106,10 @@ const values: [float64; 4] = [1, 2, 3, 4];
 const values: [_; _] = [1, 2, 3, 4];
 /// @type.symbol symbol=values source=values type=FixedArray<float64, 4>
 /// @type.node source=[1, 2, 3, 4] type=FixedArray<float64, 4>
-/// @type.node source=1 type=float64
-/// @type.node source=2 type=float64
-/// @type.node source=3 type=float64
-/// @type.node source=4 type=float64
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
+/// @type.node source=4 type=4
 "#,
     );
 }
@@ -133,11 +133,11 @@ const values: [float64; 3] = [1, 2, 3];
 const values: [_; 3] = [1, 2, 3];
 /// @type.symbol symbol=values source=values type=FixedArray<float64, 3>
 /// @type.node source=[1, 2, 3] type=FixedArray<float64, 3>
-/// @type.node source=1 type=float64
-/// @type.node source=2 type=float64
-/// @type.node source=3 type=float64
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
 
-/// @check.stats.solve variables=2 types=13 constraints=7 obligations=0 solutions=2 bounds=4 decisions=0
+/// @check.stats.solve variables=1 types=13 constraints=4 obligations=0 solutions=1 bounds=3 decisions=0
 "#,
     );
 }
@@ -155,7 +155,7 @@ const values: [1 | 2 | 3; 3] = [1, 2, 3];
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const values: [1 | 2 | 3; 3] = [1, 2, 3];
+const values: [1 | 2 | 3; 3] = [1 as 1 | 2 | 3, 2 as 1 | 2 | 3, 3 as 1 | 2 | 3];
 
 === checked ===
 const values: [1 | 2 | 3; 3] = [1, 2, 3];
@@ -188,9 +188,9 @@ const values = [1, 2, 3] as [_; _];
 /// @type.symbol symbol=values source=values type=FixedArray<float64, 3>
 /// @type.node source=[1, 2, 3] as [_; _] type=FixedArray<float64, 3>
 /// @type.node source=[1, 2, 3] type=FixedArray<float64, 3>
-/// @type.node source=1 type=float64
-/// @type.node source=2 type=float64
-/// @type.node source=3 type=float64
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
 "#,
     );
 }
@@ -213,12 +213,14 @@ const values: Slice<float64> = [1, 2, 3] as Slice<float64>;
 === checked ===
 const values = [1, 2, 3] as Slice<_>;
 /// @type.symbol symbol=values source=values type=collections.slice.Slice<float64>
-/// @type.node source="[1, 2, 3] as Slice<_>" type=collections.slice.Slice<float64>
+/// @type.node source="[1, 2, 3] as Slice<_>" type=Slice<float64>
 /// @type.node source=[1, 2, 3] type=Array<float64>
-/// @type.node source=1 type=float64
-/// @type.node source=2 type=float64
-/// @type.node source=3 type=float64
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
 /// @resolution.name source=Slice target=collections.slice.Slice
+
+/// @generic.instance id=collections.slice.Slice<float64> template=collections.slice.Slice arguments=(float64)
 "#,
     );
 }
@@ -240,13 +242,12 @@ const values: [float64] = [1, 2, 3] as [float64];
 
 === checked ===
 const values = [1, 2, 3] as [_];
-/// @type.symbol symbol=values source=values type=collections.slice.Slice<float64>
-/// @type.node source=[1, 2, 3] as [_] type=collections.slice.Slice<float64>
+/// @type.symbol symbol=values source=values type=Slice<float64>
+/// @type.node source=[1, 2, 3] as [_] type=Slice<float64>
 /// @type.node source=[1, 2, 3] type=Array<float64>
-/// @type.node source=1 type=float64
-/// @type.node source=2 type=float64
-/// @type.node source=3 type=float64
-/// @resolution.name source=Slice target=collections.slice.Slice
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
 "#,
     );
 }
@@ -278,19 +279,24 @@ matrix satisfies [[int32; 2]; 2];
 
 === checked ===
 const matrix: [[int32; 2]; 2] = [
-    [1, 2],
-    [3, 4],
-];
 /// @type.symbol symbol=matrix source=matrix type=FixedArray<FixedArray<int32, 2>, 2>
-/// @type.node source="[\n    [1, 2],\n    [3, 4],\n]" type=FixedArray<FixedArray<int32, 2>, 2>
-/// @type.node source=[1, 2] type=FixedArray<int32, 2>
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
-/// @type.node source=[3, 4] type=FixedArray<int32, 2>
-/// @type.node source=3 type=int32
-/// @type.node source=4 type=int32
+/// @type.node type=FixedArray<FixedArray<int32, 2>, 2>
+
+    [1, 2],
+    /// @type.node source=[1, 2] type=FixedArray<int32, 2>
+    /// @type.node source=1 type=1
+    /// @type.node source=2 type=2
+
+    [3, 4],
+    /// @type.node source=[3, 4] type=FixedArray<int32, 2>
+    /// @type.node source=3 type=3
+    /// @type.node source=4 type=4
+
+];
 
 matrix satisfies [[int32; 2]; 2];
+/// @type.node source="matrix satisfies [[int32; 2]; 2]" type=FixedArray<FixedArray<int32, 2>, 2>
+/// @type.node source=matrix type=FixedArray<FixedArray<int32, 2>, 2>
 /// @resolution.name source=matrix target=matrix
 "#,
     );
@@ -314,16 +320,16 @@ const matrix: [[int32; 2]; 2] = [[1, 2], [3]];
 === checked ===
 const matrix: [[int32; 2]; 2] = [[1, 2], [3]];
 /// @type.symbol symbol=matrix source=matrix type=FixedArray<FixedArray<int32, 2>, 2>
-/// @type.node source="[[1, 2], [3]]" type=FixedArray<FixedArray<int32, 1> | FixedArray<int32, 2>, 2>
+/// @type.node source=[[1, 2], [3]] type=FixedArray<FixedArray<int32, 2>, 2>
 /// @type.node source=[1, 2] type=FixedArray<int32, 2>
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
 /// @type.node source=[3] type=FixedArray<int32, 1>
-/// @type.node source=3 type=int32
+/// @type.node source=3 type=3
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '[[1 | 2; 2] | [3; 1]; 2]' is not assignable to type '[[int32; 2]; 2]'"
-/// @diagnostic.label line=2 column=37 source="const matrix: [[int32; 2]; 2] = [[1, 2], [3]];"
+/// @diagnostic.error code=EC200 message="type 'FixedArray<int32, 1>' is not assignable to type 'FixedArray<int32, 2>'"
+/// @diagnostic.label line=2 column=42 span="[3]" line_source="const matrix: [[int32; 2]; 2] = [[1, 2], [3]];"
 "#,
     );
 }
