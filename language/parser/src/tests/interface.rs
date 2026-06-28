@@ -1,7 +1,6 @@
 use crate::parse::DeclarationHeader;
 use crate::{
-    TestParser, assert_comment, assert_expression_path, assert_name, assert_node, assert_path,
-    assert_string,
+    TestParser, assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
 };
 use destack_dir::{
     CommentKind, Declaration, Expression, GenericArgument, GenericParameter, IntegerType,
@@ -565,8 +564,10 @@ interface Iterator<T, TReturn = any, TNext = any> {
             assert_node!(parser.tree, signature.parameters[0], Parameter::VariadicPattern { pattern, declared_type, .. } => {
                 assert_node!(parser.tree, *pattern, Pattern::Sequence { fields } => {
                     assert_eq!(fields.len(), 1);
-                    assert_node!(parser.tree, fields[0], PatternField::Named { name, .. } => {
-                        assert_name!(parser, *name, "value");
+                    assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
+                        assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+                            assert_string!(parser, *name, "value");
+                        });
                     });
                 });
 

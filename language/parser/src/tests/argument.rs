@@ -215,8 +215,10 @@ fn test_parse_parameter_variadic_tuple_name() {
     assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type, .. } => {
         assert_node!(parser.tree, *pattern, Pattern::Sequence { fields } => {
             assert_eq!(fields.len(), 1);
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, .. } => {
-                assert_name!(parser, *name, "value");
+            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+                    assert_string!(parser, *name, "value");
+                });
             });
         });
 
@@ -254,12 +256,16 @@ fn test_parse_parameter_variadic_array_pattern_with_type() {
         assert_node!(parser.tree, *pattern, Pattern::Sequence { fields, .. } => {
             assert_eq!(fields.len(), 2);
 
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, .. } => {
-                assert_name!(parser, *name, "body");
+            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+                    assert_string!(parser, *name, "body");
+                });
             });
 
-            assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, .. } => {
-                assert_name!(parser, *name, "init");
+            assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+                    assert_string!(parser, *name, "init");
+                });
             });
         });
 
@@ -296,8 +302,10 @@ fn test_parse_parameter_variadic_array_pattern_with_nested_object_and_defaults()
             assert_eq!(fields.len(), 2);
 
             // src
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: true, pattern: None, .. } => {
-                assert_name!(parser, *name, "src");
+            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+                    assert_string!(parser, *name, "src");
+                });
             });
 
             // { id, systemId, input, syncSnapshot = false } = {} as any

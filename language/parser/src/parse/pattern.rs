@@ -501,7 +501,7 @@ impl Parser {
             return self.eat_object_pattern_field(separator, terminator, field_start);
         }
 
-        self.eat_list_pattern_field(separator, terminator, field_start)
+        self.eat_list_pattern_field(separator, terminator)
     }
 
     /// Eat an object pattern property field.
@@ -536,7 +536,6 @@ impl Parser {
         &mut self,
         separator: TokenType,
         terminator: TokenType,
-        field_start: ParserSpanStart,
     ) -> ParserResult<(PatternField, Option<Span>)> {
         // wildcard fields are positional unless explicitly used as labels
         if self.peek_identifier_str_is("_") && self.token_type_at_offset(1) != TokenType::Colon {
@@ -548,11 +547,6 @@ impl Parser {
         if self.peek_is(TokenType::Spread) {
             let pattern_field = self.eat_spread_pattern_field(separator, terminator)?;
             return Ok((pattern_field, None));
-        }
-
-        // TS++ list labels are simple names, not tagged pattern heads
-        if self.peek_list_pattern_label(separator, terminator) {
-            return self.eat_named_pattern_field(terminator, field_start);
         }
 
         // otherwise the element is a binding pattern
@@ -670,19 +664,6 @@ impl Parser {
         };
 
         Ok(PatternField::Spread { pattern })
-    }
-
-    /// Return whether a list element starts a TS++ shorthand label.
-    fn peek_list_pattern_label(&mut self, separator: TokenType, terminator: TokenType) -> bool {
-        if !self.peek_name_is() {
-            return false;
-        }
-
-        matches!(
-            self.token_type_at_offset(1),
-            TokenType::Colon | TokenType::Assign | TokenType::Maybe
-        ) || self.token_type_at_offset(1) == separator
-            || self.token_type_at_offset(1) == terminator
     }
 
     // eat a positional pattern field with an optional default
