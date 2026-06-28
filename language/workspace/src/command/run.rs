@@ -5,13 +5,11 @@ use std::sync::Arc;
 #[cfg(not(target_arch = "wasm32"))]
 use destack_artifact::ArtifactKey;
 #[cfg(not(target_arch = "wasm32"))]
-use destack_mir::Tree;
+use destack_compiler::ProgramLinker;
 #[cfg(not(target_arch = "wasm32"))]
 use destack_program::Program;
 #[cfg(not(target_arch = "wasm32"))]
-use destack_repository::{
-    ArtifactReader, Environment, Profile, ProviderError, Repository, Revision,
-};
+use destack_repository::{Environment, Profile, ProviderError, Repository, Revision};
 #[cfg(not(target_arch = "wasm32"))]
 use destack_runtime::runtime::World;
 #[cfg(not(target_arch = "wasm32"))]
@@ -432,31 +430,26 @@ fn create_program(
 ) -> CommandResult<Arc<Program>> {
     let profile_id = target_profile_id(repository, revision, module_id, *target_id)?;
     let artifacts = repository.artifact_reader(revision);
-    let tree = machine_mir_tree(&artifacts, module_id, profile_id, *target_id)?;
     let strings = repository.string_pool().as_ref().clone();
-    let program = destack_vm::ProgramLowerer::new(tree, strings, options.heap, options.shared_heap)
-        .build()
-        .map_err(|error| error.to_string())?;
 
-    Ok(Arc::new(program))
-}
-
-/// Return the best available MIR tree for VM execution.
-#[cfg(not(target_arch = "wasm32"))]
-fn machine_mir_tree(
-    artifacts: &ArtifactReader<'_>,
-    module_id: ModuleId,
-    profile_id: ProfileId,
-    target_id: TargetId,
-) -> CommandResult<Tree> {
     // prefer optimized mir when the optimize stage has run
-    match artifacts.mir_optimized(module_id, profile_id, target_id) {
+    match artifacts.mir_optimized(module_id, profile_id, *target_id) {
         Ok(mir) => {
-            let tree = mir
-                .latest_patch_tree()
-                .ok_or_else(|| "optimized MIR artifact has no patches".to_string())?;
+            let program = ProgramLinker::new(
+                module_id.package_id,
+                mir.tree.clone(),
+                mir.target,
+                mir.types.clone(),
+                mir.layouts.clone(),
+                mir.dispatch.clone(),
+                strings,
+                options.heap,
+                options.shared_heap,
+            )
+            .build()
+            .map_err(|error| error.to_string())?;
 
-            return Ok(tree.clone());
+            return Ok(Arc::new(program));
         }
         Err(ProviderError::Blocked { .. }) => {}
         Err(error) => return Err(error.to_string().into()),
@@ -464,10 +457,23 @@ fn machine_mir_tree(
 
     // otherwise use lowered mir
     let mir = artifacts
-        .mir_lowered(module_id, profile_id, target_id)
+        .mir_lowered(module_id, profile_id, *target_id)
         .map_err(|error| error.to_string())?;
+    let program = ProgramLinker::new(
+        module_id.package_id,
+        mir.tree.clone(),
+        mir.target,
+        mir.types.clone(),
+        mir.layouts.clone(),
+        mir.dispatch.clone(),
+        strings,
+        options.heap,
+        options.shared_heap,
+    )
+    .build()
+    .map_err(|error| error.to_string())?;
 
-    Ok(mir.tree.clone())
+    Ok(Arc::new(program))
 }
 
 /// Return the profile id selected for one module target.
