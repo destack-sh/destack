@@ -3,6 +3,7 @@ mod js;
 mod native;
 mod package;
 mod product;
+mod program;
 mod provide;
 mod state;
 mod warning;
@@ -14,4 +15,5 @@ pub(crate) use package::{
     module_source_path,
 };
 pub(crate) use product::ProductLinker;
+pub use program::ProgramLinker;
 pub use warning::*;
