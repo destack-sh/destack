@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use std::collections::BTreeMap;
 
 use crate::CompilerResult;
@@ -409,6 +410,43 @@ impl CheckState<'_> {
         match key {
             Some(key) => self.format_static_key(&key),
             None => "<anonymous>".to_string(),
+        }
+    }
+
+    /// Format the source path written by one assignment.
+    pub(in crate::check) fn format_assignment_binding(
+        &self,
+        source: dir::GlobalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) -> String {
+        let Ok(source) = source.try_into_typed::<dir::Expression>() else {
+            return self.format_symbol(symbol);
+        };
+
+        self.format_assignment_expression(source.module_id, source.local_id)
+            .unwrap_or_else(|| self.format_symbol(symbol))
+    }
+
+    /// Format one assignment target expression when it is a simple path.
+    fn format_assignment_expression(
+        &self,
+        module: ModuleId,
+        source: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<String> {
+        match self.module(module).view().get(source) {
+            dir::Expression::Identifier { name } => {
+                Some(self.format_static_key(&dir::StaticKey::Name(*name)))
+            }
+            dir::Expression::Member {
+                left,
+                name: Some(name),
+            } => {
+                let left = self.format_assignment_expression(module, *left)?;
+                let name = self.format_static_key(&dir::StaticKey::Name(*name));
+
+                Some(format!("{left}.{name}"))
+            }
+            _ => None,
         }
     }
 

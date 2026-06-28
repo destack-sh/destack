@@ -1,4 +1,3 @@
-mod assumption;
 mod capture;
 mod component;
 mod external;
@@ -9,7 +8,6 @@ mod origin;
 mod report;
 mod trace;
 
-pub(in crate::check) use assumption::*;
 pub(in crate::check) use capture::*;
 pub(in crate::check) use component::*;
 pub(in crate::check) use external::*;

@@ -31,7 +31,7 @@ pub(in crate::check) type RelationKey = (Relation, dir::GlobalTypeId, dir::Globa
 enum RelationDecision {
     /// The pair is being decided at one active frame index.
     InProgress(usize),
-    /// The pair held under the still-active assumption frame at one index.
+    /// The pair held under the still-active cycle frame at one index.
     Provisional(usize),
     /// The pair holds unconditionally.
     Holds,
@@ -48,36 +48,36 @@ pub(in crate::check) struct RelationFrame {
     index: usize,
 }
 
-/// One stack entry tracking assumption use during a frame.
+/// One stack entry tracking cycle use during a frame.
 #[derive(Debug, Clone)]
 struct RelationStackEntry {
     /// The decided pair.
     key: RelationKey,
-    /// The outermost assumption frame this frame's result depends on.
-    /// Equal to the frame's own index when no assumption was used.
+    /// The outermost cycle frame this frame's result depends on.
+    /// Equal to the frame's own index when no cycle was used.
     dependency: usize,
 }
 
 /// Memoized relation decisions.
 ///
-/// A pair already on the decision stack answers true, which is what
-/// terminates recursive types: a cycle re-enters through the pair that
-/// opened it. Decisions made under such an assumption stay provisional
-/// until the assumed pair settles: committed when it holds, forgotten
-/// when it fails or stays pending. Keys are reduced roots. Probe
-/// snapshots roll back decision rows through the relation undo log.
+/// A pair already on the decision stack answers true, which terminates recursive types.
+///
+/// A recursive cycle re-enters through the pair that opened it.
+/// Decisions made through that cycle stay provisional until the opening pair settles.
+/// Keys are reduced roots.
+/// Probe snapshots roll back decision rows through the relation undo log.
 #[derive(Debug)]
 pub(in crate::check) struct RelationCache {
     /// The decisions keyed by relation pair.
     decisions: IndexMap<RelationKey, RelationDecision>,
     /// The active decision frames, outermost first.
     stack: Vec<RelationStackEntry>,
-    /// Provisional holds with the assumption frame they depend on.
+    /// Provisional holds with the cycle frame they depend on.
     provisional: Vec<(RelationKey, usize)>,
     /// Decision rows to undo when a snapshot rolls back.
     undo: Vec<RelationUndo>,
-    /// The number of active snapshots.
-    active_snapshots: usize,
+    /// The number of nested snapshots.
+    snapshot_depth: usize,
 }
 
 /// Relation cache snapshot mark.
@@ -108,13 +108,13 @@ impl RelationCache {
             stack: Vec::new(),
             provisional: Vec::new(),
             undo: Vec::new(),
-            active_snapshots: 0,
+            snapshot_depth: 0,
         }
     }
 
-    /// Mark the cache before one speculative probe.
+    /// Snapshot the cache before one probe.
     pub(in crate::check) fn snapshot(&mut self) -> RelationCacheSnapshot {
-        self.active_snapshots += 1;
+        self.snapshot_depth += 1;
 
         RelationCacheSnapshot {
             undo: self.undo.len(),
@@ -123,7 +123,7 @@ impl RelationCache {
         }
     }
 
-    /// Roll back to one speculative mark.
+    /// Roll back to one relation snapshot.
     pub(in crate::check) fn rollback(&mut self, snapshot: RelationCacheSnapshot) {
         while self.undo.len() > snapshot.undo {
             let undo = self
@@ -143,20 +143,19 @@ impl RelationCache {
 
         self.stack = snapshot.stack;
         self.provisional = snapshot.provisional;
-        self.active_snapshots -= 1;
+        self.snapshot_depth -= 1;
     }
 
-    /// Commit one speculative mark.
+    /// Commit one relation snapshot.
     pub(in crate::check) fn commit(&mut self, snapshot: RelationCacheSnapshot) {
-        drop(snapshot);
-        self.active_snapshots -= 1;
+        self.snapshot_depth -= 1;
 
-        if self.active_snapshots == 0 {
-            self.undo.clear();
+        if self.snapshot_depth == 0 {
+            self.undo.truncate(snapshot.undo);
         }
     }
 
-    /// Return the memoized answer for one pair, recording assumption use.
+    /// Return the memoized answer for one pair, recording cycle use.
     pub(in crate::check) fn lookup(
         &mut self,
         relation: Relation,
@@ -168,7 +167,7 @@ impl RelationCache {
         match verdict {
             RelationDecision::Holds => Some(true),
             RelationDecision::Fails => Some(false),
-            // assumption hits make the consuming frame provisional
+            // cycle hits make the consuming frame provisional
             RelationDecision::InProgress(index) | RelationDecision::Provisional(index) => {
                 if let Some(top) = self.stack.last_mut() {
                     top.dependency = top.dependency.min(index);
@@ -208,14 +207,14 @@ impl RelationCache {
         let entry = self.pop(frame);
         let mut settled = SmallVec::new();
 
-        // failure is robust: assuming pairs true only widens relations,
-        // so a failure reached under assumptions holds without them
+        // failure is robust: cycle hypotheses only widen relations,
+        // so a failure reached under one holds without it
         if !holds {
             self.resolve_dependents(frame.index, None, &mut settled);
             self.set_decision(frame.key, RelationDecision::Fails);
             settled.push(frame.key);
         }
-        // holds under an outer assumption: stay provisional and pass
+        // hold through an outer cycle: stay provisional and pass
         // the dependency on to both dependents and the parent frame
         else if entry.dependency < frame.index {
             self.resolve_dependents(frame.index, Some(entry.dependency), &mut settled);
@@ -225,7 +224,7 @@ impl RelationCache {
                 top.dependency = top.dependency.min(entry.dependency);
             }
         }
-        // holds on its own: the assumption this frame provided is
+        // holds on its own: the hypothesis this frame provided is
         // justified, settling every dependent along with it
         else {
             self.resolve_dependents(frame.index, Some(frame.index), &mut settled);
@@ -275,19 +274,19 @@ impl RelationCache {
             }
 
             match outcome {
-                // the assumption settled true on its own
+                // the cycle settled true on its own
                 Some(target) if target == index => {
                     self.set_decision(key, RelationDecision::Holds);
                     settled.push(key);
                     self.provisional.swap_remove(position);
                 }
-                // the assumption itself depends on an outer frame
+                // the cycle itself depends on an outer frame
                 Some(target) => {
                     self.set_decision(key, RelationDecision::Provisional(target));
                     self.provisional[position] = (key, target);
                     position += 1;
                 }
-                // the assumption failed or stayed undecided
+                // the cycle failed or stayed undecided
                 None => {
                     self.remove_decision(key);
                     self.provisional.swap_remove(position);
@@ -310,7 +309,7 @@ impl RelationCache {
 
     /// Record one decision-map row before mutating it.
     fn record_decision(&mut self, key: RelationKey) {
-        if self.active_snapshots == 0 {
+        if self.snapshot_depth == 0 {
             return;
         }
 

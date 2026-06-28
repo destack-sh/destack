@@ -1,9 +1,9 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, Origin, TypeSubstitution, Widening};
+use crate::check::{CheckState, Origin, TypeRewrite, TypeSubstitution, Widening};
 use crate::{CompilerError, CompilerResult};
 
 /// Stable id for one declaration-side generic parameter.
@@ -253,6 +253,96 @@ impl CheckState<'_> {
             .collect();
 
         Ok(parameters)
+    }
+
+    /// Return whether one type graph contains a NoInfer wrapper.
+    pub(in crate::check) fn type_blocks_inference(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+        let mut visited = IndexSet::new();
+        pending.push(ty);
+
+        while let Some(ty) = pending.pop() {
+            let ty = self.settled_root(ty)?;
+            if !visited.insert(ty) {
+                continue;
+            }
+
+            let ty = self.ty(ty)?;
+            if matches!(ty, dir::Type::Operation(dir::TypeOperation::NoInfer(_))) {
+                return Ok(true);
+            }
+            if let dir::Type::Instance(instance) = ty
+                && self
+                    .environment
+                    .language
+                    .item(instance.symbol)
+                    .is_some_and(|item| item == dir::LanguageItem::NoInfer)
+            {
+                return Ok(true);
+            }
+
+            ty.for_each_child(|child| pending.push(child));
+        }
+
+        Ok(false)
+    }
+
+    /// Create one instantiated function signature type.
+    pub(in crate::check) fn instantiate_signature_type(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        signature: &dir::FunctionSignatureType,
+        substitution: &TypeSubstitution,
+        return_type: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let this_parameter = match signature.this_parameter {
+            Some(this_parameter) if substitution.is_empty() => Some(this_parameter),
+            Some(this_parameter) => {
+                let this_parameter =
+                    self.fold_type(module, source, this_parameter, substitution.rewrite())?;
+                let this_parameter =
+                    self.fold_type(module, source, this_parameter, TypeRewrite::Resolve)?;
+
+                Some(this_parameter)
+            }
+            None => None,
+        };
+        let parameters = signature
+            .parameters
+            .iter()
+            .map(|parameter| {
+                let ty = if substitution.is_empty() {
+                    parameter.ty
+                } else {
+                    self.fold_type(module, source, parameter.ty, substitution.rewrite())?
+                };
+                let ty = self.fold_type(module, source, ty, TypeRewrite::Resolve)?;
+
+                Ok(dir::FunctionParameterType {
+                    ty,
+                    static_parameter: None,
+                    is_optional: parameter.is_optional,
+                    is_rest: parameter.is_rest,
+                })
+            })
+            .collect::<CompilerResult<Vec<_>>>()?;
+
+        self.push_type(
+            module,
+            dir::Type::FunctionSignature(dir::FunctionSignatureType {
+                asynchrony: signature.asynchrony,
+                template: None,
+                this_parameter,
+                parameters,
+                return_type: Some(return_type),
+                is_generator: signature.is_generator,
+            }),
+            source,
+        )
     }
 
     /// Return selected generic argument bindings for one ordered parameter list.
