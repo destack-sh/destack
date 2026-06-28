@@ -25,9 +25,13 @@ const value = ();
 /// @type.node source=() type=()
 
 value satisfies ();
+/// @type.node source="value satisfies ()" type=()
+/// @type.node source=value type=()
 /// @resolution.name source=value target=value
 
 value satisfies void;
+/// @type.node source="value satisfies void" type=()
+/// @type.node source=value type=()
 /// @resolution.name source=value target=value
 "#,
     );
@@ -56,6 +60,8 @@ const value: void = ();
 /// @type.node source=() type=()
 
 value satisfies ();
+/// @type.node source="value satisfies ()" type=void
+/// @type.node source=value type=void
 /// @resolution.name source=value target=value
 "#,
     );

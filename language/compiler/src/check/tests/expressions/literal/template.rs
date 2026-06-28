@@ -71,7 +71,7 @@ const value: number = `hello`;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const value: number = `hello`;
+const value: float64 = `hello`;
 
 === checked ===
 const value: number = `hello`;
@@ -83,7 +83,7 @@ const value: number = `hello`;
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'string' is not assignable to type 'float64'"
-/// @diagnostic.label line=2 column=23 source="const value: number = `hello`;"
+/// @diagnostic.label line=2 column=23 span="`hello`" line_source="const value: number = `hello`;"
 "#,
     );
 }

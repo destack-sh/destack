@@ -68,7 +68,7 @@ const value: char = 'a';
 === checked ===
 const value: char = 'a';
 /// @type.symbol symbol=value source=value type=char
-/// @type.node source='a' type=char
+/// @type.node source='a' type='a'
 
 /// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
@@ -100,7 +100,7 @@ const value: string = 'a';
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type ''a'' is not assignable to type 'string'"
-/// @diagnostic.label line=2 column=23 source="const value: string = 'a';"
+/// @diagnostic.label line=2 column=23 span="'a'" line_source="const value: string = 'a';"
 "#,
     );
 }
@@ -130,7 +130,7 @@ const value: int32 = 'a';
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type ''a'' is not assignable to type 'int32'"
-/// @diagnostic.label line=2 column=22 source="const value: int32 = 'a';"
+/// @diagnostic.label line=2 column=22 span="'a'" line_source="const value: int32 = 'a';"
 "#,
     );
 }
@@ -153,7 +153,7 @@ const value: char | string = 'a' as char | string;
 === checked ===
 const value: char | string = 'a';
 /// @type.symbol symbol=value source=value type=char | string
-/// @type.node source='a' type=char
+/// @type.node source='a' type='a'
 
 /// @check.stats.solve variables=0 types=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,

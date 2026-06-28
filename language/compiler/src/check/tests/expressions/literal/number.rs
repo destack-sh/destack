@@ -43,9 +43,9 @@ let value: float64 = 42;
 === checked ===
 let value = 42;
 /// @type.symbol symbol=value source=value type=float64
-/// @type.node source=42 type=float64
+/// @type.node source=42 type=42
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -68,7 +68,7 @@ const value: int32 = 42;
 === checked ===
 const value: int32 = 42;
 /// @type.symbol symbol=value source=value type=int32
-/// @type.node source=42 type=int32
+/// @type.node source=42 type=42
 
 /// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
@@ -118,9 +118,9 @@ let value: float64 = 3.14;
 === checked ===
 let value = 3.14;
 /// @type.symbol symbol=value source=value type=float64
-/// @type.node source=3.14 type=float64
+/// @type.node source=3.14 type=3.14
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -150,7 +150,7 @@ const value: string = 123;
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '123' is not assignable to type 'string'"
-/// @diagnostic.label line=2 column=23 source="const value: string = 123;"
+/// @diagnostic.label line=2 column=23 span="123" line_source="const value: string = 123;"
 "#,
     );
 }

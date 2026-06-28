@@ -68,7 +68,7 @@ const value: boolean = false;
 === checked ===
 const value: boolean = false;
 /// @type.symbol symbol=value source=value type=boolean
-/// @type.node source=false type=boolean
+/// @type.node source=false type=false
 
 /// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
@@ -125,7 +125,7 @@ const value: string = true;
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'true' is not assignable to type 'string'"
-/// @diagnostic.label line=2 column=23 source="const value: string = true;"
+/// @diagnostic.label line=2 column=23 span="true" line_source="const value: string = true;"
 "#,
     );
 }
@@ -143,7 +143,7 @@ const value: number = false;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const value: number = false;
+const value: float64 = false;
 
 === checked ===
 const value: number = false;
@@ -155,7 +155,7 @@ const value: number = false;
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'false' is not assignable to type 'float64'"
-/// @diagnostic.label line=2 column=23 source="const value: number = false;"
+/// @diagnostic.label line=2 column=23 span="false" line_source="const value: number = false;"
 "#,
     );
 }
