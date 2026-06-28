@@ -56,7 +56,7 @@ impl Compiler {
                 key,
                 None,
                 scope_kind,
-                dir::SymbolVisibility::Scope,
+                dir::SymbolVisibility::Member,
             );
 
             (symbol_id, Some(scope_id))
@@ -66,7 +66,7 @@ impl Compiler {
                 kind,
                 key,
                 None,
-                dir::SymbolVisibility::Scope,
+                dir::SymbolVisibility::Member,
             );
 
             (symbol_id, None)

@@ -50,7 +50,7 @@ let output: number = if (let Some(value) = maybe) {
 /// @binding.scope scope=<module> kind=module owner=<module>
 /// @binding.scope scope=scope1 kind=global
 
-/// @binding.summary symbols=5 scopes=7 declarations=4 node_scopes=37
+/// @binding.summary symbols=5 scopes=7 declarations=4 node_scopes=38
 /// @bind.stats files=1 roots=2
 "#,
     );

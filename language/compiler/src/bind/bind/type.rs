@@ -362,7 +362,7 @@ impl Compiler {
                 Some(key),
                 None,
                 scope_kind,
-                dir::SymbolVisibility::Scope,
+                dir::SymbolVisibility::Member,
             );
 
             (symbol_id, Some(scope_id))
@@ -372,7 +372,7 @@ impl Compiler {
                 kind,
                 Some(key),
                 None,
-                dir::SymbolVisibility::Scope,
+                dir::SymbolVisibility::Member,
             );
 
             (symbol_id, None)

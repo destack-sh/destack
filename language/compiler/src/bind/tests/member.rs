@@ -36,21 +36,21 @@ struct User<T> {
 /// @binding.symbol symbol=T#1 role=local kind=generic_type_parameter scope=User@0
 
     id: string;
-    /// @binding.symbol symbol=id role=item kind=variable scope=User@1
+    /// @binding.symbol symbol=id role=item kind=variable scope=User@1 visibility=member
     /// @binding.receiver node=member symbol=symbol4
 
     type Id = string;
-    /// @binding.symbol symbol=Id role=item kind=associated_type scope=User@3
+    /// @binding.symbol symbol=Id role=item kind=associated_type scope=User@3 visibility=member
     /// @binding.symbol symbol=symbol6 role=local kind=variable scope=Id@0
     /// @binding.scope scope=Id kind=type parent=User@4 owner=Id
     /// @binding.receiver node=member symbol=symbol6
     /// @binding.owner_scope owner=Id scope=Id
 
     static defaultName: string = "guest";
-    /// @binding.symbol symbol=defaultName role=item kind=variable scope=User@4
+    /// @binding.symbol symbol=defaultName role=item kind=variable scope=User@4 visibility=member
 
     rename(name: string): User<T> {
-    /// @binding.symbol symbol=rename role=item kind=function scope=User@5
+    /// @binding.symbol symbol=rename role=item kind=function scope=User@5 visibility=member
     /// @binding.symbol symbol=this#1 role=local kind=variable scope=rename@0
     /// @binding.scope scope=rename kind=function parent=User@6 owner=rename
     /// @binding.receiver node=member symbol=this#1
@@ -69,7 +69,7 @@ interface Reader<T> {
 /// @binding.symbol symbol=T#2 role=local kind=generic_type_parameter scope=Reader@0
 
     read(value: T): Result<T>;
-    /// @binding.symbol symbol=read role=item kind=function scope=Reader@1
+    /// @binding.symbol symbol=read role=item kind=function scope=Reader@1 visibility=member
     /// @binding.symbol symbol=this#2 role=local kind=variable scope=read@0
     /// @binding.scope scope=read kind=function parent=Reader@2 owner=read
     /// @binding.receiver node=type_member symbol=this#2
@@ -77,7 +77,7 @@ interface Reader<T> {
     /// @binding.symbol symbol=value role=local kind=variable scope=read@1
 
     type Item = T;
-    /// @binding.symbol symbol=Item role=item kind=associated_type scope=Reader@2
+    /// @binding.symbol symbol=Item role=item kind=associated_type scope=Reader@2 visibility=member
     /// @binding.symbol symbol=symbol17 role=local kind=variable scope=Item@0
     /// @binding.scope scope=Item kind=type parent=Reader@3 owner=Item
     /// @binding.receiver node=type_member symbol=symbol17
@@ -123,13 +123,13 @@ enum Priority {
 /// @binding.owner_scope owner=Priority scope=Priority
 
     Low = 1,
-    /// @binding.symbol symbol=Low role=item kind=enum_field scope=Priority@0
+    /// @binding.symbol symbol=Low role=item kind=enum_field scope=Priority@0 visibility=member
 
     High = 2,
-    /// @binding.symbol symbol=High role=item kind=enum_field scope=Priority@1
+    /// @binding.symbol symbol=High role=item kind=enum_field scope=Priority@1 visibility=member
 
     label(): string {
-    /// @binding.symbol symbol=label role=item kind=function scope=Priority@2
+    /// @binding.symbol symbol=label role=item kind=function scope=Priority@2 visibility=member
     /// @binding.symbol symbol=this role=local kind=variable scope=label@0
     /// @binding.scope scope=label kind=function parent=Priority@3 owner=label
     /// @binding.receiver node=member symbol=this
