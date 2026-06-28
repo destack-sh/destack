@@ -2,10 +2,9 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ArgumentBinding, BinaryOperator, ClassConstructor, DereferenceRead, DereferenceWrite,
+    ArgumentBinding, BinaryOperator, ClassConstructor, DereferenceOperation,
     GenericArgumentBinding, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Predicate, Projection,
-    ProjectionField, PropertyRead, PropertyWrite, ScalarLiteral, StaticKey, SubscriptRead,
-    SubscriptWrite, UnaryOperator,
+    ProjectionField, ScalarLiteral, StaticKey, SubscriptOperation, UnaryOperator,
 };
 
 /// Receiver selected by contextual lookup, such as `this` or `super`.
@@ -343,26 +342,26 @@ pub enum Storage {
     },
     /// Accessor-backed property storage.
     Property {
-        /// The selected property read operation, when the source operator reads first.
-        read: Option<PropertyRead>,
-        /// The selected property write operation.
-        write: PropertyWrite,
+        /// The selected getter member, when the source operator reads first.
+        read: Option<MemberResolution>,
+        /// The selected setter member.
+        write: MemberResolution,
     },
-    /// Dynamically selected subscript storage.
+    /// Subscript-selected storage.
     Subscript {
         /// The source node providing the subscript key.
         index: GlobalNodeIdAny,
-        /// The selected subscript read operation, when the source operator reads first.
-        read: Option<SubscriptRead>,
-        /// The selected subscript write operation.
-        write: SubscriptWrite,
+        /// The selected subscript operation, when the source operator reads first.
+        read: Option<SubscriptOperation>,
+        /// The selected write operation.
+        write: SubscriptOperation,
     },
     /// Dereferenced storage.
     Dereference {
-        /// The selected dereference read operation, when the source operator reads first.
-        read: Option<DereferenceRead>,
-        /// The selected dereference write operation.
-        write: DereferenceWrite,
+        /// The selected dereference operation, when the source operator reads first.
+        read: Option<DereferenceOperation>,
+        /// The selected write operation.
+        write: DereferenceOperation,
     },
 }
 
@@ -891,6 +890,8 @@ pub struct PatternTupleDestructureResolution {
 pub struct PatternObjectDestructureResolution {
     /// The object fields in source order.
     pub fields: Vec<PatternFieldResolution>,
+    /// The rest field, when present.
+    pub rest: Option<PatternFieldResolution>,
 }
 
 /// Nominal destructuring selected by one pattern.
@@ -917,30 +918,12 @@ pub struct PatternNominalDestructureResolution {
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct PatternSequenceDestructureResolution {
-    /// The selected sequence protocol operations.
-    pub sequence: SequenceProtocol,
     /// The arity requirement introduced by the pattern.
     pub arity: PatternSequenceArity,
     /// The fixed fields in source order.
-    pub fields: Vec<PatternSequenceElementResolution>,
+    pub fields: Vec<PatternFieldResolution>,
     /// The rest field, when present.
-    pub rest: Option<PatternSequenceRestResolution>,
-}
-
-/// Sequence protocol calls selected by one pattern.
-///
-/// Examples:
-/// ```ds
-/// const [head, ...tail] = queue;
-/// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct SequenceProtocol {
-    /// The selected length member.
-    pub length: MemberResolution,
-    /// The selected element call, when the pattern reads elements.
-    pub element_at: Option<CallResolution>,
-    /// The selected view call, when the pattern reads a rest view.
-    pub view: Option<CallResolution>,
+    pub rest: Option<PatternFieldResolution>,
 }
 
 /// Arity requirement introduced by one sequence pattern.
@@ -956,44 +939,6 @@ pub struct PatternSequenceArity {
     pub minimum: usize,
     /// The maximum accepted source length, when bounded.
     pub maximum: Option<usize>,
-}
-
-/// One element projected by a sequence pattern.
-///
-/// Examples:
-/// ```ds
-/// const [head] = values;
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct PatternSequenceElementResolution {
-    /// The source node that introduces the field.
-    pub source: GlobalNodeIdAny,
-    /// The selected sequence position.
-    pub index: usize,
-    /// The projected element type.
-    pub ty: GlobalTypeId,
-    /// The nested pattern matched for the element.
-    pub pattern: GlobalNodeIdAny,
-}
-
-/// Rest field selected by one sequence pattern.
-///
-/// Examples:
-/// ```ds
-/// const [head, ...tail] = values;
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct PatternSequenceRestResolution {
-    /// The source node that introduces the rest field.
-    pub source: GlobalNodeIdAny,
-    /// The first element included in the projected view.
-    pub start: usize,
-    /// The exclusive end element, when statically bounded.
-    pub end: Option<usize>,
-    /// The projected view type.
-    pub ty: GlobalTypeId,
-    /// The nested pattern matched for the rest field.
-    pub pattern: Option<GlobalNodeIdAny>,
 }
 
 /// Tagged variant destructuring selected by one pattern.
@@ -1068,14 +1013,12 @@ pub struct AssignPatternDefaultResolution {
 /// Ordered assignment destructuring selected during checking.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct AssignPatternSequenceResolution {
-    /// The selected sequence protocol operations.
-    pub sequence: SequenceProtocol,
     /// The sequence arity required by the assignment target.
     pub arity: PatternSequenceArity,
     /// The fixed fields in source order.
-    pub fields: Vec<AssignPatternSequenceElementResolution>,
+    pub fields: Vec<AssignPatternFieldResolution>,
     /// The rest target, when present.
-    pub rest: Option<AssignPatternSequenceRestResolution>,
+    pub rest: Option<AssignPatternFieldResolution>,
 }
 
 /// Tuple assignment destructuring selected during checking.
@@ -1095,34 +1038,6 @@ pub struct AssignPatternObjectResolution {
 }
 
 /// One destructured assignment field.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct AssignPatternSequenceElementResolution {
-    /// The source node that introduces the element.
-    pub source: GlobalNodeIdAny,
-    /// The selected sequence index.
-    pub index: usize,
-    /// The selected element type.
-    pub ty: GlobalTypeId,
-    /// The nested assignment target.
-    pub pattern: GlobalNodeIdAny,
-}
-
-/// Rest target selected by one sequence assignment destructuring pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct AssignPatternSequenceRestResolution {
-    /// The source node that introduces the rest target.
-    pub source: GlobalNodeIdAny,
-    /// The first sequence index included in the rest value.
-    pub start: usize,
-    /// The exclusive end index, when bounded.
-    pub end: Option<usize>,
-    /// The selected rest value type.
-    pub ty: GlobalTypeId,
-    /// The nested assignment target.
-    pub pattern: Option<GlobalNodeIdAny>,
-}
-
-/// One destructured assignment field.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct AssignPatternFieldResolution {
     /// The source node that introduces the field.
@@ -1134,10 +1049,12 @@ pub struct AssignPatternFieldResolution {
 }
 
 /// Rest field selected by one assignment destructuring pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct AssignPatternRestResolution {
     /// The source node that introduces the rest field.
     pub source: GlobalNodeIdAny,
+    /// The materialized rest projection.
+    pub projection: Projection,
     /// The nested assignment target.
     pub pattern: Option<GlobalNodeIdAny>,
 }
