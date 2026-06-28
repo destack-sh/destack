@@ -1,14 +1,14 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
+use smallvec::SmallVec;
 
+use crate::CompilerResult;
 use crate::check::{
-    Constraint, ConstraintId, ConstraintState, ConstraintTable, Decision, DecisionSlot,
-    DecisionTable, Obligation, ObligationId, ObligationTable, Origin, Queue, QueueMark,
-    RelationCache, RelationCacheSnapshot, Selection, SelectionId, SelectionState, SelectionTable,
-    Task, VariableState, VariableTable, Widening,
+    Constraint, ConstraintId, ConstraintState, ConstraintTable, Dependency, Obligation,
+    ObligationId, ObligationTable, Origin, Queue, QueueMark, RelationCache, RelationCacheSnapshot,
+    Task, TaskKey, VariableState, VariableTable, Widening,
 };
-use crate::{CompilerError, CompilerResult};
 
 /// Solver state for one checked component.
 #[derive(Debug)]
@@ -17,39 +17,33 @@ pub(in crate::check) struct Solver {
     next_variable: IndexMap<ModuleId, u32>,
     /// The next component-global constraint id.
     next_constraint: u32,
-    /// The next component-global selection id.
-    next_selection: u32,
     /// The next component-global obligation id.
     next_obligation: u32,
     /// Variables allocated for this component.
     pub(in crate::check) variables: VariableTable,
     /// Constraints collected for this component.
     pub(in crate::check) constraints: ConstraintTable,
-    /// Selections collected for this component.
-    pub(in crate::check) selections: SelectionTable,
     /// Tasks queued for this component.
     pub(in crate::check) queue: Queue,
     /// Relation decisions memoized for this component.
     pub(in crate::check) relations: RelationCache,
-    /// Node types created while walking this component.
-    pub(in crate::check) node_types: IndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
-    /// Node decisions selected for this component.
-    pub(in crate::check) decisions: DecisionTable,
     /// Obligations collected for this component.
     pub(in crate::check) obligations: ObligationTable,
-    /// Undo entries recorded while snapshots are active.
+    /// Tasks parked on unresolved dependencies.
+    waiters: IndexMap<Dependency, SmallVec<[Task; 2]>>,
+    /// Completed source-node tasks.
+    completed: IndexSet<TaskKey>,
+    /// Undo entries recorded by active snapshots.
     undo: Vec<Undo>,
-    /// The number of active snapshots.
-    active_snapshots: usize,
+    /// The number of nested snapshots.
+    snapshot_depth: usize,
 }
 
-/// Snapshot of solver state before one speculative probe.
+/// Snapshot of solver state before one probe.
 #[derive(Debug)]
 pub(in crate::check) struct SolverSnapshot {
     /// The next constraint id before the probe.
     next_constraint: u32,
-    /// The next selection id before the probe.
-    next_selection: u32,
     /// The next obligation id before the probe.
     next_obligation: u32,
     /// The queued work before the probe.
@@ -79,19 +73,17 @@ enum Undo {
         /// The previous constraint state row.
         previous: ConstraintState,
     },
-    /// Undo one selection row mutation.
-    Selection {
-        /// The changed selection.
-        id: SelectionId,
-        /// The previous selection state row.
-        previous: SelectionState,
+    /// Undo one waiter row mutation.
+    Waiters {
+        /// The changed dependency.
+        dependency: Dependency,
+        /// The previous waiter row.
+        previous: Option<SmallVec<[Task; 2]>>,
     },
-    /// Undo one node decision slot mutation.
-    Decision {
-        /// The changed source node.
-        node: dir::GlobalNodeIdAny,
-        /// The previous decision slot.
-        previous: Option<DecisionSlot>,
+    /// Undo one completed source-node task.
+    Completed {
+        /// The completed task.
+        task: TaskKey,
     },
 }
 
@@ -108,28 +100,25 @@ impl Solver {
         Self {
             next_variable: IndexMap::new(),
             next_constraint: 0,
-            next_selection: 0,
             next_obligation: 0,
             variables: VariableTable::new(),
             constraints: ConstraintTable::new(),
-            selections: SelectionTable::new(),
             queue: Queue::new(),
             relations: RelationCache::new(),
-            node_types: IndexMap::new(),
-            decisions: DecisionTable::new(),
             obligations: ObligationTable::new(),
+            waiters: IndexMap::new(),
+            completed: IndexSet::new(),
             undo: Vec::new(),
-            active_snapshots: 0,
+            snapshot_depth: 0,
         }
     }
 
-    /// Snapshot the solver before one speculative probe.
+    /// Snapshot the solver before one probe.
     pub(in crate::check) fn snapshot(&mut self, types: TypeMark) -> SolverSnapshot {
-        self.active_snapshots += 1;
+        self.snapshot_depth += 1;
 
         SolverSnapshot {
             next_constraint: self.next_constraint,
-            next_selection: self.next_selection,
             next_obligation: self.next_obligation,
             queue: self.queue.mark(),
             undo: self.undo.len(),
@@ -138,7 +127,7 @@ impl Solver {
         }
     }
 
-    /// Roll back to a previous speculative snapshot.
+    /// Roll back to one solver snapshot.
     pub(in crate::check) fn rollback(&mut self, snapshot: SolverSnapshot) -> TypeMark {
         while self.undo.len() > snapshot.undo {
             if let Some(undo) = self.undo.pop() {
@@ -149,29 +138,27 @@ impl Solver {
         self.relations.rollback(snapshot.relations);
         self.queue.rollback(snapshot.queue);
         self.remove_constraints_from(snapshot.next_constraint);
-        self.remove_selections_from(snapshot.next_selection);
         self.remove_obligations_from(snapshot.next_obligation);
         self.next_constraint = snapshot.next_constraint;
-        self.next_selection = snapshot.next_selection;
         self.next_obligation = snapshot.next_obligation;
-        self.active_snapshots -= 1;
+        self.snapshot_depth -= 1;
 
         snapshot.types
     }
 
-    /// Commit a previous speculative snapshot.
+    /// Commit one solver snapshot.
     pub(in crate::check) fn commit(&mut self, snapshot: SolverSnapshot) {
         self.relations.commit(snapshot.relations);
-        self.active_snapshots -= 1;
+        self.snapshot_depth -= 1;
 
-        if self.active_snapshots == 0 {
-            self.undo.clear();
+        if self.snapshot_depth == 0 {
+            self.undo.truncate(snapshot.undo);
         }
     }
 
-    /// Return whether a speculative snapshot is active.
+    /// Return whether a snapshot is active.
     pub(in crate::check) fn is_probing(&self) -> bool {
-        self.active_snapshots > 0
+        self.snapshot_depth > 0
     }
 
     /// Allocate one variable.
@@ -220,15 +207,6 @@ impl Solver {
         id
     }
 
-    /// Allocate one selection.
-    pub(in crate::check) fn allocate_selection(&mut self, selection: Selection) -> SelectionId {
-        let id = SelectionId::at(self.next_selection as usize);
-        self.next_selection += 1;
-        self.selections.insert(id, selection);
-
-        id
-    }
-
     /// Set one constraint state.
     pub(in crate::check) fn set_constraint_state(
         &mut self,
@@ -237,18 +215,6 @@ impl Solver {
     ) -> CompilerResult<()> {
         self.record_constraint(id)?;
         self.constraints.set_state(id, state);
-
-        Ok(())
-    }
-
-    /// Set one selection state.
-    pub(in crate::check) fn set_selection_state(
-        &mut self,
-        id: SelectionId,
-        state: SelectionState,
-    ) -> CompilerResult<()> {
-        self.record_selection(id)?;
-        self.selections.set_state(id, state);
 
         Ok(())
     }
@@ -308,70 +274,46 @@ impl Solver {
         self.obligations.count()
     }
 
-    /// Return the number of decided nodes.
-    pub(in crate::check) fn decision_count(&self) -> usize {
-        self.decisions.count()
-    }
-
-    /// Return one checked node type.
-    pub(in crate::check) fn node_type(
-        &self,
-        node: dir::GlobalNodeIdAny,
-    ) -> Option<dir::GlobalTypeId> {
-        self.node_types.get(&node).copied()
-    }
-
-    /// Set one checked node type.
-    pub(in crate::check) fn set_node_type(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        if let Some(previous) = self.node_type(node) {
-            if previous != ty {
-                return Err(CompilerError::Internal {
-                    message: format!("check node {node:?} received two types"),
-                });
-            }
-        }
-
-        self.node_types.insert(node, ty);
-
-        Ok(())
-    }
-
-    /// Iterate checked node types.
-    pub(in crate::check) fn node_types(
-        &self,
-    ) -> impl Iterator<Item = (dir::GlobalNodeIdAny, dir::GlobalTypeId)> + '_ {
-        self.node_types.iter().map(|(node, ty)| (*node, *ty))
-    }
-
-    /// Return one selected node decision.
-    pub(in crate::check) fn decision(&self, node: dir::GlobalNodeIdAny) -> Option<&Decision> {
-        self.decisions.get(node)
-    }
-
-    /// Record one node decision and return the woken waiters.
-    pub(in crate::check) fn decide(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        decision: Decision,
-    ) -> CompilerResult<smallvec::SmallVec<[Task; 2]>> {
-        self.record_decision(node);
-
-        self.decisions.decide(node, decision)
-    }
-
-    /// Park one task until the node decides.
-    pub(in crate::check) fn wait_for_decision(&mut self, node: dir::GlobalNodeIdAny, task: Task) {
-        self.record_decision(node);
-        self.decisions.wait(node, task);
-    }
-
     /// Queue one solver task.
     pub(in crate::check) fn push_task(&mut self, task: Task) {
         self.queue.push(task);
+    }
+
+    /// Park one task until a dependency changes.
+    pub(in crate::check) fn wait_for(&mut self, dependency: Dependency, task: Task) {
+        self.record_waiters(dependency);
+        let waiters = self.waiters.entry(dependency).or_default();
+
+        if !waiters.contains(&task) {
+            waiters.push(task);
+        }
+    }
+
+    /// Wake tasks parked on one dependency.
+    pub(in crate::check) fn wake(&mut self, dependency: Dependency) -> SmallVec<[Task; 2]> {
+        self.record_waiters(dependency);
+
+        self.waiters.swap_remove(&dependency).unwrap_or_default()
+    }
+
+    /// Return whether one source-node task already completed.
+    pub(in crate::check) fn is_task_complete(&self, task: &Task) -> bool {
+        task.key()
+            .is_some_and(|task| self.completed.contains(&task))
+    }
+
+    /// Mark one source-node task complete.
+    pub(in crate::check) fn complete_task(&mut self, task: Task) {
+        let Some(task) = task.key() else {
+            return;
+        };
+
+        if self.completed.contains(&task) {
+            return;
+        }
+
+        self.record_undo(Undo::Completed { task });
+        self.completed.insert(task);
     }
 
     /// Pop one solver task.
@@ -381,14 +323,14 @@ impl Solver {
 
     /// Record one undo entry if a snapshot is active.
     fn record_undo(&mut self, undo: Undo) {
-        if self.active_snapshots > 0 {
+        if self.snapshot_depth > 0 {
             self.undo.push(undo);
         }
     }
 
     /// Record one variable row if a snapshot is active.
     fn record_variable(&mut self, id: dir::TypeVariableId) -> CompilerResult<()> {
-        if self.active_snapshots > 0 {
+        if self.snapshot_depth > 0 {
             let previous = self.variables.get(id)?.clone();
             self.undo.push(Undo::Variable {
                 id,
@@ -401,7 +343,7 @@ impl Solver {
 
     /// Record one constraint row if a snapshot is active.
     fn record_constraint(&mut self, id: ConstraintId) -> CompilerResult<()> {
-        if self.active_snapshots > 0 {
+        if self.snapshot_depth > 0 {
             self.undo.push(Undo::Constraint {
                 id,
                 previous: self.constraints.state(id)?,
@@ -411,24 +353,12 @@ impl Solver {
         Ok(())
     }
 
-    /// Record one selection row if a snapshot is active.
-    fn record_selection(&mut self, id: SelectionId) -> CompilerResult<()> {
-        if self.active_snapshots > 0 {
-            self.undo.push(Undo::Selection {
-                id,
-                previous: self.selections.state(id)?,
-            });
-        }
-
-        Ok(())
-    }
-
-    /// Record one decision slot if a snapshot is active.
-    fn record_decision(&mut self, node: dir::GlobalNodeIdAny) {
-        if self.active_snapshots > 0 {
-            self.undo.push(Undo::Decision {
-                node,
-                previous: self.decisions.slot(node).cloned(),
+    /// Record one waiter row if a snapshot is active.
+    fn record_waiters(&mut self, dependency: Dependency) {
+        if self.snapshot_depth > 0 {
+            self.undo.push(Undo::Waiters {
+                dependency,
+                previous: self.waiters.get(&dependency).cloned(),
             });
         }
     }
@@ -444,13 +374,20 @@ impl Solver {
                 }
             },
             Undo::Constraint { id, previous } => self.constraints.set_state(id, previous),
-            Undo::Selection { id, previous } => self.selections.set_state(id, previous),
-            Undo::Decision { node, previous } => match previous {
-                Some(previous) => self.decisions.insert_slot(node, previous),
+            Undo::Waiters {
+                dependency,
+                previous,
+            } => match previous {
+                Some(previous) => {
+                    self.waiters.insert(dependency, previous);
+                }
                 None => {
-                    self.decisions.remove(node);
+                    self.waiters.swap_remove(&dependency);
                 }
             },
+            Undo::Completed { task } => {
+                self.completed.swap_remove(&task);
+            }
         }
     }
 
@@ -458,13 +395,6 @@ impl Solver {
     fn remove_constraints_from(&mut self, next: u32) {
         for index in next..self.next_constraint {
             self.constraints.remove(ConstraintId::at(index as usize));
-        }
-    }
-
-    /// Remove selections allocated after a snapshot mark.
-    fn remove_selections_from(&mut self, next: u32) {
-        for index in next..self.next_selection {
-            self.selections.remove(SelectionId::at(index as usize));
         }
     }
 

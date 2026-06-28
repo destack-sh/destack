@@ -109,6 +109,10 @@ pub(in crate::check) use answer;
 pub(in crate::check) enum Dependency {
     /// A variable was solved.
     Variable(dir::TypeVariableId),
+    /// A node type was written.
+    NodeType(dir::GlobalNodeIdAny),
+    /// A symbol type was written.
+    SymbolType(dir::GlobalSymbolId),
     /// A node decision was made.
     Decision(dir::GlobalNodeIdAny),
 }

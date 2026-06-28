@@ -1,9 +1,8 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
-use smallvec::SmallVec;
 
-use crate::check::{CheckEvent, CheckState, Task};
+use crate::check::{CheckEvent, CheckState, Dependency};
 use crate::{CompilerError, CompilerResult};
 
 /// One decided node meaning.
@@ -20,8 +19,8 @@ pub(in crate::check) enum Decision {
     Member(dir::MemberResolution),
     /// Resolved call, including builtin operator applications.
     Call(dir::CallResolution),
-    /// Resolved paired read-write place accessors.
-    ReadWrite(dir::ReadWriteResolution),
+    /// Resolved writable place expression.
+    Place(dir::PlaceResolution),
     /// Resolved runtime predicate expression.
     Guard(dir::GuardResolution),
     /// Resolved construct expression.
@@ -52,119 +51,72 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         decision: Decision,
     ) -> CompilerResult<()> {
-        if matches!(decision, Decision::Rejected) {
-            let error = self.push_type(node.module_id, dir::Type::Error, node.local_id)?;
-            self.bind_node_type(node, error)?;
-        }
-
-        let waiters = self.solver.decide(node, decision)?;
+        self.decisions
+            .decide(node, decision, self.node_message(node))?;
         self.record_event(CheckEvent::NodeDecided { node });
 
         // wake tasks parked on the decision
-        for waiter in waiters {
+        for waiter in self.solver.wake(Dependency::Decision(node)) {
             self.queue_task(waiter);
         }
 
         Ok(())
     }
-}
 
-/// One node decision slot.
-#[derive(Debug, Clone)]
-pub(in crate::check) enum DecisionSlot {
-    /// Tasks waiting for the decision.
-    Pending(SmallVec<[Task; 2]>),
-    /// The decided meaning.
-    Decided(Box<Decision>),
+    /// Return one selected node decision.
+    pub(in crate::check) fn decision(&self, node: dir::GlobalNodeIdAny) -> Option<&Decision> {
+        self.decisions.get(node)
+    }
 }
 
 /// Node decisions for one checked component.
 #[derive(Debug)]
 pub(in crate::check) struct DecisionTable {
-    /// Decision slots keyed by source node.
-    slots: IndexMap<dir::GlobalNodeIdAny, DecisionSlot>,
+    /// Decisions keyed by source node.
+    decisions: IndexMap<dir::GlobalNodeIdAny, Decision>,
 }
 
 impl DecisionTable {
     /// Create an empty decision table.
     pub(in crate::check) fn new() -> Self {
         Self {
-            slots: IndexMap::new(),
+            decisions: IndexMap::new(),
         }
     }
 
     /// Return one node decision when decided.
     pub(in crate::check) fn get(&self, node: dir::GlobalNodeIdAny) -> Option<&Decision> {
-        match self.slots.get(&node) {
-            Some(DecisionSlot::Decided(decision)) => Some(decision.as_ref()),
-            Some(DecisionSlot::Pending(_)) | None => None,
-        }
+        self.decisions.get(&node)
     }
 
-    /// Return one raw decision slot.
-    pub(in crate::check) fn slot(&self, node: dir::GlobalNodeIdAny) -> Option<&DecisionSlot> {
-        self.slots.get(&node)
-    }
-
-    /// Record one node decision and return the woken waiters.
+    /// Record one node decision.
     /// Decisions are derived facts: re-deriving the same decision
     /// through another walk path collapses, conflicting ones error.
     pub(in crate::check) fn decide(
         &mut self,
         node: dir::GlobalNodeIdAny,
         decision: Decision,
-    ) -> CompilerResult<SmallVec<[Task; 2]>> {
-        match self.slots.get(&node) {
+        message: String,
+    ) -> CompilerResult<()> {
+        match self.decisions.get(&node) {
             // collapse identical re-derivations without waking anyone
-            Some(DecisionSlot::Decided(previous)) if previous.as_ref() == &decision => {
-                Ok(SmallVec::new())
-            }
+            Some(previous) if previous == &decision => Ok(()),
             // a node must decide exactly once
-            Some(DecisionSlot::Decided(_)) => Err(CompilerError::Internal {
-                message: format!("check node {node:?} was decided twice"),
+            Some(_) => Err(CompilerError::Internal {
+                message: format!("check node {message} was decided twice"),
             }),
-            // wake tasks parked on the pending slot
-            Some(DecisionSlot::Pending(_)) => {
-                let Some(DecisionSlot::Pending(waiters)) = self
-                    .slots
-                    .insert(node, DecisionSlot::Decided(Box::new(decision)))
-                else {
-                    unreachable!("pending decision slot was just matched");
-                };
-
-                Ok(waiters)
-            }
             // first decision without waiters
             None => {
-                self.slots
-                    .insert(node, DecisionSlot::Decided(Box::new(decision)));
+                self.decisions.insert(node, decision);
 
-                Ok(SmallVec::new())
+                Ok(())
             }
-        }
-    }
-
-    /// Park one task until the node decides.
-    pub(in crate::check) fn wait(&mut self, node: dir::GlobalNodeIdAny, task: Task) {
-        let slot = self
-            .slots
-            .entry(node)
-            .or_insert_with(|| DecisionSlot::Pending(SmallVec::new()));
-
-        // park once on undecided slots
-        if let DecisionSlot::Pending(waiters) = slot
-            && !waiters.contains(&task)
-        {
-            waiters.push(task);
         }
     }
 
     /// Return the number of decided nodes.
     pub(in crate::check) fn count(&self) -> usize {
-        self.slots
-            .values()
-            .filter(|slot| matches!(slot, DecisionSlot::Decided(_)))
-            .count()
+        self.decisions.len()
     }
 
     /// Take decided nodes owned by one module.
@@ -174,31 +126,17 @@ impl DecisionTable {
     ) -> Vec<(dir::GlobalNodeIdAny, Decision)> {
         let mut decisions = Vec::new();
         let nodes = self
-            .slots
+            .decisions
             .iter()
-            .filter_map(|(node, slot)| {
-                (node.module_id == module && matches!(slot, DecisionSlot::Decided(_)))
-                    .then_some(*node)
-            })
+            .filter_map(|(node, _)| (node.module_id == module).then_some(*node))
             .collect::<Vec<_>>();
 
         for node in nodes {
-            let Some(DecisionSlot::Decided(decision)) = self.slots.swap_remove(&node) else {
-                continue;
-            };
-            decisions.push((node, *decision));
+            if let Some(decision) = self.decisions.swap_remove(&node) {
+                decisions.push((node, decision));
+            }
         }
 
         decisions
-    }
-
-    /// Insert one raw decision slot.
-    pub(in crate::check) fn insert_slot(&mut self, node: dir::GlobalNodeIdAny, slot: DecisionSlot) {
-        self.slots.insert(node, slot);
-    }
-
-    /// Remove one slot.
-    pub(in crate::check) fn remove(&mut self, node: dir::GlobalNodeIdAny) -> Option<DecisionSlot> {
-        self.slots.swap_remove(&node)
     }
 }

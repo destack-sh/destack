@@ -60,6 +60,36 @@ impl CheckState<'_> {
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
 
+    /// Report a try propagation outside a function body.
+    pub(in crate::check) fn report_try_outside_function(&mut self, source: dir::GlobalNodeIdAny) {
+        let (module, anchor) = self.source_anchor(source);
+        let diagnostic = CheckError::TryOutsideFunction { anchor, module };
+
+        self.module_mut(module).diagnostics.push(diagnostic.into());
+    }
+
+    /// Report a return type that cannot accept a propagated try failure.
+    pub(in crate::check) fn report_try_propagation_not_implemented(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        value: dir::GlobalTypeId,
+        return_type: dir::GlobalTypeId,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let source = self.format_type(return_type);
+        let target = format!("FromResidual<{}>", self.format_type(value));
+        let error = CheckError::InterfaceNotImplemented {
+            anchor,
+            module,
+            source,
+            target,
+        };
+
+        self.module_mut(module).diagnostics.push(
+            error.note("the '?' operator propagates failures into the enclosing return type"),
+        );
+    }
+
     /// Report a yield outside a generator.
     pub(in crate::check) fn report_yield_outside_generator(
         &mut self,
@@ -108,17 +138,16 @@ impl CheckState<'_> {
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
 
-    /// Report one static condition that did not reduce to a boolean literal.
-    pub(in crate::check) fn report_invalid_static_condition(
+    /// Report a static guard that cannot decide statically.
+    pub(in crate::check) fn report_undecidable_static_guard(
         &mut self,
-        origin: Origin,
-    ) -> CompilerResult<()> {
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let diagnostic = CheckError::InvalidStaticCondition { anchor, module };
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::UndecidableStaticCondition { anchor, module };
 
         self.module_mut(module).diagnostics.push(diagnostic.into());
-
-        Ok(())
     }
 
     /// Report a missing explicit method receiver.
@@ -412,6 +441,40 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one read through a write-only member.
+    pub(in crate::check) fn report_write_only_member(
+        &mut self,
+        origin: Origin,
+        member: String,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::CannotReadWriteOnlyMember {
+            anchor,
+            module,
+            member,
+        };
+        self.module_mut(module).diagnostics.push(error.into());
+
+        Ok(())
+    }
+
+    /// Report one write through a readonly member.
+    pub(in crate::check) fn report_readonly_member(
+        &mut self,
+        origin: Origin,
+        member: String,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::CannotAssignReadonlyMember {
+            anchor,
+            module,
+            member,
+        };
+        self.module_mut(module).diagnostics.push(error.into());
+
+        Ok(())
+    }
+
     /// Report one value that is not callable.
     pub(in crate::check) fn report_not_callable(
         &mut self,
@@ -578,6 +641,23 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one object pattern with a non-object source.
+    pub(in crate::check) fn report_pattern_source_not_object_shaped(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::PatternSourceNotObjectShaped {
+            anchor,
+            module,
+            source: self.format_type(source),
+        };
+        self.module_mut(module).diagnostics.push(error.into());
+
+        Ok(())
+    }
+
     /// Report one tuple pattern with a non-tuple source.
     pub(in crate::check) fn report_pattern_source_not_tuple_shaped(
         &mut self,
@@ -631,6 +711,18 @@ impl CheckState<'_> {
         self.module_mut(module).diagnostics.push(error.into());
 
         Ok(())
+    }
+
+    /// Report one computed pattern key that cannot select a field.
+    pub(in crate::check) fn report_computed_pattern_key_not_valid(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let error = CheckError::ComputedPatternKeyNotValid { anchor, module };
+
+        self.module_mut(module).diagnostics.push(error.into());
     }
 
     /// Report one pattern whose tag is not nominal.
@@ -1046,7 +1138,6 @@ impl CheckState<'_> {
 
                 self.diagnostic_anchor(module, source)
             }
-            Origin::Type(_) => DiagnosticAnchor::from(module),
         };
 
         Ok((module, anchor))

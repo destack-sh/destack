@@ -11,7 +11,8 @@ use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, Capture, CheckError, CheckState, CheckWarning, Condition, Constraint, Origin, Relation,
+    Answer, Capture, CheckError, CheckState, CheckWarning, Constraint, Dependency, FlowPoint,
+    FlowSite, Origin, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -60,16 +61,14 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) static_values: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Captures discovered while walking this module.
     pub(in crate::check) captures: Vec<Capture>,
+    /// Durable flow states discovered while walking this module.
+    pub(in crate::check) flows: Vec<FlowPoint>,
 
-    // walk-recorded selection context, consumed during select
-    /// Active static `@if` guard predicates keyed by guarded node.
-    pub(in crate::check) node_conditions:
-        IndexMap<dir::GlobalNodeIdAny, SmallVec<[dir::GlobalTypeId; 2]>>,
-    /// Active static `@if` guard predicates keyed by guarded declaration.
-    pub(in crate::check) symbol_conditions:
-        IndexMap<dir::GlobalSymbolId, SmallVec<[dir::GlobalTypeId; 2]>>,
+    // statically false gates
+    /// Presence decisions for decorated source nodes.
+    pub(in crate::check) static_presence: IndexMap<dir::GlobalNodeIdAny, bool>,
     /// Declarations whose guards decided statically false.
-    pub(in crate::check) unavailable: IndexSet<dir::GlobalSymbolId>,
+    pub(in crate::check) absent_symbols: IndexSet<dir::GlobalSymbolId>,
     // diagnostics drained during write
     /// Diagnostics reported while walking this module.
     pub(in crate::check) diagnostics: Vec<DiagnosticBuilder<CheckError>>,
@@ -119,11 +118,11 @@ impl CheckModuleState {
             capture_segment,
             annotations,
             static_values: IndexMap::new(),
-            node_conditions: IndexMap::new(),
-            symbol_conditions: IndexMap::new(),
-            unavailable: IndexSet::new(),
+            static_presence: IndexMap::new(),
+            absent_symbols: IndexSet::new(),
             external_modules: IndexSet::new(),
             captures: Vec::new(),
+            flows: Vec::new(),
             diagnostics: Vec::new(),
             warnings: Vec::new(),
         }
@@ -242,22 +241,22 @@ impl CheckState<'_> {
     }
 
     /// Return the symbols whose static guards did not decide false.
-    pub(in crate::check) fn available_symbols(
+    pub(in crate::check) fn present_symbols(
         &self,
         symbols: &[dir::GlobalSymbolId],
     ) -> SmallVec<[dir::GlobalSymbolId; 4]> {
         symbols
             .iter()
             .copied()
-            .filter(|symbol| !self.is_unavailable_symbol(*symbol))
+            .filter(|symbol| !self.is_absent_symbol(*symbol))
             .collect()
     }
 
     /// Return whether one symbol's guard decided statically false.
-    pub(in crate::check) fn is_unavailable_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
+    pub(in crate::check) fn is_absent_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
         self.modules
             .get(&symbol.module_id)
-            .is_some_and(|module| module.unavailable.contains(&symbol))
+            .is_some_and(|module| module.absent_symbols.contains(&symbol))
     }
 
     /// Return loaded state for one module.
@@ -288,28 +287,23 @@ impl CheckState<'_> {
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> Option<dir::GlobalTypeId> {
-        self.solver.node_type(node)
+        self.node_types.get(&node).copied()
     }
 
     /// Return the checked type answer for one source node.
-    pub(in crate::check) fn node_type_answer(
+    pub(in crate::check) fn node_type(
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         if let Some(ty) = self.node_type_maybe(node) {
-            return Ok(Answer::Ready(ty));
+            Ok(Answer::Ready(ty))
+        } else {
+            Ok(Answer::pending([Dependency::NodeType(node)]))
         }
-
-        Err(CompilerError::Internal {
-            message: format!(
-                "solver read node without a checked type: {}",
-                self.missing_node_type_message(node)
-            ),
-        })
     }
 
-    /// Return an invariant message for one missing node type.
-    fn missing_node_type_message(&self, node: dir::GlobalNodeIdAny) -> String {
+    /// Return an invariant message for one source node.
+    pub(in crate::check) fn node_message(&self, node: dir::GlobalNodeIdAny) -> String {
         let module = self.module(node.module_id);
         let view = module.view();
         let detail = match node.local_id.ty {
@@ -344,7 +338,7 @@ impl CheckState<'_> {
             return Err(CompilerError::Internal {
                 message: format!(
                     "required node has no checked type: {}",
-                    self.missing_node_type_message(node)
+                    self.node_message(node)
                 ),
             });
         };
@@ -352,55 +346,61 @@ impl CheckState<'_> {
         Ok(ty)
     }
 
-    /// Bind one node to the type selected by a solver task.
-    pub(in crate::check) fn bind_node_type(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        let Some(existing) = self.node_type_maybe(node) else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "selection tried to bind node without a checked type: {}",
-                    self.missing_node_type_message(node)
-                ),
-            });
-        };
-
-        if let Some(variable) = self.root_variable(existing)? {
-            self.push_lower_bound(variable, ty)?;
-        } else if existing != ty {
-            self.push_constraint(Constraint::check(
-                Relation::Equal,
-                existing,
-                ty,
-                Origin::Node(node),
-                Condition::Always,
-            ));
-        }
-
-        Ok(())
-    }
-
-    /// Record the inferred type of one source node.
+    /// Set the checked type of one source node.
     pub(in crate::check) fn set_node_type(
         &mut self,
         node: dir::GlobalNodeIdAny,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        if let Some(previous) = self.node_type_maybe(node)
-            && previous != ty
-        {
+        if let Some(previous) = self.node_type_maybe(node) {
+            if previous == ty {
+                return Ok(());
+            }
+
             let previous = self.format_type(previous);
             let ty = self.format_type(ty);
-            let node = self.missing_node_type_message(node);
+            let node = self.node_message(node);
 
             return Err(CompilerError::Internal {
                 message: format!("check node {node} received two types: {previous} and {ty}"),
             });
         }
 
-        self.solver.set_node_type(node, ty)
+        self.node_types.insert(node, ty);
+
+        // wake tasks parked on the node type
+        for waiter in self.solver.wake(Dependency::NodeType(node)) {
+            self.queue_task(waiter);
+        }
+
+        Ok(())
+    }
+
+    /// Set the checked type of one source node at one flow point.
+    pub(in crate::check) fn set_node_type_at(
+        &mut self,
+        site: FlowSite,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<()>> {
+        let ty = answer!(self.flow_type_at(site, ty)?);
+        self.set_node_type(site.node, ty)?;
+
+        Ok(Answer::Ready(()))
+    }
+
+    /// Constrain one source node's runtime value type.
+    pub(in crate::check) fn constrain_node_value(
+        &mut self,
+        site: FlowSite,
+        relation: Relation,
+        target: dir::GlobalTypeId,
+        origin: Origin,
+        use_: ValueUse,
+    ) -> CompilerResult<Answer<()>> {
+        let source = answer!(self.node_type_at(site)?);
+        self.push_constraint(Constraint::value(relation, source, target, origin, use_));
+
+        Ok(Answer::Ready(()))
     }
 
     /// Return one component declaration type, if present.
@@ -428,6 +428,9 @@ impl CheckState<'_> {
         }
 
         self.declaration_types.insert(symbol, ty);
+        for waiter in self.solver.wake(Dependency::SymbolType(symbol)) {
+            self.queue_task(waiter);
+        }
 
         Ok(())
     }
@@ -456,8 +459,44 @@ impl CheckState<'_> {
         }
 
         self.binding_types.insert(symbol, ty);
+        for waiter in self.solver.wake(Dependency::SymbolType(symbol)) {
+            self.queue_task(waiter);
+        }
 
         Ok(())
+    }
+
+    /// Bind one symbol to an exact checked type.
+    pub(in crate::check) fn bind_symbol_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let is_binding = self.symbol_kind(symbol) == dir::SymbolKind::Variable;
+        let existing = if is_binding {
+            self.binding_type_maybe(symbol)
+        } else {
+            self.declaration_type_maybe(symbol)
+        };
+
+        if let Some(existing) = existing {
+            self.push_constraint(Constraint::check(
+                Relation::Equal,
+                existing,
+                ty,
+                Origin::Symbol(symbol),
+            ));
+
+            return Ok(existing);
+        }
+
+        if is_binding {
+            self.set_binding_type(symbol, ty)?;
+        } else {
+            self.set_declaration_type(symbol, ty)?;
+        }
+
+        Ok(ty)
     }
 
     /// Return one loaded symbol's checked type, if present.
@@ -479,6 +518,85 @@ impl CheckState<'_> {
         }
 
         None
+    }
+
+    /// Return one loaded symbol's checked type.
+    pub(in crate::check) fn symbol_type(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        if let Some(ty) = self.symbol_type_maybe(symbol) {
+            Ok(Answer::Ready(ty))
+        } else {
+            Ok(Answer::pending([Dependency::SymbolType(symbol)]))
+        }
+    }
+
+    /// Return the checked type required for one loaded symbol.
+    pub(in crate::check) fn require_symbol_type(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let Some(ty) = self.symbol_type_maybe(symbol) else {
+            return Err(CompilerError::Internal {
+                message: format!("symbol {symbol:?} has no checked type"),
+            });
+        };
+
+        Ok(ty)
+    }
+
+    /// Return one definition member's checked value type.
+    pub(in crate::check) fn definition_member_type(
+        &self,
+        member: &dir::DefinitionMember,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        if let Some(symbol) = member.symbol()
+            && !matches!(member, dir::DefinitionMember::AssociatedType(_))
+        {
+            return match self.symbol_type(symbol)? {
+                Answer::Ready(ty) => Ok(Answer::Ready(Some(ty))),
+                Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+            };
+        }
+
+        let ty = match member {
+            dir::DefinitionMember::AssociatedType(associated) => associated.value,
+            dir::DefinitionMember::CallSignature(signature)
+            | dir::DefinitionMember::ConstructSignature(signature)
+            | dir::DefinitionMember::IndexSignature(signature) => Some(signature.ty),
+            dir::DefinitionMember::Field(_)
+            | dir::DefinitionMember::Method(_)
+            | dir::DefinitionMember::AssociatedConst(_)
+            | dir::DefinitionMember::Variant(_) => None,
+        };
+
+        Ok(Answer::Ready(ty))
+    }
+
+    /// Return the checked value type required for one definition member.
+    pub(in crate::check) fn require_definition_member_type(
+        &self,
+        member: &dir::DefinitionMember,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        if let Some(symbol) = member.symbol()
+            && !matches!(member, dir::DefinitionMember::AssociatedType(_))
+        {
+            return Ok(Some(self.require_symbol_type(symbol)?));
+        }
+
+        let ty = match member {
+            dir::DefinitionMember::AssociatedType(associated) => associated.value,
+            dir::DefinitionMember::CallSignature(signature)
+            | dir::DefinitionMember::ConstructSignature(signature)
+            | dir::DefinitionMember::IndexSignature(signature) => Some(signature.ty),
+            dir::DefinitionMember::Field(_)
+            | dir::DefinitionMember::Method(_)
+            | dir::DefinitionMember::AssociatedConst(_)
+            | dir::DefinitionMember::Variant(_) => None,
+        };
+
+        Ok(ty)
     }
 
     /// Return the inferred static value of one source symbol.
@@ -508,60 +626,6 @@ impl CheckState<'_> {
         }
 
         Ok(())
-    }
-
-    /// Return the active static `@if` guard predicates of one source node.
-    pub(in crate::check) fn node_condition(
-        &self,
-        node: dir::GlobalNodeIdAny,
-    ) -> &[dir::GlobalTypeId] {
-        self.modules
-            .get(&node.module_id)
-            .and_then(|module| module.node_conditions.get(&node))
-            .map_or(&[], |predicates| predicates.as_slice())
-    }
-
-    /// Return the active static condition of one source node.
-    pub(in crate::check) fn node_static_condition(&self, node: dir::GlobalNodeIdAny) -> Condition {
-        let predicates = self.node_condition(node);
-        if predicates.is_empty() {
-            Condition::Always
-        } else {
-            Condition::When(predicates.iter().copied().collect())
-        }
-    }
-
-    /// Record the active static `@if` guard predicates of one source node.
-    pub(in crate::check) fn set_node_condition(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        predicates: SmallVec<[dir::GlobalTypeId; 2]>,
-    ) {
-        self.module_mut(node.module_id)
-            .node_conditions
-            .insert(node, predicates);
-    }
-
-    /// Return the active static `@if` guard predicates of one declaration.
-    pub(in crate::check) fn symbol_condition(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> &[dir::GlobalTypeId] {
-        self.modules
-            .get(&symbol.module_id)
-            .and_then(|module| module.symbol_conditions.get(&symbol))
-            .map_or(&[], |predicates| predicates.as_slice())
-    }
-
-    /// Record the active static `@if` guard predicates of one declaration.
-    pub(in crate::check) fn set_symbol_condition(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        predicates: SmallVec<[dir::GlobalTypeId; 2]>,
-    ) {
-        self.module_mut(symbol.module_id)
-            .symbol_conditions
-            .insert(symbol, predicates);
     }
 
     /// Return one binding table by module.

@@ -4,11 +4,13 @@ use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, SolverSnapshot, TypeMark, TypeSubstitution};
+use crate::check::{
+    Answer, CheckState, Dependency, Origin, Relation, SolverSnapshot, TypeMark, TypeSubstitution,
+};
 
-/// Snapshot of check state before one speculative probe.
+/// Snapshot of check state before one probe.
 #[derive(Debug)]
-pub(in crate::check) struct CheckSnapshot {
+pub(in crate::check) struct ProbeSnapshot {
     /// The solver state before the probe.
     solver: SolverSnapshot,
     /// Layout segment marks before the probe.
@@ -32,8 +34,8 @@ struct LayoutSegmentMark {
 }
 
 impl CheckState<'_> {
-    /// Begin one speculative probe.
-    pub(in crate::check) fn begin_probe(&mut self) -> CheckSnapshot {
+    /// Begin one probe transaction.
+    pub(in crate::check) fn begin_probe(&mut self) -> ProbeSnapshot {
         let marks = self
             .modules
             .iter()
@@ -42,23 +44,19 @@ impl CheckState<'_> {
         let solver = self.solver.snapshot(TypeMark::new(marks));
         let layouts = LayoutMark::new(&self.layouts);
 
-        CheckSnapshot { solver, layouts }
+        ProbeSnapshot { solver, layouts }
     }
 
-    /// Roll back one speculative probe.
-    pub(in crate::check) fn reject_probe(&mut self, snapshot: CheckSnapshot) {
+    /// Roll back one probe transaction.
+    pub(in crate::check) fn reject_probe(&mut self, snapshot: ProbeSnapshot) {
         let marks = self.solver.rollback(snapshot.solver);
         self.drop_probe_layouts(snapshot.layouts);
         self.drop_probe_types(marks);
     }
 
-    /// Commit one speculative probe.
-    pub(in crate::check) fn commit_probe(&mut self, snapshot: CheckSnapshot) {
-        let CheckSnapshot {
-            solver,
-            layouts: _layouts,
-        } = snapshot;
-        self.solver.commit(solver);
+    /// Commit one probe transaction.
+    pub(in crate::check) fn commit_probe(&mut self, snapshot: ProbeSnapshot) {
+        self.solver.commit(snapshot.solver);
     }
 
     /// Return dependencies still live after a probe was rejected.
@@ -78,8 +76,18 @@ impl CheckState<'_> {
                         live.push(blocker);
                     }
                 }
+                Dependency::NodeType(node) => {
+                    if self.node_type_maybe(node).is_none() && !live.contains(&blocker) {
+                        live.push(blocker);
+                    }
+                }
+                Dependency::SymbolType(symbol) => {
+                    if self.symbol_type_maybe(symbol).is_none() && !live.contains(&blocker) {
+                        live.push(blocker);
+                    }
+                }
                 Dependency::Decision(node) => {
-                    if self.solver.decision(node).is_none() && !live.contains(&blocker) {
+                    if self.decision(node).is_none() && !live.contains(&blocker) {
                         live.push(blocker);
                     }
                 }
@@ -112,7 +120,9 @@ impl CheckState<'_> {
                                     blocked_variables.push(blocker);
                                 }
                             }
-                            Dependency::Decision(_) => {
+                            Dependency::NodeType(_)
+                            | Dependency::SymbolType(_)
+                            | Dependency::Decision(_) => {
                                 if !pending.contains(&blocker) {
                                     pending.push(blocker);
                                 }
@@ -129,6 +139,54 @@ impl CheckState<'_> {
         let pending = self.live_blockers(pending);
 
         Ok(Answer::ready_unless_blocked(all_bounds_hold, pending))
+    }
+
+    /// Infer probe variables from an expected type.
+    pub(in crate::check) fn infer_from_expected(
+        &mut self,
+        origin: Origin,
+        relation: Relation,
+        source: dir::GlobalTypeId,
+        expected: dir::GlobalTypeId,
+        variables: impl IntoIterator<Item = dir::TypeVariableId>,
+    ) -> CompilerResult<Answer<()>> {
+        let variables = variables.into_iter().collect::<SmallVec<[_; 4]>>();
+        if variables.is_empty() {
+            return Ok(Answer::Ready(()));
+        }
+
+        let probe = self.begin_probe();
+        match self.constrain(origin, relation, source, expected)? {
+            Answer::Ready(true) => {}
+            Answer::Ready(false) => {
+                self.reject_probe(probe);
+
+                return Ok(Answer::Ready(()));
+            }
+            Answer::Pending(blockers) => {
+                self.reject_probe(probe);
+
+                return Ok(Answer::Pending(self.live_blockers(blockers)));
+            }
+        }
+
+        match self.solve_probe_variables(variables)? {
+            Answer::Ready(true) => {
+                self.commit_probe(probe);
+
+                Ok(Answer::Ready(()))
+            }
+            Answer::Ready(false) => {
+                self.reject_probe(probe);
+
+                Ok(Answer::Ready(()))
+            }
+            Answer::Pending(blockers) => {
+                self.reject_probe(probe);
+
+                Ok(Answer::Pending(self.live_blockers(blockers)))
+            }
+        }
     }
 
     /// Return inference variables referenced by one substitution.

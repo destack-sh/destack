@@ -7,7 +7,7 @@ use destack_source::{ComponentId, ModuleId, ProfileId};
 use indexmap::IndexMap;
 
 use crate::check::{
-    Assumption, CheckEvent, CheckExternalModuleState, CheckModuleState, GenericIndex, Origin,
+    CheckEvent, CheckExternalModuleState, CheckModuleState, DecisionTable, GenericIndex, Origin,
     Solver, VarianceEntry,
 };
 use crate::{CheckError, Compiler, CompilerError, CompilerResult};
@@ -48,12 +48,14 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) declaration_types: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Body-owned binding symbol types.
     pub(in crate::check) binding_types: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
+    /// Stable source node types.
+    pub(in crate::check) node_types: IndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
+    /// Stable source node decisions.
+    pub(in crate::check) decisions: DecisionTable,
 
     // solver state
     /// Active component solver state.
     pub(in crate::check) solver: Solver,
-    /// Active static guard assumptions for the running task.
-    pub(in crate::check) assumptions: Vec<Assumption>,
 
     // memoized closed facts, valid across rejected probes
     /// Memoized closed type reductions keyed by original type.
@@ -94,9 +96,10 @@ impl<'a> CheckState<'a> {
             external_components,
             declaration_types: IndexMap::new(),
             binding_types: IndexMap::new(),
+            node_types: IndexMap::new(),
+            decisions: DecisionTable::new(),
             solver: Solver::new(),
             reduced_types: IndexMap::new(),
-            assumptions: Vec::new(),
             generics: GenericIndex::new(),
             layouts: IndexMap::new(),
             variances: IndexMap::new(),
@@ -279,7 +282,7 @@ impl CheckState<'_> {
         self.push_type(module, ty, source)
     }
 
-    /// Allocate the type read from an index signature.
+    /// Allocate the type read from an optional index signature.
     pub(in crate::check) fn push_index_signature_read_type(
         &mut self,
         origin: Origin,

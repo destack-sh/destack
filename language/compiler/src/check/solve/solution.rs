@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckEvent, CheckState, Condition, Constraint, Dependency, Origin, Relation, Task,
-    VariableBounds, Widening, answer,
+    Answer, CheckEvent, CheckState, Constraint, Dependency, Origin, Relation, Task, VariableBounds,
+    Widening, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -142,13 +142,7 @@ impl CheckState<'_> {
                 let source = self
                     .origin_source_node(origin)?
                     .into_global(origin.module());
-                match self.constrain_generic_argument(
-                    origin,
-                    source,
-                    Condition::Always,
-                    solution,
-                    bound,
-                )? {
+                match self.constrain_generic_argument(origin, source, solution, bound)? {
                     Answer::Ready(true) => {}
                     Answer::Ready(false) => {
                         bounds_hold = false;
@@ -157,7 +151,6 @@ impl CheckState<'_> {
                             solution,
                             bound,
                             origin,
-                            Condition::Always,
                         ));
                     }
                     Answer::Pending(blockers) => {
@@ -167,7 +160,6 @@ impl CheckState<'_> {
                             solution,
                             bound,
                             origin,
-                            Condition::Always,
                         ));
                     }
                 }
@@ -256,9 +248,9 @@ impl CheckState<'_> {
         };
         state.solution = Some(solution);
 
-        // wake parked waiters
-        let waiters = std::mem::take(&mut state.waiters);
-        for waiter in waiters.iter().copied() {
+        // wake tasks parked on the solved variable
+        let waiters = self.solver.wake(Dependency::Variable(representative));
+        for waiter in waiters.iter().cloned() {
             self.queue_task(waiter);
         }
 
@@ -272,7 +264,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Alias one open variable to another, merging bounds and waiters.
+    /// Alias one open variable to another, merging bounds.
     pub(in crate::check) fn alias_variables(
         &mut self,
         variable: dir::TypeVariableId,
@@ -286,11 +278,10 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        // move bounds and waiters onto the representative
+        // move bounds onto the representative
         let state = self.solver.variable_mut(variable)?;
         let lower = std::mem::take(&mut state.lower);
         let upper = std::mem::take(&mut state.upper);
-        let waiters = std::mem::take(&mut state.waiters);
         state.alias = Some(target);
 
         // push moved bounds through the checked paths
@@ -300,11 +291,11 @@ impl CheckState<'_> {
         for bound in upper {
             self.push_upper_bound(target, bound)?;
         }
+
+        // move tasks parked on the old representative
+        let waiters = self.solver.wake(Dependency::Variable(variable));
         for waiter in waiters {
-            let target_state = self.solver.variable_mut(target)?;
-            if !target_state.waiters.contains(&waiter) {
-                target_state.waiters.push(waiter);
-            }
+            self.solver.wait_for(Dependency::Variable(target), waiter);
         }
 
         self.record_event(CheckEvent::VariableAliased {
@@ -334,7 +325,6 @@ impl CheckState<'_> {
                 bound,
                 solution,
                 origin,
-                Condition::Always,
             ));
 
             return Ok(());
@@ -374,13 +364,7 @@ impl CheckState<'_> {
             let source = self
                 .origin_source_node(origin)?
                 .into_global(origin.module());
-            match self.constrain_generic_argument(
-                origin,
-                source,
-                Condition::Always,
-                solution,
-                bound,
-            )? {
+            match self.constrain_generic_argument(origin, source, solution, bound)? {
                 Answer::Ready(true) => {}
                 Answer::Ready(false) | Answer::Pending(_) => {
                     self.push_constraint(Constraint::check(
@@ -388,7 +372,6 @@ impl CheckState<'_> {
                         solution,
                         bound,
                         origin,
-                        Condition::Always,
                     ));
                 }
             }
@@ -422,7 +405,7 @@ impl CheckState<'_> {
         let task = Task::Solve(variable);
         for blocker in self.type_variables(bound)? {
             if blocker != variable {
-                self.park_task(task, &[Dependency::Variable(blocker)])?;
+                self.park_task(task.clone(), &[Dependency::Variable(blocker)])?;
             }
         }
 

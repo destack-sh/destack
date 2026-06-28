@@ -8,8 +8,6 @@ pub(in crate::check) enum Origin {
     Node(dir::GlobalNodeIdAny),
     /// Work came from one source symbol.
     Symbol(dir::GlobalSymbolId),
-    /// Work came from one committed type.
-    Type(dir::GlobalTypeId),
 }
 
 impl Origin {
@@ -18,7 +16,6 @@ impl Origin {
         match self {
             Self::Node(node) => node.module_id,
             Self::Symbol(symbol) => symbol.module_id,
-            Self::Type(ty) => ty.module_id,
         }
     }
 

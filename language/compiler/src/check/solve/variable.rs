@@ -2,7 +2,7 @@ use destack_dir as dir;
 use indexmap::IndexMap;
 use smallvec::SmallVec;
 
-use crate::check::{Origin, Task};
+use crate::check::Origin;
 use crate::{CompilerError, CompilerResult};
 
 /// One open inference variable.
@@ -22,12 +22,10 @@ pub(in crate::check) struct VariableState {
     pub(in crate::check) default: Option<dir::GlobalTypeId>,
     /// The union-find representative, when aliased to another variable.
     pub(in crate::check) alias: Option<dir::TypeVariableId>,
-    /// Tasks waiting for this variable to solve.
-    pub(in crate::check) waiters: SmallVec<[Task; 2]>,
 }
 
 /// Literal widening policy for one solved variable.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum Widening {
     /// Keep literal solutions exact.
     Preserve,
@@ -67,7 +65,6 @@ impl VariableTable {
                 solution: None,
                 default: None,
                 alias: None,
-                waiters: SmallVec::new(),
             },
         );
     }

@@ -37,7 +37,7 @@ pub(in crate::check) struct VariableBounds {
 }
 
 /// One event emitted by check.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum CheckEvent {
     /// One variable was allocated.
     VariableAllocated {
@@ -173,7 +173,7 @@ impl CheckState<'_> {
             types,
             solutions,
             bounds,
-            decisions: self.solver.decision_count(),
+            decisions: self.decisions.count(),
         }
     }
 }
