@@ -19,9 +19,9 @@ const value: float64 = 1 + 2;
 const value = 1 + 2;
 /// @type.symbol symbol=value source=value type=float64
 /// @type.node source="1 + 2" type=float64
-/// @type.node source=1 type=float64
+/// @type.node source=1 type=1
 /// @resolution.call source="1 + 2" parameters=() return=float64 kind=builtin builtin=binary.add
-/// @type.node source=2 type=float64
+/// @type.node source=2 type=2
 "#,
     );
 }
@@ -95,7 +95,8 @@ struct Vector {
 }
 
 extension of Vector implements Add<Vector> {
-/// @definition.extension form=interface target=Vector interfaces=[ops.plus.Add<Vector>]
+/// @definition.extension symbol=<module>#2 form=inherent target=Vector
+/// @definition.implements symbol=<module>#2 source=Add<Vector> target=ops.plus.Add arguments=(Vector)
 /// @definition.associated.type symbol=Output source="type Output = Vector" key=Output value=Vector
 /// @definition.method symbol=add slot=add type=(this: Vector, Vector) => Vector
 /// @resolution.name source=Vector target=Vector
@@ -122,7 +123,7 @@ extension of Vector implements Add<Vector> {
             /// @type.node source=this.x type=int32
             /// @resolution.member source=this.x receiver=Vector kind=symbol target=Vector.x
             /// @resolution.call source="this.x + other.x" parameters=() return=int32 kind=builtin builtin=binary.add
-            /// @resolution.receiver source=this kind=this owner=<extension> type=Vector
+            /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Vector
             /// @type.node source=other type=Vector
             /// @type.node source=other.x type=int32
             /// @resolution.name source=other target=other
@@ -134,7 +135,7 @@ extension of Vector implements Add<Vector> {
             /// @type.node source=this.y type=int32
             /// @resolution.member source=this.y receiver=Vector kind=symbol target=Vector.y
             /// @resolution.call source="this.y + other.y" parameters=() return=int32 kind=builtin builtin=binary.add
-            /// @resolution.receiver source=this kind=this owner=<extension> type=Vector
+            /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Vector
             /// @type.node source=other type=Vector
             /// @type.node source=other.y type=int32
             /// @resolution.name source=other target=other
@@ -157,7 +158,7 @@ const sum = left + right;
 /// @type.node source="left + right" type=Vector
 /// @type.node source=left type=Vector
 /// @resolution.name source=left target=left
-/// @resolution.call source="left + right" parameters=() return=Vector kind=symbol target=add receiver=Vector
+/// @resolution.call source="left + right" parameters=(Vector) arguments=(provided(right) as Vector) return=Vector kind=symbol target=add receiver=Vector
 /// @type.node source=right type=Vector
 /// @resolution.name source=right target=right
 "#);
