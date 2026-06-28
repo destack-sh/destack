@@ -101,6 +101,8 @@ pub enum SymbolVisibility {
     Forward,
     /// Visible throughout its whole scope.
     Scope,
+    /// Visible only through member lookup.
+    Member,
 }
 
 impl SymbolSpace {
