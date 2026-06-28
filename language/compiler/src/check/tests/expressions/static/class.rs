@@ -1,29 +1,24 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_static_true_member_is_available() {
+fn test_static_true_class_member_is_available() {
     let session = TestSession::single(
         r#"
 struct NarrowMeta {}
 struct WideMeta {}
 
-class Segment<Row> {
-    comptime const Width: uint = Row extends string ? 8 : 4;
+class Segment {
+    @if(true)
+    narrow: NarrowMeta = NarrowMeta {};
 
-    @if(this.Width == 4)
-    narrow: NarrowMeta;
-
-    @if(this.Width == 8)
+    @if(false)
     wide: WideMeta;
 
-    value: Row;
+    value: int32 = 0;
 }
 
-declare const narrow: Segment<int32>;
-const narrowMeta = narrow.narrow;
-
-declare const wide: Segment<string>;
-const wideMeta = wide.wide;
+declare const segment: Segment;
+const narrowMeta = segment.narrow;
 "#,
     );
 
@@ -35,121 +30,83 @@ const wideMeta = wide.wide;
 struct NarrowMeta {}
 struct WideMeta {}
 
-class Segment<Row> {
-    comptime const Width: uint = Row extends string ? 8 : 4;
+class Segment {
+    @if(true)
+    narrow: NarrowMeta = NarrowMeta {};
 
-    @if(this.Width == 4)
-    narrow: NarrowMeta;
-
-    @if(this.Width == 8)
+    @if(false)
     wide: WideMeta;
 
-    value: Row;
+    value: int32 = 0;
 }
 
-declare const narrow: Segment<int32>;
-const narrowMeta: NarrowMeta = narrow.narrow;
-
-declare const wide: Segment<string>;
-const wideMeta: WideMeta = wide.wide;
+declare const segment: Segment;
+const narrowMeta: NarrowMeta = segment.narrow;
 
 === checked ===
 struct NarrowMeta {}
-/// @type.symbol symbol=NarrowMeta type=NarrowMeta
-/// @type.node source="struct NarrowMeta {}" type=NarrowMeta
+/// @type.symbol symbol=NarrowMeta source="struct NarrowMeta {}" type=NarrowMeta
+/// @definition.struct symbol=NarrowMeta source="struct NarrowMeta {}"
 
 struct WideMeta {}
-/// @type.symbol symbol=WideMeta type=WideMeta
-/// @type.node source="struct WideMeta {}" type=WideMeta
+/// @type.symbol symbol=WideMeta source="struct WideMeta {}" type=WideMeta
+/// @definition.struct symbol=WideMeta source="struct WideMeta {}"
 
-class Segment<Row> {
-/// @generic.template symbol=Segment parameters=(Row)
-/// @type.symbol symbol=Segment type=Segment<Row>
-/// @type.node type=Segment<Row>
+class Segment {
+/// @type.symbol symbol=Segment type=Segment
+/// @definition.class symbol=Segment
+/// @definition.field symbol=Segment.narrow source="narrow: NarrowMeta = NarrowMeta {}" key=narrow type=NarrowMeta
+/// @definition.field symbol=Segment.value source="value: int32 = 0" key=value type=int32
 
-    comptime const Width: uint = Row extends string ? 8 : 4;
-    /// @type.symbol symbol=Segment.Width type=uint
-    /// @static.symbol symbol=Segment.Width value="Row extends string ? 8 : 4"
-
-    @if(this.Width == 4)
-    /// @resolution.receiver source=this kind=this owner=Segment type=Segment<Row>
-    /// @type.node source=this type=Segment<Row>
-
-    narrow: NarrowMeta;
-    /// @type.symbol symbol=Segment.narrow type=NarrowMeta
+    @if(true)
+    narrow: NarrowMeta = NarrowMeta {};
+    /// @type.symbol symbol=Segment.narrow source="narrow: NarrowMeta = NarrowMeta {}" type=NarrowMeta
+    /// @resolution.name source=NarrowMeta target=NarrowMeta
+    /// @type.node source="NarrowMeta {}" type=NarrowMeta
     /// @resolution.name source=NarrowMeta target=NarrowMeta
 
-    @if(this.Width == 8)
-    /// @resolution.receiver source=this kind=this owner=Segment type=Segment<Row>
-    /// @type.node source=this type=Segment<Row>
-
+    @if(false)
     wide: WideMeta;
-    /// @type.symbol symbol=Segment.wide type=WideMeta
-    /// @resolution.name source=WideMeta target=WideMeta
 
-    value: Row;
-    /// @type.symbol symbol=Segment.value type=Row
+    value: int32 = 0;
+    /// @type.symbol symbol=Segment.value source="value: int32 = 0" type=int32
+    /// @type.node source=0 type=0
 
 }
 
-declare const narrow: Segment<int32>;
-/// @type.node source="declare const narrow: Segment<int32>" type=void
-/// @type.symbol symbol=narrow type=Segment<int32>
-/// @generic.instance source=Segment<int32> id=Segment<int32>
+declare const segment: Segment;
+/// @type.symbol symbol=segment source=segment type=Segment
 /// @resolution.name source=Segment target=Segment
 
-const narrowMeta = narrow.narrow;
-/// @type.node source="const narrowMeta = narrow.narrow" type=void
-/// @type.symbol symbol=narrowMeta type=NarrowMeta
-/// @generic.instance source=narrow.narrow id=Segment<int32>
-/// @resolution.name source=narrow target=narrow
-/// @resolution.member source=narrow.narrow receiver=Segment<int32> kind=symbol target=Segment.narrow application=Segment<int32>
-/// @type.node source=narrow type=Segment<int32>
-/// @type.node source=narrow.narrow type=NarrowMeta
-
-declare const wide: Segment<string>;
-/// @type.node source="declare const wide: Segment<string>" type=void
-/// @type.symbol symbol=wide type=Segment<string>
-/// @generic.instance source=Segment<string> id=Segment<string>
-/// @resolution.name source=Segment target=Segment
-
-const wideMeta = wide.wide;
-/// @type.node source="const wideMeta = wide.wide" type=void
-/// @type.symbol symbol=wideMeta type=WideMeta
-/// @generic.instance source=wide.wide id=Segment<string>
-/// @resolution.name source=wide target=wide
-/// @resolution.member source=wide.wide receiver=Segment<string> kind=symbol target=Segment.wide application=Segment<string>
-/// @type.node source=wide type=Segment<string>
-/// @type.node source=wide.wide type=WideMeta
-/// @generic.instance id=Segment<int32> template=Segment arguments=(int32)
-/// @generic.instance id=Segment<string> template=Segment arguments=(string)
-/// @static.entry value=Row
-/// @static.entry value=int32
-/// @static.entry value=string
-"#);
+const narrowMeta = segment.narrow;
+/// @type.symbol symbol=narrowMeta source=narrowMeta type=NarrowMeta
+/// @type.node source=segment type=Segment
+/// @type.node source=segment.narrow type=NarrowMeta
+/// @resolution.name source=segment target=segment
+/// @resolution.member source=segment.narrow receiver=Segment kind=symbol target=Segment.narrow
+"#,
+    );
 }
 
 #[test]
-fn test_static_false_member_is_unavailable() {
+fn test_static_false_class_member_is_unavailable() {
     let session = TestSession::single(
         r#"
 struct NarrowMeta {}
 struct WideMeta {}
 
-class Segment<Row> {
-    comptime const Width: uint = Row extends string ? 8 : 4;
+class Segment {
+    @if(true)
+    narrow: NarrowMeta = NarrowMeta {};
 
-    @if(this.Width == 4)
-    narrow: NarrowMeta;
-
-    @if(this.Width == 8)
+    @if(false)
     wide: WideMeta;
 
-    value: Row;
+    value: int32 = 0;
 }
 
-declare const segment: Segment<string>;
-segment.narrow;
+declare const segment: Segment;
+segment.wide;
 "#,
     );
 
@@ -161,76 +118,145 @@ segment.narrow;
 struct NarrowMeta {}
 struct WideMeta {}
 
-class Segment<Row> {
-    comptime const Width: uint = Row extends string ? 8 : 4;
+class Segment {
+    @if(true)
+    narrow: NarrowMeta = NarrowMeta {};
 
-    @if(this.Width == 4)
-    narrow: NarrowMeta;
-
-    @if(this.Width == 8)
+    @if(false)
     wide: WideMeta;
 
-    value: Row;
+    value: int32 = 0;
 }
 
-declare const segment: Segment<string>;
-segment.narrow;
+declare const segment: Segment;
+segment.wide;
 
 === checked ===
 struct NarrowMeta {}
-/// @type.symbol symbol=NarrowMeta type=NarrowMeta
-/// @type.node source="struct NarrowMeta {}" type=NarrowMeta
+/// @type.symbol symbol=NarrowMeta source="struct NarrowMeta {}" type=NarrowMeta
+/// @definition.struct symbol=NarrowMeta source="struct NarrowMeta {}"
 
 struct WideMeta {}
-/// @type.symbol symbol=WideMeta type=WideMeta
-/// @type.node source="struct WideMeta {}" type=WideMeta
+/// @type.symbol symbol=WideMeta source="struct WideMeta {}" type=WideMeta
+/// @definition.struct symbol=WideMeta source="struct WideMeta {}"
 
-class Segment<Row> {
-/// @generic.template symbol=Segment parameters=(Row)
-/// @type.symbol symbol=Segment type=Segment<Row>
-/// @type.node type=Segment<Row>
+class Segment {
+/// @type.symbol symbol=Segment type=Segment
+/// @definition.class symbol=Segment
+/// @definition.field symbol=Segment.narrow source="narrow: NarrowMeta = NarrowMeta {}" key=narrow type=NarrowMeta
+/// @definition.field symbol=Segment.value source="value: int32 = 0" key=value type=int32
 
-    comptime const Width: uint = Row extends string ? 8 : 4;
-    /// @type.symbol symbol=Segment.Width type=uint
-    /// @static.symbol symbol=Segment.Width value="Row extends string ? 8 : 4"
-
-    @if(this.Width == 4)
-    /// @resolution.receiver source=this kind=this owner=Segment type=Segment<Row>
-    /// @type.node source=this type=Segment<Row>
-
-    narrow: NarrowMeta;
-    /// @type.symbol symbol=Segment.narrow type=NarrowMeta
+    @if(true)
+    narrow: NarrowMeta = NarrowMeta {};
+    /// @type.symbol symbol=Segment.narrow source="narrow: NarrowMeta = NarrowMeta {}" type=NarrowMeta
+    /// @resolution.name source=NarrowMeta target=NarrowMeta
+    /// @type.node source="NarrowMeta {}" type=NarrowMeta
     /// @resolution.name source=NarrowMeta target=NarrowMeta
 
-    @if(this.Width == 8)
-    /// @resolution.receiver source=this kind=this owner=Segment type=Segment<Row>
-    /// @type.node source=this type=Segment<Row>
-
+    @if(false)
     wide: WideMeta;
-    /// @type.symbol symbol=Segment.wide type=WideMeta
-    /// @resolution.name source=WideMeta target=WideMeta
 
-    value: Row;
-    /// @type.symbol symbol=Segment.value type=Row
+    value: int32 = 0;
+    /// @type.symbol symbol=Segment.value source="value: int32 = 0" type=int32
+    /// @type.node source=0 type=0
 
 }
 
-declare const segment: Segment<string>;
-/// @type.node source="declare const segment: Segment<string>" type=void
-/// @type.symbol symbol=segment type=Segment<string>
-/// @generic.instance source=Segment<string> id=Segment<string>
+declare const segment: Segment;
+/// @type.symbol symbol=segment source=segment type=Segment
 /// @resolution.name source=Segment target=Segment
 
-segment.narrow;
+segment.wide;
+/// @type.node source=segment type=Segment
 /// @resolution.name source=segment target=segment
-/// @type.node source=segment type=Segment<string>
-/// @generic.instance id=Segment<string> template=Segment arguments=(string)
-/// @static.entry value=Row
-/// @static.entry value=string
 "#,
         r#"
-/// @diagnostic.error code=EC300 message="missing member 'narrow'"
-/// @diagnostic.label line=18 column=1 source="segment.narrow;"
+/// @diagnostic.error code=EC300 message="member 'wide' does not exist on type 'Segment'"
+/// @diagnostic.label line=16 column=9 span="wide" line_source="segment.wide;"
+"#,
+    );
+}
+
+#[test]
+fn test_static_if_rejects_generic_dependent_class_member_guard() {
+    let session = TestSession::single(
+        r#"
+struct TextMeta {}
+
+class Packet<T> {
+    @if(T extends string)
+    meta: TextMeta;
+
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_statics(),
+        r#"
+=== annotated ===
+struct TextMeta {}
+
+class Packet<T> {
+    @if(T extends string)
+    meta: TextMeta;
+
+    value: T;
+
+    constructor(value: T): Packet<T> {
+        this.value = value;
+    }
+}
+
+=== checked ===
+struct TextMeta {}
+/// @type.symbol symbol=TextMeta source="struct TextMeta {}" type=TextMeta
+/// @definition.struct symbol=TextMeta source="struct TextMeta {}"
+
+class Packet<T> {
+/// @generic.template symbol=Packet parameters=(T)
+/// @type.symbol symbol=Packet type=Packet
+/// @definition.class symbol=Packet template=LocalGenericTemplateId(0)
+/// @definition.field symbol=Packet.value source="value: T" key=value type=T
+/// @definition.method symbol=Packet.constructor slot=constructor role=constructor type=<T>(T) => Packet<T>
+/// @type.symbol symbol=Packet.T source=T type=T
+
+    @if(T extends string)
+    meta: TextMeta;
+
+    value: T;
+    /// @type.symbol symbol=Packet.value source="value: T" type=T
+    /// @resolution.name source=T target=Packet.T
+
+    constructor(value: T) {
+    /// @type.symbol symbol=Packet.constructor type=<T>(T) => Packet<T>
+    /// @type.symbol symbol=value source="value: T" type=T
+    /// @resolution.name source=T target=Packet.T
+
+        this.value = value;
+        /// @type.node source="this.value = value" type=T
+        /// @type.node source=this type=Packet<T>
+        /// @type.node source=this.value type=T
+        /// @resolution.receiver source=this kind=this declaration=Packet type=Packet<T>
+        /// @resolution.pattern.assign source=this.value kind=place place=field(Packet.value) type=T
+        /// @generic.instance source=this id=Packet<T>
+        /// @type.node source=value type=T
+        /// @resolution.name source=value target=value
+
+    }
+}
+
+/// @generic.instance id=Packet<T> template=Packet arguments=(T)
+"#,
+        r#"
+/// @diagnostic.error code=EC404 message="static @if condition must be statically decidable"
+/// @diagnostic.label line=5 column=11 span="extends" line_source="@if(T extends string)"
 "#,
     );
 }
