@@ -29,8 +29,7 @@ function bump(value: int32): int32 {
     value = 2;
     /// @type.node source="value = 2" type=2
     /// @type.node source=value type=int32
-    /// @resolution.name source=value target=value
-    /// @resolution.pattern.assign source=value kind=place place=value
+    /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
     /// @type.node source=2 type=2
 
     return value;
@@ -69,8 +68,7 @@ function bump(value: int32): void {
     value = "no";
     /// @type.node source="value = \"no\"" type="no"
     /// @type.node source=value type=int32
-    /// @resolution.name source=value target=value
-    /// @resolution.pattern.assign source=value kind=place place=value
+    /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
     /// @type.node source="\"no\"" type="no"
 
 }
@@ -111,9 +109,8 @@ function bump(value: int32): int32 {
     value += 2;
     /// @type.node source="value += 2" type=int32
     /// @type.node source=value type=int32
-    /// @resolution.name source=value target=value
     /// @resolution.call source="value += 2" parameters=() return=int32 kind=builtin builtin=binary.add
-    /// @resolution.pattern.assign source=value kind=place place=value
+    /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
     /// @type.node source=2 type=2
 
     return value;

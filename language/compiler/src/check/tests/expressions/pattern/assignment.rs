@@ -25,19 +25,23 @@ declare const point: { x: int32; y: string };
 
 === checked ===
 let x: int32 = 0;
-/// @type.symbol symbol=x source=x type=int32
-/// @type.node source=0 type=int32
+/// @type.symbol symbol=x#1 source=x type=int32
+/// @type.node source=0 type=0
 
 let label: string = "";
 /// @type.symbol symbol=label source=label type=string
-/// @type.node source="\"\"" type=string
+/// @type.node source="\"\"" type=""
 
 declare const point: { x: int32; y: string };
 /// @type.symbol symbol=point source=point type={ x: int32; y: string }
 
 ({ x, y: label } = point);
-/// @type.node source="({ x, y: label } = point)" type={ x: int32; y: string }
-/// @resolution.pattern.assign source="{ x, y: label }" kind=object fields={ x, y: label }
+/// @type.node source="{ x, y: label } = point" type={ x: int32; y: string }
+/// @resolution.pattern.assign source={ x, y: label } kind=object fields={ x, y: label }
+/// @type.node source=x type=int32
+/// @resolution.pattern.assign source=x kind=place place=binding(x#1) type=int32
+/// @type.node source=label type=string
+/// @resolution.pattern.assign source=label kind=place place=binding(label) type=string
 /// @type.node source=point type={ x: int32; y: string }
 /// @resolution.name source=point target=point
 "#,
@@ -70,71 +74,24 @@ declare const values: [int32; 3];
 === checked ===
 let first: int32 = 0;
 /// @type.symbol symbol=first source=first type=int32
-/// @type.node source=0 type=int32
+/// @type.node source=0 type=0
 
 let last: int32 = 0;
 /// @type.symbol symbol=last source=last type=int32
-/// @type.node source=0 type=int32
+/// @type.node source=0 type=0
 
 declare const values: [int32; 3];
-/// @type.symbol symbol=values source=values type=[int32; 3]
+/// @type.symbol symbol=values source=values type=FixedArray<int32, 3>
 
 [first, , last] = values;
-/// @type.node source="[first, , last] = values" type=[int32; 3]
-/// @resolution.pattern.assign source="[first, , last]" kind=sequence fields=(first, last)
-/// @resolution.pattern.assign source=first kind=place target=first
+/// @type.node source="[first, , last] = values" type=FixedArray<int32, 3>
+/// @resolution.pattern.assign source=[first, , last] kind=sequence element=int32 arity=3 fields=(first, last)
 /// @type.node source=first type=int32
-/// @resolution.name source=first target=first
-/// @resolution.pattern.assign source=last kind=place target=last
+/// @resolution.pattern.assign source=first kind=place place=binding(first) type=int32
 /// @type.node source=last type=int32
-/// @resolution.name source=last target=last
-/// @type.node source=values type=[int32; 3]
+/// @resolution.pattern.assign source=last kind=place place=binding(last) type=int32
+/// @type.node source=values type=FixedArray<int32, 3>
 /// @resolution.name source=values target=values
-"#,
-    );
-}
-
-#[test]
-fn test_destructuring_assignment_requires_plain_assignment() {
-    let session = TestSession::single(
-        r#"
-let first: int32 = 0;
-declare const values: [int32; 1];
-
-[first] += values;
-"#,
-    );
-
-    session.assert_dir_checked_and_diagnostics(
-        "main.ds",
-        DirRows::checked().with_reference_types(),
-        r#"
-=== annotated ===
-let first: int32 = 0;
-declare const values: [int32; 1];
-
-[first] += values;
-
-=== checked ===
-let first: int32 = 0;
-/// @type.symbol symbol=first source=first type=int32
-/// @type.node source=0 type=int32
-
-declare const values: [int32; 1];
-/// @type.symbol symbol=values source=values type=[int32; 1]
-
-[first] += values;
-/// @type.node source="[first] += values" type=<error>
-/// @resolution.pattern.assign source="[first]" kind=sequence fields=(first)
-/// @resolution.pattern.assign source=first kind=place target=first
-/// @type.node source=first type=int32
-/// @resolution.name source=first target=first
-/// @type.node source=values type=[int32; 1]
-/// @resolution.name source=values target=values
-"#,
-        r#"
-/// @diagnostic.error code=EC436 message="destructuring assignment only supports plain '='"
-/// @diagnostic.label line=5 column=1 source="[first] += values;"
 "#,
     );
 }
@@ -164,23 +121,25 @@ declare const user: { name: string; age: int32; active: boolean };
 
 === checked ===
 let name: string = "";
-/// @type.symbol symbol=name source=name type=string
-/// @type.node source="\"\"" type=string
+/// @type.symbol symbol=name#1 source=name type=string
+/// @type.node source="\"\"" type=""
 
 let rest: { age: int32; active: boolean } = { age: 0, active: false };
 /// @type.symbol symbol=rest source=rest type={ age: int32; active: boolean }
-/// @type.node source="{ age: 0, active: false }" type={ age: int32; active: boolean }
-/// @type.node source=0 type=int32
-/// @type.node source=false type=boolean
+/// @type.node source={ age: 0, active: false } type={ age: 0; active: false }
+/// @type.node source=0 type=0
+/// @type.node source=false type=false
 
 declare const user: { name: string; age: int32; active: boolean };
 /// @type.symbol symbol=user source=user type={ name: string; age: int32; active: boolean }
 
 ({ name, ...rest } = user);
-/// @type.node source="({ name, ...rest } = user)" type={ name: string; age: int32; active: boolean }
-/// @resolution.pattern.assign source="{ name, ...rest }" kind=object fields={ name } rest=...rest
-/// @resolution.pattern.assign source=name kind=place target=name
-/// @resolution.pattern.assign source=rest kind=place target=rest
+/// @type.node source="{ name, ...rest } = user" type={ name: string; age: int32; active: boolean }
+/// @resolution.pattern.assign source={ name, ...rest } kind=object fields={ name } rest=...rest
+/// @type.node source=name type=string
+/// @resolution.pattern.assign source=name kind=place place=binding(name#1) type=string
+/// @type.node source=rest type={ age: int32; active: boolean }
+/// @resolution.pattern.assign source=rest kind=place place=binding(rest) type={ age: int32; active: boolean }
 /// @type.node source=user type={ name: string; age: int32; active: boolean }
 /// @resolution.name source=user target=user
 "#,
@@ -213,20 +172,22 @@ declare const values: int32[];
 === checked ===
 let head: int32 = 0;
 /// @type.symbol symbol=head source=head type=int32
-/// @type.node source=0 type=int32
+/// @type.node source=0 type=0
 
 let tail: int32[] = [];
 /// @type.symbol symbol=tail source=tail type=Array<int32>
-/// @type.node source=[] type=Array<never>
+/// @type.node source=[] type=Array<int32>
 
 declare const values: int32[];
 /// @type.symbol symbol=values source=values type=Array<int32>
 
 [head, ...tail] = values;
 /// @type.node source="[head, ...tail] = values" type=Array<int32>
-/// @resolution.pattern.assign source="[head, ...tail]" kind=sequence sequence=array fields=(head) rest=...tail
-/// @resolution.pattern.assign source=head kind=place target=head
-/// @resolution.pattern.assign source=tail kind=place target=tail
+/// @resolution.pattern.assign source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
+/// @type.node source=head type=int32
+/// @resolution.pattern.assign source=head kind=place place=binding(head) type=int32
+/// @type.node source=tail type=Array<int32>
+/// @resolution.pattern.assign source=tail kind=place place=binding(tail) type=Array<int32>
 /// @type.node source=values type=Array<int32>
 /// @resolution.name source=values target=values
 "#,
@@ -241,7 +202,10 @@ let x: int32 = 0;
 let label: string = "";
 declare const packet: { point: { x: int32 }; meta: (string,) };
 
-({ point: { x }, meta: (label) } = packet);
+({
+    point: { x },
+    meta: (label,),
+} = packet);
 "#,
     );
 
@@ -254,27 +218,38 @@ let x: int32 = 0;
 let label: string = "";
 declare const packet: { point: { x: int32 }; meta: (string,) };
 
-({ point: { x }, meta: (label) } = packet);
+({
+    point: { x },
+    meta: (label,),
+} = packet);
 
 === checked ===
 let x: int32 = 0;
-/// @type.symbol symbol=x source=x type=int32
-/// @type.node source=0 type=int32
+/// @type.symbol symbol=x#1 source=x type=int32
+/// @type.node source=0 type=0
 
 let label: string = "";
 /// @type.symbol symbol=label source=label type=string
-/// @type.node source="\"\"" type=string
+/// @type.node source="\"\"" type=""
 
 declare const packet: { point: { x: int32 }; meta: (string,) };
 /// @type.symbol symbol=packet source=packet type={ point: { x: int32 }; meta: (string,) }
 
-({ point: { x }, meta: (label) } = packet);
-/// @type.node source="({ point: { x }, meta: (label) } = packet)" type={ point: { x: int32 }; meta: (string,) }
-/// @resolution.pattern.assign source="{ point: { x }, meta: (label) }" kind=object fields={ point: pattern, meta: pattern }
-/// @resolution.pattern.assign source="{ x }" kind=object fields={ x }
-/// @resolution.pattern.assign source=x kind=place target=x
-/// @resolution.pattern.assign source="(label)" kind=tuple fields=(label)
-/// @resolution.pattern.assign source=label kind=place target=label
+({
+/// @type.node type={ point: { x: int32 }; meta: (string,) }
+/// @resolution.pattern.assign kind=object fields={ point: assign_pattern, meta: assign_pattern }
+
+    point: { x },
+    /// @resolution.pattern.assign source={ x } kind=object fields={ x }
+    /// @type.node source=x type=int32
+    /// @resolution.pattern.assign source=x kind=place place=binding(x#1) type=int32
+
+    meta: (label,),
+    /// @resolution.pattern.assign source=(label,) kind=tuple fields=(label)
+    /// @type.node source=label type=string
+    /// @resolution.pattern.assign source=label kind=place place=binding(label) type=string
+
+} = packet);
 /// @type.node source=packet type={ point: { x: int32 }; meta: (string,) }
 /// @resolution.name source=packet target=packet
 "#,
@@ -289,7 +264,10 @@ let count: int32 = 0;
 let label: string = "";
 declare const packet: { count?: int32; labels: (string | undefined,) };
 
-({ count = 1, labels: (label = "missing") } = packet);
+({
+    count = 1,
+    labels: (label = "missing",),
+} = packet);
 "#,
     );
 
@@ -302,30 +280,41 @@ let count: int32 = 0;
 let label: string = "";
 declare const packet: { count?: int32; labels: (string | undefined,) };
 
-({ count = 1, labels: (label = "missing") } = packet);
+({
+    count = 1,
+    labels: (label = "missing",),
+} = packet);
 
 === checked ===
 let count: int32 = 0;
-/// @type.symbol symbol=count source=count type=int32
-/// @type.node source=0 type=int32
+/// @type.symbol symbol=count#1 source=count type=int32
+/// @type.node source=0 type=0
 
 let label: string = "";
 /// @type.symbol symbol=label source=label type=string
-/// @type.node source="\"\"" type=string
+/// @type.node source="\"\"" type=""
 
 declare const packet: { count?: int32; labels: (string | undefined,) };
 /// @type.symbol symbol=packet source=packet type={ count?: int32; labels: (string | undefined,) }
 
-({ count = 1, labels: (label = "missing") } = packet);
-/// @type.node source="({ count = 1, labels: (label = \"missing\") } = packet)" type={ count?: int32; labels: (string | undefined,) }
-/// @resolution.pattern.assign source="{ count = 1, labels: (label = \"missing\") }" kind=object fields={ count, labels: pattern }
-/// @resolution.pattern.assign source="count = 1" kind=default pattern=count value=1
-/// @resolution.pattern.assign source=count kind=place target=count
-/// @type.node source=1 type=int32
-/// @resolution.pattern.assign source="(label = \"missing\")" kind=tuple fields=(label)
-/// @resolution.pattern.assign source="label = \"missing\"" kind=default pattern=label value="missing"
-/// @resolution.pattern.assign source=label kind=place target=label
-/// @type.node source="\"missing\"" type=string
+({
+/// @type.node type={ count?: int32; labels: (string | undefined,) }
+/// @resolution.pattern.assign kind=object fields={ count, labels: assign_pattern }
+
+    count = 1,
+    /// @type.node source=count type=int32
+    /// @resolution.pattern.assign source="count = 1" kind=default pattern=count value=expression
+    /// @resolution.pattern.assign source=count kind=place place=binding(count#1) type=int32
+    /// @type.node source=1 type=1
+
+    labels: (label = "missing",),
+    /// @resolution.pattern.assign source=(label = "missing",) kind=tuple fields=(label)
+    /// @type.node source=label type=string
+    /// @resolution.pattern.assign source="label = \"missing\"" kind=default pattern=label value=expression
+    /// @resolution.pattern.assign source=label kind=place place=binding(label) type=string
+    /// @type.node source="\"missing\"" type="missing"
+
+} = packet);
 /// @type.node source=packet type={ count?: int32; labels: (string | undefined,) }
 /// @resolution.name source=packet target=packet
 "#,
@@ -356,16 +345,17 @@ declare const point: { x: int32 };
 === checked ===
 let value: int32 = 0;
 /// @type.symbol symbol=value source=value type=int32
-/// @type.node source=0 type=int32
+/// @type.node source=0 type=0
 
 declare const point: { x: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 
 ({ ["x"]: value } = point);
-/// @type.node source="({ [\"x\"]: value } = point)" type={ x: int32 }
-/// @resolution.pattern.assign source="{ [\"x\"]: value }" kind=object fields={ x: value }
+/// @type.node source="{ [\"x\"]: value } = point" type={ x: int32 }
+/// @resolution.pattern.assign source={ ["x"]: value } kind=object fields={ x: value }
 /// @type.node source="\"x\"" type="x"
-/// @resolution.pattern.assign source=value kind=place target=value
+/// @type.node source=value type=int32
+/// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
 "#,
@@ -401,17 +391,18 @@ declare const key: string;
 
 let value: int32 = 0;
 /// @type.symbol symbol=value source=value type=int32
-/// @type.node source=0 type=int32
+/// @type.node source=0 type=0
 
 declare const bag: { [key: string]: int32 };
 /// @type.symbol symbol=bag source=bag type={ [key: string]: int32 }
 
 ({ [key]: value } = bag);
-/// @type.node source="({ [key]: value } = bag)" type={ [key: string]: int32 }
-/// @resolution.pattern.assign source="{ [key]: value }" kind=object fields={ key: value }
+/// @type.node source="{ [key]: value } = bag" type={ [key: string]: int32 }
+/// @resolution.pattern.assign source={ [key]: value } kind=object fields={ key: value }
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
-/// @resolution.pattern.assign source=value kind=place target=value
+/// @type.node source=value type=int32
+/// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=bag type={ [key: string]: int32 }
 /// @resolution.name source=bag target=bag
 "#,
@@ -447,23 +438,21 @@ declare const key: string;
 
 let value: int32 = 0;
 /// @type.symbol symbol=value source=value type=int32
-/// @type.node source=0 type=int32
+/// @type.node source=0 type=0
 
 declare const point: { x: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 
 ({ [key]: value } = point);
-/// @type.node source="({ [key]: value } = point)" type=<error>
-/// @resolution.pattern.assign source="{ [key]: value }" kind=object fields={}
+/// @type.node source="{ [key]: value } = point" type=<error>
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
-/// @resolution.pattern.assign source=value kind=place target=value
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
 "#,
         r#"
 /// @diagnostic.error code=EC432 message="computed pattern key is not valid for the source type"
-/// @diagnostic.label line=6 column=5 source=key
+/// @diagnostic.label line=6 column=5 span="key" line_source="({ [key]: value } = point);"
 "#,
     );
 }

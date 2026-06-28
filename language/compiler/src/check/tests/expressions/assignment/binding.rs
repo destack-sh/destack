@@ -55,11 +55,10 @@ let value: int32 = 1;
 value = 2;
 /// @type.node source="value = 2" type=2
 /// @type.node source=value type=int32
-/// @resolution.name source=value target=value
-/// @resolution.pattern.assign source=value kind=place place=value
+/// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -89,11 +88,10 @@ let value: int32 = 1;
 value = "text";
 /// @type.node source="value = \"text\"" type="text"
 /// @type.node source=value type=int32
-/// @resolution.name source=value target=value
-/// @resolution.pattern.assign source=value kind=place place=value
+/// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source="\"text\"" type="text"
 
-/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"text\"' is not assignable to type 'int32'"
@@ -127,12 +125,11 @@ let value: int32 = 1;
 value += 2;
 /// @type.node source="value += 2" type=int32
 /// @type.node source=value type=int32
-/// @resolution.name source=value target=value
 /// @resolution.call source="value += 2" parameters=() return=int32 kind=builtin builtin=binary.add
-/// @resolution.pattern.assign source=value kind=place place=value
+/// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -162,11 +159,10 @@ let value = 1;
 value = 2;
 /// @type.node source="value = 2" type=2
 /// @type.node source=value type=float64
-/// @resolution.name source=value target=value
-/// @resolution.pattern.assign source=value kind=place place=value
+/// @resolution.pattern.assign source=value kind=place place=binding(value) type=float64
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -196,11 +192,10 @@ let value = 1;
 value = "text";
 /// @type.node source="value = \"text\"" type="text"
 /// @type.node source=value type=float64
-/// @resolution.name source=value target=value
-/// @resolution.pattern.assign source=value kind=place place=value
+/// @resolution.pattern.assign source=value kind=place place=binding(value) type=float64
 /// @type.node source="\"text\"" type="text"
 
-/// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"text\"' is not assignable to type 'float64'"
@@ -233,11 +228,10 @@ let value: int32;
 value = 1;
 /// @type.node source="value = 1" type=1
 /// @type.node source=value type=int32
-/// @resolution.name source=value target=value
-/// @resolution.pattern.assign source=value kind=place place=value
+/// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -266,13 +260,12 @@ let values: int32[];
 values = [1, 2];
 /// @type.node source="values = [1, 2]" type=Array<int32>
 /// @type.node source=values type=Array<int32>
-/// @resolution.name source=values target=values
-/// @resolution.pattern.assign source=values kind=place place=values
+/// @resolution.pattern.assign source=values kind=place place=binding(values) type=Array<int32>
 /// @type.node source=[1, 2] type=Array<int32>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=6 constraints=3 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=6 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -301,11 +294,10 @@ let values: int32[];
 values = [];
 /// @type.node source="values = []" type=Array<int32>
 /// @type.node source=values type=Array<int32>
-/// @resolution.name source=values target=values
-/// @resolution.pattern.assign source=values kind=place place=values
+/// @resolution.pattern.assign source=values kind=place place=binding(values) type=Array<int32>
 /// @type.node source=[] type=Array<int32>
 
-/// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -334,13 +326,12 @@ let values: [int32; 2];
 values = [1, 2];
 /// @type.node source="values = [1, 2]" type=FixedArray<int32, 2>
 /// @type.node source=values type=FixedArray<int32, 2>
-/// @resolution.name source=values target=values
-/// @resolution.pattern.assign source=values kind=place place=values
+/// @resolution.pattern.assign source=values kind=place place=binding(values) type=FixedArray<int32, 2>
 /// @type.node source=[1, 2] type=FixedArray<int32, 2>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=8 constraints=3 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=8 constraints=3 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -369,14 +360,13 @@ let values: [int32; 2];
 values = [1, 2, 3];
 /// @type.node source="values = [1, 2, 3]" type=FixedArray<int32, 3>
 /// @type.node source=values type=FixedArray<int32, 2>
-/// @resolution.name source=values target=values
-/// @resolution.pattern.assign source=values kind=place place=values
+/// @resolution.pattern.assign source=values kind=place place=binding(values) type=FixedArray<int32, 2>
 /// @type.node source=[1, 2, 3] type=FixedArray<int32, 3>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=0 types=9 constraints=4 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=9 constraints=4 obligations=1 solutions=0 bounds=0 decisions=1
 
 "#,
         r#"
@@ -412,8 +402,7 @@ let value: string;
 value = "ready";
 /// @type.node source="value = \"ready\"" type="ready"
 /// @type.node source=value type=string
-/// @resolution.name source=value target=value
-/// @resolution.pattern.assign source=value kind=place place=value
+/// @resolution.pattern.assign source=value kind=place place=binding(value) type=string
 /// @type.node source="\"ready\"" type="ready"
 
 const copy = value;
@@ -421,7 +410,7 @@ const copy = value;
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -504,8 +493,7 @@ if (condition) {
     value = "ready";
     /// @type.node source="value = \"ready\"" type="ready"
     /// @type.node source=value type=string
-    /// @resolution.name source=value target=value
-    /// @resolution.pattern.assign source=value kind=place place=value
+    /// @resolution.pattern.assign source=value kind=place place=binding(value) type=string
     /// @type.node source="\"ready\"" type="ready"
 
 }
@@ -514,7 +502,7 @@ const copy = value;
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=10 constraints=2 obligations=1 solutions=0 bounds=0 decisions=4
+/// @check.stats.solve variables=0 types=10 constraints=2 obligations=1 solutions=0 bounds=0 decisions=3
 
 "#,
         r#"
@@ -567,8 +555,7 @@ if (condition) {
     value = "ready";
     /// @type.node source="value = \"ready\"" type="ready"
     /// @type.node source=value type=string | undefined
-    /// @resolution.name source=value target=value
-    /// @resolution.pattern.assign source=value kind=place place=value
+    /// @resolution.pattern.assign source=value kind=place place=binding(value) type=string | undefined
     /// @type.node source="\"ready\"" type="ready"
 
 }
@@ -577,7 +564,7 @@ const copy = value;
 /// @type.node source=value type=string | undefined
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=13 constraints=3 obligations=1 solutions=0 bounds=0 decisions=4
+/// @check.stats.solve variables=0 types=13 constraints=3 obligations=1 solutions=0 bounds=0 decisions=3
 "#,
     );
 }

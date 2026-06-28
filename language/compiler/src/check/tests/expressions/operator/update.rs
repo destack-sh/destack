@@ -1,0 +1,63 @@
+use crate::tests::{DirRows, TestSession};
+
+#[test]
+fn test_postfix_increment_records_place() {
+    let session = TestSession::single(
+        r#"
+let value: int32 = 1;
+const before = value++;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+let value: int32 = 1;
+const before: int32 = value++;
+
+=== checked ===
+let value: int32 = 1;
+/// @type.symbol symbol=value source=value type=int32
+/// @type.node source=1 type=1
+
+const before = value++;
+/// @type.symbol symbol=before source=before type=int32
+/// @type.node source=value type=int32
+/// @type.node source=value++ type=int32
+/// @resolution.place source=value place=binding(value) type=int32
+"#,
+    );
+}
+
+#[test]
+fn test_prefix_decrement_records_place() {
+    let session = TestSession::single(
+        r#"
+let value: int32 = 1;
+const after = --value;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+let value: int32 = 1;
+const after: int32 = --value;
+
+=== checked ===
+let value: int32 = 1;
+/// @type.symbol symbol=value source=value type=int32
+/// @type.node source=1 type=1
+
+const after = --value;
+/// @type.symbol symbol=after source=after type=int32
+/// @type.node source=--value type=int32
+/// @type.node source=value type=int32
+/// @resolution.place source=value place=binding(value) type=int32
+"#,
+    );
+}
