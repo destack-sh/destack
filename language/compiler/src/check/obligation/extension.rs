@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckState, DeclaredMember, Dependency, Origin, Relation, answer};
+use crate::check::{Answer, CheckState, Dependency, Origin, Relation, answer};
 use crate::{CheckError, CompilerResult};
 
 impl CheckState<'_> {
@@ -147,10 +147,18 @@ impl CheckState<'_> {
 
         // compare each required member with the extension's declared member
         for interface_member in required {
-            let found = members
-                .iter()
-                .filter_map(DeclaredMember::from_definition)
-                .find(|member| member.matches(interface_member.space, interface_member.key));
+            let mut found = None;
+            for member in members {
+                let member = match self.declared_member(member)? {
+                    Answer::Ready(Some(member)) => member,
+                    Answer::Ready(None) => continue,
+                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                };
+                if member.matches(interface_member.space, interface_member.key) {
+                    found = Some(member);
+                    break;
+                }
+            }
             let Some(found) = found else {
                 return Ok(Answer::Ready(Some(self.extension_interface_error(
                     anchor_source,

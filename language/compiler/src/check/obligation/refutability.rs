@@ -163,16 +163,23 @@ impl CheckState<'_> {
             | dir::Pattern::Must(inner)
             | dir::Pattern::BorrowOf { right: inner, .. }
             | dir::Pattern::MoveOf { right: inner, .. }
-            | dir::Pattern::DereferenceOf { right: inner }
-            | dir::Pattern::Default { pattern: inner, .. } => {
+            | dir::Pattern::DereferenceOf { right: inner } => {
                 let inner = *inner;
 
                 self.decide_pattern_covers(origin, inner.into_global(module), value)
             }
+            // defaults cover absent values before testing the nested pattern
+            dir::Pattern::Default { pattern: inner, .. } => {
+                if self.ty(value)?.is_undefined() {
+                    Ok(Answer::Ready(true))
+                } else {
+                    self.decide_pattern_covers(origin, inner.into_global(module), value)
+                }
+            }
             // expression patterns cover values their type absorbs
             dir::Pattern::Expression { value: expression } => {
                 let expression = *expression;
-                let expected = answer!(self.node_type_answer(expression.into_global_any(module))?);
+                let expected = answer!(self.node_type(expression.into_global_any(module))?);
 
                 self.decide_relation(origin, Relation::Assignable, value, expected)
             }
@@ -199,7 +206,7 @@ impl CheckState<'_> {
             | dir::Pattern::NominalObject { ty, fields } => {
                 let ty = *ty;
                 let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
-                let tag = answer!(self.node_type_answer(ty.into_global_any(module))?);
+                let tag = answer!(self.node_type(ty.into_global_any(module))?);
                 let tag_decision =
                     self.decide_relation(origin, Relation::Assignable, value, tag)?;
                 if !tag_decision.is_ready_true() {
@@ -233,8 +240,8 @@ impl CheckState<'_> {
         let mut decision = Answer::Ready(true);
 
         for field in fields {
-            let view = self.module(module).view();
-            let field_decision = match view.get(*field) {
+            let field = self.module(module).view().get(*field).clone();
+            let field_decision = match field {
                 // bare fields and elisions always cover
                 dir::PatternField::Named { pattern: None, .. }
                 | dir::PatternField::Spread { pattern: None }
@@ -245,7 +252,11 @@ impl CheckState<'_> {
                     pattern: Some(pattern),
                     ..
                 } => {
-                    let (key, pattern) = (name.static_key(), *pattern);
+                    let key = name.static_key();
+                    let is_defaulted = matches!(
+                        self.module(module).view().get(pattern),
+                        dir::Pattern::Default { .. }
+                    );
                     let lookup =
                         self.lookup_member(origin, module, value, dir::MemberSpace::Instance, key)?;
                     let member = match lookup {
@@ -263,7 +274,21 @@ impl CheckState<'_> {
                         Some(member) => {
                             self.decide_pattern_covers(origin, pattern.into_global(module), member)?
                         }
-                        None => Answer::Ready(false),
+                        None => {
+                            if is_defaulted {
+                                let source = self.origin_source_node(origin)?;
+                                let undefined =
+                                    self.push_type(module, dir::Type::Undefined, source)?;
+
+                                self.decide_pattern_covers(
+                                    origin,
+                                    pattern.into_global(module),
+                                    undefined,
+                                )?
+                            } else {
+                                Answer::Ready(false)
+                            }
+                        }
                     }
                 }
                 // inner fields cover through the whole value
@@ -271,11 +296,7 @@ impl CheckState<'_> {
                 | dir::PatternField::Positional { pattern }
                 | dir::PatternField::Spread {
                     pattern: Some(pattern),
-                } => {
-                    let pattern = *pattern;
-
-                    self.decide_pattern_covers(origin, pattern.into_global(module), value)?
-                }
+                } => self.decide_pattern_covers(origin, pattern.into_global(module), value)?,
             };
 
             decision = decision.and(field_decision);
@@ -323,7 +344,7 @@ impl CheckState<'_> {
         let Some(bound) = bound else {
             return Ok(Answer::Ready(None));
         };
-        let ty = answer!(self.node_type_answer(bound.into_global_any(module))?);
+        let ty = answer!(self.node_type(bound.into_global_any(module))?);
 
         let reduced = answer!(self.reduce_type_root(origin, ty)?);
         match self.ty(reduced)? {

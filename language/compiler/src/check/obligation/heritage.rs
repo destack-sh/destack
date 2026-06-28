@@ -34,45 +34,53 @@ struct ClassHeritage {
     final_base: Option<dir::GlobalSymbolId>,
 }
 
-impl ClassMember {
+impl CheckState<'_> {
     /// Return the class member represented by one definition member.
-    fn from_definition(member: &dir::DefinitionMember) -> Option<Self> {
+    fn class_member(
+        &mut self,
+        member: &dir::DefinitionMember,
+    ) -> CompilerResult<Answer<Option<ClassMember>>> {
         match member {
             dir::DefinitionMember::Field(field) if field.space == dir::MemberSpace::Instance => {
-                Some(Self {
+                let Some(ty) = answer!(self.definition_member_type(member)?) else {
+                    return Ok(Answer::Ready(None));
+                };
+
+                Ok(Answer::Ready(Some(ClassMember {
                     key: field.key,
-                    ty: field.ty,
+                    ty,
                     source: field.source,
                     role: MemberRole::Field,
                     is_overridable: field.is_abstract,
                     is_override: field.is_override,
                     is_abstract: field.is_abstract,
-                })
+                })))
             }
             dir::DefinitionMember::Method(method) if method.space == dir::MemberSpace::Instance => {
                 let dir::MemberSlot::Key(key) = method.slot else {
-                    return None;
+                    return Ok(Answer::Ready(None));
+                };
+                let Some(ty) = answer!(self.definition_member_type(member)?) else {
+                    return Ok(Answer::Ready(None));
                 };
                 let is_abstract = method.abstraction == dir::MethodAbstraction::Abstract;
                 let is_virtual = method.abstraction == dir::MethodAbstraction::Virtual;
                 let is_overridable = is_abstract || is_virtual;
 
-                Some(Self {
+                Ok(Answer::Ready(Some(ClassMember {
                     key,
-                    ty: method.ty,
+                    ty,
                     source: method.source,
                     role: MemberRole::Method,
                     is_overridable,
                     is_override: method.is_override,
                     is_abstract,
-                })
+                })))
             }
-            _ => None,
+            _ => Ok(Answer::Ready(None)),
         }
     }
-}
 
-impl CheckState<'_> {
     /// Check one declaration against its heritage rules.
     pub(in crate::check) fn check_declaration_heritage(
         &mut self,
@@ -129,14 +137,16 @@ impl CheckState<'_> {
         let extends = class.extends.clone();
 
         // collect own instance members relevant to heritage rules
-        let own = class
-            .members
-            .iter()
-            .filter_map(ClassMember::from_definition)
-            .collect::<Vec<_>>();
+        let members = class.members.clone();
+        let mut own = Vec::new();
+        for member in &members {
+            if let Some(member) = answer!(self.class_member(member)?) {
+                own.push(member);
+            }
+        }
 
         // collect inherited members walking up the extends chain
-        let heritage = self.class_heritage(origin, extends)?;
+        let heritage = answer!(self.class_heritage(origin, extends)?);
 
         // decide every rule before reporting anything
         // (so pending re-runs never duplicate diagnostics)
@@ -286,7 +296,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         extends: Option<dir::NominalHeritage>,
-    ) -> CompilerResult<ClassHeritage> {
+    ) -> CompilerResult<Answer<ClassHeritage>> {
         let module = origin.module();
         let source = self.origin_source_node(origin)?;
         let mut members = Vec::<ClassMember>::new();
@@ -314,11 +324,7 @@ impl CheckState<'_> {
             let Some(dir::Definition::Class(base)) = self.definition(instance.symbol) else {
                 break;
             };
-            let base_members = base
-                .members
-                .iter()
-                .filter_map(ClassMember::from_definition)
-                .collect::<Vec<_>>();
+            let base_members = base.members.clone();
             extends = base.extends.clone();
 
             // only the direct base can reject extension
@@ -328,7 +334,10 @@ impl CheckState<'_> {
 
             // apply this base's parameters to its inherited member types
             substitution = self.instance_substitution(&instance)?;
-            for mut member in base_members {
+            for member in &base_members {
+                let Some(mut member) = answer!(self.class_member(member)?) else {
+                    continue;
+                };
                 if !substitution.is_empty() {
                     member.ty =
                         self.fold_type(module, source, member.ty, substitution.rewrite())?;
@@ -337,10 +346,10 @@ impl CheckState<'_> {
             }
         }
 
-        Ok(ClassHeritage {
+        Ok(Answer::Ready(ClassHeritage {
             members,
             final_base,
-        })
+        }))
     }
 
     /// Return one declaration's own generic application.
