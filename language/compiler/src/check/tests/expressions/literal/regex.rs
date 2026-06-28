@@ -21,7 +21,7 @@ const value: RegExp = /abc/;
 /// @resolution.name source=RegExp target=regexp.regexp.RegExp
 /// @type.node source=/abc/ type=RegExp
 
-/// @check.stats.solve variables=0 types=2 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -51,7 +51,7 @@ const value: string = /abc/;
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'RegExp' is not assignable to type 'string'"
-/// @diagnostic.label line=2 column=23 source="const value: string = /abc/;"
+/// @diagnostic.label line=2 column=23 span="/abc/" line_source="const value: string = /abc/;"
 "#,
     );
 }
@@ -77,7 +77,7 @@ const value: RegExp | int32 = /abc/;
 /// @resolution.name source=RegExp target=regexp.regexp.RegExp
 /// @type.node source=/abc/ type=RegExp
 
-/// @check.stats.solve variables=0 types=4 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -107,7 +107,7 @@ const value: boolean = /abc/;
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'RegExp' is not assignable to type 'boolean'"
-/// @diagnostic.label line=2 column=24 source="const value: boolean = /abc/;"
+/// @diagnostic.label line=2 column=24 span="/abc/" line_source="const value: boolean = /abc/;"
 "#,
     );
 }

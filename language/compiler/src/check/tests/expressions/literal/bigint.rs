@@ -68,7 +68,7 @@ const value: bigint = 42n;
 === checked ===
 const value: bigint = 42n;
 /// @type.symbol symbol=value source=value type=bigint
-/// @type.node source=42n type=bigint
+/// @type.node source=42n type=42n
 
 /// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
@@ -88,7 +88,7 @@ const value: number = 42n;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const value: number = 42n;
+const value: float64 = 42n;
 
 === checked ===
 const value: number = 42n;
@@ -100,7 +100,7 @@ const value: number = 42n;
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '42n' is not assignable to type 'float64'"
-/// @diagnostic.label line=2 column=23 source="const value: number = 42n;"
+/// @diagnostic.label line=2 column=23 span="42n" line_source="const value: number = 42n;"
 "#,
     );
 }
@@ -123,7 +123,7 @@ const value: bigint | string = 42n as bigint | string;
 === checked ===
 const value: bigint | string = 42n;
 /// @type.symbol symbol=value source=value type=bigint | string
-/// @type.node source=42n type=bigint
+/// @type.node source=42n type=42n
 
 /// @check.stats.solve variables=0 types=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
