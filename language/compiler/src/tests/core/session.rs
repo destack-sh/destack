@@ -1063,77 +1063,12 @@ fn assert_equal(actual: impl AsRef<str>, expected: &str) {
         return;
     }
 
-    // refresh judged expectations in place instead of failing
-    if std::env::var_os("DESTACK_SNAPSHOT_UPDATE").is_some()
-        && update_expectation(std::panic::Location::caller(), expected, actual)
-    {
-        return;
-    }
-
     let diff = format_diff(expected, actual, &DiffOptions::new());
 
     panic!("snapshot mismatch\n\n{diff}");
 }
 
-/// Rewrite one expectation literal at its call site.
-/// Returns false for expectations that need a manual seed: empty
-/// strings carry no anchor text to locate in the test source.
-fn update_expectation(caller: &std::panic::Location<'_>, expected: &str, actual: &str) -> bool {
-    if expected.is_empty() {
-        return false;
-    }
-
-    // serialize whole-file rewrites across parallel tests
-    static UPDATE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    let guard = UPDATE_LOCK
-        .lock()
-        .expect("snapshot update lock is never poisoned");
-
-    // caller paths are workspace-relative
-    let path = std::path::Path::new(caller.file());
-    let path = if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .ancestors()
-            .nth(2)
-            .expect("the compiler manifest sits two levels under the workspace")
-            .join(path)
-    };
-    let content = std::fs::read_to_string(&path).expect("test source should be readable");
-
-    // pick the expectation occurrence nearest the assert call
-    let needle = format!("\n{expected}\n");
-    let caller_line = caller.line() as usize;
-    let nearest = content
-        .match_indices(&needle)
-        .map(|(offset, _)| offset)
-        .min_by_key(|offset| {
-            let line = content[..*offset].matches('\n').count() + 1;
-
-            line.abs_diff(caller_line)
-        });
-    let Some(offset) = nearest else {
-        return false;
-    };
-
-    let mut updated = content;
-    updated.replace_range(offset..offset + needle.len(), &format!("\n{actual}\n"));
-    std::fs::write(&path, updated).expect("test source should be writable");
-    drop(guard);
-
-    eprintln!("snapshot updated at {}:{}", caller.file(), caller_line);
-
-    true
-}
-
 /// Return the blob store shared by every test session in this process.
-///
-/// Sharing rests on the same invariant the production store rests on:
-/// artifact keys are content addressed, so a hit can only ever replay
-/// the exact computation it names. Tests exploit it so the library
-/// packages every fixture imports check once per process instead of
-/// once per test.
 fn shared_blob_store() -> Arc<MemoryBlobStore> {
     static STORE: OnceLock<Arc<MemoryBlobStore>> = OnceLock::new();
 
