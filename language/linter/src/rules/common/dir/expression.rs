@@ -79,9 +79,9 @@ pub fn assign_pattern_field_contains_expression(
     let assign_pattern_field = tree.get(assign_pattern_field_id);
 
     match assign_pattern_field {
-        dir::AssignPatternField::Named { pattern, .. } => pattern.is_some_and(|pattern_id| {
-            assign_pattern_contains_expression(tree, pattern_id, expression_id)
-        }),
+        dir::AssignPatternField::Named { pattern, .. } => {
+            assign_pattern_contains_expression(tree, *pattern, expression_id)
+        }
         dir::AssignPatternField::Computed { key, pattern } => {
             *key == expression_id
                 || assign_pattern_contains_expression(tree, *pattern, expression_id)
