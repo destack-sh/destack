@@ -553,6 +553,31 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.type_table_label(types, type_id.local_id)
     }
 
+    /// Render one symbol's checked type.
+    pub(crate) fn global_symbol_type_label(&self, symbol: dir::GlobalSymbolId) -> String {
+        let type_id = if symbol.module_id != self.tree.module_id {
+            let types = self
+                .foreign_types
+                .get(&symbol.module_id)
+                .unwrap_or_else(|| {
+                    panic!("dir snapshot missing foreign type table for symbol {symbol:?}")
+                });
+
+            types.get_symbol_type_id(symbol)
+        } else {
+            let types = self
+                .types
+                .as_ref()
+                .unwrap_or_else(|| panic!("dir snapshot missing type table for symbol {symbol:?}"));
+
+            types.get_symbol_type_id(symbol)
+        };
+        let type_id =
+            type_id.unwrap_or_else(|| panic!("dir snapshot symbol {symbol:?} has no type"));
+
+        self.global_type_label(type_id)
+    }
+
     /// Render one global static id using semantic static text when possible.
     pub(crate) fn global_static_label(&self, static_id: dir::GlobalStaticId) -> String {
         if let Some(label) = self.static_labels.get(&static_id) {

@@ -29,8 +29,8 @@ impl SnapshotTable for dir::ResolutionSegment {
             add_call_resolution_row(builder, node_id, resolution);
         }
 
-        for (node_id, resolution) in self.read_write_entries() {
-            add_read_write_resolution_row(builder, node_id, resolution);
+        for (node_id, resolution) in self.place_entries() {
+            add_place_resolution_row(builder, node_id, resolution);
         }
 
         for (node_id, resolution) in self.guard_entries() {
@@ -55,7 +55,7 @@ impl SnapshotTable for dir::ResolutionSegment {
         let receiver_count = self.receiver_entries().count();
         let member_count = self.member_entries().count();
         let call_count = self.call_entries().count();
-        let read_write_count = self.read_write_entries().count();
+        let place_count = self.place_entries().count();
         let guard_count = self.guard_entries().count();
         let construct_count = self.construct_entries().count();
         let pattern_count = self.pattern_entries().count();
@@ -66,7 +66,7 @@ impl SnapshotTable for dir::ResolutionSegment {
             && receiver_count == 0
             && member_count == 0
             && call_count == 0
-            && read_write_count == 0
+            && place_count == 0
             && guard_count == 0
             && construct_count == 0
             && pattern_count == 0
@@ -82,6 +82,7 @@ impl SnapshotTable for dir::ResolutionSegment {
             .count_field("receivers", receiver_count)
             .count_field("members", member_count)
             .count_field("calls", call_count)
+            .count_field("places", place_count)
             .count_field("guards", guard_count)
             .count_field("constructs", construct_count)
             .count_field("patterns", pattern_count)
@@ -271,26 +272,16 @@ fn add_call_resolution_row(
     add_call_target_generic_instances(builder, node_id, &resolution.target);
 }
 
-/// Add one paired read-write resolution row.
-fn add_read_write_resolution_row(
+/// Add one place resolution row.
+fn add_place_resolution_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: &dir::ReadWriteResolution,
+    resolution: &dir::PlaceResolution,
 ) {
-    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "readwrite")
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "place")
         .optional_field("source", builder.node_source(node_id))
-        .type_field(
-            "element",
-            builder.global_type_label(resolution.read.return_type),
-        );
-
-    // both halves resolve symbol-backed accessor methods
-    let row = match (&resolution.read.target, &resolution.write.target) {
-        (dir::CallTarget::Symbol(read), dir::CallTarget::Symbol(write)) => row
-            .field("read", builder.call_candidate_label(read))
-            .field("write", builder.call_candidate_label(write)),
-        _ => row,
-    };
+        .field("place", storage_label(builder, &resolution.storage))
+        .type_field("type", builder.global_type_label(resolution.ty));
 
     builder.push(row);
 }
@@ -311,36 +302,26 @@ fn add_guard_resolution_row(
     };
 
     let row = match resolution {
-        dir::GuardResolution::Is(predicate) => row
-            .field("kind", "is")
-            .type_field("value", builder.global_type_label(predicate.value_type))
-            .type_field("target", builder.global_type_label(predicate.target_type))
-            .field("predicate", predicate_label(builder, &predicate.predicate))
-            .optional_field(
-                "success",
-                predicate
-                    .predicate
-                    .success
-                    .as_ref()
-                    .map(|projection| projection_label(builder, projection)),
-            ),
-        dir::GuardResolution::InstanceOf(predicate) => row
-            .field("kind", "instanceof")
-            .type_field("value", builder.global_type_label(predicate.value_type))
-            .field("target", builder.symbol_path_label(predicate.target))
-            .type_field(
-                "target_type",
-                builder.global_type_label(predicate.target_type),
-            )
-            .field("predicate", predicate_label(builder, &predicate.predicate))
-            .optional_field(
-                "success",
-                predicate
-                    .predicate
-                    .success
-                    .as_ref()
-                    .map(|projection| projection_label(builder, projection)),
-            ),
+        dir::GuardResolution::Is(predicate) => {
+            let row = row
+                .field("kind", "is")
+                .type_field("value", builder.global_type_label(predicate.value_type))
+                .type_field("target", builder.global_type_label(predicate.target_type));
+
+            add_predicate_fields(builder, row, &predicate.predicate)
+        }
+        dir::GuardResolution::InstanceOf(predicate) => {
+            let row = row
+                .field("kind", "instanceof")
+                .type_field("value", builder.global_type_label(predicate.value_type))
+                .field("target", builder.symbol_path_label(predicate.target))
+                .type_field(
+                    "target_type",
+                    builder.global_type_label(predicate.target_type),
+                );
+
+            add_predicate_fields(builder, row, &predicate.predicate)
+        }
         dir::GuardResolution::In(predicate) => {
             let row = row
                 .field("kind", "in")
@@ -348,10 +329,9 @@ fn add_guard_resolution_row(
                 .type_field(
                     "receiver",
                     builder.global_type_label(predicate.receiver_type),
-                )
-                .field("predicate", predicate_label(builder, &predicate.predicate));
+                );
 
-            row
+            add_predicate_fields(builder, row, &predicate.predicate)
         }
     };
 
@@ -359,17 +339,70 @@ fn add_guard_resolution_row(
     add_predicate_generic_instances(builder, node_id, predicate);
 }
 
-/// Return a compact label for one selected value projection.
+/// Add common predicate fields to one row.
+fn add_predicate_fields(
+    builder: &DirSnapshotBuilder<'_>,
+    row: SnapshotRow,
+    predicate: &dir::Predicate,
+) -> SnapshotRow {
+    row.field("predicate", predicate_label(builder, predicate))
+        .optional_type_field(
+            "narrowed",
+            predicate.narrowed.map(|ty| builder.global_type_label(ty)),
+        )
+        .optional_field(
+            "projection",
+            predicate
+                .projection
+                .as_ref()
+                .map(|projection| projection_label(builder, projection)),
+        )
+}
+
+/// Return one projection snapshot label.
 fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projection) -> String {
     match projection {
-        dir::Projection::Identity { ty } => {
-            format!("identity({})", builder.global_type_label(*ty))
-        }
         dir::Projection::FieldGet { field, ty } => format!(
             "field.get({}, {})",
             projection_field_label(builder, field),
             builder.global_type_label(*ty)
         ),
+        dir::Projection::PropertyGet { read, ty } => format!(
+            "property.get({}, {})",
+            getter_label(builder, read),
+            builder.global_type_label(*ty)
+        ),
+        dir::Projection::SubscriptGet { index, read, ty } => format!(
+            "subscript.get({}, {}, {})",
+            builder
+                .node_source(*index)
+                .unwrap_or_else(|| builder.node_label(*index)),
+            subscript_operation_label(builder, read),
+            builder.global_type_label(*ty)
+        ),
+        dir::Projection::Call { call, ty } => format!(
+            "call({}, {})",
+            call_target_label(builder, &call.target),
+            builder.global_type_label(*ty)
+        ),
+        dir::Projection::ObjectRest { fields, ty } => {
+            let fields = fields
+                .iter()
+                .map(|field| {
+                    format!(
+                        "{}: {}",
+                        builder.static_key(field.key),
+                        projection_label(builder, &field.projection)
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            format!(
+                "object.rest({{ {fields} }}, {})",
+                builder.global_type_label(*ty)
+            )
+        }
         dir::Projection::SliceLength { ty } => {
             format!("slice.length({})", builder.global_type_label(*ty))
         }
@@ -426,13 +459,114 @@ fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projecti
 
             format!("move({access}, {})", builder.global_type_label(*ty))
         }
-        dir::Projection::Dereference { ty } => {
-            format!("dereference({})", builder.global_type_label(*ty))
+        dir::Projection::Dereference { read, ty } => {
+            format!(
+                "dereference({}, {})",
+                dereference_operation_label(builder, read),
+                builder.global_type_label(*ty)
+            )
         }
     }
 }
 
-/// Return a compact label for one projected field.
+/// Return one subscript operation snapshot label.
+fn subscript_operation_label(
+    builder: &DirSnapshotBuilder<'_>,
+    operation: &dir::SubscriptOperation,
+) -> String {
+    match operation {
+        dir::SubscriptOperation::Member(member) => {
+            format!("member({})", member_target_label(builder, &member.target))
+        }
+        dir::SubscriptOperation::Call(call) => call_target_label(builder, &call.target),
+    }
+}
+
+/// Return one storage snapshot label.
+fn storage_label(builder: &DirSnapshotBuilder<'_>, storage: &dir::Storage) -> String {
+    match storage {
+        dir::Storage::Binding { symbol } => {
+            format!("binding({})", builder.symbol_path_label(*symbol))
+        }
+        dir::Storage::Field { field, .. } => {
+            format!("field({})", projection_field_label(builder, field))
+        }
+        dir::Storage::Property { read, write } => {
+            let write = setter_label(builder, write);
+            match read {
+                Some(read) => format!("property({}, {write})", getter_label(builder, read)),
+                None => format!("property({write})"),
+            }
+        }
+        dir::Storage::Subscript { read, write, .. } => {
+            let write = subscript_operation_label(builder, write);
+            match read {
+                Some(read) => format!(
+                    "subscript({}, {write})",
+                    subscript_operation_label(builder, read)
+                ),
+                None => format!("subscript({write})"),
+            }
+        }
+        dir::Storage::Dereference { read, write } => {
+            let write = dereference_operation_label(builder, write);
+            match read {
+                Some(read) => {
+                    format!(
+                        "dereference({}, {write})",
+                        dereference_operation_label(builder, read)
+                    )
+                }
+                None => format!("dereference({write})"),
+            }
+        }
+    }
+}
+
+/// Return one getter snapshot label.
+fn getter_label(builder: &DirSnapshotBuilder<'_>, member: &dir::MemberResolution) -> String {
+    format!("getter({})", member_target_label(builder, &member.target))
+}
+
+/// Return one setter snapshot label.
+fn setter_label(builder: &DirSnapshotBuilder<'_>, member: &dir::MemberResolution) -> String {
+    format!("setter({})", member_target_label(builder, &member.target))
+}
+
+/// Return one dereference operation snapshot label.
+fn dereference_operation_label(
+    builder: &DirSnapshotBuilder<'_>,
+    operation: &dir::DereferenceOperation,
+) -> String {
+    match operation {
+        dir::DereferenceOperation::Direct => "direct".to_string(),
+        dir::DereferenceOperation::Call(call) => call_target_label(builder, &call.target),
+    }
+}
+
+/// Return one member target snapshot label.
+fn member_target_label(builder: &DirSnapshotBuilder<'_>, target: &dir::MemberTarget) -> String {
+    match target {
+        dir::MemberTarget::Field(key) => format!("field({})", builder.static_key(*key)),
+        dir::MemberTarget::Element(index) => format!("element({index})"),
+        dir::MemberTarget::Index(key) => {
+            format!("index({})", builder.global_type_label(*key))
+        }
+        dir::MemberTarget::Symbol(candidate) => builder.member_candidate_label(candidate),
+        dir::MemberTarget::Existential(candidates) => candidates
+            .iter()
+            .map(|candidate| builder.member_candidate_label(candidate))
+            .collect::<Vec<_>>()
+            .join(" | "),
+        dir::MemberTarget::Universal(candidates) => candidates
+            .iter()
+            .map(|candidate| builder.member_candidate_label(candidate))
+            .collect::<Vec<_>>()
+            .join(" & "),
+    }
+}
+
+/// Return one projected field snapshot label.
 fn projection_field_label(
     builder: &DirSnapshotBuilder<'_>,
     field: &dir::ProjectionField,
@@ -461,17 +595,17 @@ fn projection_generic_arguments_label(
     }
 }
 
-/// Return a compact label for one executable predicate.
+/// Return one predicate snapshot label.
 fn predicate_label(builder: &DirSnapshotBuilder<'_>, predicate: &dir::Predicate) -> String {
     match &predicate.test {
         dir::PredicateTest::Unary(test) => format!(
             "{} is {}",
-            projection_label(builder, &test.input),
+            predicate_operand_label(builder, &test.input),
             predicate_condition_label(builder, &test.condition)
         ),
         dir::PredicateTest::Has(test) => format!(
             "has({}, {})",
-            projection_label(builder, &test.receiver),
+            predicate_operand_label(builder, &test.receiver),
             predicate_key_label(builder, &test.key)
         ),
         dir::PredicateTest::Call(resolution) => {
@@ -485,7 +619,7 @@ fn predicate_label(builder: &DirSnapshotBuilder<'_>, predicate: &dir::Predicate)
     }
 }
 
-/// Return a compact label for one predicate condition.
+/// Return one predicate condition snapshot label.
 fn predicate_condition_label(
     builder: &DirSnapshotBuilder<'_>,
     condition: &dir::PredicateCondition,
@@ -503,15 +637,26 @@ fn predicate_condition_label(
     }
 }
 
-/// Return a compact label for one predicate key.
+/// Return one predicate key snapshot label.
 fn predicate_key_label(builder: &DirSnapshotBuilder<'_>, key: &dir::PredicateKey) -> String {
     match key {
         dir::PredicateKey::Static(key) => builder.static_key(*key),
-        dir::PredicateKey::Dynamic(projection) => projection_label(builder, projection),
+        dir::PredicateKey::Dynamic(operand) => predicate_operand_label(builder, operand),
     }
 }
 
-/// Return a compact label for one call target.
+/// Return one predicate operand snapshot label.
+fn predicate_operand_label(
+    builder: &DirSnapshotBuilder<'_>,
+    operand: &dir::PredicateOperand,
+) -> String {
+    match &operand.projection {
+        Some(projection) => projection_label(builder, projection),
+        None => builder.global_type_label(operand.ty),
+    }
+}
+
+/// Return one call target snapshot label.
 fn call_target_label(builder: &DirSnapshotBuilder<'_>, target: &dir::CallTarget) -> String {
     match target {
         dir::CallTarget::Builtin(builtin) => builtin_call_label(*builtin),
@@ -525,7 +670,7 @@ fn call_target_label(builder: &DirSnapshotBuilder<'_>, target: &dir::CallTarget)
     }
 }
 
-/// Return a compact label for one range condition.
+/// Return one range condition snapshot label.
 fn range_label(builder: &DirSnapshotBuilder<'_>, range: &dir::PredicateRange) -> String {
     let start = range
         .start
@@ -801,10 +946,18 @@ fn add_pattern_destructure_fields(
             "fields",
             pattern_positional_field_labels(builder, segment, &tuple.fields),
         ),
-        dir::PatternDestructureResolution::Object(object) => row.object_field(
-            "fields",
-            pattern_keyed_fields_label(builder, segment, &object.fields),
-        ),
+        dir::PatternDestructureResolution::Object(object) => row
+            .object_field(
+                "fields",
+                pattern_keyed_fields_label(builder, segment, &object.fields),
+            )
+            .optional_field(
+                "rest",
+                object
+                    .rest
+                    .as_ref()
+                    .map(|rest| pattern_rest_label(builder, segment, rest)),
+            ),
         dir::PatternDestructureResolution::Nominal(nominal) => row
             .field("target", builder.symbol_path_label(nominal.symbol))
             .optional_field(
@@ -824,7 +977,7 @@ fn add_pattern_destructure_fields(
                     sequence
                         .fields
                         .first()
-                        .map(|field| builder.global_type_label(field.ty)),
+                        .map(|field| builder.global_type_label(field.projection.ty())),
                 ),
                 &sequence.arity,
             ),
@@ -857,12 +1010,9 @@ fn add_assign_pattern_resolution_row(
         .field("kind", assign_pattern_resolution_label(resolution));
 
     let row = match resolution {
-        dir::AssignPatternResolution::Place(place) => row.field(
-            "place",
-            builder
-                .node_source(place.place)
-                .unwrap_or_else(|| assign_pattern_place_label(builder, segment, place.place)),
-        ),
+        dir::AssignPatternResolution::Place(place) => row
+            .field("place", storage_label(builder, &place.storage))
+            .type_field("type", builder.global_type_label(place.ty)),
         dir::AssignPatternResolution::Default(default) => row
             .field(
                 "pattern",
@@ -878,7 +1028,7 @@ fn add_assign_pattern_resolution_row(
                     sequence
                         .fields
                         .first()
-                        .map(|field| builder.global_type_label(field.ty)),
+                        .map(|field| builder.global_type_label(field.projection.ty())),
                 ),
                 &sequence.arity,
             ),
@@ -1130,12 +1280,12 @@ fn add_predicate_generic_instances(
 
     match &predicate.test {
         dir::PredicateTest::Unary(test) => {
-            add_projection_generic_instance(builder, anchor, source.clone(), &test.input);
+            add_predicate_operand_generic_instance(builder, anchor, source.clone(), &test.input);
         }
         dir::PredicateTest::Has(test) => {
-            add_projection_generic_instance(builder, anchor, source.clone(), &test.receiver);
-            if let dir::PredicateKey::Dynamic(projection) = &test.key {
-                add_projection_generic_instance(builder, anchor, source.clone(), projection);
+            add_predicate_operand_generic_instance(builder, anchor, source.clone(), &test.receiver);
+            if let dir::PredicateKey::Dynamic(operand) = &test.key {
+                add_predicate_operand_generic_instance(builder, anchor, source.clone(), operand);
             }
         }
         dir::PredicateTest::Call(resolution) => {
@@ -1148,8 +1298,20 @@ fn add_predicate_generic_instances(
         }
     }
 
-    if let Some(success) = &predicate.success {
-        add_projection_generic_instance(builder, anchor, source, success);
+    if let Some(projection) = &predicate.projection {
+        add_projection_generic_instance(builder, anchor, source, projection);
+    }
+}
+
+/// Add generic instance rows from one predicate operand.
+fn add_predicate_operand_generic_instance(
+    builder: &mut DirSnapshotBuilder<'_>,
+    anchor: SnapshotAnchor,
+    source: Option<String>,
+    operand: &dir::PredicateOperand,
+) {
+    if let Some(projection) = &operand.projection {
+        add_projection_generic_instance(builder, anchor, source, projection);
     }
 }
 
@@ -1237,16 +1399,16 @@ fn add_pattern_sequence_fields(
     builder: &DirSnapshotBuilder<'_>,
     segment: &dir::ResolutionSegment,
     row: SnapshotRow,
-    fields: &[dir::PatternSequenceElementResolution],
-    rest: Option<&dir::PatternSequenceRestResolution>,
+    fields: &[dir::PatternFieldResolution],
+    rest: Option<&dir::PatternFieldResolution>,
 ) -> SnapshotRow {
     row.tuple_field(
         "fields",
-        pattern_sequence_field_labels(builder, segment, fields),
+        pattern_positional_field_labels(builder, segment, fields),
     )
     .optional_field(
         "rest",
-        rest.map(|rest| pattern_sequence_rest_label(builder, segment, rest)),
+        rest.map(|rest| pattern_rest_label(builder, segment, rest)),
     )
 }
 
@@ -1306,17 +1468,6 @@ fn pattern_positional_field_labels<'a>(
         .map(|field| pattern_positional_field_label(builder, segment, field))
 }
 
-/// Return sequence pattern element labels.
-fn pattern_sequence_field_labels<'a>(
-    builder: &'a DirSnapshotBuilder<'_>,
-    segment: &'a dir::ResolutionSegment,
-    fields: &'a [dir::PatternSequenceElementResolution],
-) -> impl Iterator<Item = String> + 'a {
-    fields
-        .iter()
-        .map(|field| pattern_sequence_field_label(builder, segment, field))
-}
-
 /// Return one keyed pattern field group label.
 fn pattern_keyed_fields_label(
     builder: &DirSnapshotBuilder<'_>,
@@ -1366,15 +1517,6 @@ fn pattern_positional_field_label(
     pattern_child_label(builder, segment, pattern)
 }
 
-/// Return one sequence pattern element label.
-fn pattern_sequence_field_label(
-    builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionSegment,
-    field: &dir::PatternSequenceElementResolution,
-) -> String {
-    pattern_child_label(builder, segment, field.pattern)
-}
-
 /// Return one variant payload label.
 fn pattern_variant_payload_label(fields: &[dir::PatternFieldResolution]) -> Option<&'static str> {
     if fields.is_empty() {
@@ -1408,11 +1550,14 @@ fn pattern_field_target_label(
 ) -> String {
     match projection {
         dir::Projection::FieldGet { field, .. } => projection_field_label(builder, field),
+        dir::Projection::SubscriptGet { index, .. } => builder
+            .node_source(*index)
+            .unwrap_or_else(|| builder.node_label(*index)),
         _ => projection_label(builder, projection),
     }
 }
 
-/// Return one compact child pattern label.
+/// Return one child pattern snapshot label.
 fn pattern_child_label(
     builder: &DirSnapshotBuilder<'_>,
     segment: &dir::ResolutionSegment,
@@ -1476,17 +1621,6 @@ fn assign_pattern_keyed_fields_label(
     format!("{{ {fields} }}")
 }
 
-/// Return sequence assignment pattern field labels.
-fn assign_pattern_sequence_field_labels<'a>(
-    builder: &'a DirSnapshotBuilder<'_>,
-    segment: &'a dir::ResolutionSegment,
-    fields: &'a [dir::AssignPatternSequenceElementResolution],
-) -> impl Iterator<Item = String> + 'a {
-    fields
-        .iter()
-        .map(|field| assign_pattern_sequence_field_label(builder, segment, field))
-}
-
 /// Return one keyed assignment pattern field label.
 fn assign_pattern_keyed_field_label(
     builder: &DirSnapshotBuilder<'_>,
@@ -1520,16 +1654,7 @@ fn assign_pattern_positional_field_label(
     assign_pattern_child_label(builder, segment, pattern)
 }
 
-/// Return one sequence assignment pattern field label.
-fn assign_pattern_sequence_field_label(
-    builder: &DirSnapshotBuilder<'_>,
-    segment: &dir::ResolutionSegment,
-    field: &dir::AssignPatternSequenceElementResolution,
-) -> String {
-    assign_pattern_child_label(builder, segment, field.pattern)
-}
-
-/// Return one compact child assignment pattern label.
+/// Return one child assignment pattern snapshot label.
 fn assign_pattern_child_label(
     builder: &DirSnapshotBuilder<'_>,
     segment: &dir::ResolutionSegment,
@@ -1537,7 +1662,7 @@ fn assign_pattern_child_label(
 ) -> String {
     match segment.assign_pattern_resolution(pattern) {
         Some(dir::AssignPatternResolution::Place(place)) => {
-            assign_pattern_place_label(builder, segment, place.place)
+            place_source_label(builder, segment, place)
         }
         Some(dir::AssignPatternResolution::Default(default)) => {
             assign_pattern_child_label(builder, segment, default.pattern)
@@ -1546,7 +1671,18 @@ fn assign_pattern_child_label(
     }
 }
 
-/// Return one compact assignment place label.
+/// Return one place source snapshot label.
+fn place_source_label(
+    builder: &DirSnapshotBuilder<'_>,
+    segment: &dir::ResolutionSegment,
+    place: &dir::PlaceResolution,
+) -> String {
+    builder
+        .node_source(place.source)
+        .unwrap_or_else(|| assign_pattern_place_label(builder, segment, place.source))
+}
+
+/// Return one assignment place snapshot label.
 fn assign_pattern_place_label(
     builder: &DirSnapshotBuilder<'_>,
     segment: &dir::ResolutionSegment,
@@ -1564,11 +1700,11 @@ fn assign_pattern_place_label(
     builder.symbol_path_label(symbols[0])
 }
 
-/// Return one sequence pattern rest label.
-fn pattern_sequence_rest_label(
+/// Return one pattern rest label.
+fn pattern_rest_label(
     builder: &DirSnapshotBuilder<'_>,
     segment: &dir::ResolutionSegment,
-    rest: &dir::PatternSequenceRestResolution,
+    rest: &dir::PatternFieldResolution,
 ) -> String {
     let Some(pattern) = rest.pattern else {
         return "...".to_string();
@@ -1584,24 +1720,24 @@ fn add_assign_pattern_sequence_fields(
     builder: &DirSnapshotBuilder<'_>,
     segment: &dir::ResolutionSegment,
     row: SnapshotRow,
-    fields: &[dir::AssignPatternSequenceElementResolution],
-    rest: Option<&dir::AssignPatternSequenceRestResolution>,
+    fields: &[dir::AssignPatternFieldResolution],
+    rest: Option<&dir::AssignPatternFieldResolution>,
 ) -> SnapshotRow {
     row.tuple_field(
         "fields",
-        assign_pattern_sequence_field_labels(builder, segment, fields),
+        assign_pattern_positional_field_labels(builder, segment, fields),
     )
     .optional_field(
         "rest",
-        rest.map(|rest| assign_pattern_sequence_rest_label(builder, segment, rest)),
+        rest.map(|rest| assign_pattern_rest_label(builder, segment, rest)),
     )
 }
 
-/// Return one sequence assignment pattern rest label.
-fn assign_pattern_sequence_rest_label(
+/// Return one assignment pattern rest label.
+fn assign_pattern_rest_label(
     builder: &DirSnapshotBuilder<'_>,
     segment: &dir::ResolutionSegment,
-    rest: &dir::AssignPatternSequenceRestResolution,
+    rest: &dir::AssignPatternFieldResolution,
 ) -> String {
     let Some(pattern) = rest.pattern else {
         return "...".to_string();
