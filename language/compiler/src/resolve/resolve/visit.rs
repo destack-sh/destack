@@ -220,7 +220,7 @@ impl ResolveState<'_> {
     ///
     /// Example:
     /// ```ds
-    /// @if(Target.isNative)
+    /// @if(import.meta.host == "native")
     /// function f() {}
     /// ```
     fn is_static_if_decorator_expression(
@@ -244,7 +244,7 @@ impl ResolveState<'_> {
     ///
     /// Example:
     /// ```ds
-    /// @if(Target.isNative)
+    /// @if(import.meta.host == "native")
     /// function f() {}
     /// ```
     fn walk_static_if_decorator_arguments(

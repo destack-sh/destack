@@ -222,7 +222,7 @@ pub enum ImportError {
     /// Static import guard depends on a value that is not available during import.
     ///
     /// ```ds
-    /// @if(T extends string)
+    /// @if(enabled)
     /// import { debug } from "./debug.ds";
     /// ```
     #[diagnostic(code = "EI215", message = "`@if` import guard condition is not static")]

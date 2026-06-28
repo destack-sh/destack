@@ -118,8 +118,8 @@ impl ResolveState<'_> {
         prefixes: &[dir::Reference],
         total: usize,
     ) {
-        // record one reference for a flat type node, or one per member node for a value chain
-        if source.local_id.ty == dir::NodeType::TypeExpression {
+        // record flat references unless the source is an expression member chain
+        if source.local_id.ty != dir::NodeType::Expression {
             self.record_flat_reference(source, prefixes, total);
         } else {
             self.record_chain_references(source, prefixes);
