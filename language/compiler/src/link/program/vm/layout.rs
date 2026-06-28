@@ -1,0 +1,1066 @@
+use std::collections::HashMap;
+
+use destack_mir as mir;
+use destack_mir::{TraceMap, TraceVariant};
+
+use destack_program::vm::Cell;
+use destack_program::{AddressSpace, LayoutId};
+
+use crate::LinkResult;
+
+use super::super::ProgramLinker;
+
+const CELL_BITS: usize = Cell::BYTE_LEN * 8;
+
+/// One transient byte-storage layout for one MIR type during VM lowering.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct StorageLayout {
+    /// The executable layout id for this value representation.
+    pub(crate) layout_id: LayoutId,
+    /// The byte width of the value representation.
+    pub(crate) byte_len: usize,
+    /// The trace map for this type.
+    pub(crate) trace_map: TraceMap,
+    /// The byte alignment of the value representation.
+    alignment: usize,
+    /// Field layouts when this value is field-addressable.
+    fields: Option<Vec<FieldLayout>>,
+    /// Element layout when this value is element-addressable.
+    element: Option<ElementLayout>,
+    /// Static element count when this value is element-addressable.
+    element_count: Option<usize>,
+    /// Whether this value is a scalar VM cell candidate.
+    is_scalar: bool,
+    /// Whether this value is a slice descriptor.
+    is_slice: bool,
+}
+
+/// One executable field layout.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FieldLayout {
+    /// The field value type.
+    pub(crate) ty: mir::LocalNodeId<mir::Type>,
+    /// The byte offset of the field inside the parent value.
+    pub(crate) offset: usize,
+    /// The byte width of the field payload.
+    pub(crate) byte_len: usize,
+}
+
+/// One executable element layout.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ElementLayout {
+    /// The element value type.
+    pub(crate) ty: mir::LocalNodeId<mir::Type>,
+    /// The byte stride between adjacent elements.
+    pub(crate) stride: usize,
+    /// The byte width of one element payload.
+    pub(crate) byte_len: usize,
+}
+
+impl StorageLayout {
+    /// Build executable storage layouts for all MIR types in the tree.
+    pub(crate) fn build_all(
+        tree: &mir::Tree,
+        target_layout: &mir::TargetLayout,
+        table: &mir::LayoutTable,
+        layout_ids: &HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
+        program: &ProgramLinker,
+    ) -> LinkResult<HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>> {
+        StorageLayoutBuilder::new(tree, target_layout, table, layout_ids, program).build()
+    }
+
+    /// Build one scalar layout.
+    fn scalar(byte_len: usize, alignment: usize, layout_id: LayoutId) -> Self {
+        Self {
+            layout_id,
+            byte_len,
+            trace_map: TraceMap::empty(),
+            alignment,
+            fields: None,
+            element: None,
+            element_count: None,
+            is_scalar: true,
+            is_slice: false,
+        }
+    }
+
+    /// Build one layout for types with no runtime value storage.
+    fn empty(layout_id: LayoutId) -> Self {
+        Self {
+            layout_id,
+            byte_len: 0,
+            trace_map: TraceMap::empty(),
+            alignment: 1,
+            fields: None,
+            element: None,
+            element_count: None,
+            is_scalar: false,
+            is_slice: false,
+        }
+    }
+
+    /// Build one repeated element layout.
+    fn repeated(
+        layout_id: LayoutId,
+        element_type: mir::LocalNodeId<mir::Type>,
+        element_layout: &Self,
+        stride: usize,
+        element_count: usize,
+        byte_len: usize,
+        alignment: usize,
+    ) -> Self {
+        let element = ElementLayout {
+            ty: element_type,
+            stride,
+            byte_len: element_layout.byte_len,
+        };
+
+        debug_assert!(element_count == 0 || stride >= element_layout.byte_len);
+
+        Self {
+            layout_id,
+            byte_len,
+            trace_map: TraceMap::empty(),
+            alignment,
+            fields: None,
+            element: Some(element),
+            element_count: Some(element_count),
+            is_scalar: false,
+            is_slice: false,
+        }
+    }
+
+    /// Report whether this type is scalar.
+    pub(crate) fn is_scalar(&self) -> bool {
+        self.is_scalar
+    }
+
+    /// Report whether this type fits in one VM cell.
+    pub(crate) fn is_cell(&self) -> bool {
+        self.is_scalar() && self.byte_len <= Cell::BYTE_LEN
+    }
+
+    /// Return the byte alignment of this layout.
+    pub(crate) fn alignment(&self) -> usize {
+        self.alignment
+    }
+
+    /// Return one field layout by index.
+    pub(crate) fn field(&self, index: u32) -> Option<FieldLayout> {
+        let fields = self.fields.as_ref()?;
+
+        fields.get(index as usize).copied()
+    }
+
+    /// Return the field count for one field-addressable layout.
+    pub(crate) fn field_count(&self) -> Option<usize> {
+        let fields = self.fields.as_ref()?;
+
+        Some(fields.len())
+    }
+
+    /// Report whether this layout is a slice descriptor.
+    pub(crate) fn is_slice(&self) -> bool {
+        self.is_slice
+    }
+
+    /// Return the element layout.
+    pub(crate) fn element(&self) -> Option<ElementLayout> {
+        self.element
+    }
+
+    /// Return the element count for one indexed layout.
+    pub(crate) fn element_count(&self) -> Option<usize> {
+        self.element_count
+    }
+
+    /// Return the aligned stride.
+    pub(crate) fn stride(&self) -> usize {
+        align_offset(self.byte_len, self.alignment)
+    }
+}
+
+/// Builder for transient VM storage layouts.
+struct StorageLayoutBuilder<'a> {
+    /// The MIR tree being lowered.
+    tree: &'a mir::Tree,
+    /// Target ABI layout.
+    target_layout: &'a mir::TargetLayout,
+    /// Canonical MIR layout table.
+    table: &'a mir::LayoutTable,
+    /// Executable layout ids keyed by MIR type.
+    layout_ids: &'a HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
+    /// Program linker owning diagnostics and executable id projection.
+    program: &'a ProgramLinker,
+    /// Storage layouts built so far.
+    layouts: HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>,
+}
+
+impl<'a> StorageLayoutBuilder<'a> {
+    /// Create one storage layout builder.
+    fn new(
+        tree: &'a mir::Tree,
+        target_layout: &'a mir::TargetLayout,
+        table: &'a mir::LayoutTable,
+        layout_ids: &'a HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
+        program: &'a ProgramLinker,
+    ) -> Self {
+        Self {
+            tree,
+            target_layout,
+            table,
+            layout_ids,
+            program,
+            layouts: HashMap::new(),
+        }
+    }
+
+    /// Build storage layouts for every MIR type.
+    fn build(mut self) -> LinkResult<HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>> {
+        for (type_id, _) in self.tree.iter_nodes::<mir::Type>() {
+            self.layout(type_id)?;
+        }
+
+        Ok(self.layouts)
+    }
+}
+
+impl StorageLayoutBuilder<'_> {
+    /// Build one storage layout for one MIR type.
+    fn layout(&mut self, ty: mir::LocalNodeId<mir::Type>) -> LinkResult<StorageLayout> {
+        // reuse already-built layouts first
+        if let Some(layout) = self.layouts.get(&ty) {
+            return Ok(layout.clone());
+        }
+
+        let layout_id = self.layout_ids.get(&ty).copied().ok_or_else(|| {
+            self.program
+                .invalid_input(format!("heap layout id for type {ty:?}"))
+        })?;
+
+        // peel transparent wrappers before choosing the physical representation
+        let repr_ty = self.concrete_repr_type(ty)?;
+        if repr_ty != ty {
+            let mut layout = self.layout(repr_ty)?;
+            layout.layout_id = layout_id;
+            self.layouts.insert(ty, layout.clone());
+
+            return Ok(layout);
+        }
+
+        // build the canonical physical representation for the repr type
+        let mut layout = match self.tree.get(ty) {
+            mir::Type::Void
+            | mir::Type::Boolean
+            | mir::Type::Int { .. }
+            | mir::Type::Isize
+            | mir::Type::Usize
+            | mir::Type::TypeDescriptor
+            | mir::Type::TypeId
+            | mir::Type::Reference { .. }
+            | mir::Type::FunctionPointer { .. }
+            | mir::Type::Float(_) => self.raw_scalar_layout(ty, layout_id),
+            mir::Type::Uninit { value } => {
+                let mut layout = self.layout(*value)?;
+                layout.layout_id = layout_id;
+
+                layout
+            }
+            mir::Type::TensorView { shape, format, .. } => {
+                self.tensor_view_layout(shape, *format, layout_id)?
+            }
+            mir::Type::FunctionSignature { .. } => StorageLayout::empty(layout_id),
+            mir::Type::Atomic { value } => {
+                let mut layout = self.layout(*value)?;
+                layout.layout_id = layout_id;
+
+                layout
+            }
+            mir::Type::Dynamic { .. } => {
+                let layout = self
+                    .table
+                    .type_layout(ty)
+                    .ok_or_else(|| self.program.invalid_input("dynamic layout"))?;
+                self.layout_from_table_row(layout_id, layout)?
+            }
+            mir::Type::Newtype { .. } | mir::Type::WithLifetimes { .. } => {
+                unreachable!("repr_type must peel transparent type wrappers")
+            }
+            mir::Type::Error => return Err(self.program.invalid_input("error type")),
+            mir::Type::Struct { fields, .. } => {
+                let field_types = fields
+                    .iter()
+                    .map(|field_id| self.tree.get(*field_id).ty)
+                    .collect::<Vec<_>>();
+                self.record_layout(layout_id, ty, field_types)?
+            }
+            mir::Type::Variant { .. } => {
+                let layout = self
+                    .table
+                    .type_layout(ty)
+                    .ok_or_else(|| self.program.invalid_input("variant layout"))?;
+                self.layout_from_table_row(layout_id, layout)?
+            }
+            mir::Type::Tuple { elements, .. } => {
+                let element_types = elements.to_vec();
+                self.record_layout(layout_id, ty, element_types)?
+            }
+            mir::Type::FixedArray {
+                element, length, ..
+            } => self.array_layout(layout_id, ty, *element, *length as usize)?,
+            mir::Type::Slice {
+                kind,
+                element: _,
+                space,
+                ..
+            } => self.slice_layout(*kind, space.clone(), layout_id)?,
+            mir::Type::Function { environment, .. } => {
+                self.function_layout(layout_id, *environment)?
+            }
+            mir::Type::Vector { element, lanes, .. } => {
+                let element_count = *lanes as usize;
+
+                self.vector_layout(layout_id, ty, *element, element_count)?
+            }
+            mir::Type::Tensor { .. } => self.handle_layout(layout_id),
+        };
+
+        // register the shape before tracing recursive children
+        self.layouts.insert(ty, layout.clone());
+
+        // fill in the trace map after all child layouts exist
+        layout.trace_map = self.trace_map(ty)?;
+        self.layouts.insert(ty, layout.clone());
+
+        Ok(layout)
+    }
+
+    /// Return the concrete representation type for one source type.
+    fn concrete_repr_type(
+        &self,
+        mut ty: mir::LocalNodeId<mir::Type>,
+    ) -> LinkResult<mir::LocalNodeId<mir::Type>> {
+        loop {
+            match self.tree.get(ty) {
+                mir::Type::Newtype { inner, .. } => {
+                    ty = *inner;
+                }
+                mir::Type::WithLifetimes { base, .. } => {
+                    ty = *base;
+                }
+                mir::Type::Error => {
+                    return Err(self.program.invalid_input("error type"));
+                }
+                _ => return Ok(ty),
+            };
+        }
+    }
+
+    /// Build the trace map for one storage layout.
+    fn trace_map(&self, ty: mir::LocalNodeId<mir::Type>) -> LinkResult<TraceMap> {
+        self.build_trace_map(ty)
+    }
+
+    /// Build one raw scalar layout.
+    fn raw_scalar_layout(
+        &self,
+        ty: mir::LocalNodeId<mir::Type>,
+        layout_id: LayoutId,
+    ) -> StorageLayout {
+        let (byte_len, alignment) = self.raw_scalar_size_alignment(ty);
+
+        StorageLayout::scalar(byte_len, alignment, layout_id)
+    }
+
+    /// Return the raw scalar size and alignment for one MIR type.
+    fn raw_scalar_size_alignment(&self, ty: mir::LocalNodeId<mir::Type>) -> (usize, usize) {
+        match self.tree.get(ty) {
+            mir::Type::Void => (0, 1),
+            mir::Type::Boolean => (1, 1),
+            mir::Type::Int { width, .. } => {
+                let byte_len = scalar_byte_len(*width as usize);
+
+                (byte_len, byte_len.clamp(1, 8))
+            }
+            mir::Type::Isize | mir::Type::Usize => {
+                let byte_len = self.target_layout.pointer_bytes() as usize;
+
+                (byte_len, byte_len.clamp(1, 8))
+            }
+            mir::Type::Float(float_type) => {
+                let byte_len = (float_type.width() as usize).div_ceil(8);
+
+                (byte_len, byte_len.clamp(1, 8))
+            }
+            mir::Type::TypeDescriptor
+            | mir::Type::TypeId
+            | mir::Type::Reference { .. }
+            | mir::Type::FunctionPointer { .. } => {
+                let byte_len = self.target_layout.pointer_bytes() as usize;
+
+                (byte_len, byte_len.max(1))
+            }
+            _ => unreachable!("raw scalar layout requested for non scalar type"),
+        }
+    }
+
+    /// Return one repeated payload byte length.
+    fn checked_stride_byte_len(&self, element_count: usize, stride: usize) -> LinkResult<usize> {
+        stride.checked_mul(element_count).ok_or_else(|| {
+            self.program.layout_overflow(format!(
+                "repeated layout byte length: stride={stride}, element_count={element_count}",
+            ))
+        })
+    }
+
+    /// Build one storage layout from one MIR layout table row.
+    fn layout_from_table_row(
+        &mut self,
+        layout_id: LayoutId,
+        layout: &mir::Layout,
+    ) -> LinkResult<StorageLayout> {
+        let mut fields = Vec::with_capacity(layout.shape.fields().len());
+
+        for field in layout.shape.fields() {
+            self.layout(field.ty)?;
+            fields.push(FieldLayout {
+                ty: field.ty,
+                offset: field.offset as usize,
+                byte_len: field.size as usize,
+            });
+        }
+
+        Ok(StorageLayout {
+            layout_id,
+            byte_len: layout.size as usize,
+            trace_map: TraceMap::empty(),
+            alignment: layout.alignment as usize,
+            fields: Some(fields),
+            element: None,
+            element_count: None,
+            is_scalar: false,
+            is_slice: false,
+        })
+    }
+
+    /// Build one record layout from one ordered field type list.
+    fn record_layout(
+        &mut self,
+        layout_id: LayoutId,
+        ty: mir::LocalNodeId<mir::Type>,
+        field_types: impl IntoIterator<Item = mir::LocalNodeId<mir::Type>> + Clone,
+    ) -> LinkResult<StorageLayout> {
+        // ensure all child layouts exist before choosing the representation
+        for field_type in field_types.clone() {
+            self.layout(field_type)?;
+        }
+
+        // prefer layout tables when present
+        let Some(raw_layout) = self.table.type_layout(ty) else {
+            return self.record_layout_from_fields(layout_id, field_types);
+        };
+        let fields = Self::table_row_fields(raw_layout);
+
+        Ok(StorageLayout {
+            layout_id,
+            byte_len: raw_layout.size as usize,
+            trace_map: TraceMap::empty(),
+            alignment: raw_layout.alignment as usize,
+            fields: Some(fields),
+            element: None,
+            element_count: None,
+            is_scalar: false,
+            is_slice: false,
+        })
+    }
+
+    /// Build one array layout.
+    fn array_layout(
+        &mut self,
+        layout_id: LayoutId,
+        ty: mir::LocalNodeId<mir::Type>,
+        element_type: mir::LocalNodeId<mir::Type>,
+        length: usize,
+    ) -> LinkResult<StorageLayout> {
+        let element_layout = self.layout(element_type)?;
+
+        // prefer layout tables when present
+        let (stride, byte_len, alignment) = match self.table.type_layout(ty) {
+            Some(raw_layout) => (
+                self.table_row_array_stride(raw_layout)?,
+                raw_layout.size as usize,
+                raw_layout.alignment as usize,
+            ),
+            None => {
+                let stride = element_layout.stride();
+                (
+                    stride,
+                    self.checked_stride_byte_len(length, stride)?,
+                    element_layout.alignment,
+                )
+            }
+        };
+
+        Ok(StorageLayout::repeated(
+            layout_id,
+            element_type,
+            &element_layout,
+            stride,
+            length,
+            byte_len,
+            alignment,
+        ))
+    }
+
+    /// Build one slice descriptor layout.
+    fn slice_layout(
+        &self,
+        kind: mir::ReferenceKind,
+        space: mir::Space,
+        layout_id: LayoutId,
+    ) -> LinkResult<StorageLayout> {
+        let address_space = match space {
+            mir::Space::Local => match kind {
+                mir::ReferenceKind::Raw => AddressSpace::Raw,
+                _ => AddressSpace::Local,
+            },
+            mir::Space::Shared => match kind {
+                mir::ReferenceKind::Raw => AddressSpace::Raw,
+                _ => AddressSpace::Shared,
+            },
+            mir::Space::Frame => AddressSpace::Frame,
+            mir::Space::Static => AddressSpace::Static,
+        };
+        let cell_layout = address_space.cell_layout();
+        let pointer_bytes = self.target_layout.pointer_bytes() as usize;
+        let data_byte_len = cell_layout.byte_len(pointer_bytes);
+        let length_offset = align_offset(data_byte_len, pointer_bytes);
+        let byte_len = length_offset + pointer_bytes;
+
+        Ok(StorageLayout {
+            layout_id,
+            byte_len,
+            trace_map: TraceMap::empty(),
+            alignment: pointer_bytes,
+            fields: None,
+            element: None,
+            element_count: None,
+            is_scalar: false,
+            is_slice: true,
+        })
+    }
+
+    /// Build one function value layout.
+    fn function_layout(
+        &mut self,
+        layout_id: LayoutId,
+        environment_type: mir::LocalNodeId<mir::Type>,
+    ) -> LinkResult<StorageLayout> {
+        let pointer_bytes = self.target_layout.pointer_bytes() as usize;
+        let environment_layout = self.layout(environment_type)?;
+        if !environment_layout.is_cell() {
+            return Err(self.program.invalid_input("function environment layout"));
+        }
+
+        Ok(StorageLayout {
+            layout_id,
+            byte_len: pointer_bytes * 2,
+            trace_map: TraceMap::empty(),
+            alignment: pointer_bytes,
+            fields: None,
+            element: None,
+            element_count: None,
+            is_scalar: false,
+            is_slice: false,
+        })
+    }
+
+    /// Build one opaque handle layout.
+    fn handle_layout(&self, layout_id: LayoutId) -> StorageLayout {
+        let pointer_bytes = self.target_layout.pointer_bytes() as usize;
+
+        StorageLayout::scalar(pointer_bytes, pointer_bytes, layout_id)
+    }
+
+    /// Build one vector layout.
+    fn vector_layout(
+        &mut self,
+        layout_id: LayoutId,
+        ty: mir::LocalNodeId<mir::Type>,
+        element_type: mir::LocalNodeId<mir::Type>,
+        element_count: usize,
+    ) -> LinkResult<StorageLayout> {
+        let element_layout = self.layout(element_type)?;
+        let stride = element_layout.stride();
+
+        // prefer layout tables when present
+        let byte_len = match self.table.type_layout(ty) {
+            Some(layout) => layout.size as usize,
+            None => self.checked_stride_byte_len(element_count, stride)?,
+        };
+        let alignment = self
+            .table
+            .type_layout(ty)
+            .map(|layout| layout.alignment as usize)
+            .unwrap_or(element_layout.alignment);
+
+        Ok(StorageLayout::repeated(
+            layout_id,
+            element_type,
+            &element_layout,
+            stride,
+            element_count,
+            byte_len,
+            alignment,
+        ))
+    }
+
+    /// Build one tensor view descriptor layout.
+    fn tensor_view_layout(
+        &self,
+        shape: &[mir::TensorDimension],
+        format: mir::TensorViewFormat,
+        layout_id: LayoutId,
+    ) -> LinkResult<StorageLayout> {
+        let rank = u32::try_from(shape.len()).map_err(|_| {
+            self.program
+                .layout_overflow(format!("tensor view rank: rank={}", shape.len()))
+        })?;
+        let slots = usize::try_from(format.descriptor_slots(rank)).map_err(|_| {
+            self.program
+                .layout_overflow(format!("tensor view descriptor slot count: rank={rank}"))
+        })?;
+        let byte_len = slots.checked_mul(Cell::BYTE_LEN).ok_or_else(|| {
+            self.program
+                .layout_overflow(format!("tensor view byte length: slots={slots}"))
+        })?;
+
+        Ok(StorageLayout {
+            layout_id,
+            byte_len,
+            trace_map: TraceMap::empty(),
+            alignment: Cell::BYTE_LEN,
+            fields: None,
+            element: None,
+            element_count: None,
+            is_scalar: false,
+            is_slice: false,
+        })
+    }
+
+    /// Extract ordered field layouts from one MIR layout table row.
+    fn table_row_fields(layout: &mir::Layout) -> Vec<FieldLayout> {
+        let mut fields: Vec<_> = layout
+            .shape
+            .fields()
+            .iter()
+            .enumerate()
+            .map(|(index, field)| {
+                (
+                    field.source_index.unwrap_or(index as u32) as usize,
+                    FieldLayout {
+                        ty: field.ty,
+                        offset: field.offset as usize,
+                        byte_len: field.size as usize,
+                    },
+                )
+            })
+            .collect();
+
+        // read source order from the field rows
+        fields.sort_by_key(|(index, _)| *index);
+
+        fields.into_iter().map(|(_, field)| field).collect()
+    }
+
+    /// Return the fixed-array stride from one MIR layout table row.
+    fn table_row_array_stride(&self, layout: &mir::Layout) -> LinkResult<usize> {
+        let mir::LayoutShape::Array(layout) = &layout.shape else {
+            return Err(self.program.invalid_input("layout table array stride"));
+        };
+
+        Ok(layout.stride as usize)
+    }
+
+    /// Build one record layout from ordered fields.
+    fn record_layout_from_fields(
+        &mut self,
+        layout_id: LayoutId,
+        field_types: impl IntoIterator<Item = mir::LocalNodeId<mir::Type>>,
+    ) -> LinkResult<StorageLayout> {
+        let mut fields = Vec::new();
+        let mut next_offset = 0usize;
+        let mut alignment = 1usize;
+
+        // lay out each field using its runtime representation
+        for field_type in field_types {
+            let field_layout = self.layout(field_type)?;
+            let offset = align_offset(next_offset, field_layout.alignment);
+
+            fields.push(FieldLayout {
+                ty: field_type,
+                offset,
+                byte_len: field_layout.byte_len,
+            });
+
+            next_offset = offset
+                .checked_add(field_layout.byte_len)
+                .ok_or_else(|| self.program.layout_overflow("record field offset"))?;
+            alignment = alignment.max(field_layout.alignment);
+        }
+
+        // round the final record size up to the overall alignment
+        let byte_len = align_offset(next_offset, alignment);
+        let layout = StorageLayout {
+            layout_id,
+            byte_len,
+            trace_map: TraceMap::empty(),
+            alignment,
+            fields: Some(fields),
+            element: None,
+            element_count: None,
+            is_scalar: false,
+            is_slice: false,
+        };
+
+        Ok(layout)
+    }
+
+    /// Build one trace map for one storage layout.
+    fn build_trace_map(&self, ty: mir::LocalNodeId<mir::Type>) -> LinkResult<TraceMap> {
+        if let Some(layout) = self.table.type_layout(ty)
+            && matches!(layout.shape, mir::LayoutShape::Function)
+        {
+            return Ok(layout.trace_map.clone());
+        }
+
+        if let mir::Type::Function { environment, .. } = self.tree.get(self.tree.repr_type(ty)) {
+            return self.function_trace_map(*environment);
+        }
+
+        if let Some(layout) = self.table.type_layout(ty)
+            && matches!(layout.shape, mir::LayoutShape::Variant(_))
+        {
+            return self.build_variant_trace_map(ty, layout);
+        }
+
+        let mut local_offsets = Vec::new();
+        let mut shared_offsets = Vec::new();
+
+        // walk the storage layout tree and collect traceable reference offsets
+        self.append_reference_offsets(ty, 0, &mut local_offsets, &mut shared_offsets)?;
+
+        let trace_map = if local_offsets.is_empty() && shared_offsets.is_empty() {
+            TraceMap::empty()
+        } else {
+            TraceMap::Fixed {
+                local_offsets: local_offsets.into_boxed_slice(),
+                shared_offsets: shared_offsets.into_boxed_slice(),
+            }
+        };
+
+        Ok(trace_map)
+    }
+
+    /// Build one trace map for a function value environment word.
+    fn function_trace_map(
+        &self,
+        environment_type: mir::LocalNodeId<mir::Type>,
+    ) -> LinkResult<TraceMap> {
+        let environment_layout = self.layouts.get(&environment_type).ok_or_else(|| {
+            self.program.invalid_input(format!(
+                "function environment layout for {environment_type:?}"
+            ))
+        })?;
+        let offset = u32::from(self.target_layout.pointer_bytes());
+
+        if !environment_layout.is_cell() {
+            return Err(self.program.invalid_input("function environment layout"));
+        }
+
+        Ok(match self.trace_reference_space(environment_type) {
+            Some(mir::Space::Local) => TraceMap::Fixed {
+                local_offsets: vec![offset].into_boxed_slice(),
+                shared_offsets: Vec::new().into_boxed_slice(),
+            },
+            Some(mir::Space::Shared) => TraceMap::Fixed {
+                local_offsets: Vec::new().into_boxed_slice(),
+                shared_offsets: vec![offset].into_boxed_slice(),
+            },
+            _ => TraceMap::empty(),
+        })
+    }
+
+    /// Build a tag-selected trace map for one lowered variant.
+    fn build_variant_trace_map(
+        &self,
+        ty: mir::LocalNodeId<mir::Type>,
+        layout: &mir::Layout,
+    ) -> LinkResult<TraceMap> {
+        let mir::LayoutShape::Variant(layout) = &layout.shape else {
+            return Err(self
+                .program
+                .invalid_input("trace map requested for non-variant layout"));
+        };
+        let mir::Type::Variant {
+            tag,
+            storage,
+            cases,
+            ..
+        } = self.tree.get(ty)
+        else {
+            return Err(self
+                .program
+                .invalid_input("trace map requested for non-variant type"));
+        };
+        let tag_type = *tag;
+        let storage_type = *storage;
+
+        let tag_bytes = self.variant_tag_bytes(tag_type)?;
+        let mut trace_variants = Vec::with_capacity(cases.len());
+
+        for case in cases.iter() {
+            let element_type = case.ty;
+            let map = self.variant_trace_map(storage_type, element_type)?;
+            trace_variants.push(TraceVariant {
+                tag: self.variant_tag_bits(tag_type, &case.tag)?,
+                payload_offset: layout.payload_offset,
+                map,
+            });
+        }
+
+        Ok(TraceMap::Tagged {
+            tag_bytes,
+            variants: trace_variants.into_boxed_slice(),
+        })
+    }
+
+    /// Return one variant tag as normalized runtime bits.
+    fn variant_tag_bits(
+        &self,
+        tag_type: mir::LocalNodeId<mir::Type>,
+        tag: &mir::Constant,
+    ) -> LinkResult<u64> {
+        match (self.tree.get(tag_type), tag) {
+            (
+                mir::Type::Int {
+                    width,
+                    is_signed: true,
+                },
+                mir::Constant::Int { value, .. },
+            ) if *width <= u64::BITS as u16 => Ok((*value as i64) as u64),
+            (
+                mir::Type::Int {
+                    width,
+                    is_signed: false,
+                },
+                mir::Constant::UInt { value, .. },
+            ) if *width <= u64::BITS as u16 => u64::try_from(*value).map_err(|_| {
+                self.program
+                    .layout_overflow("variant tag does not fit in one cell")
+            }),
+            _ => Err(self
+                .program
+                .invalid_input("variant tag does not match tag type")),
+        }
+    }
+
+    /// Return the tag byte width for one variant tag type.
+    fn variant_tag_bytes(&self, tag_type: mir::LocalNodeId<mir::Type>) -> LinkResult<u8> {
+        let mir::Type::Int { width, .. } = self.tree.get(tag_type) else {
+            return Err(self
+                .program
+                .invalid_input(format!("variant tag type is not integer: {tag_type:?}")));
+        };
+
+        u8::try_from(scalar_byte_len(*width as usize)).map_err(|_| {
+            self.program
+                .layout_overflow(format!("variant tag width: {width}"))
+        })
+    }
+
+    /// Return the storage trace map for one variant.
+    fn variant_trace_map(
+        &self,
+        storage_type: mir::LocalNodeId<mir::Type>,
+        element_type: mir::LocalNodeId<mir::Type>,
+    ) -> LinkResult<TraceMap> {
+        let storage_layout = self.layouts.get(&storage_type).ok_or_else(|| {
+            self.program
+                .invalid_input(format!("variant storage layout for {storage_type:?}"))
+        })?;
+
+        if storage_layout.is_cell() {
+            return Ok(storage_layout.trace_map.clone());
+        }
+
+        self.layouts
+            .get(&element_type)
+            .map(|layout| layout.trace_map.clone())
+            .ok_or_else(|| {
+                self.program
+                    .invalid_input(format!("variant layout for {element_type:?}"))
+            })
+    }
+
+    /// Append traceable reference offsets for one storage layout subtree.
+    fn append_reference_offsets(
+        &self,
+        ty: mir::LocalNodeId<mir::Type>,
+        base_offset: u32,
+        local_offsets: &mut Vec<u32>,
+        shared_offsets: &mut Vec<u32>,
+    ) -> LinkResult<()> {
+        let layout = self.layouts.get(&ty).ok_or_else(|| {
+            self.program
+                .invalid_input(format!("trace map layout for {ty:?}"))
+        })?;
+
+        // scalar traceable references contribute one direct offset
+        if layout.is_scalar() {
+            match self.trace_reference_space(ty) {
+                Some(mir::Space::Local) => local_offsets.push(base_offset),
+                Some(mir::Space::Shared) => shared_offsets.push(base_offset),
+                _ => {}
+            }
+
+            return Ok(());
+        }
+
+        // field layouts recurse using each field base offset
+        if let Some(fields) = &layout.fields {
+            for field in fields {
+                let field_offset = u32::try_from(field.offset).map_err(|_| {
+                    self.program
+                        .layout_overflow(format!("trace map field offset: {}", field.offset))
+                })?;
+                let field_base = base_offset.checked_add(field_offset).ok_or_else(|| {
+                    self.program.layout_overflow(format!(
+                        "trace map field base: base={base_offset}, offset={field_offset}",
+                    ))
+                })?;
+                self.append_reference_offsets(field.ty, field_base, local_offsets, shared_offsets)?;
+            }
+
+            return Ok(());
+        }
+
+        // slice descriptors trace the backing storage pointer
+        let repr_ty = self.tree.repr_type(ty);
+        if let mir::Type::Slice { kind, space, .. } = self.tree.get(repr_ty) {
+            if matches!(
+                kind,
+                mir::ReferenceKind::Managed
+                    | mir::ReferenceKind::Unique
+                    | mir::ReferenceKind::Borrowed
+            ) {
+                match space {
+                    mir::Space::Local => local_offsets.push(base_offset),
+                    mir::Space::Shared => shared_offsets.push(base_offset),
+                    _ => {}
+                }
+            }
+
+            return Ok(());
+        }
+
+        // tensor view descriptors trace the backing storage pointer
+        if let mir::Type::TensorView { kind, space, .. } = self.tree.get(repr_ty) {
+            if matches!(
+                kind,
+                mir::ReferenceKind::Managed
+                    | mir::ReferenceKind::Unique
+                    | mir::ReferenceKind::Borrowed
+            ) {
+                match space {
+                    mir::Space::Local => local_offsets.push(base_offset),
+                    mir::Space::Shared => shared_offsets.push(base_offset),
+                    _ => {}
+                }
+            }
+
+            return Ok(());
+        }
+
+        // repeated layouts recurse once per logical element
+        let Some(element) = layout.element else {
+            return Ok(());
+        };
+        let Some(length) = layout.element_count else {
+            return Ok(());
+        };
+        for index in 0..length {
+            let element_offset = index.checked_mul(element.stride).ok_or_else(|| {
+                self.program.layout_overflow(format!(
+                    "trace map element offset: index={index}, stride={}",
+                    element.stride,
+                ))
+            })?;
+            let element_offset = u32::try_from(element_offset).map_err(|_| {
+                self.program
+                    .layout_overflow(format!("trace map element offset: {element_offset}"))
+            })?;
+            let element_base = base_offset.checked_add(element_offset).ok_or_else(|| {
+                self.program.layout_overflow(format!(
+                    "trace map element base: base={base_offset}, offset={element_offset}",
+                ))
+            })?;
+            self.append_reference_offsets(element.ty, element_base, local_offsets, shared_offsets)?;
+        }
+
+        Ok(())
+    }
+
+    /// Return the space when the repr type is one traceable reference.
+    fn trace_reference_space(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<mir::Space> {
+        let ty = self.tree.repr_type(ty);
+
+        match self.tree.get(ty) {
+            mir::Type::Reference {
+                kind:
+                    mir::ReferenceKind::Managed
+                    | mir::ReferenceKind::Unique
+                    | mir::ReferenceKind::Borrowed,
+                space,
+                ..
+            } => Some(space.clone()),
+            _ => None,
+        }
+    }
+}
+
+/// Align one byte offset up to the requested alignment.
+fn align_offset(offset: usize, alignment: usize) -> usize {
+    if alignment <= 1 {
+        return offset;
+    }
+
+    let misalignment = offset % alignment;
+
+    if misalignment == 0 {
+        offset
+    } else {
+        offset + (alignment - misalignment)
+    }
+}
+
+/// Return the canonical byte width for one scalar bit width.
+fn scalar_byte_len(bit_width: usize) -> usize {
+    if bit_width <= 8 {
+        return 1;
+    }
+
+    if bit_width <= 16 {
+        return 2;
+    }
+
+    if bit_width <= 32 {
+        return 4;
+    }
+
+    if bit_width <= CELL_BITS {
+        return Cell::BYTE_LEN;
+    }
+
+    bit_width.div_ceil(8)
+}
