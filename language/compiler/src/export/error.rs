@@ -104,7 +104,7 @@ pub enum ExportError {
     /// Static export guard depends on a value that is not available during export.
     ///
     /// ```ds
-    /// @if(T extends string)
+    /// @if(enabled)
     /// export { debug };
     /// ```
     #[diagnostic(code = "ET106", message = "`@if` export guard condition is not static")]

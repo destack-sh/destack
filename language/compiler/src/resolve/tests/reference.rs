@@ -1,6 +1,43 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_resolve_assignment_pattern_ignores_structural_member_names() {
+    let compiler = TestSession::builder()
+        .module(
+            "main.ds",
+            r#"
+let x: int32 = 0;
+let label: string = "";
+declare const point: { x: int32; y: string };
+
+({ x, y: label } = point);
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries().with_resolve_stats(),
+        r#"
+let x: int32 = 0;
+let label: string = "";
+declare const point: { x: int32; y: string };
+
+({ x, y: label } = point);
+/// @reference.bound source=x targets=[x#1]
+/// @reference.bound source=label targets=[label]
+/// @reference.bound source=point targets=[point]
+
+/// @import.language item=string.String symbol=string.string.String
+
+/// @import.summary language=1
+/// @resolve.stats roots=4 expressions=9 types=5 language=uses:1
+/// @reference.summary references=3
+"#,
+    );
+}
+
+#[test]
 fn test_resolve_records_local_type_reference() {
     let compiler = TestSession::builder()
         .module(
