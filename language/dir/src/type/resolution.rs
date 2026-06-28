@@ -312,7 +312,7 @@ pub struct PlaceResolution {
     /// The expression node that designates the place.
     pub source: GlobalNodeIdAny,
     /// The selected storage location.
-    pub place: Place,
+    pub storage: Storage,
     /// The value type stored in the place.
     pub ty: GlobalTypeId,
 }
@@ -328,7 +328,7 @@ pub struct PlaceResolution {
 /// *pointer       // Dereference
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum Place {
+pub enum Storage {
     /// Local or imported value binding.
     Binding {
         /// The selected binding symbol.
