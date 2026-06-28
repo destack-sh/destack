@@ -6,7 +6,8 @@ use indexmap::IndexMap;
 use crate::{CheckError, CompilerError, CompilerResult, DiagnosticAnchor};
 
 use crate::check::{
-    Answer, AutoInterface, CheckEvent, CheckState, Condition, Origin, Place, Task, answer,
+    Answer, AutoInterface, CheckEvent, CheckState, ExpectedType, FlowBranch, Origin, Task,
+    WriteTarget, answer,
 };
 
 /// Component-global id of one collected obligation.
@@ -57,8 +58,6 @@ pub(in crate::check) enum MatchCase {
 pub(in crate::check) enum Obligation {
     /// A pattern-bearing site must cover the matched value space.
     PatternCoverage(PatternCoverageObligation),
-    /// Try propagation must fit the enclosing return type.
-    TryPropagation(TryPropagationObligation),
     /// A place assignment must target writable storage.
     WritablePlace(WritablePlaceObligation),
     /// A type at a representation slot must have a computed representation.
@@ -75,6 +74,8 @@ pub(in crate::check) enum Obligation {
     ImplementationCoherence(ImplementationCoherenceObligation),
     /// A declaration must satisfy its heritage graph rules.
     DeclarationHeritage(DeclarationHeritageObligation),
+    /// A class must initialize required fields on every constructor path.
+    ClassInitialization(ClassInitializationObligation),
 }
 
 impl Obligation {
@@ -82,7 +83,6 @@ impl Obligation {
     pub(in crate::check) fn source(&self) -> dir::GlobalNodeIdAny {
         match self {
             Self::PatternCoverage(obligation) => obligation.source,
-            Self::TryPropagation(obligation) => obligation.source,
             Self::WritablePlace(obligation) => obligation.place.source,
             Self::Representation(obligation) => obligation.source,
             Self::AutoInterface(obligation) => obligation.source,
@@ -91,22 +91,7 @@ impl Obligation {
             Self::ExtensionConformance(obligation) => obligation.source,
             Self::ImplementationCoherence(obligation) => obligation.source,
             Self::DeclarationHeritage(obligation) => obligation.source,
-        }
-    }
-
-    /// Return the static condition under which this obligation exists.
-    pub(in crate::check) fn condition(&self) -> &Condition {
-        match self {
-            Self::PatternCoverage(obligation) => &obligation.condition,
-            Self::TryPropagation(obligation) => &obligation.condition,
-            Self::WritablePlace(obligation) => &obligation.condition,
-            Self::Representation(obligation) => &obligation.condition,
-            Self::AutoInterface(obligation) => &obligation.condition,
-            Self::RuntimePredicate(obligation) => &obligation.condition,
-            Self::ForInSource(obligation) => &obligation.condition,
-            Self::ExtensionConformance(obligation) => &obligation.condition,
-            Self::ImplementationCoherence(obligation) => &obligation.condition,
-            Self::DeclarationHeritage(obligation) => &obligation.condition,
+            Self::ClassInitialization(obligation) => obligation.source,
         }
     }
 }
@@ -122,10 +107,8 @@ impl Obligation {
 pub(in crate::check) struct PatternCoverageObligation {
     /// The checked source.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The static condition under which this obligation exists.
-    pub(in crate::check) condition: Condition,
     /// The matched value type.
-    pub(in crate::check) value: dir::GlobalTypeId,
+    pub(in crate::check) value: ExpectedType,
     /// The pattern coverage shape.
     pub(in crate::check) coverage: PatternCoverage,
 }
@@ -150,47 +133,6 @@ pub(in crate::check) enum PatternCoverage {
     },
 }
 
-/// Obliges a try expression to propagate through the enclosing return type.
-///
-/// ```ds
-/// value?
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct TryPropagationObligation {
-    /// The try expression.
-    pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The static condition under which this obligation exists.
-    pub(in crate::check) condition: Condition,
-    /// The tried value.
-    pub(in crate::check) value: TryPropagationValue,
-    /// The receiver of the propagated failure.
-    pub(in crate::check) target: TryPropagationTarget,
-}
-
-/// A tried value available either immediately or after selection.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::check) enum TryPropagationValue {
-    /// A known try value type.
-    Type(dir::GlobalTypeId),
-    /// A selected node whose checked type is the try value.
-    Node(dir::GlobalNodeIdAny),
-}
-
-/// The receiver of one propagated failure.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::check) enum TryPropagationTarget {
-    /// A local try target failure type.
-    Failure {
-        /// The local failure accumulator type.
-        ty: dir::GlobalTypeId,
-    },
-    /// The enclosing function return type.
-    Return {
-        /// The function return type, if propagation is inside a function.
-        ty: Option<dir::GlobalTypeId>,
-    },
-}
-
 /// Obliges an assignment target to accept writes.
 ///
 /// ```ds
@@ -198,10 +140,8 @@ pub(in crate::check) enum TryPropagationTarget {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct WritablePlaceObligation {
-    /// The static condition under which this obligation exists.
-    pub(in crate::check) condition: Condition,
     /// The place being written.
-    pub(in crate::check) place: Place,
+    pub(in crate::check) place: WriteTarget,
     /// The type being overwritten.
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
@@ -215,10 +155,28 @@ pub(in crate::check) struct WritablePlaceObligation {
 pub(in crate::check) struct DeclarationHeritageObligation {
     /// The declaration node.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The static condition under which this obligation exists.
-    pub(in crate::check) condition: Condition,
     /// The checked declaration symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
+}
+
+/// Obliges a class to initialize required fields before construction completes.
+///
+/// ```ds
+/// class User {
+///     name: string;
+///     constructor(name: string) { this.name = name; }
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct ClassInitializationObligation {
+    /// The class declaration node.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The checked class symbol.
+    pub(in crate::check) symbol: dir::GlobalSymbolId,
+    /// The constructed receiver type.
+    pub(in crate::check) receiver: dir::GlobalTypeId,
+    /// The constructor completion branches.
+    pub(in crate::check) constructor_branches: Vec<FlowBranch>,
 }
 
 /// Obliges a type to have one fixed representation.
@@ -230,8 +188,6 @@ pub(in crate::check) struct DeclarationHeritageObligation {
 pub(in crate::check) struct RepresentationObligation {
     /// The source expression requiring one fixed representation.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The static condition under which this obligation exists.
-    pub(in crate::check) condition: Condition,
     /// The type that must have one fixed representation.
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
@@ -245,8 +201,6 @@ pub(in crate::check) struct RepresentationObligation {
 pub(in crate::check) struct AutoInterfaceObligation {
     /// The source requiring the interface.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The static condition under which this obligation exists.
-    pub(in crate::check) condition: Condition,
     /// The type that must satisfy the interface.
     pub(in crate::check) ty: dir::GlobalTypeId,
     /// The required auto interface.
@@ -263,8 +217,6 @@ pub(in crate::check) struct AutoInterfaceObligation {
 pub(in crate::check) struct RuntimePredicateObligation {
     /// The predicate expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The static condition under which this obligation exists.
-    pub(in crate::check) condition: Condition,
     /// The left operand expression.
     pub(in crate::check) left: dir::GlobalNodeIdAny,
     /// The right operand expression or type.
@@ -282,8 +234,6 @@ pub(in crate::check) struct RuntimePredicateObligation {
 pub(in crate::check) struct ForInSourceObligation {
     /// The for-in expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The static condition under which this obligation exists.
-    pub(in crate::check) condition: Condition,
     /// The source type that must be object-shaped.
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
@@ -297,8 +247,6 @@ pub(in crate::check) struct ForInSourceObligation {
 pub(in crate::check) struct ExtensionConformanceObligation {
     /// The extension declaration node.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The static condition under which this obligation exists.
-    pub(in crate::check) condition: Condition,
     /// The checked extension symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
 }
@@ -312,8 +260,6 @@ pub(in crate::check) struct ExtensionConformanceObligation {
 pub(in crate::check) struct ImplementationCoherenceObligation {
     /// The extension declaration node.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The static condition under which this obligation exists.
-    pub(in crate::check) condition: Condition,
     /// The checked extension symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
 }
@@ -374,40 +320,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<()>> {
         // copy the obligation for the borrow-free check
         let obligation = self.solver.obligations.get(id)?.clone();
-        let predicates = match obligation.condition() {
-            Condition::Always => smallvec::SmallVec::new(),
-            Condition::When(predicates) => predicates.clone(),
-        };
-
-        // gate conditional obligations on their predicates
-        if !predicates.is_empty() {
-            match self.decide_condition(&predicates)? {
-                // skip obligations whose condition failed
-                Answer::Ready(false) => {
-                    self.record_event(CheckEvent::ObligationChecked {
-                        obligation: id,
-                        is_finished: true,
-                    });
-
-                    return Ok(Answer::Ready(()));
-                }
-                Answer::Ready(true) => {}
-                Answer::Pending(blockers) => {
-                    self.record_event(CheckEvent::ObligationChecked {
-                        obligation: id,
-                        is_finished: false,
-                    });
-
-                    return Ok(Answer::Pending(blockers));
-                }
-            }
-        }
-
-        // check the obligation under its own guard assumptions
-        let mark = self.assume(&predicates)?;
-        let decision = self.check_obligation(&obligation);
-        self.release_assumptions(mark);
-        let decision = decision?;
+        let decision = self.check_obligation(&obligation)?;
 
         match decision {
             Answer::Ready(diagnostic) => {
@@ -441,7 +354,6 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         match obligation {
             Obligation::PatternCoverage(obligation) => self.check_pattern_coverage(obligation),
-            Obligation::TryPropagation(obligation) => self.check_try_propagates(obligation),
             Obligation::WritablePlace(obligation) => self.check_writable_place(obligation),
             Obligation::Representation(obligation) => {
                 self.check_layout(obligation.source, obligation.ty)
@@ -460,6 +372,9 @@ impl CheckState<'_> {
             Obligation::DeclarationHeritage(obligation) => {
                 self.check_declaration_heritage(obligation.source, obligation.symbol)
             }
+            Obligation::ClassInitialization(obligation) => {
+                self.check_class_initialization(obligation)
+            }
         }
     }
 
@@ -468,14 +383,16 @@ impl CheckState<'_> {
         &mut self,
         obligation: &PatternCoverageObligation,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+        let value = answer!(obligation.value.resolve(self)?);
+
         match &obligation.coverage {
             PatternCoverage::Match { cases } => {
-                self.check_match_exhaustive(obligation.source, obligation.value, cases)
+                self.check_match_exhaustive(obligation.source, value, cases)
             }
             PatternCoverage::Binding { pattern } => self.check_irrefutable_pattern(
                 obligation.source,
                 *pattern,
-                obligation.value,
+                value,
                 |anchor, module, missing| {
                     CheckError::RefutablePattern {
                         anchor,
@@ -488,7 +405,7 @@ impl CheckState<'_> {
             PatternCoverage::Catch { pattern } => self.check_irrefutable_pattern(
                 obligation.source,
                 *pattern,
-                obligation.value,
+                value,
                 |anchor, module, missing| {
                     CheckError::RefutableCatchPattern {
                         anchor,

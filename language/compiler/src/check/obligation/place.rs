@@ -15,43 +15,52 @@ use crate::check::{
 /// object.field = next
 /// values[index] = next
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::check) struct Place {
-    /// How the expression selected the place.
-    pub(in crate::check) target: PlaceTarget,
-    /// How writes through this place are justified.
-    pub(in crate::check) write: PlaceWrite,
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct WriteTarget {
+    /// The selected storage.
+    pub(in crate::check) storage: dir::Storage,
+    /// The write validation mode.
+    pub(in crate::check) mode: WriteMode,
     /// The source node for diagnostics.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
 }
 
-impl Place {
-    /// Create a place.
-    pub(in crate::check) fn new(target: PlaceTarget, source: dir::GlobalNodeIdAny) -> Self {
+impl WriteTarget {
+    /// Create a directly writable target.
+    pub(in crate::check) fn new(storage: dir::Storage, source: dir::GlobalNodeIdAny) -> Self {
         Self {
-            target,
-            write: PlaceWrite::Direct,
+            storage,
+            mode: WriteMode::Direct,
             source,
         }
     }
 
-    /// Create a place that writes through non-exclusive indirection.
+    /// Create a target that writes through non-exclusive indirection.
     pub(in crate::check) fn stable_overwrite(
-        target: PlaceTarget,
+        storage: dir::Storage,
         source: dir::GlobalNodeIdAny,
         receiver: dir::GlobalTypeId,
     ) -> Self {
         Self {
-            target,
-            write: PlaceWrite::StableOverwrite { receiver },
+            storage,
+            mode: WriteMode::StableOverwrite { receiver },
             source,
+        }
+    }
+
+    /// Return the durable place resolution selected by this target.
+    pub(in crate::check) fn resolution(self, ty: dir::GlobalTypeId) -> dir::PlaceResolution {
+        dir::PlaceResolution {
+            source: self.source,
+            storage: self.storage,
+            ty,
         }
     }
 }
 
-/// Proof needed to write through one place.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::check) enum PlaceWrite {
+/// Write validation mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum WriteMode {
     /// The storage owner decides whether the write is legal.
     Direct,
     /// The write goes through non-exclusive indirection.
@@ -61,60 +70,33 @@ pub(in crate::check) enum PlaceWrite {
     },
 }
 
-/// How an expression selects a place.
-///
-/// Examples:
-/// ```ds
-/// value
-/// object.field
-/// values[index]
-/// *pointer
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::check) enum PlaceTarget {
-    /// Local or imported value binding.
-    Binding {
-        /// The selected local binding symbol.
-        symbol: dir::GlobalSymbolId,
-    },
-    /// Structural or nominal member target.
-    Member {
-        /// The receiver type.
-        owner: dir::GlobalTypeId,
-        /// The selected member key.
-        key: dir::StaticKey,
-    },
-    /// Protocol-backed index target.
-    Index {
-        /// The indexed receiver type.
-        receiver: dir::GlobalTypeId,
-        /// The index expression type.
-        index: dir::GlobalTypeId,
-    },
-    /// Protocol-backed dereference target.
-    Dereference,
-}
-
 impl CheckState<'_> {
     /// Check one writable place requirement.
     pub(in crate::check) fn check_writable_place(
         &mut self,
         obligation: &WritablePlaceObligation,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
-        let place = obligation.place;
-        let diagnostic = match place.target {
-            PlaceTarget::Binding { symbol } => self.writable_binding_error(place.source, symbol)?,
-            PlaceTarget::Member { owner, key } => {
-                self.writable_member_error(place.source, owner, key)?
+        let target = &obligation.place;
+        let diagnostic = match &target.storage {
+            dir::Storage::Binding { symbol } => {
+                self.writable_binding_error(target.source, *symbol)?
             }
-            PlaceTarget::Index { .. } | PlaceTarget::Dereference => Answer::Ready(None),
+            dir::Storage::Field { receiver, field } => match field {
+                dir::ProjectionField::Key(key) => {
+                    self.writable_member_error(target.source, *receiver, *key)?
+                }
+                dir::ProjectionField::Member(_) => Answer::Ready(None),
+            },
+            dir::Storage::Property { .. }
+            | dir::Storage::Subscript { .. }
+            | dir::Storage::Dereference { .. } => Answer::Ready(None),
         };
         match diagnostic {
             Answer::Ready(Some(_)) | Answer::Pending(_) => Ok(diagnostic),
-            Answer::Ready(None) => match place.write {
-                PlaceWrite::Direct => Ok(Answer::Ready(None)),
-                PlaceWrite::StableOverwrite { receiver } => {
-                    self.stable_overwrite_error(place.source, receiver, obligation.ty)
+            Answer::Ready(None) => match target.mode {
+                WriteMode::Direct => Ok(Answer::Ready(None)),
+                WriteMode::StableOverwrite { receiver } => {
+                    self.stable_overwrite_error(target.source, receiver, obligation.ty)
                 }
             },
         }
@@ -182,7 +164,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let (module, anchor) = self.source_anchor(source);
-        let name = self.format_symbol(symbol);
+        let name = self.format_assignment_binding(source, symbol);
 
         // cross module symbols are imported into this module
         if symbol.module_id != source.module_id {
