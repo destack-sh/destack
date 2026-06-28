@@ -196,7 +196,7 @@ impl Compiler {
             dir::SymbolKind::EnumField,
             Some(field.name.static_key()),
             None,
-            dir::SymbolVisibility::Scope,
+            dir::SymbolVisibility::Member,
         );
         state.declare_symbol(symbol_id, id);
 
