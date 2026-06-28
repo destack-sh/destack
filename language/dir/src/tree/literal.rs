@@ -155,7 +155,6 @@ impl ScalarLiteral {
         match (self, primitive) {
             (Self::String(_), PrimitiveType::String) => true,
             (Self::Character(_), PrimitiveType::Character) => true,
-            (Self::Character(_), PrimitiveType::String) => true,
             (Self::Boolean(_), PrimitiveType::Boolean) => true,
             (Self::Bigint(_), PrimitiveType::Bigint) => true,
             (Self::Integer(value), PrimitiveType::Integer(integer)) => integer.fits_literal(*value),

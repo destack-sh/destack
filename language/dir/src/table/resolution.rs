@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     AssignPatternResolution, CallResolution, ConstructResolution, GlobalNodeIdAny, GlobalSymbolId,
     GuardResolution, InstantiationResolution, LabelResolution, MemberResolution, NameResolution,
-    PatternResolution, ReadWriteResolution, ReceiverResolution, SegmentView,
+    PatternResolution, PlaceResolution, ReceiverResolution, SegmentView,
 };
 
 /// Cumulative checked resolutions for one DIR module.
@@ -97,11 +97,9 @@ impl<'a> ResolutionTable<'a> {
         self.visible_entries(|segment| &segment.calls)
     }
 
-    /// Iterate visible read-write resolutions.
-    pub fn read_write_entries(
-        &self,
-    ) -> impl Iterator<Item = (GlobalNodeIdAny, &ReadWriteResolution)> + '_ {
-        self.visible_entries(|segment| &segment.read_writes)
+    /// Iterate visible place resolutions.
+    pub fn place_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &PlaceResolution)> + '_ {
+        self.visible_entries(|segment| &segment.places)
     }
 
     /// Iterate visible guard resolutions.
@@ -168,9 +166,9 @@ impl<'a> ResolutionTable<'a> {
         self.lookup(node_id, |segment| &segment.calls)
     }
 
-    /// Get the paired read-write resolution for a node.
-    pub fn read_write_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&ReadWriteResolution> {
-        self.lookup(node_id, |segment| &segment.read_writes)
+    /// Get the place resolution for a node.
+    pub fn place_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&PlaceResolution> {
+        self.lookup(node_id, |segment| &segment.places)
     }
 
     /// Get the guard resolution for a node.
@@ -257,8 +255,8 @@ pub struct ResolutionSegment {
     pub(crate) members: IndexMap<GlobalNodeIdAny, MemberResolution>,
     /// Checked call resolutions keyed by DIR node.
     pub(crate) calls: IndexMap<GlobalNodeIdAny, CallResolution>,
-    /// Checked paired read-write resolutions keyed by DIR node.
-    pub(crate) read_writes: IndexMap<GlobalNodeIdAny, ReadWriteResolution>,
+    /// Checked place resolutions keyed by DIR node.
+    pub(crate) places: IndexMap<GlobalNodeIdAny, PlaceResolution>,
     /// Checked guard resolutions keyed by DIR node.
     pub(crate) guards: IndexMap<GlobalNodeIdAny, GuardResolution>,
     /// Checked construct resolutions keyed by DIR node.
@@ -280,7 +278,7 @@ impl ResolutionSegment {
             receivers: IndexMap::new(),
             members: IndexMap::new(),
             calls: IndexMap::new(),
-            read_writes: IndexMap::new(),
+            places: IndexMap::new(),
             guards: IndexMap::new(),
             constructs: IndexMap::new(),
             patterns: IndexMap::new(),
@@ -314,8 +312,8 @@ impl ResolutionSegment {
             self.calls.insert(target, resolution);
         }
 
-        if let Some(resolution) = self.read_writes.get(&source).cloned() {
-            self.read_writes.insert(target, resolution);
+        if let Some(resolution) = self.places.get(&source).cloned() {
+            self.places.insert(target, resolution);
         }
 
         if let Some(resolution) = self.guards.get(&source).cloned() {
@@ -420,18 +418,14 @@ impl ResolutionSegment {
         self.calls.get(&node_id)
     }
 
-    /// Set the paired read-write resolution for a node.
-    pub fn set_read_write_resolution(
-        &mut self,
-        node_id: GlobalNodeIdAny,
-        resolution: ReadWriteResolution,
-    ) {
-        self.read_writes.insert(node_id, resolution);
+    /// Set the place resolution for a node.
+    pub fn set_place_resolution(&mut self, node_id: GlobalNodeIdAny, resolution: PlaceResolution) {
+        self.places.insert(node_id, resolution);
     }
 
-    /// Get the paired read-write resolution for a node.
-    pub fn read_write_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&ReadWriteResolution> {
-        self.read_writes.get(&node_id)
+    /// Get the place resolution for a node.
+    pub fn place_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&PlaceResolution> {
+        self.places.get(&node_id)
     }
 
     /// Set the guard resolution for a node.
@@ -537,11 +531,9 @@ impl ResolutionSegment {
             .map(|(node_id, resolution)| (*node_id, resolution))
     }
 
-    /// Iterate visible read-write resolutions.
-    pub fn read_write_entries(
-        &self,
-    ) -> impl Iterator<Item = (GlobalNodeIdAny, &ReadWriteResolution)> + '_ {
-        self.read_writes
+    /// Iterate visible place resolutions.
+    pub fn place_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &PlaceResolution)> + '_ {
+        self.places
             .iter()
             .map(|(node_id, resolution)| (*node_id, resolution))
     }
@@ -588,7 +580,7 @@ impl ResolutionSegment {
             && self.receivers.is_empty()
             && self.members.is_empty()
             && self.calls.is_empty()
-            && self.read_writes.is_empty()
+            && self.places.is_empty()
             && self.guards.is_empty()
             && self.constructs.is_empty()
             && self.patterns.is_empty()
