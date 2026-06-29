@@ -117,7 +117,7 @@ fn format_pattern_field_list<'ast>(
     open: &'static str,
     close: &'static str,
     fields: &[LocalNodeId<PatternField>],
-    is_tuple: bool,
+    needs_singleton_tuple_separator: bool,
     should_expand: bool,
 ) -> FormatResult<()> {
     if fields.is_empty() {
@@ -126,7 +126,7 @@ fn format_pattern_field_list<'ast>(
 
     let allow_trailing_separator =
         !pattern_fields_disallow_trailing_separator(f.context().tree, fields);
-    let trailing_separator = if is_tuple && fields.len() == 1 {
+    let trailing_separator = if needs_singleton_tuple_separator && fields.len() == 1 {
         TrailingSeparator::Mandatory
     } else if !allow_trailing_separator || f.context().options.trailing_comma == TrailingComma::None
     {
@@ -882,7 +882,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                     format_newtype_object_pattern(f, *ty, payload)?;
                 } else {
                     write!(f, [ty])?;
-                    format_pattern_field_list(f, node_id, "(", ")", fields, true, false)?;
+                    format_pattern_field_list(f, node_id, "(", ")", fields, false, false)?;
                 }
             }
 

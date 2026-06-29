@@ -77,8 +77,19 @@ fn test_format_pattern_tuple() {
 }
 
 #[test]
+fn test_format_pattern_singleton_tuple_requires_comma() {
+    assert_format!("(x)", "(x,)", |p| p.eat_pattern());
+}
+
+#[test]
 fn test_format_pattern_tuple_with_path() {
     assert_format!("Result.Success(_, ...)", "Result.Success(_, ...)", |p| p
+        .eat_pattern());
+}
+
+#[test]
+fn test_format_pattern_nominal_singleton_tuple_omits_comma() {
+    assert_format!("Result.Success(x)", "Result.Success(x)", |p| p
         .eat_pattern());
 }
 
