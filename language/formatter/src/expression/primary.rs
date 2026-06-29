@@ -683,16 +683,16 @@ pub(crate) fn format_primary_expression<'ast>(
         Expression::TreeExpression {
             left,
             generic_arguments,
-            arguments,
-            elements,
+            attributes,
+            children,
         } => {
             format_tree_literal_expression(
                 f,
                 node_id,
                 left,
                 generic_arguments,
-                arguments,
-                elements,
+                attributes,
+                children,
             )?;
         }
 

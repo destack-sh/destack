@@ -16,8 +16,8 @@ use crate::expression::ExpressionLeftSide;
 use crate::operator::AssignmentLikeLayout;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
-    Argument, Declaration, ExportKind, Expression, FunctionDeclaration, FunctionForm,
-    FunctionSignature, IfForm, LocalNodeId, Name, NodeType, Parameter, TemplateLiteral,
+    Declaration, ExportKind, Expression, FunctionDeclaration, FunctionForm, FunctionSignature,
+    IfForm, LocalNodeId, Name, NodeType, Parameter, TemplateLiteral, TreeAttribute, TreeChild,
 };
 use destack_fir::format::{FormatResult, RemoveSoftLinesBuffer};
 use destack_fir::prelude::*;
@@ -313,60 +313,69 @@ fn lambda_declaration_is_call_like_callee(
     }
 }
 
-/// Return the tree argument that contains one lambda declaration.
-fn lambda_declaration_tree_argument_id(
+/// Return the tree node span that contains one lambda declaration.
+fn lambda_declaration_tree_node_span(
     context: &DestackFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
-) -> Option<LocalNodeId<Argument>> {
+) -> Option<Span> {
     let (declaration_expression_id, parent_type) = context.parent(declaration_id)?;
     if parent_type != NodeType::Expression {
         return None;
     }
 
     let declaration_expression_id = LocalNodeId::<Expression>::new(declaration_expression_id);
-    let (argument_id, parent_type) = context.parent(declaration_expression_id)?;
-    if parent_type != NodeType::Argument {
+    let (tree_node_id, tree_node_type) = context.parent(declaration_expression_id)?;
+    if !matches!(
+        tree_node_type,
+        NodeType::TreeAttribute | NodeType::TreeChild
+    ) {
         return None;
     }
 
-    let argument_id = LocalNodeId::<Argument>::new(argument_id);
-
-    let (tree_expression_id, parent_type) = context.parent_by_id(argument_id.id)?;
+    let (tree_expression_id, parent_type) = context.parent_by_id(tree_node_id)?;
     if parent_type != NodeType::Expression {
         return None;
     }
 
     let tree_expression_id = LocalNodeId::<Expression>::new(tree_expression_id);
-    matches!(
+    if !matches!(
         context.tree.get(tree_expression_id),
         Expression::TreeExpression { .. }
-    )
-    .then_some(argument_id)
+    ) {
+        return None;
+    }
+
+    match tree_node_type {
+        NodeType::TreeAttribute => {
+            Some(context.span(LocalNodeId::<TreeAttribute>::new(tree_node_id)))
+        }
+        NodeType::TreeChild => Some(context.span(LocalNodeId::<TreeChild>::new(tree_node_id))),
+        _ => unreachable!("tree node should be tree attribute or tree child"),
+    }
 }
 
 /// Return whether one lambda declaration sits inside a tree expression container.
-fn lambda_declaration_is_tree_argument(
+fn lambda_declaration_is_tree_node(
     context: &DestackFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
 ) -> bool {
-    lambda_declaration_tree_argument_id(context, declaration_id).is_some()
+    lambda_declaration_tree_node_span(context, declaration_id).is_some()
 }
 
-/// Return whether one tree argument lambda should align its closing brace with a soft line.
-fn lambda_declaration_tree_argument_should_add_soft_line(
+/// Return whether one tree expression-container lambda should add a soft closing line.
+fn lambda_declaration_tree_node_should_add_soft_line(
     context: &DestackFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
 ) -> bool {
-    let Some(argument_id) = lambda_declaration_tree_argument_id(context, declaration_id) else {
+    let Some(tree_node_span) = lambda_declaration_tree_node_span(context, declaration_id) else {
         return false;
     };
 
     let declaration_end = context.span(declaration_id).end;
-    let argument_end = context.span(argument_id).end;
 
     !context
         .comments()
-        .has_comment_in_range(declaration_end, argument_end)
+        .has_comment_in_range(declaration_end, tree_node_span.end)
 }
 
 /// Return whether one lambda body has one own-line comment after the arrow.
@@ -584,7 +593,7 @@ fn write_single_lambda_layout<'ast>(
     let should_add_trailing_separator =
         is_last_call_argument && matches!(f.context().options.trailing_comma, TrailingComma::All);
     let should_add_soft_line = is_last_call_argument
-        || lambda_declaration_tree_argument_should_add_soft_line(f.context(), declaration_id);
+        || lambda_declaration_tree_node_should_add_soft_line(f.context(), declaration_id);
 
     write!(
         f,
@@ -617,7 +626,7 @@ fn write_lambda_chain_layout<'ast>(
     let tail_body = tail_function.body;
     let is_grouped_call_argument = chain.options.call_argument_layout.is_some();
     let is_callee = lambda_declaration_is_call_like_callee(f.context(), chain.head);
-    let is_tree_argument = lambda_declaration_is_tree_argument(f.context(), chain.head);
+    let is_tree_node = lambda_declaration_is_tree_node(f.context(), chain.head);
     let body_on_separate_line = lambda_chain_tail_body_is_separate_line(f.context(), chain.tail);
     let break_signatures = (is_callee && body_on_separate_line)
         || matches!(
@@ -743,7 +752,7 @@ fn write_lambda_chain_layout<'ast>(
     });
 
     let format_tail_body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let should_add_soft_line = is_tree_argument;
+        let should_add_soft_line = is_tree_node;
 
         if body_on_separate_line {
             write!(

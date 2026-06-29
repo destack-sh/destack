@@ -1,9 +1,11 @@
 use crate::annotation::FormatTrailingComments;
 use crate::context::with_following_span_start;
 use crate::expression::format_generic_argument_list;
-use crate::tree::{tree_argument_is_wrapped_in_braces, write_tree_expression_argument};
+use crate::tree::write_tree_attribute;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{Argument, Expression, GenericArgument, LocalNodeId, ScalarLiteral};
+use destack_dir::{
+    Expression, GenericArgument, LocalNodeId, TreeAttribute, TreeAttributeValue, TreeChild,
+};
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{
     expand_parent, format_with, group, hard_line_break, soft_line_break, soft_line_break_or_space,
@@ -21,9 +23,9 @@ pub(crate) struct FormatTreeOpeningElement<'tree> {
     /// The generic arguments on the tag name.
     pub generic_arguments: &'tree [LocalNodeId<GenericArgument>],
     /// The opening tag attributes.
-    pub arguments: &'tree Option<Vec<LocalNodeId<Argument>>>,
+    pub attributes: &'tree Option<Vec<LocalNodeId<TreeAttribute>>>,
     /// The tree children.
-    pub elements: &'tree Option<Vec<LocalNodeId<Argument>>>,
+    pub children: &'tree Option<Vec<LocalNodeId<TreeChild>>>,
     /// Whether attributes force the opening element to break.
     pub force_break_attributes: bool,
 }
@@ -34,28 +36,28 @@ impl<'tree> FormatTreeOpeningElement<'tree> {
         expression_id: LocalNodeId<Expression>,
         left: &'tree Option<LocalNodeId<Expression>>,
         generic_arguments: &'tree [LocalNodeId<GenericArgument>],
-        arguments: &'tree Option<Vec<LocalNodeId<Argument>>>,
-        elements: &'tree Option<Vec<LocalNodeId<Argument>>>,
+        attributes: &'tree Option<Vec<LocalNodeId<TreeAttribute>>>,
+        children: &'tree Option<Vec<LocalNodeId<TreeChild>>>,
         force_break_attributes: bool,
     ) -> Self {
         Self {
             expression_id,
             left,
             generic_arguments,
-            arguments,
-            elements,
+            attributes,
+            children,
             force_break_attributes,
         }
     }
 
     /// Return whether this opening element is self-closing.
     fn is_self_closing(&self) -> bool {
-        self.elements.is_none()
+        self.children.is_none()
     }
 
     /// Compute the opening element layout.
     fn compute_layout(&self, context: &DestackFormatContext<'_>) -> TreeOpeningElementLayout {
-        let attributes = self.arguments.as_deref().unwrap_or(&[]);
+        let attributes = self.attributes.as_deref().unwrap_or(&[]);
         let comments = context.comments();
         let opening_span = context
             .tree
@@ -107,7 +109,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for FormatTreeOpeningElement<'_> {
         let format_open = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             write!(f, [token("<")])?;
             if let Some(left) = self.left {
-                let attributes = self.arguments.as_deref().unwrap_or(&[]);
+                let attributes = self.attributes.as_deref().unwrap_or(&[]);
                 let left_following_span_start = self
                     .generic_arguments
                     .first()
@@ -140,13 +142,13 @@ impl<'ast> Format<DestackFormatContext<'ast>> for FormatTreeOpeningElement<'_> {
             }
             TreeOpeningElementLayout::SingleStringAttribute => {
                 let attribute_spacing = self.is_self_closing().then_some(space());
-                let attributes = self.arguments.as_deref().unwrap_or(&[]);
+                let attributes = self.attributes.as_deref().unwrap_or(&[]);
                 write!(
                     f,
                     [
                         format_open,
                         space(),
-                        format_with(|f| write_tree_expression_argument(f, attributes[0], None)),
+                        format_with(|f| write_tree_attribute(f, attributes[0], None)),
                         attribute_spacing,
                         format_close
                     ]
@@ -164,7 +166,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for FormatTreeOpeningElement<'_> {
                         NodeSpanType::Region(NodeSpanRegion::Opening),
                     )
                     .unwrap_or_else(|| f.context().span(self.expression_id));
-                let attributes = self.arguments.as_deref().unwrap_or(&[]);
+                let attributes = self.attributes.as_deref().unwrap_or(&[]);
                 let format_inner = format_with(|f| {
                     write!(f, [format_open])?;
 
@@ -222,7 +224,7 @@ enum TreeOpeningElementLayout {
 /// Return whether one attribute has a multiline string literal value.
 fn is_multiline_string_literal_attribute(
     context: &DestackFormatContext<'_>,
-    attribute_id: LocalNodeId<Argument>,
+    attribute_id: LocalNodeId<TreeAttribute>,
 ) -> bool {
     as_string_literal_attribute_value(context, attribute_id)
         .is_some_and(|string_id| context.strings.get(string_id).contains('\n'))
@@ -231,7 +233,7 @@ fn is_multiline_string_literal_attribute(
 /// Return whether one attribute has a single-line string literal value.
 fn is_single_line_string_literal_attribute(
     context: &DestackFormatContext<'_>,
-    attribute_id: LocalNodeId<Argument>,
+    attribute_id: LocalNodeId<TreeAttribute>,
 ) -> bool {
     as_string_literal_attribute_value(context, attribute_id)
         .is_some_and(|string_id| !context.strings.get(string_id).contains('\n'))
@@ -240,16 +242,12 @@ fn is_single_line_string_literal_attribute(
 /// Return a string literal attribute value.
 fn as_string_literal_attribute_value(
     context: &DestackFormatContext<'_>,
-    attribute_id: LocalNodeId<Argument>,
+    attribute_id: LocalNodeId<TreeAttribute>,
 ) -> Option<destack_core::StringId> {
-    if tree_argument_is_wrapped_in_braces(context, attribute_id) {
-        return None;
-    }
-
-    let Argument::Named { value, .. } = context.tree.get(attribute_id) else {
-        return None;
-    };
-    let Expression::ScalarLiteral(ScalarLiteral::String(string_id)) = context.tree.get(*value)
+    let TreeAttribute::Named {
+        value: Some(TreeAttributeValue::String(string_id)),
+        ..
+    } = context.tree.get(attribute_id)
     else {
         return None;
     };
@@ -260,35 +258,33 @@ fn as_string_literal_attribute_value(
 /// Format tree attributes in one opening tag.
 fn format_tree_attributes<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    arguments: &[LocalNodeId<Argument>],
+    attributes: &[LocalNodeId<TreeAttribute>],
     force_break_attributes: bool,
 ) -> FormatResult<()> {
     let single_attribute_per_line = f.context().options.single_attribute_per_line;
     let attr_separator: &dyn Format<DestackFormatContext<'ast>> =
-        if force_break_attributes || (single_attribute_per_line && arguments.len() > 1) {
+        if force_break_attributes || (single_attribute_per_line && attributes.len() > 1) {
             &hard_line_break()
         } else {
             &soft_line_break_or_space()
         };
     let format_attrs = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let following_span_starts = arguments
+        let following_span_starts = attributes
             .iter()
             .enumerate()
             .map(|(index, _)| {
-                arguments
+                attributes
                     .get(index + 1)
-                    .map(|argument| f.context().span(*argument).start)
+                    .map(|attribute| f.context().span(*attribute).start)
             })
             .collect::<Vec<_>>();
 
         f.join_with(attr_separator)
-            .entries(arguments.iter().enumerate().map(|(index, argument)| {
-                let argument_id = *argument;
+            .entries(attributes.iter().enumerate().map(|(index, attribute)| {
+                let attribute_id = *attribute;
                 let following_span_start = following_span_starts[index];
 
-                format_with(move |f| {
-                    write_tree_expression_argument(f, argument_id, following_span_start)
-                })
+                format_with(move |f| write_tree_attribute(f, attribute_id, following_span_start))
             }))
             .finish()
     });

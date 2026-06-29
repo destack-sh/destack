@@ -1,7 +1,7 @@
 use crate::{DestackFormatOptions, assert_format, assert_format_program};
 use destack_source::FileType;
 
-/// Simple named tree arguments should stay stable.
+/// Simple named call arguments should stay stable.
 #[test]
 fn test_format_argument_named() {
     assert_format!(
@@ -46,7 +46,7 @@ fn test_format_multiline_jsx_argument_forces_expanded_call_layout() {
 
 /// Generic tree tags should keep their type arguments in the opening tag.
 #[test]
-fn test_format_tree_argument_preserves_generic_tag_arguments() {
+fn test_format_tree_preserves_generic_tag_arguments() {
     assert_format_program!(
         r#"const view = fn(<Foo<Bar> />)
 "#,
