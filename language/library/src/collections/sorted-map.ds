@@ -67,7 +67,7 @@ export class SortedMap<K, V> {
     count: usize = 0;
 }
 
-extension<K: Compare<K>, V> of SortedMapEntryHandle<K, V> {
+export extension<K: Compare<K>, V> of SortedMapEntryHandle<K, V> {
     /// Borrow the queried key.
     get key(): &readonly K {
         todo("SortedMapEntryHandle.key")
@@ -104,7 +104,7 @@ extension<K: Compare<K>, V> of SortedMapEntryHandle<K, V> {
     }
 }
 
-extension<K, V> of SortedMap<K, V> {
+export extension<K, V> of SortedMap<K, V> {
     /// Create an empty sorted map.
     static new(): ^SortedMap<K, V> {
         todo("SortedMap.new")
@@ -121,14 +121,14 @@ extension<K, V> of SortedMap<K, V> {
     }
 }
 
-extension<K, V> of ^SortedMap<K, V> implements Default {
+export extension<K, V> of ^SortedMap<K, V> implements Default {
     /// Create the default owned sorted map.
     static default(): ^SortedMap<K, V> {
         SortedMap.default()
     }
 }
 
-extension<K: Compare<K>, V> of SortedMap<K, V>
+export extension<K: Compare<K>, V> of SortedMap<K, V>
     implements
         Has<K>,
         Index<K>,
@@ -306,7 +306,7 @@ extension<K: Compare<K>, V> of SortedMap<K, V>
     }
 }
 
-extension<K: Compare<K>, V> of ^SortedMap<K, V>
+export extension<K: Compare<K>, V> of ^SortedMap<K, V>
     implements
         From<Iterable<(K, V)>>,
         FromIterator<(K, V)> {

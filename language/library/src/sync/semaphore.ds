@@ -53,7 +53,7 @@ export struct SemaphorePermit {
     count: usize;
 }
 
-extension of SemaphorePermit implements Dispose {
+export extension of SemaphorePermit implements Dispose {
     /// Release this permit.
     dispose(): void {
         todo("SemaphorePermit.dispose");

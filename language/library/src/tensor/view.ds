@@ -18,7 +18,7 @@ export newtype TensorView<
     comptime A: Access = "mutable",
 > = intrinsic;
 
-extension<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: Access> of
+export extension<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: Access> of
     TensorView<T, Rank, F, P, A>
     implements Index<Coordinate<Rank>> {
     /// The indexed output type.
@@ -69,14 +69,14 @@ extension<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: 
     }
 }
 
-extension<T, comptime Rank: int, P: Placement, comptime A: Access> of
+export extension<T, comptime Rank: int, P: Placement, comptime A: Access> of
     TensorView<T, Rank, Strided, P, A> {
     /// Return the element stride for each axis.
     @intrinsic("tensor.view.strides")
     get strides(): FixedArray<Stride, Rank>;
 }
 
-extension<
+export extension<
     T,
     comptime Rank: int,
     F: TensorViewFormat,
@@ -88,7 +88,7 @@ extension<
     get mesh(): Mesh;
 }
 
-extension<T, comptime Rank: int> of TensorView<T, Rank, Strided, Unsharded, "mutable"> {
+export extension<T, comptime Rank: int> of TensorView<T, Rank, Strided, Unsharded, "mutable"> {
     /// Build a mutable strided tensor view from a slice.
     @unsafe
     @intrinsic("tensor.view.fromStridedSlice")
@@ -99,7 +99,7 @@ extension<T, comptime Rank: int> of TensorView<T, Rank, Strided, Unsharded, "mut
     ): TensorView<T, Rank, Strided, Unsharded, "mutable">;
 }
 
-extension<T, comptime Rank: int> of TensorView<T, Rank, Strided, Unsharded, "readonly"> {
+export extension<T, comptime Rank: int> of TensorView<T, Rank, Strided, Unsharded, "readonly"> {
     /// Build a readonly strided tensor view from a slice.
     @unsafe
     @intrinsic("tensor.view.fromStridedSlice")
@@ -110,7 +110,7 @@ extension<T, comptime Rank: int> of TensorView<T, Rank, Strided, Unsharded, "rea
     ): TensorView<T, Rank, Strided, Unsharded, "readonly">;
 }
 
-extension<T, comptime Rank: int> of TensorView<T, Rank, Strided, Unsharded, "exclusive"> {
+export extension<T, comptime Rank: int> of TensorView<T, Rank, Strided, Unsharded, "exclusive"> {
     /// Build an exclusive strided tensor view from a slice.
     @unsafe
     @intrinsic("tensor.view.fromStridedSlice")
@@ -121,7 +121,7 @@ extension<T, comptime Rank: int> of TensorView<T, Rank, Strided, Unsharded, "exc
     ): TensorView<T, Rank, Strided, Unsharded, "exclusive">;
 }
 
-extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
+export extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
     TensorView<T, Rank, Dense<Order>, Unsharded, "mutable"> {
     /// Build a mutable tensor view from a contiguous slice.
     @unsafe
@@ -132,7 +132,7 @@ extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
     ): TensorView<T, Rank, Dense<Order>, Unsharded, "mutable">;
 }
 
-extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
+export extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
     TensorView<T, Rank, Dense<Order>, Unsharded, "readonly"> {
     /// Build a readonly tensor view from a contiguous slice.
     @unsafe
@@ -143,7 +143,7 @@ extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
     ): TensorView<T, Rank, Dense<Order>, Unsharded, "readonly">;
 }
 
-extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
+export extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
     TensorView<T, Rank, Dense<Order>, Unsharded, "exclusive"> {
     /// Build an exclusive tensor view from a contiguous slice.
     @unsafe
@@ -154,7 +154,7 @@ extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
     ): TensorView<T, Rank, Dense<Order>, Unsharded, "exclusive">;
 }
 
-extension<T, comptime Rank: int, F: TensorViewFormat, P: Placement> of
+export extension<T, comptime Rank: int, F: TensorViewFormat, P: Placement> of
     TensorView<T, Rank, F, P, "exclusive">
     implements IndexSet<Coordinate<Rank>, T> {
     /// Store `value` at `coordinate`.

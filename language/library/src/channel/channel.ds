@@ -28,7 +28,7 @@ export struct SendError<T> {
     value: T;
 }
 
-extension<T> of SendError<T> implements Error {
+export extension<T> of SendError<T> implements Error {
     /// Format this error for users.
     display(): MaybeOwned<string> {
         "channel send failed"
@@ -44,7 +44,7 @@ export struct ReceiveError {
     skipped?: usize;
 }
 
-extension of ReceiveError implements Error {
+export extension of ReceiveError implements Error {
     /// Format this error for users.
     display(): MaybeOwned<string> {
         "channel receive failed"

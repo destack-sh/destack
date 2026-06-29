@@ -18,7 +18,7 @@ export class ConcurrentSet<T> {
     map: ConcurrentMap<T, void>;
 }
 
-extension<T: Hash> of ConcurrentSetRead<T> implements Dispose, Dereference<"readonly"> {
+export extension<T: Hash> of ConcurrentSetRead<T> implements Dispose, Dereference<"readonly"> {
     /// The projected result form.
     type Output = &readonly T;
 
@@ -38,7 +38,7 @@ extension<T: Hash> of ConcurrentSetRead<T> implements Dispose, Dereference<"read
     }
 }
 
-extension<T> of ConcurrentSet<T> {
+export extension<T> of ConcurrentSet<T> {
     /// Create an empty concurrent set.
     static new(): ^ConcurrentSet<T> {
         todo("ConcurrentSet.new")
@@ -55,14 +55,14 @@ extension<T> of ConcurrentSet<T> {
     }
 }
 
-extension<T> of ^ConcurrentSet<T> implements Default {
+export extension<T> of ^ConcurrentSet<T> implements Default {
     /// Create the default owned concurrent set.
     static default(): ^ConcurrentSet<T> {
         ConcurrentSet.default()
     }
 }
 
-extension<T: Hash> of ConcurrentSet<T> implements Has<T>, Extend<T> {
+export extension<T: Hash> of ConcurrentSet<T> implements Has<T>, Extend<T> {
     /// Create a concurrent set from values.
     static from(values: Iterable<T>): ^ConcurrentSet<T> {
         todo("ConcurrentSet.from")
@@ -142,7 +142,7 @@ extension<T: Hash> of ConcurrentSet<T> implements Has<T>, Extend<T> {
     }
 }
 
-extension<T: Hash> of ^ConcurrentSet<T> implements From<Iterable<T>>, FromIterator<T>
+export extension<T: Hash> of ^ConcurrentSet<T> implements From<Iterable<T>>, FromIterator<T>
     where T: Equal<T> {
     /// Create an owned concurrent set from values.
     static from(values: Iterable<T>): ^ConcurrentSet<T> {

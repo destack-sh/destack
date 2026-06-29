@@ -23,7 +23,7 @@ export struct ArcInner<T> {
     value: MaybeUninit<T>;
 }
 
-extension<T> of Arc<T> implements Unpin {}
+export extension<T> of Arc<T> implements Unpin {}
 
 /// Shared reference-counted ownership.
 @languageItem("memory.arc.Arc")
@@ -32,7 +32,7 @@ export struct Arc<T> {
     inner: *ArcInner<Owned<T>>;
 }
 
-extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
+export extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     /// The projected result form.
     type Output = &readonly T;
 
@@ -168,7 +168,7 @@ extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 }
 
-extension<T> of Arc<T> implements Default where T: Default {
+export extension<T> of Arc<T> implements Default where T: Default {
     /// Create a shared reference-counted handle with the default value.
     static default(): Arc<T> {
         Arc.new(T.default())

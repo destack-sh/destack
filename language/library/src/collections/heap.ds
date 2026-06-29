@@ -12,7 +12,7 @@ export struct BinaryHeap<T> {
     storage: Array<T>;
 }
 
-extension<T> of BinaryHeap<T> implements Default {
+export extension<T> of BinaryHeap<T> implements Default {
     /// Create an empty binary heap.
     static new(): BinaryHeap<T> {
         todo("BinaryHeap.new")
@@ -29,7 +29,7 @@ extension<T> of BinaryHeap<T> implements Default {
     }
 }
 
-extension<T: Compare<T>> of BinaryHeap<T>
+export extension<T: Compare<T>> of BinaryHeap<T>
     implements
         Iterable<T>,
         Iterable<&readonly T>,

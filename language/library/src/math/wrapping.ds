@@ -5,7 +5,7 @@ import { wrappingAdd, wrappingMultiply, wrappingNegate, wrappingSubtract } from 
 /// Integer wrapper whose operators use modular arithmetic.
 export newtype Wrapping<T: int> = T;
 
-extension<T: int> of Wrapping<T> implements Add<Wrapping<T>> {
+export extension<T: int> of Wrapping<T> implements Add<Wrapping<T>> {
     type Output = Wrapping<T>;
 
     /// Add with modular arithmetic.
@@ -14,7 +14,7 @@ extension<T: int> of Wrapping<T> implements Add<Wrapping<T>> {
     }
 }
 
-extension<T: int> of Wrapping<T> implements Subtract<Wrapping<T>> {
+export extension<T: int> of Wrapping<T> implements Subtract<Wrapping<T>> {
     type Output = Wrapping<T>;
 
     /// Subtract with modular arithmetic.
@@ -23,7 +23,7 @@ extension<T: int> of Wrapping<T> implements Subtract<Wrapping<T>> {
     }
 }
 
-extension<T: int> of Wrapping<T> implements Multiply<Wrapping<T>> {
+export extension<T: int> of Wrapping<T> implements Multiply<Wrapping<T>> {
     type Output = Wrapping<T>;
 
     /// Multiply with modular arithmetic.
@@ -32,7 +32,7 @@ extension<T: int> of Wrapping<T> implements Multiply<Wrapping<T>> {
     }
 }
 
-extension<T: int> of Wrapping<T> implements Negate {
+export extension<T: int> of Wrapping<T> implements Negate {
     type Output = Wrapping<T>;
 
     /// Negate with modular arithmetic.

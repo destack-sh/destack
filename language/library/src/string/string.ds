@@ -30,7 +30,7 @@ export class String {
     bytes: Unique<[uint8]>;
 }
 
-extension of String {
+export extension of String {
     /// Create an empty string.
     static new(): ^string {
         todo("String.new")
@@ -67,7 +67,7 @@ extension of String {
     }
 }
 
-extension of string implements Equal<string>, Hash {
+export extension of string implements Equal<string>, Hash {
     /// The length in UTF-16 code units.
     get length(): usize {
         todo("String.length")
@@ -270,7 +270,7 @@ extension of string implements Equal<string>, Hash {
     }
 }
 
-extension of ^string implements Default, From<&readonly StringSlice>, From<^StringBuilder> {
+export extension of ^string implements Default, From<&readonly StringSlice>, From<^StringBuilder> {
     /// Create the default owned string.
     static default(): ^string {
         String.default()
@@ -287,7 +287,7 @@ extension of ^string implements Default, From<&readonly StringSlice>, From<^Stri
     }
 }
 
-extension of String implements As<StringSlice>, Borrow<StringSlice> {
+export extension of String implements As<StringSlice>, Borrow<StringSlice> {
     /// Borrow this string as UTF-8 text.
     as(&readonly this): &readonly StringSlice {
         todo("String.as")

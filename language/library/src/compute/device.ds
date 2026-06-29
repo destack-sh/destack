@@ -68,7 +68,7 @@ export struct DeviceQuery {
 @languageItem("compute.Device")
 export newtype Device = intrinsic;
 
-extension of Device {
+export extension of Device {
     /// Return all available devices matching `query`.
     static available(query?: DeviceQuery): ^Array<Device> {
         todo("Device.available")

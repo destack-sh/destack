@@ -19,7 +19,7 @@ export class Deque<T> {
     count: usize = 0;
 }
 
-extension<T> of Deque<T>
+export extension<T> of Deque<T>
     implements
         Index<usize>,
         IndexSet<usize, T>,
@@ -176,7 +176,7 @@ extension<T> of Deque<T>
     }
 }
 
-extension<T> of ^Deque<T> implements Default, From<Iterable<T>>, FromIterator<T> {
+export extension<T> of ^Deque<T> implements Default, From<Iterable<T>>, FromIterator<T> {
     /// Create the default owned deque.
     static default(): ^Deque<T> {
         Deque.default()

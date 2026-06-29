@@ -64,7 +64,7 @@ export struct IoError {
     cause?: Dynamic<Error>;
 }
 
-extension of IoError implements Error {
+export extension of IoError implements Error {
     /// Format this error for users.
     display(): MaybeOwned<string> {
         this.message ?? "I/O error"
@@ -88,7 +88,7 @@ export struct PathError {
     error: IoError;
 }
 
-extension of PathError implements Error {
+export extension of PathError implements Error {
     /// Format this error for users.
     display(): MaybeOwned<string> {
         todo("PathError.display")

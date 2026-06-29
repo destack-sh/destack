@@ -17,7 +17,7 @@ export newtype interface AsyncIterable<T> {
 }
 
 /// Every async iterator is trivially async-iterable as itself.
-extension<T, R, I: AsyncIterator<T, R>> of I implements AsyncIterable<T> {
+export extension<T, R, I: AsyncIterator<T, R>> of I implements AsyncIterable<T> {
     /// Return this async iterator.
     asyncIterator(): I {
         this

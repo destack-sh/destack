@@ -19,7 +19,7 @@ export type Complexf = Complex<float32>;
 /// Double-precision complex number.
 export type Complexd = Complex<float64>;
 
-extension<T: float> of Complex<T>
+export extension<T: float> of Complex<T>
     implements
         Add<Complex<T>>,
         Subtract<Complex<T>>,

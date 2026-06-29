@@ -14,14 +14,14 @@ export struct Range<T> {
     end: T;
 }
 
-extension<T: Step<T>> of Range<T> implements Iterable<T> {
+export extension<T: Step<T>> of Range<T> implements Iterable<T> {
     /// Return an iterator over this range.
     iterator(): Iterator<T> {
         todo("Range.iterator")
     }
 }
 
-extension<T> of Range<T> implements RangeBounds<T> {
+export extension<T> of Range<T> implements RangeBounds<T> {
     /// Return the start bound.
     startBound(): Bound<T> {
         Bound.Included({ value: this.start })
@@ -43,14 +43,14 @@ export struct RangeInclusive<T> {
     end: T;
 }
 
-extension<T: Step<T>> of RangeInclusive<T> implements Iterable<T> {
+export extension<T: Step<T>> of RangeInclusive<T> implements Iterable<T> {
     /// Return an iterator over this range.
     iterator(): Iterator<T> {
         todo("RangeInclusive.iterator")
     }
 }
 
-extension<T> of RangeInclusive<T> implements RangeBounds<T> {
+export extension<T> of RangeInclusive<T> implements RangeBounds<T> {
     /// Return the start bound.
     startBound(): Bound<T> {
         Bound.Included({ value: this.start })
@@ -69,14 +69,14 @@ export struct RangeFrom<T> {
     start: T;
 }
 
-extension<T: Step<T>> of RangeFrom<T> implements Iterable<T> {
+export extension<T: Step<T>> of RangeFrom<T> implements Iterable<T> {
     /// Return an iterator over this range.
     iterator(): Iterator<T> {
         todo("RangeFrom.iterator")
     }
 }
 
-extension<T> of RangeFrom<T> implements RangeBounds<T> {
+export extension<T> of RangeFrom<T> implements RangeBounds<T> {
     /// Return the start bound.
     startBound(): Bound<T> {
         Bound.Included({ value: this.start })
@@ -95,7 +95,7 @@ export struct RangeTo<T> {
     end: T;
 }
 
-extension<T> of RangeTo<T> implements RangeBounds<T> {
+export extension<T> of RangeTo<T> implements RangeBounds<T> {
     /// Return the start bound.
     startBound(): Bound<T> {
         Bound.Unbounded({})
@@ -114,7 +114,7 @@ export struct RangeToInclusive<T> {
     end: T;
 }
 
-extension<T> of RangeToInclusive<T> implements RangeBounds<T> {
+export extension<T> of RangeToInclusive<T> implements RangeBounds<T> {
     /// Return the start bound.
     startBound(): Bound<T> {
         Bound.Unbounded({})
@@ -130,7 +130,7 @@ extension<T> of RangeToInclusive<T> implements RangeBounds<T> {
 @languageItem("range.RangeFull")
 export struct RangeFull {}
 
-extension<T> of RangeFull implements RangeBounds<T> {
+export extension<T> of RangeFull implements RangeBounds<T> {
     /// Return the start bound.
     startBound(): Bound<T> {
         Bound.Unbounded({})

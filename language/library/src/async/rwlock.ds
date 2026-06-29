@@ -45,7 +45,7 @@ export class AsyncRwLock<T> {
     }
 }
 
-extension<T: Default> of AsyncRwLock<T> implements Default {
+export extension<T: Default> of AsyncRwLock<T> implements Default {
     /// Create the default async reader-writer lock.
     static default(): AsyncRwLock<T> {
         new AsyncRwLock(T.default())
@@ -58,7 +58,7 @@ export struct AsyncRwLockReadGuard<T> {
     lock: *AsyncRwLock<T>;
 }
 
-extension<T> of AsyncRwLockReadGuard<T> implements Dispose, Dereference<"readonly"> {
+export extension<T> of AsyncRwLockReadGuard<T> implements Dispose, Dereference<"readonly"> {
     /// The projected result form.
     type Output = &readonly T;
 
@@ -79,7 +79,7 @@ export struct AsyncRwLockWriteGuard<T> {
     lock: *AsyncRwLock<T>;
 }
 
-extension<T> of AsyncRwLockWriteGuard<T> implements Dispose, Dereference<"exclusive"> {
+export extension<T> of AsyncRwLockWriteGuard<T> implements Dispose, Dereference<"exclusive"> {
     /// The projected result form.
     type Output = &exclusive T;
 

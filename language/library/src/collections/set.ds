@@ -13,7 +13,7 @@ export class Set<T> {
     map: Map<T, void>;
 }
 
-extension<T> of Set<T> {
+export extension<T> of Set<T> {
     /// Create an empty set.
     static new(): ^Set<T> {
         todo("Set.new")
@@ -30,14 +30,14 @@ extension<T> of Set<T> {
     }
 }
 
-extension<T> of ^Set<T> implements Default {
+export extension<T> of ^Set<T> implements Default {
     /// Create the default owned set.
     static default(): ^Set<T> {
         Set.default()
     }
 }
 
-extension<T: Hash> of Set<T>
+export extension<T: Hash> of Set<T>
     implements
         Has<T>,
         Iterable<T>,
@@ -191,7 +191,7 @@ extension<T: Hash> of Set<T>
     }
 }
 
-extension<T: Hash> of ^Set<T> implements From<Iterable<T>>, FromIterator<T> where T: Equal<T> {
+export extension<T: Hash> of ^Set<T> implements From<Iterable<T>>, FromIterator<T> where T: Equal<T> {
     /// Create an owned set from values.
     static from(values: Iterable<T>): ^Set<T> {
         Set.from(values)

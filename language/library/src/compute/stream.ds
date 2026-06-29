@@ -6,7 +6,7 @@ import { Device } from "./device.ds";
 @languageItem("compute.Stream")
 export newtype Stream = intrinsic;
 
-extension of Stream {
+export extension of Stream {
     /// Return the device that owns this stream.
     @intrinsic("compute.stream.device")
     get device(): Device;
@@ -41,7 +41,7 @@ extension of Stream {
 @languageItem("compute.Event")
 export newtype Event = intrinsic;
 
-extension of Event {
+export extension of Event {
     /// Return the stream that recorded this event.
     @intrinsic("compute.event.stream")
     get stream(): Stream;

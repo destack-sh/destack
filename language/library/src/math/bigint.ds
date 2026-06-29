@@ -38,7 +38,7 @@ export class BigInt {
     private capacity: usize = 0;
 }
 
-extension of BigInt {
+export extension of BigInt {
     /// Return zero.
     static zero(): bigint {
         todo("BigInt.zero")
@@ -70,7 +70,7 @@ extension of BigInt {
     }
 }
 
-extension of bigint
+export extension of bigint
     implements
         Add<bigint>,
         And<bigint>,

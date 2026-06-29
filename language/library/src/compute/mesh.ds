@@ -16,7 +16,7 @@ export struct MeshAxis {
 @languageItem("compute.Mesh")
 export newtype Mesh = intrinsic;
 
-extension of Mesh {
+export extension of Mesh {
     /// Create a mesh from devices and named axes.
     static new(devices: &readonly Slice<Device>, axes: &readonly Slice<MeshAxis>): Mesh {
         todo("Mesh.new")

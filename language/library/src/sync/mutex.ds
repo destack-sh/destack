@@ -38,7 +38,7 @@ export class Mutex<T> {
     }
 }
 
-extension<T: Default> of Mutex<T> implements Default {
+export extension<T: Default> of Mutex<T> implements Default {
     /// Create the default mutex.
     static default(): Mutex<T> {
         new Mutex(T.default())
@@ -51,7 +51,7 @@ export struct MutexGuard<T> {
     mutex: *Mutex<T>;
 }
 
-extension<T> of MutexGuard<T> implements Dispose, Dereference<"exclusive"> {
+export extension<T> of MutexGuard<T> implements Dispose, Dereference<"exclusive"> {
     /// The projected result form.
     type Output = &exclusive T;
 

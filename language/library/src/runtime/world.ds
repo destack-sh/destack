@@ -179,7 +179,7 @@ export struct WorldViewOptions {
     revision?: RevisionId;
 }
 
-extension of World {
+export extension of World {
     /// Create one world.
     static open(options?: WorldCreateOptions): Result<World, HostError> {
         worldCreate(options).andThen((handle) => worldDescribe(handle))
@@ -206,7 +206,7 @@ extension of World {
     }
 }
 
-extension of Runtime {
+export extension of Runtime {
     /// Close this runtime.
     close(): Result<void, HostError> {
         runtimeClose(this.handle)
@@ -223,7 +223,7 @@ extension of Runtime {
     }
 }
 
-extension of Worker {
+export extension of Worker {
     /// Close this worker.
     close(): Result<void, HostError> {
         workerClose(this.handle)

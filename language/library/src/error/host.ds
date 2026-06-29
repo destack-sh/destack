@@ -497,7 +497,7 @@ export newtype HostError = {
     message?: string;
 };
 
-extension of HostError implements Error {
+export extension of HostError implements Error {
     /// Format this error for users.
     display(): MaybeOwned<string> {
         this.message ?? "host error"

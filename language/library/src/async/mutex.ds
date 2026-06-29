@@ -35,7 +35,7 @@ export class AsyncMutex<T> {
     }
 }
 
-extension<T: Default> of AsyncMutex<T> implements Default {
+export extension<T: Default> of AsyncMutex<T> implements Default {
     /// Create the default async mutex.
     static default(): AsyncMutex<T> {
         new AsyncMutex(T.default())
@@ -48,7 +48,7 @@ export struct AsyncMutexGuard<T> {
     mutex: *AsyncMutex<T>;
 }
 
-extension<T> of AsyncMutexGuard<T> implements Dispose, Dereference<"exclusive"> {
+export extension<T> of AsyncMutexGuard<T> implements Dispose, Dereference<"exclusive"> {
     /// The projected result form.
     type Output = &exclusive T;
 

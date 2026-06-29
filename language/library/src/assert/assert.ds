@@ -19,7 +19,7 @@ export struct AssertionError {
     expected?: unknown;
 }
 
-extension of AssertionError implements Error {
+export extension of AssertionError implements Error {
     /// Format this assertion failure for users.
     display(): MaybeOwned<string> {
         this.message

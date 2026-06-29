@@ -42,7 +42,7 @@ export struct Slab<T> {
     count: usize = 0;
 }
 
-extension<T> of Slab<T>
+export extension<T> of Slab<T>
     implements
         Has<SlabKey>,
         Index<SlabKey>,

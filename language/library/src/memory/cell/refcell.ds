@@ -69,7 +69,7 @@ export struct Ref<T> {
     cell: *RefCell<T>;
 }
 
-extension<T> of Ref<T> implements Dispose, Dereference<"readonly"> {
+export extension<T> of Ref<T> implements Dispose, Dereference<"readonly"> {
     /// The projected result form.
     type Output = &readonly T;
 
@@ -90,7 +90,7 @@ export struct ExclusiveRef<T> {
     cell: *RefCell<T>;
 }
 
-extension<T> of ExclusiveRef<T> implements Dispose, Dereference<"exclusive"> {
+export extension<T> of ExclusiveRef<T> implements Dispose, Dereference<"exclusive"> {
     /// The projected result form.
     type Output = &exclusive T;
 

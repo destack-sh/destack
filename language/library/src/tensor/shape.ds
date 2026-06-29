@@ -17,7 +17,7 @@ export struct Shape<comptime Rank: int> {
     extents: FixedArray<Extent, Rank>;
 }
 
-extension<comptime Rank: int> of Shape<Rank> {
+export extension<comptime Rank: int> of Shape<Rank> {
     /// Create a shape from `extents`.
     static new(extents: FixedArray<Extent, Rank>): Shape<Rank> {
         Shape { extents }
@@ -45,7 +45,7 @@ export struct Coordinate<comptime Rank: int> {
     values: FixedArray<usize, Rank>;
 }
 
-extension<comptime Rank: int> of Coordinate<Rank> {
+export extension<comptime Rank: int> of Coordinate<Rank> {
     /// Create a coordinate from `values`.
     static new(values: FixedArray<usize, Rank>): Coordinate<Rank> {
         Coordinate { values }
@@ -58,7 +58,7 @@ export struct Permutation<comptime Rank: int> {
     axes: FixedArray<Axis, Rank>;
 }
 
-extension<comptime Rank: int> of Permutation<Rank> {
+export extension<comptime Rank: int> of Permutation<Rank> {
     /// Create a permutation from `axes`.
     static new(axes: FixedArray<Axis, Rank>): Permutation<Rank> {
         Permutation { axes }
@@ -76,7 +76,7 @@ export struct AxisSet<comptime Count: int> {
     values: FixedArray<Axis, Count>;
 }
 
-extension<comptime Count: int> of AxisSet<Count> {
+export extension<comptime Count: int> of AxisSet<Count> {
     /// Create an axis set from `values`.
     static new(values: FixedArray<Axis, Count>): AxisSet<Count> {
         AxisSet { values }

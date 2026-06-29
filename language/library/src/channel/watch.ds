@@ -10,7 +10,7 @@ export struct WatchRef<T> {
     private receiver: *WatchReceiver<T>;
 }
 
-extension<T> of WatchRef<T> implements Dispose, Dereference<"readonly"> {
+export extension<T> of WatchRef<T> implements Dispose, Dereference<"readonly"> {
     /// The projected result form.
     type Output = &readonly T;
 

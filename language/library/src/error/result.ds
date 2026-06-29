@@ -22,7 +22,7 @@ export struct Err<E> {
 @languageItem("error.Result")
 export newtype Result<T, E> = Ok<T> | Err<E>;
 
-extension<T, E> of Result<T, E> {
+export extension<T, E> of Result<T, E> {
     /// Create a successful result.
     static ok(value: T): Result<T, E> {
         Result(Ok { kind: "Ok", value })
@@ -146,7 +146,7 @@ extension<T, E> of Result<T, E> {
     }
 }
 
-extension<T, E> of Result<T, E> implements Try {
+export extension<T, E> of Result<T, E> implements Try {
     /// The success value.
     type Output = T;
 
@@ -167,14 +167,14 @@ extension<T, E> of Result<T, E> implements Try {
     }
 }
 
-extension<T, E> of Result<T, E> implements FromResidual<E> {
+export extension<T, E> of Result<T, E> implements FromResidual<E> {
     /// Create a result from a propagated residual.
     static fromResidual(residual: E): Result<T, E> {
         Result.err(residual)
     }
 }
 
-extension<T: Equal<T>, E: Equal<E>> of Result<T, E> implements Equal<Result<T, E>> {
+export extension<T: Equal<T>, E: Equal<E>> of Result<T, E> implements Equal<Result<T, E>> {
     /// Compare two results.
     equal(other: Result<T, E>): boolean {
         match (this) {
@@ -198,7 +198,7 @@ extension<T: Equal<T>, E: Equal<E>> of Result<T, E> implements Equal<Result<T, E
 @languageItem("error.AsyncResult")
 export newtype AsyncResult<T, E> = Promise<Result<T, E>>;
 
-extension<T, E> of AsyncResult<T, E> {
+export extension<T, E> of AsyncResult<T, E> {
     /// Create a successful async result.
     static ok(value: T): AsyncResult<T, E> {
         AsyncResult(Promise.resolve(Result.ok(value)))
@@ -299,7 +299,7 @@ extension<T, E> of AsyncResult<T, E> {
     }
 }
 
-extension<T, E> of AsyncResult<T, E> implements FromResidual<E> {
+export extension<T, E> of AsyncResult<T, E> implements FromResidual<E> {
     /// Create an async result from a propagated residual.
     static fromResidual(residual: E): AsyncResult<T, E> {
         AsyncResult.err(residual)
