@@ -26,7 +26,7 @@ export type Quaternionf = Quaternion<float32>;
 /// Double-precision quaternion.
 export type Quaterniond = Quaternion<float64>;
 
-extension<T: float> of Quaternion<T> implements Multiply<Quaternion<T>> {
+export extension<T: float> of Quaternion<T> implements Multiply<Quaternion<T>> {
     /// The arithmetic result type.
     type Output = Quaternion<T>;
 

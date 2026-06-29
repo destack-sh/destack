@@ -47,7 +47,7 @@ export struct ValidationError {
     issues: [Issue];
 }
 
-extension of ValidationError implements Error {
+export extension of ValidationError implements Error {
     /// Format this validation error for users.
     display(): MaybeOwned<string> {
         "schema validation failed"

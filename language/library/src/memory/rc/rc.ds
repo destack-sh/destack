@@ -22,7 +22,7 @@ export struct RcInner<T> {
     value: MaybeUninit<T>;
 }
 
-extension<T> of Rc<T> implements Unpin {}
+export extension<T> of Rc<T> implements Unpin {}
 
 /// Local reference-counted ownership.
 @languageItem("memory.rc.Rc")
@@ -31,7 +31,7 @@ export struct Rc<T> {
     inner: *RcInner<Owned<T>>;
 }
 
-extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
+export extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     /// The projected result form.
     type Output = &readonly T;
 
@@ -167,7 +167,7 @@ extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 }
 
-extension<T> of Rc<T> implements Default where T: Default {
+export extension<T> of Rc<T> implements Default where T: Default {
     /// Create a reference-counted handle with the default value.
     static default(): Rc<T> {
         Rc.new(T.default())

@@ -6,7 +6,7 @@ import { todo } from "destack:error";
 @languageItem("string.StringSlice")
 export newtype StringSlice = Slice<uint8>;
 
-extension of StringSlice implements ToOwned, As<Slice<uint8>, "readonly"> {
+export extension of StringSlice implements ToOwned, As<Slice<uint8>, "readonly"> {
     /// The owned value type.
     type Owned = ^string;
 

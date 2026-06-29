@@ -11,7 +11,7 @@ export struct DecodeError {
     message: string;
 }
 
-extension of DecodeError implements Error {
+export extension of DecodeError implements Error {
     /// Format this error for users.
     display(): MaybeOwned<string> {
         this.message

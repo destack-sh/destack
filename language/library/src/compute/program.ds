@@ -115,7 +115,7 @@ export struct ProgramReport {
 @languageItem("compute.Program")
 export newtype Program = intrinsic;
 
-extension of Program {
+export extension of Program {
     /// Return the device that owns this program.
     @intrinsic("compute.program.device")
     get device(): Device;
@@ -144,7 +144,7 @@ extension of Program {
 @languageItem("compute.KernelArgument")
 export newtype KernelArgument = intrinsic;
 
-extension of KernelArgument {
+export extension of KernelArgument {
     /// Encode `value` as one kernel argument.
     static value<T>(value: T): KernelArgument {
         todo("KernelArgument.value")
@@ -202,7 +202,7 @@ export struct KernelSignature {
 @languageItem("compute.Kernel")
 export newtype Kernel = intrinsic;
 
-extension of Kernel {
+export extension of Kernel {
     /// Return the program that owns this kernel.
     @intrinsic("compute.kernel.program")
     get program(): Program;

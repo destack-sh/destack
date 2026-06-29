@@ -10,7 +10,7 @@ export struct Weak<T> {
     inner?: *RcInner<Owned<T>>;
 }
 
-extension<T> of Weak<T> {
+export extension<T> of Weak<T> {
     /// Create an empty weak handle.
     static new(): Weak<T> {
         Weak { inner: undefined }

@@ -17,7 +17,7 @@ export class Random {
     }
 }
 
-extension of Random {
+export extension of Random {
     /// Open a deterministic random generator in `world`.
     static open(
         world: runtime.WorldHandle,

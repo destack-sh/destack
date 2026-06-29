@@ -33,7 +33,7 @@ export newtype Tensor<
     P: Placement = Unsharded,
 > = intrinsic;
 
-extension<T, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor<T, Rank, F, P> {
+export extension<T, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor<T, Rank, F, P> {
     /// Return the tensor shape.
     @intrinsic("tensor.shape")
     get shape(): Shape<Rank>;
@@ -95,7 +95,7 @@ extension<T, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor<T, Ran
     }
 }
 
-extension<T, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F, Unsharded> {
+export extension<T, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F, Unsharded> {
     /// Return the device that owns the tensor storage.
     @intrinsic("tensor.device")
     get device(): Device;
@@ -113,14 +113,14 @@ extension<T, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F, Unsharde
     }
 }
 
-extension<T, comptime Rank: int, F: TensorFormat, comptime ...Axes: ShardingAxis> of
+export extension<T, comptime Rank: int, F: TensorFormat, comptime ...Axes: ShardingAxis> of
     Tensor<T, Rank, F, Sharding<...Axes>> {
     /// Return the mesh that owns the tensor shards.
     @intrinsic("tensor.mesh")
     get mesh(): Mesh;
 }
 
-extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placement> of
+export extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placement> of
     Tensor<T, Rank, F, P> {
     /// Allocate a tensor filled with zero.
     static zeros(
@@ -139,7 +139,7 @@ extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placement> of
     }
 }
 
-extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placement> of
+export extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placement> of
     Tensor<T, Rank, F, P>
     implements
         Add<Tensor<T, Rank, F, P>>,
@@ -188,7 +188,7 @@ extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placement> of
     }
 }
 
-extension<T: int | boolean, comptime Rank: int, F: TensorFormat, P: Placement> of
+export extension<T: int | boolean, comptime Rank: int, F: TensorFormat, P: Placement> of
     Tensor<T, Rank, F, P>
     implements
         And<Tensor<T, Rank, F, P>>,
@@ -219,7 +219,7 @@ extension<T: int | boolean, comptime Rank: int, F: TensorFormat, P: Placement> o
     }
 }
 
-extension<T, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor<T, Rank, F, P>
+export extension<T, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor<T, Rank, F, P>
     implements
         Index<Coordinate<Rank>>,
         IndexSet<Coordinate<Rank>, T> {

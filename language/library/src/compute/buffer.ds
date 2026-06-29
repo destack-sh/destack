@@ -45,7 +45,7 @@ export struct BufferCopyRegion {
 @languageItem("compute.Buffer")
 export newtype Buffer<T> = intrinsic;
 
-extension<T> of Buffer<T> {
+export extension<T> of Buffer<T> {
     /// Return the device that owns this buffer.
     @intrinsic("compute.buffer.device")
     get device(): Device;

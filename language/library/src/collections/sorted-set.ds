@@ -13,7 +13,7 @@ export class SortedSet<T> {
     map: SortedMap<T, void>;
 }
 
-extension<T> of SortedSet<T> {
+export extension<T> of SortedSet<T> {
     /// Create an empty sorted set.
     static new(): ^SortedSet<T> {
         todo("SortedSet.new")
@@ -30,14 +30,14 @@ extension<T> of SortedSet<T> {
     }
 }
 
-extension<T> of ^SortedSet<T> implements Default {
+export extension<T> of ^SortedSet<T> implements Default {
     /// Create the default owned sorted set.
     static default(): ^SortedSet<T> {
         SortedSet.default()
     }
 }
 
-extension<T: Compare<T>> of SortedSet<T>
+export extension<T: Compare<T>> of SortedSet<T>
     implements
         Has<T>,
         Iterable<T>,
@@ -186,7 +186,7 @@ extension<T: Compare<T>> of SortedSet<T>
     }
 }
 
-extension<T: Compare<T>> of ^SortedSet<T> implements From<Iterable<T>>, FromIterator<T> {
+export extension<T: Compare<T>> of ^SortedSet<T> implements From<Iterable<T>>, FromIterator<T> {
     /// Create an owned sorted set from values.
     static from(values: Iterable<T>): ^SortedSet<T> {
         SortedSet.from(values)

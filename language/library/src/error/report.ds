@@ -12,7 +12,7 @@ export struct Report {
     context?: string;
 }
 
-extension of Report {
+export extension of Report {
     /// Create a report from a typed error.
     static from<E: Error>(error: E): Report {
         todo("Report.from")
@@ -29,7 +29,7 @@ extension of Report {
     }
 }
 
-extension of Report implements Error {
+export extension of Report implements Error {
     /// Format this report for users.
     display(): MaybeOwned<string> {
         todo("Report.display")

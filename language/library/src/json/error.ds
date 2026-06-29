@@ -35,7 +35,7 @@ export struct JsonError {
     path?: readonly JsonPathSegment[];
 }
 
-extension of JsonError implements Error {
+export extension of JsonError implements Error {
     /// Format this error for users.
     display(): MaybeOwned<string> {
         this.message

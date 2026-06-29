@@ -24,7 +24,7 @@ export type ReadonlyArray<T> = readonly T[];
 @languageItem("collections.FixedArray")
 export type FixedArray<T, comptime N: number> = [T; N];
 
-extension<T, comptime N: number> of FixedArray<T, N>
+export extension<T, comptime N: number> of FixedArray<T, N>
     implements
         Sequence<T>,
         Index<usize>,
@@ -123,7 +123,7 @@ extension<T, comptime N: number> of FixedArray<T, N>
     }
 }
 
-extension<T, comptime N: number, comptime A: Access = "readonly"> of FixedArray<T, N>
+export extension<T, comptime N: number, comptime A: Access = "readonly"> of FixedArray<T, N>
     implements
         As<Slice<T>, A>,
         Borrow<Slice<T>, A> {
@@ -138,7 +138,7 @@ extension<T, comptime N: number, comptime A: Access = "readonly"> of FixedArray<
     }
 }
 
-extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N> implements Index<R> {
+export extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N> implements Index<R> {
     /// The indexed output type.
     type Output = Slice<T>;
 
@@ -151,7 +151,7 @@ extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N> impl
     }
 }
 
-extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N>
+export extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N>
     implements
         IndexSet<R, Slice<T>> where T: Copy {
     /// Copy `source` into the selected range.
@@ -160,7 +160,7 @@ extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N>
     }
 }
 
-extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N>
+export extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N>
     implements
         IndexSet<R, &readonly Slice<T>> where T: Copy {
     /// Copy `source` into the selected range.
@@ -182,7 +182,7 @@ export class Array<T> {
     capacity: usize = 0;
 }
 
-extension<T> of Array<T>
+export extension<T> of Array<T>
     implements
         Sequence<T>,
         Index<usize>,
@@ -564,7 +564,7 @@ extension<T> of Array<T>
     }
 }
 
-extension<T, comptime A: Access = "readonly"> of Array<T>
+export extension<T, comptime A: Access = "readonly"> of Array<T>
     implements
         As<Slice<T>, A>,
         Borrow<Slice<T>, A> {
@@ -579,7 +579,7 @@ extension<T, comptime A: Access = "readonly"> of Array<T>
     }
 }
 
-extension<T, R: RangeBounds<usize>> of Array<T> implements Index<R> {
+export extension<T, R: RangeBounds<usize>> of Array<T> implements Index<R> {
     /// The indexed output type.
     type Output = Slice<T>;
 
@@ -594,7 +594,7 @@ extension<T, R: RangeBounds<usize>> of Array<T> implements Index<R> {
     }
 }
 
-extension<T> of Slice<T> implements ToOwned where T: Clone {
+export extension<T> of Slice<T> implements ToOwned where T: Clone {
     /// The owned value type.
     type Owned = ^Array<T>;
 
@@ -604,7 +604,7 @@ extension<T> of Slice<T> implements ToOwned where T: Clone {
     }
 }
 
-extension<T> of ^Array<T> implements Default, From<Iterable<T>>, FromIterator<T> {
+export extension<T> of ^Array<T> implements Default, From<Iterable<T>>, FromIterator<T> {
     /// Create the default owned array.
     static default(): ^Array<T> {
         Array.default()

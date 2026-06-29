@@ -16,7 +16,7 @@ import { Unique } from "./unique.ds";
 @languageItem("memory.Box")
 export newtype Box<T> = Unique<Owned<T>>;
 
-extension<T, comptime A: Access = "readonly"> of Box<T>
+export extension<T, comptime A: Access = "readonly"> of Box<T>
     implements
         Dereference<A>,
         As<T, A>,
@@ -115,16 +115,16 @@ extension<T, comptime A: Access = "readonly"> of Box<T>
     }
 }
 
-extension<T> of Box<T> implements Unpin {}
+export extension<T> of Box<T> implements Unpin {}
 
-extension<T> of Box<T> implements Clone where T: Clone {
+export extension<T> of Box<T> implements Clone where T: Clone {
     /// Clone the boxed value into a new box.
     clone(): Box<T> {
         todo("Box.clone")
     }
 }
 
-extension<T> of Box<T> implements Default where T: Default {
+export extension<T> of Box<T> implements Default where T: Default {
     /// Create a box with the default value.
     static default(): Box<T> {
         Box.new(T.default())

@@ -10,7 +10,7 @@ export class ConcurrentQueue<T> {
     state: Atomic<uint64>;
 }
 
-extension<T> of ConcurrentQueue<T> implements Extend<T> {
+export extension<T> of ConcurrentQueue<T> implements Extend<T> {
     /// Create an empty concurrent queue.
     static new(): ^ConcurrentQueue<T> {
         todo("ConcurrentQueue.new")
@@ -57,7 +57,7 @@ extension<T> of ConcurrentQueue<T> implements Extend<T> {
     }
 }
 
-extension<T> of ^ConcurrentQueue<T> implements Default, From<Iterable<T>>, FromIterator<T> {
+export extension<T> of ^ConcurrentQueue<T> implements Default, From<Iterable<T>>, FromIterator<T> {
     /// Create the default owned concurrent queue.
     static default(): ^ConcurrentQueue<T> {
         ConcurrentQueue.default()

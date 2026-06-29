@@ -48,7 +48,7 @@ export newtype AllocationError =
     | AllocationCapacityOverflow
     | AllocationUnsupported;
 
-extension of AllocationError implements Error {
+export extension of AllocationError implements Error {
     /// Format this error for users.
     display(): MaybeOwned<string> {
         match (this) {

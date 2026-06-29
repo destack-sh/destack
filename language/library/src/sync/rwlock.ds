@@ -48,7 +48,7 @@ export class RwLock<T> {
     }
 }
 
-extension<T: Default> of RwLock<T> implements Default {
+export extension<T: Default> of RwLock<T> implements Default {
     /// Create the default reader-writer lock.
     static default(): RwLock<T> {
         new RwLock(T.default())
@@ -61,7 +61,7 @@ export struct RwLockReadGuard<T> {
     lock: *RwLock<T>;
 }
 
-extension<T> of RwLockReadGuard<T> implements Dispose, Dereference<"readonly"> {
+export extension<T> of RwLockReadGuard<T> implements Dispose, Dereference<"readonly"> {
     /// The projected result form.
     type Output = &readonly T;
 
@@ -82,7 +82,7 @@ export struct RwLockWriteGuard<T> {
     lock: *RwLock<T>;
 }
 
-extension<T> of RwLockWriteGuard<T> implements Dispose, Dereference<"exclusive"> {
+export extension<T> of RwLockWriteGuard<T> implements Dispose, Dereference<"exclusive"> {
     /// The projected result form.
     type Output = &exclusive T;
 

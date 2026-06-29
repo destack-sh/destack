@@ -36,7 +36,7 @@ export type RowMajorFormat = Dense<MemoryOrder.RowMajor>;
 /// Column-major dense tensor format.
 export type ColumnMajorFormat = Dense<MemoryOrder.ColumnMajor>;
 
-extension<comptime Order: MemoryOrder> of Dense<Order> {
+export extension<comptime Order: MemoryOrder> of Dense<Order> {
     /// Return the dense memory order.
     get order(): MemoryOrder {
         Order
@@ -57,7 +57,7 @@ extension<comptime Order: MemoryOrder> of Dense<Order> {
     offset<comptime Rank: int>(indices: FixedArray<usize, Rank>, shape: Shape<Rank>): isize;
 }
 
-extension of Strided {
+export extension of Strided {
     /// Return whether this format is dense.
     get isDense(): boolean {
         false

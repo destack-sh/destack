@@ -88,7 +88,7 @@ export type AtomicWaitResult = "notEqual" | "timedOut" | "woken";
 /// Atomic storage for one value.
 export newtype Atomic<T> = intrinsic;
 
-extension<T> of Atomic<T> {
+export extension<T> of Atomic<T> {
     /// Create atomic storage.
     static new(value: T): Atomic<T> {
         todo("Atomic.new")
@@ -119,7 +119,7 @@ extension<T> of Atomic<T> {
     }
 }
 
-extension<T: int> of Atomic<T> {
+export extension<T: int> of Atomic<T> {
     /// Wait while the value is equal to `expected`.
     wait(
         expected: T,

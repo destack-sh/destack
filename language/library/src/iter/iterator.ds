@@ -40,7 +40,7 @@ export newtype interface Iterable<T> {
 }
 
 /// Every iterator is trivially iterable as itself.
-extension<T, R, I: Iterator<T, R>> of I implements Iterable<T> {
+export extension<T, R, I: Iterator<T, R>> of I implements Iterable<T> {
     /// Return this iterator.
     iterator(): I {
         this

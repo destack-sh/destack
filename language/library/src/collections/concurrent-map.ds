@@ -44,7 +44,7 @@ export class ConcurrentMap<K, V> {
     count: Atomic<usize>;
 }
 
-extension<K: Hash, V> of ConcurrentMapRead<K, V> implements Dispose, Dereference<"readonly"> {
+export extension<K: Hash, V> of ConcurrentMapRead<K, V> implements Dispose, Dereference<"readonly"> {
     /// The projected result form.
     type Output = &readonly V;
 
@@ -69,7 +69,7 @@ extension<K: Hash, V> of ConcurrentMapRead<K, V> implements Dispose, Dereference
     }
 }
 
-extension<K: Hash, V> of ConcurrentMapWrite<K, V> implements Dispose, Dereference<"exclusive"> {
+export extension<K: Hash, V> of ConcurrentMapWrite<K, V> implements Dispose, Dereference<"exclusive"> {
     /// The projected result form.
     type Output = &exclusive V;
 
@@ -99,7 +99,7 @@ extension<K: Hash, V> of ConcurrentMapWrite<K, V> implements Dispose, Dereferenc
     }
 }
 
-extension<K: Hash, V> of ConcurrentMapEntry<K, V> implements Dispose {
+export extension<K: Hash, V> of ConcurrentMapEntry<K, V> implements Dispose {
     /// Borrow the queried key.
     get key(): &readonly K {
         todo("ConcurrentMapEntry.key")
@@ -146,7 +146,7 @@ extension<K: Hash, V> of ConcurrentMapEntry<K, V> implements Dispose {
     }
 }
 
-extension<K, V> of ConcurrentMap<K, V> {
+export extension<K, V> of ConcurrentMap<K, V> {
     /// Create an empty concurrent map.
     static new(): ^ConcurrentMap<K, V> {
         todo("ConcurrentMap.new")
@@ -163,14 +163,14 @@ extension<K, V> of ConcurrentMap<K, V> {
     }
 }
 
-extension<K, V> of ^ConcurrentMap<K, V> implements Default {
+export extension<K, V> of ^ConcurrentMap<K, V> implements Default {
     /// Create the default owned concurrent map.
     static default(): ^ConcurrentMap<K, V> {
         ConcurrentMap.default()
     }
 }
 
-extension<K: Hash, V> of ConcurrentMap<K, V> implements Has<K>, Extend<(K, V)> {
+export extension<K: Hash, V> of ConcurrentMap<K, V> implements Has<K>, Extend<(K, V)> {
     /// Create a concurrent map from entries.
     static from(entries: Iterable<(K, V)>): ^ConcurrentMap<K, V> {
         todo("ConcurrentMap.from")
@@ -290,7 +290,7 @@ extension<K: Hash, V> of ConcurrentMap<K, V> implements Has<K>, Extend<(K, V)> {
     }
 }
 
-extension<K: Hash, V> of ^ConcurrentMap<K, V>
+export extension<K: Hash, V> of ^ConcurrentMap<K, V>
     implements
         From<Iterable<(K, V)>>,
         FromIterator<(K, V)> {

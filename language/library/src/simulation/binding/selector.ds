@@ -31,7 +31,7 @@ export function binding(name: string): Selector {
     Selector { binding: name }
 }
 
-extension of Selector {
+export extension of Selector {
     /// Return this selector with one facet.
     facet(this, name: string): Selector {
         this.facet = name;
