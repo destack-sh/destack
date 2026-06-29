@@ -31,6 +31,12 @@ impl Protocol {
 pub(in crate::check) struct ProtocolMember {
     /// The selected member resolution.
     pub(in crate::check) resolution: dir::MemberResolution,
+    /// The selected member type.
+    pub(in crate::check) ty: dir::GlobalTypeId,
+    /// The selected member symbol.
+    pub(in crate::check) symbol: dir::GlobalSymbolId,
+    /// The selected generic argument bindings.
+    pub(in crate::check) generic_arguments: Vec<dir::GenericArgumentBinding>,
 }
 
 /// Selected protocol call.
