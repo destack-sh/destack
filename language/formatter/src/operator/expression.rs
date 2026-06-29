@@ -207,6 +207,33 @@ fn prefix_expression_operand_needs_grouping(
         || comments.has_comment_in_range(right_span.end, prefix_span.end)
 }
 
+/// Return whether one symbolic unary prefix would merge with its operand token.
+fn prefix_unary_would_merge_with_operand(
+    context: &DestackFormatContext<'_>,
+    operator: &UnaryOperator,
+    right: LocalNodeId<Expression>,
+) -> bool {
+    let right_expression_id = transparent_inner_expression(context, right);
+    let Expression::Unary {
+        operator: right_operator,
+        ..
+    } = context.tree.get(right_expression_id)
+    else {
+        return false;
+    };
+
+    matches!(
+        (operator, right_operator),
+        (
+            UnaryOperator::Plus,
+            UnaryOperator::Plus | UnaryOperator::PreIncrement
+        ) | (
+            UnaryOperator::Negate,
+            UnaryOperator::Negate | UnaryOperator::PreDecrement
+        )
+    )
+}
+
 /// Write one prefix expression operand with grouped boundary comments.
 fn write_prefix_expression_operand<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -270,6 +297,12 @@ pub(crate) fn format_operator_expression<'ast>(
                     write!(f, [operator, space()])?;
                 } else {
                     write!(f, [operator])?;
+                }
+
+                if !needs_space
+                    && prefix_unary_would_merge_with_operand(f.context(), operator, *right)
+                {
+                    write!(f, [space()])?;
                 }
 
                 write_prefix_expression_operand(f, node_id, *right)?;
