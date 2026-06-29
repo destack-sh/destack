@@ -9,7 +9,10 @@ pub(super) fn woven_source_forms(mode: StressMode, scale: usize, width: usize) -
     generator.emit("    select(index: number): T | undefined;\n");
     generator.emit("}\n\n");
     generator.emit("export class WovenStore<T extends { id: string }> {\n");
-    generator.emit("    constructor(readonly input: WovenInput<T>) {}\n\n");
+    generator.emit("    readonly input: WovenInput<T>;\n");
+    generator.emit("    constructor(input: WovenInput<T>) {\n");
+    generator.emit("        this.input = input;\n");
+    generator.emit("    }\n\n");
 
     for index in 0..generator.scale() {
         emit_source_method(&mut generator, index);
