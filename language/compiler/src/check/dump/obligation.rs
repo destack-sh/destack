@@ -2,8 +2,7 @@ use destack_artifact::ArtifactEvent;
 use destack_dir as dir;
 
 use crate::check::{
-    DumpContext, MatchCase, Obligation, ObligationId, PatternCoverage, PlaceTarget,
-    TryPropagationTarget, TryPropagationValue,
+    DumpContext, ExpectedType, MatchCase, Obligation, ObligationId, PatternCoverage,
 };
 
 impl Obligation {
@@ -20,27 +19,17 @@ impl Obligation {
             .text("kind", self.kind_label())
             .text("source", context.node_label(self.source()))
             .text("at", context.node_source_label(self.source()))
-            .text(
-                "condition",
-                super::constraint::condition_label(self.condition(), context),
-            )
             .bool("finished", finished);
 
         match self {
             Self::PatternCoverage(obligation) => event
-                .text("value", context.type_label(obligation.value))
+                .text("value", expected_type_label(&obligation.value, context))
                 .text(
                     "coverage",
                     pattern_coverage_label(&obligation.coverage, context),
                 ),
-            Self::TryPropagation(obligation) => event
-                .text("value", try_value_label(obligation.value, context))
-                .text("target", try_target_label(obligation.target, context)),
             Self::WritablePlace(obligation) => event
-                .text(
-                    "place",
-                    place_target_label(&obligation.place.target, context),
-                )
+                .text("place", place_label(&obligation.place.storage, context))
                 .text("source", context.node_label(obligation.place.source)),
             Self::Representation(obligation) => {
                 event.text("type", context.type_label(obligation.ty))
@@ -62,6 +51,13 @@ impl Obligation {
             Self::DeclarationHeritage(obligation) => {
                 event.text("symbol", context.symbol_label(obligation.symbol))
             }
+            Self::ClassInitialization(obligation) => event
+                .text("symbol", context.symbol_label(obligation.symbol))
+                .text("receiver", context.type_label(obligation.receiver))
+                .usize(
+                    "constructor_branches",
+                    obligation.constructor_branches.len(),
+                ),
         }
     }
 
@@ -69,7 +65,6 @@ impl Obligation {
     fn kind_label(&self) -> &'static str {
         match self {
             Self::PatternCoverage(_) => "pattern.coverage",
-            Self::TryPropagation(_) => "try.propagation",
             Self::WritablePlace(_) => "writable.place",
             Self::Representation(_) => "representation",
             Self::AutoInterface(_) => "auto.interface",
@@ -78,7 +73,17 @@ impl Obligation {
             Self::ExtensionConformance(_) => "extension.conformance",
             Self::ImplementationCoherence(_) => "implementation.coherence",
             Self::DeclarationHeritage(_) => "declaration.heritage",
+            Self::ClassInitialization(_) => "class.initialization",
         }
+    }
+}
+
+/// Render one expected type payload.
+fn expected_type_label(expected: &ExpectedType, context: &DumpContext<'_, '_>) -> String {
+    match expected {
+        ExpectedType::Type(ty) => context.type_label(*ty),
+        ExpectedType::Node(node) => format!("node({})", context.node_label(*node)),
+        ExpectedType::Place(place) => format!("place({})", context.node_label(place.source)),
     }
 }
 
@@ -140,44 +145,30 @@ fn pattern_coverage_label(coverage: &PatternCoverage, context: &DumpContext<'_, 
     }
 }
 
-/// Render one try propagation value.
-fn try_value_label(value: TryPropagationValue, context: &DumpContext<'_, '_>) -> String {
-    match value {
-        TryPropagationValue::Type(ty) => context.type_label(ty),
-        TryPropagationValue::Node(node) => context.node_label(node),
-    }
-}
-
-/// Render one try propagation target.
-fn try_target_label(target: TryPropagationTarget, context: &DumpContext<'_, '_>) -> String {
-    match target {
-        TryPropagationTarget::Failure { ty } => format!("failure({})", context.type_label(ty)),
-        TryPropagationTarget::Return { ty } => ty
-            .map(|ty| format!("return({})", context.type_label(ty)))
-            .unwrap_or_else(|| "return(none)".to_string()),
-    }
-}
-
-/// Render one place target compactly.
-fn place_target_label(target: &PlaceTarget, context: &DumpContext<'_, '_>) -> String {
-    match target {
-        PlaceTarget::Binding { symbol } => {
+/// Render one place compactly.
+fn place_label(place: &dir::Storage, context: &DumpContext<'_, '_>) -> String {
+    match place {
+        dir::Storage::Binding { symbol } => {
             format!("binding({})", context.symbol_label(*symbol))
         }
-        PlaceTarget::Member { owner, key } => {
+        dir::Storage::Field {
+            receiver,
+            field: dir::ProjectionField::Key(key),
+        } => {
             format!(
-                "member({}.{})",
-                context.type_label(*owner),
+                "field({}.{})",
+                context.type_label(*receiver),
                 context.static_key_label(key)
             )
         }
-        PlaceTarget::Index { receiver, index } => {
-            format!(
-                "index({}[{}])",
-                context.type_label(*receiver),
-                context.type_label(*index)
-            )
+        dir::Storage::Field {
+            field: dir::ProjectionField::Member(symbol),
+            ..
+        } => {
+            format!("field({})", context.symbol_label(*symbol))
         }
-        PlaceTarget::Dereference => "dereference".to_string(),
+        dir::Storage::Property { .. } => "property".to_string(),
+        dir::Storage::Subscript { .. } => "subscript".to_string(),
+        dir::Storage::Dereference { .. } => "dereference".to_string(),
     }
 }

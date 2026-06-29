@@ -398,7 +398,6 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         }
         let Some(decision) = self
             .check
-            .solver
             .decision(expression_id.into_global_any(module_id))
         else {
             return Ok(());
@@ -438,7 +437,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             _ => return Ok(()),
         };
         let node = expression_id.into_global_any(module_id);
-        let Some(Decision::Construct(resolution)) = self.check.solver.decision(node) else {
+        let Some(Decision::Construct(resolution)) = self.check.decision(node) else {
             return Ok(());
         };
         let arguments = resolution.target.generic_arguments();

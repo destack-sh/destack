@@ -2,8 +2,7 @@ use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
 use crate::check::{
-    CheckState, ConstraintId, Dependency, ObligationId, Origin, Relation, SelectionId, ValueUse,
-    Widening,
+    CheckState, ConstraintId, Dependency, ObligationId, Origin, Relation, ValueUse, Widening,
 };
 
 /// Rendering context for check trace values.
@@ -26,11 +25,6 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     /// Return a compact obligation id label.
     pub(in crate::check) fn obligation_label(&self, id: ObligationId) -> String {
         format!("o{}", id.index())
-    }
-
-    /// Return a compact selection label.
-    pub(in crate::check) fn selection_label(&self, id: SelectionId) -> String {
-        format!("s{}", id.index())
     }
 
     /// Return a compact type variable label.
@@ -103,6 +97,8 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     pub(in crate::check) fn dependency_label(&self, dependency: Dependency) -> String {
         match dependency {
             Dependency::Variable(variable) => self.variable_label(variable),
+            Dependency::NodeType(node) => self.node_label(node),
+            Dependency::SymbolType(symbol) => self.symbol_label(symbol),
             Dependency::Decision(node) => self.node_label(node),
         }
     }
@@ -140,6 +136,14 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     fn dependency_state_label(&self, dependency: Dependency) -> String {
         match dependency {
             Dependency::Variable(variable) => self.variable_state_label(variable),
+            Dependency::NodeType(node) => {
+                format!(
+                    "{} type at {}",
+                    self.node_label(node),
+                    self.node_source_label(node)
+                )
+            }
+            Dependency::SymbolType(symbol) => format!("{} type", self.symbol_label(symbol)),
             Dependency::Decision(node) => {
                 format!(
                     "{} at {}",
@@ -197,7 +201,6 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         match origin {
             Origin::Node(node) => self.node_label(node),
             Origin::Symbol(symbol) => self.symbol_label(symbol),
-            Origin::Type(ty) => self.type_label(ty),
         }
     }
 
@@ -207,10 +210,6 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             Origin::Node(node) => self.node_source_label(node),
             Origin::Symbol(symbol) => self
                 .symbol_source(symbol)
-                .map(|node| self.node_source_label(node))
-                .unwrap_or_else(|| "unknown".to_string()),
-            Origin::Type(ty) => self
-                .type_source(ty)
                 .map(|node| self.node_source_label(node))
                 .unwrap_or_else(|| "unknown".to_string()),
         }
@@ -284,20 +283,6 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             .bindings
             .get_symbol_maybe(symbol.local_id)
             .and_then(|binding| binding.declaration)
-    }
-
-    /// Return the source node for one type.
-    fn type_source(&self, ty: dir::GlobalTypeId) -> Option<dir::GlobalNodeIdAny> {
-        if let Some(module) = self.check.modules.get(&ty.module_id) {
-            let source = module.types.get_type_source(ty.local_id);
-
-            return Some(source.into_global(ty.module_id));
-        }
-
-        let external = self.check.external_modules.get(&ty.module_id)?;
-        let source = external.types.get_type_source(ty.local_id);
-
-        Some(source.into_global(ty.module_id))
     }
 
     /// Return the source location for one span.

@@ -1,6 +1,6 @@
 use destack_artifact::ArtifactEvent;
 
-use crate::check::{Condition, Constraint, ConstraintId, DumpContext};
+use crate::check::{Constraint, ConstraintId, DumpContext};
 
 impl Constraint {
     /// Render this constraint as one trace event.
@@ -19,15 +19,6 @@ impl Constraint {
             .text("origin", context.origin_label(self.origin()))
             .text("at", context.origin_source_label(self.origin()))
             .text("use", context.value_use_label(self.value_use()))
-            .text("condition", condition_label(self.condition(), context))
             .bool("finished", finished)
-    }
-}
-
-/// Render one condition compactly.
-pub(super) fn condition_label(condition: &Condition, context: &DumpContext<'_, '_>) -> String {
-    match condition {
-        Condition::Always => "always".to_string(),
-        Condition::When(predicates) => format!("when({})", context.type_list_label(predicates)),
     }
 }
