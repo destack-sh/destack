@@ -319,12 +319,6 @@ pub(crate) fn expression_needs_statement_terminator(
             | Expression::Using { .. }
     ) || matches!(
         expression,
-        Expression::If {
-            form: IfForm::Ternary,
-            ..
-        }
-    ) || matches!(
-        expression,
         Expression::While {
             form: WhileForm::DoWhile,
             ..
@@ -357,6 +351,16 @@ pub(crate) fn expression_needs_statement_terminator(
 
     if is_expression_context_tail {
         return false;
+    }
+
+    if matches!(
+        expression,
+        Expression::If {
+            form: IfForm::Ternary,
+            ..
+        }
+    ) {
+        return true;
     }
 
     !matches!(expression, Expression::Stub | Expression::Error)

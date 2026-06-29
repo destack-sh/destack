@@ -236,6 +236,52 @@ fn test_format_object_method_body_preserves_terminal_expression_without_semicolo
     );
 }
 
+/// Extension getter tail expressions should preserve value position.
+#[test]
+fn test_format_extension_getter_ternary_tail_without_semicolon() {
+    assert_format_program!(
+        r#"extension<T, comptime N: number> of SmallArray<T, N> implements
+    Sequence<T>,
+    Index<usize>,
+    IndexSet<usize, T>,
+    Iterable<T>,
+    Iterable<&T>,
+    Iterable<&readonly T>,
+    Iterable<&exclusive T>,
+    From<Iterable<T>>,
+    FromIterator<T>,
+    Extend<T, "exclusive">,
+    Default,
+    From<Array<T>>,
+    From<FixedArray<T, N>> {
+    get capacity(): usize {
+        this.spillStorage == undefined ? (N as usize) : this.spillCapacity
+    }
+}
+"#,
+        r#"extension<T, comptime N: number> of SmallArray<T, N> implements
+    Sequence<T>,
+    Index<usize>,
+    IndexSet<usize, T>,
+    Iterable<T>,
+    Iterable<&T>,
+    Iterable<&readonly T>,
+    Iterable<&exclusive T>,
+    From<Iterable<T>>,
+    FromIterator<T>,
+    Extend<T, "exclusive">,
+    Default,
+    From<Array<T>>,
+    From<FixedArray<T, N>> {
+    get capacity(): usize {
+        this.spillStorage == undefined ? (N as usize) : this.spillCapacity
+    }
+}
+"#,
+        FileType::Destack,
+    );
+}
+
 /// Inline blocks should stay inline when used as expressions.
 #[test]
 fn test_format_block_inline() {
