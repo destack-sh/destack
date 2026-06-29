@@ -555,12 +555,11 @@ impl Parser {
     pub(super) fn eat_type_reference_operator(
         &mut self,
         start: &ParserSpanStart,
-        token_type: TokenType,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         // operator
-        let operator_start = self.span_start();
-        self.bump();
-        let operator_span = self.get_span_from(&operator_start);
+        let operator = self.eat_reference_prefix_operator()?;
+        let token_type = operator.token.ty();
+        let operator_span = operator.span;
 
         // modifiers
         let mutability = self.eat_reference_mutability_maybe()?;

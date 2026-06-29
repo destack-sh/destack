@@ -56,9 +56,10 @@ impl Parser {
             TokenType::Range | TokenType::RangeInclusive if self.language.is_destack() => {
                 self.eat_type_startless_range(start)
             }
-            TokenType::ElementwiseAnd | TokenType::ElementwiseXor if self.language.is_destack() => {
-                let token_type = self.peek_token_type();
-                self.eat_type_reference_operator(start, token_type)
+            TokenType::ElementwiseAnd | TokenType::ElementwiseXor | TokenType::LogicalAnd
+                if self.language.is_destack() =>
+            {
+                self.eat_type_reference_operator(start)
             }
             TokenType::Multiply => self.eat_type_pointer_prefix(start),
             _ => Err(ParserError::unexpected(self.peek()?.span)),

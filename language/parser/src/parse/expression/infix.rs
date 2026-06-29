@@ -828,9 +828,8 @@ impl Parser {
     pub(in crate::parse::expression) fn eat_value_reference_operator(
         &mut self,
         start: &ParserSpanStart,
-        token_type: TokenType,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        self.bump();
+        let token_type = self.eat_reference_prefix_operator()?.token.ty();
         let mutability = self.eat_reference_mutability_maybe()?;
         let variance = self.eat_variance_bound_if_present()?;
         let right_scope =
