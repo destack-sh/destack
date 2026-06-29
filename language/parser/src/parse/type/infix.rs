@@ -248,7 +248,8 @@ impl Parser {
         &mut self,
         right: TypeScope,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        if Self::is_type_expression_boundary_token(self.peek_token_type()) {
+        // recover a missing right operand
+        if self.is_type_expression_recovery_boundary() {
             return Ok(self.recover_missing_type_expression_here(NodeType::TypeExpression));
         }
 
@@ -360,7 +361,8 @@ impl Parser {
             .disallow_type_conditional();
         let scope = TypeScope::from_flags(flags);
 
-        if Self::is_type_expression_boundary_token(self.peek_token_type()) {
+        // recover a missing relation target
+        if self.is_type_expression_recovery_boundary() {
             return Ok(self.recover_missing_type_expression_here(NodeType::TypeExpression));
         }
 
@@ -417,8 +419,8 @@ impl Parser {
     /// X extends Y ? A : B
     /// ```
     fn eat_type_conditional_else(&mut self) -> ParserResult<TypeConditionalElse> {
-        // recover empty branch
-        if self.is_type_expression_boundary() {
+        // recover a missing false branch
+        if self.is_type_expression_recovery_boundary() {
             let else_type = self.recover_missing_type_expression_here(NodeType::TypeExpression);
 
             return Ok(TypeConditionalElse::Expression(else_type));
@@ -529,7 +531,8 @@ impl Parser {
         end_kind: RangeEnd,
         right: TypeScope,
     ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
-        if self.current_token_is_on_new_line() || self.is_type_expression_boundary() {
+        // finish an open range or recover a missing inclusive end
+        if self.current_token_is_on_new_line() || self.is_type_expression_recovery_boundary() {
             if end_kind == RangeEnd::Inclusive {
                 return Ok(Some(
                     self.recover_missing_type_expression_here(NodeType::TypeExpression),
