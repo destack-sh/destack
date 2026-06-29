@@ -32,7 +32,7 @@ use destack_dir::{
 };
 use destack_fir::format::{
     FormatError, FormatNode as FirNode, FormatNodes, FormatResult, Formatter as FirFormatter,
-    VecBuffer,
+    GroupId, VecBuffer,
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
@@ -545,6 +545,53 @@ pub(crate) fn format_super_type_clause_with_expand<'ast>(
     }
 }
 
+/// Format one extension declaration implements clause after one target group.
+fn format_extension_implements_clause<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    types: &[LocalNodeId<TypeExpression>],
+    target_group_id: GroupId,
+) -> FormatResult<()> {
+    // empty clause
+    if types.is_empty() {
+        return Ok(());
+    }
+
+    let flat_clause = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        format_super_type_clause(f, Keyword::Implements, types)
+    });
+    let broken_target_clause = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        let entries = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+            f.join_with(&format_args![token(","), soft_line_break_or_space()])
+                .entries(types.iter().copied().map(|type_id| {
+                    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+                        write_type_expression_with_inline_prefix_annotations(f, type_id)
+                    })
+                }))
+                .finish()
+        });
+
+        write!(
+            f,
+            [
+                Keyword::Implements,
+                group(&soft_line_indent_or_space(&entries))
+            ]
+        )
+    });
+
+    write!(
+        f,
+        [
+            if_group_fits_on_line(&flat_clause).with_group_id(Some(target_group_id)),
+            if_group_breaks(&indent(&format_args![
+                hard_line_break(),
+                broken_target_clause
+            ]))
+            .with_group_id(Some(target_group_id))
+        ]
+    )
+}
+
 /// Format one `let` or `const` statement.
 pub(crate) fn format_let_statement_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -883,10 +930,18 @@ fn format_extension_declaration<'ast>(
             ]))]
         )
     });
-    write!(f, [group(&extension_target)])?;
+    let extension_target_group_id = f.group_id("extension_target");
+    write!(
+        f,
+        [group(&extension_target).with_id(Some(extension_target_group_id))]
+    )?;
 
     // heritage
-    format_super_type_clause(f, Keyword::Implements, &declaration.implements_types)?;
+    format_extension_implements_clause(
+        f,
+        &declaration.implements_types,
+        extension_target_group_id,
+    )?;
 
     // where clauses
     write_declaration_where_clauses(f, &declaration.where_clauses)?;
