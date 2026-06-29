@@ -59,7 +59,7 @@ impl CheckState<'_> {
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         value: dir::GlobalTypeId,
     ) -> CompilerResult<String> {
-        let value = match self.reduce_type_root(origin, value)? {
+        let value = match self.reduce_type_head(origin, value)? {
             Answer::Ready(value) => value,
             Answer::Pending(_) => return Ok(self.format_type(value)),
         };
@@ -105,7 +105,7 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         // close the matched value first
-        let value = answer!(self.reduce_type_root(origin, value)?);
+        let value = answer!(self.reduce_type_head(origin, value)?);
 
         // cover unions element-wise
         if let dir::Type::Union(union) = self.ty(value)? {
@@ -346,7 +346,7 @@ impl CheckState<'_> {
         };
         let ty = answer!(self.node_type(bound.into_global_any(module))?);
 
-        let reduced = answer!(self.reduce_type_root(origin, ty)?);
+        let reduced = answer!(self.reduce_type_head(origin, ty)?);
         match self.ty(reduced)? {
             dir::Type::Literal(literal) => Ok(Answer::Ready(Some(*literal))),
             _ => Ok(Answer::Ready(None)),
@@ -371,15 +371,10 @@ impl CheckState<'_> {
 
         // substitute applied arguments through the backing
         let substitution = self.instance_substitution(&instance)?;
-        let backing = if substitution.is_empty() {
-            backing
-        } else {
-            let source = self.origin_source_node(origin)?;
+        let source = self.origin_source_node(origin)?;
+        let backing = self.substitute_type(origin.module(), source, backing, &substitution)?;
 
-            self.fold_type(origin.module(), source, backing, substitution.rewrite())?
-        };
-
-        self.reduce_type_root(origin, backing)
+        self.reduce_type_head(origin, backing)
     }
 
     /// Return the finite scalar domain of one closed type when it has one.

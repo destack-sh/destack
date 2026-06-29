@@ -12,7 +12,7 @@ use crate::check::{
 struct ClassMember {
     /// The member key.
     key: dir::StaticKey,
-    /// The member type folded into the subclass's view.
+    /// The member type rewritten into the subclass's view.
     ty: dir::GlobalTypeId,
     /// The member declaration node.
     source: dir::GlobalNodeIdAny,
@@ -310,11 +310,8 @@ impl CheckState<'_> {
 
             // apply the previous base's parameters to this next extends clause
             let mut arguments = heritage.arguments.clone();
-            if !substitution.is_empty() {
-                for argument in &mut arguments {
-                    *argument =
-                        self.fold_type(module, source, *argument, substitution.rewrite())?;
-                }
+            for argument in &mut arguments {
+                *argument = self.substitute_type(module, source, *argument, &substitution)?;
             }
             let instance = dir::GenericInstance {
                 symbol: heritage.symbol,
@@ -338,10 +335,7 @@ impl CheckState<'_> {
                 let Some(mut member) = answer!(self.class_member(member)?) else {
                     continue;
                 };
-                if !substitution.is_empty() {
-                    member.ty =
-                        self.fold_type(module, source, member.ty, substitution.rewrite())?;
-                }
+                member.ty = self.substitute_type(module, source, member.ty, &substitution)?;
                 members.push(member);
             }
         }
