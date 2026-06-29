@@ -1,3 +1,4 @@
+mod apparent;
 mod instance;
 mod operator;
 mod select;

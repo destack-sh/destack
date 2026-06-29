@@ -3,7 +3,7 @@ use destack_dir as dir;
 
 use crate::check::{CheckState, Protocol};
 
-/// Protocol method selected by subscript syntax.
+/// Protocol method selected by a subscript expression.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum SubscriptProtocol {
     /// Read through `a[i]`.
@@ -14,8 +14,12 @@ pub(in crate::check) enum SubscriptProtocol {
 
 impl SubscriptProtocol {
     /// Return one subscript protocol interface instance.
-    pub(in crate::check) fn protocol(self, state: &CheckState<'_>) -> Protocol {
-        state.language_protocol(self.item(), Vec::new())
+    pub(in crate::check) fn protocol(
+        self,
+        state: &CheckState<'_>,
+        arguments: Vec<dir::GlobalTypeId>,
+    ) -> Protocol {
+        state.language_protocol(self.item(), arguments)
     }
 
     /// Return the source member key for this protocol method.

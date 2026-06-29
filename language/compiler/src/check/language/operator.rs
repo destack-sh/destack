@@ -151,7 +151,7 @@ impl CheckState<'_> {
         let mut arguments = Vec::with_capacity(type_arguments.len() + protocol.arguments.len());
         arguments.extend_from_slice(type_arguments);
 
-        // append static protocol arguments derived from syntax context
+        // append static protocol arguments from the operator form
         for argument in &protocol.arguments {
             match argument {
                 OperatorProtocolArgument::Access(access) => {
