@@ -2,7 +2,8 @@ use destack_dir::{
     Argument, Asynchrony, ClassDeclaration, CommentKind, Declaration, Decorator, DecoratorPosition,
     Expression, FunctionDeclaration, FunctionRole, GenericArgument, GenericParameter, IfForm,
     IntegerType, Key, Keyword, Member, Name, NodeType, Parameter, Pattern, PatternField,
-    ScalarLiteral, TokenType, TupleElement, TypeExpression, TypeLiteral, TypeMember,
+    ScalarLiteral, TokenType, TreeAttribute, TreeAttributeValue, TupleElement, TypeExpression,
+    TypeLiteral, TypeMember,
 };
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
@@ -914,12 +915,10 @@ fn test_parse_named_argument_string_span() {
 fn test_parse_named_argument_string_literal_value() {
     let mut test = TestParser::new("title=\"hello\"");
     let mut parser = test.prepare();
-    let argument_id = parser.eat_tree_literal_argument().unwrap();
-    assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
+    let argument_id = parser.eat_tree_attribute().unwrap();
+    assert_node!(parser.tree, argument_id, TreeAttribute::Named { name: Name::Identifier(name), value: Some(TreeAttributeValue::String(string)) } => {
         assert_string!(parser, *name, "title");
-        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string)) => {
-            assert_string!(parser, *string, "hello");
-        });
+        assert_string!(parser, *string, "hello");
     });
 }
 
@@ -931,13 +930,11 @@ fn test_parse_tree_attribute_string_decodes_html_entities() {
         LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
-    let argument_id = parser.eat_tree_literal_argument().unwrap();
+    let argument_id = parser.eat_tree_attribute().unwrap();
 
-    assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
+    assert_node!(parser.tree, argument_id, TreeAttribute::Named { name: Name::Identifier(name), value: Some(TreeAttributeValue::String(string)) } => {
         assert_string!(parser, *name, "title");
-        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string)) => {
-            assert_string!(parser, *string, "A\u{a0}&\u{a0}\u{a0}B");
-        });
+        assert_string!(parser, *string, "A\u{a0}&\u{a0}\u{a0}B");
     });
 }
 
@@ -947,13 +944,11 @@ fn test_parse_tree_attribute_string_preserves_invalid_html_entities() {
     let mut test =
         TestParser::new_with_language("title=\"A&missing;B&amp;C\"", LanguageType::TypeScriptXml);
     let mut parser = test.prepare();
-    let argument_id = parser.eat_tree_literal_argument().unwrap();
+    let argument_id = parser.eat_tree_attribute().unwrap();
 
-    assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
+    assert_node!(parser.tree, argument_id, TreeAttribute::Named { name: Name::Identifier(name), value: Some(TreeAttributeValue::String(string)) } => {
         assert_string!(parser, *name, "title");
-        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string)) => {
-            assert_string!(parser, *string, "A&missing;B&C");
-        });
+        assert_string!(parser, *string, "A&missing;B&C");
     });
 }
 
@@ -964,9 +959,9 @@ fn test_parse_named_argument_with_newline_before_assign_before_tree() {
         LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
-    let argument_id = parser.eat_tree_literal_argument().unwrap();
+    let argument_id = parser.eat_tree_attribute().unwrap();
 
-    assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
+    assert_node!(parser.tree, argument_id, TreeAttribute::Named { name: Name::Identifier(name), value: Some(TreeAttributeValue::Expression(value)) } => {
         assert_string!(parser, *name, "onBroadcastSelected");
         assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
             assert_node!(parser.tree, *left, Expression::This);
@@ -979,12 +974,10 @@ fn test_parse_named_argument_with_newline_before_assign_before_tree() {
 fn test_parse_named_argument_with_numeric_kebab_segment() {
     let mut test = TestParser::new_with_language("panose-1=\"test\"", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let argument_id = parser.eat_tree_literal_argument().unwrap();
-    assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
+    let argument_id = parser.eat_tree_attribute().unwrap();
+    assert_node!(parser.tree, argument_id, TreeAttribute::Named { name: Name::Identifier(name), value: Some(TreeAttributeValue::String(string)) } => {
         assert_string!(parser, *name, "panose1");
-        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string)) => {
-            assert_string!(parser, *string, "test");
-        });
+        assert_string!(parser, *string, "test");
     });
 }
 
@@ -995,8 +988,8 @@ fn test_parse_named_argument_with_double_hyphen_kebab_segment() {
         LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
-    let argument_id = parser.eat_tree_literal_argument().unwrap();
-    assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
+    let argument_id = parser.eat_tree_attribute().unwrap();
+    assert_node!(parser.tree, argument_id, TreeAttribute::Named { name: Name::Identifier(name), value: Some(TreeAttributeValue::Expression(value)) } => {
         assert_string!(parser, *name, "dataNextjsContainerErrorsPseudoHtmlDiff");
         assert_node!(parser.tree, *value, Expression::If { form, .. } => {
             assert_eq!(*form, IfForm::Ternary);

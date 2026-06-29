@@ -11,12 +11,12 @@ use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{
     Argument, Expression, GenericArgument, Keyword, LocalNodeId, NodeType, NumberBase, Path,
     Property, ScalarLiteral, StringId, TemplateLiteral, TokenLiteral, TokenSpan, TokenType,
-    TypeExpression, TypeMember,
+    TreeAttribute, TreeChild, TypeExpression, TypeMember,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use smallvec::SmallVec;
 
-/// One open tree literal awaiting child elements.
+/// One open tree literal awaiting children.
 struct OpenTreeLiteral {
     /// The span start for the tree literal.
     start: ParserSpanStart,
@@ -26,10 +26,10 @@ struct OpenTreeLiteral {
     path_segment_spans: Option<SmallVec<[Span; 3]>>,
     /// The parsed generic arguments.
     generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-    /// The parsed tag arguments.
-    arguments: Option<Vec<LocalNodeId<Argument>>>,
-    /// The parsed child elements.
-    elements: Vec<LocalNodeId<Argument>>,
+    /// The parsed tag attributes.
+    attributes: Option<Vec<LocalNodeId<TreeAttribute>>>,
+    /// The parsed children.
+    children: Vec<LocalNodeId<TreeChild>>,
     /// The span of the opening tag.
     opening_span: Span,
     /// The lexing mode after this literal closes.
@@ -1376,7 +1376,7 @@ impl Parser {
     }
 
     /// Skip whitespace-only tree string tokens.
-    /// Whitespace-only text between sibling tree elements is ignored.
+    /// Whitespace-only text between sibling tree children is ignored.
     pub(crate) fn skip_tree_whitespace(&mut self) -> ParserResult<bool> {
         self.skip_tree_whitespace_in_child_mode(ContextualLexMode::Normal)
     }
@@ -1465,8 +1465,8 @@ impl Parser {
                 let expression_id = self.insert_tree_literal_expression(*tree_literal, true)?;
 
                 if let Some(parent) = stack.last_mut() {
-                    let element = self.insert_tree_literal_element(expression_id);
-                    parent.elements.push(element);
+                    let child = self.insert_tree_literal_child(expression_id);
+                    parent.children.push(child);
                     continue;
                 }
 
@@ -1476,11 +1476,11 @@ impl Parser {
             if self.peek_is(TokenType::LessThan) && self.peek_tree_literal().is_ok() {
                 match self.eat_tree_literal_open(ContextualLexMode::TreeChild)? {
                     TreeLiteralOpen::Complete(expression_id) => {
-                        let element = self.insert_tree_literal_element(expression_id);
+                        let child = self.insert_tree_literal_child(expression_id);
                         let Some(parent) = stack.last_mut() else {
                             return Err(ParserError::unexpected(self.anchor_span_here()));
                         };
-                        parent.elements.push(element);
+                        parent.children.push(child);
                     }
                     TreeLiteralOpen::Open(tree_literal) => stack.push(tree_literal),
                 }
@@ -1495,14 +1495,14 @@ impl Parser {
                 .with_ambient_context(element_ambient_context)
                 .with_expression_context(element_expression_context);
             let old_flags = self.swap_flags(flags);
-            let element = self.eat_tree_argument_with_follow(ContextualLexMode::TreeChild);
+            let child = self.eat_tree_child_with_follow(ContextualLexMode::TreeChild);
             self.restore_flags(old_flags);
 
-            let element = element?;
+            let child = child?;
             let Some(parent) = stack.last_mut() else {
                 return Err(ParserError::unexpected(self.anchor_span_here()));
             };
-            parent.elements.push(element);
+            parent.children.push(child);
         }
     }
 
@@ -1546,8 +1546,8 @@ impl Parser {
             Vec::new()
         };
 
-        // parse tag arguments
-        let arguments = self.eat_tree_literal_header_arguments()?;
+        // parse tag attributes
+        let attributes = self.eat_tree_literal_header_attributes()?;
 
         // close self-closing tags immediately
         if self.peek_is(TokenType::Divide) {
@@ -1559,8 +1559,8 @@ impl Parser {
                 path,
                 path_segment_spans,
                 generic_arguments,
-                arguments,
-                elements: Vec::new(),
+                attributes,
+                children: Vec::new(),
                 opening_span,
                 close_follow_mode: follow_mode,
             };
@@ -1579,44 +1579,44 @@ impl Parser {
             path,
             path_segment_spans,
             generic_arguments,
-            arguments,
-            elements: Vec::new(),
+            attributes,
+            children: Vec::new(),
             opening_span,
             close_follow_mode: follow_mode,
         })))
     }
 
-    /// Eat tree literal header arguments.
-    fn eat_tree_literal_header_arguments(
+    /// Eat tree literal header attributes.
+    fn eat_tree_literal_header_attributes(
         &mut self,
-    ) -> ParserResult<Option<Vec<LocalNodeId<Argument>>>> {
+    ) -> ParserResult<Option<Vec<LocalNodeId<TreeAttribute>>>> {
         self.skip_tree_whitespace()?;
         if self.peek_is(TokenType::Divide) || self.peek_starts_tree_tag_close() {
             return Ok(None);
         }
 
-        let mut arguments = Vec::new();
+        let mut attributes = Vec::new();
         while self.has_more_tokens() {
             self.skip_tree_whitespace()?;
             if self.peek_is(TokenType::Divide) || self.peek_starts_tree_tag_close() {
                 break;
             }
 
-            let argument_ambient_context = self.flags.with_tree_literal(true);
-            let argument_expression_context = self.flags.not_in_position();
+            let attribute_ambient_context = self.flags.with_tree_literal(true);
+            let attribute_expression_context = self.flags.not_in_position();
             let flags = self
                 .flags
-                .with_ambient_context(argument_ambient_context)
-                .with_expression_context(argument_expression_context);
+                .with_ambient_context(attribute_ambient_context)
+                .with_expression_context(attribute_expression_context);
             let old_flags = self.swap_flags(flags);
-            let argument = self.eat_tree_literal_argument();
+            let attribute = self.eat_tree_attribute();
             self.restore_flags(old_flags);
 
-            let argument = argument?;
-            arguments.push(argument);
+            let attribute = attribute?;
+            attributes.push(attribute);
         }
 
-        Ok(Some(arguments))
+        Ok(Some(attributes))
     }
 
     /// Try to eat a closing tag for the current open tree literal.
@@ -1676,8 +1676,8 @@ impl Parser {
             path,
             path_segment_spans,
             generic_arguments,
-            arguments,
-            elements,
+            attributes,
+            children,
             opening_span,
             close_follow_mode: _,
         } = tree_literal;
@@ -1695,12 +1695,12 @@ impl Parser {
             None
         };
 
-        let elements = has_children.then_some(elements);
+        let children = has_children.then_some(children);
         let expression = Expression::TreeExpression {
             left,
             generic_arguments,
-            arguments,
-            elements,
+            attributes,
+            children,
         };
         let expression_id = self.insert_node(expression, self.get_span_from(&start));
         self.tree.set_side_span(
@@ -1712,13 +1712,13 @@ impl Parser {
         Ok(expression_id)
     }
 
-    /// Insert one positional tree child for a parsed tree literal expression.
-    fn insert_tree_literal_element(
+    /// Insert one tree child for a parsed tree literal expression.
+    fn insert_tree_literal_child(
         &mut self,
         expression_id: LocalNodeId<Expression>,
-    ) -> LocalNodeId<Argument> {
+    ) -> LocalNodeId<TreeChild> {
         self.insert_node(
-            Argument::Positional {
+            TreeChild::Tree {
                 value: expression_id,
             },
             self.tree.get_span(expression_id),

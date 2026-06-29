@@ -1,8 +1,9 @@
 use crate::parse::error::ParserResultExt;
 use destack_dir::{
     Argument, Expression, GenericArgument, GenericParameter, Keyword, LocalNodeId,
-    MethodAbstraction, Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId, ThisForm,
-    Token, TokenLiteral, TokenType, TypeExpression, VarianceModifier, Visibility,
+    MethodAbstraction, Name, NodeType, Parameter, Pattern, StringId, ThisForm, Token, TokenLiteral,
+    TokenType, TreeAttribute, TreeAttributeValue, TreeChild, TypeExpression, VarianceModifier,
+    Visibility,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
@@ -1645,7 +1646,7 @@ impl Parser {
     }
 
     /// Eat one argument.
-    /// Supports named arguments for tree literal children and import with syntax.
+    /// Supports named arguments for import-like keyed argument lists.
     ///
     /// Examples:
     /// ```
@@ -1660,7 +1661,7 @@ impl Parser {
         self.eat_tree_argument_with_follow(ContextualLexMode::Normal)
     }
 
-    /// Eat one tree child argument and advance in the requested tree mode after delimiters.
+    /// Eat one keyed or positional argument and advance in the requested mode after delimiters.
     ///
     /// Examples:
     /// ```
@@ -1727,7 +1728,7 @@ impl Parser {
                         .with_expression_context(value_expression_context),
                 )?;
 
-                self.eat_tree_argument_close_brace(follow_mode)?;
+                self.eat_tree_expression_close_brace(follow_mode, NodeType::Argument)?;
                 self.set_node_wrapper_span(value, self.get_span_from(&wrapper_start));
                 let argument_id = self.insert_node(
                     Argument::Spread { label: None, value },
@@ -1744,7 +1745,7 @@ impl Parser {
                     .with_expression_context(value_expression_context),
             )?;
 
-            self.eat_tree_argument_close_brace(follow_mode)?;
+            self.eat_tree_expression_close_brace(follow_mode, NodeType::Argument)?;
             self.set_node_wrapper_span(value, self.get_span_from(&wrapper_start));
             let argument_id =
                 self.insert_node(Argument::Positional { value }, self.get_span_from(&start));
@@ -1791,31 +1792,150 @@ impl Parser {
         }
     }
 
-    /// Eat a tree literal argument (e.g., `x=1` or `long-name=2` or `flag-is-set`).
+    /// Eat one tree child and advance in the requested tree mode after delimiters.
+    ///
+    /// Examples:
+    /// ```
+    /// text
+    /// {value}
+    /// {...children}
+    /// <Widget prop=value />
+    /// ```
+    pub(crate) fn eat_tree_child_with_follow(
+        &mut self,
+        follow_mode: ContextualLexMode,
+    ) -> ParserResult<LocalNodeId<TreeChild>> {
+        let start = self.span_start();
+
+        // expression container
+        if self.peek_is(TokenType::OpenBrace) {
+            let wrapper_start = self.span_start();
+            self.bump_with_contextual_lex_mode(ContextualLexMode::Normal);
+
+            if self.peek_is(TokenType::CloseBrace) {
+                let value = self
+                    .tree
+                    .insert(Expression::Stub, self.get_span_from(&start));
+
+                self.bump_with_contextual_lex_mode(follow_mode);
+                self.set_node_wrapper_span(value, self.get_span_from(&wrapper_start));
+                return Ok(
+                    self.insert_node(TreeChild::Expression { value }, self.get_span_from(&start))
+                );
+            }
+
+            if self.peek_is(TokenType::Spread) {
+                self.bump();
+                let value_ambient_context = self.flags.with_tree_literal(false);
+                let value_expression_context =
+                    self.flags.not_in_position().not_in_ternary_condition();
+                let value = self.eat_expression(
+                    self.flags
+                        .with_ambient_context(value_ambient_context)
+                        .with_expression_context(value_expression_context),
+                )?;
+
+                self.eat_tree_expression_close_brace(follow_mode, NodeType::TreeChild)?;
+                self.set_node_wrapper_span(value, self.get_span_from(&wrapper_start));
+                return Ok(
+                    self.insert_node(TreeChild::Spread { value }, self.get_span_from(&start))
+                );
+            }
+
+            let value_ambient_context = self.flags.with_tree_literal(false);
+            let value_expression_context = self.flags.not_in_position().not_in_ternary_condition();
+            let value = self.eat_expression(
+                self.flags
+                    .with_ambient_context(value_ambient_context)
+                    .with_expression_context(value_expression_context),
+            )?;
+
+            self.eat_tree_expression_close_brace(follow_mode, NodeType::TreeChild)?;
+            self.set_node_wrapper_span(value, self.get_span_from(&wrapper_start));
+            return Ok(
+                self.insert_node(TreeChild::Expression { value }, self.get_span_from(&start))
+            );
+        }
+
+        // text child
+        let token = self.peek()?;
+        let is_tree_text = token.token.ty() == TokenType::Literal
+            && matches!(
+                token.token.literal(),
+                Some(TokenLiteral::TreeString)
+                    | Some(TokenLiteral::Character {
+                        is_html_entity: true,
+                        ..
+                    })
+            );
+        if is_tree_text {
+            let value = self.eat_tree_child_text(follow_mode)?;
+            return Ok(self.insert_node(TreeChild::Text { value }, self.get_span_from(&start)));
+        }
+
+        // nested tree child
+        if self.peek_is(TokenType::LessThan) && self.peek_tree_literal().is_ok() {
+            let value = self.eat_tree_literal_with_follow(follow_mode)?;
+            return Ok(self.insert_node(TreeChild::Tree { value }, self.get_span_from(&start)));
+        }
+
+        Err(ParserError::unexpected(token.span))
+    }
+
+    /// Eat one tree text child payload and advance in the requested tree mode.
+    fn eat_tree_child_text(&mut self, follow_mode: ContextualLexMode) -> ParserResult<StringId> {
+        let token = self.peek()?;
+        let Some(body) = token.token.literal() else {
+            return Err(ParserError::unexpected(token.span));
+        };
+
+        let literal_str = self.file.span_str(token.span);
+        let value = match body {
+            TokenLiteral::Character {
+                is_terminated,
+                is_html_entity,
+                ..
+            } => {
+                if !is_terminated || !is_html_entity {
+                    return Err(ParserError::expected_for(
+                        token.span,
+                        TokenType::Literal,
+                        NodeType::TreeChild,
+                    ));
+                }
+
+                let Some(decoded) = decode_html_entities(literal_str) else {
+                    return Err(ParserError::expected_for(
+                        token.span,
+                        TokenType::Literal,
+                        NodeType::TreeChild,
+                    ));
+                };
+
+                self.strings.intern(&decoded)
+            }
+            TokenLiteral::TreeString => self.strings.intern(literal_str),
+            _ => return Err(ParserError::unexpected(token.span)),
+        };
+
+        self.bump_with_contextual_lex_mode(follow_mode);
+
+        Ok(value)
+    }
+
+    /// Eat a tree literal attribute (e.g., `x=1` or `long-name=2` or `flag-is-set`).
     ///
     /// Examples:
     /// ```
     /// x=1
     /// y
-    /// 2
-    /// ...args
+    /// {...args}
     /// ```
     #[inline]
-    pub fn eat_tree_literal_argument(&mut self) -> ParserResult<LocalNodeId<Argument>> {
+    pub fn eat_tree_attribute(&mut self) -> ParserResult<LocalNodeId<TreeAttribute>> {
         let start = self.span_start();
-        // spread argument
-        if self.peek_is(TokenType::Spread) {
-            self.bump(); // eat spread
-            let value_expression_context = self.flags.with_statement_position(true);
-            let value = self.eat_expression(value_expression_context)?;
-            let argument_id = self.insert_node(
-                Argument::Spread { label: None, value },
-                self.get_span_from(&start),
-            );
-            Ok(argument_id)
-        }
         // spread expression container
-        else if self.peek_is(TokenType::OpenBrace) {
+        if self.peek_is(TokenType::OpenBrace) {
             let wrapper_start = self.span_start();
             self.bump_with_contextual_lex_mode(ContextualLexMode::Normal); // eat open brace
             if !self.peek_is(TokenType::Spread) {
@@ -1833,25 +1953,26 @@ impl Parser {
                     .with_ambient_context(value_ambient_context)
                     .with_expression_context(value_expression_context),
             )?;
-            self.eat_tree_argument_close_brace(ContextualLexMode::TreeTag)?;
+            self.eat_tree_expression_close_brace(
+                ContextualLexMode::TreeTag,
+                NodeType::TreeAttribute,
+            )?;
             self.set_node_wrapper_span(value, self.get_span_from(&wrapper_start));
-            let argument_id = self.insert_node(
-                Argument::Spread { label: None, value },
-                self.get_span_from(&start),
-            );
-            Ok(argument_id)
+            let attribute_id =
+                self.insert_node(TreeAttribute::Spread { value }, self.get_span_from(&start));
+            Ok(attribute_id)
         }
-        // named argument
+        // named attribute
         else {
             let name = self.eat_tree_literal_identifier()?;
 
-            // explicit value separators, including newline wrapped forms
-            let has_value_separator = self.tree_literal_argument_has_value_separator();
+            // explicit assignment, including newline wrapped forms
+            let has_value_separator = self.tree_attribute_has_assign_separator();
 
-            // named argument with value
+            // named attribute with value
             let value = if has_value_separator {
                 self.set_tree_attribute_value(true);
-                self.bump(); // eat colon or assign
+                self.bump(); // eat assign
 
                 // tree expression container: attr={expr}
                 if self.peek_is(TokenType::OpenBrace) {
@@ -1865,41 +1986,18 @@ impl Parser {
                             .with_ambient_context(value_ambient_context)
                             .with_expression_context(value_expression_context),
                     )?;
-                    self.eat_tree_argument_close_brace(ContextualLexMode::TreeTag)?;
+                    self.eat_tree_expression_close_brace(
+                        ContextualLexMode::TreeTag,
+                        NodeType::TreeAttribute,
+                    )?;
                     self.set_node_wrapper_span(value, self.get_span_from(&wrapper_start));
-                    value
+                    Some(TreeAttributeValue::Expression(value))
                 }
                 // string literal attribute
                 else if self.peek_string_literal_is() {
                     self.set_tree_tag_follow();
-                    let (string, span) = self.eat_tree_attribute_string_literal()?;
-                    self.insert_node(
-                        Expression::ScalarLiteral(ScalarLiteral::String(string)),
-                        span,
-                    )
-                }
-                // shorthand array attribute
-                else if self.peek_is(TokenType::OpenBracket) {
-                    let value_start = self.span_start();
-                    let value_ambient_context = self.flags.with_tree_literal(false);
-                    let value_expression_context = self.flags.not_in_position();
-                    self.with_flags(
-                        self.flags
-                            .with_ambient_context(value_ambient_context)
-                            .with_expression_context(value_expression_context),
-                        |parser| parser.eat_bracket_literal_expression(&value_start),
-                    )?
-                }
-                // tree literal attribute value
-                else if self.language.supports_jsx() && self.peek_is(TokenType::LessThan) {
-                    let value_ambient_context = self.flags.with_tree_literal(true);
-                    let value_expression_context = self.flags.not_in_position();
-                    self.with_flags(
-                        self.flags
-                            .with_ambient_context(value_ambient_context)
-                            .with_expression_context(value_expression_context),
-                        |parser| parser.eat_tree_literal_with_follow(ContextualLexMode::TreeTag),
-                    )?
+                    let (string, _span) = self.eat_tree_attribute_string_literal()?;
+                    Some(TreeAttributeValue::String(string))
                 }
                 // unexpected attribute value
                 else {
@@ -1908,20 +2006,17 @@ impl Parser {
             }
             // implicit boolean true
             else {
-                self.insert_node(
-                    Expression::ScalarLiteral(ScalarLiteral::Boolean(true)),
-                    self.get_span_from(&start),
-                )
+                None
             };
 
-            let argument_id = self.insert_node(
-                Argument::Named {
+            let attribute_id = self.insert_node(
+                TreeAttribute::Named {
                     name: Name::Identifier(name),
                     value,
                 },
                 self.get_span_from(&start),
             );
-            Ok(argument_id)
+            Ok(attribute_id)
         }
     }
 
@@ -1950,10 +2045,11 @@ impl Parser {
         Ok((string_id, token.span))
     }
 
-    /// Eat a tree argument expression-container close and advance in the requested mode.
-    fn eat_tree_argument_close_brace(
+    /// Eat a tree expression-container close and advance in the requested mode.
+    fn eat_tree_expression_close_brace(
         &mut self,
         follow_mode: ContextualLexMode,
+        node_type: NodeType,
     ) -> ParserResult<()> {
         if self.peek_is(TokenType::CloseBrace) {
             self.bump_with_contextual_lex_mode(follow_mode);
@@ -1961,15 +2057,13 @@ impl Parser {
             return Ok(());
         }
 
-        self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Argument)
+        self.eat_close_token_or_recover_missing(TokenType::CloseBrace, node_type)
     }
 
-    /// Return true when the current tree argument has an explicit value separator.
-    pub(crate) fn tree_literal_argument_has_value_separator(&mut self) -> bool {
-        self.peek_is(TokenType::Colon)
-            || self.peek_is(TokenType::Assign)
-            || self.current_token_is_on_new_line()
-                && (self.peek_is(TokenType::Colon) || self.peek_is(TokenType::Assign))
+    /// Return true when the current tree attribute has an explicit assignment.
+    pub(crate) fn tree_attribute_has_assign_separator(&mut self) -> bool {
+        self.peek_is(TokenType::Assign)
+            || self.current_token_is_on_new_line() && self.peek_is(TokenType::Assign)
     }
 
     /// Eat generic arguments, including the `<` and `>` tokens, if they exist.
@@ -2249,7 +2343,7 @@ impl Parser {
     }
 
     /// Eat an argument list (including named). May be comma or newline separated.
-    /// Used for tree literal children and import assertions where named arguments are allowed.
+    /// Used for import assertions and other keyed argument lists.
     ///
     /// Examples:
     /// ```
