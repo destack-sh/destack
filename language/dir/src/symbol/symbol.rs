@@ -49,6 +49,35 @@ impl Symbol {
     }
 }
 
+/// Lexical owner path for one symbol.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SymbolPath {
+    /// The owner symbols followed by the leaf symbol.
+    symbols: Vec<LocalSymbolId>,
+}
+
+impl SymbolPath {
+    /// Create a non-empty symbol path.
+    pub fn new(symbols: Vec<LocalSymbolId>) -> Self {
+        assert!(!symbols.is_empty(), "symbol path cannot be empty");
+
+        Self { symbols }
+    }
+
+    /// Return path symbols from outermost owner to leaf.
+    pub fn symbols(&self) -> &[LocalSymbolId] {
+        &self.symbols
+    }
+
+    /// Return the symbol named by this path.
+    pub fn symbol(&self) -> LocalSymbolId {
+        *self
+            .symbols
+            .last()
+            .unwrap_or_else(|| panic!("symbol path cannot be empty"))
+    }
+}
+
 /// Result of looking up one binding symbol.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SymbolLookup {

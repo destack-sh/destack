@@ -2,7 +2,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    CallResolution, GlobalTypeId, PrimitiveType, Projection, RangeEnd, ScalarLiteral, StaticKey,
+    CallResolution, GlobalTypeId, PrimitiveType, Projection, RangeEnd, RangeType, ScalarLiteral,
+    StaticKey,
 };
 
 /// Executable predicate selected during checking.
@@ -281,4 +282,13 @@ pub struct PredicateRange {
     pub end: Option<ScalarLiteral>,
     /// Whether the upper bound is inclusive.
     pub end_bound: RangeEnd,
+}
+
+impl PredicateRange {
+    /// Return whether this predicate range contains one scalar literal.
+    pub fn contains_literal(&self, literal: ScalarLiteral) -> bool {
+        let range = RangeType::new(self.start, self.end, self.end_bound);
+
+        range.contains_literal(literal)
+    }
 }
