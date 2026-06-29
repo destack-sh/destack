@@ -669,6 +669,40 @@ impl Parser {
         true
     }
 
+    /// Eat one reference prefix operator.
+    #[inline]
+    pub(crate) fn eat_reference_prefix_operator(&mut self) -> ParserResult<TokenSpan> {
+        if !self.re_lex_reference_prefix_operator() {
+            return Err(ParserError::unexpected(self.peek()?.span));
+        }
+
+        let token = self.peek()?;
+        self.bump();
+
+        Ok(token)
+    }
+
+    /// Re-lex the current token as one reference prefix operator.
+    #[inline]
+    fn re_lex_reference_prefix_operator(&mut self) -> bool {
+        let token_type = self.current_token.ty();
+        if matches!(
+            token_type,
+            TokenType::ElementwiseAnd | TokenType::ElementwiseXor
+        ) {
+            return true;
+        }
+
+        if token_type != TokenType::LogicalAnd {
+            return false;
+        }
+
+        let token = self.split_current_token_prefix(TokenType::ElementwiseAnd, 1);
+        self.current_token = token;
+
+        true
+    }
+
     /// Eat one angle-close token with optional contextual follow mode.
     #[inline]
     fn eat_r_angle_close_with_mode(

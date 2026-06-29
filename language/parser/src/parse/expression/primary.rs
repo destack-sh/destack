@@ -313,8 +313,10 @@ impl Parser {
             TokenType::Range | TokenType::RangeInclusive if self.language.is_destack() => {
                 self.eat_value_startless_range(start).map(|id| (id, false))
             }
-            TokenType::ElementwiseAnd | TokenType::ElementwiseXor if self.language.is_destack() => {
-                self.eat_value_reference_operator(start, token_type)
+            TokenType::ElementwiseAnd | TokenType::ElementwiseXor | TokenType::LogicalAnd
+                if self.language.is_destack() =>
+            {
+                self.eat_value_reference_operator(start)
                     .map(|id| (id, false))
             }
             TokenType::Hash if self.token_type_at_offset(1) == TokenType::Identifier => {

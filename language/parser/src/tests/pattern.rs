@@ -129,6 +129,25 @@ fn test_parse_pattern_reference() {
 }
 
 #[test]
+fn test_parse_pattern_reference_chain_compact() {
+    let mut test = TestParser::new("&&item");
+    let mut parser = test.prepare();
+    let pattern_id = parser.eat_pattern().unwrap();
+
+    assert_node!(parser.tree, pattern_id, Pattern::BorrowOf { mutability, right } => {
+        assert_eq!(*mutability, Some(Mutability::Mutable));
+        assert_node!(parser.tree, *right, Pattern::BorrowOf { mutability, right } => {
+            assert_eq!(*mutability, Some(Mutability::Mutable));
+            assert_node!(parser.tree, *right, Pattern::Binding { name, pattern: None } => {
+                assert_string!(parser, *name, "item");
+            });
+        });
+    });
+
+    test.assert_no_errors(&parser);
+}
+
+#[test]
 fn test_parse_pattern_value() {
     // ^x
     let mut test = TestParser::new("^x");

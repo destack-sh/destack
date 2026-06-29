@@ -230,6 +230,26 @@ fn test_parse_reference_variable() {
     });
 }
 
+/// Parse compact nested reference expressions.
+#[test]
+fn test_parse_reference_chain_compact() {
+    let mut test = TestParser::new("&&value");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::BorrowOf { mutability, variance, right } => {
+        assert_eq!(*mutability, Some(Mutability::Mutable));
+        assert_eq!(*variance, None);
+        assert_node!(parser.tree, *right, Expression::BorrowOf { mutability, variance, right } => {
+            assert_eq!(*mutability, Some(Mutability::Mutable));
+            assert_eq!(*variance, None);
+            assert_expression_path!(parser, parser.tree.get(*right), "value");
+        });
+    });
+
+    test.assert_no_errors(&parser);
+}
+
 /// Parse a reference to a member call.
 #[test]
 fn test_parse_reference_member_call() {

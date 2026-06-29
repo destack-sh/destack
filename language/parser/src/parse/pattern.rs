@@ -52,8 +52,11 @@ impl Parser {
                     .insert(Pattern::Wildcard, self.get_span_from(&start))
             }
             // reference of
-            else if self.peek_is(TokenType::ElementwiseAnd) {
-                self.bump(); // eat &
+            else if matches!(
+                self.peek_token_type(),
+                TokenType::ElementwiseAnd | TokenType::LogicalAnd
+            ) {
+                self.eat_reference_prefix_operator()?;
                 let mutability = self.eat_reference_mutability_maybe()?;
                 let right_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
                 self.insert_node(
