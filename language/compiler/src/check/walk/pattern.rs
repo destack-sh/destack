@@ -132,9 +132,17 @@ impl WalkState<'_, '_> {
                     self.walk_pattern(pattern, self.tree.get(pattern))?;
                 }
             }
-            // { [key]: pattern }, [pattern]
-            dir::PatternField::Computed { pattern, .. }
-            | dir::PatternField::Positional { pattern } => {
+            // { [key]: pattern }
+            dir::PatternField::Computed { key, pattern } => {
+                // check computed key in selector context
+                let before_key = self.fork_flow();
+                self.walk_expression(*key, self.tree.get(*key), None)?;
+                self.restore_flow(before_key);
+
+                self.walk_pattern(*pattern, self.tree.get(*pattern))?;
+            }
+            // [pattern]
+            dir::PatternField::Positional { pattern } => {
                 self.walk_pattern(*pattern, self.tree.get(*pattern))?;
             }
             // { ...pattern }
