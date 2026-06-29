@@ -18,14 +18,8 @@ export newtype TensorView<
     comptime A: Access = "mutable",
 > = intrinsic;
 
-extension<
-    T,
-    comptime Rank: int,
-    F: TensorViewFormat,
-    P: Placement,
-    comptime A: Access,
-> of TensorView<T, Rank, F, P, A> implements
-    Index<Coordinate<Rank>> {
+extension<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: Access> of
+    TensorView<T, Rank, F, P, A> implements Index<Coordinate<Rank>> {
     /// The indexed output type.
     type Output = T;
 
@@ -87,8 +81,7 @@ extension<
     F: TensorViewFormat,
     comptime A: Access,
     comptime ...Axes: ShardingAxis,
-> of
-    TensorView<T, Rank, F, Sharding<...Axes>, A> {
+> of TensorView<T, Rank, F, Sharding<...Axes>, A> {
     /// Return the mesh that owns the tensor view shards.
     @intrinsic("tensor.view.mesh")
     get mesh(): Mesh;
@@ -161,8 +154,7 @@ extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
 }
 
 extension<T, comptime Rank: int, F: TensorViewFormat, P: Placement> of
-    TensorView<T, Rank, F, P, "exclusive"> implements
-    IndexSet<Coordinate<Rank>, T> {
+    TensorView<T, Rank, F, P, "exclusive"> implements IndexSet<Coordinate<Rank>, T> {
     /// Store `value` at `coordinate`.
     indexSet(&exclusive this, coordinate: Coordinate<Rank>, value: T): void {
         todo("TensorView.indexSet");

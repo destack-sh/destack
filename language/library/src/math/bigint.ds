@@ -150,7 +150,7 @@ extension of bigint implements
 
     /// Add this integer to `state`.
     hash(&readonly this, state: &Hasher): void {
-        todo("BigInt.hash")
+        todo("BigInt.hash");
     }
 
     /// Compare with `other`.
