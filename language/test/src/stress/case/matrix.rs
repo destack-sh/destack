@@ -247,10 +247,10 @@ pub(super) fn damaged_expression_matrix(mode: StressMode, scale: usize, _width: 
 
 /// Generate a broad damaged type recovery matrix.
 pub(super) fn damaged_type_matrix(_mode: StressMode, scale: usize, _width: usize) -> String {
-    let mut source = String::with_capacity(scale * 220);
+    let mut source = String::with_capacity(scale * 280);
 
     for index in 0..scale {
-        match index % 7 {
+        match index % 14 {
             0 => {
                 let _ = writeln!(source, "type BrokenUnion{index} = string | ;");
             }
@@ -272,8 +272,32 @@ pub(super) fn damaged_type_matrix(_mode: StressMode, scale: usize, _width: usize
             5 => {
                 let _ = writeln!(source, "type BrokenFunction{index} = (value: ;");
             }
-            _ => {
+            6 => {
                 let _ = writeln!(source, "type BrokenIndex{index}<T> = T[ ;");
+            }
+            7 => {
+                let _ = writeln!(
+                    source,
+                    "export type BrokenExportObject{index} = {{ nested: {{ value: ;"
+                );
+            }
+            8 => {
+                let _ = writeln!(source, "declare type BrokenDeclare{index}<T> = T extends ;");
+            }
+            9 => {
+                let _ = writeln!(source, "newtype BrokenNominal{index} = {{ id: ;");
+            }
+            10 => {
+                let _ = writeln!(source, "type BrokenGeneric{index}<T> = Result<T, ;");
+            }
+            11 => {
+                let _ = writeln!(source, "type BrokenTemplate{index}<T> = `value ${{ ;");
+            }
+            12 => {
+                let _ = writeln!(source, "type BrokenTupleObject{index} = [head: {{ value: ;");
+            }
+            _ => {
+                let _ = writeln!(source, "type BrokenParenthesized{index} = (readonly ;");
             }
         }
 
