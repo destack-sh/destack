@@ -84,7 +84,11 @@ impl ModuleQueryContext<'_> {
                 }
             }
             if let Some(resolution) = dir.resolutions().construct_resolution(node_id) {
-                let symbol = resolution.target.symbol();
+                let symbol = match &resolution.target {
+                    dir::ConstructTarget::Class(candidate) => candidate.symbol,
+                    dir::ConstructTarget::Newtype(candidate) => candidate.symbol,
+                    dir::ConstructTarget::Variant(candidate) => candidate.case.member,
+                };
 
                 dir.insert_reference_target_keys(&mut targets, symbol);
             }

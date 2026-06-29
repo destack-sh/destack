@@ -149,7 +149,11 @@ impl DirQueryContext<'_> {
         };
 
         if let Some(resolution) = ctx.resolutions().construct_resolution(node_id) {
-            let symbol = resolution.target.symbol();
+            let symbol = match &resolution.target {
+                dir::ConstructTarget::Class(candidate) => candidate.symbol,
+                dir::ConstructTarget::Newtype(candidate) => candidate.symbol,
+                dir::ConstructTarget::Variant(candidate) => candidate.case.member,
+            };
 
             targets.push(symbol);
             targets.push(ctx.canonical_symbol(symbol));
