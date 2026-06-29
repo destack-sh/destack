@@ -2486,6 +2486,23 @@ pub(crate) fn write_type_expression_body<'ast>(
     expression: &TypeExpression,
     is_in_explicit_parentheses: bool,
 ) -> FormatResult<()> {
+    destack_core::ensure_sufficient_stack(|| {
+        write_type_expression_body_at_current_stack(
+            f,
+            node_id,
+            expression,
+            is_in_explicit_parentheses,
+        )
+    })
+}
+
+/// Write one type body after stack growth is handled.
+fn write_type_expression_body_at_current_stack<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<TypeExpression>,
+    expression: &TypeExpression,
+    is_in_explicit_parentheses: bool,
+) -> FormatResult<()> {
     match expression {
         TypeExpression::Parenthesized { expression } => {
             write!(f, [token("("), *expression, token(")")])?;
