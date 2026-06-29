@@ -114,7 +114,7 @@ impl CheckState<'_> {
         }
 
         let origin = Origin::Node(source);
-        let ty = answer!(self.reduce_type_root(origin, ty)?);
+        let ty = answer!(self.reduce_type_head(origin, ty)?);
         if answer!(self.satisfies_auto_interface(origin, ty, AutoInterface::OverwriteStable)?) {
             return Ok(Answer::Ready(None));
         }
@@ -132,7 +132,7 @@ impl CheckState<'_> {
         origin: Origin,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let receiver = answer!(self.reduce_type_root(origin, receiver)?);
+        let receiver = answer!(self.reduce_type_head(origin, receiver)?);
         let access = match self.ty(receiver)? {
             dir::Type::Variable(variable) => {
                 let representative = self.solver.representative(*variable)?;
@@ -148,7 +148,7 @@ impl CheckState<'_> {
         let Some(access) = access else {
             return Ok(Answer::Ready(false));
         };
-        let access = answer!(self.reduce_type_root(origin, access)?);
+        let access = answer!(self.reduce_type_head(origin, access)?);
         let is_exclusive = matches!(
             self.ty(access)?,
             dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Exclusive))
@@ -236,7 +236,7 @@ impl CheckState<'_> {
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let origin = Origin::Node(source);
-        let owner = answer!(self.reduce_type_root(origin, owner)?);
+        let owner = answer!(self.reduce_type_head(origin, owner)?);
 
         // structural fields carry their write access directly
         if let dir::Type::Shape(shape) = self.ty(owner)? {

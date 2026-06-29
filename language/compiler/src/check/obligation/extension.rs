@@ -46,15 +46,22 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         };
         let target = extension.target;
+        let form = extension.form;
         let implements = extension
             .implements
             .iter()
             .cloned()
             .collect::<SmallVec<[_; 2]>>();
+
+        // check unnamed exported foreign extension
+        let module = source.module_id;
+        if self.is_unnamed_exported_foreign_extension(module, symbol, form, target) {
+            self.report_unnamed_exported_foreign_extension(source, target.r#type());
+        }
+
         if implements.is_empty() {
             return Ok(Answer::Ready(None));
         }
-        let module = source.module_id;
         let package = module.package_id;
 
         match target {
@@ -88,6 +95,29 @@ impl CheckState<'_> {
         }
 
         Ok(Answer::Ready(None))
+    }
+
+    /// Return whether an exported extension needs a source-level name.
+    fn is_unnamed_exported_foreign_extension(
+        &self,
+        module: ModuleId,
+        symbol: dir::GlobalSymbolId,
+        form: dir::ExtensionForm,
+        target: dir::ExtensionTarget,
+    ) -> bool {
+        if form != dir::ExtensionForm::Exported {
+            return false;
+        }
+
+        let target_is_local = target.root().is_some_and(|root| root.module_id == module);
+        if target_is_local {
+            return false;
+        }
+
+        self.binding_table(symbol.module_id)
+            .get_symbol(symbol.local_id)
+            .key
+            .is_none()
     }
 
     /// Check one extension's declared members against its implemented interfaces.
