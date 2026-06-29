@@ -2,7 +2,8 @@ use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 use destack_dir::{
     Argument, BinaryOperator, Declaration, Expression, FunctionDeclaration, FunctionForm,
-    GenericParameter, IfForm, NodeType, Parameter, ScalarLiteral, TypeExpression, TypeLiteral,
+    GenericParameter, IfForm, NodeType, Parameter, ScalarLiteral, TreeAttribute,
+    TreeAttributeValue, TreeChild, TypeExpression, TypeLiteral,
 };
 use destack_source::LanguageType;
 
@@ -33,11 +34,11 @@ fn test_parse_generic_arrow_with_extends_before_tree() {
                 });
             });
             let body_id = body.expect("expected body");
-            assert_node!(parser.tree, body_id, Expression::TreeExpression { left, arguments, elements, .. } => {
+            assert_node!(parser.tree, body_id, Expression::TreeExpression { left, attributes, children, .. } => {
                 let left_id = left.expect("expected tag");
                 assert_expression_path!(parser, parser.tree.get(left_id), "Foo");
-                assert!(arguments.as_ref().is_none_or(|items| items.is_empty()));
-                assert!(elements.as_ref().is_none_or(|items| items.is_empty()));
+                assert!(attributes.as_ref().is_none_or(|items| items.is_empty()));
+                assert!(children.as_ref().is_none_or(|items| items.is_empty()));
             });
         });
     });
@@ -57,7 +58,7 @@ fn test_parse_parenthesized_tree_callback_body() {
         assert_expression_path!(parser, parser.tree.get(*left), "items.map");
         assert_eq!(arguments.len(), 1);
 
-        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
             assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
                     assert_eq!(signature.form, FunctionForm::Lambda);
@@ -68,13 +69,13 @@ fn test_parse_parenthesized_tree_callback_body() {
                     });
 
                     assert_node!(parser.tree, *body, Expression::Parenthesized { expression } => {
-                        assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
+                        assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
                             assert_expression_path!(parser, parser.tree.get(*left), "option");
-                            assert!(arguments.is_none());
+                            assert!(attributes.is_none());
 
-                            let elements = elements.as_ref().expect("expected option children");
-                            assert_eq!(elements.len(), 1);
-                            assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+                            let children = children.as_ref().expect("expected option children");
+                            assert_eq!(children.len(), 1);
+                            assert_node!(parser.tree, children[0], TreeChild::Expression { value } => {
                                 assert_expression_path!(parser, parser.tree.get(*value), "item");
                             });
                         });
@@ -210,16 +211,16 @@ fn test_parse_tree_attribute_typed_arrow_value() {
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::TreeExpression { arguments, .. } => {
-        let arguments = arguments.as_ref().expect("expected arguments");
-        let class_name_argument = arguments.iter().copied().find(|argument_id| {
+    assert_node!(parser.tree, expr_id, Expression::TreeExpression { attributes, .. } => {
+        let attributes = attributes.as_ref().expect("expected attributes");
+        let class_name_attribute = attributes.iter().copied().find(|attribute_id| {
             matches!(
-                parser.tree.get(*argument_id),
-                Argument::Named { name, .. } if parser.strings.get(name.string()) == "className"
+                parser.tree.get(*attribute_id),
+                TreeAttribute::Named { name, .. } if parser.strings.get(name.string()) == "className"
             )
         });
-        let class_name_argument = class_name_argument.expect("expected className argument");
-        assert_node!(parser.tree, class_name_argument, Argument::Named { name, value, .. } => {
+        let class_name_attribute = class_name_attribute.expect("expected className attribute");
+        assert_node!(parser.tree, class_name_attribute, TreeAttribute::Named { name, value: Some(TreeAttributeValue::Expression(value)) } => {
             assert_name!(parser, *name, "className");
             assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -232,19 +233,19 @@ fn test_parse_tree_attribute_typed_arrow_value() {
     });
 }
 
-/// Parse a fixed array repeat literal as a tree attribute value.
+/// Parse a fixed array repeat literal inside a tree attribute expression.
 #[test]
-fn test_parse_tree_attribute_fixed_array_value() {
-    let mut test = TestParser::new("<Buffer data=[0; count] />");
+fn test_parse_tree_attribute_fixed_array_expression_value() {
+    let mut test = TestParser::new("<Buffer data={[0; count]} />");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
     test.assert_no_errors(&parser);
 
-    assert_node!(parser.tree, expression_id, Expression::TreeExpression { arguments, .. } => {
-        let arguments = arguments.as_ref().expect("expected tree arguments");
-        assert_eq!(arguments.len(), 1);
+    assert_node!(parser.tree, expression_id, Expression::TreeExpression { attributes, .. } => {
+        let attributes = attributes.as_ref().expect("expected tree attributes");
+        assert_eq!(attributes.len(), 1);
 
-        assert_node!(parser.tree, arguments[0], Argument::Named { name, value, .. } => {
+        assert_node!(parser.tree, attributes[0], TreeAttribute::Named { name, value: Some(TreeAttributeValue::Expression(value)) } => {
             assert_name!(parser, *name, "data");
             assert_node!(parser.tree, *value, Expression::FixedArrayExpression { value, length } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
@@ -254,19 +255,19 @@ fn test_parse_tree_attribute_fixed_array_value() {
     });
 }
 
-/// Recover a fixed array repeat literal in a tree attribute value.
+/// Recover a fixed array repeat literal inside a tree attribute expression.
 #[test]
-fn test_parse_tree_attribute_fixed_array_value_recovers_missing_length() {
-    let mut test = TestParser::new("<Buffer data=[0; ] next />");
+fn test_parse_tree_attribute_fixed_array_expression_value_recovers_missing_length() {
+    let mut test = TestParser::new("<Buffer data={[0; ]} next />");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "]")]);
-    assert_node!(parser.tree, expression_id, Expression::TreeExpression { arguments, .. } => {
-        let arguments = arguments.as_ref().expect("expected tree arguments");
-        assert_eq!(arguments.len(), 2);
+    assert_node!(parser.tree, expression_id, Expression::TreeExpression { attributes, .. } => {
+        let attributes = attributes.as_ref().expect("expected tree attributes");
+        assert_eq!(attributes.len(), 2);
 
-        assert_node!(parser.tree, arguments[0], Argument::Named { name, value, .. } => {
+        assert_node!(parser.tree, attributes[0], TreeAttribute::Named { name, value: Some(TreeAttributeValue::Expression(value)) } => {
             assert_name!(parser, *name, "data");
             assert_node!(parser.tree, *value, Expression::FixedArrayExpression { value, length } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
@@ -274,9 +275,8 @@ fn test_parse_tree_attribute_fixed_array_value_recovers_missing_length() {
             });
         });
 
-        assert_node!(parser.tree, arguments[1], Argument::Named { name, value, .. } => {
+        assert_node!(parser.tree, attributes[1], TreeAttribute::Named { name, value: None } => {
             assert_name!(parser, *name, "next");
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
         });
     });
 }
@@ -291,16 +291,16 @@ fn test_parse_ternary_tree_attribute_typed_arrow() {
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::If { form, then_expression, else_expression, .. } => {
         assert_eq!(*form, IfForm::Ternary);
-        assert_node!(parser.tree, *then_expression, Expression::TreeExpression { arguments, .. } => {
-            let arguments = arguments.as_ref().expect("expected arguments");
-            let class_name_argument = arguments.iter().copied().find(|argument_id| {
+        assert_node!(parser.tree, *then_expression, Expression::TreeExpression { attributes, .. } => {
+            let attributes = attributes.as_ref().expect("expected attributes");
+            let class_name_attribute = attributes.iter().copied().find(|attribute_id| {
                 matches!(
-                    parser.tree.get(*argument_id),
-                    Argument::Named { name, .. } if parser.strings.get(name.string()) == "className"
+                    parser.tree.get(*attribute_id),
+                    TreeAttribute::Named { name, .. } if parser.strings.get(name.string()) == "className"
                 )
             });
-            let class_name_argument = class_name_argument.expect("expected className argument");
-            assert_node!(parser.tree, class_name_argument, Argument::Named { name, value, .. } => {
+            let class_name_attribute = class_name_attribute.expect("expected className attribute");
+            assert_node!(parser.tree, class_name_attribute, TreeAttribute::Named { name, value: Some(TreeAttributeValue::Expression(value)) } => {
                 assert_name!(parser, *name, "className");
                 assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                     assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -316,32 +316,32 @@ fn test_parse_ternary_tree_attribute_typed_arrow() {
 }
 
 #[test]
-fn test_parse_tree_attribute_direct_nested_tree_value() {
+fn test_parse_tree_attribute_nested_tree_expression_value() {
     let mut test = TestParser::new_with_language(
-        "<Foo prop=<Bar><Baz /></Bar> />;",
+        "<Foo prop={<Bar><Baz /></Bar>} />;",
         LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::TreeExpression { arguments, .. } => {
-        let arguments = arguments.as_ref().expect("expected tree arguments");
-        let prop_argument = arguments.iter().copied().find(|argument_id| {
+    assert_node!(parser.tree, expression_id, Expression::TreeExpression { attributes, .. } => {
+        let attributes = attributes.as_ref().expect("expected tree attributes");
+        let prop_attribute = attributes.iter().copied().find(|attribute_id| {
             matches!(
-                parser.tree.get(*argument_id),
-                Argument::Named { name, .. } if parser.strings.get(name.string()) == "prop"
+                parser.tree.get(*attribute_id),
+                TreeAttribute::Named { name, .. } if parser.strings.get(name.string()) == "prop"
             )
         });
-        let prop_argument = prop_argument.expect("expected prop argument");
+        let prop_attribute = prop_attribute.expect("expected prop attribute");
 
-        assert_node!(parser.tree, prop_argument, Argument::Named { value, .. } => {
-            assert_node!(parser.tree, *value, Expression::TreeExpression { left, elements, .. } => {
+        assert_node!(parser.tree, prop_attribute, TreeAttribute::Named { value: Some(TreeAttributeValue::Expression(value)), .. } => {
+            assert_node!(parser.tree, *value, Expression::TreeExpression { left, children, .. } => {
                 let left = left.expect("expected nested tree path");
                 assert_expression_path!(parser, parser.tree.get(left), "Bar");
 
-                let elements = elements.as_ref().expect("expected nested children");
-                assert_eq!(elements.len(), 1);
-                assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+                let children = children.as_ref().expect("expected nested children");
+                assert_eq!(children.len(), 1);
+                assert_node!(parser.tree, children[0], TreeChild::Tree { value } => {
                     assert_node!(parser.tree, *value, Expression::TreeExpression { left, .. } => {
                         let left = left.expect("expected child tree path");
                         assert_expression_path!(parser, parser.tree.get(left), "Baz");
@@ -421,17 +421,15 @@ fn test_parse_tree_text_after_comment_expression_container() {
 
     test.assert_no_errors(&parser);
 
-    assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), elements, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "test");
-        let elements = elements.as_ref().expect("expected children");
-        assert_eq!(elements.len(), 2);
-        assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
+        let children = children.as_ref().expect("expected children");
+        assert_eq!(children.len(), 2);
+        assert_node!(parser.tree, children[0], TreeChild::Expression { value } => {
             assert_node!(parser.tree, *value, Expression::Stub);
         });
-        assert_node!(parser.tree, elements[1], Argument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(text)) => {
-                assert_string!(parser, *text, "\n     some\n     text\n");
-            });
+        assert_node!(parser.tree, children[1], TreeChild::Text { value } => {
+            assert_string!(parser, *value, "\n     some\n     text\n");
         });
     });
 }
