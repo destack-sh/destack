@@ -1,13 +1,10 @@
+use crate::DestackFormatContext;
 use crate::chain::transparent_inner_expression;
 use crate::tree::child::tree_expression_contains_callback_break;
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{Argument, Expression, LocalNodeId, Tree};
-use destack_fir::format::{Buffer, FormatResult};
-use destack_fir::prelude::token;
-use destack_fir::write;
+use destack_dir::{Argument, Expression, LocalNodeId, Tree, TreeAttribute};
 
-/// Get the value expression for any tree attribute argument variant.
-pub(crate) fn tree_attribute_value_id(
+/// Get the value expression for any call argument variant.
+pub(crate) fn argument_value_id(
     tree: &Tree,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Expression>> {
@@ -25,28 +22,36 @@ pub(crate) fn argument_transparent_value_id(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Expression>> {
-    tree_attribute_value_id(context.tree, argument_id)
+    argument_value_id(context.tree, argument_id)
         .map(|value_id| transparent_inner_expression(context, value_id))
+}
+
+/// Get the value expression for any tree attribute value variant.
+pub(crate) fn tree_attribute_value_id(
+    tree: &Tree,
+    attribute_id: LocalNodeId<TreeAttribute>,
+) -> Option<LocalNodeId<Expression>> {
+    tree.get(attribute_id).value()
 }
 
 /// Decide whether tree attributes should force the element to break.
 pub(crate) fn should_force_break_tree_attributes(
     context: &DestackFormatContext<'_>,
-    arguments: &[LocalNodeId<Argument>],
+    attributes: &[LocalNodeId<TreeAttribute>],
 ) -> bool {
     let tree = context.tree;
 
     // comments on attributes force a break
-    if arguments
+    if attributes
         .iter()
         .copied()
-        .any(|argument_id| context.has_annotation(argument_id))
+        .any(|attribute_id| context.has_annotation(attribute_id))
     {
         return true;
     }
 
-    for argument_id in arguments {
-        let Some(value_id) = tree_attribute_value_id(tree, *argument_id) else {
+    for attribute_id in attributes {
+        let Some(value_id) = tree_attribute_value_id(tree, *attribute_id) else {
             continue;
         };
 
@@ -61,22 +66,14 @@ pub(crate) fn should_force_break_tree_attributes(
         }
 
         // nested trees with children force a break
-        if let Expression::TreeExpression { elements, .. } = tree.get(value_id)
-            && elements
+        if let Expression::TreeExpression { children, .. } = tree.get(value_id)
+            && children
                 .as_ref()
-                .is_some_and(|elements| !elements.is_empty())
+                .is_some_and(|children| !children.is_empty())
         {
             return true;
         }
     }
 
     false
-}
-
-/// Format a tree or JSX attribute value.
-pub(crate) fn format_tree_attribute_value<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    value_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    write!(f, [token("="), token("{"), value_id, token("}")])
 }

@@ -9,8 +9,8 @@ use destack_dir::{
     Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator,
     DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
     LocalNodeIdAny, MatchCase, Member, Node, NodeParentIndex, NodeType, Parameter, Pattern,
-    PatternField, Property, TokenSpan, Tree, TreeStore, TupleElement, TypeExpression,
-    TypeMappedParameter, TypeMember, WhereClause,
+    PatternField, Property, TokenSpan, Tree, TreeAttribute, TreeChild, TreeStore, TupleElement,
+    TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
 };
 use destack_fir::format::{
     Format, FormatContext, FormatNode as FirNode, FormatNodes, FormatResult, Formatter,
@@ -321,6 +321,16 @@ impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
             }
             NodeType::Argument => {
                 let node_id = LocalNodeId::<Argument>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::TreeAttribute => {
+                let node_id = LocalNodeId::<TreeAttribute>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::TreeChild => {
+                let node_id = LocalNodeId::<TreeChild>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }

@@ -7,9 +7,8 @@ use crate::chain::{
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
-    Argument, Block, BlockForm, Comment, Declaration, Expression, FunctionDeclaration,
-    FunctionForm, IfForm, LocalNodeId, MatchCase, Node, NodeType, ScalarLiteral, TokenType, Tree,
-    TreeStore,
+    Block, BlockForm, Comment, Declaration, Expression, FunctionDeclaration, FunctionForm, IfForm,
+    LocalNodeId, MatchCase, Node, NodeType, ScalarLiteral, TokenType, Tree, TreeChild, TreeStore,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{hard_line_break, space};
@@ -34,22 +33,22 @@ where
         .any(|comment| context.comment_is_line(comment))
 }
 
-/// Return whether one tree argument has a line comment outside the value span.
-pub(crate) fn tree_argument_has_outer_line_comment(
+/// Return whether one tree child has a line comment outside the value span.
+pub(crate) fn tree_child_has_outer_line_comment(
     context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
+    child_id: LocalNodeId<TreeChild>,
     value_id: LocalNodeId<Expression>,
 ) -> bool {
-    let argument_span = context.span(argument_id);
+    let child_span = context.span(child_id);
     let value_start = context.span(value_id).start;
     let value_end = expression_source_extent_end(context, value_id);
 
     context
-        .comment_tokens_in_range(argument_span.start, value_start)
+        .comment_tokens_in_range(child_span.start, value_start)
         .iter()
         .chain(
             context
-                .comment_tokens_in_range(value_end, argument_span.end)
+                .comment_tokens_in_range(value_end, child_span.end)
                 .iter(),
         )
         .any(|comment| context.comment_is_line(*comment))
@@ -124,34 +123,35 @@ pub(crate) fn tree_expression_contains_callback_break(
 /// Check whether a tree child expression should stay inline inside `{ ... }`.
 pub(crate) fn tree_child_should_inline_braced_expression(
     context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
+    child_id: LocalNodeId<TreeChild>,
 ) -> bool {
-    let Some(value_id) = argument_transparent_value_id(context, argument_id) else {
+    let TreeChild::Expression { value } = context.tree.get(child_id) else {
         return false;
     };
+    let value_id = transparent_inner_expression(context, *value);
     let value_expression = context.tree.get(value_id);
-    let argument_span = context.span(argument_id);
+    let child_span = context.span(child_id);
     let value_span = context.span(value_id);
 
-    if argument_span.file == value_span.file {
-        if argument_span.start < value_span.start
+    if child_span.file == value_span.file {
+        if child_span.start < value_span.start
             && !context
-                .comment_tokens_in_range(argument_span.start, value_span.start)
+                .comment_tokens_in_range(child_span.start, value_span.start)
                 .is_empty()
         {
             return false;
         }
 
-        if value_span.end < argument_span.end
+        if value_span.end < child_span.end
             && !context
-                .comment_tokens_in_range(value_span.end, argument_span.end)
+                .comment_tokens_in_range(value_span.end, child_span.end)
                 .is_empty()
         {
             return false;
         }
     }
 
-    if tree_argument_has_outer_line_comment(context, argument_id, value_id) {
+    if tree_child_has_outer_line_comment(context, child_id, value_id) {
         return false;
     }
 
@@ -259,18 +259,16 @@ fn expression_chain_has_prefix_star_comment(
 /// Check whether a tree child forces the element to break.
 pub(crate) fn tree_child_breaks_element(
     context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
+    child_id: LocalNodeId<TreeChild>,
 ) -> bool {
-    let Some(value_id) = argument_transparent_value_id(context, argument_id) else {
+    let Some(value_id) = context.tree.get(child_id).value() else {
         return false;
     };
+    let value_id = transparent_inner_expression(context, value_id);
     let value_expression = context.tree.get(value_id);
-    let is_text_node = matches!(
-        value_expression,
-        Expression::ScalarLiteral(ScalarLiteral::String(_))
-    );
+    let is_text_node = matches!(context.tree.get(child_id), TreeChild::Text { .. });
     let has_line_comment =
-        node_has_line_comment(context, argument_id) || node_has_line_comment(context, value_id);
+        node_has_line_comment(context, child_id) || node_has_line_comment(context, value_id);
     if has_line_comment {
         return true;
     }
@@ -296,7 +294,7 @@ pub(crate) fn tree_child_breaks_element(
         _ => false,
     };
 
-    if (context.has_annotation(argument_id) || context.has_annotation(value_id))
+    if (context.has_annotation(child_id) || context.has_annotation(value_id))
         && !is_text_node
         && !matches!(value_expression, Expression::Stub)
     {
@@ -333,10 +331,10 @@ pub(crate) fn tree_control_child_should_expand(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(argument_id) = tree_child_control_argument(context, expression_id) else {
+    let Some(child_id) = tree_child_control_child(context, expression_id) else {
         return false;
     };
-    let Some((tree_id, NodeType::Expression)) = context.parent_by_id(argument_id.id) else {
+    let Some((tree_id, NodeType::Expression)) = context.parent_by_id(child_id.id) else {
         return false;
     };
     let tree_id = LocalNodeId::<Expression>::new(tree_id);
@@ -370,15 +368,15 @@ pub(crate) fn tree_control_child_should_expand(
         })
 }
 
-/// Return the tree argument that owns one control child expression.
-fn tree_child_control_argument(
+/// Return the tree child that owns one control child expression.
+fn tree_child_control_child(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
-) -> Option<LocalNodeId<Argument>> {
+) -> Option<LocalNodeId<TreeChild>> {
     let (parent_id, parent_type) = context.parent(expression_id)?;
 
-    if parent_type == NodeType::Argument {
-        return Some(LocalNodeId::<Argument>::new(parent_id));
+    if parent_type == NodeType::TreeChild {
+        return Some(LocalNodeId::<TreeChild>::new(parent_id));
     }
 
     if parent_type != NodeType::Block {
@@ -394,11 +392,11 @@ fn tree_child_control_argument(
     let Some((block_expression_id, NodeType::Expression)) = context.parent_by_id(parent_id) else {
         return None;
     };
-    let Some((argument_id, NodeType::Argument)) = context.parent_by_id(block_expression_id) else {
+    let Some((child_id, NodeType::TreeChild)) = context.parent_by_id(block_expression_id) else {
         return None;
     };
 
-    Some(LocalNodeId::<Argument>::new(argument_id))
+    Some(LocalNodeId::<TreeChild>::new(child_id))
 }
 
 /// Return the control expression owned by one tree child value.

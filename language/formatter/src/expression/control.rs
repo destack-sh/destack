@@ -1155,20 +1155,20 @@ pub(crate) fn format_return_expression<'ast>(
 
         // tree returns may need wrapping parens to keep multiline layout stable
         if let Expression::TreeExpression {
-            arguments,
-            elements,
+            attributes,
+            children,
             ..
         } = value_expression
         {
-            let has_children = elements
+            let has_children = children
                 .as_ref()
-                .is_some_and(|elements| !elements.is_empty());
-            let has_multiple_attributes = arguments
+                .is_some_and(|children| !children.is_empty());
+            let has_multiple_attributes = attributes
                 .as_ref()
-                .is_some_and(|arguments| arguments.len() > 1);
+                .is_some_and(|attributes| attributes.len() > 1);
             let should_wrap_tree_return = has_children
                 || has_multiple_attributes
-                || tree_literal_should_break(f.context(), arguments, elements);
+                || tree_literal_should_break(f.context(), attributes, children);
 
             if should_wrap_tree_return {
                 write!(

@@ -152,16 +152,16 @@ pub fn is_expression_breakable(tree: &Tree, expression: &Expression) -> bool {
             is_type_expression_breakable(tree, *ty) || !properties.is_empty()
         }
         Expression::TreeExpression {
-            arguments,
-            elements,
+            attributes,
+            children,
             ..
         } => {
-            arguments
+            attributes
                 .as_ref()
-                .is_some_and(|arguments| !arguments.is_empty())
-                || elements
+                .is_some_and(|attributes| !attributes.is_empty())
+                || children
                     .as_ref()
-                    .is_some_and(|elements| !elements.is_empty())
+                    .is_some_and(|children| !children.is_empty())
         }
         Expression::Call { arguments, .. }
         | Expression::New { arguments, .. }
