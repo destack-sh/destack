@@ -38,9 +38,9 @@ const node = (
 );
 ```
 
-### adjacent expression children stay inline
+### adjacent expression children break
 
-Adjacent expression children stay inline when short.
+Adjacent expression children break to one expression container per line.
 
 ```tsx:main.tsx
 const node = <div>{first}{second}{third}</div>
@@ -154,7 +154,7 @@ const node = (
 
 ### mixed text with spaced expressions
 
-Text nodes keep explicit space expression containers.
+Whitespace expression containers become JSX text spacing in fill layout.
 
 ```tsx:main.tsx
 const node = <T>
@@ -174,7 +174,7 @@ const node = (
 
 ### text with inline elements breaks into lines
 
-Inline elements inside text blocks break into separate lines.
+Inline elements inside text blocks use fill layout across lines.
 
 ```tsx:main.tsx
 export default function ProTip() {
@@ -448,7 +448,7 @@ Deeply nested elements expand with stable indentation.
 
 ### mixed children
 
-Elements with mixed text and element children expand across multiple lines.
+Elements with mixed text and element children expand around fill-layout children.
 
 ```ds
 <Paragraph>Hello <Strong>World</Strong>!</Paragraph>
