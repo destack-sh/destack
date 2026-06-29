@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use destack_test::conformance::{
     STATUS_JSON_FILE_NAME, SUITE_JSON_FILE_NAME, StatusSet, SuiteMetadata,
 };
-use schemars::schema_for;
+use schemars::{Schema, schema_for};
 
 const CONFORMANCE_SCHEMA_DIRECTORY: &str = "language/test/fixtures/conformance/schema";
 
@@ -42,7 +42,7 @@ fn schema_file_name_for(json_file_name: &str) -> String {
 }
 
 /// Write one schema file with stable formatting.
-fn write_schema_file(path: &Path, schema: &schemars::Reflect) {
+fn write_schema_file(path: &Path, schema: &Schema) {
     let json =
         serde_json::to_string_pretty(schema).expect("failed to serialize conformance schema");
     fs::write(path, format!("{json}\n")).expect("failed to write conformance schema");
