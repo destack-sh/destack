@@ -142,10 +142,8 @@ pub enum Projection {
     /// }
     /// ```
     VariantPayload {
-        /// The selected variant family symbol.
-        owner: GlobalSymbolId,
-        /// The selected variant member symbol.
-        member: GlobalSymbolId,
+        /// The selected tagged case.
+        case: VariantCase,
         /// The selected generic argument bindings for the selected owner.
         generic_arguments: Vec<GenericArgumentBinding>,
         /// The discriminant value tested at runtime.
@@ -285,4 +283,21 @@ pub enum ProjectionField {
     /// point.x // selects the Point.x field symbol, not only the key "x"
     /// ```
     Member(GlobalSymbolId),
+}
+
+/// One tagged union case selected during checking.
+///
+/// Examples:
+/// ```ds
+/// Result.Ok(value)        // member: Ok, key: Ok
+/// Event.Click({ x, y })  // member: Click, key: Click
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct VariantCase {
+    /// The selected variant family symbol.
+    pub owner: GlobalSymbolId,
+    /// The source-level case key.
+    pub key: StaticKey,
+    /// The selected variant declaration.
+    pub member: GlobalSymbolId,
 }

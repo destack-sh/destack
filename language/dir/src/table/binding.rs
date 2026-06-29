@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Arena, ExportKind, GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScope, LocalScopeId,
     LocalScopeMark, LocalSymbolId, Node, Scope, ScopeIndex, ScopeKind, SegmentView, StaticKey,
-    Symbol, SymbolKind, SymbolLookup, SymbolOrigin, SymbolRole, SymbolSpace, SymbolVisibility,
-    View,
+    Symbol, SymbolKind, SymbolLookup, SymbolOrigin, SymbolPath, SymbolRole, SymbolSpace,
+    SymbolVisibility, View,
 };
 
 /// Cumulative lexical scopes and symbols for one DIR module.
@@ -160,6 +160,59 @@ impl<'a> BindingTable<'a> {
         let symbol = self.get_symbol(symbol_id);
 
         self.get_scope(symbol.scope)
+    }
+
+    /// Return the lexical owner path for one symbol.
+    pub fn symbol_path(&self, symbol_id: LocalSymbolId) -> SymbolPath {
+        let mut symbols = Vec::new();
+        let mut seen = Vec::new();
+        let mut current = Some(symbol_id);
+
+        // climb lexical owners from leaf to outermost
+        while let Some(symbol_id) = current {
+            assert!(
+                !seen.contains(&symbol_id),
+                "binding table contains a cyclic symbol path"
+            );
+            seen.push(symbol_id);
+
+            symbols.push(symbol_id);
+
+            let symbol = self.get_symbol(symbol_id);
+            current = self.symbol_path_owner(symbol);
+        }
+
+        symbols.reverse();
+
+        SymbolPath::new(symbols)
+    }
+
+    /// Return the nearest lexical owner for one symbol path.
+    fn symbol_path_owner(&self, symbol: &Symbol) -> Option<LocalSymbolId> {
+        let mut scope_id = symbol.scope.id;
+        let mut seen = Vec::new();
+
+        // climb lexical scopes until a declaration owner is found
+        loop {
+            assert!(
+                !seen.contains(&scope_id),
+                "binding table contains a cyclic scope path"
+            );
+            seen.push(scope_id);
+
+            let scope = self.get_scope_by_id(scope_id);
+            if let Some(owner) = scope.owner {
+                let owner_symbol = self.get_symbol(owner);
+                if owner_symbol.role != SymbolRole::Namespace || owner_symbol.name().is_some() {
+                    return Some(owner);
+                }
+
+                return None;
+            }
+
+            let parent = scope.parent?;
+            scope_id = parent.id;
+        }
     }
 
     /// Return one visible scope when present.
@@ -410,6 +463,23 @@ impl BindingSegment {
         }
     }
 
+    /// Create an empty segment after a cumulative binding table.
+    pub fn from_table(base: &BindingTable<'_>) -> Self {
+        Self {
+            module_id: base.module_id,
+            first_symbol_id: base.symbol_count(),
+            first_scope_id: base.scope_count(),
+            symbols: Arena::new(),
+            scopes: Arena::new(),
+            symbol_by_declaration: IndexMap::new(),
+            implicit_receiver_by_node: IndexMap::new(),
+            scope_by_node: IndexMap::new(),
+            scope_by_owner: IndexMap::new(),
+            replaced_symbol_by_id: IndexMap::new(),
+            replaced_scope_by_id: IndexMap::new(),
+        }
+    }
+
     /// Return the first symbol id owned by this table segment.
     pub fn first_symbol_id(&self) -> u32 {
         self.first_symbol_id
@@ -474,7 +544,10 @@ impl BindingSegment {
         let module_id = self.module_id;
         let declaration = node_id.into_global_any(module_id);
 
-        self.get_symbol_mut(symbol_id).declaration = Some(declaration);
+        let symbol = self.get_symbol_mut(symbol_id);
+        if symbol.declaration.is_none() {
+            symbol.declaration = Some(declaration);
+        }
         self.symbol_by_declaration.insert(declaration, symbol_id);
     }
 
@@ -682,6 +755,15 @@ impl BindingSegment {
     /// Replace one visible scope in this table segment.
     pub fn replace_scope(&mut self, scope_id: LocalScopeId, scope: Scope) {
         self.replaced_scope_by_id.insert(scope_id, scope);
+    }
+
+    /// Copy one visible scope into this segment when it is not already mutable.
+    pub fn make_scope_mutable(&mut self, scope_id: LocalScopeId, scope: &Scope) {
+        if self.contains_scope_id(scope_id) || self.replaced_scope_by_id.contains_key(&scope_id) {
+            return;
+        }
+
+        self.replaced_scope_by_id.insert(scope_id, scope.clone());
     }
 
     /// Iterate replaced symbols in this segment.

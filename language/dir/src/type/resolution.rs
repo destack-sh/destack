@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ArgumentBinding, BinaryOperator, ClassConstructor, DereferenceOperation,
     GenericArgumentBinding, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Predicate, Projection,
-    ProjectionField, ScalarLiteral, StaticKey, SubscriptOperation, UnaryOperator,
+    ProjectionField, ScalarLiteral, StaticKey, SubscriptOperation, UnaryOperator, VariantCase,
 };
 
 /// Receiver selected by contextual lookup, such as `this` or `super`.
@@ -404,17 +404,6 @@ pub enum CallTarget {
     Universal(Vec<CallCandidate>),
 }
 
-impl CallTarget {
-    /// Return the generic arguments selected for one direct call target.
-    pub fn direct_generic_arguments(&self) -> Option<&[GenericArgumentBinding]> {
-        match self {
-            Self::Expression { generic_arguments } => Some(generic_arguments),
-            Self::Symbol(candidate) => Some(&candidate.generic_arguments),
-            Self::Builtin(_) | Self::Universal(_) => None,
-        }
-    }
-}
-
 /// Guard expression selected during checking.
 ///
 /// Examples:
@@ -610,26 +599,6 @@ pub enum ConstructTarget {
     Variant(VariantConstructCandidate),
 }
 
-impl ConstructTarget {
-    /// Return the selected construct symbol.
-    pub fn symbol(&self) -> GlobalSymbolId {
-        match self {
-            Self::Class(candidate) => candidate.symbol,
-            Self::Newtype(candidate) => candidate.symbol,
-            Self::Variant(candidate) => candidate.variant,
-        }
-    }
-
-    /// Return the selected generic argument bindings.
-    pub fn generic_arguments(&self) -> &[GenericArgumentBinding] {
-        match self {
-            Self::Class(candidate) => &candidate.generic_arguments,
-            Self::Newtype(candidate) => &candidate.generic_arguments,
-            Self::Variant(candidate) => &candidate.generic_arguments,
-        }
-    }
-}
-
 /// One class construction candidate after overload selection.
 ///
 /// Examples:
@@ -669,10 +638,8 @@ pub struct NewtypeConstructCandidate {
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct VariantConstructCandidate {
-    /// The selected variant family symbol.
-    pub owner: GlobalSymbolId,
-    /// The selected variant symbol.
-    pub variant: GlobalSymbolId,
+    /// The selected tagged case.
+    pub case: VariantCase,
     /// The selected generic argument bindings for the owner symbol.
     pub generic_arguments: Vec<GenericArgumentBinding>,
     /// The discriminant value injected by the constructor.

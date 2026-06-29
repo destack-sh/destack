@@ -485,36 +485,27 @@ pub struct NewtypeDefinition {
     pub template: Option<LocalGenericTemplateId>,
     /// The nominal backing type.
     pub value: GlobalTypeId,
+    /// The members in declaration order.
+    pub members: Vec<DefinitionMember>,
 }
 
 /// How an extension declaration relates to its target type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ExtensionForm {
-    /// Inherent extension defined in same module as target type.
-    /// Automatically visible wherever the type is used.
-    ///
-    /// Examples:
-    /// ```ds
-    /// struct Vector { x: float64; y: float64 }
-    /// extension of Vector { length(): float64 { ... } }
-    /// ```
-    Inherent,
-    /// Local extension on a foreign type.
-    /// Only visible in the defining module.
+    /// Extension visible only inside its declaring module.
     ///
     /// Examples:
     /// ```ds
     /// extension of string { shout(): string { ... } }
     /// ```
     Local,
-    /// Named extension on a foreign type.
-    /// Must be explicitly imported to use outside the defining module.
+    /// Extension visible outside its declaring module.
     ///
     /// Examples:
     /// ```ds
-    /// export extension Slugify of string { slug(): string { ... } }
+    /// export extension of string implements Hash { ... }
     /// ```
-    Named,
+    Exported,
 }
 
 /// Checked declaration data for one extension.
@@ -565,12 +556,14 @@ impl ExtensionDefinition {
 
     /// Return whether this extension is inherent.
     pub fn is_inherent(&self) -> bool {
-        matches!(self.form, ExtensionForm::Inherent)
+        self.target
+            .root()
+            .is_some_and(|root| root.module_id == self.symbol.module_id)
     }
 
-    /// Return whether this extension is named.
-    pub fn is_named(&self) -> bool {
-        matches!(self.form, ExtensionForm::Named)
+    /// Return whether this extension is exported.
+    pub fn is_exported(&self) -> bool {
+        matches!(self.form, ExtensionForm::Exported)
     }
 
     /// Return whether this extension is local.
@@ -580,10 +573,7 @@ impl ExtensionDefinition {
 
     /// Return whether this extension is visible from one module.
     pub fn is_visible_from(&self, module_id: ModuleId) -> bool {
-        match self.form {
-            ExtensionForm::Inherent | ExtensionForm::Named => true,
-            ExtensionForm::Local => self.symbol.module_id == module_id,
-        }
+        self.symbol.module_id == module_id || self.is_exported()
     }
 }
 
@@ -875,8 +865,9 @@ impl Definition {
             Self::Class(definition) => &definition.members,
             Self::Interface(definition) => &definition.members,
             Self::Enum(definition) => &definition.members,
+            Self::Newtype(definition) => &definition.members,
             Self::Extension(extension) => &extension.members,
-            Self::TypeAlias(_) | Self::Newtype(_) => &[],
+            Self::TypeAlias(_) => &[],
         }
     }
 
