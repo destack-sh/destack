@@ -154,7 +154,7 @@ const node = (
 
 ### mixed text with spaced expressions
 
-Whitespace expression containers become JSX text spacing in fill layout.
+Whitespace expression containers become JSX text spacing when inline text fits.
 
 ```tsx:main.tsx
 const node = <T>
@@ -165,11 +165,7 @@ const node = <T>
 ```
 
 ```tsx expected
-const node = (
-    <T>
-        Pro tip: See more <Link href="https://example.com">Docs</Link> for details.
-    </T>
-);
+const node = <T>Pro tip: See more <Link href="https://example.com">Docs</Link> for details.</T>;
 ```
 
 ### text with inline elements breaks into lines
