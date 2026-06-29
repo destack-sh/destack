@@ -716,7 +716,7 @@ impl WalkState<'_, '_> {
             };
             let constraint =
                 self.check
-                    .fold_type(self.module, source, constraint, substitution.rewrite())?;
+                    .substitute_type(self.module, source, constraint, &substitution)?;
 
             match self.check.constrain_generic_argument(
                 origin,

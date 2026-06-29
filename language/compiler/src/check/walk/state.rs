@@ -152,7 +152,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 .report_ambient_lifetime_elided(self.module, source);
             for variable in tracked {
                 let error = self.push_type(dir::Type::Error, source)?;
-                self.check.set_solution(variable, error)?;
+                self.check.commit_solution(variable, error)?;
             }
         }
 
@@ -219,7 +219,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let node = id.into_global_any(self.module);
-        self.check.set_node_type(node, ty)?;
+        self.check.commit_node_type(node, ty)?;
 
         Ok(ty)
     }

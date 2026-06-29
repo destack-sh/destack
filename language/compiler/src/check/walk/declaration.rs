@@ -1396,7 +1396,7 @@ impl WalkState<'_, '_> {
         let substitution = TypeSubstitution::default().with_receiver(scope.ty);
 
         self.check
-            .fold_type(self.module, source, ty, substitution.rewrite())
+            .substitute_type(self.module, source, ty, &substitution)
     }
 
     /// Walk one function return annotation or open its inferred result.
@@ -1492,8 +1492,10 @@ impl WalkState<'_, '_> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::ExtensionTarget> {
-        // root extensions under their lookup owner
-        if let Some(root) = self.check.extension_root(ty)? {
+        // root extensions under the same declaration used for member lookup
+        if let Some(instance) = self.check.apparent_instance(ty)? {
+            let root = instance.symbol;
+
             return Ok(dir::ExtensionTarget::Rooted { root, ty });
         }
 

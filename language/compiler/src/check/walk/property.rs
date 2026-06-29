@@ -439,7 +439,6 @@ impl WalkState<'_, '_> {
                 let source = id.into_global_any(self.module);
                 let template =
                     self.open_signature_template(source, parent, Some(symbol), signature)?;
-                let captured_template = template.or(parent);
 
                 // open signature parameters before building the method type
                 self.walk_function_signature(template, signature)?;
@@ -464,7 +463,7 @@ impl WalkState<'_, '_> {
                 let method = self.walk_function_signature_type(
                     id.into_any(),
                     signature,
-                    captured_template,
+                    template,
                     Some(GenericInductionDeclaration::new(
                         source,
                         parent,
@@ -683,7 +682,6 @@ impl WalkState<'_, '_> {
                 let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
                 let template =
                     self.open_signature_template(source, parent, Some(symbol), signature)?;
-                let captured_template = template.or(parent);
 
                 // open signature parameters before building the method type
                 self.walk_function_signature(template, signature)?;
@@ -694,7 +692,7 @@ impl WalkState<'_, '_> {
                 let method = self.walk_function_signature_type(
                     id.into_any(),
                     signature,
-                    captured_template,
+                    template,
                     None,
                     receiver_type,
                     result,
