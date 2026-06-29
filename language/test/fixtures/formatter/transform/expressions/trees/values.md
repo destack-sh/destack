@@ -31,11 +31,11 @@ Attribute values can be expressions in braces.
 Fixed array repeat literals can be passed as attribute values.
 
 ```ds
-<Buffer data=[0; count] />
+<Buffer data={[0; count]} />
 ```
 
 ```ds expected
-<Buffer data=[0; count] />;
+<Buffer data={[0; count]} />;
 ```
 
 
