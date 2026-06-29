@@ -554,7 +554,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         let mut elements = Vec::new();
         for element in &union.elements {
             let element = self.check.settled_root(*element)?;
-            if self.type_is_undefined(element)? {
+            if self.check.ty(element)?.is_undefined() {
                 continue;
             }
             let Some(element) = self.reify_depth(element, depth - 1)? else {
@@ -569,17 +569,6 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             [single] => Ok(Some(*single)),
             _ => Ok(Some(self.insert(dir::TypeExpression::Union { elements }))),
         }
-    }
-
-    /// Return whether one type is the undefined singleton.
-    fn type_is_undefined(&self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
-        let id = self.check.settled_root(id)?;
-        let is_undefined = matches!(
-            self.check.ty(id)?,
-            dir::Type::Undefined | dir::Type::Literal(dir::ScalarLiteral::Undefined)
-        );
-
-        Ok(is_undefined)
     }
 
     /// Reify one preserved type operation.
