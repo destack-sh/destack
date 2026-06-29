@@ -2,13 +2,14 @@ use crate::{
     Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator, Decorator,
     DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
     LocalNodeIdAny, MatchCase, Member, NodeVisitor, NodeVisitorOptions, Parameter, Pattern,
-    PatternField, Property, Tree, TupleElement, TypeExpression, TypeMappedParameter, TypeMember,
-    WhereClause, walk_argument, walk_assign_pattern, walk_assign_pattern_field, walk_block,
-    walk_catch, walk_declaration, walk_declarator, walk_decorator, walk_dependency_item,
-    walk_enum_field, walk_expression, walk_generic_argument, walk_generic_parameter,
-    walk_match_case, walk_member, walk_parameter, walk_pattern, walk_pattern_field, walk_property,
-    walk_root, walk_tuple_element, walk_type_expression, walk_type_mapped_parameter,
-    walk_type_member, walk_where_clause,
+    PatternField, Property, Tree, TreeAttribute, TreeChild, TupleElement, TypeExpression,
+    TypeMappedParameter, TypeMember, WhereClause, walk_argument, walk_assign_pattern,
+    walk_assign_pattern_field, walk_block, walk_catch, walk_declaration, walk_declarator,
+    walk_decorator, walk_dependency_item, walk_enum_field, walk_expression, walk_generic_argument,
+    walk_generic_parameter, walk_match_case, walk_member, walk_parameter, walk_pattern,
+    walk_pattern_field, walk_property, walk_root, walk_tree_attribute, walk_tree_child,
+    walk_tuple_element, walk_type_expression, walk_type_mapped_parameter, walk_type_member,
+    walk_where_clause,
 };
 
 /// Reparent reused direct children onto one root.
@@ -202,6 +203,23 @@ impl NodeVisitor for DirectChildCollector {
     fn visit_argument(&mut self, tree: &Tree, id: LocalNodeId<Argument>, argument: &Argument) {
         self.push_node(id.into_any());
         walk_argument(self, tree, id, argument);
+        self.parent_stack.pop();
+    }
+
+    fn visit_tree_attribute(
+        &mut self,
+        tree: &Tree,
+        id: LocalNodeId<TreeAttribute>,
+        attribute: &TreeAttribute,
+    ) {
+        self.push_node(id.into_any());
+        walk_tree_attribute(self, tree, id, attribute);
+        self.parent_stack.pop();
+    }
+
+    fn visit_tree_child(&mut self, tree: &Tree, id: LocalNodeId<TreeChild>, child: &TreeChild) {
+        self.push_node(id.into_any());
+        walk_tree_child(self, tree, id, child);
         self.parent_stack.pop();
     }
 

@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use destack_core::StringPool;
 
 use crate::{
-    Argument, FloatType, IntegerType, LanguageItem, Layout, LocalNodeId, PrimitiveType, RangeType,
-    StringId, Type,
+    Argument, Expression, FloatType, IntegerType, LanguageItem, Layout, LocalNodeId, Name, Node,
+    NodeType, PrimitiveType, RangeType, StringId, Type,
 };
 
 /// One scalar type family.
@@ -204,6 +204,85 @@ impl ScalarLiteral {
             Self::String(_) => Some(LanguageItem::String),
             Self::Bigint(_) => Some(LanguageItem::BigInt),
             _ => None,
+        }
+    }
+}
+
+/// A tree tag attribute.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum TreeAttribute {
+    /// Named attribute with an optional value.
+    Named {
+        name: Name,
+        value: Option<TreeAttributeValue>,
+    },
+    /// Spread attribute.
+    Spread { value: LocalNodeId<Expression> },
+    /// Malformed attribute slot.
+    Error,
+}
+
+impl Node for TreeAttribute {
+    const TYPE: NodeType = NodeType::TreeAttribute;
+}
+
+/// The value form of a tree tag attribute.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum TreeAttributeValue {
+    /// Quoted string attribute value.
+    String(StringId),
+    /// Expression container attribute value.
+    Expression(LocalNodeId<Expression>),
+}
+
+impl TreeAttribute {
+    /// Return the value expression carried by this attribute when present.
+    pub fn value(&self) -> Option<LocalNodeId<Expression>> {
+        match self {
+            Self::Named { value, .. } => value.as_ref().and_then(TreeAttributeValue::expression),
+            Self::Spread { value } => Some(*value),
+            Self::Error => None,
+        }
+    }
+}
+
+impl TreeAttributeValue {
+    /// Return the expression carried by this value when present.
+    pub const fn expression(&self) -> Option<LocalNodeId<Expression>> {
+        match self {
+            Self::String(_) => None,
+            Self::Expression(value) => Some(*value),
+        }
+    }
+}
+
+/// A tree child.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum TreeChild {
+    /// Raw tree text.
+    Text { value: StringId },
+    /// Expression container child.
+    Expression { value: LocalNodeId<Expression> },
+    /// Spread expression container child.
+    Spread { value: LocalNodeId<Expression> },
+    /// Nested tree expression child.
+    Tree { value: LocalNodeId<Expression> },
+    /// Malformed child slot.
+    Error,
+}
+
+impl Node for TreeChild {
+    const TYPE: NodeType = NodeType::TreeChild;
+}
+
+impl TreeChild {
+    /// Return the value expression carried by this child when present.
+    pub const fn value(&self) -> Option<LocalNodeId<Expression>> {
+        match self {
+            Self::Text { .. } | Self::Error => None,
+            Self::Expression { value } | Self::Spread { value } | Self::Tree { value } => {
+                Some(*value)
+            }
         }
     }
 }

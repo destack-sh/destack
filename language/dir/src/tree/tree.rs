@@ -14,8 +14,9 @@ use crate::{
     Arena, Argument, AssignPattern, AssignPatternField, Block, Catch, Comment, Declaration,
     Declarator, Decorator, DependencyItem, Documentation, EnumField, Expression, GenericArgument,
     GenericParameter, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node, NodeParentIndex,
-    NodeType, Origin, Parameter, Path, Pattern, PatternField, Property, TreeCapacity, TreeMark,
-    TreeStore, TupleElement, TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
+    NodeType, Origin, Parameter, Path, Pattern, PatternField, Property, TreeAttribute,
+    TreeCapacity, TreeChild, TreeMark, TreeStore, TupleElement, TypeExpression,
+    TypeMappedParameter, TypeMember, WhereClause,
 };
 
 /// Mutable DIR tree across a set of related source units.
@@ -53,6 +54,8 @@ pub struct Tree {
     pub(crate) generic_arguments: Arena<GenericArgument>,
     pub(crate) tuple_elements: Arena<TupleElement>,
     pub(crate) arguments: Arena<Argument>,
+    pub(crate) tree_attributes: Arena<TreeAttribute>,
+    pub(crate) tree_children: Arena<TreeChild>,
     pub(crate) match_cases: Arena<MatchCase>,
     pub(crate) patterns: Arena<Pattern>,
     pub(crate) pattern_fields: Arena<PatternField>,
@@ -137,6 +140,8 @@ impl Tree {
             generic_arguments: Arena::new(),
             tuple_elements: Arena::new(),
             arguments: Arena::new(),
+            tree_attributes: Arena::new(),
+            tree_children: Arena::new(),
             match_cases: Arena::new(),
             patterns: Arena::new(),
             pattern_fields: Arena::new(),
@@ -281,6 +286,8 @@ impl Tree {
             NodeType::GenericArgument => self.generic_arguments.truncate(len),
             NodeType::TupleElement => self.tuple_elements.truncate(len),
             NodeType::Argument => self.arguments.truncate(len),
+            NodeType::TreeAttribute => self.tree_attributes.truncate(len),
+            NodeType::TreeChild => self.tree_children.truncate(len),
             NodeType::MatchCase => self.match_cases.truncate(len),
             NodeType::Pattern => self.patterns.truncate(len),
             NodeType::PatternField => self.pattern_fields.truncate(len),

@@ -3,8 +3,8 @@ use crate::{
     Declarator, Decorator, DependencyItem, EnumField, Expression, ForEachBinding,
     FunctionSignature, GenericArgument, GenericParameter, Key, LocalNodeId, LocalNodeIdAny,
     MatchCase, MatchSelector, Member, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
-    Property, TemplateLiteral, Tree, TupleElement, TypeExpression, TypeMappedParameter, TypeMember,
-    WhereClause,
+    Property, TemplateLiteral, Tree, TreeAttribute, TreeChild, TupleElement, TypeExpression,
+    TypeMappedParameter, TypeMember, WhereClause,
 };
 
 /// Walk any node.
@@ -87,6 +87,14 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::Argument => {
             let argument = tree.arguments.get(local_idx);
             walk_argument(visitor, tree, LocalNodeId::new(node_id), argument);
+        }
+        NodeType::TreeAttribute => {
+            let attribute = tree.tree_attributes.get(local_idx);
+            walk_tree_attribute(visitor, tree, LocalNodeId::new(node_id), attribute);
+        }
+        NodeType::TreeChild => {
+            let child = tree.tree_children.get(local_idx);
+            walk_tree_child(visitor, tree, LocalNodeId::new(node_id), child);
         }
         NodeType::GenericArgument => {
             let type_argument = tree.generic_arguments.get(local_idx);
@@ -212,6 +220,16 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, root: &L
             let argument_id = LocalNodeId::<Argument>::new(root.id);
             let argument = tree.get(argument_id);
             visitor.visit_argument(tree, argument_id, argument);
+        }
+        NodeType::TreeAttribute => {
+            let attribute_id = LocalNodeId::<TreeAttribute>::new(root.id);
+            let attribute = tree.get(attribute_id);
+            visitor.visit_tree_attribute(tree, attribute_id, attribute);
+        }
+        NodeType::TreeChild => {
+            let child_id = LocalNodeId::<TreeChild>::new(root.id);
+            let child = tree.get(child_id);
+            visitor.visit_tree_child(tree, child_id, child);
         }
         NodeType::GenericArgument => {
             let type_argument_id = LocalNodeId::<GenericArgument>::new(root.id);
@@ -1056,8 +1074,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::TreeExpression {
             left,
             generic_arguments,
-            arguments,
-            elements,
+            attributes,
+            children,
         } => {
             if let Some(left_id) = left {
                 let left_expr = tree.get(*left_id);
@@ -1069,16 +1087,16 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_generic_argument(tree, *argument_id, argument);
             }
 
-            if let Some(arguments) = arguments {
-                for argument_id in arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
+            if let Some(attributes) = attributes {
+                for attribute_id in attributes {
+                    let attribute = tree.get(*attribute_id);
+                    visitor.visit_tree_attribute(tree, *attribute_id, attribute);
                 }
             }
-            if let Some(elements) = elements {
-                for element_id in elements {
-                    let element = tree.get(*element_id);
-                    visitor.visit_argument(tree, *element_id, element);
+            if let Some(children) = children {
+                for child_id in children {
+                    let child = tree.get(*child_id);
+                    visitor.visit_tree_child(tree, *child_id, child);
                 }
             }
         }
@@ -1805,6 +1823,36 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *value, value_expression);
         }
         Argument::Error => {}
+    }
+}
+
+/// Walk one tree attribute.
+pub fn walk_tree_attribute<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &Tree,
+    id: LocalNodeId<TreeAttribute>,
+    attribute: &TreeAttribute,
+) {
+    visitor.visit_any(tree, NodeType::TreeAttribute, id.id);
+
+    if let Some(value) = attribute.value() {
+        let value_expression = tree.get(value);
+        visitor.visit_expression(tree, value, value_expression);
+    }
+}
+
+/// Walk one tree child.
+pub fn walk_tree_child<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &Tree,
+    id: LocalNodeId<TreeChild>,
+    child: &TreeChild,
+) {
+    visitor.visit_any(tree, NodeType::TreeChild, id.id);
+
+    if let Some(value) = child.value() {
+        let value_expression = tree.get(value);
+        visitor.visit_expression(tree, value, value_expression);
     }
 }
 

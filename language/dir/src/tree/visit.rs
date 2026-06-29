@@ -3,13 +3,14 @@
 use crate::{
     Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator, Decorator,
     DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
-    MatchCase, Member, NodeType, Parameter, Pattern, PatternField, Property, Tree, TupleElement,
-    TypeExpression, TypeMappedParameter, TypeMember, WhereClause, walk_argument,
-    walk_assign_pattern, walk_assign_pattern_field, walk_block, walk_catch, walk_declaration,
-    walk_declarator, walk_decorator, walk_dependency_item, walk_enum_field, walk_expression,
-    walk_generic_argument, walk_generic_parameter, walk_match_case, walk_member, walk_parameter,
-    walk_pattern, walk_pattern_field, walk_property, walk_tuple_element, walk_type_expression,
-    walk_type_mapped_parameter, walk_type_member, walk_where_clause,
+    MatchCase, Member, NodeType, Parameter, Pattern, PatternField, Property, Tree, TreeAttribute,
+    TreeChild, TupleElement, TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
+    walk_argument, walk_assign_pattern, walk_assign_pattern_field, walk_block, walk_catch,
+    walk_declaration, walk_declarator, walk_decorator, walk_dependency_item, walk_enum_field,
+    walk_expression, walk_generic_argument, walk_generic_parameter, walk_match_case, walk_member,
+    walk_parameter, walk_pattern, walk_pattern_field, walk_property, walk_tree_attribute,
+    walk_tree_child, walk_tuple_element, walk_type_expression, walk_type_mapped_parameter,
+    walk_type_member, walk_where_clause,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -130,6 +131,21 @@ pub trait NodeVisitor {
     /// Visit an Argument.
     fn visit_argument(&mut self, tree: &Tree, id: LocalNodeId<Argument>, argument: &Argument) {
         walk_argument(self, tree, id, argument);
+    }
+
+    /// Visit a tree attribute.
+    fn visit_tree_attribute(
+        &mut self,
+        tree: &Tree,
+        id: LocalNodeId<TreeAttribute>,
+        attribute: &TreeAttribute,
+    ) {
+        walk_tree_attribute(self, tree, id, attribute);
+    }
+
+    /// Visit a tree child.
+    fn visit_tree_child(&mut self, tree: &Tree, id: LocalNodeId<TreeChild>, child: &TreeChild) {
+        walk_tree_child(self, tree, id, child);
     }
 
     /// Visit a GenericArgument.
@@ -343,6 +359,19 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_argument(&mut self, tree: &Tree, id: LocalNodeId<Argument>, argument: &Argument) {
         self.visit_any(tree, NodeType::Argument, id.id);
+    }
+
+    fn visit_tree_attribute(
+        &mut self,
+        tree: &Tree,
+        id: LocalNodeId<TreeAttribute>,
+        _attribute: &TreeAttribute,
+    ) {
+        self.visit_any(tree, NodeType::TreeAttribute, id.id);
+    }
+
+    fn visit_tree_child(&mut self, tree: &Tree, id: LocalNodeId<TreeChild>, _child: &TreeChild) {
+        self.visit_any(tree, NodeType::TreeChild, id.id);
     }
 
     fn visit_generic_argument(
