@@ -4,7 +4,10 @@
 class Counter {
 // <- keyword.declaration.type.ds
     public readonly value: int32;
-    constructor(readonly label: string) {}
+    readonly label: string;
+    constructor(label: string) {
+        this.label = label;
+    }
 }
 
 // types / classes / inheritance and abstract members

@@ -28,7 +28,7 @@ break outer;
 
 ### break value
 
-Unlabeled break values use parentheses.
+Bare identifier break values use parentheses to avoid label ambiguity.
 
 ```ds
 break (value)
