@@ -1227,10 +1227,12 @@ impl Parser {
 
     /// Build source diagnostics from parser errors.
     pub fn diagnostics(&self) -> DiagnosticCollection {
+        let content = self.file.content_id();
+        let tokens = self.tokens();
         let diagnostics = self
             .errors
             .iter()
-            .map(|error| self.diagnostic(error))
+            .map(|error| error.to_diagnostic(content, &tokens))
             .collect();
 
         DiagnosticCollection::from_diagnostics(diagnostics)
@@ -1238,9 +1240,10 @@ impl Parser {
 
     /// Build one source diagnostic from one parser error.
     pub fn diagnostic(&self, error: &ParserError) -> Diagnostic {
+        let content = self.file.content_id();
         let tokens = self.tokens();
 
-        error.to_diagnostic(self.file.as_ref(), &tokens)
+        error.to_diagnostic(content, &tokens)
     }
 
     /// Create a checkpoint for speculative parsing that may allocate tree nodes.

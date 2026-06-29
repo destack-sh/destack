@@ -1,7 +1,7 @@
 use core::fmt;
 
 use destack_dir::{NodeType, TokenSpan, TokenType};
-use destack_source::{Diagnostic, DiagnosticLabel, File, Span};
+use destack_source::{ContentId, Diagnostic, DiagnosticLabel, Span};
 
 /// One structural parser error used for recovery and diagnostics.
 #[derive(Debug, Clone, PartialEq)]
@@ -167,9 +167,8 @@ impl std::error::Error for ParserError {
 
 impl ParserError {
     /// Convert this parse error into one source diagnostic.
-    pub fn to_diagnostic(&self, source: &File, tokens: &[TokenSpan]) -> Diagnostic {
+    pub fn to_diagnostic(&self, content: ContentId, tokens: &[TokenSpan]) -> Diagnostic {
         let (span, node_type, expected) = self.leaf_content();
-        let content = source.content_id();
 
         let token_at_primary_span = tokens
             .binary_search_by_key(&span.start, |token| token.span.start)
