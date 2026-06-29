@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    FlowPath, Obligation, Origin, PatternCoverage, PatternCoverageObligation, Relation, ValueUse,
-    WalkState, Widening,
+    Expectation, ExpectedType, FlowNarrowing, FlowPath, Obligation, Origin, PatternCoverage,
+    PatternCoverageObligation, ValueUse, WalkState, Widening,
 };
 
 impl WalkState<'_, '_> {
@@ -19,9 +19,9 @@ impl WalkState<'_, '_> {
         declarator: &dir::Declarator,
         binding_kind: Option<dir::LetKind>,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
+        if !self.decide_decorated_presence(id.into_any())? {
             return Ok(());
-        };
+        }
 
         if let Some(symbol) = self.plain_declarator_symbol(declarator) {
             self.walk_plain_declarator(symbol, declarator, binding_kind)?;
@@ -66,9 +66,14 @@ impl WalkState<'_, '_> {
                 self.set_static_value(symbol, value)?;
             }
 
-            // check initializers against explicit annotations
+            // check annotated initializers before ordinary inference can claim them
             if let Some(value) = declarator.value {
-                self.walk_expression_expected(value, self.tree.get(value), written)?;
+                let expectation = Expectation::assignable(
+                    written,
+                    Origin::Node(value.into_global_any(self.module)),
+                    ValueUse::Store,
+                );
+                self.walk_expression(value, self.tree.get(value), Some(&expectation))?;
             }
 
             return Ok(());
@@ -79,40 +84,12 @@ impl WalkState<'_, '_> {
 
         // walk the initializer as its own expression
         if let Some(value) = declarator.value {
-            self.walk_expression(value, self.tree.get(value))?;
+            self.walk_expression(value, self.tree.get(value), None)?;
         }
 
-        // bind closed initializers directly (widened)
+        // bind inferred declarations from their initializer
         if let Some(value) = declarator.value {
-            let initializer = self.node_type(value)?;
-            if self.check.type_variables(initializer)?.is_empty() {
-                let source = value.into_any();
-                let bound = match widening {
-                    Widening::Widen => self.check.widen_type(self.module, source, initializer)?,
-                    Widening::Preserve => initializer,
-                };
-                self.bind_symbol_type(symbol, bound)?;
-
-                return Ok(());
-            }
-
-            // preserved bindings can use the initializer hole directly
-            if widening == Widening::Preserve {
-                self.bind_symbol_type(symbol, initializer)?;
-
-                return Ok(());
-            }
-
-            // widened bindings need their own variable when the source is open
-            let binding = self.binding_type(symbol, widening)?;
-            let origin = Origin::Node(value.into_global_any(self.module));
-            self.push_flow(
-                origin,
-                ValueUse::Store,
-                Relation::Assignable,
-                initializer,
-                binding,
-            );
+            self.queue_bind(symbol, value, widening);
 
             return Ok(());
         }
@@ -143,39 +120,45 @@ impl WalkState<'_, '_> {
 
         // walk matched value
         if let Some(value) = declarator.value {
-            self.walk_expression(value, self.tree.get(value))?;
+            self.walk_expression(value, self.tree.get(value), None)?;
         }
 
-        // flow the matched value into the pattern type
-        let matched = if let Some(value) = declarator.value {
-            Some(self.node_type(value)?)
-        } else if let Some(ty) = declarator.ty {
-            Some(self.walk_type_expression(ty)?)
-        } else {
-            None
-        };
-        if let Some(matched) = matched {
-            let origin = match declarator.value {
-                Some(value) => Origin::Node(value.into_global_any(self.module)),
-                None => Origin::Node(declarator.pattern.into_global_any(self.module)),
-            };
-            let pattern = self.node_type(declarator.pattern)?;
-            self.push_flow(
-                origin,
+        // queue pattern checking from the initializer or annotation
+        if let Some(value) = declarator.value {
+            let expectation = Expectation::assignable_node(
+                value.into_global_any(self.module),
+                Origin::Node(value.into_global_any(self.module)),
                 ValueUse::Store,
-                Relation::Assignable,
-                matched,
-                pattern,
             );
+            self.queue_node_check(declarator.pattern, expectation);
 
             // non-matching positions must always succeed
             if self.is_irrefutable_declarator_pattern_required(id) {
-                let condition = self.active_static_guard();
                 self.check.push_obligation(Obligation::PatternCoverage(
                     PatternCoverageObligation {
                         source: declarator.pattern.into_global_any(self.module),
-                        condition,
-                        value: matched,
+                        value: ExpectedType::Node(value.into_global_any(self.module)),
+                        coverage: PatternCoverage::Binding {
+                            pattern: declarator.pattern.into_global(self.module),
+                        },
+                    },
+                ));
+            }
+        } else if let Some(ty) = declarator.ty {
+            let matched = self.walk_type_expression(ty)?;
+            let expectation = Expectation::assignable(
+                matched,
+                Origin::Node(ty.into_global_any(self.module)),
+                ValueUse::Store,
+            );
+            self.queue_node_check(declarator.pattern, expectation);
+
+            // non-matching positions must always succeed
+            if self.is_irrefutable_declarator_pattern_required(id) {
+                self.check.push_obligation(Obligation::PatternCoverage(
+                    PatternCoverageObligation {
+                        source: declarator.pattern.into_global_any(self.module),
+                        value: ExpectedType::Type(matched),
                         coverage: PatternCoverage::Binding {
                             pattern: declarator.pattern.into_global(self.module),
                         },
@@ -316,15 +299,18 @@ impl WalkState<'_, '_> {
             // value
             dir::Pattern::Expression { value } => {
                 let value = *value;
-                let ty = self.node_type(value)?;
-                self.narrow_flow_path(path, ty);
+                let narrowing = FlowNarrowing::Node(value.into_global_any(self.module));
+
+                self.narrow_flow_path(path, narrowing);
             }
             // T(a, b), T { name }
             dir::Pattern::NominalTuple { ty, fields }
             | dir::Pattern::NominalObject { ty, fields } => {
                 let (ty, fields) = (*ty, fields.clone());
                 let narrowed = self.walk_type_expression(ty)?;
-                self.narrow_flow_path(path.clone(), narrowed);
+                let narrowing = FlowNarrowing::Type(narrowed);
+
+                self.narrow_flow_path(path.clone(), narrowing);
                 self.narrow_pattern_field_match(path, &fields)?;
             }
             // { name }

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::WalkState;
+use crate::check::{Expectation, WalkState};
 
 impl WalkState<'_, '_> {
     /// Walk one block.
@@ -17,10 +17,11 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Block>,
         block: &dir::Block,
+        expectation: Option<&Expectation>,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
+        if !self.decide_decorated_presence(id.into_any())? {
             return Ok(());
-        };
+        }
 
         // walk leading statements
         let mut is_reachable = true;
@@ -28,7 +29,7 @@ impl WalkState<'_, '_> {
         for expression in &block.leading_expressions {
             // update flow through reachable expressions
             if is_reachable {
-                self.walk_expression(*expression, self.tree.get(*expression))?;
+                self.walk_expression(*expression, self.tree.get(*expression), None)?;
                 is_reachable = self.expression_can_complete_normally(*expression);
             }
             // check unreachable expression in isolated flow
@@ -39,7 +40,7 @@ impl WalkState<'_, '_> {
                     warned_unreachable = true;
                 }
                 let before = self.fork_flow();
-                self.walk_expression(*expression, self.tree.get(*expression))?;
+                self.walk_expression(*expression, self.tree.get(*expression), None)?;
                 self.restore_flow(before);
             }
         }
@@ -48,7 +49,7 @@ impl WalkState<'_, '_> {
         if let Some(expression) = block.tail_expression {
             // update flow through reachable tail
             if is_reachable {
-                self.walk_expression(expression, self.tree.get(expression))?;
+                self.walk_expression(expression, self.tree.get(expression), expectation)?;
             }
             // check unreachable tail in isolated flow
             else {
@@ -57,16 +58,14 @@ impl WalkState<'_, '_> {
                         .report_unreachable_code(self.module, expression.into_any());
                 }
                 let before = self.fork_flow();
-                self.walk_expression(expression, self.tree.get(expression))?;
+                self.walk_expression(expression, self.tree.get(expression), expectation)?;
                 self.restore_flow(before);
             }
         }
 
         // set block value type
-        if block.context == dir::BlockContext::Expression
-            && let Some(expression) = block.tail_expression
-        {
-            self.copy_node_type(id, expression)?;
+        if block.context == dir::BlockContext::Expression {
+            self.queue_node_task(id)?;
         } else {
             let void = self.push_type(dir::Type::Void, id.into_any())?;
             self.write_node_type(id, void)?;

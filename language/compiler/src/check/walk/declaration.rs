@@ -2,10 +2,10 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    CheckState, DeclarationHeritageObligation, ExtensionConformanceObligation,
-    GenericInductionDeclaration, GenericTemplateId, ImplementationCoherenceObligation, Obligation,
-    Origin, Receiver, ReceiverBinding, Relation, RepresentationObligation, TypeSubstitution,
-    WalkState,
+    CheckState, ClassInitializationObligation, DeclarationHeritageObligation,
+    ExtensionConformanceObligation, FlowBranch, GenericInductionDeclaration, GenericTemplateId,
+    ImplementationCoherenceObligation, Obligation, Origin, Receiver, ReceiverBinding, Relation,
+    RepresentationObligation, TypeSubstitution, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -83,9 +83,9 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
+        if !self.decide_decorated_presence(id.into_any())? {
             return Ok(());
-        };
+        }
 
         match declaration {
             // global { ... }
@@ -190,21 +190,21 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
+        if !self.decide_decorated_presence(id.into_any())? {
             return Ok(());
-        };
+        }
 
         match declaration {
             // global { ... }
             dir::Declaration::Global(declaration) => {
                 for expression in &declaration.expressions {
-                    self.walk_expression(*expression, self.tree.get(*expression))?;
+                    self.walk_expression(*expression, self.tree.get(*expression), None)?;
                 }
             }
             // module { ... }
             dir::Declaration::Module(declaration) => {
                 for expression in &declaration.expressions {
-                    self.walk_expression(*expression, self.tree.get(*expression))?;
+                    self.walk_expression(*expression, self.tree.get(*expression), None)?;
                 }
             }
             // type X = T
@@ -417,7 +417,7 @@ impl WalkState<'_, '_> {
         // walk members
         let mut members = Vec::new();
         for member in &declaration.members {
-            members.extend(self.walk_member(
+            members.extend(self.walk_member_declaration(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
@@ -432,6 +432,16 @@ impl WalkState<'_, '_> {
             members,
         });
         self.check.insert_definition(symbol, source, definition)?;
+
+        // walk member bodies after the nominal definition exists
+        for member in &declaration.members {
+            self.walk_member_body(
+                *member,
+                self.tree.get(*member),
+                Some(receiver),
+                declaration.is_ambient,
+            )?;
+        }
 
         // heritage rules check once the inherited declarations close
         self.queue_heritage_obligation(source, symbol);
@@ -548,7 +558,7 @@ impl WalkState<'_, '_> {
         // walk members
         let mut members = Vec::new();
         for member in &declaration.members {
-            members.extend(self.walk_member(
+            members.extend(self.walk_member_declaration(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
@@ -573,6 +583,35 @@ impl WalkState<'_, '_> {
             members,
         });
         self.check.insert_definition(symbol, source, definition)?;
+
+        // walk member bodies after the nominal definition exists
+        let mut constructor_branches = Vec::new();
+        for member in &declaration.members {
+            if let Some(branch) = self.walk_member_body(
+                *member,
+                self.tree.get(*member),
+                Some(receiver),
+                declaration.is_ambient,
+            )? {
+                constructor_branches.push(branch);
+            }
+        }
+
+        // require concrete constructors to initialize concrete instance fields
+        if !declaration.is_ambient {
+            if constructor_branches.is_empty() {
+                constructor_branches.push(FlowBranch::empty());
+            }
+
+            self.check.push_obligation(Obligation::ClassInitialization(
+                ClassInitializationObligation {
+                    source,
+                    symbol,
+                    receiver: receiver.ty,
+                    constructor_branches,
+                },
+            ));
+        }
 
         // heritage rules check once the inherited declarations close
         self.queue_heritage_obligation(source, symbol);
@@ -620,7 +659,7 @@ impl WalkState<'_, '_> {
                 constructor: dir::ClassConstructor::Declared {
                     symbol: method.symbol,
                 },
-                ty: method.ty,
+                ty: self.check.require_symbol_type(method.symbol)?,
             });
         }
 
@@ -724,7 +763,7 @@ impl WalkState<'_, '_> {
             members.extend(self.walk_enum_field(*field, self.tree.get(*field), receiver.ty)?);
         }
         for member in &declaration.members {
-            members.extend(self.walk_member(
+            members.extend(self.walk_member_declaration(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
@@ -739,6 +778,16 @@ impl WalkState<'_, '_> {
             members,
         });
         self.check.insert_definition(symbol, source, definition)?;
+
+        // walk member bodies after the nominal definition exists
+        for member in &declaration.members {
+            self.walk_member_body(
+                *member,
+                self.tree.get(*member),
+                Some(receiver),
+                declaration.is_ambient,
+            )?;
+        }
 
         // heritage rules check once the inherited declarations close
         self.queue_heritage_obligation(source, symbol);
@@ -916,7 +965,7 @@ impl WalkState<'_, '_> {
         // walk members
         let mut members = Vec::new();
         for member in &declaration.members {
-            members.extend(self.walk_member(
+            members.extend(self.walk_member_declaration(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
@@ -944,6 +993,16 @@ impl WalkState<'_, '_> {
         });
         self.check.insert_definition(symbol, source, definition)?;
 
+        // walk member bodies after the extension definition exists
+        for member in &declaration.members {
+            self.walk_member_body(
+                *member,
+                self.tree.get(*member),
+                Some(receiver),
+                declaration.is_ambient,
+            )?;
+        }
+
         self.queue_extension_conformance_obligation(source, symbol);
         self.queue_implementation_coherence_obligation(source, symbol);
         self.queue_heritage_obligation(source, symbol);
@@ -951,52 +1010,37 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Queue one extension conformance obligation under the active guard.
+    /// Queue one extension conformance obligation.
     fn queue_extension_conformance_obligation(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) {
-        let condition = self.active_static_guard();
         self.check.push_obligation(Obligation::ExtensionConformance(
-            ExtensionConformanceObligation {
-                source,
-                condition,
-                symbol,
-            },
+            ExtensionConformanceObligation { source, symbol },
         ));
     }
 
-    /// Queue one implementation coherence obligation under the active guard.
+    /// Queue one implementation coherence obligation.
     fn queue_implementation_coherence_obligation(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) {
-        let condition = self.active_static_guard();
         self.check
             .push_obligation(Obligation::ImplementationCoherence(
-                ImplementationCoherenceObligation {
-                    source,
-                    condition,
-                    symbol,
-                },
+                ImplementationCoherenceObligation { source, symbol },
             ));
     }
 
-    /// Queue one heritage obligation under the active guard.
+    /// Queue one heritage obligation.
     fn queue_heritage_obligation(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) {
-        let condition = self.active_static_guard();
         self.check.push_obligation(Obligation::DeclarationHeritage(
-            DeclarationHeritageObligation {
-                source,
-                condition,
-                symbol,
-            },
+            DeclarationHeritageObligation { source, symbol },
         ));
     }
 
@@ -1015,11 +1059,9 @@ impl WalkState<'_, '_> {
             .check
             .module(self.module)
             .symbol_declaration_node(symbol.local_id)?;
-        let condition = self.active_static_guard();
         self.check
             .push_obligation(Obligation::Representation(RepresentationObligation {
                 source: source.into_global(self.module),
-                condition,
                 ty: receiver.ty,
             }));
 
@@ -1109,16 +1151,15 @@ impl WalkState<'_, '_> {
         enum_field: &dir::EnumField,
         owner: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::DefinitionMember>> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
+        if !self.decide_decorated_presence(id.into_any())? {
             return Ok(None);
-        };
-        let condition = self.member_condition(id.into_any())?;
+        }
         let (name, value) = (enum_field.name, enum_field.value);
 
         if let Some(value) = value {
             // check enum values in declaration context
             let before_value = self.fork_flow();
-            self.walk_expression(value, self.tree.get(value))?;
+            self.walk_expression(value, self.tree.get(value), None)?;
             self.restore_flow(before_value);
 
             // record the written variant value
@@ -1147,15 +1188,14 @@ impl WalkState<'_, '_> {
             }),
             id.into_any(),
         )?;
+        self.bind_symbol_type(symbol, ty)?;
 
         Ok(Some(dir::DefinitionMember::Variant(
             dir::VariantDefinition {
                 symbol,
                 source: id.into_global_any(self.module),
                 key: name.static_key(),
-                ty,
                 value: None,
-                condition,
             },
         )))
     }
@@ -1384,7 +1424,7 @@ impl WalkState<'_, '_> {
         }
 
         // open the inferred result
-        Ok(Some(self.infer_type(source)?))
+        Ok(Some(self.open_variable_type(source, Widening::Preserve)?))
     }
 
     /// Return one nominal declaration receiver scope.

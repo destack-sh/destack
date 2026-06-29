@@ -27,32 +27,18 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Argument>,
         argument: &dir::Argument,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
+        if !self.decide_decorated_presence(id.into_any())? {
             return Ok(());
-        };
+        }
 
-        // let selection read the argument value type from the argument node
-        let value = match argument {
-            // f(name: value), f(label = value), f(value), f(...value)
-            dir::Argument::Named { value, .. }
-            | dir::Argument::Labeled { value, .. }
-            | dir::Argument::Positional { value }
-            | dir::Argument::Spread { value, .. } => Some(*value),
-            // ignore damaged nodes
-            dir::Argument::Error => None,
-        };
-
-        let Some(value) = value else {
+        let Some(value) = argument.value() else {
             let error = self.push_type(dir::Type::Error, id.into_any())?;
             self.write_node_type(id, error)?;
 
             return Ok(());
         };
 
-        self.walk_expression(value, self.tree.get(value))?;
-
-        // copy the value type into the argument node
-        self.copy_node_type(id, value)?;
+        self.walk_expression(value, self.tree.get(value), None)?;
 
         Ok(())
     }

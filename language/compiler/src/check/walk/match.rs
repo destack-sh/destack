@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{ConditionBranch, FlowPath, Origin, Relation, ValueUse, WalkState};
+use crate::check::{ConditionBranch, FlowPath, WalkState};
 
 impl WalkState<'_, '_> {
     /// Walk one match case.
@@ -22,14 +22,14 @@ impl WalkState<'_, '_> {
                 // enter selector flow before the body
                 self.walk_match_selector(selector, value)?;
 
-                self.walk_expression(*body, self.tree.get(*body))?;
+                self.walk_expression(*body, self.tree.get(*body), None)?;
             }
             // case pattern if guard { ... }
             dir::MatchCase::Block { selector, body } => {
                 // enter selector flow before the body
                 self.walk_match_selector(selector, value)?;
 
-                self.walk_block(*body, self.tree.get(*body))?;
+                self.walk_block(*body, self.tree.get(*body), None)?;
             }
         };
 
@@ -54,13 +54,8 @@ impl WalkState<'_, '_> {
                 self.walk_pattern(*pattern, self.tree.get(*pattern))?;
 
                 if let Some((value, path)) = value {
-                    let origin = Origin::Node(pattern.into_global_any(self.module));
-                    let pattern_type = self.node_type(*pattern)?;
-                    let relation = match self.tree.get(*pattern) {
-                        dir::Pattern::Binding { pattern: None, .. } => Relation::Equal,
-                        _ => Relation::Assignable,
-                    };
-                    self.relate_type(origin, relation, value, pattern_type);
+                    self.write_node_type(*pattern, value)?;
+                    self.queue_node_task(*pattern)?;
 
                     if let Some(path) = path {
                         self.narrow_pattern_match(path, *pattern)?;
@@ -72,22 +67,8 @@ impl WalkState<'_, '_> {
 
                 // if guard
                 if let Some(guard) = guard {
-                    self.walk_expression(*guard, self.tree.get(*guard))?;
-
-                    // guards produce runtime booleans
-                    let origin = Origin::Node(guard.into_global_any(self.module));
-                    let condition = self.node_type(*guard)?;
-                    let boolean = self.push_type(
-                        dir::Type::Primitive(dir::PrimitiveType::Boolean),
-                        guard.into_any(),
-                    )?;
-                    self.push_flow(
-                        origin,
-                        ValueUse::Condition,
-                        Relation::Assignable,
-                        condition,
-                        boolean,
-                    );
+                    let expectation = self.condition_expectation(*guard)?;
+                    self.walk_expression(*guard, self.tree.get(*guard), Some(&expectation))?;
                     self.narrow_expression(*guard, ConditionBranch::True)?;
                 }
             }
@@ -121,7 +102,9 @@ impl WalkState<'_, '_> {
                 pattern,
                 guard: None,
             } => {
-                let pattern_type = self.node_type(*pattern)?;
+                let Some(pattern_type) = self.node_type_maybe(*pattern) else {
+                    return Ok(input);
+                };
                 let narrow = dir::Type::Operation(dir::TypeOperation::Narrow(dir::NarrowType {
                     source: input,
                     target: pattern_type,

@@ -2,8 +2,8 @@ use destack_dir as dir;
 use std::ptr::NonNull;
 
 use crate::check::{
-    FlowState, GenericInductionDeclaration, GenericInductionPosition, Origin, Receiver,
-    ReceiverBinding, Relation, ValueUse, WalkState, Widening,
+    Expectation, FlowBranch, FlowState, GenericInductionDeclaration, GenericInductionPosition,
+    Origin, Receiver, ReceiverBinding, Relation, ValueUse, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -55,25 +55,19 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Walk one literal's properties and return its direct fields.
-    /// Returns whether any spread property defers the literal's shape
-    /// to selection.
+    /// Walk one literal's properties.
     pub(in crate::check) fn walk_literal_properties(
         &mut self,
         properties: &[dir::LocalNodeId<dir::Property>],
-    ) -> CompilerResult<(Vec<dir::TypeField>, bool)> {
-        let mut fields = Vec::new();
-        let mut has_spread = false;
+    ) -> CompilerResult<()> {
         for property in properties {
-            has_spread |= matches!(self.tree.get(*property), dir::Property::Spread { .. });
-            fields.extend(self.walk_property(*property, self.tree.get(*property))?);
+            self.walk_property(*property, self.tree.get(*property))?;
         }
 
-        Ok((fields, has_spread))
+        Ok(())
     }
 
-    /// Walk one object literal property and return its shape field.
-    /// Spread and computed properties contribute no direct field.
+    /// Walk one object literal property.
     ///
     /// Example:
     /// ```ds
@@ -83,10 +77,10 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Property>,
         property: &dir::Property,
-    ) -> CompilerResult<Option<dir::TypeField>> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
-            return Ok(None);
-        };
+    ) -> CompilerResult<()> {
+        if !self.decide_decorated_presence(id.into_any())? {
+            return Ok(());
+        }
 
         match property {
             // { key: value }
@@ -95,20 +89,11 @@ impl WalkState<'_, '_> {
 
                 // compute runtime property key
                 if let dir::Key::Expression(key) = key {
-                    self.walk_expression(key, self.tree.get(key))?;
+                    self.walk_expression(key, self.tree.get(key), None)?;
                 }
-                self.walk_expression(value, self.tree.get(value))?;
+                self.walk_expression(value, self.tree.get(value), None)?;
 
-                let Some(key) = key.direct_static_key() else {
-                    return Ok(None);
-                };
-
-                Ok(Some(dir::TypeField {
-                    key,
-                    ty: self.node_type(value)?,
-                    is_optional: false,
-                    is_readonly: false,
-                }))
+                Ok(())
             }
             // { method() {} }
             dir::Property::Method {
@@ -120,7 +105,7 @@ impl WalkState<'_, '_> {
 
                 if let Some(dir::Key::Expression(key)) = key {
                     // compute runtime property key
-                    self.walk_expression(key, self.tree.get(key))?;
+                    self.walk_expression(key, self.tree.get(key), None)?;
                 }
 
                 let symbol = self
@@ -152,26 +137,17 @@ impl WalkState<'_, '_> {
                     self.walk_function_body(symbol, signature, body, result, None)?;
                 }
 
-                let Some(key) = key.and_then(dir::Key::direct_static_key) else {
-                    return Ok(None);
-                };
-
-                Ok(Some(dir::TypeField {
-                    key,
-                    ty: method,
-                    is_optional: false,
-                    is_readonly: false,
-                }))
+                Ok(())
             }
             // { ...value }
             dir::Property::Spread { value } => {
                 let value = *value;
-                self.walk_expression(value, self.tree.get(value))?;
+                self.walk_expression(value, self.tree.get(value), None)?;
 
-                Ok(None)
+                Ok(())
             }
             // ignore damaged nodes
-            dir::Property::Error => Ok(None),
+            dir::Property::Error => Ok(()),
         }
     }
 
@@ -181,7 +157,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// field: string = "value"
     /// ```
-    pub(in crate::check) fn walk_member(
+    pub(in crate::check) fn walk_member_declaration(
         &mut self,
         id: dir::LocalNodeId<dir::Member>,
         member: &dir::Member,
@@ -198,10 +174,9 @@ impl WalkState<'_, '_> {
             dir::Member::Error => None,
         };
 
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
+        if !self.decide_decorated_presence(id.into_any())? {
             return Ok(None);
-        };
-        let condition = self.member_condition(id.into_any())?;
+        }
         let _receiver = self.enter_receiver_scope(member_receiver);
 
         match member {
@@ -258,7 +233,6 @@ impl WalkState<'_, '_> {
                         key: dir::StaticKey::Name(name),
                         constraint,
                         value,
-                        condition,
                     },
                 )))
             }
@@ -298,14 +272,20 @@ impl WalkState<'_, '_> {
                     self.bind_symbol_type(symbol, ty)?;
 
                     if let Some(written) = written {
-                        // the written value flows into the declared type
+                        // the written value constraints into the declared type
                         let origin = Origin::Node(id.into_global_any(self.module));
-                        self.push_flow(origin, ValueUse::Store, Relation::Assignable, written, ty);
+                        self.relate_value(
+                            origin,
+                            ValueUse::Store,
+                            Relation::Assignable,
+                            written,
+                            ty,
+                        );
                         self.set_static_value(symbol, written)?;
                     }
                 }
 
-                let (Some(symbol), Some(ty)) = (symbol, declared) else {
+                let (Some(symbol), Some(_)) = (symbol, declared) else {
                     return Ok(None);
                 };
 
@@ -314,9 +294,7 @@ impl WalkState<'_, '_> {
                         symbol,
                         source: id.into_global_any(self.module),
                         key: dir::StaticKey::Name(name),
-                        ty,
                         value: None,
-                        condition,
                     },
                 )))
             }
@@ -334,8 +312,6 @@ impl WalkState<'_, '_> {
                 let (key, declared_type, default, is_optional, is_static) =
                     (*key, *declared_type, *default, *is_optional, *is_static);
                 let (is_abstract, is_override) = (*is_abstract, *is_override);
-                let is_inferred_field = declared_type.is_none();
-
                 if declared_type.is_none() && default.is_none() {
                     self.check
                         .report_missing_type_annotation(self.module, id.into_any());
@@ -344,7 +320,7 @@ impl WalkState<'_, '_> {
                 // check computed member keys in declaration context
                 if let dir::Key::Expression(key) = key {
                     let before_key = self.fork_flow();
-                    self.walk_expression(key, self.tree.get(key))?;
+                    self.walk_expression(key, self.tree.get(key), None)?;
                     self.restore_flow(before_key);
                 }
 
@@ -374,24 +350,13 @@ impl WalkState<'_, '_> {
                     None => {
                         if let (Some(symbol), Some(default)) = (symbol, default) {
                             let before_default = self.fork_flow();
-                            self.walk_expression(default, self.tree.get(default))?;
+                            self.walk_expression(default, self.tree.get(default), None)?;
                             self.restore_flow(before_default);
 
-                            let default_type = self.node_type(default)?;
-                            let field_type = self.declaration_type(symbol, Widening::Widen)?;
-                            let origin = Origin::Node(default.into_global_any(self.module));
-                            self.push_flow(
-                                origin,
-                                ValueUse::Store,
-                                Relation::Assignable,
-                                default_type,
-                                field_type,
-                            );
-
-                            Some(field_type)
-                        } else {
-                            None
+                            self.queue_bind(symbol, default, Widening::Widen);
                         }
+
+                        None
                     }
                 };
 
@@ -404,19 +369,18 @@ impl WalkState<'_, '_> {
                 }
 
                 // check defaults after the field type is known
-                if let (Some(field_type), Some(default)) = (field_type, default)
-                    && !is_inferred_field
-                {
+                if let (Some(field_type), Some(default)) = (field_type, default) {
                     let before_default = self.fork_flow();
-                    self.walk_expression(default, self.tree.get(default))?;
+                    let expectation = Expectation::assignable(
+                        field_type,
+                        Origin::Node(default.into_global_any(self.module)),
+                        ValueUse::Store,
+                    );
+                    self.walk_expression(default, self.tree.get(default), Some(&expectation))?;
                     self.restore_flow(before_default);
-
-                    self.expect_assignable(default, field_type)?;
                 }
 
-                let (Some(symbol), Some(ty), Some(key)) =
-                    (symbol, field_type, key.direct_static_key())
-                else {
+                let (Some(symbol), Some(key)) = (symbol, key.direct_static_key()) else {
                     return Ok(None);
                 };
 
@@ -429,10 +393,9 @@ impl WalkState<'_, '_> {
                     symbol,
                     source: id.into_global_any(self.module),
                     key,
-                    ty,
+                    initializer: default.map(|default| default.into_global_any(self.module)),
                     is_abstract,
                     is_override,
-                    condition,
                 })))
             }
             // method() {}
@@ -449,7 +412,7 @@ impl WalkState<'_, '_> {
                 if let Some(dir::Key::Expression(key)) = *key {
                     // check computed member keys in declaration context
                     let before_key = self.fork_flow();
-                    self.walk_expression(key, self.tree.get(key))?;
+                    self.walk_expression(key, self.tree.get(key), None)?;
                     self.restore_flow(before_key);
                 }
 
@@ -516,11 +479,6 @@ impl WalkState<'_, '_> {
                 // write the method symbol type
                 self.bind_symbol_type(symbol, method)?;
 
-                // walk method body after its result exists
-                if let (Some(body), Some(result)) = (*body, result) {
-                    self.walk_function_body(symbol, signature, body, result, receiver)?;
-                }
-
                 Ok(Some(dir::DefinitionMember::Method(dir::MethodDefinition {
                     space: if *is_static {
                         dir::MemberSpace::Static
@@ -531,11 +489,78 @@ impl WalkState<'_, '_> {
                     source,
                     slot,
                     role: signature.role,
-                    ty: method,
                     abstraction: *abstraction,
                     is_override: *is_override,
-                    condition,
                 })))
+            }
+            // static { ... }, comptime { ... }
+            dir::Member::StaticBlock { .. } | dir::Member::ComptimeBlock { .. } => Ok(None),
+            // ignore damaged nodes
+            dir::Member::Error => Ok(None),
+        }
+    }
+
+    /// Walk one declaration member body after its containing definition exists.
+    pub(in crate::check) fn walk_member_body(
+        &mut self,
+        id: dir::LocalNodeId<dir::Member>,
+        member: &dir::Member,
+        receiver_scope: Option<Receiver>,
+        is_ambient_scope: bool,
+    ) -> CompilerResult<Option<FlowBranch>> {
+        let member_receiver = match member {
+            dir::Member::StaticBlock { .. } | dir::Member::ComptimeBlock { .. } => None,
+            dir::Member::Field { .. }
+            | dir::Member::Method { .. }
+            | dir::Member::AssociatedType { .. }
+            | dir::Member::AssociatedConst { .. } => receiver_scope,
+            dir::Member::Error => None,
+        };
+
+        if !self.decide_decorated_presence(id.into_any())? {
+            return Ok(None);
+        }
+        let _receiver = self.enter_receiver_scope(member_receiver);
+
+        match member {
+            // method() {}
+            dir::Member::Method {
+                signature,
+                body,
+                is_ambient,
+                is_static,
+                abstraction,
+                ..
+            } => {
+                if body.is_none() || is_ambient_scope || *is_ambient || abstraction.is_abstract() {
+                    return Ok(None);
+                }
+                let Some(body) = *body else {
+                    return Ok(None);
+                };
+                let Some(symbol) = self
+                    .check
+                    .module(self.module)
+                    .declaration_symbol(id.into_any())
+                else {
+                    return Err(CompilerError::Internal {
+                        message: format!("method member {id:?} has no declaration symbol"),
+                    });
+                };
+
+                let implicit_receiver_scope = if *is_static { None } else { receiver_scope };
+                let receiver =
+                    self.method_receiver_binding(id, signature, implicit_receiver_scope)?;
+                let Some(result) = self.method_body_result_type(symbol)? else {
+                    return Ok(None);
+                };
+                let branch = self.walk_function_body(symbol, signature, body, result, receiver)?;
+
+                if matches!(signature.role, Some(dir::FunctionRole::Constructor)) {
+                    Ok(Some(branch))
+                } else {
+                    Ok(None)
+                }
             }
             // static { ... }, comptime { ... }
             dir::Member::StaticBlock { body } | dir::Member::ComptimeBlock { body } => {
@@ -543,13 +568,16 @@ impl WalkState<'_, '_> {
 
                 // check member blocks in declaration context
                 let before_body = self.fork_flow();
-                self.walk_expression(body, self.tree.get(body))?;
+                self.walk_expression(body, self.tree.get(body), None)?;
                 self.restore_flow(before_body);
 
                 Ok(None)
             }
-            // ignore damaged nodes
-            dir::Member::Error => Ok(None),
+            // members without bodies
+            dir::Member::Field { .. }
+            | dir::Member::AssociatedType { .. }
+            | dir::Member::AssociatedConst { .. }
+            | dir::Member::Error => Ok(None),
         }
     }
 
@@ -566,10 +594,9 @@ impl WalkState<'_, '_> {
         receiver_scope: Option<Receiver>,
         induction_declaration: Option<GenericInductionDeclaration>,
     ) -> CompilerResult<Option<dir::DefinitionMember>> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
+        if !self.decide_decorated_presence(id.into_any())? {
             return Ok(None);
-        };
-        let condition = self.member_condition(id.into_any())?;
+        }
         let _receiver = self.enter_receiver_scope(receiver_scope);
         let source = id.into_global_any(self.module);
 
@@ -621,10 +648,9 @@ impl WalkState<'_, '_> {
                     symbol,
                     source,
                     key,
-                    ty: written,
+                    initializer: None,
                     is_abstract: false,
                     is_override: false,
-                    condition,
                 })))
             }
             // method(): T
@@ -692,10 +718,8 @@ impl WalkState<'_, '_> {
                     source,
                     slot,
                     role: signature.role,
-                    ty: method,
                     abstraction: dir::MethodAbstraction::Concrete,
                     is_override: false,
-                    condition,
                 })))
             }
             // (value: T): U
@@ -704,11 +728,7 @@ impl WalkState<'_, '_> {
                 let ty = self.walk_function_type(id.into_any(), signature, parent, None)?;
 
                 Ok(Some(dir::DefinitionMember::CallSignature(
-                    dir::SignatureDefinition {
-                        source,
-                        ty,
-                        condition,
-                    },
+                    dir::SignatureDefinition { source, ty },
                 )))
             }
             // new (value: T): U
@@ -717,11 +737,7 @@ impl WalkState<'_, '_> {
                 let ty = self.walk_constructor_type(id.into_any(), signature, parent, None)?;
 
                 Ok(Some(dir::DefinitionMember::ConstructSignature(
-                    dir::SignatureDefinition {
-                        source,
-                        ty,
-                        condition,
-                    },
+                    dir::SignatureDefinition { source, ty },
                 )))
             }
             // [key: K]: V
@@ -741,7 +757,6 @@ impl WalkState<'_, '_> {
                     dir::SignatureDefinition {
                         source,
                         ty: value_type,
-                        condition,
                     },
                 )))
             }
@@ -792,7 +807,6 @@ impl WalkState<'_, '_> {
                         key: dir::StaticKey::Name(name),
                         constraint,
                         value,
-                        condition,
                     },
                 )))
             }
@@ -828,7 +842,7 @@ impl WalkState<'_, '_> {
                     if let Some(written) = written {
                         if let Some(declared) = declared {
                             let origin = Origin::Node(source);
-                            self.push_flow(
+                            self.relate_value(
                                 origin,
                                 ValueUse::Store,
                                 Relation::Assignable,
@@ -840,7 +854,7 @@ impl WalkState<'_, '_> {
                     }
                 }
 
-                let (Some(symbol), Some(ty)) = (symbol, declared) else {
+                let (Some(symbol), Some(_)) = (symbol, declared) else {
                     return Ok(None);
                 };
 
@@ -849,9 +863,7 @@ impl WalkState<'_, '_> {
                         symbol,
                         source,
                         key: dir::StaticKey::Name(name),
-                        ty,
                         value: None,
-                        condition,
                     },
                 )))
             }
@@ -965,5 +977,20 @@ impl WalkState<'_, '_> {
         };
 
         Ok(Some(result))
+    }
+
+    /// Return one checked method body's result type.
+    fn method_body_result_type(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let ty = self.check.require_symbol_type(symbol)?;
+        let dir::Type::FunctionSignature(signature) = self.check.ty(ty)? else {
+            return Err(CompilerError::Internal {
+                message: format!("method symbol {symbol:?} has non-function type {ty:?}"),
+            });
+        };
+
+        Ok(signature.return_type)
     }
 }

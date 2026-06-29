@@ -26,6 +26,7 @@ impl CheckState<'_> {
         for root in &expanded.roots {
             walk.walk_expression_header(*root, tree.get(*root))?;
         }
+        walk.finish();
 
         Ok(())
     }
@@ -46,8 +47,9 @@ impl CheckState<'_> {
 
         // walk expanded roots
         for root in &expanded.roots {
-            walk.walk_expression(*root, tree.get(*root))?;
+            walk.walk_expression(*root, tree.get(*root), None)?;
         }
+        walk.finish();
 
         Ok(())
     }

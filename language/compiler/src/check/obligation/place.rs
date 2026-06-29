@@ -15,7 +15,7 @@ use crate::check::{
 /// object.field = next
 /// values[index] = next
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(in crate::check) struct WriteTarget {
     /// The selected storage.
     pub(in crate::check) storage: dir::Storage,
@@ -59,7 +59,7 @@ impl WriteTarget {
 }
 
 /// Write validation mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum WriteMode {
     /// The storage owner decides whether the write is legal.
     Direct,

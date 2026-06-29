@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    GenericInductionDeclaration, GenericInductionPosition, GenericTemplateId, Origin,
-    ReceiverBinding, Relation, ValueUse, WalkState, Widening,
+    Expectation, FlowBranch, GenericInductionDeclaration, GenericInductionPosition,
+    GenericTemplateId, Origin, ReceiverBinding, Relation, ValueUse, WalkState, Widening,
 };
 
 impl<'check, 'state> WalkState<'check, 'state> {
@@ -267,7 +267,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         body: dir::LocalNodeId<dir::Expression>,
         result: dir::GlobalTypeId,
         receiver: Option<ReceiverBinding>,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<FlowBranch> {
         let source = body.into_any();
         let origin = Origin::Node(body.into_global_any(self.module));
         let mut return_target = result;
@@ -276,7 +276,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // open the async completion type
         if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
-            let completed = self.infer_type(source)?;
+            let completed = self.open_variable_type(source, Widening::Preserve)?;
             let promised =
                 self.language_type_reference(source, dir::LanguageItem::Promise, vec![completed])?;
             self.relate_type(origin, Relation::Assignable, promised, result);
@@ -286,9 +286,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // open the generator yielded, completed, and resumed types
         if signature.is_generator {
-            let yielded = self.infer_type(source)?;
-            let completed = self.infer_type(source)?;
-            let resumed = self.infer_type(source)?;
+            let yielded = self.open_variable_type(source, Widening::Preserve)?;
+            let completed = self.open_variable_type(source, Widening::Preserve)?;
+            let resumed = self.open_variable_type(source, Widening::Preserve)?;
             let item = match signature.asynchrony {
                 // function* f() {}
                 dir::Asynchrony::Sync => dir::LanguageItem::Generator,
@@ -323,22 +323,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
 
         // walk body and flow its completion value into the return
-        self.walk_expression(body, self.tree.get(body))?;
-        if !Self::is_constructor_signature(signature) && self.expression_can_complete_normally(body)
-        {
-            let completion = self.node_type(body)?;
-            self.push_flow(
-                origin,
-                ValueUse::Output,
-                Relation::Assignable,
-                completion,
-                return_target,
-            );
-        }
+        let expectation = (!Self::is_constructor_signature(signature)
+            && self.expression_can_complete_normally(body))
+        .then(|| Expectation::assignable(return_target, origin, ValueUse::Output));
+        self.walk_expression(body, self.tree.get(body), expectation.as_ref())?;
 
-        self.leave_function_frame()?;
-
-        Ok(())
+        self.leave_function_frame()
     }
 
     /// Return whether one signature is a constructor body.
@@ -465,7 +455,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
             parameter => parameter.declared_type(),
         };
         let Some(declared_type) = declared_type else {
-            return Ok(Some(self.infer_node_type(id, Widening::Preserve)?));
+            let ty = self.open_variable_type(id.into_any(), Widening::Preserve)?;
+            self.write_node_type(id, ty)?;
+
+            return Ok(Some(ty));
         };
 
         let is_optional = self.tree.get(id).is_optional();

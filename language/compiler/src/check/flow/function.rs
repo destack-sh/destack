@@ -2,7 +2,10 @@ use destack_dir as dir;
 use indexmap::IndexSet;
 
 use crate::CompilerResult;
-use crate::check::{FunctionFrame, Origin, ReceiverBinding, Relation, ValueUse, WalkState};
+use crate::check::{
+    Expectation, ExpectedType, FlowBranch, FlowSite, FunctionFrame, Origin, ReceiverBinding,
+    Relation, Task, ValueUse, WalkState,
+};
 
 impl WalkState<'_, '_> {
     /// Enter one function body while walking.
@@ -39,9 +42,9 @@ impl WalkState<'_, '_> {
     }
 
     /// Leave the current function body.
-    pub(in crate::check) fn leave_function_frame(&mut self) -> CompilerResult<()> {
+    pub(in crate::check) fn leave_function_frame(&mut self) -> CompilerResult<FlowBranch> {
         // collect captures and restore outer flow
-        let mut capture = self.flow_mut().pop_function();
+        let (mut capture, flow) = self.flow_mut().pop_function();
 
         // attach capture directive from source metadata
         capture.directive = self.check.capture_directive_for_symbol(capture.symbol)?;
@@ -49,7 +52,7 @@ impl WalkState<'_, '_> {
         // store capture result
         self.check.module_mut(self.module).captures.push(capture);
 
-        Ok(())
+        Ok(flow)
     }
 
     /// Constrain one explicit or implicit return value to the current function.
@@ -70,7 +73,7 @@ impl WalkState<'_, '_> {
         let origin = Origin::Node(source.into_global(self.module));
         let return_target = function.return_target;
 
-        self.push_flow(
+        self.relate_value(
             origin,
             ValueUse::Output,
             Relation::Assignable,
@@ -79,20 +82,47 @@ impl WalkState<'_, '_> {
         );
     }
 
-    /// Constrain one yield expression to the current generator function.
-    pub(in crate::check) fn constrain_yield_value(
+    /// Constrain one return expression to the current function.
+    pub(in crate::check) fn constrain_return_expression(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        value: dir::LocalNodeId<dir::Expression>,
+    ) {
+        // reject returns outside function bodies
+        let Some(function) = self.flow().current_function() else {
+            self.check
+                .report_return_outside_function(self.module, source);
+
+            return;
+        };
+
+        // queue the return flow until the expression has a type
+        self.check.queue_task(Task::Check {
+            site: FlowSite {
+                node: value.into_global_any(self.module),
+                flow: self.flow().point(),
+            },
+            expected: ExpectedType::Type(function.return_target),
+            relation: Relation::Assignable,
+            origin: Origin::Node(source.into_global(self.module)),
+            use_: ValueUse::Output,
+        });
+    }
+
+    /// Return the expected type for one yielded value expression.
+    pub(in crate::check) fn yield_value_expectation(
         &mut self,
         source: dir::LocalNodeIdAny,
         cardinality: dir::YieldCardinality,
-        value: Option<dir::GlobalTypeId>,
+        value: dir::LocalNodeId<dir::Expression>,
         delegate_return_target: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Option<Expectation>> {
         // require a surrounding function body
         let Some(function) = self.flow().current_function() else {
             self.check
                 .report_yield_outside_generator(self.module, source);
 
-            return Ok(());
+            return Ok(None);
         };
 
         // require a generator yield target
@@ -100,34 +130,26 @@ impl WalkState<'_, '_> {
             self.check
                 .report_yield_outside_generator(self.module, source);
 
-            return Ok(());
+            return Ok(None);
         };
 
-        // snapshot function channels before reporting constraints
-        let origin = Origin::Node(source.into_global(self.module));
         let resume_target = function.resume_target;
         let asynchrony = function.asynchrony;
+        let origin = Origin::Node(value.into_global_any(self.module));
 
-        // yield value
+        // scalar yield values flow directly to the yield target
         if cardinality == dir::YieldCardinality::Scalar {
-            let value = match value {
-                Some(value) => value,
-                None => self.push_type(dir::Type::Void, source)?,
-            };
-
-            self.push_flow(
+            return Ok(Some(Expectation::assignable(
+                yield_target,
                 origin,
                 ValueUse::Output,
-                Relation::Assignable,
-                value,
-                yield_target,
-            );
+            )));
         }
-        // yield* values
-        else if let (Some(value), Some(delegate_return_target), Some(resume_target)) =
-            (value, delegate_return_target, resume_target)
+
+        // delegated yield values must implement the generator protocol
+        if let (Some(delegate_return_target), Some(resume_target)) =
+            (delegate_return_target, resume_target)
         {
-            // create expected iterable protocol
             let item = match asynchrony {
                 dir::Asynchrony::Sync => dir::LanguageItem::Iterable,
                 dir::Asynchrony::Async => dir::LanguageItem::AsyncIterable,
@@ -138,14 +160,50 @@ impl WalkState<'_, '_> {
                 vec![yield_target, delegate_return_target, resume_target],
             )?;
 
-            // require delegated value to implement the protocol
-            self.relate_type(origin, Relation::Assignable, value, expected);
+            Ok(Some(Expectation::assignable(
+                expected,
+                origin,
+                ValueUse::Output,
+            )))
         }
         // reject malformed delegation
         else {
             self.check
                 .report_yield_delegate_missing_value(self.module, source);
+
+            Ok(None)
         }
+    }
+
+    /// Constrain an omitted yield value to the current generator function.
+    pub(in crate::check) fn constrain_void_yield(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<()> {
+        // require a surrounding generator body
+        let Some(function) = self.flow().current_function() else {
+            self.check
+                .report_yield_outside_generator(self.module, source);
+
+            return Ok(());
+        };
+        let Some(yield_target) = function.yield_target else {
+            self.check
+                .report_yield_outside_generator(self.module, source);
+
+            return Ok(());
+        };
+
+        // flow omitted yield as void
+        let origin = Origin::Node(source.into_global(self.module));
+        let value = self.push_type(dir::Type::Void, source)?;
+        self.relate_value(
+            origin,
+            ValueUse::Output,
+            Relation::Assignable,
+            value,
+            yield_target,
+        );
 
         Ok(())
     }
@@ -186,7 +244,7 @@ impl WalkState<'_, '_> {
         &mut self,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<()> {
-        // reuse normal return constraint logic
+        // flow omitted return as void
         let value = self.push_type(dir::Type::Void, source)?;
         self.constrain_return_value(source, value);
 

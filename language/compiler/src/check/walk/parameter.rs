@@ -1,7 +1,8 @@
 use destack_dir as dir;
 
 use crate::check::{
-    GenericInductionParameter, GenericParameterId, GenericTemplateId, Origin, Relation, WalkState,
+    Expectation, GenericInductionParameter, GenericParameterId, GenericTemplateId, Origin,
+    ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -18,9 +19,9 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::GenericParameter>,
         generic_parameter: &dir::GenericParameter,
     ) -> CompilerResult<Option<GenericParameterId>> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
+        if !self.decide_decorated_presence(id.into_any())? {
             return Ok(None);
-        };
+        }
         let symbol = self.generic_parameter_symbol(id)?;
 
         if let Some(parameter) = self.check.generics.parameter_by_symbol(symbol) {
@@ -78,9 +79,9 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::GenericParameter>,
         generic_parameter: &dir::GenericParameter,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
+        if !self.decide_decorated_presence(id.into_any())? {
             return Ok(());
-        };
+        }
         let Some(parameter) = self.open_generic_parameter(template, id, generic_parameter)? else {
             return Ok(());
         };
@@ -134,7 +135,7 @@ impl WalkState<'_, '_> {
                     .map(|default| {
                         // check generic defaults in declaration context
                         let before_default = self.fork_flow();
-                        self.walk_expression(default, self.tree.get(default))?;
+                        self.walk_expression(default, self.tree.get(default), None)?;
                         self.restore_flow(before_default);
 
                         self.walk_static_term(default)
@@ -182,9 +183,9 @@ impl WalkState<'_, '_> {
         parameter: &dir::Parameter,
         is_annotation_required: bool,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
+        if !self.decide_decorated_presence(id.into_any())? {
             return Ok(());
-        };
+        }
 
         match parameter {
             // (p: T), (p: ...T)
@@ -228,12 +229,15 @@ impl WalkState<'_, '_> {
                 // check default after the parameter type is known
                 if let Some(default) = default {
                     let before_default = self.fork_flow();
-                    self.walk_expression(default, self.tree.get(default))?;
+                    let expectation = parameter_type.map(|parameter_type| {
+                        Expectation::assignable(
+                            parameter_type,
+                            Origin::Node(default.into_global_any(self.module)),
+                            ValueUse::Store,
+                        )
+                    });
+                    self.walk_expression(default, self.tree.get(default), expectation.as_ref())?;
                     self.restore_flow(before_default);
-
-                    if let Some(parameter_type) = parameter_type {
-                        self.expect_assignable(default, parameter_type)?;
-                    }
                 }
             }
             // (...p: T)
@@ -291,20 +295,22 @@ impl WalkState<'_, '_> {
                 self.walk_pattern(pattern, self.tree.get(pattern))?;
                 let parameter_type = self.walk_parameter_type(id)?;
                 if let Some(parameter_type) = parameter_type {
-                    let origin = Origin::Node(pattern.into_global_any(self.module));
-                    let pattern_type = self.node_type(pattern)?;
-                    self.relate_type(origin, Relation::Assignable, parameter_type, pattern_type);
+                    self.write_node_type(pattern, parameter_type)?;
+                    self.queue_node_task(pattern)?;
                 }
 
                 // check default after the parameter type is known
                 if let Some(default) = default {
                     let before_default = self.fork_flow();
-                    self.walk_expression(default, self.tree.get(default))?;
+                    let expectation = parameter_type.map(|parameter_type| {
+                        Expectation::assignable(
+                            parameter_type,
+                            Origin::Node(default.into_global_any(self.module)),
+                            ValueUse::Store,
+                        )
+                    });
+                    self.walk_expression(default, self.tree.get(default), expectation.as_ref())?;
                     self.restore_flow(before_default);
-
-                    if let Some(parameter_type) = parameter_type {
-                        self.expect_assignable(default, parameter_type)?;
-                    }
                 }
             }
             dir::Parameter::VariadicPattern {
@@ -323,9 +329,8 @@ impl WalkState<'_, '_> {
                 // constrain pattern type from the parameter type
                 self.walk_pattern(pattern, self.tree.get(pattern))?;
                 if let Some(parameter_type) = self.walk_parameter_type(id)? {
-                    let origin = Origin::Node(pattern.into_global_any(self.module));
-                    let pattern_type = self.node_type(pattern)?;
-                    self.relate_type(origin, Relation::Assignable, parameter_type, pattern_type);
+                    self.write_node_type(pattern, parameter_type)?;
+                    self.queue_node_task(pattern)?;
                 }
             }
             // ignore damaged nodes
