@@ -868,9 +868,22 @@ fn format_extension_declaration<'ast>(
         write!(f, [space(), name])?;
     }
 
-    write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
-    write!(f, [space(), Keyword::Of, space()])?;
-    write_type_expression_with_inline_prefix_annotations(f, declaration.target_type)?;
+    let extension_target = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
+        write!(f, [space(), Keyword::Of])?;
+
+        let target_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            write_type_expression_with_inline_prefix_annotations(f, declaration.target_type)
+        });
+        write!(
+            f,
+            [group(&indent(&format_args![
+                soft_line_break_or_space(),
+                group(&target_type)
+            ]))]
+        )
+    });
+    write!(f, [group(&extension_target)])?;
 
     // heritage
     format_super_type_clause(f, Keyword::Implements, &declaration.implements_types)?;

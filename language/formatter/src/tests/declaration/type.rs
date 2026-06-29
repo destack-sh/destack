@@ -371,6 +371,30 @@ fn test_format_extension_implements_generic_item_layout() {
     );
 }
 
+/// Long extension targets should break after `of` instead of exploding generic arguments.
+#[test]
+fn test_format_extension_target_type_layout() {
+    assert_format_program_reference_widths(
+        r#"extension<T, comptime Rank: int, F: TensorFormat, comptime ...Axes: ShardingAxis> of Tensor<T, Rank, F, Sharding<...Axes>> {
+}
+"#,
+        FileType::Destack,
+        &[
+            (
+                100,
+                r#"extension<T, comptime Rank: int, F: TensorFormat, comptime ...Axes: ShardingAxis> of
+  Tensor<T, Rank, F, Sharding<...Axes>> {}
+"#,
+            ),
+            (
+                140,
+                r#"extension<T, comptime Rank: int, F: TensorFormat, comptime ...Axes: ShardingAxis> of Tensor<T, Rank, F, Sharding<...Axes>> {}
+"#,
+            ),
+        ],
+    );
+}
+
 /// Member decorators should stay on their own line in class bodies.
 #[test]
 fn test_format_class_decorator_layout() {
