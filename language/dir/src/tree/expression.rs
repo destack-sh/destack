@@ -6,7 +6,8 @@ use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
     Declarator, DependencyForm, DependencyItem, ExportKind, GenericArgument, ImportAttributeClause,
     Keyword, LocalNodeId, MatchCase, MatchForm, Mutability, Node, NodeType, Pattern, Property,
-    RangeEnd, ScalarLiteral, StaticKey, TemplateLiteral, TypeExpression, UnaryOperator,
+    RangeEnd, ScalarLiteral, StaticKey, TemplateLiteral, TreeAttribute, TreeChild, TypeExpression,
+    UnaryOperator,
 };
 
 /// A catch branch.
@@ -548,8 +549,7 @@ pub enum Expression {
         properties: Vec<LocalNodeId<Property>>,
     },
 
-    /// A TreeExpression constructs a tree fragment with arguments and children.
-    /// Tree text becomes positional string children, and expression containers become positional children.
+    /// A TreeExpression constructs a tree fragment with attributes and children.
     /// Like other language constructs, trees are customizable via traits and context.
     ///
     /// Examples:
@@ -565,8 +565,8 @@ pub enum Expression {
     TreeExpression {
         left: Option<LocalNodeId<Expression>>,
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        arguments: Option<Vec<LocalNodeId<Argument>>>,
-        elements: Option<Vec<LocalNodeId<Argument>>>,
+        attributes: Option<Vec<LocalNodeId<TreeAttribute>>>,
+        children: Option<Vec<LocalNodeId<TreeChild>>>,
     },
 
     /// Parenthesized expression.
