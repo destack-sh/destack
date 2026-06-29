@@ -1,13 +1,7 @@
 export { ComputeError, ComputeErrorKind } from "./error.ds";
 export { DeviceCapabilities, DeviceFeature, DeviceLimits } from "./capability.ds";
 export { Buffer, BufferCopyRegion, BufferOptions, HostAccess } from "./buffer.ds";
-export {
-    Device,
-    DeviceKind,
-    DeviceMemory,
-    DeviceProperties,
-    DeviceQuery,
-} from "./device.ds";
+export { Device, DeviceKind, DeviceMemory, DeviceProperties, DeviceQuery } from "./device.ds";
 export { Mesh, MeshAxis } from "./mesh.ds";
 export { Event, Stream } from "./stream.ds";
 export {

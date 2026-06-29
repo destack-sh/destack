@@ -261,7 +261,7 @@ extension of string implements Equal<string>, Hash {
 
     /// Add this string to `state`.
     hash(&readonly this, state: &Hasher): void {
-        todo("String.hash")
+        todo("String.hash");
     }
 
     /// String concatenation via + operator.

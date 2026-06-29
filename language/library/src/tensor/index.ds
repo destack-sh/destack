@@ -2,8 +2,8 @@ export { Axis, AxisSet, Coordinate, Extent, Permutation, Shape, Stride } from ".
 export {
     Partial,
     Placement,
-    Replicate,
     Reduction,
+    Replicate,
     Shard,
     Sharding,
     ShardingAxis,
