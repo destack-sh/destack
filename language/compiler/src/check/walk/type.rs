@@ -200,10 +200,16 @@ impl WalkState<'_, '_> {
                 // check the queried expression in declaration context
                 let value = *value;
                 let before_value = self.fork_flow();
-                self.walk_expression(value, self.tree.get(value))?;
+                self.walk_expression(value, self.tree.get(value), None)?;
                 self.restore_flow(before_value);
 
-                self.node_type(value)
+                let Some(ty) = self.node_type_maybe(value) else {
+                    let error = self.push_type(dir::Type::Error, source)?;
+
+                    return Ok(error);
+                };
+
+                Ok(ty)
             }
             // T! strips nullish members distributively
             dir::TypeExpression::Must { target_type } => {
@@ -262,33 +268,44 @@ impl WalkState<'_, '_> {
                     dir::Type::Memory(dir::MemoryLiteral::Access(access)),
                     source,
                 )?;
-                // induce a hidden comptime parameter through declaration sites
-                let lifetime = self.infer_type(source)?;
-                if let Some(variable) = self.check.root_variable(lifetime)? {
-                    // constrain the induced parameter to the lifetime kind
-                    let constraint = match self
-                        .check
-                        .environment
-                        .language
-                        .symbol(dir::LanguageItem::Lifetime)
-                    {
-                        Some(symbol) => Some(self.push_type(
-                            dir::Type::Instance(dir::GenericInstance {
-                                symbol,
-                                arguments: Vec::new(),
-                            }),
-                            source,
-                        )?),
-                        None => None,
-                    };
-                    let induction = GenericInductionParameter {
-                        name_prefix: "L",
-                        constraint,
-                        is_comptime: true,
-                        induction: dir::GenericParameterInduction::Form,
-                    };
-                    self.record_borrow_lifetime_elision(variable, induction)?;
+                // close value-level type tests to the current frame
+                let lifetime = if self.borrow_lifetimes_close_to_frame() {
+                    self.push_type(
+                        dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)),
+                        source,
+                    )?
                 }
+                // induce a hidden comptime parameter through declaration sites
+                else {
+                    let lifetime = self.open_variable_type(source, Widening::Preserve)?;
+                    if let Some(variable) = self.check.root_variable(lifetime)? {
+                        // constrain the induced parameter to the lifetime kind
+                        let constraint = match self
+                            .check
+                            .environment
+                            .language
+                            .symbol(dir::LanguageItem::Lifetime)
+                        {
+                            Some(symbol) => Some(self.push_type(
+                                dir::Type::Instance(dir::GenericInstance {
+                                    symbol,
+                                    arguments: Vec::new(),
+                                }),
+                                source,
+                            )?),
+                            None => None,
+                        };
+                        let induction = GenericInductionParameter {
+                            name_prefix: "L",
+                            constraint,
+                            is_comptime: true,
+                            induction: dir::GenericParameterInduction::Form,
+                        };
+                        self.record_borrow_lifetime_elision(variable, induction)?;
+                    }
+
+                    lifetime
+                };
 
                 self.push_type(
                     dir::Type::Form(dir::FormType {
@@ -432,7 +449,10 @@ impl WalkState<'_, '_> {
 
                 match form {
                     // open a widening variable for anonymous holes
-                    dir::InferForm::Hole => self.infer_node_type(id, Widening::Widen),
+                    dir::InferForm::Hole => {
+                        let ty = self.open_variable_type(id.into_any(), Widening::Widen)?;
+                        self.write_node_type(id, ty)
+                    }
                     // keep infer bindings symbolic for conditional probes
                     dir::InferForm::Infer => {
                         let constraint = match constraint {
@@ -521,7 +541,7 @@ impl WalkState<'_, '_> {
         symbols: &[dir::GlobalSymbolId],
     ) -> CompilerResult<dir::GlobalTypeId> {
         let source = id.into_global_any(self.module);
-        let symbols = self.check.available_symbols(symbols);
+        let symbols = self.check.present_symbols(symbols);
 
         match symbols.as_slice() {
             // reject malformed resolver state
@@ -680,7 +700,6 @@ impl WalkState<'_, '_> {
             receiver: None,
         };
         let origin = Origin::Node(source.into_global(self.module));
-        let condition = self.active_static_guard();
 
         for ((parameter, argument), argument_source) in parameters
             .iter()
@@ -702,7 +721,6 @@ impl WalkState<'_, '_> {
             match self.check.constrain_generic_argument(
                 origin,
                 argument_source,
-                condition.clone(),
                 argument,
                 constraint,
             )? {

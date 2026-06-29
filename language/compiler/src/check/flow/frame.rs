@@ -39,8 +39,6 @@ pub(in crate::check) struct ControlTarget {
     pub(in crate::check::flow) allows_continue: bool,
     /// The expression node that owns this control frame.
     pub(in crate::check::flow) source: dir::GlobalNodeIdAny,
-    /// The result type receiving break values.
-    pub(in crate::check::flow) result: dir::GlobalTypeId,
     /// Break values collected while walking the control body.
     pub(in crate::check::flow) break_values: Vec<dir::GlobalTypeId>,
     /// Flow branches collected at break sites.

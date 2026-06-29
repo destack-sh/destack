@@ -7,7 +7,7 @@ use crate::CompilerResult;
 use crate::check::{
     Constraint, ConstraintId, ConstraintState, ConstraintTable, Dependency, Obligation,
     ObligationId, ObligationTable, Origin, Queue, QueueMark, RelationCache, RelationCacheSnapshot,
-    Task, TaskKey, VariableState, VariableTable, Widening,
+    Request, Task, VariableState, VariableTable, Widening,
 };
 
 /// Solver state for one checked component.
@@ -31,8 +31,8 @@ pub(in crate::check) struct Solver {
     pub(in crate::check) obligations: ObligationTable,
     /// Tasks parked on unresolved dependencies.
     waiters: IndexMap<Dependency, SmallVec<[Task; 2]>>,
-    /// Completed source-node tasks.
-    completed: IndexSet<TaskKey>,
+    /// Completed source-node requests.
+    completed_requests: IndexSet<Request>,
     /// Undo entries recorded by active snapshots.
     undo: Vec<Undo>,
     /// The number of nested snapshots.
@@ -80,10 +80,10 @@ enum Undo {
         /// The previous waiter row.
         previous: Option<SmallVec<[Task; 2]>>,
     },
-    /// Undo one completed source-node task.
-    Completed {
-        /// The completed task.
-        task: TaskKey,
+    /// Undo one completed source-node request.
+    CompletedRequest {
+        /// The completed request.
+        request: Request,
     },
 }
 
@@ -107,7 +107,7 @@ impl Solver {
             relations: RelationCache::new(),
             obligations: ObligationTable::new(),
             waiters: IndexMap::new(),
-            completed: IndexSet::new(),
+            completed_requests: IndexSet::new(),
             undo: Vec::new(),
             snapshot_depth: 0,
         }
@@ -296,24 +296,28 @@ impl Solver {
         self.waiters.swap_remove(&dependency).unwrap_or_default()
     }
 
-    /// Return whether one source-node task already completed.
+    /// Return whether this task's request has already been satisfied.
     pub(in crate::check) fn is_task_complete(&self, task: &Task) -> bool {
-        task.key()
-            .is_some_and(|task| self.completed.contains(&task))
+        task.request()
+            .is_some_and(|request| self.completed_requests.contains(&request))
     }
 
-    /// Mark one source-node task complete.
+    /// Mark this task's request as satisfied.
     pub(in crate::check) fn complete_task(&mut self, task: Task) {
-        let Some(task) = task.key() else {
+        let Some(request) = task.request() else {
             return;
         };
 
-        if self.completed.contains(&task) {
+        if self.completed_requests.contains(&request) {
             return;
         }
 
-        self.record_undo(Undo::Completed { task });
-        self.completed.insert(task);
+        if self.snapshot_depth > 0 {
+            self.undo.push(Undo::CompletedRequest {
+                request: request.clone(),
+            });
+        }
+        self.completed_requests.insert(request);
     }
 
     /// Pop one solver task.
@@ -385,8 +389,8 @@ impl Solver {
                     self.waiters.swap_remove(&dependency);
                 }
             },
-            Undo::Completed { task } => {
-                self.completed.swap_remove(&task);
+            Undo::CompletedRequest { request } => {
+                self.completed_requests.swap_remove(&request);
             }
         }
     }

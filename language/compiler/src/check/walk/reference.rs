@@ -1,10 +1,10 @@
 use destack_dir as dir;
 
-use crate::check::{Decision, WalkState, Widening};
+use crate::check::{Decision, WalkState};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
-    /// Return the single available symbol resolved for one source node.
+    /// Return the single present symbol resolved for one source node.
     pub(in crate::check) fn single_resolved_symbol(
         &self,
         source: dir::GlobalNodeIdAny,
@@ -19,7 +19,7 @@ impl WalkState<'_, '_> {
         let dir::Reference::Bound(symbols) = reference else {
             return None;
         };
-        let symbols = self.check.available_symbols(symbols);
+        let symbols = self.check.present_symbols(symbols);
         let [symbol] = symbols.as_slice() else {
             return None;
         };
@@ -50,7 +50,7 @@ impl WalkState<'_, '_> {
         match reference {
             // a bound name gives one declaration or a callable overload set
             Some(dir::Reference::Bound(symbols)) => {
-                let symbols = self.check.available_symbols(&symbols);
+                let symbols = self.check.present_symbols(&symbols);
                 match symbols.as_slice() {
                     [symbol] => {
                         let symbol = *symbol;
@@ -59,18 +59,7 @@ impl WalkState<'_, '_> {
                             source,
                             Decision::Name(dir::NameResolution::new(symbol)),
                         )?;
-                        let declared = match self.check.static_value(symbol) {
-                            Some(value) => value,
-                            None => self.symbol_type(symbol)?,
-                        };
                         self.check_assigned_read(id.into_any(), symbol);
-
-                        // read the active flow narrowing when one exists
-                        if let Some(narrowed) = self.flow_path_narrowing(id) {
-                            self.write_node_type(id, narrowed)?;
-                        } else {
-                            self.bind_reference_node_type(id, symbol, declared)?;
-                        }
                     }
 
                     // overload sets resolve at their call sites
@@ -122,10 +111,12 @@ impl WalkState<'_, '_> {
             }
         }
 
+        self.queue_node_task(id)?;
+
         Ok(())
     }
 
-    /// Walk one member access, deciding static name paths and queuing value members.
+    /// Walk one member access, deciding name paths and queuing value members.
     ///
     /// A member chain that names a declaration decides immediately.
     /// A value member projection queues selection after the receiver has been walked.
@@ -134,9 +125,6 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
-        // resolve the receiver chain first
-        self.walk_expression(left, self.tree.get(left))?;
-
         let source = id.into_global_any(self.module);
         let reference = self
             .check
@@ -149,7 +137,7 @@ impl WalkState<'_, '_> {
         match reference {
             // a name path resolves to its declaration like an identifier
             Some(dir::Reference::Bound(symbols)) => {
-                let symbols = self.check.available_symbols(&symbols);
+                let symbols = self.check.present_symbols(&symbols);
                 for symbol in symbols.iter().copied() {
                     self.capture_symbol_reference(symbol);
                 }
@@ -160,9 +148,7 @@ impl WalkState<'_, '_> {
                             source,
                             Decision::Name(dir::NameResolution::new(symbol)),
                         )?;
-                        let ty = self.symbol_type(symbol)?;
                         self.check_assigned_read(id.into_any(), symbol);
-                        self.bind_reference_node_type(id, symbol, ty)?;
                     }
                     // overload sets resolve at their call sites
                     _ => {
@@ -202,7 +188,8 @@ impl WalkState<'_, '_> {
 
             // select value member access
             Some(dir::Reference::Projected { .. }) | None => {
-                self.select_node(id, Widening::Preserve)?;
+                self.walk_expression(left, self.tree.get(left), None)?;
+                self.queue_node_task(id)?;
             }
         }
 
@@ -221,37 +208,13 @@ impl WalkState<'_, '_> {
         left: dir::LocalNodeId<dir::Expression>,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     ) -> CompilerResult<()> {
-        self.walk_expression(left, self.tree.get(left))?;
+        self.walk_expression(left, self.tree.get(left), None)?;
 
         // collect written argument types for instantiation selection
         for argument in generic_arguments {
             self.walk_generic_arguments(std::slice::from_ref(argument))?;
         }
-        self.select_node(id, Widening::Preserve)?;
-
-        Ok(())
-    }
-
-    /// Bind one reference occurrence to its declaration type.
-    fn bind_reference_node_type(
-        &mut self,
-        id: dir::LocalNodeId<dir::Expression>,
-        symbol: dir::GlobalSymbolId,
-        declared: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        if self.check.symbol_template(symbol).is_none() {
-            self.write_node_type(id, declared)?;
-
-            return Ok(());
-        }
-
-        let inferred = self.infer_node_type(id, Widening::Preserve)?;
-        let Some(variable) = self.check.root_variable(inferred)? else {
-            return Err(CompilerError::Internal {
-                message: format!("generic reference {symbol:?} did not infer a type variable"),
-            });
-        };
-        self.check.set_variable_default(variable, declared)?;
+        self.queue_node_task(id)?;
 
         Ok(())
     }

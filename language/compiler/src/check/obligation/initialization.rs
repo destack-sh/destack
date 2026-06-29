@@ -103,7 +103,7 @@ impl CheckState<'_> {
         field: &dir::FieldDefinition,
     ) -> bool {
         let place = AssignedPlace::Member {
-            owner: obligation.receiver,
+            receiver: obligation.receiver,
             key: field.key,
         };
 

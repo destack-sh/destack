@@ -83,7 +83,7 @@ impl WalkState<'_, '_> {
 
         match reference {
             Some(dir::Reference::Bound(symbols)) => {
-                let symbols = self.check.available_symbols(&symbols);
+                let symbols = self.check.present_symbols(&symbols);
                 match symbols.as_slice() {
                     [symbol] => Some(*symbol),
                     // a namespace is not itself a decorator
@@ -138,7 +138,7 @@ impl WalkState<'_, '_> {
         match reference {
             // a namespace path naming a single declaration
             Some(dir::Reference::Bound(symbols)) => {
-                let symbols = self.check.available_symbols(&symbols);
+                let symbols = self.check.present_symbols(&symbols);
                 match symbols.as_slice() {
                     [symbol] => Some(*symbol),
                     // an overload set is not a single decorator

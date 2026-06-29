@@ -15,9 +15,9 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::DependencyItem>,
         dependency_item: &dir::DependencyItem,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
+        if !self.decide_decorated_presence(id.into_any())? {
             return Ok(());
-        };
+        }
 
         match dependency_item {
             // import { name: value }
@@ -26,7 +26,7 @@ impl WalkState<'_, '_> {
             } => {
                 // check dependency alias in declaration context
                 let before_value = self.fork_flow();
-                self.walk_expression(*value, self.tree.get(*value))?;
+                self.walk_expression(*value, self.tree.get(*value), None)?;
                 self.restore_flow(before_value);
             }
             // import { name }

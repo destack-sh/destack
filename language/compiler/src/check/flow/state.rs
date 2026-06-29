@@ -2,8 +2,7 @@ use destack_dir as dir;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{
-    Capture, Condition, ControlTarget, FlowPath, FunctionFrame, Receiver, ReceiverBinding,
-    TryTarget,
+    Capture, ControlTarget, FlowPath, FunctionFrame, Receiver, ReceiverBinding, TryTarget,
 };
 
 /// Flow state while walking one module.
@@ -11,23 +10,25 @@ use crate::check::{
 pub(in crate::check) struct FlowState {
     /// Function bodies currently being walked.
     pub(in crate::check::flow) functions: Vec<FunctionFrame>,
-    /// Static guards currently guarding walked work.
-    pub(in crate::check::flow) guards: Vec<Condition>,
     /// Contextual receiver scopes currently visible outside function bodies.
     pub(in crate::check::flow) receivers: Vec<Option<Receiver>>,
     /// Control targets currently visible to `break` and `continue`.
     pub(in crate::check::flow) targets: Vec<ControlTarget>,
     /// Try targets currently visible to `?`.
     pub(in crate::check::flow) tries: Vec<TryTarget>,
-    /// Local symbols definitely assigned at the current walk point.
-    pub(in crate::check::flow) assigned: IndexSet<dir::GlobalSymbolId>,
-    /// Narrowed type operands keyed by flow path.
-    pub(in crate::check::flow) narrowings: IndexMap<FlowPath, dir::GlobalTypeId>,
+    /// Places definitely assigned at the current walk point.
+    pub(in crate::check::flow) assigned: IndexSet<AssignedPlace>,
+    /// Narrowed values keyed by flow path.
+    pub(in crate::check::flow) narrowings: IndexMap<FlowPath, FlowNarrowing>,
     /// Jumps that bound no target and complete as statements.
     unbound_jumps: IndexSet<dir::LocalNodeIdAny>,
 
     /// Flow changes made since walking started.
     changes: Vec<FlowChange>,
+    /// Durable flow points built by this walk.
+    points: Vec<FlowPoint>,
+    /// The current durable flow point.
+    current: FlowPointId,
 }
 
 impl Default for FlowState {
@@ -35,7 +36,6 @@ impl Default for FlowState {
     fn default() -> Self {
         Self {
             functions: Vec::new(),
-            guards: Vec::new(),
             receivers: Vec::new(),
             targets: Vec::new(),
             tries: Vec::new(),
@@ -43,8 +43,58 @@ impl Default for FlowState {
             narrowings: IndexMap::new(),
             unbound_jumps: IndexSet::new(),
             changes: Vec::new(),
+            points: vec![FlowPoint {
+                parent: None,
+                change: FlowPointChange::Start,
+            }],
+            current: FlowPointId::ROOT,
         }
     }
+}
+
+/// A durable point in the flow walk.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::check) struct FlowPointId {
+    /// The point index in the flow point table.
+    index: u32,
+}
+
+impl FlowPointId {
+    /// The root flow point.
+    const ROOT: Self = Self { index: 0 };
+
+    /// Return the index in the module flow table.
+    pub(in crate::check) fn index(self) -> usize {
+        self.index as usize
+    }
+}
+
+/// One durable flow point.
+#[derive(Debug, Clone)]
+pub(in crate::check) struct FlowPoint {
+    /// The previous point in this flow path.
+    pub(in crate::check) parent: Option<FlowPointId>,
+    /// The change applied at this point.
+    pub(in crate::check) change: FlowPointChange,
+}
+
+/// One durable flow point change.
+#[derive(Debug, Clone)]
+pub(in crate::check) enum FlowPointChange {
+    /// Initial flow state.
+    Start,
+    /// One narrowing change.
+    Narrow {
+        /// The narrowed path.
+        path: Box<FlowPath>,
+        /// The narrowing value.
+        narrowing: FlowNarrowing,
+    },
+    /// One cleared narrowing.
+    Clear {
+        /// The cleared path.
+        path: Box<FlowPath>,
+    },
 }
 
 /// A checkpoint in the flow change log.
@@ -52,15 +102,46 @@ impl Default for FlowState {
 pub(in crate::check) struct FlowCheckpoint {
     /// The number of changes visible at the checkpoint.
     change_count: usize,
+    /// The durable flow point visible at the checkpoint.
+    point: FlowPointId,
 }
 
 /// Flow changes produced by one branch after a checkpoint.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct FlowBranch {
-    /// Symbols assigned by this branch.
-    assigned_symbols: IndexSet<dir::GlobalSymbolId>,
+    /// Places assigned by this branch.
+    assigned: IndexSet<AssignedPlace>,
     /// Narrowings touched by this branch.
-    narrowings: IndexMap<FlowPath, Option<dir::GlobalTypeId>>,
+    narrowings: IndexMap<FlowPath, Option<FlowNarrowing>>,
+}
+
+impl FlowBranch {
+    /// Return an empty flow branch.
+    pub(in crate::check) fn empty() -> Self {
+        Self {
+            assigned: IndexSet::new(),
+            narrowings: IndexMap::new(),
+        }
+    }
+
+    /// Return whether this branch assigns one place.
+    pub(in crate::check) fn assigns(&self, place: AssignedPlace) -> bool {
+        self.assigned.contains(&place)
+    }
+}
+
+/// One place assignment tracked by flow.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::check) enum AssignedPlace {
+    /// A local or member declaration symbol.
+    Symbol(dir::GlobalSymbolId),
+    /// A member selected by receiver type and key.
+    Member {
+        /// The receiver type.
+        receiver: dir::GlobalTypeId,
+        /// The selected member key.
+        key: dir::StaticKey,
+    },
 }
 
 /// One reversible flow change.
@@ -68,9 +149,9 @@ pub(in crate::check) struct FlowBranch {
 enum FlowChange {
     /// One definite assignment change.
     Assign {
-        /// The assigned symbol.
-        symbol: dir::GlobalSymbolId,
-        /// Whether the symbol was already assigned.
+        /// The assigned place.
+        place: AssignedPlace,
+        /// Whether the place was already assigned.
         was_assigned: bool,
     },
     /// One narrowing change.
@@ -78,11 +159,49 @@ enum FlowChange {
         /// The narrowed path.
         path: Box<FlowPath>,
         /// The previous narrowing at the same path.
-        previous: Option<dir::GlobalTypeId>,
+        previous: Option<FlowNarrowing>,
+    },
+}
+
+/// One narrowing value recorded by flow.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum FlowNarrowing {
+    /// A known narrowed type.
+    Type(dir::GlobalTypeId),
+    /// The checked type of a source node.
+    Node(dir::GlobalNodeIdAny),
+    /// A runtime type narrowing applied to a source type at a flow point.
+    Narrow {
+        /// The type tested by the narrowing.
+        target: dir::GlobalTypeId,
+        /// Whether this is the positive branch.
+        is_positive: bool,
     },
 }
 
 impl FlowState {
+    /// Move the durable flow point table out of this walk.
+    pub(in crate::check) fn into_points(self) -> Vec<FlowPoint> {
+        self.points
+    }
+
+    /// Return the current durable flow point.
+    pub(in crate::check) fn point(&self) -> FlowPointId {
+        self.current
+    }
+
+    /// Append one durable flow point.
+    fn push_point(&mut self, change: FlowPointChange) {
+        let point = FlowPointId {
+            index: self.points.len() as u32,
+        };
+        self.points.push(FlowPoint {
+            parent: Some(self.current),
+            change,
+        });
+        self.current = point;
+    }
+
     /// Record one jump that bound no target.
     pub(in crate::check) fn record_unbound_jump(&mut self, source: dir::LocalNodeIdAny) {
         self.unbound_jumps.insert(source);
@@ -93,34 +212,13 @@ impl FlowState {
         self.unbound_jumps.contains(&source)
     }
 
-    /// Push one static guard while walking.
-    pub(in crate::check) fn push_static_guard(&mut self, condition: Condition) {
-        // combine nested guards eagerly
-        let condition = self.active_static_guard().and(condition);
-
-        self.guards.push(condition);
-    }
-
-    /// Pop the current static guard.
-    pub(in crate::check) fn pop_static_guard(&mut self) {
-        // require balanced guard pushes
-        if self.guards.pop().is_none() {
-            unreachable!("static guard stack underflow");
-        }
-    }
-
-    /// Return the active static guard.
-    pub(in crate::check) fn active_static_guard(&self) -> Condition {
-        self.guards.last().cloned().unwrap_or(Condition::Always)
-    }
-
     /// Enter one function body while walking.
     pub(in crate::check) fn push_function(&mut self, function: FunctionFrame) {
         self.functions.push(function);
     }
 
     /// Leave the current function body.
-    pub(in crate::check) fn pop_function(&mut self) -> Capture {
+    pub(in crate::check) fn pop_function(&mut self) -> (Capture, FlowBranch) {
         // require an active function frame
         let Some(function) = self.functions.pop() else {
             unreachable!("function stack underflow");
@@ -144,11 +242,12 @@ impl FlowState {
             receiver: function.captured_receiver,
             directive: None,
         };
+        let branch = self.branch(function.checkpoint);
 
         // restore outer definite assignment and narrowing state
         self.restore(function.checkpoint);
 
-        capture
+        (capture, branch)
     }
 
     /// Return the current function body.
@@ -258,14 +357,11 @@ impl FlowState {
             })
     }
 
-    /// Return the control checkpoint and result selected by one target index.
-    pub(in crate::check) fn control_target_result(
-        &self,
-        index: usize,
-    ) -> (FlowCheckpoint, dir::GlobalTypeId) {
+    /// Return the control checkpoint selected by one target index.
+    pub(in crate::check) fn control_target_checkpoint(&self, index: usize) -> FlowCheckpoint {
         let target = &self.targets[index];
 
-        (target.checkpoint, target.result)
+        target.checkpoint
     }
 
     /// Push one break branch onto a selected control target.
@@ -347,30 +443,20 @@ impl FlowState {
         }
     }
 
-    /// Mark one local symbol as definitely assigned.
-    pub(in crate::check) fn mark_assigned(&mut self, symbol: dir::GlobalSymbolId) {
+    /// Mark one place as definitely assigned.
+    pub(in crate::check) fn mark_assigned(&mut self, place: AssignedPlace) {
         // record previous assignment state for rollback
-        let was_assigned = self.assigned.contains(&symbol);
+        let was_assigned = self.assigned.contains(&place);
 
         self.changes.push(FlowChange::Assign {
-            symbol,
+            place,
             was_assigned,
         });
-        self.assigned.insert(symbol);
-    }
-
-    /// Return whether one local symbol is definitely assigned.
-    pub(in crate::check) fn is_assigned(&self, symbol: dir::GlobalSymbolId) -> bool {
-        self.assigned.contains(&symbol)
-    }
-
-    /// Return the current narrowing for one flow path.
-    pub(in crate::check) fn narrowing(&self, path: &FlowPath) -> Option<dir::GlobalTypeId> {
-        self.narrowings.get(path).copied()
+        self.assigned.insert(place);
     }
 
     /// Narrow one path at the current walk point.
-    pub(in crate::check) fn narrow(&mut self, path: FlowPath, ty: dir::GlobalTypeId) {
+    pub(in crate::check) fn narrow(&mut self, path: FlowPath, narrowing: FlowNarrowing) {
         // record previous narrowing for rollback
         let previous = self.narrowings.get(&path).copied();
 
@@ -378,27 +464,32 @@ impl FlowState {
             path: Box::new(path.clone()),
             previous,
         });
-        self.narrowings.insert(path, ty);
+        self.push_point(FlowPointChange::Narrow {
+            path: Box::new(path.clone()),
+            narrowing,
+        });
+        self.narrowings.insert(path, narrowing);
     }
 
     /// Return a checkpoint for later branch rollback.
     pub(in crate::check) fn fork(&self) -> FlowCheckpoint {
         FlowCheckpoint {
             change_count: self.changes.len(),
+            point: self.current,
         }
     }
 
     /// Return the branch changes made after one checkpoint.
     pub(in crate::check) fn branch(&self, checkpoint: FlowCheckpoint) -> FlowBranch {
-        let mut assigned_symbols = IndexSet::new();
+        let mut assigned = IndexSet::new();
         let mut narrowing_paths = IndexSet::new();
 
         // collect flow state touched since the checkpoint
         for change in &self.changes[checkpoint.change_count..] {
             match change {
-                FlowChange::Assign { symbol, .. } => {
-                    if self.assigned.contains(symbol) {
-                        assigned_symbols.insert(*symbol);
+                FlowChange::Assign { place, .. } => {
+                    if self.assigned.contains(place) {
+                        assigned.insert(*place);
                     }
                 }
                 FlowChange::Narrow { path, .. } => {
@@ -418,7 +509,7 @@ impl FlowState {
             .collect();
 
         FlowBranch {
-            assigned_symbols,
+            assigned,
             narrowings,
         }
     }
@@ -434,14 +525,14 @@ impl FlowState {
             // undo the latest change
             match change {
                 FlowChange::Assign {
-                    symbol,
+                    place,
                     was_assigned,
                 } => {
                     // restore previous assignment state
                     if was_assigned {
-                        self.assigned.insert(symbol);
+                        self.assigned.insert(place);
                     } else {
-                        self.assigned.shift_remove(&symbol);
+                        self.assigned.shift_remove(&place);
                     }
                 }
                 FlowChange::Narrow { path, previous } => {
@@ -454,6 +545,7 @@ impl FlowState {
                 }
             }
         }
+        self.current = checkpoint.point;
     }
 
     /// Restore one branch from its checkpoint.
@@ -464,9 +556,9 @@ impl FlowState {
     ) {
         self.restore(checkpoint);
 
-        // replay assigned symbols from the branch
-        for symbol in &branch.assigned_symbols {
-            self.mark_assigned(*symbol);
+        // replay assigned places from the branch
+        for place in &branch.assigned {
+            self.mark_assigned(*place);
         }
 
         // replay narrowings from the branch
@@ -491,9 +583,9 @@ impl FlowState {
     ) {
         self.restore(checkpoint);
 
-        // keep symbols assigned by both branches
-        for symbol in left.assigned_symbols.intersection(&right.assigned_symbols) {
-            self.mark_assigned(*symbol);
+        // keep places assigned by both branches
+        for place in left.assigned.intersection(&right.assigned) {
+            self.mark_assigned(*place);
         }
 
         // collect all touched narrowing paths
@@ -540,6 +632,9 @@ impl FlowState {
         self.changes.push(FlowChange::Narrow {
             path: Box::new(path.clone()),
             previous,
+        });
+        self.push_point(FlowPointChange::Clear {
+            path: Box::new(path.clone()),
         });
         self.narrowings.shift_remove(&path);
     }

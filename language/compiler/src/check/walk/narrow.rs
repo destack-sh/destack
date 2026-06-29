@@ -164,14 +164,13 @@ impl WalkState<'_, '_> {
         let Some(path) = self.flow_path(value) else {
             return Ok(());
         };
-        let target = self.walk_type_expression(target_type)?;
-        let source = self.expression_type(value)?;
+        let target = self.walk_frame_type_expression(target_type)?;
         let predicate = match branch {
             ConditionBranch::True => NarrowPredicate::Is(target),
             ConditionBranch::False => NarrowPredicate::IsNot(target),
         };
 
-        self.narrow_flow_path_by(path, source, value.into_any(), predicate)
+        self.narrow_flow_path_by(path, value.into_any(), predicate)
     }
 
     /// Narrow flow from one `"key" in value` expression.
@@ -195,9 +194,7 @@ impl WalkState<'_, '_> {
         let Some(key) = self.tree.get(key).static_key() else {
             return Ok(());
         };
-        let source = self.expression_type(value)?;
-
-        self.narrow_flow_path_by(path, source, value.into_any(), NarrowPredicate::Has(key))
+        self.narrow_flow_path_by(path, value.into_any(), NarrowPredicate::Has(key))
     }
 
     /// Narrow flow from one `value instanceof Target` expression.
@@ -218,13 +215,12 @@ impl WalkState<'_, '_> {
         let Some(target) = self.instanceof_target_type(target)? else {
             return Ok(());
         };
-        let source = self.expression_type(value)?;
         let predicate = match branch {
             ConditionBranch::True => NarrowPredicate::Is(target),
             ConditionBranch::False => NarrowPredicate::IsNot(target),
         };
 
-        self.narrow_flow_path_by(path, source, value.into_any(), predicate)
+        self.narrow_flow_path_by(path, value.into_any(), predicate)
     }
 
     /// Return the instance type named by one `instanceof` target.
@@ -245,7 +241,7 @@ impl WalkState<'_, '_> {
         let Some(dir::Reference::Bound(symbols)) = reference else {
             return Ok(None);
         };
-        let symbols = self.check.available_symbols(&symbols);
+        let symbols = self.check.present_symbols(&symbols);
         let [symbol] = symbols.as_slice() else {
             return Ok(None);
         };
@@ -281,12 +277,11 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
 
-        let source = self.expression_type(value)?;
         let predicate = match branch {
             ConditionBranch::True => NarrowPredicate::Is(target),
             ConditionBranch::False => NarrowPredicate::IsNot(target),
         };
-        self.narrow_flow_path_by(path, source, value.into_any(), predicate)?;
+        self.narrow_flow_path_by(path, value.into_any(), predicate)?;
         self.narrow_parent_by_member_predicate(value, predicate)?;
 
         Ok(())
@@ -315,8 +310,7 @@ impl WalkState<'_, '_> {
         };
 
         // narrow base with a structural member predicate
-        let source = self.expression_type(base)?;
-        self.narrow_base_flow_path_by_member(base_path, source, base.into_any(), key, predicate)
+        self.narrow_base_flow_path_by_member(base_path, base.into_any(), key, predicate)
     }
 
     /// Return the base expression for one member path expression.

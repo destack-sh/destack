@@ -1,180 +1,148 @@
-use std::ptr::NonNull;
-
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Condition, Decision, FlowState, StaticIfCondition, WalkState, Widening};
+use crate::check::{Decision, StaticIfCondition, WalkState, Widening};
 use crate::r#static::{StaticContext, StaticError};
 
-/// One active static guard scope.
-pub(in crate::check) struct StaticGuard {
-    /// The guarded flow state.
-    flow: NonNull<FlowState>,
-}
-
-impl StaticGuard {
-    /// Return one active static guard scope.
-    fn new(flow: &mut FlowState) -> Self {
-        Self {
-            flow: NonNull::from(flow),
-        }
-    }
-}
-
-impl Drop for StaticGuard {
-    fn drop(&mut self) {
-        // pop the guard owned by this scope
-        unsafe {
-            self.flow.as_mut().pop_static_guard();
-        }
-    }
-}
-
-/// One walk-time guard evaluation outcome.
-pub(in crate::check) enum GuardOutcome {
-    /// The guard decided statically false: the node is absent.
+/// Source presence selected by closed static gates.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum StaticGate {
+    /// The node is absent.
     Absent,
-    /// The guard holds under the collected condition.
-    Present(Condition),
+    /// The node is present.
+    Present,
+}
+
+impl StaticGate {
+    /// Return the gate for one presence decision.
+    fn from_presence(is_present: bool) -> Self {
+        if is_present {
+            Self::Present
+        } else {
+            Self::Absent
+        }
+    }
+
+    /// Return whether this gate keeps the source node.
+    fn is_present(self) -> bool {
+        matches!(self, Self::Present)
+    }
 }
 
 impl WalkState<'_, '_> {
-    /// Evaluate the static guard attached to one decorated node.
-    ///
-    /// Profile-level conditions decide eagerly; everything else becomes
-    /// predicate types that the solver decides or assumes.
+    /// Decide the static gates attached to one decorated node.
     ///
     /// Example:
     /// ```ds
-    /// @if(Target.isShared)
+    /// @if(import.meta.platform == "windows")
     /// function f() {}
     /// ```
-    pub(in crate::check) fn static_guard_condition(
+    pub(in crate::check) fn decorated_static_gate(
         &mut self,
         decorated: dir::LocalNodeIdAny,
-    ) -> CompilerResult<GuardOutcome> {
-        let invocations = self.check.decorator_invocations(self.module, decorated);
-        let mut condition = Condition::Always;
+    ) -> CompilerResult<StaticGate> {
+        let decorated_global = decorated.into_global(self.module);
+        if let Some(is_present) = self
+            .check
+            .module(self.module)
+            .static_presence
+            .get(&decorated_global)
+            .copied()
+        {
+            return Ok(StaticGate::from_presence(is_present));
+        }
 
-        // combine static guards in source order
-        for invocation in invocations {
+        let invocations = self.check.decorator_invocations(self.module, decorated);
+
+        // decide static gates before walking ordinary decorators
+        for invocation in &invocations {
             if let Some(decorator) = self
                 .check
-                .static_if_decorator_from_invocation(self.module, &invocation)
+                .static_if_decorator_from_invocation(self.module, invocation)
             {
                 let StaticIfCondition::Present(condition_expression) = decorator.condition else {
                     self.check
                         .report_invalid_static_guard(self.module, decorator.condition_anchor());
+                    self.record_static_gate(decorated_global, StaticGate::Absent);
 
-                    return Ok(GuardOutcome::Absent);
+                    return Ok(StaticGate::Absent);
                 };
 
-                match self.evaluate_static_guard(condition_expression)? {
-                    GuardOutcome::Absent => return Ok(GuardOutcome::Absent),
-                    GuardOutcome::Present(next) => condition = condition.and(next),
+                match self.evaluate_static_gate(condition_expression)? {
+                    StaticGate::Absent => {
+                        self.record_static_gate(decorated_global, StaticGate::Absent);
+
+                        return Ok(StaticGate::Absent);
+                    }
+                    StaticGate::Present => {}
                 }
-            } else {
+            }
+        }
+
+        // walk ordinary decorators only when the node is present
+        for invocation in invocations {
+            if self
+                .check
+                .static_if_decorator_from_invocation(self.module, &invocation)
+                .is_none()
+            {
                 self.walk_decorator(invocation.decorator)?;
             }
         }
 
-        Ok(GuardOutcome::Present(condition))
+        self.record_static_gate(decorated_global, StaticGate::Present);
+
+        Ok(StaticGate::Present)
     }
 
-    /// Enter one already evaluated static guard.
-    pub(in crate::check) fn enter_static_guard(&mut self, condition: Condition) -> StaticGuard {
-        self.flow_mut().push_static_guard(condition);
-
-        StaticGuard::new(self.flow_mut())
+    /// Record one static gate decision.
+    fn record_static_gate(&mut self, decorated: dir::GlobalNodeIdAny, gate: StaticGate) {
+        self.check
+            .module_mut(self.module)
+            .static_presence
+            .insert(decorated, gate.is_present());
     }
 
-    /// Enter the static guard attached to one decorated node.
-    /// Returns none when the guard decided statically false and the
-    /// declaration must not be walked.
+    /// Decide whether one decorated node is present in checked source.
     ///
     /// Example:
     /// ```ds
-    /// @if(Enabled)
+    /// @if(import.meta.test)
     /// const value = 1;
     /// ```
-    pub(in crate::check) fn enter_decorated_static_guard(
+    pub(in crate::check) fn decide_decorated_presence(
         &mut self,
         decorated: dir::LocalNodeIdAny,
-    ) -> CompilerResult<Option<StaticGuard>> {
-        let outcome = self.static_guard_condition(decorated)?;
+    ) -> CompilerResult<bool> {
+        let gate = self.decorated_static_gate(decorated)?;
         let symbol = self.check.module(self.module).declaration_symbol(decorated);
 
-        match outcome {
+        match gate {
             // record absent declarations so name lookup drops them
-            GuardOutcome::Absent => {
+            StaticGate::Absent => {
                 if let Some(symbol) = symbol {
                     self.check
                         .module_mut(self.module)
-                        .unavailable
+                        .absent_symbols
                         .insert(symbol);
                 }
 
-                Ok(None)
+                Ok(false)
             }
-            GuardOutcome::Present(condition) => {
-                // store the symbol's guard predicates after combining enclosing guards
-                let combined = self.active_static_guard().and(condition.clone());
-                if let Some(symbol) = symbol
-                    && let Condition::When(predicates) = combined
-                {
-                    self.check.set_symbol_condition(symbol, predicates);
-                }
-
-                self.flow_mut().push_static_guard(condition);
-
-                Ok(Some(StaticGuard::new(self.flow_mut())))
-            }
+            StaticGate::Present => Ok(true),
         }
     }
 
-    /// Return the active static guard.
-    pub(in crate::check) fn active_static_guard(&self) -> Condition {
-        self.flow().active_static_guard()
-    }
-
-    /// Return the active guard as one stored member condition.
-    /// Nested guards conjoin into a single predicate written form.
-    pub(in crate::check) fn member_condition(
-        &mut self,
-        source: dir::LocalNodeIdAny,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let predicates = self.guard_predicates();
-
-        match predicates.as_slice() {
-            [] => Ok(None),
-            [single] => Ok(Some(*single)),
-            // conjoin nested guard predicates into one and-chain
-            [first, rest @ ..] => {
-                let mut joined = *first;
-                for predicate in rest.iter().copied() {
-                    let operation = dir::TypeOperation::StaticBinary(dir::StaticBinaryType {
-                        operator: dir::StaticBinaryOperator::And,
-                        left: joined,
-                        right: predicate,
-                    });
-                    joined = self.push_type(dir::Type::Operation(operation), source)?;
-                }
-
-                Ok(Some(joined))
-            }
-        }
-    }
-
-    /// Evaluate one static guard expression.
+    /// Evaluate one static gate expression.
     ///
     /// Example:
     /// ```ds
     /// Enabled && Target.isShared
     /// ```
-    fn evaluate_static_guard(
+    fn evaluate_static_gate(
         &mut self,
         condition: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<GuardOutcome> {
+    ) -> CompilerResult<StaticGate> {
         let module = self.module;
 
         // decide profile-level conditions eagerly
@@ -192,21 +160,19 @@ impl WalkState<'_, '_> {
         };
 
         match evaluated {
-            Ok(true) => Ok(GuardOutcome::Present(Condition::Always)),
-            Ok(false) => Ok(GuardOutcome::Absent),
+            Ok(true) => Ok(StaticGate::Present),
+            Ok(false) => Ok(StaticGate::Absent),
             Err(StaticError::NotBoolean(expression)) => {
                 self.check
                     .report_invalid_static_guard(module, expression.into_any());
 
-                Ok(GuardOutcome::Absent)
+                Ok(StaticGate::Absent)
             }
-            // turn open conditions into predicate types for the solver
             Err(StaticError::NotStatic(_)) => {
-                let predicate = self.walk_static_term(condition)?;
+                self.check
+                    .report_undecidable_static_guard(module, condition.into_any());
 
-                Ok(GuardOutcome::Present(Condition::When(smallvec::smallvec![
-                    predicate
-                ])))
+                Ok(StaticGate::Absent)
             }
         }
     }
@@ -266,7 +232,8 @@ impl WalkState<'_, '_> {
                     ..
                 } = self.tree.get(*value)
                 {
-                    self.infer_node_type(*value, Widening::Preserve)?
+                    let ty = self.open_variable_type((*value).into_any(), Widening::Preserve)?;
+                    self.write_node_type(*value, ty)?
                 } else {
                     self.walk_type_expression(*value)?
                 };
@@ -295,7 +262,7 @@ impl WalkState<'_, '_> {
                     .get(expression.into_global_any(self.module));
                 let symbol = match reference {
                     Some(dir::Reference::Bound(symbols)) => {
-                        let symbols = self.check.available_symbols(symbols);
+                        let symbols = self.check.present_symbols(symbols);
                         match symbols.as_slice() {
                             [symbol] => Some(*symbol),
                             _ => None,
@@ -421,7 +388,10 @@ impl WalkState<'_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.write_node_type(expression, ty)
+        let ty = self.write_node_type(expression, ty)?;
+        self.complete_node_infer(expression);
+
+        Ok(ty)
     }
 
     /// Return one eagerly evaluated static term as a scalar literal.

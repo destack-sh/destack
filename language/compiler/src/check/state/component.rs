@@ -48,7 +48,7 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) declaration_types: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Body-owned binding symbol types.
     pub(in crate::check) binding_types: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
-    /// Stable source node types.
+    /// Checked source-node occurrence types.
     pub(in crate::check) node_types: IndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
     /// Stable source node decisions.
     pub(in crate::check) decisions: DecisionTable,

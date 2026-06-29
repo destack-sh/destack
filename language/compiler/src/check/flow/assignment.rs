@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{Place, PlaceTarget, WalkState};
+use crate::check::{AssignedPlace, WalkState, WriteTarget};
 
 impl WalkState<'_, '_> {
     /// Check that one local binding is assigned before a read.
@@ -17,22 +17,41 @@ impl WalkState<'_, '_> {
         }
 
         // report unassigned reads at the read occurrence
-        if !self.flow().is_assigned(symbol) {
+        if !self
+            .flow()
+            .assigned
+            .contains(&AssignedPlace::Symbol(symbol))
+        {
             self.check
                 .report_use_before_assigned(self.module, source, symbol);
         }
     }
 
-    /// Mark one assigned place if it names a local binding.
-    pub(in crate::check) fn mark_place_assigned(&mut self, place: Place) {
-        // ignore non binding places
-        if let PlaceTarget::Binding { symbol } = place.target {
-            // ignore imported bindings
-            if symbol.module_id != self.module {
-                return;
-            }
+    /// Mark one assigned place.
+    pub(in crate::check) fn mark_place_assigned(&mut self, target: WriteTarget) {
+        match target.storage {
+            // local binding assignment
+            dir::Storage::Binding { symbol } => {
+                // ignore imported bindings
+                if symbol.module_id != self.module {
+                    return;
+                }
 
-            self.flow_mut().mark_assigned(symbol);
+                self.flow_mut().mark_assigned(AssignedPlace::Symbol(symbol));
+            }
+            // direct member assignment
+            dir::Storage::Field {
+                receiver,
+                field: dir::ProjectionField::Key(key),
+            } => {
+                self.flow_mut()
+                    .mark_assigned(AssignedPlace::Member { receiver, key });
+            }
+            // protocol-backed writes do not introduce local definite assignment
+            dir::Storage::Field { .. }
+            | dir::Storage::Property { .. }
+            | dir::Storage::Subscript { .. }
+            | dir::Storage::Dereference { .. } => {}
         }
     }
 
@@ -50,12 +69,6 @@ impl WalkState<'_, '_> {
 
     /// Mark all bindings introduced by one source node as definitely assigned.
     pub(in crate::check) fn mark_bindings_assigned(&mut self, source: dir::LocalNodeIdAny) {
-        // mark direct declaration symbol first
-        if let Some(symbol) = self.check.module(self.module).declaration_symbol(source) {
-            self.flow_mut().mark_assigned(symbol);
-        }
-
-        // walk nested binding shapes
         match source.ty {
             // parameter
             dir::NodeType::Parameter => {
@@ -80,8 +93,17 @@ impl WalkState<'_, '_> {
         }
     }
 
+    /// Mark the symbol declared by one binding source.
+    fn mark_declared_binding(&mut self, source: dir::LocalNodeIdAny) {
+        if let Some(symbol) = self.check.module(self.module).declaration_symbol(source) {
+            self.flow_mut().mark_assigned(AssignedPlace::Symbol(symbol));
+        }
+    }
+
     /// Mark bindings introduced by one parameter as definitely assigned.
     fn mark_parameter_bindings_assigned(&mut self, id: dir::LocalNodeId<dir::Parameter>) {
+        self.mark_declared_binding(id.into_any());
+
         // walk parameter binding shape
         match self.tree.get(id) {
             // ({ name })
@@ -101,6 +123,8 @@ impl WalkState<'_, '_> {
 
     /// Mark bindings introduced by one pattern as definitely assigned.
     fn mark_pattern_bindings_assigned(&mut self, id: dir::LocalNodeId<dir::Pattern>) {
+        self.mark_declared_binding(id.into_any());
+
         // walk pattern binding shape
         match self.tree.get(id) {
             // name: pattern
@@ -155,6 +179,8 @@ impl WalkState<'_, '_> {
 
     /// Mark bindings introduced by one pattern field as definitely assigned.
     fn mark_pattern_field_bindings_assigned(&mut self, id: dir::LocalNodeId<dir::PatternField>) {
+        self.mark_declared_binding(id.into_any());
+
         // walk pattern field binding shape
         match self.tree.get(id) {
             // { name: pattern }

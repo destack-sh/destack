@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    ControlTarget, FlowBranch, Obligation, Origin, Relation, TryPropagationObligation,
-    TryPropagationTarget, TryPropagationValue, TryTarget, ValueUse, WalkState,
+    ControlTarget, Expectation, FlowBranch, Origin, Relation, Task, TryPropagation,
+    TryPropagationTarget, TryTarget, ValueUse, WalkState, Widening,
 };
 
 impl WalkState<'_, '_> {
@@ -13,7 +13,6 @@ impl WalkState<'_, '_> {
         label: Option<dir::StringId>,
         allows_continue: bool,
         source: dir::LocalNodeId<dir::Expression>,
-        result: dir::GlobalTypeId,
     ) {
         // capture flow state before the control body
         let checkpoint = self.flow().fork();
@@ -21,7 +20,6 @@ impl WalkState<'_, '_> {
             label,
             allows_continue,
             source: source.into_global_any(self.module),
-            result,
             break_values: Vec::new(),
             break_branches: Vec::new(),
             continue_branches: Vec::new(),
@@ -32,43 +30,27 @@ impl WalkState<'_, '_> {
         self.flow_mut().push_target(target);
     }
 
-    /// Leave one break or continue target, define its result, and return break branch flow.
-    /// Break values already bound the result at their break sites.
+    /// Leave one break or continue target and return its result with break branch flow.
     pub(in crate::check) fn leave_control_target(
         &mut self,
         fallthrough: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Vec<FlowBranch>> {
+    ) -> CompilerResult<(dir::GlobalTypeId, Vec<FlowBranch>)> {
         // remove target before resolving its result
         let target = self.flow_mut().pop_target();
-        let origin = Origin::Node(target.source);
 
-        match (target.break_values.as_slice(), fallthrough) {
-            // fall through without break
-            ([], Some(fallthrough)) => {
-                self.relate_type(origin, Relation::Equal, target.result, fallthrough);
-            }
-            // loop expression with no exit
-            ([], None) => {
-                let never = self.push_type(dir::Type::Never, target.source.local_id)?;
+        // collect exits that produce the control expression value
+        let mut values = target.break_values;
+        values.extend(fallthrough);
 
-                self.relate_type(origin, Relation::Equal, target.result, never);
-            }
-            // break exits already bound the result, add the fallthrough exit
-            (_, Some(fallthrough)) => {
-                self.push_flow(
-                    origin,
-                    ValueUse::Store,
-                    Relation::Assignable,
-                    fallthrough,
-                    target.result,
-                );
-            }
-            // break exits already bound the result
-            (_, None) => {}
-        }
+        // compute the result carried by all exiting paths
+        let result = match values.as_slice() {
+            [] => self.push_type(dir::Type::Never, target.source.local_id)?,
+            [single] => *single,
+            _ => self.normalized_union_type(values, target.source.local_id)?,
+        };
 
         // return branches that escaped by break
-        Ok(target.break_branches)
+        Ok((result, target.break_branches))
     }
 
     /// Enter one try failure target.
@@ -77,7 +59,7 @@ impl WalkState<'_, '_> {
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // infer the failure result variable
-        let failure = self.infer_type(source)?;
+        let failure = self.open_variable_type(source, Widening::Preserve)?;
         let target = TryTarget {
             failure,
             has_failure: false,
@@ -121,8 +103,6 @@ impl WalkState<'_, '_> {
             Some(value) => value,
             None => self.push_type(dir::Type::Void, source)?,
         };
-        let origin = Origin::Node(source.into_global(self.module));
-
         // resolve the selected control target
         let Some(index) = self.flow().break_target_index(label) else {
             self.check
@@ -134,16 +114,35 @@ impl WalkState<'_, '_> {
         };
 
         // capture branch flow at the break site
-        let (checkpoint, result) = self.flow().control_target_result(index);
+        let checkpoint = self.flow().control_target_checkpoint(index);
         let branch = self.flow().branch(checkpoint);
 
         // store value and captured branch flow
         self.flow_mut().push_break_branch(index, value, branch);
 
-        // require the break value to match the target result
-        self.push_flow(origin, ValueUse::Store, Relation::Assignable, value, result);
-
         Ok(())
+    }
+
+    /// Return the output type carried by one control-flow value expression.
+    pub(in crate::check) fn output_value_type(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        value: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if let Some(ty) = self.node_type_maybe(value) {
+            return Ok(ty);
+        }
+
+        // bind the break output once the value expression is inferred
+        let ty = self.open_variable_type(source, Widening::Preserve)?;
+        let expectation = Expectation::assignable(
+            ty,
+            Origin::Node(value.into_global_any(self.module)),
+            ValueUse::Output,
+        );
+        self.queue_node_check(value, expectation);
+
+        Ok(ty)
     }
 
     /// Continue to one control target.
@@ -163,7 +162,7 @@ impl WalkState<'_, '_> {
         };
 
         // capture branch flow at the continue site
-        let (checkpoint, _) = self.flow().control_target_result(index);
+        let checkpoint = self.flow().control_target_checkpoint(index);
         let branch = self.flow().branch(checkpoint);
 
         self.flow_mut().push_continue_branch(index, branch);
@@ -174,15 +173,6 @@ impl WalkState<'_, '_> {
         self.flow_mut().take_continue_branches()
     }
 
-    /// Propagate one try result to catch or the enclosing return type.
-    pub(in crate::check) fn propagate_try(
-        &mut self,
-        source: dir::LocalNodeIdAny,
-        value: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        self.propagate_try_value(source, TryPropagationValue::Type(value))
-    }
-
     /// Propagate one selected try result to catch or the enclosing return type.
     pub(in crate::check) fn propagate_selected_try(
         &mut self,
@@ -190,17 +180,16 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         let node = source.into_global(self.module);
 
-        self.propagate_try_value(source, TryPropagationValue::Node(node))
+        self.propagate_try_value(source, node)
     }
 
-    /// Push one try propagation obligation.
-    fn propagate_try_value(
+    /// Queue one try propagation task.
+    pub(in crate::check) fn propagate_try_value(
         &mut self,
         source: dir::LocalNodeIdAny,
-        value: TryPropagationValue,
+        value: dir::GlobalNodeIdAny,
     ) -> CompilerResult<()> {
         let source = source.into_global(self.module);
-        let condition = self.flow().active_static_guard();
         let target = if let Some(target) = self.flow_mut().current_try_mut() {
             target.has_failure = true;
             TryPropagationTarget::Failure { ty: target.failure }
@@ -210,13 +199,11 @@ impl WalkState<'_, '_> {
             }
         };
 
-        self.check
-            .push_obligation(Obligation::TryPropagation(TryPropagationObligation {
-                source,
-                condition,
-                value,
-                target,
-            }));
+        self.check.queue_task(Task::Propagate(TryPropagation {
+            source,
+            value,
+            target,
+        }));
 
         Ok(())
     }

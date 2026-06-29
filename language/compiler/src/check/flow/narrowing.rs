@@ -1,7 +1,10 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
-use crate::CompilerResult;
-use crate::check::{FlowPath, WalkState};
+use crate::check::{
+    Answer, CheckState, FlowNarrowing, FlowPath, FlowPointChange, FlowSite, Origin, WalkState,
+};
+use crate::{CompilerError, CompilerResult};
 
 /// Runtime flow predicate used to narrow one stable path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,24 +17,26 @@ pub(in crate::check) enum NarrowPredicate {
     Has(dir::StaticKey),
 }
 
-impl WalkState<'_, '_> {
+impl CheckState<'_> {
     /// Return the stable flow path for one expression.
     pub(in crate::check) fn flow_path(
         &self,
-        id: dir::LocalNodeId<dir::Expression>,
+        node: dir::GlobalNodeId<dir::Expression>,
     ) -> Option<FlowPath> {
-        match self.tree.get(id) {
+        let module = self.module(node.module_id);
+        let view = module.view();
+        let id = node.local_id;
+
+        match view.get(id) {
             // value
             dir::Expression::Identifier { .. } => {
-                let reference = self
-                    .check
-                    .module(self.module)
+                let reference = module
                     .resolved
                     .references
-                    .get(id.into_global_any(self.module))?;
+                    .get(node.into_any())?;
                 let symbol = match reference {
                     dir::Reference::Bound(symbols) => {
-                        let symbols = self.check.available_symbols(symbols);
+                        let symbols = self.present_symbols(symbols);
                         match symbols.as_slice() {
                             [symbol] => *symbol,
                             _ => return None,
@@ -46,9 +51,7 @@ impl WalkState<'_, '_> {
                 Some(FlowPath::symbol(symbol))
             }
             // this
-            dir::Expression::This if self.flow().current_receiver().is_some() => {
-                Some(FlowPath::receiver(dir::ReceiverKind::This))
-            }
+            dir::Expression::This => Some(FlowPath::receiver(dir::ReceiverKind::This)),
             // value.member
             dir::Expression::Member {
                 left,
@@ -60,7 +63,8 @@ impl WalkState<'_, '_> {
                 name: Some(name),
             } => {
                 // extend root path with selected member
-                let mut path = self.flow_path(*left)?;
+                let left = left.into_global(node.module_id);
+                let mut path = self.flow_path(left)?;
                 path.push_segment(dir::StaticKey::Name(*name));
 
                 Some(path)
@@ -72,66 +76,191 @@ impl WalkState<'_, '_> {
                 ..
             } => {
                 // extend root path with static index key
-                let key = self.tree.get(*index).static_key()?;
-                let mut path = self.flow_path(*left)?;
+                let key = view.get(*index).static_key()?;
+                let left = left.into_global(node.module_id);
+                let mut path = self.flow_path(left)?;
 
                 path.push_segment(key);
 
                 Some(path)
             }
             // (value)
-            dir::Expression::Parenthesized { expression } => self.flow_path(*expression),
+            dir::Expression::Parenthesized { expression } => {
+                self.flow_path(expression.into_global(node.module_id))
+            }
             // not a stable flow path
             _ => None,
         }
     }
 
-    /// Return the current narrowing for one flow path.
-    pub(in crate::check) fn flow_path_narrowing(
-        &self,
-        id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<dir::GlobalTypeId> {
-        // resolve path before reading narrowing table
-        let path = self.flow_path(id)?;
+    /// Return the checked type of one source node at one flow point.
+    pub(in crate::check) fn node_type_at(
+        &mut self,
+        site: FlowSite,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let ty = match self.node_type(site.node)? {
+            Answer::Ready(ty) => ty,
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
 
-        self.flow().narrowing(&path)
+        self.flow_type_at(site, ty)
     }
 
-    /// Narrow one flow path to an exact type.
-    pub(in crate::check) fn narrow_flow_path(&mut self, path: FlowPath, ty: dir::GlobalTypeId) {
-        self.flow_mut().narrow(path, ty);
+    /// Return one type as viewed at one flow point.
+    pub(in crate::check) fn flow_type_at(
+        &mut self,
+        site: FlowSite,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let dir::NodeType::Expression = site.node.local_id.ty else {
+            return Ok(Answer::Ready(ty));
+        };
+
+        let node = site.node.into_typed::<dir::Expression>();
+        let Some(path) = self.flow_path(node) else {
+            return Ok(Answer::Ready(ty));
+        };
+
+        match self.flow_narrowing(site, &path, ty)? {
+            Answer::Ready(Some(narrowed)) => Ok(Answer::Ready(narrowed)),
+            Answer::Ready(None) => Ok(Answer::Ready(ty)),
+            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+        }
+    }
+
+    /// Return the narrowing visible for one path at one flow site.
+    pub(in crate::check) fn flow_narrowing(
+        &mut self,
+        site: FlowSite,
+        path: &FlowPath,
+        source: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let module = self.module(site.node.module_id);
+        let flows = &module.flows;
+        let mut current = Some(site.flow);
+
+        while let Some(point) = current {
+            let Some(flow) = flows.get(point.index()) else {
+                return Err(CompilerError::Internal {
+                    message: format!("flow point {point:?} is not in module flow table"),
+                });
+            };
+
+            match &flow.change {
+                FlowPointChange::Start => {}
+                FlowPointChange::Narrow {
+                    path: narrowed,
+                    narrowing,
+                } if narrowed.as_ref() == path => {
+                    return self.resolve_flow_narrowing(site.node, source, *narrowing);
+                }
+                FlowPointChange::Clear { path: cleared } if path.starts_with(cleared) => {
+                    return Ok(Answer::Ready(None));
+                }
+                FlowPointChange::Narrow { .. } | FlowPointChange::Clear { .. } => {}
+            }
+
+            current = flow.parent;
+        }
+
+        Ok(Answer::Ready(None))
+    }
+
+    /// Return the type named by one flow narrowing.
+    fn resolve_flow_narrowing(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        source: dir::GlobalTypeId,
+        narrowing: FlowNarrowing,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        match narrowing {
+            FlowNarrowing::Type(ty) => Ok(Answer::Ready(Some(ty))),
+            FlowNarrowing::Node(node) => match self.node_type(node)? {
+                Answer::Ready(ty) => Ok(Answer::Ready(Some(ty))),
+                Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+            },
+            FlowNarrowing::Narrow {
+                target,
+                is_positive,
+            } => {
+                let operation = dir::TypeOperation::Narrow(dir::NarrowType {
+                    source,
+                    target,
+                    is_positive,
+                });
+                let narrowed = self.push_type(
+                    node.module_id,
+                    dir::Type::Operation(operation),
+                    node.local_id,
+                )?;
+                let narrowed = match self.reduce_type_root(Origin::Node(node), narrowed)? {
+                    Answer::Ready(ty) => ty,
+                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                };
+
+                Ok(Answer::Ready(Some(narrowed)))
+            }
+        }
+    }
+
+    /// Return one single-field structural shape type.
+    pub(in crate::check) fn member_shape_type(
+        &mut self,
+        module: ModuleId,
+        key: dir::StaticKey,
+        ty: dir::GlobalTypeId,
+        source_node: dir::LocalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let field = dir::TypeField {
+            key,
+            ty,
+            is_optional: false,
+            is_readonly: false,
+        };
+        let shape = dir::ShapeType {
+            fields: vec![field],
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        };
+
+        self.push_type(module, dir::Type::Shape(shape), source_node)
+    }
+}
+
+impl WalkState<'_, '_> {
+    /// Return the stable flow path for one expression.
+    pub(in crate::check) fn flow_path(
+        &self,
+        id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<FlowPath> {
+        self.check.flow_path(id.into_global(self.module))
+    }
+
+    /// Narrow one flow path.
+    pub(in crate::check) fn narrow_flow_path(&mut self, path: FlowPath, narrowing: FlowNarrowing) {
+        self.flow_mut().narrow(path, narrowing);
     }
 
     /// Narrow one flow path with a runtime predicate.
     pub(in crate::check) fn narrow_flow_path_by(
         &mut self,
         path: FlowPath,
-        source: dir::GlobalTypeId,
         source_node: dir::LocalNodeIdAny,
         predicate: NarrowPredicate,
     ) -> CompilerResult<()> {
-        let narrowed = match predicate {
+        let narrowing = match predicate {
             // keep matching values
-            NarrowPredicate::Is(target) => {
-                let operation = dir::TypeOperation::Narrow(dir::NarrowType {
-                    source,
-                    target,
-                    is_positive: true,
-                });
-
-                self.push_type(dir::Type::Operation(operation), source_node)?
-            }
+            NarrowPredicate::Is(target) => FlowNarrowing::Narrow {
+                target,
+                is_positive: true,
+            },
 
             // keep non-matching values
-            NarrowPredicate::IsNot(target) => {
-                let operation = dir::TypeOperation::Narrow(dir::NarrowType {
-                    source,
-                    target,
-                    is_positive: false,
-                });
-
-                self.push_type(dir::Type::Operation(operation), source_node)?
-            }
+            NarrowPredicate::IsNot(target) => FlowNarrowing::Narrow {
+                target,
+                is_positive: false,
+            },
 
             // keep objects with the requested key
             NarrowPredicate::Has(key) => {
@@ -139,10 +268,10 @@ impl WalkState<'_, '_> {
                 let target = self.member_shape_type(key, unknown, source_node)?;
                 let predicate = NarrowPredicate::Is(target);
 
-                return self.narrow_flow_path_by(path, source, source_node, predicate);
+                return self.narrow_flow_path_by(path, source_node, predicate);
             }
         };
-        self.narrow_flow_path(path, narrowed);
+        self.narrow_flow_path(path, narrowing);
 
         Ok(())
     }
@@ -151,7 +280,6 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn narrow_base_flow_path_by_member(
         &mut self,
         path: FlowPath,
-        source: dir::GlobalTypeId,
         source_node: dir::LocalNodeIdAny,
         key: dir::StaticKey,
         predicate: NarrowPredicate,
@@ -181,7 +309,7 @@ impl WalkState<'_, '_> {
             }
         };
 
-        self.narrow_flow_path_by(path, source, source_node, predicate)
+        self.narrow_flow_path_by(path, source_node, predicate)
     }
 
     /// Return one single-field structural shape type.
@@ -191,20 +319,8 @@ impl WalkState<'_, '_> {
         ty: dir::GlobalTypeId,
         source_node: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let field = dir::TypeField {
-            key,
-            ty,
-            is_optional: false,
-            is_readonly: false,
-        };
-        let shape = dir::ShapeType {
-            fields: vec![field],
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        };
-
-        self.push_type(dir::Type::Shape(shape), source_node)
+        self.check
+            .member_shape_type(self.module, key, ty, source_node)
     }
 
     /// Clear flow narrowings invalidated by mutating an expression.

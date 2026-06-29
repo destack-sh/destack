@@ -92,21 +92,22 @@ impl Task {
         }
     }
 
-    /// Return the stable completion key for source-node work.
-    pub(in crate::check) fn key(&self) -> Option<TaskKey> {
+    /// Return the stable request identity for source-node work.
+    pub(in crate::check) fn request(&self) -> Option<Request> {
         match self {
-            Self::Infer { site, use_ } => Some(TaskKey::Infer {
-                site: *site,
+            Self::Infer { site, use_ } => Some(Request::Infer {
+                node: site.node,
                 use_: *use_,
             }),
             Self::Check {
                 site,
+                expected,
                 relation,
                 origin,
                 use_,
-                ..
-            } => Some(TaskKey::Check {
+            } => Some(Request::Check {
                 site: *site,
+                expected: expected.clone(),
                 relation: *relation,
                 origin: *origin,
                 use_: *use_,
@@ -146,13 +147,13 @@ pub(in crate::check) enum TryPropagationTarget {
     },
 }
 
-/// Stable identity of source-node solver work.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::check) enum TaskKey {
+/// Stable identity of one source-node request.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(in crate::check) enum Request {
     /// Inference of one source node.
     Infer {
         /// The inferred source node.
-        site: FlowSite,
+        node: dir::GlobalNodeIdAny,
         /// The syntactic place use when the node is a place expression.
         use_: PlaceUse,
     },
@@ -160,6 +161,8 @@ pub(in crate::check) enum TaskKey {
     Check {
         /// The checked source use.
         site: FlowSite,
+        /// The expected type resolved by this check.
+        expected: ExpectedType,
         /// The checked relation.
         relation: Relation,
         /// The source that produced the check.
@@ -170,7 +173,7 @@ pub(in crate::check) enum TaskKey {
 }
 
 /// Type expected by a deferred check.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(in crate::check) enum ExpectedType {
     /// A concrete expected type.
     Type(dir::GlobalTypeId),
@@ -312,7 +315,7 @@ impl Queue {
 
     /// Pop the next task in priority order.
     pub(in crate::check) fn pop(&mut self) -> Option<Task> {
-        // drain bound-producing work before source inference and validation
+        // run constraints and checked requests before read inference
         if let Some(id) = self.relate.pop() {
             Some(Task::Relate(id))
         } else if let Some(propagation) = self.propagate.pop() {
