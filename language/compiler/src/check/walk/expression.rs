@@ -443,21 +443,25 @@ impl WalkState<'_, '_> {
             // jsx like tree expression
             dir::Expression::TreeExpression {
                 left,
-                arguments,
-                elements,
+                attributes,
+                children,
                 ..
             } => {
                 if let Some(left) = *left {
                     self.walk_expression(left, self.tree.get(left))?;
                 }
-                if let Some(arguments) = arguments.as_deref() {
-                    for argument in arguments {
-                        self.walk_argument(*argument, self.tree.get(*argument))?;
+                if let Some(attributes) = attributes.as_deref() {
+                    for attribute in attributes {
+                        if let Some(value) = self.tree.get(*attribute).value() {
+                            self.walk_expression(value, self.tree.get(value))?;
+                        }
                     }
                 }
-                if let Some(elements) = elements.as_deref() {
-                    for element in elements {
-                        self.walk_argument(*element, self.tree.get(*element))?;
+                if let Some(children) = children.as_deref() {
+                    for child in children {
+                        if let Some(value) = self.tree.get(*child).value() {
+                            self.walk_expression(value, self.tree.get(value))?;
+                        }
                     }
                 }
 
