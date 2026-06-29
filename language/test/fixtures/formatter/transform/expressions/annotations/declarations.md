@@ -2,38 +2,6 @@
 
 ## Declaration Forms
 
-### constructor parameter modifiers
-
-Constructor parameter modifiers are parsed and formatted.
-
-```ts:main.ts
-class C {
-  constructor(readonly x: number) {}
-}
-
-class D {
-  constructor(public readonly x: number) {}
-}
-
-class E {
-  constructor(private readonly x: number) {}
-}
-```
-
-```ts expected
-class C {
-    constructor(readonly x: number) {}
-}
-
-class D {
-    constructor(public readonly x: number) {}
-}
-
-class E {
-    constructor(private readonly x: number) {}
-}
-```
-
 ### ambient declaration forms
 
 Ambient declaration forms are parsed and formatted.

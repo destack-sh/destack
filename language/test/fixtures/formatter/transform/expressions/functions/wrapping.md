@@ -50,7 +50,7 @@ function process<T>(x: T): T where T: Copy {
 
 ### function with multiple where constraints
 
-Multiple where constraints can be grouped in parentheses.
+Multiple where constraints print without grouping parentheses when they fit.
 
 ```ds line-width=50
 function process<T, U>(a: T, b: U): void where (T: Copy, U: Clone) { }
@@ -60,5 +60,5 @@ When the signature is too long, the where clause breaks to its own line.
 
 ```ds expected
 function process<T, U>(a: T, b: U): void
-where (T: Copy, U: Clone) {}
+where T: Copy, U: Clone {}
 ```

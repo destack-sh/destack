@@ -92,10 +92,10 @@ const item = encode()?[0];
 
 ### compact ternary
 
-Expression operands after `?` keep ternary shape.
+Ternaries require spaces around `?` to disambiguate them from postfix try propagation.
 
 ```ds
-const value = a?b:c
+const value = a ? b : c
 ```
 
 ```ds expected

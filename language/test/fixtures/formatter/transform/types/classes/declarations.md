@@ -212,24 +212,6 @@ class Foo {
 }
 ```
 
-### constructor with parameter properties
-
-Parameter properties keep visibility and readonly modifiers.
-
-```ts:main.ts
-class Foo { constructor(public x: number, private readonly y: string) { } }
-```
-
-```ts expected
-class Foo {
-    constructor(
-        public x: number,
-        private readonly y: string,
-    ) {}
-}
-```
-
-
 ## TypeScript Class Forms
 
 ### TypeScript class fields use semicolons

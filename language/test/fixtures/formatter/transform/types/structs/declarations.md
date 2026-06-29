@@ -173,7 +173,7 @@ struct Pair<T, U> where (T: Copy, U: Clone) { left: T; right: U }
 ```
 
 ```ds expected
-struct Pair<T, U> where (T: Copy, U: Clone) {
+struct Pair<T, U> where T: Copy, U: Clone {
     left: T;
     right: U;
 }

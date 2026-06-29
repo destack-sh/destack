@@ -69,7 +69,7 @@ function first(items: Array<number>): number { loop { break (items[0]) } }
 ```ds expected
 function first(items: Array<number>): number {
     loop {
-        break (items[0]);
+        break items[0];
     }
 }
 ```

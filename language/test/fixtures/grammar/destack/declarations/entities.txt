@@ -8,7 +8,10 @@ struct Packet {
 
 class Client {
 // <- keyword.declaration.type.ds
-    constructor(readonly id: string) {}
+    readonly id: string;
+    constructor(id: string) {
+        this.id = id;
+    }
 }
 
 enum State {
