@@ -272,7 +272,8 @@ impl Parser {
             .disallow_type_conditional();
         let scope = TypeScope::from_flags(flags).at_precedence(Some(minimum_precedence));
 
-        if Self::is_type_expression_boundary_token(self.peek_token_type()) {
+        // recover a missing leading binary operand
+        if self.is_type_expression_recovery_boundary() {
             return Ok(self.recover_missing_type_expression_here(NodeType::TypeExpression));
         }
 
@@ -328,7 +329,8 @@ impl Parser {
         let flags = self.type_nested_flags();
         let scope = TypeScope::from_flags(flags).at_precedence(Some(minimum_precedence));
 
-        if Self::is_type_expression_boundary_token(self.peek_token_type()) {
+        // recover a missing prefix operand
+        if self.is_type_expression_recovery_boundary() {
             return Ok(self.recover_missing_type_expression_here(NodeType::TypeExpression));
         }
 

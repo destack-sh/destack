@@ -1,3 +1,4 @@
+use crate::parse::RecoveryPoint;
 use crate::{Parser, ParserError, ParserResult};
 use destack_dir::{TokenSpan, TokenType};
 use destack_source::Span;
@@ -79,6 +80,13 @@ impl Parser {
     #[inline]
     pub(crate) fn is_type_expression_boundary(&mut self) -> bool {
         Self::is_type_expression_boundary_token(self.peek_token_type())
+    }
+
+    /// Return true when type parsing can recover at the current cursor.
+    #[inline]
+    pub(crate) fn is_type_expression_recovery_boundary(&mut self) -> bool {
+        self.is_type_expression_boundary()
+            || self.current_token_starts_recovery_point(RecoveryPoint::TypeExpressionDeclaration)
     }
 
     /// Return true when the next token is a statement stop.

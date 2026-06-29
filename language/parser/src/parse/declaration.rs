@@ -53,10 +53,7 @@ impl DeclarationHeader {
 pub(crate) fn is_declaration_keyword(keyword: Keyword) -> bool {
     matches!(
         keyword,
-        Keyword::Declare
-            | Keyword::Abstract
-            | Keyword::Final
-            | Keyword::Struct
+        Keyword::Struct
             | Keyword::Class
             | Keyword::Enum
             | Keyword::Function
@@ -68,6 +65,16 @@ pub(crate) fn is_declaration_keyword(keyword: Keyword) -> bool {
             | Keyword::Readonly
             | Keyword::Let
             | Keyword::Using
+    ) || is_declaration_modifier_keyword(keyword)
+}
+
+/// Return true when a keyword can modify a declaration head.
+pub(crate) fn is_declaration_modifier_keyword(keyword: Keyword) -> bool {
+    matches!(
+        keyword,
+        Keyword::Declare
+            | Keyword::Abstract
+            | Keyword::Final
             | Keyword::Override
             | Keyword::Public
             | Keyword::Protected

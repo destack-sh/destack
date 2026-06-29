@@ -1,7 +1,11 @@
 use crate::parse::flags::ParserFlags;
-use crate::parse::{TypeMemberContainerKind, is_declaration_keyword};
+use crate::parse::{
+    TypeMemberContainerKind, is_declaration_keyword, is_declaration_modifier_keyword,
+};
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
-use destack_dir::{Expression, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
+use destack_dir::{
+    Expression, Keyword, LocalNodeId, NodeType, TokenSpan, TokenType, TypeExpression,
+};
 use destack_source::Span;
 
 /// Delimiter depth while recovering one malformed list item.
@@ -69,6 +73,8 @@ pub(crate) enum RecoveryPoint {
     Statement,
     /// A declaration.
     Declaration,
+    /// An outer declaration after a damaged type expression.
+    TypeExpressionDeclaration,
     /// An outer declaration after a damaged type member.
     TypeMemberDeclaration(TypeMemberContainerKind),
 }
@@ -79,8 +85,15 @@ impl RecoveryPoint {
         match self {
             Self::Statement => Self::statement_keyword(keyword),
             Self::Declaration => keyword == Keyword::Export || is_declaration_keyword(keyword),
+            Self::TypeExpressionDeclaration => {
+                keyword == Keyword::Export
+                    || keyword == Keyword::Type
+                    || keyword == Keyword::Newtype
+                    || Self::outer_declaration_keyword(keyword)
+            }
             Self::TypeMemberDeclaration(container_kind) => {
                 keyword == Keyword::Export
+                    || keyword == Keyword::Newtype
                     || (!container_kind.allows_associated_members() && keyword == Keyword::Type)
                     || Self::outer_declaration_keyword(keyword)
             }
@@ -89,18 +102,25 @@ impl RecoveryPoint {
 
     /// Return whether one keyword can modify this recovery point.
     fn accepts_modifier(self, keyword: Keyword) -> bool {
-        matches!(self, Self::TypeMemberDeclaration(_))
-            && matches!(
-                keyword,
-                Keyword::Declare
-                    | Keyword::Abstract
-                    | Keyword::Final
-                    | Keyword::Override
-                    | Keyword::Public
-                    | Keyword::Protected
-                    | Keyword::Private
-                    | Keyword::Async
-            )
+        match self {
+            Self::TypeExpressionDeclaration | Self::TypeMemberDeclaration(_) => {
+                is_declaration_modifier_keyword(keyword)
+            }
+            _ => false,
+        }
+    }
+
+    /// Return whether one following token is valid after this recovery point head.
+    fn accepts_following_token(self, token_type: TokenType) -> bool {
+        match self {
+            Self::TypeExpressionDeclaration => Self::declaration_keyword_follow_token(token_type),
+            _ => true,
+        }
+    }
+
+    /// Return whether one token can follow a recovered declaration keyword.
+    fn declaration_keyword_follow_token(token_type: TokenType) -> bool {
+        matches!(token_type, TokenType::Identifier | TokenType::At)
     }
 
     /// Return whether one keyword starts a recovered statement.
@@ -155,22 +175,30 @@ impl Parser {
         let Some(keyword) = self.current_keyword() else {
             return false;
         };
+
         let following_token_type = self.token_type_at_offset(1);
 
-        if !self.current_token_is_on_new_line()
-            || Self::token_continues_current_recovery_item(following_token_type)
-        {
+        // require recovery heads to begin a logical line
+        if !self.current_token_is_on_new_line() {
             return false;
         }
 
+        // stay in the current item when the next token still binds to it
+        if Self::token_continues_current_recovery_item(following_token_type) {
+            return false;
+        }
+
+        // keep contextual recovery on a real declaration shaped head
+        if !point.accepts_following_token(following_token_type) {
+            return false;
+        }
+
+        // accept direct recovery keywords
         if point.accepts_keyword(keyword) {
             return true;
         }
 
-        point.accepts_modifier(keyword)
-            && self
-                .keyword_at_offset(1)
-                .is_some_and(|keyword| point.accepts_keyword(keyword))
+        self.modifier_precedes_recovery_keyword(point, keyword)
     }
 
     /// Return whether the current semicolon is followed by one recovery point.
@@ -178,11 +206,37 @@ impl Parser {
         let next = self.next_token();
         let following_token_type = self.token_type_at_offset(2);
 
-        next.is_on_new_line()
-            && !Self::token_continues_current_recovery_item(following_token_type)
-            && self
-                .keyword_at_offset(1)
-                .is_some_and(|keyword| point.accepts_keyword(keyword))
+        // require the recovery point to start after a line boundary
+        if !next.is_on_new_line() {
+            return false;
+        }
+
+        // stay in the current item when the next token still binds to it
+        if Self::token_continues_current_recovery_item(following_token_type) {
+            return false;
+        }
+
+        // keep contextual recovery on a real declaration shaped head
+        if !point.accepts_following_token(following_token_type) {
+            return false;
+        }
+
+        self.keyword_at_offset(1)
+            .is_some_and(|keyword| point.accepts_keyword(keyword))
+    }
+
+    /// Return whether one modifier is followed by a recovery keyword.
+    fn modifier_precedes_recovery_keyword(
+        &mut self,
+        point: RecoveryPoint,
+        keyword: Keyword,
+    ) -> bool {
+        if !point.accepts_modifier(keyword) {
+            return false;
+        }
+
+        self.keyword_at_offset(1)
+            .is_some_and(|keyword| point.accepts_keyword(keyword))
     }
 
     /// Return whether one following token keeps the current item ambiguous.
@@ -264,7 +318,7 @@ impl Parser {
         flags: ParserFlags,
         owner: NodeType,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        if self.is_type_expression_boundary() {
+        if self.is_type_expression_recovery_boundary() {
             return Ok(self.recover_missing_type_expression_here(owner));
         }
 
@@ -309,6 +363,7 @@ impl Parser {
             return Ok(());
         }
 
+        // allow the caller to define the grammar boundary it owns
         let token_type = self.peek_token_type();
         let is_recoverable_boundary = is_recoverable_boundary(self, token_type);
 
@@ -336,9 +391,15 @@ impl Parser {
         expected: TokenType,
         owner: NodeType,
     ) -> ParserResult<()> {
-        self.eat_close_token_or_recover_missing_with(expected, owner, |_, token_type| {
-            Self::is_type_container_boundary_token(token_type)
+        self.eat_close_token_or_recover_missing_with(expected, owner, |parser, token_type| {
+            parser.type_token_recovery_boundary(token_type)
         })
+    }
+
+    /// Return whether type parsing can recover one missing close token here.
+    fn type_token_recovery_boundary(&mut self, token_type: TokenType) -> bool {
+        Self::is_type_container_boundary_token(token_type)
+            || self.current_token_starts_recovery_point(RecoveryPoint::TypeExpressionDeclaration)
     }
 
     /// Attempt a parse with token recovery.
@@ -415,22 +476,19 @@ impl Parser {
         while let Ok(token) = self.peek() {
             let token_type = token.token.ty();
 
+            // stop at end of input
             if token_type == TokenType::End {
                 break;
             }
 
-            let is_new_line_boundary = start.is_before(token.span) && token.token.is_on_new_line();
-            let is_boundary = depth.is_top_level()
-                && (is_new_line_boundary
-                    || self.token_matches_terminator(token_type, terminator)
-                    || Self::is_item_stop_token(token_type)
-                    || Self::is_close_delimiter_token(token_type));
-            if is_boundary {
+            // stop before the next item or enclosing grammar boundary
+            if self.item_list_recovery_boundary(start, token, terminator, &depth) {
                 let error = ParserError::from_source_maybe(self.get_span_from(start), error);
                 self.error(&error);
                 return Ok(());
             }
 
+            // keep scanning within nested delimiters
             depth.advance(token_type);
             self.bump();
         }
@@ -439,6 +497,28 @@ impl Parser {
         self.error(&error);
 
         Err(error)
+    }
+
+    /// Return whether one token ends recovery for the current list item.
+    fn item_list_recovery_boundary(
+        &self,
+        start: &ParserSpanStart,
+        token: TokenSpan,
+        terminator: TokenType,
+        depth: &RecoveryDelimiterDepth,
+    ) -> bool {
+        if !depth.is_top_level() {
+            return false;
+        }
+
+        let token_type = token.token.ty();
+        let is_new_line_boundary = start.is_before(token.span) && token.token.is_on_new_line();
+
+        is_new_line_boundary
+            || self.token_matches_terminator(token_type, terminator)
+            || Self::is_item_stop_token(token_type)
+            || Self::is_statement_stop_token(token_type)
+            || Self::is_close_delimiter_token(token_type)
     }
 
     /// Recover within one statement until a statement boundary.
@@ -521,6 +601,7 @@ impl Parser {
         let token_type = self.peek_token_type();
         !self.token_matches_terminator(token_type, terminator)
             && !Self::is_close_delimiter_token(token_type)
+            && !Self::is_statement_stop_token(token_type)
             && token_type != TokenType::End
     }
 

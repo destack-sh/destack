@@ -1,8 +1,8 @@
 use crate::tests::TestParser;
-use crate::{assert_expression_path, assert_node, assert_path, assert_string};
+use crate::{Parser, assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
-    Declaration, Expression, GenericParameter, IntegerType, Mutability, NodeType, ScalarLiteral,
-    TypeDeclaration, TypeExpression, TypeLiteral,
+    Declaration, Expression, GenericParameter, IntegerType, LocalNodeId, Mutability, NodeType,
+    ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::LanguageType;
 
@@ -154,6 +154,37 @@ fn test_parse_type_alias_with_empty_generic_parameters() {
             assert!(generic_parameters.is_empty());
         });
     });
+}
+
+/// Recover later declarations after damaged type alias values.
+#[test]
+fn test_recover_type_alias_value_declaration_boundaries() {
+    let cases = [
+        "type Broken = string | ;\ntype Recovered = string;",
+        "type Broken = { readonly key: ;\ntype Recovered = string;",
+        "type Broken = [head: string, ... ;\ntype Recovered = string;",
+        "type Broken<T> = T extends ;\ntype Recovered = string;",
+        "type Broken<T> = { [Key in keyof ;\ntype Recovered = string;",
+        "type Broken = (value: ;\ntype Recovered = string;",
+        "type Broken<T> = T[ ;\ntype Recovered = string;",
+    ];
+
+    for source in cases {
+        let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let roots = parser.parse();
+
+        assert!(
+            !parser.errors.is_empty(),
+            "expected recovery diagnostics for {source:?}",
+        );
+        let names = declaration_names(&parser, &roots);
+        assert!(
+            names.iter().any(|name| name == "Recovered"),
+            "expected recovered declaration root for {source:?}, got {names:?} with errors {:#?}",
+            parser.errors,
+        );
+    }
 }
 
 /// Parse parenthesized multiline unions with a leading separator and comments.
@@ -394,4 +425,20 @@ fn test_parse_type_parameter_default_conditional() {
             });
         });
     });
+}
+
+/// Return root type declaration names in source order.
+fn declaration_names(parser: &Parser, roots: &[LocalNodeId<Expression>]) -> Vec<String> {
+    roots
+        .iter()
+        .filter_map(|root| match parser.tree.get(*root) {
+            Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
+                Declaration::Type(declaration) => {
+                    Some(parser.strings.get(declaration.name.string()).to_string())
+                }
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect()
 }
