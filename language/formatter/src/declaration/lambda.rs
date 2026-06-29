@@ -420,6 +420,17 @@ fn lambda_body_has_soft_line_break(
     }
 }
 
+/// Return whether a tree callback body should force multiline tree formatting.
+fn lambda_tree_body_should_expand_in_tree_context(
+    context: &DestackFormatContext<'_>,
+    body_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    matches!(
+        context.tree.get(body_expression_id),
+        Expression::TreeExpression { .. }
+    ) && context.should_expand_tree_callback_bodies()
+}
+
 /// Return whether one lambda body needs parentheses in flat mode.
 fn lambda_body_needs_parentheses(
     context: &DestackFormatContext<'_>,
@@ -579,6 +590,11 @@ fn write_single_lambda_layout<'ast>(
     }
 
     write!(f, [formatted_signature])?;
+
+    // tree callback bodies
+    if lambda_tree_body_should_expand_in_tree_context(f.context(), body_expression_id) {
+        return write!(f, [space(), group(&format_body).should_expand(true)]);
+    }
 
     // self-breaking bodies
     if lambda_body_has_soft_line_break(f.context(), body_id, body_expression_id) {

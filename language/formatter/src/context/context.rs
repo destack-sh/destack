@@ -38,6 +38,21 @@ pub(crate) fn with_following_span_start<'ast>(
     result
 }
 
+/// Run one formatter callback with expanded tree callback bodies.
+pub(crate) fn with_expanded_tree_callback_bodies<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    format: impl FnOnce(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
+) -> FormatResult<()> {
+    let previous_should_expand = f
+        .context_mut()
+        .replace_should_expand_tree_callback_bodies(true);
+    let result = format(f);
+    f.context_mut()
+        .replace_should_expand_tree_callback_bodies(previous_should_expand);
+
+    result
+}
+
 /// Destack format context.
 #[derive(Debug, Clone)]
 pub struct DestackFormatContext<'a> {
@@ -63,6 +78,8 @@ pub struct DestackFormatContext<'a> {
     pub element_cache: FormatElementCache,
     /// The start position of the following sibling for the node currently being formatted.
     pub current_following_span_start: u32,
+    /// Whether tree callback bodies should expand like JSX return elements.
+    pub should_expand_tree_callback_bodies: bool,
     /// The comment cursor for this formatting pass.
     pub comments: Comments<'a>,
 }
@@ -93,6 +110,7 @@ impl<'a> DestackFormatContext<'a> {
             source_index,
             element_cache: FormatElementCache::default(),
             current_following_span_start: 0,
+            should_expand_tree_callback_bodies: false,
             comments: Comments::new(SourceText::new(file.text()), tree.comments()),
         }
     }
@@ -125,6 +143,18 @@ impl<'a> DestackFormatContext<'a> {
     /// Replace the current following sibling start and return the previous value.
     pub fn replace_following_span_start(&mut self, following_span_start: u32) -> u32 {
         std::mem::replace(&mut self.current_following_span_start, following_span_start)
+    }
+
+    /// Return whether tree callback bodies should expand like JSX return elements.
+    #[inline]
+    pub fn should_expand_tree_callback_bodies(&self) -> bool {
+        self.should_expand_tree_callback_bodies
+    }
+
+    /// Replace whether tree callback bodies should expand like JSX return elements.
+    #[inline]
+    pub fn replace_should_expand_tree_callback_bodies(&mut self, should_expand: bool) -> bool {
+        std::mem::replace(&mut self.should_expand_tree_callback_bodies, should_expand)
     }
 }
 

@@ -2,6 +2,7 @@ use super::child::{
     expression_chain_has_separator_comment, format_inline_stub_comments,
     format_multiline_stub_comment_nodes, node_has_line_comment, tree_child_has_outer_line_comment,
     tree_child_should_inline_braced_expression, tree_control_child_should_expand,
+    tree_expression_contains_callback_break,
 };
 use super::expression_source_extent_end;
 use crate::annotation::{
@@ -10,6 +11,7 @@ use crate::annotation::{
 };
 use crate::chain::transparent_inner_expression;
 use crate::collection::literal::format_scalar_literal;
+use crate::context::with_expanded_tree_callback_bodies;
 use crate::expression::{argument_value, jsx_chain_ternary_needs_expanded_branches};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
@@ -136,6 +138,7 @@ fn write_tree_expression_child<'ast>(
     let value_expr = f.context().tree.get(value);
     let child_span = f.context().span(child_id);
     let value_end = expression_source_extent_end(f.context(), value);
+    let has_callback_break = tree_expression_contains_callback_break(f.context(), value);
 
     let trailing_comments = |f: &DestackFormatter<'ast, '_>| {
         f.context()
@@ -153,6 +156,7 @@ fn write_tree_expression_child<'ast>(
         return write_stub_tree_child(f, child_id, value);
     }
 
+    // preserve outer line comments
     if force_multiline_braced_expression {
         write!(
             f,
@@ -160,7 +164,7 @@ fn write_tree_expression_child<'ast>(
                 token("{"),
                 prefix_annotations(f.context(), child_id),
                 block_indent(&format_with(|f| {
-                    write!(f, [group(&value).should_expand(true)])?;
+                    write_tree_expression_value(f, value, true, has_callback_break)?;
                     let trailing_comments = trailing_comments(f);
                     write!(f, [FormatTrailingComments::Comments(&trailing_comments)])
                 })),
@@ -168,7 +172,10 @@ fn write_tree_expression_child<'ast>(
                 token("}")
             ])]
         )?;
-    } else if tree_child_should_inline_braced_expression(f.context(), child_id) {
+    } else if !has_callback_break
+        && tree_child_should_inline_braced_expression(f.context(), child_id)
+    {
+        // keep short expression containers flat
         write!(
             f,
             [
@@ -179,7 +186,8 @@ fn write_tree_expression_child<'ast>(
                 token("}")
             ]
         )?;
-    } else if expression_chain_has_separator_comment(f.context(), value)
+    } else if has_callback_break
+        || expression_chain_has_separator_comment(f.context(), value)
         || tree_control_child_should_expand(f.context(), value)
         || matches!(
             f.context().tree.get(value),
@@ -209,17 +217,19 @@ fn write_tree_expression_child<'ast>(
             }
         )
     {
+        // break complex expression containers
         write!(
             f,
             [group(&format_args![
                 token("{"),
                 prefix_annotations(f.context(), child_id),
-                group(&value).should_expand(true),
+                format_with(|f| write_tree_expression_value(f, value, true, has_callback_break)),
                 FormatTrailingComments::Comments(&trailing_comments(f)),
                 token("}")
             ])]
         )?;
     } else {
+        // keep simple expression containers soft
         write!(
             f,
             [group(&format_args![
@@ -236,6 +246,24 @@ fn write_tree_expression_child<'ast>(
     }
 
     Ok(false)
+}
+
+/// Write one tree expression container value.
+fn write_tree_expression_value<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value_id: LocalNodeId<Expression>,
+    should_expand: bool,
+    should_expand_tree_callback_bodies: bool,
+) -> FormatResult<()> {
+    let value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write!(f, [group(&value_id).should_expand(should_expand)])
+    });
+
+    if should_expand_tree_callback_bodies {
+        with_expanded_tree_callback_bodies(f, |f| write!(f, [value]))
+    } else {
+        write!(f, [value])
+    }
 }
 
 /// Write one tree spread expression container.
@@ -370,7 +398,12 @@ fn write_tree_attribute_value<'ast>(
             format_scalar_literal(&ScalarLiteral::String(*string_id), span, f)
         }
         TreeAttributeValue::Expression(value_id) => {
-            write!(f, [token("="), token("{"), *value_id, token("}")])
+            let has_callback_break =
+                tree_expression_contains_callback_break(f.context(), *value_id);
+
+            write!(f, [token("="), token("{")])?;
+            write_tree_expression_value(f, *value_id, has_callback_break, has_callback_break)?;
+            write!(f, [token("}")])
         }
     }
 }

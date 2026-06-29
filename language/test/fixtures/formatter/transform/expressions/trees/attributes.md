@@ -4,9 +4,9 @@ TSX attribute fixtures cover attribute spacing, expressions, comments, spread at
 
 ## Attribute Forms
 
-### spacing and boolean shorthand
+### spacing and boolean expression attributes
 
-Attribute spacing is normalized and boolean attributes use shorthand.
+Attribute spacing is normalized without rewriting expression attribute values.
 
 ```tsx:main.tsx
 const node = <Button disabled={true} count={ 1 } label="Ok" />
@@ -16,9 +16,9 @@ const node = <Button disabled={true} count={ 1 } label="Ok" />
 const node = <Button disabled={true} count={1} label="Ok" />;
 ```
 
-### string expression attribute collapses
+### string expression attribute quote style
 
-String literal expression containers collapse to plain string attributes.
+String literal expression containers keep their braces while quote style is normalized.
 
 ```tsx:main.tsx
 const node = <div title={"Hello"} className={'card'} />
@@ -158,6 +158,24 @@ const node = (
         title="Settings"
         description="Long description"
         icon={settingsIcon}
+    />
+);
+```
+
+### jsx callback attribute breaks around return element
+
+JSX-returning callback attributes break the element and callback body vertically.
+
+```tsx:main.tsx
+const node = <List renderItem={(item) => <Item key={item.id}>{item.name}</Item>} />
+```
+
+```tsx expected
+const node = (
+    <List
+        renderItem={(item) => (
+            <Item key={item.id}>{item.name}</Item>
+        )}
     />
 );
 ```
