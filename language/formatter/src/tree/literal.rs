@@ -104,6 +104,7 @@ fn tree_children_layout(
         force_break_attributes
             || (has_breaking_child && children.len() > 1)
             || (has_tree_child && !has_non_whitespace_text_child)
+            || has_tree_and_text_children
             || (has_multiple_expression_children && !has_non_whitespace_text_child);
     let force_break_with_fill = force_break
         && has_tree_and_text_children
