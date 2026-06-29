@@ -226,7 +226,7 @@ impl GenericParameterBinding {
 }
 
 /// One selected generic argument bound to its declaration parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct GenericArgumentBinding {
     /// The declaration parameter selected by the argument.
     pub parameter: GlobalGenericParameterId,
@@ -250,7 +250,7 @@ impl GenericArgumentBinding {
 }
 
 /// One runtime argument bound to its selected parameter slot.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct ArgumentBinding {
     /// The selected parameter position.
     pub parameter: usize,
@@ -261,7 +261,7 @@ pub struct ArgumentBinding {
 }
 
 /// Source argument bound to one selected parameter slot.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ArgumentSource {
     /// One source argument was supplied.
     Provided(GlobalNodeIdAny),

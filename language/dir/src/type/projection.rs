@@ -238,7 +238,7 @@ pub struct ObjectRestField {
 }
 
 /// Subscript operation selected by one projection or place.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum SubscriptOperation {
     /// Structural tuple, field, or index-signature selection.
     Member(MemberResolution),
@@ -247,7 +247,7 @@ pub enum SubscriptOperation {
 }
 
 /// Dereference operation selected by one projection or place.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum DereferenceOperation {
     /// Direct dereference of a physical reference or pointer form.
     Direct,
@@ -264,7 +264,7 @@ pub enum DereferenceOperation {
 /// user.name               // Member(User.name) for nominal stored fields
 /// object[Symbol.for("x")] // Key(Symbol.for("x")) for structural symbol keys
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ProjectionField {
     /// Structural field key.
     ///
