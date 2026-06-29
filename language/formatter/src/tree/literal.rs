@@ -97,12 +97,14 @@ fn tree_children_layout(
     let has_multiple_expression_children = expression_child_count >= 2;
     let has_tree_and_expression_children = has_tree_child && expression_child_count > 0;
     let has_tree_and_text_children = has_tree_child && has_non_whitespace_text_child;
+    let tree_should_break_mixed_text = has_tree_and_text_children
+        && (context.options.language_type.is_destack() || tree_child_count > 1);
     let force_break =
         // tag children follow jsx child-list layout
         force_break_attributes
             || (has_breaking_child && children.len() > 1)
             || (has_tree_child && !has_non_whitespace_text_child)
-            || has_tree_and_text_children
+            || tree_should_break_mixed_text
             || (has_multiple_expression_children && !has_non_whitespace_text_child);
     let force_break_with_fill = force_break
         && has_tree_and_text_children
@@ -826,12 +828,10 @@ fn format_tree_literal_with_layout<'ast>(
                     layout.force_break_attributes,
                 ),
             )?;
-            let opening_breaks = opening_tag.will_break();
             let multiple_attributes = attributes
                 .as_ref()
                 .is_some_and(|attributes| attributes.len() > 1);
-            let force_multiline_children =
-                multiple_attributes || opening_breaks || layout.force_break_attributes;
+            let force_multiline_children = multiple_attributes || layout.force_break_attributes;
 
             write!(f, [group(&opening_tag)])?;
             format_tree_body(f, _expression_id, left, children, force_multiline_children)
