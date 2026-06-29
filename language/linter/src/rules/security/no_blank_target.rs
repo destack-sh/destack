@@ -1,4 +1,4 @@
-use destack_dir::{self as dir, Argument, Expression};
+use destack_dir::{self as dir, Expression, TreeAttribute, TreeAttributeValue};
 use destack_repository::LintSeverity;
 use url::Url;
 
@@ -43,8 +43,8 @@ impl LintRule for NoBlankTarget {
             // check tree expressions (JSX-like)
             let Expression::TreeExpression {
                 left,
-                arguments,
-                elements: _,
+                attributes,
+                children: _,
                 generic_arguments: _,
             } = expression
             else {
@@ -56,24 +56,24 @@ impl LintRule for NoBlankTarget {
                 continue;
             };
 
-            // get arguments if present
-            let Some(args) = arguments else {
+            // get attributes if present
+            let Some(attributes) = attributes else {
                 continue;
             };
 
-            // resolve the target argument position
-            let target_argument_index = args.iter().position(|arg_id| {
-                let arg = ctx.dir.get(*arg_id);
-                is_blank_target(ctx, arg)
+            // resolve the target attribute position
+            let target_attribute_index = attributes.iter().position(|attribute_id| {
+                let attribute = ctx.dir.get(*attribute_id);
+                is_blank_target(ctx, attribute)
             });
-            let Some(target_argument_index) = target_argument_index else {
+            let Some(target_attribute_index) = target_attribute_index else {
                 continue;
             };
 
             // honor allowed domains before enforcing rel hardening
             if target_url_matches_allowed_domain(
                 ctx,
-                args,
+                attributes,
                 target_attribute_name,
                 &ctx.options().security.no_blank_target_allow_domains,
             ) {
@@ -81,15 +81,15 @@ impl LintRule for NoBlankTarget {
             }
 
             // resolve explicit rel handling
-            let rel_argument_index = args.iter().position(|arg_id| {
-                let arg = ctx.dir.get(*arg_id);
-                is_rel_argument(ctx, arg)
+            let rel_attribute_index = attributes.iter().position(|attribute_id| {
+                let attribute = ctx.dir.get(*attribute_id);
+                is_rel_attribute(ctx, attribute)
             });
-            let rel_argument_id = rel_argument_index.map(|index| args[index]);
-            let rel_status = rel_argument_id.map(|arg_id| {
+            let rel_attribute_id = rel_attribute_index.map(|index| attributes[index]);
+            let rel_status = rel_attribute_id.map(|attribute_id| {
                 rel_safety_status(
                     ctx,
-                    arg_id,
+                    attribute_id,
                     ctx.options().security.no_blank_target_allow_no_referrer,
                 )
             });
@@ -98,14 +98,14 @@ impl LintRule for NoBlankTarget {
             }
 
             // accept cases where later spread props may still set or override rel
-            if rel_argument_id.is_none()
-                && has_trailing_spread_argument(ctx, args, target_argument_index)
+            if rel_attribute_id.is_none()
+                && has_trailing_spread_attribute(ctx, attributes, target_attribute_index)
             {
                 continue;
             }
-            if rel_argument_index.is_some_and(|rel_argument_index| {
-                has_trailing_spread_argument(ctx, args, target_argument_index)
-                    || has_trailing_spread_argument(ctx, args, rel_argument_index)
+            if rel_attribute_index.is_some_and(|rel_attribute_index| {
+                has_trailing_spread_attribute(ctx, attributes, target_attribute_index)
+                    || has_trailing_spread_attribute(ctx, attributes, rel_attribute_index)
             }) {
                 continue;
             }
@@ -133,7 +133,7 @@ impl LintRule for NoBlankTarget {
 
             // compute fixes only when requested by the runner
             if ctx.compute_fixes
-                && let Some(fix) = blank_target_fix(ctx, args, rel_argument_id)
+                && let Some(fix) = blank_target_fix(ctx, attributes, rel_attribute_id)
             {
                 diagnostic = diagnostic.fix(fix);
             }
@@ -177,9 +177,9 @@ fn checked_target_attribute_name(
     None
 }
 
-/// Check if an argument is `target="_blank"`.
-fn is_blank_target(ctx: &LintModuleContext<'_>, arg: &Argument) -> bool {
-    let Argument::Named { name, value, .. } = arg else {
+/// Check if an attribute is `target="_blank"`.
+fn is_blank_target(ctx: &LintModuleContext<'_>, attribute: &TreeAttribute) -> bool {
+    let TreeAttribute::Named { name, .. } = attribute else {
         return false;
     };
 
@@ -190,7 +190,7 @@ fn is_blank_target(ctx: &LintModuleContext<'_>, arg: &Argument) -> bool {
     }
 
     // check if the value is "_blank"
-    let Some(string_id) = argument_static_string_id(ctx, *value) else {
+    let Some(string_id) = tree_attribute_static_string_id(ctx, attribute) else {
         return false;
     };
 
@@ -199,9 +199,9 @@ fn is_blank_target(ctx: &LintModuleContext<'_>, arg: &Argument) -> bool {
     value_str.eq_ignore_ascii_case("_blank")
 }
 
-/// Check if an argument is any `rel=...` attribute.
-fn is_rel_argument(ctx: &LintModuleContext<'_>, arg: &Argument) -> bool {
-    let Argument::Named { name, .. } = arg else {
+/// Check if an attribute is any `rel=...` attribute.
+fn is_rel_attribute(ctx: &LintModuleContext<'_>, attribute: &TreeAttribute) -> bool {
+    let TreeAttribute::Named { name, .. } = attribute else {
         return false;
     };
 
@@ -210,26 +210,35 @@ fn is_rel_argument(ctx: &LintModuleContext<'_>, arg: &Argument) -> bool {
     name_str == "rel"
 }
 
-/// Return one static string argument value.
-fn argument_static_string_id(
+/// Return one static string tree attribute value.
+fn tree_attribute_static_string_id(
     ctx: &LintModuleContext<'_>,
-    value: dir::LocalNodeId<Expression>,
+    attribute: &TreeAttribute,
 ) -> Option<dir::StringId> {
-    expression_static_string_literal_source_form(ctx.dir.tree(), value)
+    let TreeAttribute::Named { value, .. } = attribute else {
+        return None;
+    };
+
+    match value.as_ref()? {
+        TreeAttributeValue::String(string_id) => Some(*string_id),
+        TreeAttributeValue::Expression(value) => {
+            expression_static_string_literal_source_form(ctx.dir.tree(), *value)
+        }
+    }
 }
 
-/// Return the rel safety status for one rel argument.
+/// Return the rel safety status for one rel attribute.
 fn rel_safety_status(
     ctx: &LintModuleContext<'_>,
-    argument_id: dir::LocalNodeId<Argument>,
+    attribute_id: dir::LocalNodeId<TreeAttribute>,
     allow_no_referrer: bool,
 ) -> RelSafetyStatus {
-    let argument = ctx.dir.get(argument_id);
-    let Argument::Named { value, .. } = argument else {
+    let attribute = ctx.dir.get(attribute_id);
+    let TreeAttribute::Named { .. } = attribute else {
         return RelSafetyStatus::UnsafeDynamic;
     };
 
-    let Some(string_id) = argument_static_string_id(ctx, *value) else {
+    let Some(string_id) = tree_attribute_static_string_id(ctx, attribute) else {
         return RelSafetyStatus::UnsafeDynamic;
     };
 
@@ -259,7 +268,7 @@ fn rel_tokens_are_safe(rel_value: &str, allow_no_referrer: bool) -> bool {
 /// Return true when the target attribute matches one allowed domain entry.
 fn target_url_matches_allowed_domain(
     ctx: &LintModuleContext<'_>,
-    args: &[dir::LocalNodeId<Argument>],
+    attributes: &[dir::LocalNodeId<TreeAttribute>],
     target_attribute_name: &str,
     allowed_domains: &[String],
 ) -> bool {
@@ -267,9 +276,9 @@ fn target_url_matches_allowed_domain(
         return false;
     }
 
-    let target_url = args.iter().find_map(|arg_id| {
-        let argument = ctx.dir.get(*arg_id);
-        static_named_argument_value(ctx, argument, target_attribute_name)
+    let target_url = attributes.iter().find_map(|attribute_id| {
+        let attribute = ctx.dir.get(*attribute_id);
+        static_named_attribute_value(ctx, attribute, target_attribute_name)
     });
     let Some(target_url_id) = target_url else {
         return false;
@@ -281,26 +290,25 @@ fn target_url_matches_allowed_domain(
         .any(|allowed_domain| url_matches_allowed_domain(target_url, allowed_domain))
 }
 
-/// Return one static named argument string id when present.
-fn static_named_argument_value(
+/// Return one static named attribute string id when present.
+fn static_named_attribute_value(
     ctx: &LintModuleContext<'_>,
-    argument: &Argument,
+    attribute: &TreeAttribute,
     name: &str,
 ) -> Option<dir::StringId> {
-    let Argument::Named {
-        name: argument_name,
-        value,
+    let TreeAttribute::Named {
+        name: attribute_name,
         ..
-    } = argument
+    } = attribute
     else {
         return None;
     };
 
-    if ctx.strings.get(argument_name.string()) != name {
+    if ctx.strings.get(attribute_name.string()) != name {
         return None;
     }
 
-    argument_static_string_id(ctx, *value)
+    tree_attribute_static_string_id(ctx, attribute)
 }
 
 /// Return true when one target URL matches one allowed domain entry.
@@ -332,29 +340,30 @@ fn url_matches_allowed_domain(target_url: &str, allowed_domain: &str) -> bool {
 }
 
 /// Return true when one later prop spread may override earlier attributes.
-fn has_trailing_spread_argument(
+fn has_trailing_spread_attribute(
     ctx: &LintModuleContext<'_>,
-    args: &[dir::LocalNodeId<Argument>],
+    attributes: &[dir::LocalNodeId<TreeAttribute>],
     start_index: usize,
 ) -> bool {
-    args.iter()
+    attributes
+        .iter()
         .skip(start_index + 1)
         .copied()
-        .any(|argument_id| matches!(ctx.dir.get(argument_id), Argument::Spread { .. }))
+        .any(|attribute_id| matches!(ctx.dir.get(attribute_id), TreeAttribute::Spread { .. }))
 }
 
 /// Build a safe fix that injects or amends rel with noopener.
 fn blank_target_fix(
     ctx: &LintModuleContext<'_>,
-    args: &[dir::LocalNodeId<Argument>],
-    rel_argument_id: Option<dir::LocalNodeId<Argument>>,
+    attributes: &[dir::LocalNodeId<TreeAttribute>],
+    rel_attribute_id: Option<dir::LocalNodeId<TreeAttribute>>,
 ) -> Option<LintFix> {
-    if let Some(rel_argument_id) = rel_argument_id {
-        return blank_target_rel_fix(ctx, rel_argument_id);
+    if let Some(rel_attribute_id) = rel_attribute_id {
+        return blank_target_rel_fix(ctx, rel_attribute_id);
     }
 
-    let last_argument = args.last()?;
-    let last_span = ctx.dir.get_span(*last_argument);
+    let last_attribute = attributes.last()?;
+    let last_span = ctx.dir.get_span(*last_attribute);
     let edits = ctx
         .edit_builder()
         .insert(last_span.end, " rel=\"noopener\"")
@@ -365,14 +374,14 @@ fn blank_target_fix(
 /// Build a safe fix that amends one rel attribute with noopener.
 fn blank_target_rel_fix(
     ctx: &LintModuleContext<'_>,
-    rel_argument_id: dir::LocalNodeId<Argument>,
+    rel_attribute_id: dir::LocalNodeId<TreeAttribute>,
 ) -> Option<LintFix> {
-    let argument = ctx.dir.get(rel_argument_id);
-    let Argument::Named { value, .. } = argument else {
+    let attribute = ctx.dir.get(rel_attribute_id);
+    let TreeAttribute::Named { name, value } = attribute else {
         return None;
     };
 
-    let string_id = argument_static_string_id(ctx, *value)?;
+    let string_id = tree_attribute_static_string_id(ctx, attribute)?;
     let rel_value = ctx.strings.get(string_id);
     let amended_rel = if rel_value.trim().is_empty() {
         "noopener".to_string()
@@ -380,14 +389,42 @@ fn blank_target_rel_fix(
         format!("noopener {rel_value}")
     };
 
-    let value_span = ctx.dir.get_span(*value);
-    let value_text = ctx.get_span_text(value_span);
-    let replacement = quoted_rel_literal(value_text, &amended_rel)?;
-    let edits = ctx
-        .edit_builder()
-        .replace(value_span, replacement)
-        .into_patches();
-    Some(LintFix::safe("Add noopener to rel attribute").with_patches(edits))
+    match value.as_ref()? {
+        TreeAttributeValue::String(_) => {
+            let attribute_span = ctx.dir.get_span(rel_attribute_id);
+            let attribute_text = ctx.get_span_text(attribute_span);
+            let replacement =
+                quoted_attribute(attribute_text, ctx.strings.get(name.string()), &amended_rel);
+            let edits = ctx
+                .edit_builder()
+                .replace(attribute_span, replacement)
+                .into_patches();
+
+            Some(LintFix::safe("Add noopener to rel attribute").with_patches(edits))
+        }
+        TreeAttributeValue::Expression(value) => {
+            let value_span = ctx.dir.get_span(*value);
+            let value_text = ctx.get_span_text(value_span);
+            let replacement = quoted_rel_literal(value_text, &amended_rel)?;
+            let edits = ctx
+                .edit_builder()
+                .replace(value_span, replacement)
+                .into_patches();
+
+            Some(LintFix::safe("Add noopener to rel attribute").with_patches(edits))
+        }
+    }
+}
+
+/// Return one quoted tree attribute.
+fn quoted_attribute(original: &str, name: &str, value: &str) -> String {
+    let quote = original
+        .split_once('=')
+        .and_then(|(_, value)| value.trim_start().chars().next())
+        .filter(|quote| matches!(quote, '"' | '\''))
+        .unwrap_or('"');
+
+    format!("{name}={quote}{value}{quote}")
 }
 
 /// Return one rel string literal using the same quote style as the original.

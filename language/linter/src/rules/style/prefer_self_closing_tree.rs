@@ -5,9 +5,9 @@ use destack_repository::LintSeverity;
 use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
-    /// Prefer self-closing tree elements when possible.
+    /// Prefer self-closing tree tags when possible.
     ///
-    /// Tree elements without children should use the self-closing form
+    /// Tree tags without children should use the self-closing form
     /// for brevity and clarity.
     ///
     /// ```
@@ -31,7 +31,7 @@ declare_lint! {
         stability = Stable
     )]
     pub PreferSelfClosingTree,
-    "Prefer self-closing tree elements"
+    "Prefer self-closing tree tags"
 }
 
 impl LintRule for PreferSelfClosingTree {
@@ -46,8 +46,8 @@ impl LintRule for PreferSelfClosingTree {
             let expression = ctx.dir.get(node_id);
             let Expression::TreeExpression {
                 left,
-                arguments: _,
-                elements,
+                attributes: _,
+                children,
                 generic_arguments: _,
             } = expression
             else {
@@ -59,10 +59,10 @@ impl LintRule for PreferSelfClosingTree {
                 continue;
             }
 
-            // self-closing elements have `elements: None`
-            // elements with open/close tags have `elements: Some([...])`
-            // we want to flag `elements: Some([])` (empty children, but not self-closing)
-            let is_empty_non_self_closing = matches!(elements, Some(e) if e.is_empty());
+            // self-closing elements have `children: None`
+            // open/close elements have `children: Some([...])`
+            let is_empty_non_self_closing =
+                matches!(children, Some(children) if children.is_empty());
 
             if !is_empty_non_self_closing {
                 continue;

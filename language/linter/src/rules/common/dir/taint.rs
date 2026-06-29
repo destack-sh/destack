@@ -488,39 +488,39 @@ impl<'a> TaintAnalysis<'a> {
                 }
             }
             dir::Expression::TreeExpression {
-                arguments,
-                elements,
+                attributes,
+                children,
                 generic_arguments: _,
                 left: _,
             } => {
-                // tree expressions taint from arguments and children
-                if let Some(arguments) = arguments {
-                    for argument_id in arguments.iter().copied() {
-                        let argument = self.tree.get(argument_id);
-                        let Some(value) = argument.value() else {
+                // tree expressions taint from attributes and children
+                if let Some(attributes) = attributes {
+                    for attribute_id in attributes.iter().copied() {
+                        let attribute = self.tree.get(attribute_id);
+                        let Some(value) = attribute.value() else {
                             continue;
                         };
-                        let argument_labels = self.expression_taint_labels_inner(
+                        let attribute_labels = self.expression_taint_labels_inner(
                             value,
                             expression_stack,
                             symbol_stack,
                         );
-                        labels.merge(&argument_labels);
+                        labels.merge(&attribute_labels);
                     }
                 }
 
-                if let Some(elements) = elements {
-                    for element_id in elements.iter().copied() {
-                        let element = self.tree.get(element_id);
-                        let Some(value) = element.value() else {
+                if let Some(children) = children {
+                    for child_id in children.iter().copied() {
+                        let child = self.tree.get(child_id);
+                        let Some(value) = child.value() else {
                             continue;
                         };
-                        let element_labels = self.expression_taint_labels_inner(
+                        let child_labels = self.expression_taint_labels_inner(
                             value,
                             expression_stack,
                             symbol_stack,
                         );
-                        labels.merge(&element_labels);
+                        labels.merge(&child_labels);
                     }
                 }
             }
