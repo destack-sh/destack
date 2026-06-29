@@ -452,8 +452,11 @@ impl ModuleQueryContext<'_> {
                 local_id: expression_id.into(),
             };
             let resolution = ctx.dir().resolutions().construct_resolution(node_id)?;
+            let dir::ConstructTarget::Class(candidate) = &resolution.target else {
+                return None;
+            };
 
-            return Some(resolution.target.symbol());
+            return Some(candidate.symbol);
         }
 
         None
