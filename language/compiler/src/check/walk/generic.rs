@@ -257,7 +257,7 @@ impl CheckState<'_> {
                 dir::Type::Parameter(parameter),
                 source,
             )?;
-            self.set_solution(variable, solution)?;
+            self.commit_solution(variable, solution)?;
         }
 
         Ok(())

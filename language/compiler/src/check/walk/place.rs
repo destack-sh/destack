@@ -246,7 +246,7 @@ impl WalkState<'_, '_> {
         }
 
         let error = self.push_type(dir::Type::Error, source)?;
-        self.check.set_node_type(global, error)
+        self.check.commit_node_type(global, error)
     }
 
     /// Return whether one source node resolves to a namespace object.
