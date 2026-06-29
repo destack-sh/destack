@@ -827,6 +827,13 @@ fn tree_literal_should_expand_in_parent(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
+    let should_expand_tree_callback_body = context.should_expand_tree_callback_bodies()
+        && tree_literal_is_lambda_body(context, node_id);
+
+    if should_expand_tree_callback_body {
+        return true;
+    }
+
     let mut current_id = node_id.id;
     let mut current_type = NodeType::Expression;
     let mut is_lambda_body = false;

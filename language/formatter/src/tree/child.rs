@@ -67,6 +67,8 @@ fn tree_callback_body_requires_break(
         return false;
     };
 
+    let body_id = transparent_inner_expression(context, body_id);
+
     matches!(
         context.tree.get(body_id),
         Expression::Block(_) | Expression::TreeExpression { .. }

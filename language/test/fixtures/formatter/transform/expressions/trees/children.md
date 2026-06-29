@@ -519,7 +519,7 @@ Fragment syntax groups elements without a wrapper.
 
 ### map expression in children
 
-Map expressions can generate multiple elements.
+JSX-returning callbacks in tree children break vertically.
 
 ```ds line-width=50
 <List>{items.map((item) => <Item key={item.id} />)}</List>
