@@ -163,7 +163,7 @@ pub enum LabelResolution {
 /// user.name      // receiver: User, target: the selected member
 /// tuple[0]       // receiver: tuple, target: the selected element
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct MemberResolution {
     /// The receiver type after inference.
     pub receiver: GlobalTypeId,
@@ -179,7 +179,7 @@ impl MemberResolution {
 }
 
 /// Member target selected at a usage site.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum MemberTarget {
     /// Structural field selected from a shape type.
     ///
@@ -243,7 +243,7 @@ pub enum MemberTarget {
 /// // one candidate per matching declaration, its type already
 /// // applied to the Array<int32> receiver
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct MemberCandidate {
     /// The receiver type that selects this candidate.
     pub receiver: GlobalTypeId,
@@ -263,7 +263,7 @@ pub struct MemberCandidate {
 /// ```ds
 /// print("hi")    // parameters: (string), return: void
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct CallResolution {
     /// The selected callable target.
     pub target: CallTarget,
@@ -326,7 +326,7 @@ pub struct PlaceResolution {
 /// values[index]  // Subscript
 /// *pointer       // Dereference
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Storage {
     /// Local or imported value binding.
     Binding {
@@ -366,7 +366,7 @@ pub enum Storage {
 }
 
 /// Callable target selected at a call site.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum CallTarget {
     /// Compiler builtin selected at a usage site.
     ///
@@ -505,7 +505,7 @@ pub struct InGuardResolution {
 }
 
 /// Compiler builtin callable selected at a usage site.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum BuiltinCall {
     /// Builtin unary operator behavior.
     ///
@@ -537,7 +537,7 @@ pub enum BuiltinCall {
 /// ```ds
 /// values.push(1) // `push#1` applied to the Array<int32> receiver
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct CallCandidate {
     /// The receiver type that selects this candidate.
     pub receiver: Option<GlobalTypeId>,
@@ -908,6 +908,8 @@ pub struct PatternNominalDestructureResolution {
     pub generic_arguments: Vec<GenericArgumentBinding>,
     /// The nominal fields in source order.
     pub fields: Vec<PatternFieldResolution>,
+    /// The rest field, when present.
+    pub rest: Option<PatternFieldResolution>,
 }
 
 /// Sequence destructuring selected by one pattern.

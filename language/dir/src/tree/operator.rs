@@ -87,7 +87,7 @@ pub enum RangeEnd {
 
 /// A UnaryOperator is unary operator.
 /// Relative order matches precedence. Also see OperatorPrecedence.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum UnaryOperator {
     /// `++`
     PostIncrement = 2010,
@@ -211,7 +211,7 @@ impl UnaryOperator {
 
 /// A BinaryOperator is an infix binary operator.
 /// Relative order matches precedence. Also see OperatorPrecedence.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum BinaryOperator {
     // exponentiation
     /// `**`
