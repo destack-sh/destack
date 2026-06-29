@@ -1,4 +1,5 @@
-use crate::{DestackFormatOptions, assert_format};
+use crate::{DestackFormatOptions, assert_format, assert_format_roundtrip};
+use destack_source::FileType;
 
 #[test]
 fn test_format_pattern_wildcard() {
@@ -54,6 +55,27 @@ fn test_format_pattern_dereference_before_borrow() {
 #[test]
 fn test_format_pattern_borrow_before_dereference() {
     assert_format!("&*inner", "&*inner", |p| p.eat_pattern());
+}
+
+#[test]
+fn test_format_pattern_borrow_chain_compact() {
+    assert_format_roundtrip!("& &item", "&&item", FileType::Destack, |p| p.eat_pattern());
+    assert_format_roundtrip!("&&item", "&&item", FileType::Destack, |p| p.eat_pattern());
+}
+
+#[test]
+fn test_format_pattern_move_chain_compact() {
+    assert_format_roundtrip!("^ ^item", "^^item", FileType::Destack, |p| p.eat_pattern());
+}
+
+#[test]
+fn test_format_pattern_mixed_borrow_move_chain_compact() {
+    assert_format_roundtrip!("& ^item", "&^item", FileType::Destack, |p| p.eat_pattern());
+}
+
+#[test]
+fn test_format_pattern_mixed_move_borrow_chain_compact() {
+    assert_format_roundtrip!("^ &item", "^&item", FileType::Destack, |p| p.eat_pattern());
 }
 
 #[test]
