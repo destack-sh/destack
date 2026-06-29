@@ -513,7 +513,6 @@ impl<T> EntryStore<T> {
 /// Implementors must be fixed-width values with stable target layout and no process-local
 /// ownership.
 /// Their alignment must not exceed the table word alignment.
-/// All-zero bytes must be valid because absent Optional<T> entries still store a physical T.
 pub unsafe trait SectionEntry: Copy + 'static {}
 
 // SAFETY: primitive integers and string ids are fixed-width entry scalars.
@@ -534,12 +533,20 @@ unsafe impl<T: SectionEntry> SectionEntry for EntryRange<T> {}
 
 /// Stable optional entry value.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Optional<T> {
     /// Whether value is present.
     pub is_some: u32,
     /// Stored value when present.
-    pub value: T,
+    value: mem::MaybeUninit<T>,
+}
+
+impl<T: SectionEntry> Copy for Optional<T> {}
+
+impl<T: SectionEntry> Clone for Optional<T> {
+    /// Clone this optional entry.
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl<T: SectionEntry> Default for Optional<T> {
@@ -552,15 +559,17 @@ impl<T: SectionEntry> Default for Optional<T> {
 impl<T: SectionEntry> Optional<T> {
     /// Create an empty optional entry value.
     pub fn none() -> Self {
-        // SAFETY: SectionEntry requires all-zero bytes to be valid.
-        let value: T = unsafe { mem::zeroed() };
+        let value = mem::MaybeUninit::zeroed();
 
         Self { is_some: 0, value }
     }
 
     /// Create a present optional entry value.
     pub fn some(value: T) -> Self {
-        Self { is_some: 1, value }
+        Self {
+            is_some: 1,
+            value: mem::MaybeUninit::new(value),
+        }
     }
 
     /// Convert into a Rust option.
@@ -568,7 +577,8 @@ impl<T: SectionEntry> Optional<T> {
         if self.is_some == 0 {
             None
         } else {
-            Some(self.value)
+            // SAFETY: present Optional entries are constructed with an initialized value.
+            Some(unsafe { self.value.assume_init() })
         }
     }
 
@@ -577,8 +587,72 @@ impl<T: SectionEntry> Optional<T> {
         if self.is_some == 0 {
             None
         } else {
-            Some(&self.value)
+            // SAFETY: present Optional entries are constructed with an initialized value.
+            Some(unsafe { self.value.assume_init_ref() })
         }
+    }
+}
+
+impl<T> fmt::Debug for Optional<T>
+where
+    T: fmt::Debug + SectionEntry,
+{
+    /// Format this optional entry value.
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.as_ref() {
+            Some(value) => formatter.debug_tuple("Some").field(value).finish(),
+            None => formatter.write_str("None"),
+        }
+    }
+}
+
+impl<T> PartialEq for Optional<T>
+where
+    T: PartialEq + SectionEntry,
+{
+    /// Compare optional entry values.
+    fn eq(&self, other: &Self) -> bool {
+        self.as_ref() == other.as_ref()
+    }
+}
+
+impl<T> Eq for Optional<T> where T: Eq + SectionEntry {}
+
+impl<T> Serialize for Optional<T>
+where
+    T: Serialize + SectionEntry,
+{
+    /// Serialize this optional entry as a regular optional value.
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.as_ref().serialize(serializer)
+    }
+}
+
+impl<'de, T> Deserialize<'de> for Optional<T>
+where
+    T: Deserialize<'de> + SectionEntry,
+{
+    /// Deserialize this optional entry from a regular optional value.
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = Option::<T>::deserialize(deserializer)?;
+
+        Ok(Self::from(value))
+    }
+}
+
+impl<T> Reflect for Optional<T>
+where
+    T: Reflect + SectionEntry,
+{
+    /// Reflect this optional entry as a regular optional value.
+    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
+        Option::<T>::reflect(registry)
     }
 }
 
@@ -592,7 +666,7 @@ impl<T: SectionEntry> From<Option<T>> for Optional<T> {
     }
 }
 
-// SAFETY: Optional<T> is repr(C), Copy, and stores only section entries.
+// SAFETY: Optional<T> is repr(C), Copy, and stores one initialized value only when present.
 unsafe impl<T: SectionEntry> SectionEntry for Optional<T> {}
 
 /// Immutable section tables and aligned entry bytes.
