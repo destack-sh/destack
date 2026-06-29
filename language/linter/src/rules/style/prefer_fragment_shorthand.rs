@@ -55,8 +55,8 @@ impl LintRule for PreferFragmentShorthand {
             let expression = ctx.dir.get(node_id);
             let Expression::TreeExpression {
                 left,
-                arguments,
-                elements: _,
+                attributes,
+                children: _,
                 generic_arguments: _,
             } = expression
             else {
@@ -68,10 +68,10 @@ impl LintRule for PreferFragmentShorthand {
                 continue;
             }
 
-            // only suggest shorthand if there are no attributes/arguments
+            // only suggest shorthand if there are no attributes
             // Fragment with key prop cannot use shorthand: <Fragment key={id}>
-            if let Some(args) = arguments
-                && !args.is_empty()
+            if let Some(attributes) = attributes
+                && !attributes.is_empty()
             {
                 continue;
             }
