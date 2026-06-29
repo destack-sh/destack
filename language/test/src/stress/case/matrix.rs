@@ -180,10 +180,10 @@ pub(super) fn type_matrix(mode: StressMode, scale: usize, _width: usize) -> Stri
 
 /// Generate a broad damaged expression recovery matrix.
 pub(super) fn damaged_expression_matrix(mode: StressMode, scale: usize, _width: usize) -> String {
-    let mut source = String::with_capacity(scale * 220);
+    let mut source = String::with_capacity(scale * 320);
 
     for index in 0..scale {
-        match index % 8 {
+        match index % 16 {
             0 => {
                 let _ = writeln!(
                     source,
@@ -226,10 +226,46 @@ pub(super) fn damaged_expression_matrix(mode: StressMode, scale: usize, _width: 
                     "const brokenTreeExpr{index} = <Panel><Item value={{,}} /></Panel>;"
                 );
             }
-            _ => {
+            7 => {
                 let _ = writeln!(
                     source,
                     "const brokenTemplate{index} = tag{index}`value ${{,}} tail`;"
+                );
+            }
+            8 => {
+                let _ = writeln!(source, "const brokenIndex{index} = items{index}[ ;");
+            }
+            9 => {
+                let _ = writeln!(source, "const brokenAssertion{index} = value{index} as ;");
+            }
+            10 => {
+                let _ = writeln!(
+                    source,
+                    "const brokenSatisfies{index} = value{index} satisfies ;"
+                );
+            }
+            11 => {
+                let _ = writeln!(source, "const brokenNew{index} = new Factory{index}(;");
+            }
+            12 => {
+                let _ = writeln!(source, "const brokenArrow{index} = (value{index}: ;");
+            }
+            13 => {
+                let _ = writeln!(
+                    source,
+                    "const brokenOptionalCall{index} = service{index}?.(;"
+                );
+            }
+            14 => {
+                let _ = writeln!(
+                    source,
+                    "const brokenParenthesized{index} = (alpha{index} + ;"
+                );
+            }
+            _ => {
+                let _ = writeln!(
+                    source,
+                    "const brokenNestedObject{index} = {{ outer: {{ inner: ;"
                 );
             }
         }
@@ -311,10 +347,10 @@ pub(super) fn damaged_type_matrix(_mode: StressMode, scale: usize, _width: usize
 
 /// Generate a broad damaged declaration recovery matrix.
 pub(super) fn damaged_declaration_matrix(_mode: StressMode, scale: usize, _width: usize) -> String {
-    let mut source = String::with_capacity(scale * 260);
+    let mut source = String::with_capacity(scale * 360);
 
     for index in 0..scale {
-        match index % 6 {
+        match index % 12 {
             0 => {
                 let _ = writeln!(source, "export function brokenFunction{index}(value: ;");
                 source.push_str(");\n");
@@ -341,9 +377,34 @@ pub(super) fn damaged_declaration_matrix(_mode: StressMode, scale: usize, _width
                 );
                 source.push_str("}\n");
             }
-            _ => {
+            5 => {
                 let _ = writeln!(source, "export type BrokenAlias{index}<T extends ;");
                 source.push_str("> = T;\n");
+            }
+            6 => {
+                let _ = writeln!(source, "export function brokenReturn{index}(): ;");
+                source.push_str("{}\n");
+            }
+            7 => {
+                let _ = writeln!(source, "export const brokenConst{index}: ;");
+            }
+            8 => {
+                let _ = writeln!(source, "export class BrokenExtends{index} extends ;");
+                source.push_str("{}\n");
+            }
+            9 => {
+                let _ = writeln!(
+                    source,
+                    "export interface BrokenExtendsInterface{index} extends ;"
+                );
+                source.push_str("{}\n");
+            }
+            10 => {
+                let _ = writeln!(source, "export enum BrokenComputedEnum{index} {{ Case = ;");
+                source.push_str("}\n");
+            }
+            _ => {
+                let _ = writeln!(source, "export newtype BrokenNewtype{index} = ;");
             }
         }
 
@@ -360,10 +421,10 @@ pub(super) fn damaged_declaration_matrix(_mode: StressMode, scale: usize, _width
 
 /// Generate a broad damaged tree recovery matrix.
 pub(super) fn damaged_tree_matrix(_mode: StressMode, scale: usize, _width: usize) -> String {
-    let mut source = String::with_capacity(scale * 220);
+    let mut source = String::with_capacity(scale * 320);
 
     for index in 0..scale {
-        match index % 5 {
+        match index % 10 {
             0 => {
                 let _ = writeln!(
                     source,
@@ -385,10 +446,37 @@ pub(super) fn damaged_tree_matrix(_mode: StressMode, scale: usize, _width: usize
             3 => {
                 let _ = writeln!(source, "const brokenTreeNested{index} = <A><B /></C>;");
             }
-            _ => {
+            4 => {
                 let _ = writeln!(
                     source,
                     "const brokenTreeFragment{index} = <><Item value={{,}} /></>;"
+                );
+            }
+            5 => {
+                let _ = writeln!(source, "const brokenTreeOpen{index} = <Panel><Item>");
+            }
+            6 => {
+                let _ = writeln!(
+                    source,
+                    "const brokenTreeExpression{index} = <Panel>{{value{index} + ;</Panel>;"
+                );
+            }
+            7 => {
+                let _ = writeln!(
+                    source,
+                    "const brokenTreeAttributeName{index} = <Item ={{value{index}}} />;"
+                );
+            }
+            8 => {
+                let _ = writeln!(
+                    source,
+                    "const brokenTreeAttributeString{index} = <Item label=\"unterminated />;"
+                );
+            }
+            _ => {
+                let _ = writeln!(
+                    source,
+                    "const brokenTreeNestedExpression{index} = <Panel><Item value={{{{ key: ; }}}} /></Panel>;"
                 );
             }
         }
