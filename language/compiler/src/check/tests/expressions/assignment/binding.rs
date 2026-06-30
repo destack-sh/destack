@@ -486,7 +486,6 @@ let value: string;
 /// @type.symbol symbol=value source=value type=string
 
 if (condition) {
-/// @type.node type=void
 /// @type.node source=condition type=boolean
 /// @resolution.name source=condition target=condition
 
@@ -502,7 +501,7 @@ const copy = value;
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=10 constraints=2 obligations=1 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=8 constraints=2 obligations=1 solutions=0 bounds=0 decisions=3
 
 "#,
         r#"
@@ -548,7 +547,6 @@ let value: string | undefined = undefined;
 /// @type.node source=undefined type=undefined
 
 if (condition) {
-/// @type.node type=void
 /// @type.node source=condition type=boolean
 /// @resolution.name source=condition target=condition
 
@@ -564,7 +562,7 @@ const copy = value;
 /// @type.node source=value type=string | undefined
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=13 constraints=3 obligations=1 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=11 constraints=3 obligations=1 solutions=0 bounds=0 decisions=3
 "#,
     );
 }
