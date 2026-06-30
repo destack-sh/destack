@@ -29,7 +29,7 @@ declare const index: usize;
 const byte = bytes[index];
 /// @type.symbol symbol=byte source=byte type=uint8
 /// @resolution.name source=bytes target=bytes
-/// @resolution.call source=bytes[index] parameters=(usize) arguments=(provided(index) as usize) return=uint8 kind=symbol target=collections.array.index#7 receiver=Array<uint8>
+/// @resolution.call source=bytes[index] parameters=(usize) arguments=(provided(index) as usize) return=uint8 kind=symbol target=collections.array.index#4 receiver=Array<uint8>
 /// @resolution.name source=index target=index
 "#,
     );
@@ -63,7 +63,7 @@ declare const index: usize;
 
 bytes[index] = 255;
 /// @resolution.name source=bytes target=bytes
-/// @resolution.pattern.assign source=bytes[index] kind=place place=subscript(collections.array.indexSet#4) type=255
+/// @resolution.pattern.assign source=bytes[index] kind=place place=subscript(collections.array.indexSet#3) type=uint8
 /// @resolution.name source=index target=index
 "#,
     );
@@ -98,7 +98,7 @@ declare const index: usize;
 bytes[index] += 1;
 /// @resolution.name source=bytes target=bytes
 /// @resolution.call source="bytes[index] += 1" parameters=() return=uint8 kind=builtin builtin=binary.add
-/// @resolution.pattern.assign source=bytes[index] kind=place place="subscript(collections.array.index#7, collections.array.indexSet#4)" type=uint8
+/// @resolution.pattern.assign source=bytes[index] kind=place place="subscript(collections.array.index#4, collections.array.indexSet#3)" type=uint8
 /// @resolution.name source=index target=index
 "#,
     );

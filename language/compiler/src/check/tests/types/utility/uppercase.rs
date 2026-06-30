@@ -26,7 +26,7 @@ type Value = Uppercase<"hello">;
 /// @resolution.name source=Uppercase target=types.string.Uppercase
 
 const ok: Value = "HELLO";
-/// @type.symbol symbol=ok source=ok type="HELLO"
+/// @type.symbol symbol=ok source=ok type=Value
 /// @resolution.name source=Value target=Value
 "#,
     );
@@ -62,10 +62,11 @@ type Method = Uppercase<"get" | "post">;
 /// @resolution.name source=Uppercase target=types.string.Uppercase
 
 declare const method: Method;
-/// @type.symbol symbol=method source=method type="GET" | "POST"
+/// @type.symbol symbol=method source=method type=Method
 /// @resolution.name source=Method target=Method
 
 method satisfies "GET" | "POST";
+/// @resolution.name source=method target=method
 "#,
     );
 }
@@ -96,12 +97,12 @@ type Value = Uppercase<"hello">;
 /// @resolution.name source=Uppercase target=types.string.Uppercase
 
 const bad: Value = "hello";
-/// @type.symbol symbol=bad source=bad type="HELLO"
+/// @type.symbol symbol=bad source=bad type=Value
 /// @resolution.name source=Value target=Value
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"hello\"' is not assignable to type 'Value'"
-/// @diagnostic.label line=4 column=7 source="const bad: Value = \"hello\";"
+/// @diagnostic.label line=4 column=20 span="\"hello\"" line_source="const bad: Value = \"hello\";"
 "#,
     );
 }

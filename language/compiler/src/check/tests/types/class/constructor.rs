@@ -91,7 +91,7 @@ class Base {
 
     constructor(value: int32) {
     /// @type.symbol symbol=Base.constructor type=(int32) => Base
-    /// @type.symbol symbol=value source="value: int32" type=int32
+    /// @type.symbol symbol=Base.constructor.value source="value: int32" type=int32
 
         this.value = value;
         /// @type.node source="this.value = value" type=int32
@@ -100,7 +100,7 @@ class Base {
         /// @resolution.receiver source=this kind=this declaration=Base type=Base
         /// @resolution.pattern.assign source=this.value kind=place place=field(Base.value) type=int32
         /// @type.node source=value type=int32
-        /// @resolution.name source=value target=value
+        /// @resolution.name source=value target=Base.constructor.value
 
     }
 }
@@ -164,7 +164,7 @@ class Counter {
 
     constructor(value: int32) {
     /// @type.symbol symbol=Counter.constructor type=(int32) => Counter
-    /// @type.symbol symbol=value source="value: int32" type=int32
+    /// @type.symbol symbol=Counter.constructor.value source="value: int32" type=int32
 
         this.value = value;
         /// @type.node source="this.value = value" type=int32
@@ -173,7 +173,7 @@ class Counter {
         /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
         /// @resolution.pattern.assign source=this.value kind=place place=field(Counter.value) type=int32
         /// @type.node source=value type=int32
-        /// @resolution.name source=value target=value
+        /// @resolution.name source=value target=Counter.constructor.value
 
     }
 }
@@ -242,7 +242,7 @@ class Box {
 
     constructor(value: string) {
     /// @type.symbol symbol=Box.constructor#1 type=(string) => Box
-    /// @type.symbol symbol=value#1 source="value: string" type=string
+    /// @type.symbol symbol=Box.constructor.value#1 source="value: string" type=string
 
         this.value = value;
         /// @type.node source="this.value = value" type=string
@@ -251,13 +251,13 @@ class Box {
         /// @resolution.receiver source=this kind=this declaration=Box type=Box
         /// @resolution.pattern.assign source=this.value kind=place place=field(Box.value) type=string | int32
         /// @type.node source=value type=string
-        /// @resolution.name source=value target=value#1
+        /// @resolution.name source=value target=Box.constructor.value#1
 
     }
 
     constructor(value: int32) {
     /// @type.symbol symbol=Box.constructor#2 type=(int32) => Box
-    /// @type.symbol symbol=value#2 source="value: int32" type=int32
+    /// @type.symbol symbol=Box.constructor.value#2 source="value: int32" type=int32
 
         this.value = value;
         /// @type.node source="this.value = value" type=int32
@@ -266,7 +266,7 @@ class Box {
         /// @resolution.receiver source=this kind=this declaration=Box type=Box
         /// @resolution.pattern.assign source=this.value kind=place place=field(Box.value) type=string | int32
         /// @type.node source=value type=int32
-        /// @resolution.name source=value target=value#2
+        /// @resolution.name source=value target=Box.constructor.value#2
 
     }
 }
@@ -340,7 +340,7 @@ class Box {
 
     constructor(value: string) {
     /// @type.symbol symbol=Box.constructor#1 type=(string) => Box
-    /// @type.symbol symbol=value#1 source="value: string" type=string
+    /// @type.symbol symbol=Box.constructor.value#1 source="value: string" type=string
 
         this.value = value;
         /// @type.node source="this.value = value" type=string
@@ -349,13 +349,13 @@ class Box {
         /// @resolution.receiver source=this kind=this declaration=Box type=Box
         /// @resolution.pattern.assign source=this.value kind=place place=field(Box.value) type=string | int32
         /// @type.node source=value type=string
-        /// @resolution.name source=value target=value#1
+        /// @resolution.name source=value target=Box.constructor.value#1
 
     }
 
     constructor(value: int32) {
     /// @type.symbol symbol=Box.constructor#2 type=(int32) => Box
-    /// @type.symbol symbol=value#2 source="value: int32" type=int32
+    /// @type.symbol symbol=Box.constructor.value#2 source="value: int32" type=int32
 
         this.value = value;
         /// @type.node source="this.value = value" type=int32
@@ -364,7 +364,7 @@ class Box {
         /// @resolution.receiver source=this kind=this declaration=Box type=Box
         /// @resolution.pattern.assign source=this.value kind=place place=field(Box.value) type=string | int32
         /// @type.node source=value type=int32
-        /// @resolution.name source=value target=value#2
+        /// @resolution.name source=value target=Box.constructor.value#2
 
     }
 }
@@ -419,11 +419,11 @@ declare class Box {
 
     constructor(value: string);
     /// @type.symbol symbol=Box.constructor#1 source="constructor(value: string)" type=(string) => Box
-    /// @type.symbol symbol=value#1 source="value: string" type=string
+    /// @type.symbol symbol=Box.constructor.value#1 source="value: string" type=string
 
     constructor(value: int32);
     /// @type.symbol symbol=Box.constructor#2 source="constructor(value: int32)" type=(int32) => Box
-    /// @type.symbol symbol=value#2 source="value: int32" type=int32
+    /// @type.symbol symbol=Box.constructor.value#2 source="value: int32" type=int32
 
 }
 "#,
@@ -457,7 +457,7 @@ class Box {
 
     constructor(value: string);
     /// @type.symbol symbol=Box.constructor source="constructor(value: string)" type=(string) => Box
-    /// @type.symbol symbol=value source="value: string" type=string
+    /// @type.symbol symbol=Box.constructor.value source="value: string" type=string
 
 }
 "#,

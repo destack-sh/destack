@@ -29,10 +29,10 @@ const first = values[0];
 /// @type.node source=values type=Array<float64>
 /// @type.node source=values[0] type=float64
 /// @resolution.name source=values target=values
-/// @resolution.call source=values[0] parameters=(usize) arguments=(provided(0) as usize) return=float64 kind=symbol target=collections.array.index#7 receiver=Array<float64>
+/// @resolution.call source=values[0] parameters=(usize) arguments=(provided(0) as usize) return=float64 kind=symbol target=collections.array.index#4 receiver=Array<float64>
 /// @type.node source=0 type=0
 
-/// @check.stats.solve variables=8 types=37 constraints=1 obligations=0 solutions=7 bounds=8 decisions=2
+/// @check.stats.solve variables=0 types=27 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -66,10 +66,10 @@ const first = values[0];
 /// @type.node source=values type=Array<1 | 2>
 /// @type.node source=values[0] type=1 | 2
 /// @resolution.name source=values target=values
-/// @resolution.call source=values[0] parameters=(usize) arguments=(provided(0) as usize) return=1 | 2 kind=symbol target=collections.array.index#7 receiver=Array<1 | 2>
+/// @resolution.call source=values[0] parameters=(usize) arguments=(provided(0) as usize) return=1 | 2 kind=symbol target=collections.array.index#4 receiver=Array<1 | 2>
 /// @type.node source=0 type=0
 
-/// @check.stats.solve variables=8 types=37 constraints=3 obligations=0 solutions=7 bounds=8 decisions=2
+/// @check.stats.solve variables=0 types=27 constraints=3 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }

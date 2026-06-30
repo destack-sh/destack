@@ -30,7 +30,7 @@ const id: UserId = 42;
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '42' is not assignable to type 'UserId'"
-/// @diagnostic.label line=4 column=20 source="const id: UserId = 42;"
+/// @diagnostic.label line=4 column=20 span="42" line_source="const id: UserId = 42;"
 "#,
     );
 }
@@ -62,11 +62,11 @@ newtype UserId = int64;
 const raw: int64 = UserId(42);
 /// @type.symbol symbol=raw source=raw type=int64
 /// @resolution.name source=UserId target=UserId
-/// @resolution.construct source="UserId(42)" parameters=(int64) return=UserId kind=newtype target=UserId
+/// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'UserId' is not assignable to type 'int64'"
-/// @diagnostic.label line=4 column=20 source="const raw: int64 = UserId(42);"
+/// @diagnostic.label line=4 column=20 span="UserId(42)" line_source="const raw: int64 = UserId(42);"
 "#,
     );
 }
@@ -102,7 +102,7 @@ newtype UserId = int64;
 const id = UserId(42);
 /// @type.symbol symbol=id source=id type=UserId
 /// @resolution.name source=UserId target=UserId
-/// @resolution.construct source=UserId(42) parameters=(int64) return=UserId kind=newtype target=UserId
+/// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId
 
 const raw = id as int64;
 /// @type.symbol symbol=raw source=raw type=int64
@@ -145,7 +145,7 @@ newtype UserId = int64;
 const source = UserId(42);
 /// @type.symbol symbol=source source=source type=UserId
 /// @resolution.name source=UserId target=UserId
-/// @resolution.construct source=UserId(42) parameters=(int64) return=UserId kind=newtype target=UserId
+/// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId
 
 const target: UserId = source;
 /// @type.symbol symbol=target source=target type=UserId
@@ -194,7 +194,7 @@ newtype OrderId = int64;
 const user = UserId(42);
 /// @type.symbol symbol=user source=user type=UserId
 /// @resolution.name source=UserId target=UserId
-/// @resolution.construct source=UserId(42) parameters=(int64) return=UserId kind=newtype target=UserId
+/// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId
 
 const order: OrderId = user;
 /// @type.symbol symbol=order source=order type=OrderId
@@ -203,7 +203,7 @@ const order: OrderId = user;
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'UserId' is not assignable to type 'OrderId'"
-/// @diagnostic.label line=6 column=24 source="const order: OrderId = user;"
+/// @diagnostic.label line=6 column=24 span="user" line_source="const order: OrderId = user;"
 "#,
     );
 }
@@ -242,7 +242,7 @@ const id: LeftUserId = RightUserId(42);
 import { UserId as LeftUserId } from "./left.ds";
 import { UserId as RightUserId } from "./right.ds";
 
-const id: LeftUserId = RightUserId(42);
+const id: UserId = RightUserId(42);
 
 === checked ===
 import { UserId as LeftUserId } from "./left.ds";
@@ -252,11 +252,11 @@ const id: LeftUserId = RightUserId(42);
 /// @type.symbol symbol=id source=id type=left.UserId
 /// @resolution.name source=LeftUserId target=left.UserId
 /// @resolution.name source=RightUserId target=right.UserId
-/// @resolution.construct source="RightUserId(42)" parameters=(int64) return=right.UserId kind=newtype target=right.UserId
+/// @resolution.construct source=RightUserId(42) parameters=(int64) arguments=(provided(42) as int64) return=right.UserId kind=newtype target=right.UserId
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'right.UserId' is not assignable to type 'left.UserId'"
-/// @diagnostic.label line=5 column=24 source="const id: LeftUserId = RightUserId(42);"
+/// @diagnostic.label line=5 column=24 span="RightUserId(42)" line_source="const id: LeftUserId = RightUserId(42);"
 "#,
     );
 }
@@ -291,7 +291,7 @@ const config: Config = { debug: true };
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '{ debug: true }' is not assignable to type 'Config'"
-/// @diagnostic.label line=4 column=24 source="const config: Config = { debug: true };"
+/// @diagnostic.label line=4 column=24 span="{ debug: true }" line_source="const config: Config = { debug: true };"
 "#,
     );
 }

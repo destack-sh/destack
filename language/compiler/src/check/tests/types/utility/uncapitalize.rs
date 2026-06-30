@@ -26,7 +26,7 @@ type Value = Uncapitalize<"Hello">;
 /// @resolution.name source=Uncapitalize target=types.string.Uncapitalize
 
 const ok: Value = "hello";
-/// @type.symbol symbol=ok source=ok type="hello"
+/// @type.symbol symbol=ok source=ok type=Value
 /// @resolution.name source=Value target=Value
 "#,
     );
@@ -62,10 +62,11 @@ type Value = Uncapitalize<"Yes" | "No">;
 /// @resolution.name source=Uncapitalize target=types.string.Uncapitalize
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type="yes" | "no"
+/// @type.symbol symbol=value source=value type=Value
 /// @resolution.name source=Value target=Value
 
 value satisfies "yes" | "no";
+/// @resolution.name source=value target=value
 "#,
     );
 }
@@ -96,12 +97,12 @@ type Value = Uncapitalize<"Hello">;
 /// @resolution.name source=Uncapitalize target=types.string.Uncapitalize
 
 const bad: Value = "Hello";
-/// @type.symbol symbol=bad source=bad type="hello"
+/// @type.symbol symbol=bad source=bad type=Value
 /// @resolution.name source=Value target=Value
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"Hello\"' is not assignable to type 'Value'"
-/// @diagnostic.label line=4 column=7 source="const bad: Value = \"Hello\";"
+/// @diagnostic.label line=4 column=20 span="\"Hello\"" line_source="const bad: Value = \"Hello\";"
 "#,
     );
 }

@@ -24,17 +24,17 @@ function bump(value: int32): int32 {
 === checked ===
 function bump(value: int32): int32 {
 /// @type.symbol symbol=bump type=(int32) => int32
-/// @type.symbol symbol=value source="value: int32" type=int32
+/// @type.symbol symbol=bump.value source="value: int32" type=int32
 
     value = 2;
     /// @type.node source="value = 2" type=2
     /// @type.node source=value type=int32
-    /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
+    /// @resolution.pattern.assign source=value kind=place place=binding(bump.value) type=int32
     /// @type.node source=2 type=2
 
     return value;
     /// @type.node source=value type=int32
-    /// @resolution.name source=value target=value
+    /// @resolution.name source=value target=bump.value
 
 }
 "#,
@@ -63,12 +63,12 @@ function bump(value: int32): void {
 === checked ===
 function bump(value: int32): void {
 /// @type.symbol symbol=bump type=(int32) => void
-/// @type.symbol symbol=value source="value: int32" type=int32
+/// @type.symbol symbol=bump.value source="value: int32" type=int32
 
     value = "no";
     /// @type.node source="value = \"no\"" type="no"
     /// @type.node source=value type=int32
-    /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
+    /// @resolution.pattern.assign source=value kind=place place=binding(bump.value) type=int32
     /// @type.node source="\"no\"" type="no"
 
 }
@@ -104,18 +104,18 @@ function bump(value: int32): int32 {
 === checked ===
 function bump(value: int32): int32 {
 /// @type.symbol symbol=bump type=(int32) => int32
-/// @type.symbol symbol=value source="value: int32" type=int32
+/// @type.symbol symbol=bump.value source="value: int32" type=int32
 
     value += 2;
     /// @type.node source="value += 2" type=int32
     /// @type.node source=value type=int32
     /// @resolution.call source="value += 2" parameters=() return=int32 kind=builtin builtin=binary.add
-    /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
+    /// @resolution.pattern.assign source=value kind=place place=binding(bump.value) type=int32
     /// @type.node source=2 type=2
 
     return value;
     /// @type.node source=value type=int32
-    /// @resolution.name source=value target=value
+    /// @resolution.name source=value target=bump.value
 
 }
 "#,
