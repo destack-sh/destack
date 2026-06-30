@@ -3,9 +3,12 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+use destack_core::SectionEntry;
+
 use super::Op;
 
 /// One decoded program instruction.
+#[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Instruction {
     /// The instruction operation.
@@ -36,3 +39,9 @@ impl fmt::Debug for Instruction {
         f.debug_struct("Instruction").field("op", &self.op).finish()
     }
 }
+
+// SAFETY: instruction entries are repr(C), Copy, and contain fixed-width operands.
+unsafe impl SectionEntry for Instruction {}
+
+// SAFETY: op entries are repr(u16), Copy, and fixed-width.
+unsafe impl SectionEntry for Op {}

@@ -7,6 +7,9 @@ use destack_mir::MemoryOrdering;
 use crate::vm::error::Error;
 
 const ORDER_MASK: u32 = 0xFF;
+const ADDRESS_MASK: u32 = 0x7;
+const WIDTH_MASK: u32 = 0x3;
+const OPERATOR_MASK: u32 = 0xF;
 const SIGNED_SHIFT: u32 = 8;
 const ADDRESS_SHIFT: u32 = 9;
 const WIDTH_SHIFT: u32 = 12;
@@ -254,8 +257,8 @@ impl AtomicShape {
     pub fn decode(raw: u32) -> Result<Self, Error> {
         let order = AtomicOrder::decode(raw & ORDER_MASK)?;
         let is_signed = ((raw >> SIGNED_SHIFT) & 1) != 0;
-        let address = AtomicAddress::decode((raw >> ADDRESS_SHIFT) & 0x7)?;
-        let width = AtomicWidth::decode((raw >> WIDTH_SHIFT) & 0x3)?;
+        let address = AtomicAddress::decode((raw >> ADDRESS_SHIFT) & ADDRESS_MASK)?;
+        let width = AtomicWidth::decode((raw >> WIDTH_SHIFT) & WIDTH_MASK)?;
 
         Ok(Self {
             address,
@@ -350,7 +353,8 @@ impl AtomicReadModifyWriteShape {
     #[inline(always)]
     pub fn decode(raw: u32) -> Result<Self, Error> {
         let shape = AtomicShape::decode(raw)?;
-        let operator = AtomicReadModifyWriteOperator::decode((raw >> OPERATOR_SHIFT) & 0xF)?;
+        let operator =
+            AtomicReadModifyWriteOperator::decode((raw >> OPERATOR_SHIFT) & OPERATOR_MASK)?;
 
         Ok(Self { shape, operator })
     }

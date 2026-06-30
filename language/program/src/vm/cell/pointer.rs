@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::FunctionId;
 
-/// Address or handle for executable function code.
+/// Address or handle for program function code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[repr(transparent)]
 pub struct FunctionPointer(usize);

@@ -2,6 +2,7 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Operation executed by one lowered VM instruction.
+#[repr(u16)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum Op {
     // ============================================================================
