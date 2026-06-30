@@ -102,6 +102,44 @@ const node = (
 );
 ```
 
+### self closing final attribute comment
+
+Trailing comments after the final attribute keep the closing bracket on the next line.
+
+```tsx:main.tsx
+const node = <Widget
+  title="Settings" // title-tail
+/>
+```
+
+```tsx expected
+const node = (
+    <Widget
+        title="Settings" // title-tail
+    />
+);
+```
+
+### tag name comment before attributes
+
+Comments after the tag name stay before the first attribute.
+
+```tsx:main.tsx
+const node = <Widget
+  /* tag-tail */
+  title="Settings"
+/>
+```
+
+```tsx expected
+const node = (
+    <Widget
+        /* tag-tail */
+        title="Settings"
+    />
+);
+```
+
 ## Spread Attributes
 
 ### spread attributes keep order
@@ -158,6 +196,25 @@ const node = (
         title="Settings"
         description="Long description"
         icon={settingsIcon}
+    />
+);
+```
+
+### expression attribute value breaks internally
+
+Long expression attribute values break inside the expression container.
+
+```tsx:main.tsx line-width=45
+const node = <Panel options={{ label: "Settings", description: "Long description" }} />
+```
+
+```tsx expected
+const node = (
+    <Panel
+        options={{
+            label: "Settings",
+            description: "Long description",
+        }}
     />
 );
 ```
