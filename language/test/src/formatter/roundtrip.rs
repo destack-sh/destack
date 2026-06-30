@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::core::{Case, CaseResult, RunOptions, check_diagnostic_collection};
+use crate::core::{Case, CaseResult, RunOptions, check_diagnostic_collection, fixtures_dir};
 use destack_core::StringPool;
 use destack_dir::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
@@ -32,7 +32,16 @@ pub(super) fn run(test: &Case, options: &RunOptions) -> CaseResult {
     };
     let name = test.path.file_name().unwrap().to_string_lossy().to_string();
     let path = Some(test.path.clone());
-    let file_id = FileId::from_logical_path(&test.path);
+    let fixtures = fixtures_dir();
+    let Ok(logical_path) = test.path.strip_prefix(&fixtures) else {
+        return CaseResult::Failed {
+            message: format!(
+                "roundtrip fixture is outside fixture root: {}",
+                test.path.display()
+            ),
+        };
+    };
+    let file_id = FileId::from_logical_path(logical_path);
     let file = Arc::new(File::from_text(
         file_id,
         name,
