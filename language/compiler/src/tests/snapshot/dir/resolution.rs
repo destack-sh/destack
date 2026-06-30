@@ -904,7 +904,7 @@ fn add_pattern_test_fields(
 ) -> SnapshotRow {
     match predicate_condition(predicate) {
         Some(dir::PredicateCondition::Literal(value)) => {
-            row.field("value", builder.scalar_literal_value_label(value))
+            row.verbatim_field("value", builder.scalar_literal_label(value))
         }
         Some(dir::PredicateCondition::Range(range)) => row
             .type_field("domain", builder.global_type_label(range.domain))

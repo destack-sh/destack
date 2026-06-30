@@ -230,7 +230,7 @@ try {
 
 } catch ("missing") {
 /// @type.node source="\"missing\"" type="missing"
-/// @resolution.pattern source="\"missing\"" kind=literal value="\"missing\""
+/// @resolution.pattern source="\"missing\"" kind=literal value="missing"
 
 }
 
