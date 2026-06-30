@@ -26,11 +26,7 @@ export type Readonly<T> = readonly T;
 
 /// Recursively unwrap promise-like values.
 @languageItem("types.Awaited")
-export type Awaited<T> = T extends null | undefined
-    ? T
-    : T extends { then(onFulfilled: (value: infer U) => unknown): unknown }
-      ? Awaited<U>
-      : T;
+export type Awaited<T> = intrinsic;
 
 /// Make each field of `T` mutable.
 export type MutableFields<T> = {
@@ -65,4 +61,4 @@ export type NonNullable<T> = Exclude<T, null | undefined>;
 
 /// Marker for contextual object `this` typing.
 @languageItem("types.ThisType")
-export interface ThisType<T> {}
+export newtype interface ThisType<T> {}
