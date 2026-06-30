@@ -1,7 +1,10 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{ConditionBranch, FlowPath, WalkState};
+use crate::check::{
+    ConditionBranch, Expectation, ExpectedType, FlowNarrowing, FlowPath, Origin, Relation,
+    ValueUse, WalkState,
+};
 
 impl WalkState<'_, '_> {
     /// Walk one match case.
@@ -14,7 +17,7 @@ impl WalkState<'_, '_> {
         &mut self,
         _id: dir::LocalNodeId<dir::MatchCase>,
         match_case: &dir::MatchCase,
-        value: Option<(dir::GlobalTypeId, Option<FlowPath>)>,
+        value: Option<(ExpectedType, Option<FlowPath>)>,
     ) -> CompilerResult<()> {
         match match_case {
             // case pattern if guard => expression
@@ -45,7 +48,7 @@ impl WalkState<'_, '_> {
     fn walk_match_selector(
         &mut self,
         selector: &dir::MatchSelector,
-        value: Option<(dir::GlobalTypeId, Option<FlowPath>)>,
+        value: Option<(ExpectedType, Option<FlowPath>)>,
     ) -> CompilerResult<()> {
         match selector {
             // case pattern if guard
@@ -53,9 +56,14 @@ impl WalkState<'_, '_> {
                 // constrain pattern type from the matched value
                 self.walk_pattern(*pattern, self.tree.get(*pattern))?;
 
-                if let Some((value, path)) = value {
-                    self.write_node_type(*pattern, value)?;
-                    self.queue_node_task(*pattern)?;
+                if let Some((expected, path)) = value {
+                    let expectation = Expectation {
+                        expected,
+                        relation: Relation::Assignable,
+                        origin: Origin::Node(pattern.into_global_any(self.module)),
+                        use_: ValueUse::Store,
+                    };
+                    self.queue_node_check(*pattern, expectation);
 
                     if let Some(path) = path {
                         self.narrow_pattern_match(path, *pattern)?;
@@ -79,40 +87,40 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Return the value type that can enter the next match arm.
-    pub(in crate::check) fn next_match_input_type(
-        &mut self,
+    /// Return the unguarded pattern that later match arms can exclude.
+    pub(in crate::check) fn match_case_exclusion_pattern(
+        &self,
         case: dir::LocalNodeId<dir::MatchCase>,
-        input: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
+    ) -> Option<dir::GlobalNodeId<dir::Pattern>> {
         let selector = match self.tree.get(case) {
             dir::MatchCase::Expression { selector, .. }
             | dir::MatchCase::Block { selector, .. } => selector,
         };
 
         match selector {
-            // default consumes every remaining value
-            dir::MatchSelector::Default => self.push_type(dir::Type::Never, case.into_any()),
-
-            // guarded arms can fail after pattern selection
-            dir::MatchSelector::Pattern { guard: Some(_), .. } => Ok(input),
-
             // unguarded patterns remove matched values from later arms
             dir::MatchSelector::Pattern {
                 pattern,
                 guard: None,
-            } => {
-                let Some(pattern_type) = self.node_type_maybe(*pattern) else {
-                    return Ok(input);
-                };
-                let narrow = dir::Type::Operation(dir::TypeOperation::Narrow(dir::NarrowType {
-                    source: input,
-                    target: pattern_type,
-                    is_positive: false,
-                }));
-
-                self.push_type(narrow, pattern.into_any())
+            } => Some(pattern.into_global(self.module)),
+            // guarded arms and defaults leave later arms unchanged
+            dir::MatchSelector::Pattern { guard: Some(_), .. } | dir::MatchSelector::Default => {
+                None
             }
         }
+    }
+
+    /// Exclude one previously matched pattern from a flow path.
+    pub(in crate::check) fn exclude_match_pattern(
+        &mut self,
+        path: FlowPath,
+        pattern: dir::GlobalNodeId<dir::Pattern>,
+    ) {
+        let narrowing = FlowNarrowing::Pattern {
+            pattern,
+            is_positive: false,
+        };
+
+        self.narrow_flow_path(path, narrowing);
     }
 }

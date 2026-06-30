@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{AssignedPlace, WalkState, WriteTarget};
+use crate::check::{AssignedPlace, WalkState};
 
 impl WalkState<'_, '_> {
     /// Check that one local binding is assigned before a read.
@@ -27,32 +27,9 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Mark one assigned place.
-    pub(in crate::check) fn mark_place_assigned(&mut self, target: WriteTarget) {
-        match target.storage {
-            // local binding assignment
-            dir::Storage::Binding { symbol } => {
-                // ignore imported bindings
-                if symbol.module_id != self.module {
-                    return;
-                }
-
-                self.flow_mut().mark_assigned(AssignedPlace::Symbol(symbol));
-            }
-            // direct member assignment
-            dir::Storage::Field {
-                receiver,
-                field: dir::ProjectionField::Key(key),
-            } => {
-                self.flow_mut()
-                    .mark_assigned(AssignedPlace::Member { receiver, key });
-            }
-            // protocol-backed writes do not introduce local definite assignment
-            dir::Storage::Field { .. }
-            | dir::Storage::Property { .. }
-            | dir::Storage::Subscript { .. }
-            | dir::Storage::Dereference { .. } => {}
-        }
+    /// Mark one local flow place as assigned.
+    pub(in crate::check) fn mark_place_assigned(&mut self, place: AssignedPlace) {
+        self.flow_mut().mark_assigned(place);
     }
 
     /// Mark bindings assigned by one initialized or ambient declarator.

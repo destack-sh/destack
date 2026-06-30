@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Expectation, ExpectedType, FlowNarrowing, FlowPath, Obligation, Origin, PatternCoverage,
-    PatternCoverageObligation, ValueUse, WalkState, Widening,
+    Expectation, ExpectedType, FlowNarrowing, FlowPath, FlowSite, Obligation, Origin,
+    PatternCoverage, PatternCoverageObligation, ValueUse, WalkState, Widening,
 };
 
 impl WalkState<'_, '_> {
@@ -23,8 +23,8 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
-        if let Some(symbol) = self.plain_declarator_symbol(declarator) {
-            self.walk_plain_declarator(symbol, declarator, binding_kind)?;
+        if let Some(symbol) = self.direct_declarator_symbol(declarator) {
+            self.walk_direct_declarator(symbol, declarator, binding_kind)?;
         } else {
             self.walk_pattern_declarator(id, declarator)?;
         }
@@ -38,7 +38,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// value = 1
     /// ```
-    fn walk_plain_declarator(
+    fn walk_direct_declarator(
         &mut self,
         symbol: dir::GlobalSymbolId,
         declarator: &dir::Declarator,
@@ -47,7 +47,7 @@ impl WalkState<'_, '_> {
         // bind annotated declarators before checking their initializers
         if let Some(ty) = declarator.ty {
             let written = self.walk_type_expression(ty)?;
-            self.bind_symbol_type(symbol, written)?;
+            self.queue_bind_type(symbol, written);
 
             // const unique symbols carry their declaration identity as a static value
             if binding_kind == Some(dir::LetKind::Const)
@@ -89,7 +89,7 @@ impl WalkState<'_, '_> {
 
         // bind inferred declarations from their initializer
         if let Some(value) = declarator.value {
-            self.queue_bind(symbol, value, widening);
+            self.queue_bind_initializer(symbol, value, widening);
 
             return Ok(());
         }
@@ -125,9 +125,13 @@ impl WalkState<'_, '_> {
 
         // queue pattern checking from the initializer or annotation
         if let Some(value) = declarator.value {
+            let value_site = FlowSite {
+                node: value.into_global_any(self.module),
+                flow: self.flow().point(),
+            };
             let expectation = Expectation::assignable_node(
-                value.into_global_any(self.module),
-                Origin::Node(value.into_global_any(self.module)),
+                value_site,
+                Origin::Node(value_site.node),
                 ValueUse::Store,
             );
             self.queue_node_check(declarator.pattern, expectation);
@@ -137,7 +141,7 @@ impl WalkState<'_, '_> {
                 self.check.push_obligation(Obligation::PatternCoverage(
                     PatternCoverageObligation {
                         source: declarator.pattern.into_global_any(self.module),
-                        value: ExpectedType::Node(value.into_global_any(self.module)),
+                        value: ExpectedType::Node(value_site),
                         coverage: PatternCoverage::Binding {
                             pattern: declarator.pattern.into_global(self.module),
                         },
@@ -170,8 +174,11 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Return the single symbol bound by a plain declarator.
-    fn plain_declarator_symbol(&self, declarator: &dir::Declarator) -> Option<dir::GlobalSymbolId> {
+    /// Return the single symbol bound directly by one declarator.
+    fn direct_declarator_symbol(
+        &self,
+        declarator: &dir::Declarator,
+    ) -> Option<dir::GlobalSymbolId> {
         match self.tree.get(declarator.pattern) {
             dir::Pattern::Binding { pattern: None, .. } => self
                 .check
@@ -297,18 +304,22 @@ impl WalkState<'_, '_> {
                 self.narrow_pattern_match(path, pattern)?;
             }
             // value
-            dir::Pattern::Expression { value } => {
-                let value = *value;
-                let narrowing = FlowNarrowing::Node(value.into_global_any(self.module));
+            dir::Pattern::Expression { .. } => {
+                let narrowing = FlowNarrowing::Pattern {
+                    pattern: pattern.into_global(self.module),
+                    is_positive: true,
+                };
 
                 self.narrow_flow_path(path, narrowing);
             }
             // T(a, b), T { name }
-            dir::Pattern::NominalTuple { ty, fields }
-            | dir::Pattern::NominalObject { ty, fields } => {
-                let (ty, fields) = (*ty, fields.clone());
-                let narrowed = self.walk_type_expression(ty)?;
-                let narrowing = FlowNarrowing::Type(narrowed);
+            dir::Pattern::NominalTuple { fields, .. }
+            | dir::Pattern::NominalObject { fields, .. } => {
+                let fields = fields.clone();
+                let narrowing = FlowNarrowing::Pattern {
+                    pattern: pattern.into_global(self.module),
+                    is_positive: true,
+                };
 
                 self.narrow_flow_path(path.clone(), narrowing);
                 self.narrow_pattern_field_match(path, &fields)?;
@@ -322,11 +333,26 @@ impl WalkState<'_, '_> {
             // _, name
             dir::Pattern::Wildcard | dir::Pattern::Binding { pattern: None, .. } => {}
             // start..end
-            dir::Pattern::Range { .. } => {}
-            // [a, b], [...items], a | b
+            dir::Pattern::Range { .. } => {
+                let narrowing = FlowNarrowing::Pattern {
+                    pattern: pattern.into_global(self.module),
+                    is_positive: true,
+                };
+
+                self.narrow_flow_path(path, narrowing);
+            }
+            // a | b
+            dir::Pattern::Union { .. } => {
+                let narrowing = FlowNarrowing::Pattern {
+                    pattern: pattern.into_global(self.module),
+                    is_positive: true,
+                };
+
+                self.narrow_flow_path(path, narrowing);
+            }
+            // [a, b], [...items]
             dir::Pattern::Tuple { .. }
-            | dir::Pattern::Sequence { .. }
-            | dir::Pattern::Union { .. } => {}
+            | dir::Pattern::Sequence { .. } => {}
         }
 
         Ok(())
