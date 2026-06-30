@@ -404,6 +404,8 @@ pub struct TemplateLiteralType {
 pub struct InferType {
     /// The inferred binding name.
     pub name: Option<StringId>,
+    /// The inferred binding symbol.
+    pub symbol: Option<GlobalSymbolId>,
     /// The optional inferred constraint.
     pub constraint: Option<GlobalTypeId>,
 }
