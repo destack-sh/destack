@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 use indexmap::IndexSet;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, Origin, Relation, ValueUse};
+use crate::check::{CheckState, Origin, Relation, SignatureRejection, ValueUse};
 use crate::{
     CheckError, CheckWarning, CompilerError, CompilerResult, DiagnosticAnchor,
     diagnostic_suggestion_distance,
@@ -267,6 +267,18 @@ impl CheckState<'_> {
             expected,
             supplied,
         };
+
+        self.module_mut(module).diagnostics.push(diagnostic.into());
+    }
+
+    /// Report an invalid `typeof` type query operand.
+    pub(in crate::check) fn report_invalid_type_query(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::InvalidTypeQuery { anchor, module };
 
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
@@ -533,6 +545,104 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one final signature rejection.
+    pub(in crate::check) fn report_signature_rejection(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+        rejection: SignatureRejection,
+    ) -> CompilerResult<()> {
+        match rejection {
+            // skip imprecise candidate failures
+            SignatureRejection::Inapplicable => {}
+
+            // report arity mismatch on the call itself
+            SignatureRejection::Arity {
+                required,
+                total,
+                has_rest,
+                supplied,
+            } => {
+                let expected = Self::format_argument_count(required, total, has_rest);
+                self.report_wrong_argument_count(origin, expected, supplied)?;
+            }
+
+            // report argument mismatch on the failing value
+            SignatureRejection::Argument {
+                index,
+                source,
+                target,
+            } => {
+                let origin = arguments
+                    .get(index)
+                    .and_then(|argument| self.argument_value_node(module, *argument))
+                    .map(Origin::Node)
+                    .unwrap_or(origin);
+                let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+                let error = CheckError::ArgumentNotAssignable {
+                    anchor,
+                    module,
+                    source,
+                    target,
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+
+            // report generic bound mismatch on the supplied or inferred argument source
+            SignatureRejection::Constraint {
+                source_node,
+                source,
+                target,
+            } => {
+                let (module, anchor) = self.origin_diagnostic_anchor(Origin::Node(source_node))?;
+                let error = CheckError::ConstraintNotSatisfied {
+                    anchor,
+                    module,
+                    source,
+                    target,
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+
+            // report missing writable index support on the supplied or inferred argument source
+            SignatureRejection::WritableIndex {
+                source_node,
+                source,
+                key,
+                value,
+            } => {
+                let (module, anchor) = self.origin_diagnostic_anchor(Origin::Node(source_node))?;
+                let error = CheckError::WritableIndexRequiresIndexSet {
+                    anchor,
+                    module,
+                    source,
+                    key,
+                    value,
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Format one argument count phrase.
+    fn format_argument_count(required: usize, total: usize, has_rest: bool) -> String {
+        let phrase = match (has_rest, required == total) {
+            (true, _) => format!("at least {required}"),
+            (false, true) => format!("{total}"),
+            (false, false) => format!("{required} to {total}"),
+        };
+        let noun = if phrase.ends_with('1') && !phrase.ends_with("11") {
+            "argument"
+        } else {
+            "arguments"
+        };
+
+        format!("{phrase} {noun}")
+    }
+
     /// Report one abstract class construction.
     pub(in crate::check) fn report_cannot_construct_abstract_type(
         &mut self,
@@ -641,6 +751,30 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one rest pattern that appears before another field.
+    pub(in crate::check) fn report_rest_pattern_not_last(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let error = CheckError::RestPatternNotLast { anchor, module };
+
+        self.module_mut(module).diagnostics.push(error.into());
+    }
+
+    /// Report one extra rest pattern in the same field list.
+    pub(in crate::check) fn report_multiple_rest_patterns(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let error = CheckError::MultipleRestPatterns { anchor, module };
+
+        self.module_mut(module).diagnostics.push(error.into());
+    }
+
     /// Report one object pattern with a non-object source.
     pub(in crate::check) fn report_pattern_source_not_object_shaped(
         &mut self,
@@ -742,6 +876,46 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one variant pattern whose owner does not match the input.
+    pub(in crate::check) fn report_pattern_variant_not_in_type(
+        &mut self,
+        origin: Origin,
+        variant: String,
+        source: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let source = self.format_type(source);
+        let error = CheckError::PatternVariantNotInType {
+            anchor,
+            module,
+            variant,
+            source,
+        };
+        self.module_mut(module).diagnostics.push(error.into());
+
+        Ok(())
+    }
+
+    /// Report one variant pattern that names no case on its owner.
+    pub(in crate::check) fn report_pattern_variant_missing(
+        &mut self,
+        origin: Origin,
+        variant: String,
+        owner: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let owner = self.format_type(owner);
+        let error = CheckError::PatternVariantMissing {
+            anchor,
+            module,
+            variant,
+            owner,
+        };
+        self.module_mut(module).diagnostics.push(error.into());
+
+        Ok(())
+    }
+
     /// Report one impossible strict equality comparison.
     pub(in crate::check) fn report_invalid_strict_equality(
         &mut self,
@@ -805,8 +979,8 @@ impl CheckState<'_> {
         right: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let source = self.format_type(left);
-        let target = self.format_type(right);
+        let source = self.format_type_at(module, left);
+        let target = self.format_type_at(module, right);
 
         // label the written annotation that demanded the target type
         let written = match self.written_type_anchor(right)? {
@@ -816,13 +990,54 @@ impl CheckState<'_> {
             _ => None,
         };
 
+        // require write support for writable index signatures
+        if matches!(
+            relation,
+            Relation::Assignable | Relation::Writable | Relation::Satisfies
+        ) && let Some((source, key, value)) =
+            self.writable_index_signature_rejection(origin, left, right)?
+        {
+            let error = CheckError::WritableIndexRequiresIndexSet {
+                anchor,
+                module,
+                source,
+                key,
+                value,
+            };
+            let mut diagnostic = DiagnosticBuilder::new(error);
+            if let Some((written, label)) = written {
+                diagnostic = diagnostic.label(written, label);
+            }
+            self.module_mut(module).diagnostics.push(diagnostic);
+
+            return Ok(());
+        }
+
+        // object literals name their missing required property directly
+        if matches!(
+            relation,
+            Relation::Assignable | Relation::Writable | Relation::Satisfies
+        ) && let Some(key) = self.object_literal_missing_property(origin, left, right)?
+        {
+            let error = CheckError::MissingRequiredProperty {
+                anchor,
+                module,
+                key,
+                target,
+            };
+            let mut diagnostic = DiagnosticBuilder::new(error);
+            if let Some((written, label)) = written {
+                diagnostic = diagnostic.label(written, label);
+            }
+            self.module_mut(module).diagnostics.push(diagnostic);
+
+            return Ok(());
+        }
+
         // object literals name their excess property directly
         if matches!(
             relation,
             Relation::Assignable | Relation::Writable | Relation::Satisfies
-        ) && matches!(
-            value_use,
-            Some(ValueUse::Store | ValueUse::Argument | ValueUse::Output)
         ) && let Some(key) = self.object_literal_excess_property(origin, left, right)?
         {
             let error = CheckError::ExcessProperty {
@@ -958,6 +1173,22 @@ impl CheckState<'_> {
             anchor,
             module,
             interface: self.format_symbol(interface),
+        };
+
+        self.module_mut(module).diagnostics.push(error.into());
+    }
+
+    /// Report one exported anonymous extension on a nonlocal target.
+    pub(in crate::check) fn report_unnamed_exported_nonlocal_extension(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        target: dir::GlobalTypeId,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let error = CheckError::UnnamedExportedNonlocalExtension {
+            anchor,
+            module,
+            target: self.format_type(target),
         };
 
         self.module_mut(module).diagnostics.push(error.into());
@@ -1287,7 +1518,7 @@ impl CheckState<'_> {
             .map(|field| field.key)
             .collect::<SmallVec<[_; 8]>>();
 
-        let Some(right) = self.reduce_type_root(origin, right)?.ready() else {
+        let Some(right) = self.reduce_type_head(origin, right)?.ready() else {
             return Ok(None);
         };
         let Some(accepted) = self.accepted_property_keys(origin, right)? else {
@@ -1298,6 +1529,93 @@ impl CheckState<'_> {
             if !accepted.contains(&key) {
                 return Ok(Some(self.format_static_key(&key)));
             }
+        }
+
+        Ok(None)
+    }
+
+    /// Return the writable index signature one source type cannot satisfy.
+    pub(in crate::check) fn writable_index_signature_rejection(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<(String, String, String)>> {
+        let Some(target) = self.reduce_type_head(origin, target)?.ready() else {
+            return Ok(None);
+        };
+        let dir::Type::Shape(shape) = self.ty(target)? else {
+            return Ok(None);
+        };
+
+        // find the first writable index signature
+        let Some(signature) = shape
+            .index_signatures
+            .iter()
+            .find(|signature| !signature.is_readonly)
+        else {
+            return Ok(None);
+        };
+
+        let module = origin.module();
+        let source = self.format_type_at(module, source);
+        let key = self.format_type_at(module, signature.key_type);
+        let value = self.format_type_at(module, signature.value_type);
+
+        Ok(Some((source, key, value)))
+    }
+
+    /// Return the first required property one object literal misses for one target.
+    pub(in crate::check) fn object_literal_missing_property(
+        &mut self,
+        origin: Origin,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<String>> {
+        let Some(expression) = origin.expression() else {
+            return Ok(None);
+        };
+        if !matches!(
+            self.module(expression.module_id)
+                .view()
+                .get(expression.local_id),
+            dir::Expression::ObjectExpression { .. }
+        ) {
+            return Ok(None);
+        }
+
+        let left = self.settled_root(left)?;
+        let left = match self.ty(left)? {
+            dir::Type::Form(form) if form.form == dir::Form::Managed => {
+                self.settled_root(form.value)?
+            }
+            _ => left,
+        };
+        let dir::Type::Shape(source) = self.ty(left)? else {
+            return Ok(None);
+        };
+        let source_keys = source
+            .fields
+            .iter()
+            .map(|field| field.key)
+            .collect::<SmallVec<[_; 8]>>();
+
+        let Some(right) = self.reduce_type_head(origin, right)?.ready() else {
+            return Ok(None);
+        };
+        let dir::Type::Shape(target) = self.ty(right)? else {
+            return Ok(None);
+        };
+
+        for field in &target.fields {
+            if field.is_optional {
+                continue;
+            }
+            if source_keys.contains(&field.key) {
+                continue;
+            }
+
+            return Ok(Some(self.format_static_key(&field.key)));
         }
 
         Ok(None)
@@ -1317,12 +1635,20 @@ impl CheckState<'_> {
 
                 Ok(Some(shape.fields.iter().map(|field| field.key).collect()))
             }
-            dir::Type::Instance(instance) => Ok(Some(self.nominal_member_keys(instance.symbol))),
+            dir::Type::Instance(instance) => match self.definition(instance.symbol) {
+                Some(dir::Definition::Interface(interface)) if !interface.is_nominal => {
+                    Ok(Some(self.nominal_member_keys(instance.symbol)))
+                }
+                Some(dir::Definition::Struct(_)) => {
+                    Ok(Some(self.nominal_field_keys(instance.symbol)))
+                }
+                _ => Ok(None),
+            },
             dir::Type::Union(union) => {
                 let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
                 let mut keys = SmallVec::new();
                 for element in elements {
-                    let Some(element) = self.reduce_type_root(origin, element)?.ready() else {
+                    let Some(element) = self.reduce_type_head(origin, element)?.ready() else {
                         return Ok(None);
                     };
                     match self.accepted_property_keys(origin, element)? {
@@ -1375,7 +1701,7 @@ impl CheckState<'_> {
         let mut candidates = Vec::new();
 
         // collect lexical names visible at the source node
-        self.collect_reference_names(module, bindings, scope, &mut candidates);
+        self.collect_reference_names(module, &bindings, scope, &mut candidates);
 
         // collect profile-provided globals visible to unresolved references
         for key in self

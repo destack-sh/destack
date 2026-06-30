@@ -1,11 +1,11 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
+use crate::CompilerResult;
 use crate::check::{
-    Answer, AutoInterface, AutoInterfaceObligation, CheckState, Condition, Dependency, Obligation,
-    Origin, Relation, RepresentationObligation, ValueUse, answer,
+    Answer, AutoInterface, AutoInterfaceObligation, CheckState, ConstraintState, Dependency,
+    Obligation, Origin, Relation, RepresentationObligation, ValueUse, answer,
 };
-use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Enforce one applied generic argument against its declared constraint.
@@ -13,18 +13,16 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         source: dir::GlobalNodeIdAny,
-        condition: Condition,
         argument: dir::GlobalTypeId,
         constraint: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let constraint = answer!(self.reduce_type_root(origin, constraint)?);
+        let constraint = answer!(self.reduce_type_head(origin, constraint)?);
 
         // dispatch compiler-known constraints
         match self.constraint_language_item(constraint)? {
             Some(dir::LanguageItem::Concrete) => {
                 self.push_obligation(Obligation::Representation(RepresentationObligation {
                     source,
-                    condition,
                     ty: argument,
                 }));
 
@@ -33,7 +31,6 @@ impl CheckState<'_> {
             Some(item) if let Some(interface) = AutoInterface::from_language_item(item) => {
                 self.push_obligation(Obligation::AutoInterface(AutoInterfaceObligation {
                     source,
-                    condition,
                     ty: argument,
                     interface,
                 }));
@@ -82,27 +79,46 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
-        if answer!(self.constrain(origin, relation, left, right)?) {
-            // reject extra fields only for direct object literal flows
-            if matches!(
+        match self.apply_relation(origin, relation, value_use, left, right)? {
+            Answer::Ready(_) => Ok(Answer::Ready(())),
+            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+        }
+    }
+
+    /// Apply one required relation and report failed closed checks.
+    pub(in crate::check) fn apply_relation(
+        &mut self,
+        origin: Origin,
+        relation: Relation,
+        value_use: Option<ValueUse>,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<ConstraintState>> {
+        let holds = answer!(self.constrain(origin, relation, left, right)?);
+
+        // reject extra fields only for direct object literal flows
+        if holds
+            && matches!(
                 relation,
                 Relation::Assignable | Relation::Writable | Relation::Satisfies
-            ) && matches!(
-                value_use,
-                Some(ValueUse::Store | ValueUse::Argument | ValueUse::Output)
-            ) && self
+            )
+            && self
                 .object_literal_excess_property(origin, left, right)?
                 .is_some()
-            {
-                self.report_relation_failure(origin, relation, value_use, left, right)?;
-            }
+        {
+            self.report_relation_failure(origin, relation, value_use, left, right)?;
 
-            return Ok(Answer::Ready(()));
+            return Ok(Answer::Ready(ConstraintState::Fails));
         }
 
-        self.report_relation_failure(origin, relation, value_use, left, right)?;
+        // report the ordinary failed relation
+        if !holds {
+            self.report_relation_failure(origin, relation, value_use, left, right)?;
 
-        Ok(Answer::Ready(()))
+            return Ok(Answer::Ready(ConstraintState::Fails));
+        }
+
+        Ok(Answer::Ready(ConstraintState::Holds))
     }
 
     /// Match one relation between two types, bounding open variables.
@@ -123,6 +139,9 @@ impl CheckState<'_> {
 
         let left_variable = self.root_variable(left)?;
         let right_variable = self.root_variable(right)?;
+        let bound_source = self
+            .origin_source_node(origin)?
+            .into_global(origin.module());
 
         match (left_variable, right_variable, relation) {
             // alias open variables related by equality
@@ -133,30 +152,30 @@ impl CheckState<'_> {
             }
             // bound one open side by the closed side
             (Some(variable), None, Relation::Equal) => {
-                self.push_lower_bound(variable, right)?;
-                self.push_upper_bound(variable, right)?;
+                self.push_lower_bound(variable, bound_source, right)?;
+                self.push_upper_bound(variable, bound_source, right)?;
 
                 Ok(Answer::Ready(true))
             }
             (None, Some(variable), Relation::Equal) => {
-                self.push_lower_bound(variable, left)?;
-                self.push_upper_bound(variable, left)?;
+                self.push_lower_bound(variable, bound_source, left)?;
+                self.push_upper_bound(variable, bound_source, left)?;
 
                 Ok(Answer::Ready(true))
             }
             // directed relations bound the open side directionally
             (Some(_), Some(variable), Relation::Assignable | Relation::Castable) => {
-                self.push_lower_bound(variable, left)?;
+                self.push_lower_bound(variable, bound_source, left)?;
 
                 Ok(Answer::Ready(true))
             }
             (Some(variable), _, Relation::Assignable | Relation::Castable) => {
-                self.push_upper_bound(variable, right)?;
+                self.push_upper_bound(variable, bound_source, right)?;
 
                 Ok(Answer::Ready(true))
             }
             (None, Some(variable), Relation::Assignable | Relation::Castable) => {
-                self.push_lower_bound(variable, left)?;
+                self.push_lower_bound(variable, bound_source, left)?;
 
                 Ok(Answer::Ready(true))
             }
@@ -170,13 +189,13 @@ impl CheckState<'_> {
             }
             // decide closed relations
             (None, None, _) => {
-                // reduce closed operations before comparing
-                let left = answer!(self.reduce_type_root(origin, left)?);
-                let right = answer!(self.reduce_type_root(origin, right)?);
+                // reduce closed operands before comparing relation truth
+                let left = answer!(self.reduce_type(origin, left)?);
+                let right = answer!(self.reduce_type(origin, right)?);
 
                 // push bounds into open leaves under matching closed
                 // composites; writable flows and cast targets fill
-                // leaves like value flows
+                // leaves like value constraints
                 let structural = match relation {
                     Relation::Writable | Relation::Castable => Relation::Assignable,
                     relation => relation,
@@ -207,15 +226,6 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
-        // reduce both roots so intrinsic spellings constrain
-        // structurally; unreduced roots settle on the decide path
-        let Some(left) = self.reduce_type_root(origin, left)?.ready() else {
-            return Ok(None);
-        };
-        let Some(right) = self.reduce_type_root(origin, right)?.ready() else {
-            return Ok(None);
-        };
-
         // same-symbol applications constrain arguments by variance
         let same_symbol = match (self.ty(left)?, self.ty(right)?) {
             (dir::Type::Instance(left), dir::Type::Instance(right))
@@ -233,9 +243,9 @@ impl CheckState<'_> {
             _ => None,
         };
         if let Some((symbol, source, target)) = same_symbol {
-            return Ok(Some(self.constrain_arguments_by_variance(
-                origin, symbol, &source, &target,
-            )?));
+            return Ok(Some(
+                self.relate_type_arguments(origin, symbol, &source, &target)?,
+            ));
         }
 
         let left_signature = self.callable_signature(left)?;
@@ -417,9 +427,9 @@ impl CheckState<'_> {
             let probe = self.begin_probe();
             match self.constrain(origin, Relation::Assignable, left, element)? {
                 Answer::Ready(true) => {
-                    self.reject_probe(probe);
+                    self.commit_probe(probe);
 
-                    return Ok(self.constrain(origin, Relation::Assignable, left, element)?);
+                    return Ok(Answer::Ready(true));
                 }
                 Answer::Ready(false) => self.reject_probe(probe),
                 Answer::Pending(dependencies) => {
@@ -489,195 +499,6 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return whether one accepted value flow changes runtime representation.
-    pub(in crate::check) fn requires_implicit_coercion(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        if source == target {
-            return Ok(false);
-        }
-
-        let source = self.representation_type(origin, source)?;
-        let target = self.representation_type(origin, target)?;
-        if source == target {
-            return Ok(false);
-        }
-
-        // equal reduced types have the same runtime representation
-        match self.decide_relation(origin, Relation::Equal, source, target)? {
-            Answer::Ready(true) => return Ok(false),
-            Answer::Ready(false) => {}
-            Answer::Pending(blockers) => {
-                let source = self.format_type(source);
-                let target = self.format_type(target);
-
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "coercion equality from '{source}' to '{target}' is still pending: {blockers:?}"
-                    ),
-                });
-            }
-        }
-
-        // memory forms usually change value representation
-        if matches!(
-            (self.ty(source)?, self.ty(target)?),
-            (dir::Type::Form(_), _) | (_, dir::Type::Form(_))
-        ) {
-            return Ok(true);
-        }
-
-        // intrinsic fat values need runtime construction
-        if self.requires_slice_coercion(source, target)?
-            || self.requires_function_coercion(source, target)?
-        {
-            return Ok(true);
-        }
-
-        // erased and tagged values need runtime headers
-        if self.is_dynamic_type(source)?
-            || self.is_dynamic_type(target)?
-            || self.is_unknown_type(source)?
-            || self.is_unknown_type(target)?
-            || self.is_union_type(source)?
-            || self.is_union_type(target)?
-        {
-            return Ok(true);
-        }
-
-        // scalar literals build directly in the target storage
-        if self.scalar_literal_materializes_directly(source, target)? {
-            return Ok(false);
-        }
-
-        // stored numeric values need conversion instructions
-        let coerces = self.is_numeric_type(source)? && self.is_numeric_type(target)?;
-
-        Ok(coerces)
-    }
-
-    /// Return the type used to classify runtime representation.
-    fn representation_type(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let mut ty = match self.reduce_type_root(origin, ty)? {
-            Answer::Ready(ty) => ty,
-            Answer::Pending(blockers) => {
-                let ty = self.format_type(ty);
-
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "coercion representation type '{ty}' is still pending: {blockers:?}"
-                    ),
-                });
-            }
-        };
-        while let Some(value) = match self.ty(ty)? {
-            dir::Type::Form(form) if form.form == dir::Form::Readonly => Some(form.value),
-            _ => None,
-        } {
-            ty = match self.reduce_type_root(origin, value)? {
-                Answer::Ready(ty) => ty,
-                Answer::Pending(blockers) => {
-                    let ty = self.format_type(value);
-
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "coercion representation type '{ty}' is still pending: {blockers:?}"
-                        ),
-                    });
-                }
-            };
-        }
-
-        Ok(ty)
-    }
-
-    /// Return whether a scalar literal can build directly in one target type.
-    fn scalar_literal_materializes_directly(
-        &mut self,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let source = self.ty(source)?;
-        let target = self.ty(target)?;
-        let materializes = match source {
-            dir::Type::Literal(literal) => literal.widens_to(target),
-            dir::Type::Range(range) => range.widens_to(target),
-            _ => false,
-        };
-
-        Ok(materializes)
-    }
-
-    /// Return whether one flow builds a slice fat pointer.
-    fn requires_slice_coercion(
-        &self,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let coerces = matches!(
-            (self.ty(source)?, self.ty(target)?),
-            (dir::Type::Array(_), dir::Type::Slice(_))
-                | (dir::Type::FixedArray(_), dir::Type::Slice(_))
-        );
-
-        Ok(coerces)
-    }
-
-    /// Return whether one flow builds a callable fat pointer.
-    fn requires_function_coercion(
-        &self,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let coerces = matches!(
-            (self.ty(source)?, self.ty(target)?),
-            (dir::Type::FunctionPointer(_), dir::Type::Function(_))
-        );
-
-        Ok(coerces)
-    }
-
-    /// Return whether a type is a dynamic runtime value.
-    fn is_dynamic_type(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
-        let dynamic = matches!(self.ty(ty)?, dir::Type::Dynamic(_));
-
-        Ok(dynamic)
-    }
-
-    /// Return whether a type is an erased top value.
-    fn is_unknown_type(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
-        let unknown = matches!(self.ty(ty)?, dir::Type::Any | dir::Type::Unknown);
-
-        Ok(unknown)
-    }
-
-    /// Return whether a type is a tagged union value.
-    fn is_union_type(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
-        let union = matches!(self.ty(ty)?, dir::Type::Union(_));
-
-        Ok(union)
-    }
-
-    /// Return whether a type is a stored numeric scalar.
-    fn is_numeric_type(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
-        let numeric = matches!(
-            self.ty(ty)?,
-            dir::Type::Primitive(dir::PrimitiveType::Integer(_) | dir::PrimitiveType::Float(_))
-                | dir::Type::Literal(dir::ScalarLiteral::Integer(_))
-                | dir::Type::Literal(dir::ScalarLiteral::Float(_))
-                | dir::Type::Range(_)
-        );
-
-        Ok(numeric)
-    }
-
     /// Return the source node behind one origin for type allocation.
     pub(in crate::check) fn origin_source_node(
         &self,
@@ -688,11 +509,6 @@ impl CheckState<'_> {
             Origin::Symbol(symbol) => self
                 .module(symbol.module_id)
                 .symbol_declaration_node(symbol.local_id),
-            Origin::Type(ty) => {
-                let module = self.module(ty.module_id);
-
-                Ok(module.types.get_type_source(ty.local_id))
-            }
         }
     }
 }

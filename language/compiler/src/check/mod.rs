@@ -2,6 +2,7 @@ mod decorator;
 mod dump;
 mod error;
 mod flow;
+mod infer;
 mod layout;
 mod obligation;
 mod protocol;

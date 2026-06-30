@@ -33,17 +33,6 @@ pub(in crate::check) enum Decision {
     Rejected,
 }
 
-impl Decision {
-    /// Return selected generic argument bindings when the decision applies a generic target.
-    pub(in crate::check) fn generic_arguments(&self) -> Option<&[dir::GenericArgumentBinding]> {
-        match self {
-            Self::Call(resolution) => resolution.target.direct_generic_arguments(),
-            Self::Construct(resolution) => Some(resolution.target.generic_arguments()),
-            _ => None,
-        }
-    }
-}
-
 impl CheckState<'_> {
     /// Record one node decision and wake its waiters.
     pub(in crate::check) fn record_decision(
@@ -90,8 +79,7 @@ impl DecisionTable {
     }
 
     /// Record one node decision.
-    /// Decisions are derived facts: re-deriving the same decision
-    /// through another walk path collapses, conflicting ones error.
+    /// Re-derived matching decisions collapse, conflicting decisions error.
     pub(in crate::check) fn decide(
         &mut self,
         node: dir::GlobalNodeIdAny,

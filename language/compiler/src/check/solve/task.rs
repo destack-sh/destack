@@ -3,7 +3,7 @@ use destack_dir as dir;
 use crate::CompilerResult;
 use crate::check::{
     Answer, CheckState, ConstraintId, FlowPointId, ObligationId, Origin, Relation, ValueUse,
-    Widening, WriteTarget,
+    Widening,
 };
 
 /// One syntactic use of a place expression.
@@ -57,12 +57,24 @@ pub(in crate::check) enum Task {
         /// The checked value use.
         use_: ValueUse,
     },
-    /// Bind one symbol type from an initializer expression.
+    /// Bind one symbol type from its source type.
     Bind {
         /// The binding symbol.
         symbol: dir::GlobalSymbolId,
-        /// The initializer expression.
-        initializer: dir::GlobalNodeId<dir::Expression>,
+        /// The source that produces the checked type.
+        source: BindSource,
+    },
+}
+
+/// Source used to bind one symbol type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::check) enum BindSource {
+    /// An authored annotation type graph.
+    Type(dir::GlobalTypeId),
+    /// An initializer expression occurrence.
+    Initializer {
+        /// The initializer expression use.
+        site: FlowSite,
         /// The binding widening policy.
         widening: Widening,
     },
@@ -92,10 +104,10 @@ impl Task {
         }
     }
 
-    /// Return the stable request identity for source-node work.
-    pub(in crate::check) fn request(&self) -> Option<Request> {
+    /// Return the stable dedupe key for source-node work.
+    pub(in crate::check) fn key(&self) -> Option<TaskKey> {
         match self {
-            Self::Infer { site, use_ } => Some(Request::Infer {
+            Self::Infer { site, use_ } => Some(TaskKey::Infer {
                 node: site.node,
                 use_: *use_,
             }),
@@ -105,7 +117,7 @@ impl Task {
                 relation,
                 origin,
                 use_,
-            } => Some(Request::Check {
+            } => Some(TaskKey::Check {
                 site: *site,
                 expected: expected.clone(),
                 relation: *relation,
@@ -127,7 +139,7 @@ pub(in crate::check) struct TryPropagation {
     /// The try expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The selected node whose checked type is the tried value.
-    pub(in crate::check) value: dir::GlobalNodeIdAny,
+    pub(in crate::check) value: FlowSite,
     /// The receiver of the propagated failure.
     pub(in crate::check) target: TryPropagationTarget,
 }
@@ -147,9 +159,9 @@ pub(in crate::check) enum TryPropagationTarget {
     },
 }
 
-/// Stable identity of one source-node request.
+/// Stable dedupe key for one source-node task.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(in crate::check) enum Request {
+pub(in crate::check) enum TaskKey {
     /// Inference of one source node.
     Infer {
         /// The inferred source node.
@@ -177,10 +189,8 @@ pub(in crate::check) enum Request {
 pub(in crate::check) enum ExpectedType {
     /// A concrete expected type.
     Type(dir::GlobalTypeId),
-    /// The checked type of another source node.
-    Node(dir::GlobalNodeIdAny),
-    /// The checked type of one selected writable place.
-    Place(WriteTarget),
+    /// The checked type of another source use.
+    Node(FlowSite),
 }
 
 impl ExpectedType {
@@ -191,8 +201,7 @@ impl ExpectedType {
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         match self {
             Self::Type(ty) => Ok(Answer::Ready(*ty)),
-            Self::Node(node) => check.node_type(*node),
-            Self::Place(place) => check.place_type(place.clone()),
+            Self::Node(site) => check.node_type_at(*site),
         }
     }
 }
@@ -336,8 +345,8 @@ impl Queue {
     /// Return the total number of queued tasks.
     pub(in crate::check) fn len(&self) -> usize {
         self.relate.len()
-            + self.check.len()
             + self.propagate.len()
+            + self.check.len()
             + self.infer.len()
             + self.bind.len()
             + self.solve.len()
@@ -345,7 +354,7 @@ impl Queue {
     }
 }
 
-impl<T> WorkQueue<T> {
+impl<T: Clone> WorkQueue<T> {
     /// Create an empty work queue.
     fn new() -> Self {
         Self {
@@ -374,11 +383,8 @@ impl<T> WorkQueue<T> {
     }
 
     /// Pop one entry from the front.
-    fn pop(&mut self) -> Option<T>
-    where
-        T: Clone,
-    {
-        let entry = self.entries.get(self.head).cloned()?;
+    fn pop(&mut self) -> Option<T> {
+        let entry = self.entries.get(self.head)?.clone();
         self.head += 1;
 
         Some(entry)

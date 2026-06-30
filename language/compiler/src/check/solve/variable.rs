@@ -5,6 +5,22 @@ use smallvec::SmallVec;
 use crate::check::Origin;
 use crate::{CompilerError, CompilerResult};
 
+/// One bound collected for an inference variable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) struct TypeBound {
+    /// The bound type.
+    pub(in crate::check) ty: dir::GlobalTypeId,
+    /// The source occurrence that produced the bound.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+}
+
+impl TypeBound {
+    /// Return one type bound from a source occurrence.
+    pub(in crate::check) fn new(ty: dir::GlobalTypeId, source: dir::GlobalNodeIdAny) -> Self {
+        Self { ty, source }
+    }
+}
+
 /// One open inference variable.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct VariableState {
@@ -13,9 +29,9 @@ pub(in crate::check) struct VariableState {
     /// The literal widening policy applied when solving.
     pub(in crate::check) widening: Widening,
     /// Types that must be assignable to the variable.
-    pub(in crate::check) lower: SmallVec<[dir::GlobalTypeId; 2]>,
+    pub(in crate::check) lower: SmallVec<[TypeBound; 2]>,
     /// Types the variable must be assignable to.
-    pub(in crate::check) upper: SmallVec<[dir::GlobalTypeId; 2]>,
+    pub(in crate::check) upper: SmallVec<[TypeBound; 2]>,
     /// The solved type, when solving finished.
     pub(in crate::check) solution: Option<dir::GlobalTypeId>,
     /// The default solution applied when no bounds arrive.

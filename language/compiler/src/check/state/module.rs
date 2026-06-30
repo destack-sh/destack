@@ -35,6 +35,8 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) expanded: Arc<DirExpanded>,
     /// The cumulative binding table built once at load.
     pub(in crate::check) bindings: dir::BindingTable<'static>,
+    /// Checked symbols synthesized from resolved language features.
+    pub(in crate::check) bindings_tail: dir::BindingSegment,
     /// Out-of-component modules visible from this module.
     pub(in crate::check) external_modules: IndexSet<ModuleId>,
 
@@ -51,9 +53,9 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) resolutions: dir::ResolutionSegment,
     /// Checked implicit coercions.
     pub(in crate::check) coercions: dir::CoercionSegment,
-    /// Checked layout facts.
+    /// Checked layout derivations.
     pub(in crate::check) layouts: dir::LayoutSegment,
-    /// Checked capture facts.
+    /// Checked captures.
     pub(in crate::check) capture_segment: dir::CaptureSegment,
     /// Checked annotations.
     pub(in crate::check) annotations: dir::AnnotationSegment,
@@ -89,6 +91,7 @@ impl CheckModuleState {
     ) -> Self {
         // create the inherited bindings and this check's open overlays
         let bindings = expanded.binding_table(&bound);
+        let bindings_tail = dir::BindingSegment::from_table(&bindings);
         let types = dir::TypeSegment::from_base(&expanded.types);
         let definitions = dir::DefinitionSegment::new(module.id);
         let generics = dir::GenericSegment::new(module.id);
@@ -108,6 +111,7 @@ impl CheckModuleState {
             resolved,
             expanded,
             bindings,
+            bindings_tail,
             types,
             definitions,
             generics,
@@ -163,8 +167,8 @@ impl CheckModuleState {
     }
 
     /// Return the cumulative binding table visible to check.
-    pub(in crate::check) fn binding_table(&self) -> &dir::BindingTable<'static> {
-        &self.bindings
+    pub(in crate::check) fn binding_table(&self) -> dir::BindingTable<'_> {
+        self.bindings.with_tail(&self.bindings_tail)
     }
 
     /// Return the symbol introduced by a source declaration node.
@@ -282,20 +286,20 @@ impl CheckState<'_> {
             .unwrap_or_else(|| unreachable!("check module {module:?} was not loaded"))
     }
 
-    /// Return the checked type of one source node, if present.
-    pub(in crate::check) fn node_type_maybe(
+    /// Return one committed source-node type, if present.
+    pub(in crate::check) fn committed_node_type_maybe(
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> Option<dir::GlobalTypeId> {
         self.node_types.get(&node).copied()
     }
 
-    /// Return the checked type answer for one source node.
-    pub(in crate::check) fn node_type(
+    /// Return one committed source-node type.
+    pub(in crate::check) fn committed_node_type(
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        if let Some(ty) = self.node_type_maybe(node) {
+        if let Some(ty) = self.committed_node_type_maybe(node) {
             Ok(Answer::Ready(ty))
         } else {
             Ok(Answer::pending([Dependency::NodeType(node)]))
@@ -329,12 +333,12 @@ impl CheckState<'_> {
         format!("node {node:?}: {detail}")
     }
 
-    /// Return the checked type required for one source node.
-    pub(in crate::check) fn require_node_type(
+    /// Return one committed source-node type or fail on an internal invariant break.
+    pub(in crate::check) fn require_committed_node_type(
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let Some(ty) = self.node_type_maybe(node) else {
+        let Some(ty) = self.committed_node_type_maybe(node) else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "required node has no checked type: {}",
@@ -346,13 +350,13 @@ impl CheckState<'_> {
         Ok(ty)
     }
 
-    /// Set the checked type of one source node.
-    pub(in crate::check) fn set_node_type(
+    /// Commit one source-node type.
+    pub(in crate::check) fn commit_node_type(
         &mut self,
         node: dir::GlobalNodeIdAny,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        if let Some(previous) = self.node_type_maybe(node) {
+        if let Some(previous) = self.committed_node_type_maybe(node) {
             if previous == ty {
                 return Ok(());
             }
@@ -374,18 +378,6 @@ impl CheckState<'_> {
         }
 
         Ok(())
-    }
-
-    /// Set the checked type of one source node at one flow point.
-    pub(in crate::check) fn set_node_type_at(
-        &mut self,
-        site: FlowSite,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<()>> {
-        let ty = answer!(self.flow_type_at(site, ty)?);
-        self.set_node_type(site.node, ty)?;
-
-        Ok(Answer::Ready(()))
     }
 
     /// Constrain one source node's runtime value type.
@@ -629,11 +621,11 @@ impl CheckState<'_> {
     }
 
     /// Return one binding table by module.
-    pub(in crate::check) fn binding_table(&self, module: ModuleId) -> &dir::BindingTable<'static> {
+    pub(in crate::check) fn binding_table(&self, module: ModuleId) -> dir::BindingTable<'_> {
         if let Some(module) = self.modules.get(&module) {
             module.binding_table()
         } else {
-            &self.external_module(module).bindings
+            self.external_module(module).bindings.clone()
         }
     }
 

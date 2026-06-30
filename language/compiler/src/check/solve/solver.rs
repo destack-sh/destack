@@ -7,7 +7,7 @@ use crate::CompilerResult;
 use crate::check::{
     Constraint, ConstraintId, ConstraintState, ConstraintTable, Dependency, Obligation,
     ObligationId, ObligationTable, Origin, Queue, QueueMark, RelationCache, RelationCacheSnapshot,
-    Request, Task, VariableState, VariableTable, Widening,
+    Task, TaskKey, VariableState, VariableTable, Widening,
 };
 
 /// Solver state for one checked component.
@@ -19,6 +19,7 @@ pub(in crate::check) struct Solver {
     next_constraint: u32,
     /// The next component-global obligation id.
     next_obligation: u32,
+
     /// Variables allocated for this component.
     pub(in crate::check) variables: VariableTable,
     /// Constraints collected for this component.
@@ -29,10 +30,11 @@ pub(in crate::check) struct Solver {
     pub(in crate::check) relations: RelationCache,
     /// Obligations collected for this component.
     pub(in crate::check) obligations: ObligationTable,
+
     /// Tasks parked on unresolved dependencies.
     waiters: IndexMap<Dependency, SmallVec<[Task; 2]>>,
-    /// Completed source-node requests.
-    completed_requests: IndexSet<Request>,
+    /// Completed source-node task keys.
+    completed_keys: IndexSet<TaskKey>,
     /// Undo entries recorded by active snapshots.
     undo: Vec<Undo>,
     /// The number of nested snapshots.
@@ -80,10 +82,10 @@ enum Undo {
         /// The previous waiter row.
         previous: Option<SmallVec<[Task; 2]>>,
     },
-    /// Undo one completed source-node request.
-    CompletedRequest {
-        /// The completed request.
-        request: Request,
+    /// Undo one completed source-node task key.
+    CompletedKey {
+        /// The completed task key.
+        key: TaskKey,
     },
 }
 
@@ -107,7 +109,7 @@ impl Solver {
             relations: RelationCache::new(),
             obligations: ObligationTable::new(),
             waiters: IndexMap::new(),
-            completed_requests: IndexSet::new(),
+            completed_keys: IndexSet::new(),
             undo: Vec::new(),
             snapshot_depth: 0,
         }
@@ -234,7 +236,6 @@ impl Solver {
         variable: dir::TypeVariableId,
     ) -> CompilerResult<dir::TypeVariableId> {
         let mut current = variable;
-
         while let Some(alias) = self.variable(current)?.alias {
             current = alias;
         }
@@ -296,28 +297,26 @@ impl Solver {
         self.waiters.swap_remove(&dependency).unwrap_or_default()
     }
 
-    /// Return whether this task's request has already been satisfied.
+    /// Return whether this source task has already completed.
     pub(in crate::check) fn is_task_complete(&self, task: &Task) -> bool {
-        task.request()
-            .is_some_and(|request| self.completed_requests.contains(&request))
+        task.key()
+            .is_some_and(|key| self.completed_keys.contains(&key))
     }
 
-    /// Mark this task's request as satisfied.
-    pub(in crate::check) fn complete_task(&mut self, task: Task) {
-        let Some(request) = task.request() else {
+    /// Mark this source task as completed.
+    pub(in crate::check) fn complete_task(&mut self, task: &Task) {
+        let Some(key) = task.key() else {
             return;
         };
 
-        if self.completed_requests.contains(&request) {
+        if self.completed_keys.contains(&key) {
             return;
         }
 
         if self.snapshot_depth > 0 {
-            self.undo.push(Undo::CompletedRequest {
-                request: request.clone(),
-            });
+            self.undo.push(Undo::CompletedKey { key: key.clone() });
         }
-        self.completed_requests.insert(request);
+        self.completed_keys.insert(key);
     }
 
     /// Pop one solver task.
@@ -389,8 +388,8 @@ impl Solver {
                     self.waiters.swap_remove(&dependency);
                 }
             },
-            Undo::CompletedRequest { request } => {
-                self.completed_requests.swap_remove(&request);
+            Undo::CompletedKey { key } => {
+                self.completed_keys.swap_remove(&key);
             }
         }
     }

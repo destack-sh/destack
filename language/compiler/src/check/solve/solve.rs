@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
 use crate::check::{
-    Answer, CheckEvent, CheckState, Constraint, ConstraintId, ConstraintState, Dependency, Task,
-    Widening, answer,
+    Answer, BindSource, CheckEvent, CheckState, Constraint, ConstraintId, ConstraintState,
+    Dependency, Task, Widening, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -24,11 +24,11 @@ impl CheckState<'_> {
 
             // park pending tasks on their blockers
             if let Answer::Pending(blockers) = answer {
-                self.park_task(task.clone(), &blockers)?;
+                self.park_task(&task, &blockers)?;
             }
             // mark source-node work complete after it reaches a ready answer
             else {
-                self.solver.complete_task(task.clone());
+                self.solver.complete_task(&task);
             }
 
             self.record_event(CheckEvent::TaskRan { step: steps, task });
@@ -62,11 +62,7 @@ impl CheckState<'_> {
 
                 self.check_node(site, target, relation, origin, use_)
             }
-            Task::Bind {
-                symbol,
-                initializer,
-                widening,
-            } => self.run_bind(symbol, initializer, widening),
+            Task::Bind { symbol, source } => self.run_bind(symbol, source),
         }
     }
 
@@ -89,17 +85,8 @@ impl CheckState<'_> {
             )
         };
 
-        match self.constrain(origin, relation, left, right)? {
-            Answer::Ready(holds) => {
-                if !holds {
-                    self.report_relation_failure(origin, relation, value_use, left, right)?;
-                }
-
-                let state = if holds {
-                    ConstraintState::Holds
-                } else {
-                    ConstraintState::Fails
-                };
+        match self.apply_relation(origin, relation, value_use, left, right)? {
+            Answer::Ready(state) => {
                 self.set_constraint_state(id, state)?;
                 self.record_event(CheckEvent::RelationChecked {
                     constraint: id,
@@ -126,17 +113,21 @@ impl CheckState<'_> {
     fn run_bind(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        initializer: dir::GlobalNodeId<dir::Expression>,
-        widening: Widening,
+        source: BindSource,
     ) -> CompilerResult<Answer<()>> {
-        let initializer_type = answer!(self.node_type(initializer.into_any())?);
-        let bound = match widening {
-            Widening::Preserve => initializer_type,
-            Widening::Widen => self.widen_type(
-                symbol.module_id,
-                initializer.local_id.into_any(),
-                initializer_type,
-            )?,
+        let bound = match source {
+            // keep the written type as the symbol surface
+            BindSource::Type(ty) => self.settled_root(ty)?,
+
+            // infer initializer symbols from the checked expression occurrence
+            BindSource::Initializer { site, widening } => {
+                let ty = answer!(self.node_type_at(site)?);
+
+                match widening {
+                    Widening::Preserve => ty,
+                    Widening::Widen => self.widen_type(symbol.module_id, site.node.local_id, ty)?,
+                }
+            }
         };
         self.bind_symbol_type(symbol, bound)?;
 
@@ -159,7 +150,7 @@ impl CheckState<'_> {
     /// Park one task on its blocking dependencies.
     pub(in crate::check) fn park_task(
         &mut self,
-        task: Task,
+        task: &Task,
         blockers: &[Dependency],
     ) -> CompilerResult<()> {
         for blocker in blockers {
