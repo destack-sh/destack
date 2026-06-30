@@ -70,6 +70,22 @@ interface BufferView {
 }
 ```
 
+### multiline tuple ownership members
+
+Tuple members with ownership types break one member per line when they exceed the width.
+
+```ds line-width=56
+type Handles = (borrowed: &readonly VeryLongBufferName, owned: ^VeryLongResultName, raw: *readonly VeryLongRawName)
+```
+
+```ds expected
+type Handles = (
+    borrowed: &readonly VeryLongBufferName,
+    owned: ^VeryLongResultName,
+    raw: *readonly VeryLongRawName,
+);
+```
+
 ### nested conditional type
 
 Nested conditional types preserve parentheses.

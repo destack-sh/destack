@@ -140,6 +140,22 @@ const refs = (&readonly /* borrow */ value, ^readonly /* move */ value)
 const refs = (&readonly (/* borrow */ value), ^readonly (/* move */ value));
 ```
 
+### nested reference operator comments
+
+Comments after composed reference prefixes group only the affected operand.
+
+```ds line-width=60
+const refs = (& /* borrow */ *value, ^ /* move */ &readonly value, * /* deref */ ^exclusive value)
+```
+
+```ds expected
+const refs = (
+    &(/* borrow */ *value),
+    ^(/* move */ &readonly value),
+    *(/* deref */ ^exclusive value),
+);
+```
+
 ### reference operators as receivers
 
 Ownership operator values keep receiver parentheses.

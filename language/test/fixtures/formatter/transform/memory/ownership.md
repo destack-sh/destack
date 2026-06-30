@@ -62,6 +62,38 @@ type Handles = (&readonly /* borrowed */ Buffer, *readonly /* pointer */ Raw)
 type Handles = (&readonly (/* borrowed */ Buffer), *readonly (/* pointer */ Raw));
 ```
 
+### nested ownership tuple type
+
+Ownership operators stay tight inside nested tuple and array type positions.
+
+```ds line-width=80
+type Handles = ([&Buffer, ^Result], (&readonly Buffer, *readonly Raw), local ^Buffer)
+```
+
+```ds expected
+type Handles = (
+    [&Buffer, ^Result],
+    (&readonly Buffer, *readonly Raw),
+    local ^Buffer,
+);
+```
+
+### multiline ownership type comments
+
+Comments after nested ownership prefixes keep each target grouped when the tuple breaks.
+
+```ds line-width=48
+type Handles = (& /* borrowed */ LongBufferName, ^ /* owned */ LongResultName, *readonly /* pointer */ LongRawName)
+```
+
+```ds expected
+type Handles = (
+    &(/* borrowed */ LongBufferName),
+    ^(/* owned */ LongResultName),
+    *readonly (/* pointer */ LongRawName),
+);
+```
+
 ## Ownership Patterns
 
 ### dereference scalar patterns
@@ -128,6 +160,23 @@ match (value) {
     ^*moved => moved
     *&readonly read => read
     *^exclusive owned => owned
+    _ => fallback
+}
+```
+
+### ownership pattern comments
+
+Comments after ownership pattern prefixes keep a readable pattern boundary.
+
+```ds
+match(value){& /* borrowed */ item=>item;^ /* moved */ item=>item;*&readonly /* readonly */ read=>read;_=>fallback}
+```
+
+```ds expected
+match (value) {
+    & /* borrowed */ item => item
+    ^ /* moved */ item => item
+    *&readonly /* readonly */ read => read
     _ => fallback
 }
 ```

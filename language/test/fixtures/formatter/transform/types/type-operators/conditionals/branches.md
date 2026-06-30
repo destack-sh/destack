@@ -61,3 +61,17 @@ type BorrowedPair<T> = T extends [infer Left, infer Right]
     ? [&Left, &readonly Right]
     : never;
 ```
+
+### conditional ownership branch comments
+
+Comments inside ownership-heavy conditional branches stay attached to their branch operands.
+
+```ds line-width=80
+type BorrowedPair<T> = T extends [infer Left, infer Right] ? [& /* left */ Left, &readonly /* right */ Right] : ^ /* moved */ T
+```
+
+```ds expected
+type BorrowedPair<T> = T extends [infer Left, infer Right]
+    ? [&(/* left */ Left), &readonly (/* right */ Right)]
+    : ^(/* moved */ T);
+```

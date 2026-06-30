@@ -276,6 +276,20 @@ let Result.Ok(Point { x: /* x */ x, y: /* y */ y }) = result else {
 };
 ```
 
+### let else ownership pattern comments
+
+Ownership pattern comments stay on the pattern side before the fallback block.
+
+```ds
+let Result.Ok(& /* borrowed */ value) = result else { return fallback() }
+```
+
+```ds expected
+let Result.Ok(& /* borrowed */ value) = result else {
+    return fallback();
+};
+```
+
 ### let else with multiline fallback comments
 
 Leading comments in fallback blocks stay inside the block.
