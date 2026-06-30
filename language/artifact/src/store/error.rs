@@ -1,6 +1,7 @@
 use std::fmt;
 
 use destack_core::StringId;
+use destack_program::ProgramLoadError;
 use serde::ser;
 
 use crate::{ArtifactVersion, BlobStoreError};
@@ -19,6 +20,8 @@ pub enum ArtifactStoreError {
     },
     /// The record failed to encode or decode.
     Codec(Box<destack_serde::Error>),
+    /// The program payload failed to load or store.
+    Program(Box<ProgramLoadError>),
     /// The record references an interned string missing from the pool.
     MissingString {
         /// The missing string id.
@@ -55,6 +58,9 @@ impl fmt::Display for ArtifactStoreError {
             ArtifactStoreError::Codec(error) => {
                 write!(f, "artifact record codec error: {error}")
             }
+            ArtifactStoreError::Program(error) => {
+                write!(f, "program artifact error: {error}")
+            }
             ArtifactStoreError::MissingString { string } => {
                 write!(f, "artifact record references missing string {string}")
             }
@@ -85,5 +91,11 @@ impl ser::Error for ArtifactStoreError {
 impl From<std::io::Error> for ArtifactStoreError {
     fn from(error: std::io::Error) -> Self {
         Self::Store(Box::new(BlobStoreError::from(error)))
+    }
+}
+
+impl From<ProgramLoadError> for ArtifactStoreError {
+    fn from(error: ProgramLoadError) -> Self {
+        Self::Program(Box::new(error))
     }
 }
