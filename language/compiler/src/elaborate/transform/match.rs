@@ -1352,12 +1352,10 @@ impl Compiler {
         // record the synthesized runtime predicate
         let target_type = target_type_id.into_global(module);
         let predicate = dir::Predicate::unary(
-            dir::Projection::Identity {
-                ty: value_type_id.into_global(module),
-            },
+            dir::PredicateOperand::new(value_type_id.into_global(module)),
             dir::PredicateCondition::Type(target_type),
         )
-        .with_success(dir::Projection::Identity { ty: target_type });
+        .with_narrowed(target_type);
         let resolution = dir::GuardResolution::Is(dir::IsGuardResolution {
             value_type: value_type_id.into_global(module),
             target_type,

@@ -387,6 +387,10 @@ pub fn format_type_operation(
             let target_type = format_global_type(unary.target, ctx);
             format!("NoInfer<{target_type}>")
         }
+        dir::TypeOperation::Awaited(unary) => {
+            let target_type = format_global_type(unary.target, ctx);
+            format!("Awaited<{target_type}>")
+        }
         dir::TypeOperation::TryOutput { value } => {
             let value = format_global_type(*value, ctx);
             format!("TryOutput<{value}>")

@@ -105,11 +105,13 @@ impl ModuleLowerer<'_> {
         let Some(resolution) = self.resolutions.construct_resolution(node_id) else {
             return Ok(());
         };
-        let target_symbol = resolution.target.symbol();
+        let dir::ConstructTarget::Class(candidate) = &resolution.target else {
+            return Ok(());
+        };
 
         self.declare_expression_symbol_target(
             expression_id,
-            target_symbol,
+            candidate.symbol,
             &resolution.parameters,
             resolution.return_type,
         )
