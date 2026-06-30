@@ -13,7 +13,7 @@ pub struct CommentSnapshot {
 }
 
 /// Cursor-based access to comments during formatting.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Comments<'a> {
     /// The comments in source order.
     comments: &'a [Comment],
@@ -41,6 +41,18 @@ impl<'a> Comments<'a> {
     pub fn skip_comments_before(&mut self, pos: u32) {
         let count = self.comments_before(pos).len();
         self.printed_count += count;
+    }
+
+    /// Return whether any unprinted comments remain visible.
+    #[inline]
+    pub fn has_unprinted_comments(&self) -> bool {
+        let start = self.printed_count.min(self.comments.len());
+        let end = self
+            .view_limit
+            .unwrap_or(self.comments.len())
+            .min(self.comments.len());
+
+        end > start
     }
 
     /// Return the unprinted comments.

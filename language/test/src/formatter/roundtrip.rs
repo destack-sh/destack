@@ -126,7 +126,7 @@ fn format_expressions(
     );
 
     // ensure a trailing newline
-    let formatted = fir_format!(context.clone(), [statement_list(expressions)]).unwrap();
+    let formatted = fir_format!(context, [statement_list(expressions)]).unwrap();
     let printed = formatted.print().unwrap();
     let mut result = printed.as_str().to_string();
 

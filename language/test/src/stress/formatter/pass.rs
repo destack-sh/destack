@@ -95,8 +95,7 @@ pub(super) fn format_pass(
     );
     let context_elapsed = context_start.elapsed();
 
-    let (output, format_elapsed, print_elapsed, document) =
-        render_profiled(&context, &expressions)?;
+    let (output, format_elapsed, print_elapsed, document) = render_profiled(context, &expressions)?;
     let timing = FormatterTiming {
         parse: parse_elapsed,
         diagnostics: diagnostics_elapsed,
@@ -115,13 +114,13 @@ pub(super) fn format_pass(
 
 /// Render one parsed source while separating document build from printing.
 fn render_profiled<'a>(
-    context: &DestackFormatContext<'a>,
+    context: DestackFormatContext<'a>,
     expressions: &'a [LocalNodeId<Expression>],
 ) -> Result<(String, Duration, Duration, FormatterDocumentStats), String> {
     // build formatter document
     let format_start = Instant::now();
-    let formatted = fir_format!(context.clone(), [statement_list(expressions)])
-        .map_err(|error| error.to_string())?;
+    let formatted =
+        fir_format!(context, [statement_list(expressions)]).map_err(|error| error.to_string())?;
     let format_elapsed = format_start.elapsed();
     let document = FormatterDocumentStats::from_nodes(formatted.document());
 

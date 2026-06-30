@@ -19,6 +19,7 @@ pub(crate) struct TestFormatter {
     side_tokens: Vec<TokenSpan>,
     side_span: MultiSpan,
     tree: Tree,
+    parents: NodeParentIndex,
     strings: Arc<StringPool>,
 }
 
@@ -67,7 +68,7 @@ impl TestFormatter {
 
         // parse
         let language = LanguageType::try_from(file_type).expect("file type has no parser language");
-        let (side_span, tree, tokens, side_tokens, strings, n) = {
+        let (side_span, tree, parents, tokens, side_tokens, strings, n) = {
             let mut parser = Parser::lex_file_with_options(
                 file.clone(),
                 language,
@@ -84,9 +85,13 @@ impl TestFormatter {
             parser.attach_comments();
 
             let (tokens, side_tokens) = parser.take_token_spans();
+            parser.tree.index_parents();
+            let parents = parser.tree.parents().clone();
+
             (
                 parser.compute_side_span(),
                 parser.tree,
+                parents,
                 tokens,
                 side_tokens,
                 parser.strings,
@@ -98,6 +103,7 @@ impl TestFormatter {
             tokens,
             side_tokens,
             side_span,
+            parents,
             tree,
             strings,
         };
@@ -126,7 +132,7 @@ impl TestFormatter {
             &self.side_tokens,
             &self.side_span,
             &self.strings,
-            NodeParentIndex::from_tree(&self.tree),
+            &self.parents,
         )
     }
 }
