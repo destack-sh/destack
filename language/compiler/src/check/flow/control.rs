@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    ControlTarget, Expectation, FlowBranch, Origin, Relation, Task, TryPropagation,
+    ControlTarget, Expectation, FlowBranch, FlowSite, Origin, Relation, Task, TryPropagation,
     TryPropagationTarget, TryTarget, ValueUse, WalkState, Widening,
 };
 
@@ -129,11 +129,7 @@ impl WalkState<'_, '_> {
         source: dir::LocalNodeIdAny,
         value: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(ty) = self.node_type_maybe(value) {
-            return Ok(ty);
-        }
-
-        // bind the break output once the value expression is inferred
+        // bind the output edge once the value expression is checked
         let ty = self.open_variable_type(source, Widening::Preserve)?;
         let expectation = Expectation::assignable(
             ty,
@@ -201,7 +197,10 @@ impl WalkState<'_, '_> {
 
         self.check.queue_task(Task::Propagate(TryPropagation {
             source,
-            value,
+            value: FlowSite {
+                node: value,
+                flow: self.flow().point(),
+            },
             target,
         }));
 

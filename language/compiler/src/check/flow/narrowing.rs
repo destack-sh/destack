@@ -2,7 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Answer, CheckState, FlowNarrowing, FlowPath, FlowPointChange, FlowSite, Origin, WalkState,
+    Answer, CheckState, Decision, Dependency, FlowNarrowing, FlowPath, FlowPointChange, FlowSite,
+    Origin, WalkState, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -93,12 +94,12 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return the checked type of one source node at one flow point.
+    /// Return one source-node type as viewed through one flow site.
     pub(in crate::check) fn node_type_at(
         &mut self,
         site: FlowSite,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let ty = match self.node_type(site.node)? {
+        let ty = match self.committed_node_type(site.node)? {
             Answer::Ready(ty) => ty,
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
@@ -174,33 +175,150 @@ impl CheckState<'_> {
         narrowing: FlowNarrowing,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         match narrowing {
-            FlowNarrowing::Type(ty) => Ok(Answer::Ready(Some(ty))),
-            FlowNarrowing::Node(node) => match self.node_type(node)? {
-                Answer::Ready(ty) => Ok(Answer::Ready(Some(ty))),
+            FlowNarrowing::Pattern {
+                pattern,
+                is_positive,
+            } => match self.pattern_narrowing_target(Origin::Node(node), pattern)? {
+                Answer::Ready(Some(target)) => {
+                    self.resolve_type_narrowing(node, source, target, is_positive)
+                }
+                Answer::Ready(None) => Ok(Answer::Ready(None)),
                 Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
             },
             FlowNarrowing::Narrow {
                 target,
                 is_positive,
-            } => {
-                let operation = dir::TypeOperation::Narrow(dir::NarrowType {
-                    source,
-                    target,
-                    is_positive,
-                });
-                let narrowed = self.push_type(
-                    node.module_id,
-                    dir::Type::Operation(operation),
-                    node.local_id,
-                )?;
-                let narrowed = match self.reduce_type_root(Origin::Node(node), narrowed)? {
-                    Answer::Ready(ty) => ty,
-                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-                };
+            } => self.resolve_type_narrowing(node, source, target, is_positive),
+        }
+    }
 
-                Ok(Answer::Ready(Some(narrowed)))
+    /// Resolve one runtime type narrowing.
+    fn resolve_type_narrowing(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        is_positive: bool,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let operation = dir::TypeOperation::Narrow(dir::NarrowType {
+            source,
+            target,
+            is_positive,
+        });
+        let narrowed = self.push_type(
+            node.module_id,
+            dir::Type::Operation(operation),
+            node.local_id,
+        )?;
+        let narrowed = match self.reduce_type_head(Origin::Node(node), narrowed)? {
+            Answer::Ready(ty) => ty,
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+
+        Ok(Answer::Ready(Some(narrowed)))
+    }
+
+    /// Return the type subset accepted by one selected pattern.
+    fn pattern_narrowing_target(
+        &mut self,
+        origin: Origin,
+        pattern: dir::GlobalNodeId<dir::Pattern>,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let Some(decision) = self.decision(pattern.into_any()).cloned() else {
+            return Ok(Answer::pending([Dependency::Decision(pattern.into_any())]));
+        };
+
+        let Decision::Pattern(resolution) = decision else {
+            return Ok(Answer::Ready(None));
+        };
+
+        self.pattern_resolution_narrowing_target(origin, pattern, &resolution)
+    }
+
+    /// Return the type subset accepted by one pattern resolution.
+    fn pattern_resolution_narrowing_target(
+        &mut self,
+        origin: Origin,
+        pattern: dir::GlobalNodeId<dir::Pattern>,
+        resolution: &dir::PatternResolution,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        match resolution {
+            dir::PatternResolution::Test(test) => Ok(Answer::Ready(test.predicate.narrowed)),
+            dir::PatternResolution::Destructure(dir::PatternDestructureResolution::Nominal(
+                nominal,
+            )) => {
+                let arguments =
+                    dir::GenericArgumentBinding::values(&nominal.generic_arguments).collect();
+                let ty = self.push_type_at_origin(
+                    origin,
+                    dir::Type::Instance(dir::GenericInstance {
+                        symbol: nominal.symbol,
+                        arguments,
+                    }),
+                )?;
+
+                Ok(Answer::Ready(Some(ty)))
+            }
+            dir::PatternResolution::Destructure(dir::PatternDestructureResolution::Variant(
+                variant,
+            )) => Ok(Answer::Ready(variant.predicate.narrowed)),
+            dir::PatternResolution::Bind(dir::PatternBindingResolution {
+                pattern: Some(inner),
+                ..
+            })
+            | dir::PatternResolution::Must(dir::PatternMustResolution { pattern: inner })
+            | dir::PatternResolution::Default(dir::PatternDefaultResolution {
+                pattern: inner,
+                ..
+            }) => self.pattern_node_narrowing_target(origin, *inner),
+            dir::PatternResolution::Or(or) => {
+                self.or_pattern_narrowing_target(origin, pattern, &or.patterns)
+            }
+            _ => Ok(Answer::Ready(None)),
+        }
+    }
+
+    /// Return the type subset accepted by one child pattern node.
+    fn pattern_node_narrowing_target(
+        &mut self,
+        origin: Origin,
+        pattern: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let dir::NodeType::Pattern = pattern.local_id.ty else {
+            return Ok(Answer::Ready(None));
+        };
+
+        self.pattern_narrowing_target(origin, pattern.into_typed())
+    }
+
+    /// Return the union target accepted by one selected or-pattern.
+    fn or_pattern_narrowing_target(
+        &mut self,
+        origin: Origin,
+        pattern: dir::GlobalNodeId<dir::Pattern>,
+        branches: &[dir::GlobalNodeIdAny],
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let mut targets = Vec::new();
+        for branch in branches {
+            let Some(target) = answer!(self.pattern_node_narrowing_target(origin, *branch)?) else {
+                return Ok(Answer::Ready(None));
+            };
+            if !targets.contains(&target) {
+                targets.push(target);
             }
         }
+
+        let target = match targets.as_slice() {
+            [] => None,
+            [single] => Some(*single),
+            _ => Some(self.normalized_union_type(
+                pattern.module_id,
+                targets,
+                pattern.local_id.into(),
+            )?),
+        };
+
+        Ok(Answer::Ready(target))
     }
 
     /// Return one single-field structural shape type.

@@ -166,10 +166,13 @@ enum FlowChange {
 /// One narrowing value recorded by flow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum FlowNarrowing {
-    /// A known narrowed type.
-    Type(dir::GlobalTypeId),
-    /// The checked type of a source node.
-    Node(dir::GlobalNodeIdAny),
+    /// The values accepted or rejected by one selected pattern.
+    Pattern {
+        /// The selected pattern node.
+        pattern: dir::GlobalNodeId<dir::Pattern>,
+        /// Whether matching values are kept.
+        is_positive: bool,
+    },
     /// A runtime type narrowing applied to a source type at a flow point.
     Narrow {
         /// The type tested by the narrowing.
