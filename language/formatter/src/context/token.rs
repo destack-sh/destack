@@ -38,6 +38,18 @@ impl<'a> DestackFormatContext<'a> {
             .map_or(node_span.start, |token| token.span.start)
     }
 
+    /// Return the last non-trivia token end for one node.
+    pub fn node_token_end<T>(&self, node_id: LocalNodeId<T>) -> u32
+    where
+        T: Node + Clone,
+        Tree: TreeStore<T>,
+    {
+        let node_span = self.span(node_id);
+
+        self.last_non_trivia_token_in_span(node_span)
+            .map_or(node_span.end, |token| token.span.end)
+    }
+
     /// Return the first non-trivia token start for one expression.
     pub fn expression_token_start(&self, expression_id: LocalNodeId<Expression>) -> u32 {
         self.tree

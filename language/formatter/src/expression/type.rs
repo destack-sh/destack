@@ -18,7 +18,7 @@ use crate::file::{
     write_ignored_node, write_ignored_span,
 };
 use crate::operator::{
-    format_generic_argument_list, write_colon_prefixed_type_annotation,
+    format_generic_argument_list, write_colon_prefixed_type_annotation, write_range_operator,
     write_type_annotation_prefix, write_type_expression_with_inline_prefix_annotations,
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
@@ -1450,21 +1450,21 @@ fn write_postfix_type_operand<'ast>(
 /// Write one range type expression.
 fn write_range_type<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<TypeExpression>,
     start: Option<LocalNodeId<TypeExpression>>,
     end: Option<LocalNodeId<TypeExpression>>,
     end_kind: RangeEnd,
 ) -> FormatResult<()> {
+    let start_end = start.map(|start| f.context().node_token_end(start));
+    let end_start = end.map(|end| f.context().node_token_start(end));
+
     // start bound
     if let Some(start) = start {
         write!(f, [start])?;
     }
 
     // range operator
-    let token_value = match end_kind {
-        RangeEnd::Open => "..",
-        RangeEnd::Inclusive => "..=",
-    };
-    write!(f, [token(token_value)])?;
+    write_range_operator(f, f.context().span(node_id), start_end, end_start, end_kind)?;
 
     // end bound
     if let Some(end) = end {
@@ -2626,7 +2626,7 @@ fn write_type_expression_body_at_current_stack<'ast>(
             end,
             end_kind,
         } => {
-            write_range_type(f, *start, *end, *end_kind)?;
+            write_range_type(f, node_id, *start, *end, *end_kind)?;
         }
         TypeExpression::Const => {
             write!(f, [Keyword::Const])?;

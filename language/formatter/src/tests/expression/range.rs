@@ -39,6 +39,24 @@ const negative = -3..3;
     );
 }
 
+/// Keep comments around range operators readable.
+#[test]
+fn test_format_range_expression_comments() {
+    assert_format_program!(
+        r#"const window = start /* start */ .. /* end */ end
+const from = start .. /* open */
+const line = start.. // open
+const full = .. /* all */
+"#,
+        r#"const window = start /* start */ .. /* end */ end;
+const from = start .. /* open */;
+const line = start..; // open
+const full = .. /* all */;
+"#,
+        FileType::Destack,
+    );
+}
+
 /// Format range index expressions with subscript spacing.
 #[test]
 fn test_format_range_index_expression() {
