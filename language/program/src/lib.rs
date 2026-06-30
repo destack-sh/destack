@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments)]
+
 mod memory;
 pub mod native;
 pub mod program;

@@ -1,96 +1,59 @@
-use destack_serde::Reflect;
-
+use destack_core::{SectionImage, SectionStorage, StringId};
 use destack_heap::{
-    HeapEdge, HeapOptions, HeapReference, HeapResult, PayloadShape, ReferenceRange, RootSlot,
-    SharedHeapOptions, SharedHeapReference, visit_heap_root_slots,
+    AllocationShape, HeapEdge, HeapOptions, HeapReference, HeapResult, ReferenceRange, RootSlot,
+    SharedHeapOptions, SharedHeapReference, TraceMaps, visit_heap_root_slots,
 };
-use destack_mir::{ReferenceKind, TargetLayout, TraceId, TraceMap, TraceTable};
+use destack_mir::{ReferenceKind, TargetLayout, TraceId, TraceMap};
 use destack_source::ContentId;
-use serde::{Deserialize, Serialize};
 
 use crate::{
     AddressSpace, CellLayout, DispatchTable, FrameLayout, FrameLayoutId, FrameMaterialization,
-    FrameSlot, FrameStateId, FrameTable, FunctionId, FunctionTable, GlobalAddress, GlobalId,
-    Layout, LayoutId, LayoutShape, LayoutTable, ProgramInfo, ScalarFormat, StaticSpace, TypeId,
-    TypeTable, native, vm,
+    FrameSlot, FrameSlotId, FrameStateId, Function, FunctionId, FunctionSignature, FunctionTable,
+    Global, GlobalAddress, GlobalId, GlobalLocation, Layout, LayoutField, LayoutId, LayoutShape,
+    LayoutTable, ProgramInfo, ScalarFormat, Signature, StaticImage, StaticSpace, StringTable,
+    TraceCache, TraceTable, TypeId, TypeTable, native, vm,
 };
 use vm::error::{Error, Result};
 
-use super::ProgramHeader;
+use super::{ProgramHeader, ProgramLoadError};
 
-/// Executable program produced by the toolchain.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+/// Program produced by the toolchain.
+#[derive(Debug, Clone)]
 pub struct Program {
-    /// Serialized program compatibility header.
-    pub header: ProgramHeader,
-
-    /// Runtime type table.
-    pub types: TypeTable,
-    /// Runtime layouts keyed by layout id.
-    pub layouts: LayoutTable,
-    /// Runtime frame table.
-    pub frames: FrameTable,
-    /// Executable function table.
-    pub functions: FunctionTable,
-    /// Runtime dispatch table.
-    pub dispatch: DispatchTable,
-    /// Canonical trace table used by heap tables.
-    pub traces: TraceTable,
-    /// Reflectable program table.
-    pub info: ProgramInfo,
-
-    /// Immutable constant storage owned by this program.
-    pub constant_space: StaticSpace,
-    /// Initial shared static storage for each runtime.
-    pub shared_static_space: StaticSpace,
-    /// Initial local static storage for each worker.
-    pub local_static_space: StaticSpace,
-
-    /// VM code used for interpretation, deoptimization, and continuation resume.
-    pub vm: vm::Code,
-    /// Native code used as optional acceleration.
-    pub native: Option<native::Code>,
+    /// Root program descriptor.
+    header: ProgramHeader,
+    /// Program section storage.
+    storage: SectionStorage,
+    /// Decoded trace maps for heap and GC paths.
+    traces: TraceCache,
 }
 
 impl Program {
-    /// Create one executable program from its durable image parts.
+    /// Create one program from its root descriptor and section storage.
     pub fn new(
         header: ProgramHeader,
-        types: TypeTable,
-        layouts: LayoutTable,
-        frames: FrameTable,
-        functions: FunctionTable,
-        dispatch: DispatchTable,
-        traces: TraceTable,
-        info: ProgramInfo,
-        constant_space: StaticSpace,
-        shared_static_space: StaticSpace,
-        local_static_space: StaticSpace,
-        vm: vm::Code,
-        native: Option<native::Code>,
-    ) -> Self {
-        Self {
+        storage: SectionStorage,
+    ) -> std::result::Result<Self, ProgramLoadError> {
+        let sections = SectionImage::load(&header.sections, &storage)?;
+        let trace_cache = TraceCache::decode(&header.traces, sections)?;
+
+        Ok(Self {
             header,
-            types,
-            layouts,
-            frames,
-            functions,
-            dispatch,
-            traces,
-            info,
-            constant_space,
-            shared_static_space,
-            local_static_space,
-            vm,
-            native,
-        }
+            storage,
+            traces: trace_cache,
+        })
+    }
+
+    /// Return the root program descriptor.
+    pub(crate) fn header(&self) -> &ProgramHeader {
+        &self.header
     }
 
     /// Return all content ids referenced by this program.
     pub fn content_ids(&self) -> Vec<ContentId> {
-        let mut ids = self.vm.content_ids();
+        let mut ids = self.header.vm.content_ids();
 
-        if let Some(native) = &self.native {
+        if let Some(native) = &self.header.native {
             ids.extend(native.content_ids());
         }
 
@@ -99,7 +62,7 @@ impl Program {
 
     /// Return runtime type table.
     pub fn types(&self) -> &TypeTable {
-        &self.types
+        &self.header.types
     }
 
     /// Return the target ABI layout used by this program.
@@ -122,39 +85,105 @@ impl Program {
         &self.header.shared_heap
     }
 
-    /// Return executable function table.
+    /// Return the program function table.
     pub fn functions(&self) -> &FunctionTable {
-        &self.functions
+        &self.header.functions
+    }
+
+    /// Return a read-only view of program sections.
+    pub fn sections(&self) -> SectionImage<'_> {
+        // SAFETY: Program::new loads and checks the section image before storing it.
+        unsafe { SectionImage::new_unchecked(&self.header.sections, &self.storage) }
+    }
+
+    /// Return one program function record.
+    pub fn function(&self, function: FunctionId) -> Option<&Function> {
+        self.header.functions.get(self.sections(), function)
+    }
+
+    /// Return parameter types for one program function.
+    pub fn function_parameters(&self, function: FunctionId) -> Option<&[TypeId]> {
+        let sections = self.sections();
+
+        self.header
+            .functions
+            .get(sections, function)
+            .map(|function| self.header.functions.parameters(sections, function))
+    }
+
+    /// Check that one function matches one signature type.
+    pub fn check_function_signature(
+        &self,
+        function: FunctionId,
+        signature: &Signature,
+    ) -> Result<()> {
+        self.header
+            .functions
+            .check_signature(self.sections(), function, signature)
+    }
+
+    /// Check that one function matches one packed signature entry.
+    pub fn check_function_signature_entry(
+        &self,
+        function: FunctionId,
+        signature: FunctionSignature,
+        parameters: &[TypeId],
+    ) -> Result<()> {
+        let sections = self.sections();
+
+        self.header
+            .functions
+            .check_signature_entry(sections, function, signature, parameters)
     }
 
     /// Return runtime dispatch table.
     pub fn dispatch(&self) -> &DispatchTable {
-        &self.dispatch
+        &self.header.dispatch
     }
 
     /// Return whether one concrete type satisfies one runtime type.
-    pub fn is_subtype(&self, concrete: TypeId, expected: TypeId) -> bool {
-        self.types.is_subtype(concrete, expected)
+    pub fn is_subtype(&self, concrete: TypeId, expected: TypeId) -> Result<bool> {
+        self.header
+            .types
+            .is_subtype(self.sections(), concrete, expected)
+            .ok_or_else(|| {
+                Error::internal(format!("missing runtime type {concrete:?} or {expected:?}"))
+            })
+    }
+
+    /// Return one program global by id.
+    pub fn global(&self, global: GlobalId) -> Option<&Global> {
+        self.header.globals.get(self.sections(), global)
     }
 
     /// Return immutable constant storage owned by this program.
-    pub fn constants(&self) -> &StaticSpace {
-        &self.constant_space
+    pub fn constants(&self) -> &StaticImage {
+        &self.header.constant_space
     }
 
     /// Return native code when this program carries it.
     pub fn native_code(&self) -> Option<&native::Code> {
-        self.native.as_ref()
+        self.header.native.as_ref()
     }
 
     /// Return initial shared static storage for new runtimes.
-    pub fn shared_statics(&self) -> &StaticSpace {
-        &self.shared_static_space
+    pub fn shared_statics(&self) -> &StaticImage {
+        &self.header.shared_static_space
     }
 
     /// Return initial local static storage for new workers.
-    pub fn local_statics(&self) -> &StaticSpace {
-        &self.local_static_space
+    pub fn local_statics(&self) -> &StaticImage {
+        &self.header.local_static_space
+    }
+
+    /// Materialize initial shared static storage.
+    pub fn materialize_shared_statics(&self) -> StaticSpace {
+        self.header.shared_static_space.materialize(self.sections())
+    }
+
+    /// Materialize initial local static storage.
+    pub fn materialize_local_statics(&self) -> StaticSpace {
+        self.header.local_static_space.materialize(self.sections())
     }
 
     /// Initialize runtime-owned static storage from this program.
@@ -164,25 +193,43 @@ impl Program {
         shared_static: &mut StaticSpace,
     ) {
         if shared_static.is_empty() {
-            shared_static.clone_from(self.shared_statics());
+            *shared_static = self.materialize_shared_statics();
         }
 
-        local_static.clone_from(self.local_statics());
+        *local_static = self.materialize_local_statics();
     }
 
     /// Resolve one function id by source name.
     pub fn function_id_by_name(&self, name: &str) -> Option<FunctionId> {
-        self.functions.id_by_name(name)
+        self.header
+            .functions
+            .id_by_name(self.sections(), StringId::for_text(name))
+    }
+
+    /// Return the program string table.
+    pub fn strings(&self) -> &StringTable {
+        &self.header.strings
+    }
+
+    /// Return the reflected program table.
+    pub fn info(&self) -> &ProgramInfo {
+        &self.header.info
+    }
+
+    /// Return one program string by stable id when present.
+    pub fn string(&self, id: StringId) -> Option<&str> {
+        self.header.strings.string(self.sections(), id)
     }
 
     /// Return runtime layouts for this program.
     pub fn layouts(&self) -> &LayoutTable {
-        &self.layouts
+        &self.header.layouts
     }
 
     /// Return the heap allocation shape for one layout id.
-    pub fn allocation_shape(&self, layout_id: LayoutId) -> Result<PayloadShape<'_>> {
-        let Some(layout) = self.layouts().get(layout_id) else {
+    pub fn allocation_shape(&self, layout_id: LayoutId) -> Result<AllocationShape<'_>> {
+        let sections = self.sections();
+        let Some(layout) = self.layouts().get(sections, layout_id) else {
             return Err(Error::internal(format!(
                 "missing program layout {layout_id:?}"
             )));
@@ -191,7 +238,7 @@ impl Program {
         let trace_map = self.trace_map(layout.trace)?;
         let trace_id = trace_map.has_reference().then_some(layout.trace);
 
-        Ok(PayloadShape::new(
+        Ok(AllocationShape::new(
             layout.size as usize,
             layout.alignment as usize,
             trace_id,
@@ -206,34 +253,90 @@ impl Program {
             .ok_or_else(|| Error::internal(format!("missing program trace map {id:?}")))
     }
 
-    /// Return the canonical program trace table.
+    /// Return decoded program trace maps.
+    pub fn trace_maps(&self) -> TraceMaps<'_> {
+        self.traces.maps()
+    }
+
+    /// Return the program trace table.
     pub fn trace_table(&self) -> &TraceTable {
-        &self.traces
+        &self.header.traces
     }
 
     /// Return the constant address for one global.
     pub fn global_address(&self, global: GlobalId) -> Option<GlobalAddress> {
-        self.constant_space.address(global)
+        self.global(global)?;
+
+        Some(GlobalAddress::new(global, 0))
+    }
+
+    /// Resolve one constant byte range to a native address.
+    pub fn constant_native_address(
+        &self,
+        address: GlobalAddress,
+        byte_len: usize,
+    ) -> Option<usize> {
+        let sections = self.sections();
+        let global = self.global(address.global())?;
+        if global.location != GlobalLocation::Constant {
+            return None;
+        }
+
+        self.header
+            .constant_space
+            .native_address(sections, global, address, byte_len)
+    }
+
+    /// Return whether constants own one byte range.
+    pub fn constants_own_address_range(&self, address: GlobalAddress, byte_len: usize) -> bool {
+        let sections = self.sections();
+        let Some(global) = self.global(address.global()) else {
+            return false;
+        };
+        if global.location != GlobalLocation::Constant {
+            return false;
+        }
+
+        self.header
+            .constant_space
+            .owns_address_range(sections, global, address, byte_len)
     }
 
     /// Return VM resume states.
     pub fn resume(&self) -> &vm::ResumeTable {
-        self.vm.resume()
+        self.header.vm.resume()
     }
 
     /// Return the lowered VM functions.
     pub fn vm_functions(&self) -> &vm::FunctionTable {
-        self.vm.functions()
+        self.header.vm.functions()
+    }
+
+    /// Return one VM call target by function id.
+    pub fn vm_call_target(&self, function: FunctionId) -> Option<vm::CallTarget> {
+        self.vm_functions().call_target(self.sections(), function)
+    }
+
+    /// Return one lowered VM function by dense local index.
+    pub fn vm_function_by_index(&self, index: u32) -> Option<vm::FunctionCode<'_>> {
+        self.vm_functions()
+            .function_by_index(self.sections(), index)
+    }
+
+    /// Return one lowered VM function by function id.
+    pub fn vm_function_by_id(&self, function: FunctionId) -> Option<vm::FunctionCode<'_>> {
+        self.vm_functions()
+            .function_by_id(self.sections(), function)
     }
 
     /// Return the compact VM side table.
     pub fn side_table(&self) -> &vm::SideTable {
-        self.vm.side_table()
+        self.header.vm.side_table()
     }
 
     /// Return the frame layout for one layout id when present.
     pub fn frame_layout_by_id(&self, frame_layout: FrameLayoutId) -> Option<&FrameLayout> {
-        self.frames.layout(frame_layout)
+        self.header.frames.layout(self.sections(), frame_layout)
     }
 
     /// Return the single frame materialization for one resume state.
@@ -241,7 +344,56 @@ impl Program {
         &self,
         frame_state: FrameStateId,
     ) -> Option<&FrameMaterialization> {
-        self.frames.materialization(frame_state)
+        self.header
+            .frames
+            .materialization(self.sections(), frame_state)
+    }
+
+    /// Return one frame slot by id.
+    pub fn frame_slot(&self, layout: &FrameLayout, slot: FrameSlotId) -> Option<&FrameSlot> {
+        self.header.frames.slot(self.sections(), layout, slot)
+    }
+
+    /// Return all value slots for one frame layout.
+    pub fn frame_value_slots<'a>(&'a self, layout: &FrameLayout) -> &'a [FrameSlot] {
+        let sections = self.sections();
+        let slots = self.header.frames.slots(sections, layout);
+
+        layout.values(slots)
+    }
+
+    /// Return all local slots for one frame layout.
+    pub fn frame_local_slots<'a>(&'a self, layout: &FrameLayout) -> &'a [FrameSlot] {
+        let sections = self.sections();
+        let slots = self.header.frames.slots(sections, layout);
+
+        layout.locals(slots)
+    }
+
+    /// Return one local slot for one frame layout.
+    pub fn frame_local_slot(&self, layout: &FrameLayout, local: u32) -> Option<&FrameSlot> {
+        let sections = self.sections();
+        let slots = self.header.frames.slots(sections, layout);
+
+        layout.local(slots, local)
+    }
+
+    /// Return the closure environment slot for one frame layout.
+    pub fn frame_environment_slot<'a>(&'a self, layout: &FrameLayout) -> Option<&'a FrameSlot> {
+        let sections = self.sections();
+        let slots = self.header.frames.slots(sections, layout);
+
+        layout.environment(slots)
+    }
+
+    /// Return copied frame slots for one materialization.
+    pub fn frame_copied_slots<'a>(
+        &'a self,
+        materialization: &'a FrameMaterialization,
+    ) -> &'a [FrameSlotId] {
+        self.header
+            .frames
+            .copied_slots(self.sections(), materialization)
     }
 
     /// Convert one current frame location into one lowered program point.
@@ -251,21 +403,39 @@ impl Program {
 
     /// Return the canonical layout for one type.
     pub fn layout(&self, ty: TypeId) -> Option<&Layout> {
-        let layout_id = self.types().layout_id(ty)?;
+        let sections = self.sections();
+        let layout_id = self.types().layout_id(sections, ty)?;
 
-        Some(self.layouts().layout(layout_id))
+        self.layouts().get(sections, layout_id)
+    }
+
+    /// Return one field by layout index.
+    pub fn layout_field_at(&self, layout: &Layout, index: u32) -> Option<&LayoutField> {
+        self.header.layouts.field_at(self.sections(), layout, index)
+    }
+
+    /// Return the field count for one layout when it is field-addressable.
+    pub fn layout_field_count(&self, layout: &Layout) -> Option<usize> {
+        self.header.layouts.field_count(layout)
+    }
+
+    /// Return all fields for one layout when it is field-addressable.
+    pub fn layout_fields(&self, layout: &Layout) -> &[LayoutField] {
+        self.header.layouts.fields(self.sections(), layout)
     }
 
     /// Return the layout id for one type.
     pub fn layout_id_for_type(&self, ty: TypeId) -> Option<LayoutId> {
-        self.types().layout_id(ty)
+        self.types().layout_id(self.sections(), ty)
     }
 
     /// Return whether one type is stored in one VM cell.
     pub fn is_cell_type(&self, ty: TypeId) -> bool {
-        self.cell_layout(ty)
-            .map(|layout| layout.byte_len(self.pointer_bytes() as usize) <= vm::Cell::BYTE_LEN)
-            .unwrap_or(false)
+        let Some(layout) = self.cell_layout(ty) else {
+            return false;
+        };
+
+        layout.byte_len(self.pointer_bytes() as usize) <= vm::Cell::BYTE_LEN
     }
 
     /// Return the native cell layout for one type.
@@ -284,8 +454,9 @@ impl Program {
 
     /// Return the environment cell layout for one function closure.
     pub fn function_environment_layout(&self, function: FunctionId) -> Option<CellLayout> {
-        let function = self.functions().get(function)?;
-        let environment = function.environment?;
+        let sections = self.sections();
+        let function = self.functions().get(sections, function)?;
+        let environment = function.environment()?;
 
         self.cell_layout(environment)
     }
@@ -349,21 +520,24 @@ impl Program {
     /// Visit mutable heap root slots from one static space.
     pub fn visit_static_root_slots(
         &self,
+        location: GlobalLocation,
         static_space: &mut StaticSpace,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<()> {
-        let globals = static_space.globals().collect::<Vec<_>>();
+        let sections = self.sections();
+        let globals = self
+            .header
+            .globals
+            .iter_location(sections, location)
+            .map(|(global_id, global)| (global_id, *global))
+            .collect::<Vec<_>>();
 
-        // visit each global region
-        for global in globals {
-            let region = static_space
-                .region(global)
-                .cloned()
-                .ok_or_else(|| Error::internal(format!("missing global region {global:?}")))?;
+        // visit each static global
+        for (global_id, global) in globals {
             let bytes = static_space
-                .bytes_mut(global)
-                .ok_or_else(|| Error::internal(format!("missing global bytes {global:?}")))?;
-            self.visit_byte_root_slots(region.ty, bytes, visit)?;
+                .bytes_mut(&global)
+                .ok_or_else(|| Error::internal(format!("missing global bytes {global_id:?}")))?;
+            self.visit_byte_root_slots(global.ty, bytes, visit)?;
         }
 
         Ok(())
@@ -377,10 +551,6 @@ impl Program {
 
         let bits = value.bits() as usize;
 
-        let ty = self
-            .types()
-            .repr_type(ty)
-            .ok_or_else(|| Error::internal(format!("missing program type {ty:?}")))?;
         let Some(LayoutShape::Reference(reference)) = self.layout(ty).map(|layout| &layout.shape)
         else {
             return Ok(None);
@@ -407,46 +577,50 @@ impl Program {
 
     /// Return the lowered program point for one resume state.
     pub fn point_for_frame_state(&self, frame_state: FrameStateId) -> Option<vm::ProgramPoint> {
-        self.resume().state(frame_state).map(|state| state.point)
+        self.resume()
+            .state(self.sections(), frame_state)
+            .map(|state| state.point)
     }
 
     /// Return the source instruction point for one resume state.
     pub fn source_point_for_frame_state(&self, frame_state: FrameStateId) -> Option<u32> {
         self.resume()
-            .state(frame_state)
-            .and_then(|state| state.source_point)
+            .state(self.sections(), frame_state)
+            .and_then(|state| state.source_point.get())
     }
 
-    /// Return the entry data for one resume state.
-    pub fn frame_entry(&self, frame_state: FrameStateId) -> Option<&vm::FrameEntry> {
-        self.resume()
-            .state(frame_state)
-            .and_then(|state| state.entry.as_ref())
+    /// Return the frame entry code for one resume state.
+    pub fn frame_entry(&self, frame_state: FrameStateId) -> Option<vm::FrameEntryCode<'_>> {
+        let sections = self.sections();
+        let state = self.resume().state(sections, frame_state)?;
+
+        self.resume().entry(sections, state)
     }
 
     /// Return one resume state id for one lowered program point.
     pub fn frame_state_at(&self, point: vm::ProgramPoint) -> Option<FrameStateId> {
-        self.resume().state_id_at(point)
+        self.resume().state_id_at(self.sections(), point)
     }
 
     /// Return the caller return destination implied by one lowered program point.
     pub fn return_destination_at(&self, point: vm::ProgramPoint) -> Result<Option<vm::MoveSlot>> {
-        let Some(frame_state) = self.resume().state_id_at(point) else {
+        let sections = self.sections();
+        let Some(frame_state) = self.resume().state_id_at(sections, point) else {
             return Ok(None);
         };
 
         let destination = self
             .resume()
-            .state(frame_state)
-            .and_then(|state| state.return_destination);
+            .state(sections, frame_state)
+            .and_then(|state| state.return_destination.get());
 
         Ok(destination)
     }
 
     /// Return the frame layout for one function when present.
     pub fn frame_layout(&self, function: FunctionId) -> Option<&FrameLayout> {
-        let function = self.vm_functions().function_by_id(function)?;
+        let function = self.vm_function_by_id(function)?;
 
-        self.frame_layout_by_id(function.frame_layout)
+        self.frame_layout_by_id(function.function.frame_layout)
     }
 }

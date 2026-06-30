@@ -4,15 +4,12 @@ use std::ptr::NonNull;
 
 use destack_heap::{AllocationCache, Heap, SharedHeap, SharedMarkWorker};
 
-use crate::StaticSpace;
-
-/// Opaque runtime-owned call state.
-pub type ProgramState = c_void;
+use crate::{StaticImage, StaticSpace};
 
 /// One call from the runtime into a program machine.
 pub struct ProgramActivation<'a> {
     /// Runtime-owned call state.
-    pub state: NonNull<ProgramState>,
+    pub state: NonNull<c_void>,
     /// Memory available to this call.
     pub storage: ProgramStorage<'a>,
 }
@@ -42,7 +39,7 @@ pub struct ProgramStorage<'a> {
     /// Shared static memory.
     pub shared_static: &'a mut StaticSpace,
     /// Program constant memory.
-    pub constant_space: &'a StaticSpace,
+    pub constant_space: &'a StaticImage,
 }
 
 impl fmt::Debug for ProgramStorage<'_> {
@@ -53,9 +50,9 @@ impl fmt::Debug for ProgramStorage<'_> {
             .field("shared_heap", &"<shared heap>")
             .field("shared_cache", &"<shared allocation cache>")
             .field("shared_mark_worker", &"<shared mark worker>")
-            .field("local_static", &self.local_static.len())
-            .field("shared_static", &self.shared_static.len())
-            .field("constant_space", &self.constant_space.byte_len())
+            .field("local_static", &self.local_static.byte_len())
+            .field("shared_static", &self.shared_static.byte_len())
+            .field("constant_space", &"<constant image>")
             .finish()
     }
 }
