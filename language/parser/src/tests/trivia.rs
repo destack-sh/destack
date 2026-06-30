@@ -582,7 +582,7 @@ fn test_line_comment_between_unary_prefix_and_operand_attaches_to_operand_leadin
 
     assert_eq!(expressions.len(), 1);
     let expression_id = parser.unwrap_label_expression(expressions[0]);
-    assert_node!(parser.tree, expression_id, Expression::Unary { right: _, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::Unary { .. } => {
         assert_eq!(comments(&parser).len(), 1);
         let comment = comments(&parser)[0];
         assert_eq!(comment_text(&parser, comment), "unary-line-note");
@@ -609,7 +609,7 @@ fn test_line_comment_between_unary_prefix_and_operand_in_initializer_attaches_to
         assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
             let value = value.expect("expected initializer");
 
-            assert_node!(parser.tree, value, Expression::Unary { right: _, .. } => {
+            assert_node!(parser.tree, value, Expression::Unary { .. } => {
                 assert_eq!(comments(&parser).len(), 1);
                 let comment = comments(&parser)[0];
                 assert_eq!(comment_text(&parser, comment), "unary-line-note");

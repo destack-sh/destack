@@ -168,10 +168,7 @@ fn print_result(file: &File, output_path: &Path, elapsed: Duration, parses: u64)
     let megabytes = bytes as f64 / 1_000_000.0;
     let lines = file.text().lines().count() as u64 * parses;
 
-    eprintln!(
-        "parsed {parses} files, {:.2} MB, {lines} lines, {:.3}s",
-        megabytes, seconds
-    );
+    eprintln!("parsed {parses} files, {megabytes:.2} MB, {lines} lines, {seconds:.3}s");
     eprintln!(
         "throughput: {:.2} MB/s, {:.0} lines/s",
         megabytes / seconds,

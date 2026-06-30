@@ -24,7 +24,7 @@ const x: int32 = 1
         .eat_let(&start, DeclarationHeader::default())
         .unwrap();
 
-    assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
+    assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
 
         assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
@@ -230,7 +230,7 @@ fn test_parse_let_generic_arrow_initializer() {
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // const foo: Tmp = <T,>(str: T): T => { return str; }
-    assert_node!(parser.tree, expr_id, Expression::Let { declarators, mutability: _, .. } => {
+    assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
@@ -276,7 +276,7 @@ fn test_parse_let_readonly_identifier_with_type_annotation() {
         .eat_let(&start, DeclarationHeader::default())
         .unwrap();
 
-    assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
+    assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
@@ -377,7 +377,7 @@ let x: float64[3] = undefined
         .unwrap();
 
     // let x: float64[3] = undefined
-    assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
+    assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
 
         assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
@@ -416,7 +416,7 @@ const (x, y) = foo()
         .unwrap();
 
     // const (x, y) = foo()
-    assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
+    assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
 
         assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
@@ -470,7 +470,7 @@ fn test_parse_let_implicit_undefined() {
         .unwrap();
 
     // let x: int32
-    assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
+    assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
             // x
@@ -499,7 +499,7 @@ const x =
         .unwrap();
 
     // const x = foo.parse()
-    assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
+    assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
             // x
@@ -530,7 +530,7 @@ const registry: Map<
     let let_id = parser.eat_expression(parser.flags).unwrap();
 
     // const registry: Map<..., ...> = new Map()
-    assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
+    assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
 
         assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
@@ -584,7 +584,7 @@ fn test_parse_let_multiple_declarators() {
         .eat_let(&start, DeclarationHeader::default())
         .unwrap();
     // let a: int32 = 1, b: string = "hello"
-    assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
+    assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 2);
 
         // a: int32 = 1
