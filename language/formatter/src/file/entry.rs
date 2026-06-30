@@ -79,10 +79,10 @@ pub fn format_file_tree(
         side_tokens,
         &side_span,
         strings,
-        parents,
+        &parents,
     );
 
-    render_program_roots(&context, roots)
+    render_program_roots(context, roots)
 }
 
 /// Format one full source file from authored text.
@@ -128,8 +128,8 @@ pub fn format_source(
     // build the formatter context
     let (tokens, side_tokens) = parser.take_token_spans();
     let side_span = parser.compute_side_span();
+    parser.tree.index_parents();
     let strings = parser.strings.as_ref();
-    let parents = NodeParentIndex::from_expression_roots(&parser.tree, &expressions);
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
     let context = DestackFormatContext::new(
         options,
@@ -139,9 +139,9 @@ pub fn format_source(
         &side_tokens,
         &side_span,
         strings,
-        parents,
+        parser.tree.parents(),
     );
-    let text = render_program_roots(&context, &expressions)?;
+    let text = render_program_roots(context, &expressions)?;
 
     Ok(FormattedFile { text, diagnostics })
 }
@@ -197,8 +197,8 @@ pub fn format_source_range(
     // build the formatter context
     let (tokens, side_tokens) = parser.take_token_spans();
     let side_span = parser.compute_side_span();
+    parser.tree.index_parents();
     let strings = parser.strings.as_ref();
-    let parents = NodeParentIndex::from_tree(&parser.tree);
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
     let context = DestackFormatContext::new(
         options,
@@ -208,9 +208,9 @@ pub fn format_source_range(
         &side_tokens,
         &side_span,
         strings,
-        parents,
+        parser.tree.parents(),
     );
-    let mut text = render_program_roots(&context, &overlapping)?;
+    let mut text = render_program_roots(context, &overlapping)?;
 
     // keep EOF range formatting newline terminated
     let is_at_end = last_span.end >= parser_file.len.saturating_sub(1);
@@ -328,15 +328,13 @@ fn is_line_terminator(current: char) -> bool {
 
 /// Render one parsed root list through the main formatter.
 fn render_program_roots<'a>(
-    context: &DestackFormatContext<'a>,
+    context: DestackFormatContext<'a>,
     expressions: &'a [LocalNodeId<Expression>],
 ) -> Result<String, FormatFileError> {
     // format the parsed roots
     let formatted =
-        fir_format!(context.clone(), [statement_list(expressions)]).map_err(|error| {
-            FormatFileError {
-                message: error.to_string(),
-            }
+        fir_format!(context, [statement_list(expressions)]).map_err(|error| FormatFileError {
+            message: error.to_string(),
         })?;
     let printed = formatted.print().map_err(|error| FormatFileError {
         message: error.to_string(),

@@ -5,7 +5,7 @@ use destack_fir::format::{Buffer, Format, FormatNode as FirNode, FormatNodes, Fo
 use destack_source::Span;
 
 /// Formatted FIR nodes cached for one formatter pass.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 pub struct FormatElementCache {
     /// Cached formatted elements keyed by source span.
     elements: FxHashMap<Span, FirNode>,

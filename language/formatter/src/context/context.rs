@@ -1,7 +1,6 @@
 use super::options::DestackFormatOptions;
 use super::source::SourceText;
 use super::{FormatElementCache, FormatSourceIndex};
-use std::rc::Rc;
 
 use destack_core::StringPool;
 pub use destack_dir::Decorator;
@@ -54,7 +53,7 @@ pub(crate) fn with_expanded_tree_callback_bodies<'ast>(
 }
 
 /// Destack format context.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct DestackFormatContext<'a> {
     /// The format options.
     pub options: DestackFormatOptions,
@@ -69,11 +68,11 @@ pub struct DestackFormatContext<'a> {
     /// The tree.
     pub tree: &'a Tree,
     /// The parent index.
-    pub parents: NodeParentIndex,
+    pub parents: &'a NodeParentIndex,
     /// The string pool.
     pub strings: &'a StringPool,
-    /// The immutable source index shared by cloned contexts.
-    pub source_index: Rc<FormatSourceIndex>,
+    /// The immutable source index for source-order lookups.
+    pub source_index: FormatSourceIndex,
     /// The formatted element cache for this formatter pass.
     pub element_cache: FormatElementCache,
     /// The start position of the following sibling for the node currently being formatted.
@@ -94,9 +93,9 @@ impl<'a> DestackFormatContext<'a> {
         side_tokens: &'a [TokenSpan],
         side_span: &'a MultiSpan,
         strings: &'a StringPool,
-        parents: NodeParentIndex,
+        parents: &'a NodeParentIndex,
     ) -> Self {
-        let source_index = Rc::new(FormatSourceIndex::new(file, tokens, side_tokens));
+        let source_index = FormatSourceIndex::new(file, tokens, side_tokens);
 
         Self {
             options,

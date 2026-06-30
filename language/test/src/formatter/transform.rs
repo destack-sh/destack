@@ -183,7 +183,7 @@ fn format_expressions(
     let mut result = if expressions.is_empty() {
         String::new()
     } else {
-        let formatted = fir_format!(context.clone(), [statement_list(expressions)]).unwrap();
+        let formatted = fir_format!(context, [statement_list(expressions)]).unwrap();
         let printed = formatted.print().unwrap();
         printed.as_str().to_string()
     };
