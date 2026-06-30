@@ -82,8 +82,7 @@ impl Obligation {
 fn expected_type_label(expected: &ExpectedType, context: &DumpContext<'_, '_>) -> String {
     match expected {
         ExpectedType::Type(ty) => context.type_label(*ty),
-        ExpectedType::Node(node) => format!("node({})", context.node_label(*node)),
-        ExpectedType::Place(place) => format!("place({})", context.node_label(place.source)),
+        ExpectedType::Node(site) => format!("node({})", context.flow_site_label(*site)),
     }
 }
 
@@ -122,13 +121,17 @@ fn pattern_coverage_label(coverage: &PatternCoverage, context: &DumpContext<'_, 
                 .iter()
                 .map(|case| match case {
                     MatchCase::Default => "default".to_string(),
-                    MatchCase::Pattern { pattern, guard } => {
+                    MatchCase::Pattern {
+                        pattern,
+                        is_guarded,
+                    } => {
                         let pattern = context.node_label(pattern.into_any());
-                        let Some(guard) = guard else {
-                            return pattern;
-                        };
 
-                        format!("{pattern} if {}", context.type_label(*guard))
+                        if *is_guarded {
+                            format!("{pattern} if")
+                        } else {
+                            pattern
+                        }
                     }
                 })
                 .collect::<Vec<_>>()

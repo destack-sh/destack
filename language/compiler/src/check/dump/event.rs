@@ -68,8 +68,8 @@ impl CheckEvent {
             } => ArtifactEvent::new("variable.solved")
                 .debug()
                 .text("variable", context.variable_label(*variable))
-                .text("lower", context.type_list_label(&bounds.lower))
-                .text("upper", context.type_list_label(&bounds.upper))
+                .text("lower", context.type_bound_list_label(&bounds.lower))
+                .text("upper", context.type_bound_list_label(&bounds.upper))
                 .text("default", context.optional_type_label(bounds.default))
                 .text("solution", context.type_label(*solution))
                 .usize("waiters", *waiters),
@@ -80,15 +80,15 @@ impl CheckEvent {
             } => ArtifactEvent::new("variable.blocked")
                 .debug()
                 .text("variable", context.variable_label(*variable))
-                .text("lower", context.type_list_label(&bounds.lower))
-                .text("upper", context.type_list_label(&bounds.upper))
+                .text("lower", context.type_bound_list_label(&bounds.lower))
+                .text("upper", context.type_bound_list_label(&bounds.upper))
                 .text("default", context.optional_type_label(bounds.default))
                 .text("blockers", context.dependency_list_label(blockers)),
             Self::VariableUnsolved { variable, bounds } => ArtifactEvent::new("variable.unsolved")
                 .debug()
                 .text("variable", context.variable_label(*variable))
-                .text("lower", context.type_list_label(&bounds.lower))
-                .text("upper", context.type_list_label(&bounds.upper))
+                .text("lower", context.type_bound_list_label(&bounds.lower))
+                .text("upper", context.type_bound_list_label(&bounds.upper))
                 .text("default", context.optional_type_label(bounds.default)),
             Self::VariableAliased {
                 variable,

@@ -1,6 +1,6 @@
 use destack_artifact::ArtifactEvent;
 
-use crate::check::{DumpContext, Task, TryPropagationTarget};
+use crate::check::{BindSource, DumpContext, Task, TryPropagationTarget};
 
 impl Task {
     /// Render this task as fields on one event.
@@ -16,7 +16,7 @@ impl Task {
             Self::Propagate(propagation) => event
                 .text("task", "propagate")
                 .text("source", context.node_label(propagation.source))
-                .text("value", context.node_label(propagation.value))
+                .text("value", context.flow_site_label(propagation.value))
                 .text("target", try_target_label(propagation.target, context)),
             Self::Oblige(id) => event
                 .text("task", "oblige")
@@ -24,15 +24,18 @@ impl Task {
             Self::Solve(variable) => event
                 .text("task", "solve")
                 .text("variable", context.variable_label(*variable)),
-            Self::Bind {
-                symbol,
-                initializer,
-                widening,
-            } => event
-                .text("task", "bind")
-                .text("symbol", context.symbol_label(*symbol))
-                .text("initializer", context.node_label(initializer.into_any()))
-                .text("widening", context.widening_label(*widening)),
+            Self::Bind { symbol, source } => {
+                let event = event
+                    .text("task", "bind")
+                    .text("symbol", context.symbol_label(*symbol));
+
+                match source {
+                    BindSource::Type(ty) => event.text("type", context.type_label(*ty)),
+                    BindSource::Initializer { site, widening } => event
+                        .text("initializer", context.flow_site_label(*site))
+                        .text("widening", context.widening_label(*widening)),
+                }
+            }
             task => {
                 let event = event.text("task", task.name());
                 if let Some(node) = task.node() {

@@ -2,7 +2,8 @@ use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
 use crate::check::{
-    CheckState, ConstraintId, Dependency, ObligationId, Origin, Relation, ValueUse, Widening,
+    CheckState, ConstraintId, Dependency, FlowPointId, FlowSite, ObligationId, Origin, Relation,
+    TypeBound, ValueUse, Widening,
 };
 
 /// Rendering context for check trace values.
@@ -42,6 +43,20 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         format!("{module}:{kind}#{}", node.local_id.id)
     }
 
+    /// Return a compact flow point label.
+    pub(in crate::check) fn flow_label(&self, flow: FlowPointId) -> String {
+        format!("f{}", flow.index())
+    }
+
+    /// Return a compact source use label.
+    pub(in crate::check) fn flow_site_label(&self, site: FlowSite) -> String {
+        format!(
+            "{}@{}",
+            self.node_label(site.node),
+            self.flow_label(site.flow)
+        )
+    }
+
     /// Return the source location for one node.
     pub(in crate::check) fn node_source_label(&self, node: dir::GlobalNodeIdAny) -> String {
         self.node_span(node)
@@ -66,15 +81,15 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         self.check.format_type(ty)
     }
 
-    /// Return a compact type list label.
-    pub(in crate::check) fn type_list_label(&self, types: &[dir::GlobalTypeId]) -> String {
-        if types.is_empty() {
+    /// Return a compact type-bound list label.
+    pub(in crate::check) fn type_bound_list_label(&self, bounds: &[TypeBound]) -> String {
+        if bounds.is_empty() {
             return "none".to_string();
         }
 
-        types
+        bounds
             .iter()
-            .map(|ty| self.type_label(*ty))
+            .map(|bound| self.type_label(bound.ty))
             .collect::<Vec<_>>()
             .join(", ")
     }
@@ -166,8 +181,8 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             label,
             self.origin_label(state.origin),
             self.origin_source_label(state.origin),
-            self.type_list_label(&state.lower),
-            self.type_list_label(&state.upper),
+            self.type_bound_list_label(&state.lower),
+            self.type_bound_list_label(&state.upper),
             self.optional_type_label(state.default),
             self.optional_type_label(state.solution),
         )
