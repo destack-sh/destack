@@ -31,7 +31,7 @@ state.count = 1;
 /// @resolution.pattern.assign source=state.count kind=place place=field(count) type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=6 constraints=2 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=6 constraints=1 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error code=EC214 message="cannot assign to readonly member 'count'"
@@ -81,7 +81,7 @@ interface Counter {
 
     set current(next: int32);
     /// @type.symbol symbol=Counter.current#2 source="set current(next: int32)" type=(this: Counter, int32) => void
-    /// @type.symbol symbol=next source="next: int32" type=int32
+    /// @type.symbol symbol=Counter.current.next source="next: int32" type=int32
 
 }
 
@@ -181,7 +181,7 @@ interface Sink {
 
     set value(next: int32);
     /// @type.symbol symbol=Sink.value source="set value(next: int32)" type=(this: Sink, int32) => void
-    /// @type.symbol symbol=next source="next: int32" type=int32
+    /// @type.symbol symbol=Sink.value.next source="next: int32" type=int32
 
 }
 
@@ -279,7 +279,7 @@ interface Sink {
 
     set value(next: int32);
     /// @type.symbol symbol=Sink.value source="set value(next: int32)" type=(this: Sink, int32) => void
-    /// @type.symbol symbol=next source="next: int32" type=int32
+    /// @type.symbol symbol=Sink.value.next source="next: int32" type=int32
 
 }
 

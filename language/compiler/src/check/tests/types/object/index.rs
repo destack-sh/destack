@@ -45,24 +45,24 @@ type Bag = { readonly [key: string]: int32 };
 function read(bag: Bag): int32 | undefined {
 /// @generic.template symbol=read parameters=(T0: Bag)
 /// @type.symbol symbol=read type=<read.T0: Bag>(read.T0) => int32 | undefined
-/// @type.symbol symbol=bag type=read.T0
+/// @type.symbol symbol=read.bag source="bag: Bag" type=read.T0
 /// @resolution.name source=Bag target=Bag
 
     const x = bag["x"];
-    /// @type.symbol symbol=x type=int32 | undefined
-    /// @resolution.name source=bag target=bag
-    /// @resolution.member source="bag[\"x\"]" receiver=read.T0 kind=index key=string
+    /// @type.symbol symbol=read.x source=x type=int32 | undefined
+    /// @resolution.name source=bag target=read.bag
+    /// @resolution.member source="bag[\"x\"]" receiver=Bag kind=index key=string
 
     const missing = bag["missing"];
-    /// @type.symbol symbol=missing type=int32 | undefined
-    /// @resolution.name source=bag target=bag
-    /// @resolution.member source="bag[\"missing\"]" receiver=read.T0 kind=index key=string
+    /// @type.symbol symbol=read.missing source=missing type=int32 | undefined
+    /// @resolution.name source=bag target=read.bag
+    /// @resolution.member source="bag[\"missing\"]" receiver=Bag kind=index key=string
 
     missing satisfies int32 | undefined;
-    /// @resolution.name source=missing target=missing
+    /// @resolution.name source=missing target=read.missing
 
     return x;
-    /// @resolution.name source=x target=x
+    /// @resolution.name source=x target=read.x
 
 }
 
@@ -70,14 +70,15 @@ const point: { x: int32; y: int32 } = { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
 
 const x = read(point);
-/// @type.symbol symbol=x type=int32 | undefined
+/// @type.symbol symbol=x#2 source=x type=int32 | undefined
 /// @resolution.name source=read target=read
-/// @resolution.name source=point target=point
-/// @resolution.call source=read(point) parameters=({ x: int32; y: int32 }) return=int32 | undefined kind=symbol target=read instance="read<{ x: int32; y: int32 }>"
+/// @resolution.call source=read(point) parameters=({ x: int32; y: int32 }) arguments=(provided(point) as { x: int32; y: int32 }) return=int32 | undefined kind=symbol target=read instance="read<{ x: int32; y: int32 }>"
 /// @generic.instance source=read(point) id="read<{ x: int32; y: int32 }>"
+/// @resolution.name source=point target=point
 
 x satisfies int32 | undefined;
-/// @resolution.name source=x target=x
+/// @resolution.name source=x target=x#2
+
 /// @generic.instance id="read<{ x: int32; y: int32 }>" template=read arguments=({ x: int32; y: int32 })
 "#,
     );
@@ -106,7 +107,7 @@ type Bag = { readonly [key: string]: int32 };
 declare function read<T0: Bag>(bag: T0): int32 | undefined;
 
 const mixed: { x: int32; y: string } = { x: 1, y: "two" };
-const value: int32 | undefined = read<{ x: int32; y: string }>(mixed);
+const value = read(mixed);
 
 === checked ===
 type Bag = { readonly [key: string]: int32 };
@@ -115,21 +116,20 @@ type Bag = { readonly [key: string]: int32 };
 
 declare function read(bag: Bag): int32 | undefined;
 /// @generic.template symbol=read parameters=(T0: Bag)
-/// @type.symbol symbol=read type=<read.T0: Bag>(read.T0) => int32 | undefined
-/// @type.symbol symbol=bag type=read.T0
+/// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=<read.T0: Bag>(read.T0) => int32 | undefined
+/// @type.symbol symbol=read.bag source="bag: Bag" type=read.T0
 /// @resolution.name source=Bag target=Bag
 
 const mixed: { x: int32; y: string } = { x: 1, y: "two" };
 /// @type.symbol symbol=mixed source=mixed type={ x: int32; y: string }
 
 const value = read(mixed);
-/// @type.symbol symbol=value type=int32 | undefined
 /// @resolution.name source=read target=read
 /// @resolution.name source=mixed target=mixed
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '{ x: int32; y: string }' is not assignable to type 'Bag'"
-/// @diagnostic.label line=7 column=20 source=mixed
+/// @diagnostic.error code=EC201 message="type '{ x: int32; y: string }' does not satisfy 'Bag'"
+/// @diagnostic.label line=7 column=15 span="read(mixed)" line_source="const value = read(mixed);"
 "#,
     );
 }
@@ -152,7 +152,7 @@ const missing = checked["missing"];
 === annotated ===
 type Bag = { readonly [key: string]: int32 };
 
-const checked: { x: int32 } = { x: 1 } satisfies Bag;
+const checked: { x: 1 } = { x: 1 } satisfies Bag;
 const missing = checked["missing"];
 
 === checked ===
@@ -161,16 +161,15 @@ type Bag = { readonly [key: string]: int32 };
 /// @definition.type symbol=Bag source="type Bag = { readonly [key: string]: int32 }" value={ readonly [key: string]: int32 }
 
 const checked = { x: 1 } satisfies Bag;
-/// @type.symbol symbol=checked source=checked type={ x: int32 }
+/// @type.symbol symbol=checked source=checked type={ x: 1 }
 /// @resolution.name source=Bag target=Bag
 
 const missing = checked["missing"];
-/// @type.symbol symbol=missing type=<error>
 /// @resolution.name source=checked target=checked
 "#,
         r#"
-/// @diagnostic.error code=EC316 message="type '{ x: int32 }' cannot be indexed by type '\"missing\"'"
-/// @diagnostic.label line=5 column=17 source="const missing = checked[\"missing\"];"
+/// @diagnostic.error code=EC306 message="operator '[]' is not defined for '{ x: 1 }' and '\"missing\"'"
+/// @diagnostic.label line=5 column=17 span="checked[\"missing\"]" line_source="const missing = checked[\"missing\"];"
 "#,
     );
 }
@@ -198,7 +197,7 @@ type Bag = { [key: string]: int32 };
 declare function write<T0: Bag>(bag: T0): int32 | undefined;
 
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
-const bad: int32 | undefined = write<{ x: int32; y: int32 }>(point);
+const bad = write(point);
 
 === checked ===
 type Bag = { [key: string]: int32 };
@@ -207,21 +206,20 @@ type Bag = { [key: string]: int32 };
 
 declare function write(bag: Bag): int32 | undefined;
 /// @generic.template symbol=write parameters=(T0: Bag)
-/// @type.symbol symbol=write type=<write.T0: Bag>(write.T0) => int32 | undefined
-/// @type.symbol symbol=bag type=write.T0
+/// @type.symbol symbol=write source="declare function write(bag: Bag): int32 | undefined" type=<write.T0: Bag>(write.T0) => int32 | undefined
+/// @type.symbol symbol=write.bag source="bag: Bag" type=write.T0
 /// @resolution.name source=Bag target=Bag
 
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
 
 const bad = write(point);
-/// @type.symbol symbol=bad type=int32 | undefined
 /// @resolution.name source=write target=write
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error code=EC216 message="type '{ x: int32; y: int32 }' is missing IndexSet<string, int32> for writable index signature"
-/// @diagnostic.label line=7 column=13 source="const bad = write(point);"
+/// @diagnostic.error code=EC216 message="type '{ x: int32; y: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
+/// @diagnostic.label line=7 column=13 span="write(point)" line_source="const bad = write(point);"
 "#,
     );
 }
@@ -269,33 +267,35 @@ type Bag = { [key: string]: int32 };
 function write(bag: Bag): int32 | undefined {
 /// @generic.template symbol=write parameters=(T0: Bag)
 /// @type.symbol symbol=write type=<write.T0: Bag>(write.T0) => int32 | undefined
-/// @type.symbol symbol=bag type=write.T0
+/// @type.symbol symbol=write.bag source="bag: Bag" type=write.T0
 /// @resolution.name source=Bag target=Bag
 
     bag["x"] = 1;
-    /// @resolution.name source=bag target=bag
-    /// @resolution.member source="bag[\"x\"]" receiver=write.T0 kind=index key=string
+    /// @resolution.name source=bag target=write.bag
+    /// @resolution.pattern.assign source="bag[\"x\"]" kind=place place=subscript(member(index(string))) type=int32
 
     return bag["x"];
-    /// @resolution.name source=bag target=bag
-    /// @resolution.member source="bag[\"x\"]" receiver=write.T0 kind=index key=string
+    /// @resolution.name source=bag target=write.bag
+    /// @resolution.member source="bag[\"x\"]" receiver=Bag kind=index key=string
 
 }
 
 declare const map: Map<string, int32>;
-/// @type.symbol symbol=map source=map type=Map<string, int32>
+/// @type.symbol symbol=map source=map type=collections.map.Map<string, int32>
 /// @resolution.name source=Map target=collections.map.Map
 
 const value = write(map);
-/// @type.symbol symbol=value type=int32 | undefined
+/// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.name source=write target=write
+/// @resolution.call source=write(map) parameters=(collections.map.Map<string, int32>) arguments=(provided(map) as collections.map.Map<string, int32>) return=int32 | undefined kind=symbol target=write instance="write<collections.map.Map<string, int32>>"
+/// @generic.instance source=write(map) id="write<collections.map.Map<string, int32>>"
 /// @resolution.name source=map target=map
-/// @resolution.call source=write(map) parameters=(Map<string, int32>) return=int32 | undefined kind=symbol target=write instance=write<Map<string, int32>>
-/// @generic.instance source=write(map) id=write<Map<string, int32>>
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
-/// @generic.instance id=write<Map<string, int32>> template=write arguments=(Map<string, int32>)
+
+/// @generic.instance id="collections.map.Map<string, int32>" template=collections.map.Map arguments=(string, int32)
+/// @generic.instance id="write<collections.map.Map<string, int32>>" template=write arguments=(collections.map.Map<string, int32>)
 "#,
     );
 }
@@ -310,8 +310,9 @@ struct Store {
     storage: Map<string, int32>;
 }
 
-extension of Store implements Index<string>, IndexSet<string, int32> {
+extension of Store implements Index<string>, IndexSet<string> {
     type Output = int32 | undefined;
+    type Input = int32;
 
     index(key: string): this.Output {
         return this.storage[key];
@@ -342,14 +343,15 @@ struct Store {
     storage: Map<string, int32>;
 }
 
-extension of Store implements Index<string>, IndexSet<string, int32> {
+extension of Store implements Index<string>, IndexSet<string> {
     type Output = int32 | undefined;
+    type Input = int32;
 
-    index(key: string): this.Output {
+    index(key: string): Store.Output {
         return this.storage[key];
     }
 
-    indexSet<comptime L0: Lifetime>(this: Borrowed<Store, L0, "exclusive">, key: string, value: int32): void {
+    indexSet(&exclusive this, key: string, value: int32): void {
         this.storage[key] = value;
     }
 }
@@ -369,47 +371,57 @@ type Bag = { [key: string]: int32 };
 struct Store {
 /// @type.symbol symbol=Store type=Store
 /// @definition.struct symbol=Store
-/// @definition.field symbol=Store.storage source="storage: Map<string, int32>" key=storage type=Map<string, int32>
+/// @definition.field symbol=Store.storage source="storage: Map<string, int32>" key=storage type=collections.map.Map<string, int32>
 
     storage: Map<string, int32>;
-    /// @type.symbol symbol=Store.storage source="storage: Map<string, int32>" type=Map<string, int32>
+    /// @type.symbol symbol=Store.storage source="storage: Map<string, int32>" type=collections.map.Map<string, int32>
     /// @resolution.name source=Map target=collections.map.Map
 
 }
 
-extension of Store implements Index<string>, IndexSet<string, int32> {
-/// @definition.extension form=interface target=Store interfaces=[ops.subscript.Index<string>, ops.subscript.IndexSet<string, int32>]
+extension of Store implements Index<string>, IndexSet<string> {
+/// @definition.extension symbol=<module>#2 form=local target=Store
+/// @definition.implements symbol=<module>#2 source=Index<string> target=ops.subscript.Index arguments=(string)
+/// @definition.implements symbol=<module>#2 source=IndexSet<string> target=ops.subscript.IndexSet arguments=(string)
+/// @definition.associated.type symbol=Input source="type Input = int32" key=Input value=int32
+/// @definition.associated.type symbol=Output source="type Output = int32 | undefined" key=Output value="int32 | undefined"
+/// @definition.method symbol=index slot=index type=(this: Store, string) => Store.Output
+/// @definition.method symbol=indexSet slot=indexSet type=<comptime indexSet.L0: Lifetime>(this: Borrowed<Store, indexSet.L0, "exclusive">, string, int32) => void
 /// @resolution.name source=Store target=Store
 /// @resolution.name source=Index target=ops.subscript.Index
 /// @resolution.name source=IndexSet target=ops.subscript.IndexSet
 
     type Output = int32 | undefined;
-    /// @type.symbol symbol=Output type=int32 | undefined
+    /// @type.symbol symbol=Output source="type Output = int32 | undefined" type=int32 | undefined
+
+    type Input = int32;
+    /// @type.symbol symbol=Input source="type Input = int32" type=int32
 
     index(key: string): this.Output {
-    /// @type.symbol symbol=index type=(this: Store, string) => int32 | undefined
-    /// @type.symbol symbol=key type=string
-    /// @resolution.name source=this.Output target=Output
+    /// @type.symbol symbol=index type=(this: Store, string) => Store.Output
+    /// @type.symbol symbol=index.key source="key: string" type=string
 
         return this.storage[key];
-        /// @resolution.name source=this target=this
         /// @resolution.member source=this.storage receiver=Store kind=symbol target=Store.storage
-        /// @resolution.name source=key target=key
-        /// @resolution.call source="this.storage[key]" parameters=(string) return=int32 | undefined kind=symbol target=collections.map.index receiver=Map<string, int32>
+        /// @resolution.call source=this.storage[key] parameters=(string) arguments=(provided(key) as string) return=int32 | undefined kind=symbol target=collections.map.index receiver=collections.map.Map<string, int32>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Store
+        /// @resolution.name source=key target=index.key
 
     }
 
     indexSet(&exclusive this, key: string, value: int32): void {
-    /// @type.symbol symbol=indexSet type=<indexSet.L0: Lifetime>(Borrowed<Store, indexSet.L0, "exclusive">, string, int32) => void
-    /// @type.symbol symbol=key type=string
-    /// @type.symbol symbol=value type=int32
+    /// @generic.template symbol=indexSet parameters=(comptime L0: Lifetime)
+    /// @type.symbol symbol=indexSet type=<comptime indexSet.L0: Lifetime>(this: Borrowed<Store, indexSet.L0, "exclusive">, string, int32) => void
+    /// @type.symbol symbol=indexSet.this source="&exclusive this" type=Borrowed<this, indexSet.L0, "exclusive">
+    /// @type.symbol symbol=indexSet.key source="key: string" type=string
+    /// @type.symbol symbol=indexSet.value source="value: int32" type=int32
 
         this.storage[key] = value;
-        /// @resolution.name source=this target=this
         /// @resolution.member source=this.storage receiver=Borrowed<Store, indexSet.L0, "exclusive"> kind=symbol target=Store.storage
-        /// @resolution.name source=key target=key
-        /// @resolution.name source=value target=value
-        /// @resolution.call source="this.storage[key]" parameters=(string, int32) return=void kind=symbol target=collections.map.indexSet receiver=Map<string, int32>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Store, indexSet.L0, "exclusive">
+        /// @resolution.pattern.assign source=this.storage[key] kind=place place=subscript(collections.map.indexSet) type=int32
+        /// @resolution.name source=key target=indexSet.key
+        /// @resolution.name source=value target=indexSet.value
 
     }
 }
@@ -420,19 +432,21 @@ declare let store: Store;
 
 declare function write(bag: Bag): int32 | undefined;
 /// @generic.template symbol=write parameters=(T0: Bag)
-/// @type.symbol symbol=write type=<write.T0: Bag>(write.T0) => int32 | undefined
-/// @type.symbol symbol=bag type=write.T0
+/// @type.symbol symbol=write source="declare function write(bag: Bag): int32 | undefined" type=<write.T0: Bag>(write.T0) => int32 | undefined
+/// @type.symbol symbol=write.bag source="bag: Bag" type=write.T0
 /// @resolution.name source=Bag target=Bag
 
 const value = write(store);
-/// @type.symbol symbol=value type=int32 | undefined
+/// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.name source=write target=write
-/// @resolution.name source=store target=store
-/// @resolution.call source=write(store) parameters=(Store) return=int32 | undefined kind=symbol target=write instance=write<Store>
+/// @resolution.call source=write(store) parameters=(Store) arguments=(provided(store) as Store) return=int32 | undefined kind=symbol target=write instance=write<Store>
 /// @generic.instance source=write(store) id=write<Store>
+/// @resolution.name source=store target=store
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
+
+/// @generic.instance id="collections.map.Map<string, int32>" template=collections.map.Map arguments=(string, int32)
 /// @generic.instance id=write<Store> template=write arguments=(Store)
 "#,
     );
@@ -461,7 +475,7 @@ type Bag = Record<string, int32>;
 declare function read<T0: Bag>(bag: T0): int32 | undefined;
 
 const point: { x: int32 } = { x: 1 };
-const bad: int32 | undefined = read<{ x: int32 }>(point);
+const bad = read(point);
 
 === checked ===
 type Bag = Record<string, int32>;
@@ -471,21 +485,20 @@ type Bag = Record<string, int32>;
 
 declare function read(bag: Bag): int32 | undefined;
 /// @generic.template symbol=read parameters=(T0: Bag)
-/// @type.symbol symbol=read type=<read.T0: Bag>(read.T0) => int32 | undefined
-/// @type.symbol symbol=bag type=read.T0
+/// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=<read.T0: Bag>(read.T0) => int32 | undefined
+/// @type.symbol symbol=read.bag source="bag: Bag" type=read.T0
 /// @resolution.name source=Bag target=Bag
 
 const point: { x: int32 } = { x: 1 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 
 const bad = read(point);
-/// @type.symbol symbol=bad type=int32 | undefined
 /// @resolution.name source=read target=read
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error code=EC216 message="type '{ x: int32 }' is missing IndexSet<string, int32> for writable index signature"
-/// @diagnostic.label line=7 column=13 source="const bad = read(point);"
+/// @diagnostic.error code=EC216 message="type '{ x: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
+/// @diagnostic.label line=7 column=13 span="read(point)" line_source="const bad = read(point);"
 "#,
     );
 }
@@ -522,11 +535,11 @@ type Bag = Record<string, int32>;
 /// @resolution.name source=Record target=types.object.Record
 
 declare const bag: Bag;
-/// @type.symbol symbol=bag source=bag type={ [P: string]: int32 }
+/// @type.symbol symbol=bag source=bag type=Bag
 /// @resolution.name source=Bag target=Bag
 
 const value = bag["missing"];
-/// @type.symbol symbol=value type=int32 | undefined
+/// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.name source=bag target=bag
 /// @resolution.member source="bag[\"missing\"]" receiver={ [P: string]: int32 } kind=index key=string
 
@@ -568,13 +581,13 @@ type Bag = Record<usize, int32>;
 /// @resolution.name source=Record target=types.object.Record
 
 declare const bag: Bag;
-/// @type.symbol symbol=bag source=bag type={ [P: usize]: int32 }
+/// @type.symbol symbol=bag source=bag type=Bag
 /// @resolution.name source=Bag target=Bag
 
 const value = bag[1];
-/// @type.symbol symbol=value type=int32 | undefined
+/// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.name source=bag target=bag
-/// @resolution.member source="bag[1]" receiver={ [P: usize]: int32 } kind=index key=usize
+/// @resolution.member source=bag[1] receiver={ [P: usize]: int32 } kind=index key=usize
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
@@ -610,16 +623,15 @@ type Bag = Record<string, int32>;
 /// @resolution.name source=Record target=types.object.Record
 
 declare const bag: Bag;
-/// @type.symbol symbol=bag source=bag type={ [P: string]: int32 }
+/// @type.symbol symbol=bag source=bag type=Bag
 /// @resolution.name source=Bag target=Bag
 
 const value = bag.missing;
-/// @type.symbol symbol=value type=<error>
 /// @resolution.name source=bag target=bag
 "#,
         r#"
-/// @diagnostic.error code=EC300 message="property 'missing' is only available via index signature"
-/// @diagnostic.label line=5 column=15 source="const value = bag.missing;"
+/// @diagnostic.error code=EC300 message="member 'missing' does not exist on type '{ [P: string]: int32 }'"
+/// @diagnostic.label line=5 column=19 span="missing" line_source="const value = bag.missing;"
 "#,
     );
 }

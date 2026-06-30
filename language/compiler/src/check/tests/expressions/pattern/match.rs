@@ -35,17 +35,18 @@ declare const status: "ready" | "error";
 
 const label = match (status) {
 /// @type.symbol symbol=label source=label type="go" | "stop"
+/// @type.node type="go" | "stop"
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
 
     "ready" => "go"
     /// @type.node source="\"ready\"" type="ready"
-    /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
+    /// @resolution.pattern source="\"ready\"" kind=literal value=ready
     /// @type.node source="\"go\"" type="go"
 
     "error" => "stop"
     /// @type.node source="\"error\"" type="error"
-    /// @resolution.pattern source="\"error\"" kind=literal value="error"
+    /// @resolution.pattern source="\"error\"" kind=literal value=error
     /// @type.node source="\"stop\"" type="stop"
 
 };
@@ -87,19 +88,20 @@ declare const status: "ready" | "error";
 
 const label = match (status) {
 /// @type.symbol symbol=label source=label type="go"
+/// @type.node type="go"
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
 
     "ready" => "go"
     /// @type.node source="\"ready\"" type="ready"
-    /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
+    /// @resolution.pattern source="\"ready\"" kind=literal value=ready
     /// @type.node source="\"go\"" type="go"
 
 };
 "#,
         r#"
 /// @diagnostic.error code=EC403 message="match is not exhaustive: '\"error\"' is not covered"
-/// @diagnostic.label line=4 column=15 source="match (status) {\n    \"ready\" => \"go\"\n}"
+/// @diagnostic.label line=4 column=21 span="(status) {\n    \"ready\" => \"go\"\n}" line_source="const label = match (status) {"
 "#,
     );
 }
@@ -135,25 +137,26 @@ declare const status: "ready" | "error";
 
 const label = match (status) {
 /// @type.symbol symbol=label source=label type="go" | "stop"
+/// @type.node type="go" | "stop"
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
 
     "ready" if (true) => "go"
     /// @type.node source="\"ready\"" type="ready"
-    /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
+    /// @resolution.pattern source="\"ready\"" kind=literal value=ready
     /// @type.node source=true type=true
     /// @type.node source="\"go\"" type="go"
 
     "error" => "stop"
     /// @type.node source="\"error\"" type="error"
-    /// @resolution.pattern source="\"error\"" kind=literal value="error"
+    /// @resolution.pattern source="\"error\"" kind=literal value=error
     /// @type.node source="\"stop\"" type="stop"
 
 };
 "#,
         r#"
 /// @diagnostic.error code=EC403 message="match is not exhaustive: '\"ready\"' is not covered"
-/// @diagnostic.label line=4 column=15 source="match (status) {\n    \"ready\" if (true) => \"go\"\n    \"error\" => \"stop\"\n}"
+/// @diagnostic.label line=4 column=21 span="(status) {\n    \"ready\" if (true) => \"go\"\n    \"error\" => \"stop\"\n}" line_source="const label = match (status) {"
 "#,
     );
 }
@@ -193,24 +196,25 @@ declare const point: { x: int32; y: int32 };
 
 const result = match (point) {
 /// @type.symbol symbol=result source=result type=int32
+/// @type.node type=int32
 /// @type.node source=point type={ x: int32; y: int32 }
 /// @resolution.name source=point target=point
 
     { x, y } if (x == x) => y
-    /// @type.symbol symbol=x source=x type=int32
-    /// @type.symbol symbol=y source=y type=int32
-    /// @resolution.pattern source="{ x, y }" kind=object fields={ x, y }
+    /// @resolution.pattern source={ x, y } kind=object fields={ x, y }
+    /// @type.symbol symbol=x#2 source=x type=int32
+    /// @type.symbol symbol=y#2 source=y type=int32
     /// @type.node source="x == x" type=boolean
     /// @type.node source=x type=int32
-    /// @resolution.name source=x target=x
+    /// @resolution.name source=x target=x#2
+    /// @resolution.call source="x == x" parameters=() return=boolean kind=builtin builtin=binary.equal
     /// @type.node source=x type=int32
-    /// @resolution.name source=x target=x
+    /// @resolution.name source=x target=x#2
     /// @type.node source=y type=int32
-    /// @resolution.name source=y target=y
+    /// @resolution.name source=y target=y#2
 
     _ => 0
     /// @resolution.pattern source=_ kind=wildcard
-    /// @type.node source="0" type=int32
     /// @type.node source=0 type=0
 
 };
@@ -257,23 +261,24 @@ declare const config: { enabled: boolean; retries: int32 };
 /// @type.symbol symbol=config source=config type={ enabled: boolean; retries: int32 }
 
 match (config) {
+/// @type.node type=void
 /// @type.node source=config type={ enabled: boolean; retries: int32 }
 /// @resolution.name source=config target=config
 
     { enabled, retries } => {
-    /// @type.symbol symbol=enabled source=enabled type=boolean
-    /// @type.symbol symbol=retries source=retries type=int32
-    /// @resolution.pattern source="{ enabled, retries }" kind=object fields={ enabled, retries }
+    /// @resolution.pattern source={ enabled, retries } kind=object fields={ enabled, retries }
+    /// @type.symbol symbol=enabled#2 source=enabled type=boolean
+    /// @type.symbol symbol=retries#2 source=retries type=int32
 
         enabled satisfies boolean;
         /// @type.node source="enabled satisfies boolean" type=boolean
         /// @type.node source=enabled type=boolean
-        /// @resolution.name source=enabled target=enabled
+        /// @resolution.name source=enabled target=enabled#2
 
         retries satisfies int32;
         /// @type.node source="retries satisfies int32" type=int32
         /// @type.node source=retries type=int32
-        /// @resolution.name source=retries target=retries
+        /// @resolution.name source=retries target=retries#2
 
     }
 }
@@ -288,7 +293,10 @@ fn test_match_nested_patterns_bind_leaf_values() {
 declare const packet: { point: { x: int32; y: int32 }; labels: [string; 2] };
 
 match (packet) {
-    { point: { x, y }, labels: [first, second] } => {
+    {
+        point: { x, y },
+        labels: [first, second],
+    } => {
         x satisfies int32;
         y satisfies int32;
         first satisfies string;
@@ -306,7 +314,10 @@ match (packet) {
 declare const packet: { point: { x: int32; y: int32 }; labels: [string; 2] };
 
 match (packet) {
-    { point: { x, y }, labels: [first, second] } => {
+    {
+        point: { x, y },
+        labels: [first, second],
+    } => {
         x satisfies int32;
         y satisfies int32;
         first satisfies string;
@@ -316,30 +327,38 @@ match (packet) {
 
 === checked ===
 declare const packet: { point: { x: int32; y: int32 }; labels: [string; 2] };
-/// @type.symbol symbol=packet source=packet type={ point: { x: int32; y: int32 }; labels: [string; 2] }
+/// @type.symbol symbol=packet source=packet type={ point: { x: int32; y: int32 }; labels: FixedArray<string, 2> }
 
 match (packet) {
-/// @type.node source=packet type={ point: { x: int32; y: int32 }; labels: [string; 2] }
+/// @type.node type=void
+/// @type.node source=packet type={ point: { x: int32; y: int32 }; labels: FixedArray<string, 2> }
 /// @resolution.name source=packet target=packet
 
-    { point: { x, y }, labels: [first, second] } => {
-    /// @type.symbol symbol=x source=x type=int32
-    /// @type.symbol symbol=y source=y type=int32
-    /// @type.symbol symbol=first source=first type=string
-    /// @type.symbol symbol=second source=second type=string
-    /// @resolution.pattern source="{ point: { x, y }, labels: [first, second] }" kind=object fields={ point: pattern, labels: pattern }
-    /// @resolution.pattern source="{ x, y }" kind=object fields={ x, y }
-    /// @resolution.pattern source="[first, second]" kind=sequence sequence=fixed_array length=2 fields=(first, second)
+    {
+    /// @resolution.pattern kind=object fields={ point: pattern, labels: pattern }
 
+        point: { x, y },
+        /// @resolution.pattern source={ x, y } kind=object fields={ x, y }
+        /// @type.symbol symbol=x#2 source=x type=int32
+        /// @type.symbol symbol=y#2 source=y type=int32
+
+        labels: [first, second],
+        /// @resolution.pattern source=[first, second] kind=sequence element=string arity=2 fields=(first, second)
+        /// @type.symbol symbol=first source=first type=string
+        /// @resolution.pattern source=first kind=binding target=first
+        /// @type.symbol symbol=second source=second type=string
+        /// @resolution.pattern source=second kind=binding target=second
+
+    } => {
         x satisfies int32;
         /// @type.node source="x satisfies int32" type=int32
         /// @type.node source=x type=int32
-        /// @resolution.name source=x target=x
+        /// @resolution.name source=x target=x#2
 
         y satisfies int32;
         /// @type.node source="y satisfies int32" type=int32
         /// @type.node source=y type=int32
-        /// @resolution.name source=y target=y
+        /// @resolution.name source=y target=y#2
 
         first satisfies string;
         /// @type.node source="first satisfies string" type=string
@@ -363,6 +382,10 @@ fn test_match_nominal_object_pattern_binds_class_fields() {
         r#"
 class User {
     name: string;
+
+    constructor(name: string) {
+        this.name = name;
+    }
 }
 
 declare const user: User;
@@ -380,6 +403,10 @@ match (user) {
 === annotated ===
 class User {
     name: string;
+
+    constructor(name: string): User {
+        this.name = name;
+    }
 }
 
 declare const user: User;
@@ -393,10 +420,25 @@ class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(string) => User
 
     name: string;
     /// @type.symbol symbol=User.name source="name: string" type=string
 
+    constructor(name: string) {
+    /// @type.symbol symbol=User.constructor type=(string) => User
+    /// @type.symbol symbol=User.constructor.name source="name: string" type=string
+
+        this.name = name;
+        /// @type.node source="this.name = name" type=string
+        /// @type.node source=this type=User
+        /// @type.node source=this.name type=string
+        /// @resolution.receiver source=this kind=this declaration=User type=User
+        /// @resolution.pattern.assign source=this.name kind=place place=field(User.name) type=string
+        /// @type.node source=name type=string
+        /// @resolution.name source=name target=User.constructor.name
+
+    }
 }
 
 declare const user: User;
@@ -404,13 +446,14 @@ declare const user: User;
 /// @resolution.name source=User target=User
 
 match (user) {
+/// @type.node type=string
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
 
     User { name } => name satisfies string
-    /// @type.symbol symbol=name source=name type=string
-    /// @resolution.pattern source="User { name }" kind=nominal_object target=User fields={ name }
     /// @resolution.name source=User target=User
+    /// @resolution.pattern source="User { name }" kind=nominal_object target=User fields={ User.name }
+    /// @type.symbol symbol=name source=name type=string
     /// @type.node source="name satisfies string" type=string
     /// @type.node source=name type=string
     /// @resolution.name source=name target=name
@@ -454,13 +497,16 @@ declare const values: int32[];
 /// @type.symbol symbol=values source=values type=Array<int32>
 
 match (values) {
+/// @type.node type=void
 /// @type.node source=values type=Array<int32>
 /// @resolution.name source=values target=values
 
     [head, ...tail] => {
+    /// @resolution.pattern source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
     /// @type.symbol symbol=head source=head type=int32
+    /// @resolution.pattern source=head kind=binding target=head
     /// @type.symbol symbol=tail source=tail type=Array<int32>
-    /// @resolution.pattern source="[head, ...tail]" kind=sequence sequence=array fields=(head) rest=...tail
+    /// @resolution.pattern source=tail kind=binding target=tail
 
         head satisfies int32;
         /// @type.node source="head satisfies int32" type=int32
@@ -506,14 +552,17 @@ declare const value: { left: int32 } | { right: int32 };
 /// @type.symbol symbol=value source=value type={ left: int32 } | { right: int32 }
 
 match (value) {
+/// @type.node type=int32
 /// @type.node source=value type={ left: int32 } | { right: int32 }
 /// @resolution.name source=value target=value
 
     { left: item } | { right: item } => item satisfies int32
+    /// @resolution.pattern source={ left: item } kind=object fields={ left: item }
+    /// @resolution.pattern source={ left: item } | { right: item } kind=union patterns=[pattern, pattern]
     /// @type.symbol symbol=item source=item type=int32
-    /// @resolution.pattern source="{ left: item } | { right: item }" kind=union patterns=[pattern, pattern]
-    /// @resolution.pattern source="{ left: item }" kind=object fields={ left: item }
-    /// @resolution.pattern source="{ right: item }" kind=object fields={ right: item }
+    /// @resolution.pattern source=item kind=binding target=item
+    /// @resolution.pattern source={ right: item } kind=object fields={ right: item }
+    /// @resolution.pattern source=item kind=binding target=item
     /// @type.node source="item satisfies int32" type=int32
     /// @type.node source=item type=int32
     /// @resolution.name source=item target=item
@@ -554,12 +603,13 @@ declare const status: "ready" | "error";
 
 const label = match (status) {
 /// @type.symbol symbol=label source=label type="go" | "error"
+/// @type.node type="go" | "error"
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
 
     "ready" => "go"
     /// @type.node source="\"ready\"" type="ready"
-    /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
+    /// @resolution.pattern source="\"ready\"" kind=literal value=ready
     /// @type.node source="\"go\"" type="go"
 
     _ => status

@@ -363,7 +363,7 @@ declare const point: { x: int32 };
 }
 
 #[test]
-fn test_computed_assignment_pattern_accepts_index_signature_key() {
+fn test_computed_assignment_pattern_rejects_partial_index_signature_key() {
     let session = TestSession::single(
         r#"
 declare const key: string;
@@ -374,7 +374,7 @@ declare const bag: { [key: string]: int32 };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir_checked_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -405,6 +405,10 @@ declare const bag: { [key: string]: int32 };
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=bag type={ [key: string]: int32 }
 /// @resolution.name source=bag target=bag
+"#,
+        r#"
+/// @diagnostic.error code=EC200 message="type 'int32 | undefined' is not assignable to type 'int32'"
+/// @diagnostic.label line=6 column=11 span="value" line_source="({ [key]: value } = bag);"
 "#,
     );
 }

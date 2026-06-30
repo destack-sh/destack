@@ -28,7 +28,7 @@ type Value = Awaited<string>;
 /// @resolution.name source=Awaited target=types.object.Awaited
 
 const ok: Value = "ready";
-/// @type.symbol symbol=ok source=ok type=string
+/// @type.symbol symbol=ok source=ok type=Value
 /// @resolution.name source=Value target=Value
 
 ok satisfies string;
@@ -63,11 +63,11 @@ type Value = Awaited<Promise<Promise<string>>>;
 /// @type.symbol symbol=Value source="type Value = Awaited<Promise<Promise<string>>>" type=string
 /// @definition.type symbol=Value source="type Value = Awaited<Promise<Promise<string>>>" value=string
 /// @resolution.name source=Awaited target=types.object.Awaited
-/// @resolution.name source=Promise target=async.Promise
-/// @resolution.name source=Promise target=async.Promise
+/// @resolution.name source=Promise target=async.promise.Promise
+/// @resolution.name source=Promise target=async.promise.Promise
 
 const ok: Value = "ready";
-/// @type.symbol symbol=ok source=ok type=string
+/// @type.symbol symbol=ok source=ok type=Value
 /// @resolution.name source=Value target=Value
 
 ok satisfies string;
@@ -104,11 +104,11 @@ type Value = Awaited<null | undefined>;
 /// @resolution.name source=Awaited target=types.object.Awaited
 
 const first: Value = null;
-/// @type.symbol symbol=first source=first type=null | undefined
+/// @type.symbol symbol=first source=first type=Value
 /// @resolution.name source=Value target=Value
 
 const second: Value = undefined;
-/// @type.symbol symbol=second source=second type=null | undefined
+/// @type.symbol symbol=second source=second type=Value
 /// @resolution.name source=Value target=Value
 "#,
     );
@@ -140,20 +140,22 @@ type Value = Awaited<Promise<string>>;
 /// @type.symbol symbol=Value source="type Value = Awaited<Promise<string>>" type=string
 /// @definition.type symbol=Value source="type Value = Awaited<Promise<string>>" value=string
 /// @resolution.name source=Awaited target=types.object.Awaited
-/// @resolution.name source=Promise target=async.Promise
+/// @resolution.name source=Promise target=async.promise.Promise
 
 declare const promise: Promise<string>;
-/// @type.symbol symbol=promise source=promise type=Promise<string>
-/// @resolution.name source=Promise target=async.Promise
+/// @type.symbol symbol=promise source=promise type=async.promise.Promise<string>
+/// @resolution.name source=Promise target=async.promise.Promise
 
 const bad: Value = promise;
-/// @type.symbol symbol=bad source=bad type=string
+/// @type.symbol symbol=bad source=bad type=Value
 /// @resolution.name source=Value target=Value
 /// @resolution.name source=promise target=promise
+
+/// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Promise<string>' is not assignable to type 'Value'"
-/// @diagnostic.label line=5 column=7 source="const bad: Value = promise;"
+/// @diagnostic.error code=EC200 message="type 'async.promise.Promise<string>' is not assignable to type 'string'"
+/// @diagnostic.label line=5 column=20 span="promise" line_source="const bad: Value = promise;"
 "#,
     );
 }

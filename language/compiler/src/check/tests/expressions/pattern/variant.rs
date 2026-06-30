@@ -33,36 +33,40 @@ match (status) {
 
 === checked ===
 @derive(Tagged)
+/// @type.symbol symbol=Status type=Status
+/// @type.symbol symbol=Status.Err type=Status.Err
+/// @type.symbol symbol=Status.Ok type=Status.Ok
+/// @definition.newtype symbol=Status value=error.result.Ok<string> | error.result.Err<int32>
+/// @definition.variant symbol=Status.Err key=Err
+/// @definition.variant symbol=Status.Ok key=Ok
+/// @resolution.name source=derive target=decorator.derive.derive
+
 newtype Status = Ok<string> | Err<int32>;
-/// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
-/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" value=Ok<string> | Err<int32>
-/// @resolution.name source=Tagged target=decorator.derive.Tagged
-/// @resolution.name source=Ok target=Ok
-/// @resolution.name source=Err target=Err
+/// @resolution.name source=Ok target=error.result.Ok
+/// @resolution.name source=Err target=error.result.Err
 
 declare const status: Status;
 /// @type.symbol symbol=status source=status type=Status
 /// @resolution.name source=Status target=Status
 
 match (status) {
+/// @type.node type=string | int32
 /// @type.node source=status type=Status
 /// @resolution.name source=status target=status
 
     Status.Ok(value) => value satisfies string
+    /// @resolution.name source=Status.Ok target=Status
+    /// @resolution.pattern source=Status.Ok(value) kind=variant predicate="variant.tag(\"Ok\") is \"Ok\"" projection="variant.payload(Status.Ok, { value: string })" payload=tuple fields=(value)
     /// @type.symbol symbol=value source=value type=string
-    /// @resolution.pattern source="Status.Ok(value)" kind=variant owner=Status variant=Ok payload=tuple fields=(value)
-    /// @resolution.name source=Status target=Status
-    /// @resolution.variant source=Status.Ok owner=Status variant=Ok
     /// @resolution.pattern source=value kind=binding target=value
     /// @type.node source="value satisfies string" type=string
     /// @type.node source=value type=string
     /// @resolution.name source=value target=value
 
     Status.Err(code) => code satisfies int32
+    /// @resolution.name source=Status.Err target=Status
+    /// @resolution.pattern source=Status.Err(code) kind=variant predicate="variant.tag(\"Err\") is \"Err\"" projection="variant.payload(Status.Err, { error: int32 })" payload=tuple fields=(code)
     /// @type.symbol symbol=code source=code type=int32
-    /// @resolution.pattern source="Status.Err(code)" kind=variant owner=Status variant=Err payload=tuple fields=(code)
-    /// @resolution.name source=Status target=Status
-    /// @resolution.variant source=Status.Err owner=Status variant=Err
     /// @resolution.pattern source=code kind=binding target=code
     /// @type.node source="code satisfies int32" type=int32
     /// @type.node source=code type=int32
@@ -106,42 +110,47 @@ match (event) {
 
 === checked ===
 @derive(Tagged)
+/// @type.symbol symbol=Event type=Event
+/// @type.symbol symbol=Event.Click type=Event.Click
+/// @type.symbol symbol=Event.Key type=Event.Key
+/// @definition.newtype symbol=Event value={ kind: "click"; x: int32; y: int32 } | { kind: "key"; key: string }
+/// @definition.variant symbol=Event.Click key=Click
+/// @definition.variant symbol=Event.Key key=Key
+/// @resolution.name source=derive target=decorator.derive.derive
+
 newtype Event = { kind: "click"; x: int32; y: int32 } | { kind: "key"; key: string };
-/// @type.symbol symbol=Event source="newtype Event = { kind: \"click\"; x: int32; y: int32 } | { kind: \"key\"; key: string }" type=Event
-/// @definition.newtype symbol=Event source="newtype Event = { kind: \"click\"; x: int32; y: int32 } | { kind: \"key\"; key: string }" value={ kind: "click"; x: int32; y: int32 } | { kind: "key"; key: string }
-/// @resolution.name source=Tagged target=decorator.derive.Tagged
 
 declare const event: Event;
 /// @type.symbol symbol=event source=event type=Event
 /// @resolution.name source=Event target=Event
 
 match (event) {
+/// @type.node type=int32 | usize
 /// @type.node source=event type=Event
 /// @resolution.name source=event target=event
 
     Event.Click({ x, y }) => x + y
+    /// @resolution.name source=Event.Click target=Event
+    /// @resolution.pattern source="Event.Click({ x, y })" kind=variant predicate="variant.tag(\"click\") is \"click\"" projection="variant.payload(Event.Click, { x: int32; y: int32 })" payload=tuple fields=(pattern)
+    /// @resolution.pattern source={ x, y } kind=object fields={ x, y }
     /// @type.symbol symbol=x source=x type=int32
     /// @type.symbol symbol=y source=y type=int32
-    /// @resolution.pattern source="Event.Click({ x, y })" kind=variant owner=Event variant=Click payload=object fields={ x, y }
-    /// @resolution.name source=Event target=Event
-    /// @resolution.variant source=Event.Click owner=Event variant=Click
-    /// @resolution.pattern source="{ x, y }" kind=object fields={ x, y }
     /// @type.node source="x + y" type=int32
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x
+    /// @resolution.call source="x + y" parameters=() return=int32 kind=builtin builtin=binary.add
     /// @type.node source=y type=int32
     /// @resolution.name source=y target=y
 
     Event.Key({ key }) => key.length
+    /// @resolution.name source=Event.Key target=Event
+    /// @resolution.pattern source="Event.Key({ key })" kind=variant predicate="variant.tag(\"key\") is \"key\"" projection="variant.payload(Event.Key, { key: string })" payload=tuple fields=(pattern)
+    /// @resolution.pattern source={ key } kind=object fields={ key }
     /// @type.symbol symbol=key source=key type=string
-    /// @resolution.pattern source="Event.Key({ key })" kind=variant owner=Event variant=Key payload=object fields={ key }
-    /// @resolution.name source=Event target=Event
-    /// @resolution.variant source=Event.Key owner=Event variant=Key
-    /// @resolution.pattern source="{ key }" kind=object fields={ key }
-    /// @type.node source=key.length type=usize
     /// @type.node source=key type=string
+    /// @type.node source=key.length type=usize
     /// @resolution.name source=key target=key
-    /// @resolution.member source=key.length receiver=string kind=field key=length
+    /// @resolution.member source=key.length receiver=string kind=symbol target=string.string.length
 
 }
 "#,
@@ -156,12 +165,12 @@ fn test_variant_pattern_rejects_wrong_owner() {
 newtype Status = Ok<string> | Err<int32>;
 
 @derive(Tagged)
-newtype Other = Done<string>;
+newtype Other = Ok<string>;
 
 declare const status: Status;
 
 match (status) {
-    Other.Done(value) => value
+    Other.Ok(value) => value
 }
 "#,
     );
@@ -175,26 +184,37 @@ match (status) {
 newtype Status = Ok<string> | Err<int32>;
 
 @derive(Tagged)
-newtype Other = Done<string>;
+newtype Other = Ok<string>;
 
 declare const status: Status;
 
 match (status) {
-    Other.Done(value) => value
+    Other.Ok(value) => value
 }
 
 === checked ===
 @derive(Tagged)
+/// @type.symbol symbol=Status type=Status
+/// @type.symbol symbol=Status.Err type=Status.Err
+/// @type.symbol symbol=Status.Ok type=Status.Ok
+/// @definition.newtype symbol=Status value=error.result.Ok<string> | error.result.Err<int32>
+/// @definition.variant symbol=Status.Err key=Err
+/// @definition.variant symbol=Status.Ok key=Ok
+/// @resolution.name source=derive target=decorator.derive.derive
+
 newtype Status = Ok<string> | Err<int32>;
-/// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
-/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" value=Ok<string> | Err<int32>
-/// @resolution.name source=Tagged target=decorator.derive.Tagged
+/// @resolution.name source=Ok target=error.result.Ok
+/// @resolution.name source=Err target=error.result.Err
 
 @derive(Tagged)
-newtype Other = Done<string>;
-/// @type.symbol symbol=Other source="newtype Other = Done<string>" type=Other
-/// @definition.newtype symbol=Other source="newtype Other = Done<string>" value=Done<string>
-/// @resolution.name source=Tagged target=decorator.derive.Tagged
+/// @type.symbol symbol=Other type=Other
+/// @type.symbol symbol=Other.Ok type=Other.Ok
+/// @definition.newtype symbol=Other value=error.result.Ok<string>
+/// @definition.variant symbol=Other.Ok key=Ok
+/// @resolution.name source=derive target=decorator.derive.derive
+
+newtype Other = Ok<string>;
+/// @resolution.name source=Ok target=error.result.Ok
 
 declare const status: Status;
 /// @type.symbol symbol=status source=status type=Status
@@ -204,20 +224,15 @@ match (status) {
 /// @type.node source=status type=Status
 /// @resolution.name source=status target=status
 
-    Other.Done(value) => value
-    /// @type.symbol symbol=value source=value type=<error>
-    /// @resolution.pattern source="Other.Done(value)" kind=variant owner=Other variant=Done payload=tuple fields=(value)
-    /// @resolution.name source=Other target=Other
-    /// @resolution.variant source=Other.Done owner=Other variant=Done
-    /// @resolution.pattern source=value kind=binding target=value
-    /// @type.node source=value type=<error>
+    Other.Ok(value) => value
+    /// @resolution.name source=Other.Ok target=Other
     /// @resolution.name source=value target=value
 
 }
 "#,
         r#"
-/// @diagnostic.error code=EC438 message="variant 'Other.Done' is not a variant of type 'Status'"
-/// @diagnostic.label line=11 column=5 source="Other.Done(value)"
+/// @diagnostic.error code=EC438 message="variant 'Other.Ok' is not a variant of type 'Status'"
+/// @diagnostic.label line=11 column=5 span="Other.Ok(value)" line_source="Other.Ok(value) => value"
 "#,
     );
 }
@@ -253,10 +268,17 @@ match (status) {
 
 === checked ===
 @derive(Tagged)
+/// @type.symbol symbol=Status type=Status
+/// @type.symbol symbol=Status.Err type=Status.Err
+/// @type.symbol symbol=Status.Ok type=Status.Ok
+/// @definition.newtype symbol=Status value=error.result.Ok<string> | error.result.Err<int32>
+/// @definition.variant symbol=Status.Err key=Err
+/// @definition.variant symbol=Status.Ok key=Ok
+/// @resolution.name source=derive target=decorator.derive.derive
+
 newtype Status = Ok<string> | Err<int32>;
-/// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
-/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" value=Ok<string> | Err<int32>
-/// @resolution.name source=Tagged target=decorator.derive.Tagged
+/// @resolution.name source=Ok target=error.result.Ok
+/// @resolution.name source=Err target=error.result.Err
 
 declare const status: Status;
 /// @type.symbol symbol=status source=status type=Status
@@ -267,18 +289,14 @@ match (status) {
 /// @resolution.name source=status target=status
 
     Status.Done(value) => value
-    /// @type.symbol symbol=value source=value type=<error>
-    /// @resolution.pattern source="Status.Done(value)" kind=variant owner=Status variant=Done payload=tuple fields=(value)
-    /// @resolution.name source=Status target=Status
-    /// @resolution.pattern source=value kind=binding target=value
-    /// @type.node source=value type=<error>
+    /// @resolution.name source=Status.Done target=Status
     /// @resolution.name source=value target=value
 
 }
 "#,
         r#"
 /// @diagnostic.error code=EC439 message="variant 'Done' does not exist on type 'Status'"
-/// @diagnostic.label line=8 column=12 source=Done
+/// @diagnostic.label line=8 column=5 span="Status.Done(value)" line_source="Status.Done(value) => value"
 "#,
     );
 }
@@ -316,10 +334,17 @@ const label: "ok" | "err" = match (status) {
 
 === checked ===
 @derive(Tagged)
+/// @type.symbol symbol=Status type=Status
+/// @type.symbol symbol=Status.Err type=Status.Err
+/// @type.symbol symbol=Status.Ok type=Status.Ok
+/// @definition.newtype symbol=Status value=error.result.Ok<string> | error.result.Err<int32>
+/// @definition.variant symbol=Status.Err key=Err
+/// @definition.variant symbol=Status.Ok key=Ok
+/// @resolution.name source=derive target=decorator.derive.derive
+
 newtype Status = Ok<string> | Err<int32>;
-/// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
-/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" value=Ok<string> | Err<int32>
-/// @resolution.name source=Tagged target=decorator.derive.Tagged
+/// @resolution.name source=Ok target=error.result.Ok
+/// @resolution.name source=Err target=error.result.Err
 
 declare const status: Status;
 /// @type.symbol symbol=status source=status type=Status
@@ -327,17 +352,22 @@ declare const status: Status;
 
 const label = match (status) {
 /// @type.symbol symbol=label source=label type="ok" | "err"
+/// @type.node type="ok" | "err"
 /// @type.node source=status type=Status
 /// @resolution.name source=status target=status
 
     Status.Ok(value) => "ok"
+    /// @resolution.name source=Status.Ok target=Status
+    /// @resolution.pattern source=Status.Ok(value) kind=variant predicate="variant.tag(\"Ok\") is \"Ok\"" projection="variant.payload(Status.Ok, { value: string })" payload=tuple fields=(value)
     /// @type.symbol symbol=value source=value type=string
-    /// @resolution.pattern source="Status.Ok(value)" kind=variant owner=Status variant=Ok payload=tuple fields=(value)
+    /// @resolution.pattern source=value kind=binding target=value
     /// @type.node source="\"ok\"" type="ok"
 
     Status.Err(code) => "err"
+    /// @resolution.name source=Status.Err target=Status
+    /// @resolution.pattern source=Status.Err(code) kind=variant predicate="variant.tag(\"Err\") is \"Err\"" projection="variant.payload(Status.Err, { error: int32 })" payload=tuple fields=(code)
     /// @type.symbol symbol=code source=code type=int32
-    /// @resolution.pattern source="Status.Err(code)" kind=variant owner=Status variant=Err payload=tuple fields=(code)
+    /// @resolution.pattern source=code kind=binding target=code
     /// @type.node source="\"err\"" type="err"
 
 };
@@ -378,10 +408,17 @@ const label: "ok" | "err" = match (status) {
 
 === checked ===
 @derive(Tagged)
+/// @type.symbol symbol=Status type=Status
+/// @type.symbol symbol=Status.Err type=Status.Err
+/// @type.symbol symbol=Status.Ok type=Status.Ok
+/// @definition.newtype symbol=Status value=error.result.Ok<string> | error.result.Err<int32>
+/// @definition.variant symbol=Status.Err key=Err
+/// @definition.variant symbol=Status.Ok key=Ok
+/// @resolution.name source=derive target=decorator.derive.derive
+
 newtype Status = Ok<string> | Err<int32>;
-/// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
-/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" value=Ok<string> | Err<int32>
-/// @resolution.name source=Tagged target=decorator.derive.Tagged
+/// @resolution.name source=Ok target=error.result.Ok
+/// @resolution.name source=Err target=error.result.Err
 
 declare const status: Status;
 /// @type.symbol symbol=status source=status type=Status
@@ -389,25 +426,36 @@ declare const status: Status;
 
 const label = match (status) {
 /// @type.symbol symbol=label source=label type="ok" | "err"
+/// @type.node type="ok" | "err"
 /// @type.node source=status type=Status
 /// @resolution.name source=status target=status
 
     Status.Ok(value) if (value.length > 0) => "ok"
+    /// @resolution.name source=Status.Ok target=Status
+    /// @resolution.pattern source=Status.Ok(value) kind=variant predicate="variant.tag(\"Ok\") is \"Ok\"" projection="variant.payload(Status.Ok, { value: string })" payload=tuple fields=(value)
     /// @type.symbol symbol=value source=value type=string
-    /// @resolution.pattern source="Status.Ok(value)" kind=variant owner=Status variant=Ok payload=tuple fields=(value)
+    /// @resolution.pattern source=value kind=binding target=value
     /// @type.node source="value.length > 0" type=boolean
+    /// @type.node source=value type=string
+    /// @type.node source=value.length type=usize
+    /// @resolution.name source=value target=value
+    /// @resolution.member source=value.length receiver=string kind=symbol target=string.string.length
+    /// @resolution.call source="value.length > 0" parameters=() return=boolean kind=builtin builtin=binary.greater_than
+    /// @type.node source=0 type=0
     /// @type.node source="\"ok\"" type="ok"
 
     Status.Err(code) => "err"
+    /// @resolution.name source=Status.Err target=Status
+    /// @resolution.pattern source=Status.Err(code) kind=variant predicate="variant.tag(\"Err\") is \"Err\"" projection="variant.payload(Status.Err, { error: int32 })" payload=tuple fields=(code)
     /// @type.symbol symbol=code source=code type=int32
-    /// @resolution.pattern source="Status.Err(code)" kind=variant owner=Status variant=Err payload=tuple fields=(code)
+    /// @resolution.pattern source=code kind=binding target=code
     /// @type.node source="\"err\"" type="err"
 
 };
 "#,
         r#"
 /// @diagnostic.error code=EC403 message="match is not exhaustive: 'Status.Ok' is not covered"
-/// @diagnostic.label line=7 column=15 source="match (status) {\n    Status.Ok(value) if (value.length > 0) => \"ok\"\n    Status.Err(code) => \"err\"\n}"
+/// @diagnostic.label line=7 column=21 span="(status) {\n    Status.Ok(value) if (value.length > 0) => \"ok\"\n    Status.Err(code) => \"err\"\n}" line_source="const label = match (status) {"
 "#,
     );
 }

@@ -658,7 +658,7 @@ class Writer {
 
     abstract write(value: string): void;
     /// @type.symbol symbol=Writer.write source="abstract write(value: string): void" type=(this: Writer, string) => void
-    /// @type.symbol symbol=value source="value: string" type=string
+    /// @type.symbol symbol=Writer.write.value source="value: string" type=string
 
 }
 "#,
@@ -700,7 +700,7 @@ abstract class Writer {
 
     abstract write(value: string): void;
     /// @type.symbol symbol=Writer.write source="abstract write(value: string): void" type=(this: Writer, string) => void
-    /// @type.symbol symbol=value source="value: string" type=string
+    /// @type.symbol symbol=Writer.write.value source="value: string" type=string
 
 }
 
@@ -794,10 +794,10 @@ class Base {
 
     virtual parse(value: string): string {
     /// @type.symbol symbol=Base.parse type=(this: Base, string) => string
-    /// @type.symbol symbol=value#1 source="value: string" type=string
+    /// @type.symbol symbol=Base.parse.value source="value: string" type=string
 
         return value;
-        /// @resolution.name source=value target=value#1
+        /// @resolution.name source=value target=Base.parse.value
 
     }
 }
@@ -811,7 +811,7 @@ class Parser extends Base {
 
     override parse(value: string): int32 {
     /// @type.symbol symbol=Parser.parse type=(this: Parser, string) => int32
-    /// @type.symbol symbol=value#2 source="value: string" type=string
+    /// @type.symbol symbol=Parser.parse.value source="value: string" type=string
 
         return 1;
     }

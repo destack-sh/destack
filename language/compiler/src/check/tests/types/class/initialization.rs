@@ -110,7 +110,7 @@ class User {
 
     constructor(name: string) {
     /// @type.symbol symbol=User.constructor type=(string) => User
-    /// @type.symbol symbol=name source="name: string" type=string
+    /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 
         this.name = name;
         /// @type.node source="this.name = name" type=string
@@ -119,7 +119,7 @@ class User {
         /// @resolution.receiver source=this kind=this declaration=User type=User
         /// @resolution.pattern.assign source=this.name kind=place place=field(User.name) type=string
         /// @type.node source=name type=string
-        /// @resolution.name source=name target=name
+        /// @resolution.name source=name target=User.constructor.name
 
     }
 }
@@ -170,13 +170,13 @@ class User {
 
     constructor(enabled: boolean, name: string) {
     /// @type.symbol symbol=User.constructor type=(boolean, string) => User
-    /// @type.symbol symbol=enabled source="enabled: boolean" type=boolean
-    /// @type.symbol symbol=name source="name: string" type=string
+    /// @type.symbol symbol=User.constructor.enabled source="enabled: boolean" type=boolean
+    /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 
         if (enabled) {
         /// @type.node type=void
         /// @type.node source=enabled type=boolean
-        /// @resolution.name source=enabled target=enabled
+        /// @resolution.name source=enabled target=User.constructor.enabled
 
             this.name = name;
             /// @type.node source="this.name = name" type=string
@@ -185,7 +185,7 @@ class User {
             /// @resolution.receiver source=this kind=this declaration=User type=User
             /// @resolution.pattern.assign source=this.name kind=place place=field(User.name) type=string
             /// @type.node source=name type=string
-            /// @resolution.name source=name target=name
+            /// @resolution.name source=name target=User.constructor.name
 
         }
     }

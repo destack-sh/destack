@@ -28,9 +28,9 @@ declare const point: { x: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 
 let { ["x"]: value } = point;
-/// @type.symbol symbol=value source=value type=int32
-/// @resolution.pattern source="{ [\"x\"]: value }" kind=object fields={ x: value }
+/// @resolution.pattern source={ ["x"]: value } kind=object fields={ x: value }
 /// @type.node source="\"x\"" type="x"
+/// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
@@ -72,17 +72,15 @@ declare const point: { x: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 
 let { [key]: value } = point;
-/// @type.symbol symbol=value source=value type=<error>
-/// @resolution.pattern source="{ [key]: value }" kind=object fields={}
+/// @resolution.pattern source={ [key]: value } kind=object fields={}
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
-/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
 "#,
         r#"
 /// @diagnostic.error code=EC432 message="computed pattern key is not valid for the source type"
-/// @diagnostic.label line=5 column=7 source=key
+/// @diagnostic.label line=5 column=8 span="key" line_source="let { [key]: value } = point;"
 "#,
     );
 }
@@ -98,7 +96,7 @@ declare const bag: Bag;
 
 let { [key]: value } = bag;
 
-value satisfies int32;
+value satisfies int32 | undefined;
 "#,
     );
 
@@ -114,7 +112,7 @@ declare const bag: Bag;
 
 let { [key]: value } = bag;
 
-value satisfies int32;
+value satisfies int32 | undefined;
 
 === checked ===
 type Bag = { [key: string]: int32 };
@@ -125,21 +123,21 @@ declare const key: string;
 /// @type.symbol symbol=key source=key type=string
 
 declare const bag: Bag;
-/// @type.symbol symbol=bag source=bag type={ [key: string]: int32 }
+/// @type.symbol symbol=bag source=bag type=Bag
 /// @resolution.name source=Bag target=Bag
 
 let { [key]: value } = bag;
-/// @type.symbol symbol=value source=value type=int32
-/// @resolution.pattern source="{ [key]: value }" kind=object fields={ key: value }
+/// @resolution.pattern source={ [key]: value } kind=object fields={ key: value }
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
+/// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=bag type={ [key: string]: int32 }
 /// @resolution.name source=bag target=bag
 
-value satisfies int32;
-/// @type.node source="value satisfies int32" type=int32
-/// @type.node source=value type=int32
+value satisfies int32 | undefined;
+/// @type.node source="value satisfies int32 | undefined" type=int32 | undefined
+/// @type.node source=value type=int32 | undefined
 /// @resolution.name source=value target=value
 "#,
     );
@@ -171,41 +169,44 @@ type User = {
     readonly age: int32;
 };
 
-function get<T0: User, K: keyof User>(user: T0, key: K): User[K] {
+function get<K: keyof User, T1: User>(user: T1, key: K): User[K] {
     let { [key]: value } = user;
     return value;
 }
 
 === checked ===
 type User = {
-/// @type.symbol symbol=User source="type User = {\n    readonly name: string;\n    readonly age: int32;\n}" type={ readonly name: string; readonly age: int32 }
-/// @definition.type symbol=User source="type User = {\n    readonly name: string;\n    readonly age: int32;\n}" value={ readonly name: string; readonly age: int32 }
+/// @type.symbol symbol=User type={ readonly name: string; readonly age: int32 }
+/// @definition.type symbol=User value={ readonly name: string; readonly age: int32 }
 
     readonly name: string;
     readonly age: int32;
 };
 
 function get<K: keyof User>(user: User, key: K): User[K] {
-/// @generic.template symbol=get parameters=(T0: User, K: keyof User)
-/// @type.symbol symbol=get type=<get.T0: User, K: keyof User>(get.T0, K) => User[K]
-/// @type.symbol symbol=user type=get.T0
-/// @type.symbol symbol=key type=K
+/// @generic.template symbol=get parameters=(K: keyof User, T1: User)
+/// @type.symbol symbol=get type=<K: keyof User, get.T1: User>(get.T1, K) => User[K]
+/// @type.symbol symbol=get.K source="K: keyof User" type=K
 /// @resolution.name source=User target=User
+/// @type.symbol symbol=get.user source="user: User" type=get.T1
+/// @resolution.name source=User target=User
+/// @type.symbol symbol=get.key source="key: K" type=K
+/// @resolution.name source=K target=get.K
 /// @resolution.name source=User target=User
 /// @resolution.name source=K target=get.K
 
     let { [key]: value } = user;
-    /// @type.symbol symbol=value source=value type=User[K]
-    /// @resolution.pattern source="{ [key]: value }" kind=object fields={ key: value }
+    /// @resolution.pattern source={ [key]: value } kind=object fields={ key: get.value }
     /// @type.node source=key type=K
-    /// @resolution.name source=key target=key
-    /// @resolution.pattern source=value kind=binding target=value
-    /// @type.node source=user type=get.T0
-    /// @resolution.name source=user target=user
+    /// @resolution.name source=key target=get.key
+    /// @type.symbol symbol=get.value source=value type=User[K]
+    /// @resolution.pattern source=value kind=binding target=get.value
+    /// @type.node source=user type=get.T1
+    /// @resolution.name source=user target=get.user
 
     return value;
     /// @type.node source=value type=User[K]
-    /// @resolution.name source=value target=value
+    /// @resolution.name source=value target=get.value
 
 }
 "#,
@@ -240,9 +241,9 @@ declare const pair: { 0: string; 1: int32 };
 /// @type.symbol symbol=pair source=pair type={ 0: string; 1: int32 }
 
 let { [1]: value } = pair;
-/// @type.symbol symbol=value source=value type=int32
-/// @resolution.pattern source="{ [1]: value }" kind=object fields={ 1: value }
+/// @resolution.pattern source={ [1]: value } kind=object fields={ 1: value }
 /// @type.node source=1 type=1
+/// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=pair type={ 0: string; 1: int32 }
 /// @resolution.name source=pair target=pair
@@ -289,10 +290,10 @@ declare const box: { readonly [token]: string };
 /// @resolution.name source=token target=token
 
 let { [token]: value } = box;
-/// @type.symbol symbol=value source=value type=string
-/// @resolution.pattern source="{ [token]: value }" kind=object fields={ token: value }
-/// @type.node source=token type=unique symbol
+/// @resolution.pattern source={ [token]: value } kind=object fields={ token: value }
+/// @type.node source=token type=token
 /// @resolution.name source=token target=token
+/// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=box type={ readonly [token]: string }
 /// @resolution.name source=box target=box
@@ -333,14 +334,18 @@ declare const box: { readonly [Symbol.for("token")]: string };
 /// @type.symbol symbol=box source=box type={ readonly [Symbol.for("token")]: string }
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.for receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.for
-/// @resolution.call source="Symbol.for(\"token\")" parameters=(string) return=symbol kind=symbol target=types.symbol.Symbol.for receiver=types.symbol.Symbol
+/// @resolution.call source="Symbol.for(\"token\")" parameters=(string) arguments=(provided("token") as string) return=symbol kind=symbol target=types.symbol.Symbol.for receiver=types.symbol.Symbol
 
 let { [Symbol.for("token")]: value } = box;
-/// @type.symbol symbol=value source=value type=string
-/// @resolution.pattern source="{ [Symbol.for(\"token\")]: value }" kind=object fields={ Symbol.for("token"): value }
+/// @resolution.pattern source={ [Symbol.for("token")]: value } kind=object fields={ Symbol.for("token"): value }
+/// @type.node source="Symbol.for(\"token\")" type=symbol
+/// @type.node source=Symbol type=types.symbol.Symbol
+/// @type.node source=Symbol.for type=(string) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.for receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.for
-/// @resolution.call source="Symbol.for(\"token\")" parameters=(string) return=symbol kind=symbol target=types.symbol.Symbol.for receiver=types.symbol.Symbol
+/// @resolution.call source="Symbol.for(\"token\")" parameters=(string) arguments=(provided("token") as string) return=symbol kind=symbol target=types.symbol.Symbol.for receiver=types.symbol.Symbol
+/// @type.node source="\"token\"" type="token"
+/// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=box type={ readonly [Symbol.for("token")]: string }
 /// @resolution.name source=box target=box
