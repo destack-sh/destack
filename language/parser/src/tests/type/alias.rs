@@ -38,7 +38,7 @@ fn test_parse_declare_type_alias_kind() {
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { name, is_ambient, value, .. }) => {
-            assert_eq!(*is_ambient, true);
+            assert!(*is_ambient);
             assert_string!(parser, name.string(), "T");
             assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                 assert_eq!(*value, TypeLiteral::String);

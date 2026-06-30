@@ -112,7 +112,7 @@ fn test_parse_member_declare_accessor_private_hash() {
     assert_node!(parser.tree, member, Member::Field { key: Key::Private(name), declared_type: Some(value), visibility, is_ambient, is_accessor, .. } => {
         assert_string!(parser, *name, "value");
         assert_eq!(*visibility, Some(Visibility::Private));
-        assert_eq!(*is_ambient, true);
+        assert!(*is_ambient);
         assert!(*is_accessor);
         assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
             assert_eq!(*value, TypeLiteral::String);
@@ -1094,7 +1094,7 @@ fn test_parse_member_type_with_value() {
         assert!(generic_parameters.is_empty());
         assert!(where_clauses.is_empty());
         assert!(visibility.is_none());
-        assert_eq!(*is_ambient, false);
+        assert!(!*is_ambient);
         assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
             assert_eq!(*value, TypeLiteral::String);
         });

@@ -218,7 +218,7 @@ fn test_parse_labeled_tuple_type_with_spread_payload() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, is_ambient, is_nominal, mutability, generic_parameters, where_clauses, value }) => {
             assert_name!(parser, *name, "T");
             assert!(export.is_none());
-            assert_eq!(*is_ambient, false);
+            assert!(!*is_ambient);
             assert!(!*is_nominal);
             assert!(mutability.is_none());
             assert!(generic_parameters.is_empty());
