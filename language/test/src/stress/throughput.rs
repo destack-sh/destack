@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-/// Throughput for one stress case.
+/// Throughput for one stress fixture.
 #[derive(Debug, Clone, Copy)]
-pub(super) struct StressMetric {
+pub(super) struct Throughput {
     /// The processed byte count.
     bytes: usize,
     /// The processed line count.
@@ -11,8 +11,8 @@ pub(super) struct StressMetric {
     elapsed: Duration,
 }
 
-impl StressMetric {
-    /// Create throughput metrics for one stress case.
+impl Throughput {
+    /// Create throughput for one stress fixture.
     pub(super) const fn new(bytes: usize, lines: usize, elapsed: Duration) -> Self {
         Self {
             bytes,
@@ -21,7 +21,7 @@ impl StressMetric {
         }
     }
 
-    /// Format the metric for terminal output.
+    /// Format throughput for terminal output.
     pub(super) fn format(self, action: &str) -> String {
         let seconds = self.elapsed.as_secs_f64().max(f64::EPSILON);
         let megabytes = self.bytes as f64 / 1_000_000.0;

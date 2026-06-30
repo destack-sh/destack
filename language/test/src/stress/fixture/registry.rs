@@ -101,68 +101,68 @@ const SOURCE_MODES: &[StressMode] = &[
 ];
 const DESTACK_MODES: &[StressMode] = &[StressMode::Destack];
 const TSX_MODES: &[StressMode] = &[StressMode::Destack, StressMode::TypeScriptXml];
-const REGULAR_VARIANTS: &[StressVariantShape] = &[
-    StressVariantShape::new("large", REGULAR_LARGE, DEFAULT_WIDTH),
-    StressVariantShape::new("huge", REGULAR_HUGE, 120),
-    StressVariantShape::new("massive", REGULAR_MASSIVE, 140),
-    StressVariantShape::new("wide", REGULAR_WIDE, 180),
-    StressVariantShape::new("dense", REGULAR_DENSE, 56),
+const REGULAR_VARIANTS: &[StressVariant] = &[
+    StressVariant::new("large", REGULAR_LARGE, DEFAULT_WIDTH),
+    StressVariant::new("huge", REGULAR_HUGE, 120),
+    StressVariant::new("massive", REGULAR_MASSIVE, 140),
+    StressVariant::new("wide", REGULAR_WIDE, 180),
+    StressVariant::new("dense", REGULAR_DENSE, 56),
 ];
-const RECOVERY_VARIANTS: &[StressVariantShape] = &[
-    StressVariantShape::new("baseline", 1, DEFAULT_WIDTH),
-    StressVariantShape::new("large", 128, DEFAULT_WIDTH),
-    StressVariantShape::new("huge", 512, 120),
-    StressVariantShape::new("wide", 256, 180),
-    StressVariantShape::new("dense", 1_024, 56),
+const RECOVERY_VARIANTS: &[StressVariant] = &[
+    StressVariant::new("baseline", 1, DEFAULT_WIDTH),
+    StressVariant::new("large", 128, DEFAULT_WIDTH),
+    StressVariant::new("huge", 512, 120),
+    StressVariant::new("wide", 256, 180),
+    StressVariant::new("dense", 1_024, 56),
 ];
-const PATHOLOGICAL_VARIANTS: &[StressVariantShape] = &[
-    StressVariantShape::new("large", PATHOLOGICAL_LARGE, DEFAULT_WIDTH),
-    StressVariantShape::new("massive", PATHOLOGICAL_MASSIVE, DEFAULT_WIDTH),
-    StressVariantShape::new("brutal", PATHOLOGICAL_BRUTAL, DEFAULT_WIDTH),
-    StressVariantShape::new("monster", PATHOLOGICAL_MONSTER, DEFAULT_WIDTH),
-    StressVariantShape::new("dense", PATHOLOGICAL_MASSIVE, 56),
+const PATHOLOGICAL_VARIANTS: &[StressVariant] = &[
+    StressVariant::new("large", PATHOLOGICAL_LARGE, DEFAULT_WIDTH),
+    StressVariant::new("massive", PATHOLOGICAL_MASSIVE, DEFAULT_WIDTH),
+    StressVariant::new("brutal", PATHOLOGICAL_BRUTAL, DEFAULT_WIDTH),
+    StressVariant::new("monster", PATHOLOGICAL_MONSTER, DEFAULT_WIDTH),
+    StressVariant::new("dense", PATHOLOGICAL_MASSIVE, 56),
 ];
-const PATHOLOGICAL_CAPPED_AT_BRUTAL_VARIANTS: &[StressVariantShape] = &[
-    StressVariantShape::new("large", PATHOLOGICAL_LARGE, DEFAULT_WIDTH),
-    StressVariantShape::new("massive", PATHOLOGICAL_MASSIVE, DEFAULT_WIDTH),
-    StressVariantShape::new("brutal", PATHOLOGICAL_BRUTAL, DEFAULT_WIDTH),
-    StressVariantShape::new("dense", PATHOLOGICAL_MASSIVE, 56),
+const PATHOLOGICAL_CAPPED_AT_BRUTAL_VARIANTS: &[StressVariant] = &[
+    StressVariant::new("large", PATHOLOGICAL_LARGE, DEFAULT_WIDTH),
+    StressVariant::new("massive", PATHOLOGICAL_MASSIVE, DEFAULT_WIDTH),
+    StressVariant::new("brutal", PATHOLOGICAL_BRUTAL, DEFAULT_WIDTH),
+    StressVariant::new("dense", PATHOLOGICAL_MASSIVE, 56),
 ];
-const PATHOLOGICAL_CAPPED_AT_MASSIVE_VARIANTS: &[StressVariantShape] = &[
-    StressVariantShape::new("large", PATHOLOGICAL_LARGE, DEFAULT_WIDTH),
-    StressVariantShape::new("massive", PATHOLOGICAL_MASSIVE, DEFAULT_WIDTH),
-    StressVariantShape::new("dense", PATHOLOGICAL_MASSIVE, 56),
+const PATHOLOGICAL_CAPPED_AT_MASSIVE_VARIANTS: &[StressVariant] = &[
+    StressVariant::new("large", PATHOLOGICAL_LARGE, DEFAULT_WIDTH),
+    StressVariant::new("massive", PATHOLOGICAL_MASSIVE, DEFAULT_WIDTH),
+    StressVariant::new("dense", PATHOLOGICAL_MASSIVE, 56),
 ];
-const DEEP_VARIANTS: &[StressVariantShape] = &[
-    StressVariantShape::new("deep", PATHOLOGICAL_DEEP_VALID, DEFAULT_WIDTH),
-    StressVariantShape::expect("bounded_deep", PATHOLOGICAL_DEEP, DEFAULT_WIDTH, BOUNDED),
-    StressVariantShape::expect("deeper", PATHOLOGICAL_DEEPER, DEFAULT_WIDTH, BOUNDED),
-    StressVariantShape::expect("deepest", PATHOLOGICAL_DEEPEST, DEFAULT_WIDTH, BOUNDED),
-    StressVariantShape::expect("absurd", PATHOLOGICAL_ABSURD, DEFAULT_WIDTH, BOUNDED),
+const DEEP_VARIANTS: &[StressVariant] = &[
+    StressVariant::new("deep", PATHOLOGICAL_DEEP_VALID, DEFAULT_WIDTH),
+    StressVariant::expect("bounded_deep", PATHOLOGICAL_DEEP, DEFAULT_WIDTH, BOUNDED),
+    StressVariant::expect("deeper", PATHOLOGICAL_DEEPER, DEFAULT_WIDTH, BOUNDED),
+    StressVariant::expect("deepest", PATHOLOGICAL_DEEPEST, DEFAULT_WIDTH, BOUNDED),
+    StressVariant::expect("absurd", PATHOLOGICAL_ABSURD, DEFAULT_WIDTH, BOUNDED),
 ];
-const RECURSIVE_VARIANTS: &[StressVariantShape] = &[
-    StressVariantShape::new("large", RECURSIVE_VALID_LARGE, DEFAULT_WIDTH),
-    StressVariantShape::new("wide", RECURSIVE_VALID_LARGE, 180),
-    StressVariantShape::expect("bounded_huge", RECURSIVE_BOUNDED_HUGE, 120, BOUNDED),
-    StressVariantShape::expect("bounded_massive", RECURSIVE_BOUNDED_MASSIVE, 140, BOUNDED),
-    StressVariantShape::expect("bounded_dense", RECURSIVE_BOUNDED_DENSE, 56, BOUNDED),
+const RECURSIVE_VARIANTS: &[StressVariant] = &[
+    StressVariant::new("large", RECURSIVE_VALID_LARGE, DEFAULT_WIDTH),
+    StressVariant::new("wide", RECURSIVE_VALID_LARGE, 180),
+    StressVariant::expect("bounded_huge", RECURSIVE_BOUNDED_HUGE, 120, BOUNDED),
+    StressVariant::expect("bounded_massive", RECURSIVE_BOUNDED_MASSIVE, 140, BOUNDED),
+    StressVariant::expect("bounded_dense", RECURSIVE_BOUNDED_DENSE, 56, BOUNDED),
 ];
-const RECURSIVE_EXPRESSION_VARIANTS: &[StressVariantShape] = &[
-    StressVariantShape::new("large", RECURSIVE_EXPRESSION_VALID_LARGE, DEFAULT_WIDTH),
-    StressVariantShape::new("wide", RECURSIVE_EXPRESSION_VALID_LARGE, 180),
-    StressVariantShape::expect("bounded_huge", RECURSIVE_BOUNDED_HUGE, 120, BOUNDED),
-    StressVariantShape::expect("bounded_massive", RECURSIVE_BOUNDED_MASSIVE, 140, BOUNDED),
-    StressVariantShape::expect("bounded_dense", RECURSIVE_BOUNDED_DENSE, 56, BOUNDED),
+const RECURSIVE_EXPRESSION_VARIANTS: &[StressVariant] = &[
+    StressVariant::new("large", RECURSIVE_EXPRESSION_VALID_LARGE, DEFAULT_WIDTH),
+    StressVariant::new("wide", RECURSIVE_EXPRESSION_VALID_LARGE, 180),
+    StressVariant::expect("bounded_huge", RECURSIVE_BOUNDED_HUGE, 120, BOUNDED),
+    StressVariant::expect("bounded_massive", RECURSIVE_BOUNDED_MASSIVE, 140, BOUNDED),
+    StressVariant::expect("bounded_dense", RECURSIVE_BOUNDED_DENSE, 56, BOUNDED),
 ];
-const RECOVERY_PATHOLOGICAL_VARIANTS: &[StressVariantShape] = &[
-    StressVariantShape::new("large", RECOVERY_PATHOLOGICAL_LARGE, DEFAULT_WIDTH),
-    StressVariantShape::expect(
+const RECOVERY_PATHOLOGICAL_VARIANTS: &[StressVariant] = &[
+    StressVariant::new("large", RECOVERY_PATHOLOGICAL_LARGE, DEFAULT_WIDTH),
+    StressVariant::expect(
         "massive",
         RECOVERY_PATHOLOGICAL_MASSIVE,
         DEFAULT_WIDTH,
         BOUNDED,
     ),
-    StressVariantShape::expect(
+    StressVariant::expect(
         "brutal",
         RECOVERY_PATHOLOGICAL_BRUTAL,
         DEFAULT_WIDTH,
@@ -170,271 +170,279 @@ const RECOVERY_PATHOLOGICAL_VARIANTS: &[StressVariantShape] = &[
     ),
 ];
 
-const CASES: &[StressSpec] = &[
-    StressSpec::new("large_declaration", ALL_MODES, VALID, large_declaration),
-    StressSpec::new("large_function", ALL_MODES, VALID, large_signature),
-    StressSpec::new("large_class", ALL_MODES, VALID, large_class),
-    StressSpec::new("large_interface", ALL_MODES, VALID, large_interface),
-    StressSpec::new("large_type", ALL_MODES, VALID, large_type),
-    StressSpec::new("large_import_export", ALL_MODES, VALID, large_import_export),
-    StressSpec::new("large_trivia", SOURCE_MODES, VALID, large_trivia),
-    StressSpec::new("large_array", SOURCE_MODES, VALID, large_array),
-    StressSpec::new("large_object", SOURCE_MODES, VALID, large_object),
-    StressSpec::new("nested_block", SOURCE_MODES, VALID, nested_block),
-    StressSpec::recursive_expression("nested_ternary", SOURCE_MODES, nested_ternary),
-    StressSpec::new("nested_match", DESTACK_MODES, VALID, nested_match),
-    StressSpec::new("nested_try", DESTACK_MODES, VALID, nested_try),
-    StressSpec::new("nested_tsx", TSX_MODES, VALID, nested_tsx),
-    StressSpec::recursive("deep_call", SOURCE_MODES, deep_call),
-    StressSpec::recursive("deep_member", SOURCE_MODES, deep_member),
-    StressSpec::new("deep_type", ALL_MODES, VALID, deep_type),
-    StressSpec::new("control_flow", SOURCE_MODES, VALID, control_flow),
-    StressSpec::new("trivia_wall", SOURCE_MODES, VALID, trivia_wall),
-    StressSpec::new(
+const FAMILIES: &[StressFamily] = &[
+    StressFamily::new("large_declaration", ALL_MODES, VALID, large_declaration),
+    StressFamily::new("large_function", ALL_MODES, VALID, large_signature),
+    StressFamily::new("large_class", ALL_MODES, VALID, large_class),
+    StressFamily::new("large_interface", ALL_MODES, VALID, large_interface),
+    StressFamily::new("large_type", ALL_MODES, VALID, large_type),
+    StressFamily::new("large_import_export", ALL_MODES, VALID, large_import_export),
+    StressFamily::new("large_trivia", SOURCE_MODES, VALID, large_trivia),
+    StressFamily::new("large_array", SOURCE_MODES, VALID, large_array),
+    StressFamily::new("large_object", SOURCE_MODES, VALID, large_object),
+    StressFamily::new("nested_block", SOURCE_MODES, VALID, nested_block),
+    StressFamily::recursive_expression("nested_ternary", SOURCE_MODES, nested_ternary),
+    StressFamily::new("nested_match", DESTACK_MODES, VALID, nested_match),
+    StressFamily::new("nested_try", DESTACK_MODES, VALID, nested_try),
+    StressFamily::new("nested_tsx", TSX_MODES, VALID, nested_tsx),
+    StressFamily::recursive("deep_call", SOURCE_MODES, deep_call),
+    StressFamily::recursive("deep_member", SOURCE_MODES, deep_member),
+    StressFamily::new("deep_type", ALL_MODES, VALID, deep_type),
+    StressFamily::new("control_flow", SOURCE_MODES, VALID, control_flow),
+    StressFamily::new("trivia_wall", SOURCE_MODES, VALID, trivia_wall),
+    StressFamily::new(
         "convoluted_expressions",
         SOURCE_MODES,
         VALID,
         convoluted_expressions,
     ),
-    StressSpec::new("convoluted_types", ALL_MODES, VALID, convoluted_types),
-    StressSpec::new(
+    StressFamily::new("convoluted_types", ALL_MODES, VALID, convoluted_types),
+    StressFamily::new(
         "convoluted_patterns",
         DESTACK_MODES,
         VALID,
         convoluted_patterns,
     ),
-    StressSpec::new("expression_matrix", SOURCE_MODES, VALID, expression_matrix),
-    StressSpec::new("type_matrix", ALL_MODES, VALID, type_matrix),
-    StressSpec::new("sequence_types", DESTACK_MODES, VALID, sequence_type_forms),
-    StressSpec::new(
+    StressFamily::new("expression_matrix", SOURCE_MODES, VALID, expression_matrix),
+    StressFamily::new("type_matrix", ALL_MODES, VALID, type_matrix),
+    StressFamily::new("sequence_types", DESTACK_MODES, VALID, sequence_type_forms),
+    StressFamily::new(
         "sequence_patterns",
         DESTACK_MODES,
         VALID,
         sequence_pattern_forms,
     ),
-    StressSpec::new("range_forms", DESTACK_MODES, VALID, range_forms),
-    StressSpec::new("operator_forms", SOURCE_MODES, VALID, operator_forms),
-    StressSpec::new("decorator_forms", DESTACK_MODES, VALID, decorator_forms),
-    StressSpec::new("module_forms", DESTACK_MODES, VALID, module_forms),
-    StressSpec::new("comptime_forms", DESTACK_MODES, VALID, comptime_forms),
-    StressSpec::new("memory_forms", DESTACK_MODES, VALID, memory_forms),
-    StressSpec::new("error_forms", DESTACK_MODES, VALID, error_forms),
-    StressSpec::new("using_forms", DESTACK_MODES, VALID, using_forms),
-    StressSpec::new("woven_source", SOURCE_MODES, VALID, woven_source_forms),
-    StressSpec::new("woven_destack", DESTACK_MODES, VALID, woven_destack_forms),
-    StressSpec::new("woven_tsx", TSX_MODES, VALID, woven_tsx_forms),
-    StressSpec::new(
+    StressFamily::new("range_forms", DESTACK_MODES, VALID, range_forms),
+    StressFamily::new("operator_forms", SOURCE_MODES, VALID, operator_forms),
+    StressFamily::new("decorator_forms", DESTACK_MODES, VALID, decorator_forms),
+    StressFamily::new("module_forms", DESTACK_MODES, VALID, module_forms),
+    StressFamily::new("comptime_forms", DESTACK_MODES, VALID, comptime_forms),
+    StressFamily::new("memory_forms", DESTACK_MODES, VALID, memory_forms),
+    StressFamily::new("error_forms", DESTACK_MODES, VALID, error_forms),
+    StressFamily::new("using_forms", DESTACK_MODES, VALID, using_forms),
+    StressFamily::new("woven_source", SOURCE_MODES, VALID, woven_source_forms),
+    StressFamily::new("woven_destack", DESTACK_MODES, VALID, woven_destack_forms),
+    StressFamily::new("woven_tsx", TSX_MODES, VALID, woven_tsx_forms),
+    StressFamily::new(
         "ambiguous_generics",
         SOURCE_MODES,
         VALID,
         ambiguous_generics,
     ),
-    StressSpec::new("ambiguous_tsx", TSX_MODES, VALID, ambiguous_tsx),
-    StressSpec::new("ambiguous_objects", SOURCE_MODES, VALID, ambiguous_objects),
-    StressSpec::pathological_capped_at_brutal("massive_file", ALL_MODES, VALID, massive_file),
-    StressSpec::deep("deep_parentheses", SOURCE_MODES, VALID, deep_parentheses),
-    StressSpec::deep("deep_block", SOURCE_MODES, VALID, deep_block),
-    StressSpec::deep("deep_tree", TSX_MODES, VALID, deep_tree),
-    StressSpec::pathological("wide_call", SOURCE_MODES, VALID, wide_call),
-    StressSpec::pathological("long_binary_chain", SOURCE_MODES, VALID, long_binary_chain),
-    StressSpec::pathological(
+    StressFamily::new("ambiguous_tsx", TSX_MODES, VALID, ambiguous_tsx),
+    StressFamily::new("ambiguous_objects", SOURCE_MODES, VALID, ambiguous_objects),
+    StressFamily::pathological_capped_at_brutal("massive_file", ALL_MODES, VALID, massive_file),
+    StressFamily::deep("deep_parentheses", SOURCE_MODES, VALID, deep_parentheses),
+    StressFamily::deep("deep_block", SOURCE_MODES, VALID, deep_block),
+    StressFamily::deep("deep_tree", TSX_MODES, VALID, deep_tree),
+    StressFamily::pathological("wide_call", SOURCE_MODES, VALID, wide_call),
+    StressFamily::pathological("long_binary_chain", SOURCE_MODES, VALID, long_binary_chain),
+    StressFamily::pathological(
         "long_logical_chain",
         SOURCE_MODES,
         VALID,
         long_logical_chain,
     ),
-    StressSpec::pathological(
+    StressFamily::pathological(
         "long_nullish_chain",
         SOURCE_MODES,
         VALID,
         long_nullish_chain,
     ),
-    StressSpec::pathological(
+    StressFamily::pathological(
         "long_assignment_chain",
         SOURCE_MODES,
         VALID,
         long_assignment_chain,
     ),
-    StressSpec::recursive_expression(
+    StressFamily::recursive_expression(
         "long_value_prefix_chain",
         SOURCE_MODES,
         long_value_prefix_chain,
     ),
-    StressSpec::recursive_expression("long_type_prefix_chain", ALL_MODES, long_type_prefix_chain),
-    StressSpec::recursive(
+    StressFamily::recursive_expression("long_type_prefix_chain", ALL_MODES, long_type_prefix_chain),
+    StressFamily::recursive(
         "long_pattern_prefix_chain",
         DESTACK_MODES,
         long_pattern_prefix_chain,
     ),
-    StressSpec::pathological(
+    StressFamily::pathological(
         "long_type_operator_chain",
         ALL_MODES,
         VALID,
         long_type_operator_chain,
     ),
-    StressSpec::pathological_capped_at_massive(
+    StressFamily::pathological_capped_at_massive(
         "long_conditional_type_chain",
         ALL_MODES,
         VALID,
         long_conditional_type_chain,
     ),
-    StressSpec::pathological(
+    StressFamily::pathological(
         "long_postfix_chain",
         SOURCE_MODES,
         VALID,
         long_postfix_chain,
     ),
-    StressSpec::recursive("nested_lambda_chain", SOURCE_MODES, nested_lambda_chain),
-    StressSpec::deep(
+    StressFamily::recursive("nested_lambda_chain", SOURCE_MODES, nested_lambda_chain),
+    StressFamily::deep(
         "parenthesized_binary_chain",
         SOURCE_MODES,
         VALID,
         parenthesized_binary_chain,
     ),
-    StressSpec::pathological_capped_at_massive("trivia_flood", SOURCE_MODES, VALID, trivia_flood),
-    StressSpec::new(
+    StressFamily::pathological_capped_at_massive("trivia_flood", SOURCE_MODES, VALID, trivia_flood),
+    StressFamily::new(
         "damaged_declaration",
         ALL_MODES,
         RECOVERY,
         damaged_declaration,
     ),
-    StressSpec::new(
+    StressFamily::new(
         "damaged_expression",
         SOURCE_MODES,
         RECOVERY,
         damaged_expression,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_expression_matrix",
         SOURCE_MODES,
         damaged_expression_matrix,
     ),
-    StressSpec::new("damaged_type", ALL_MODES, RECOVERY, damaged_type),
-    StressSpec::recovery_pathological("damaged_type_matrix", ALL_MODES, damaged_type_matrix),
-    StressSpec::recovery_pathological(
+    StressFamily::new("damaged_type", ALL_MODES, RECOVERY, damaged_type),
+    StressFamily::recovery_pathological("damaged_type_matrix", ALL_MODES, damaged_type_matrix),
+    StressFamily::recovery_pathological(
         "damaged_declaration_matrix",
         ALL_MODES,
         damaged_declaration_matrix,
     ),
-    StressSpec::new("damaged_tsx", TSX_MODES, RECOVERY, damaged_tsx),
-    StressSpec::recovery_pathological("damaged_tree_matrix", TSX_MODES, damaged_tree_matrix),
-    StressSpec::new(
+    StressFamily::new("damaged_tsx", TSX_MODES, RECOVERY, damaged_tsx),
+    StressFamily::recovery_pathological("damaged_tree_matrix", TSX_MODES, damaged_tree_matrix),
+    StressFamily::new(
         "damaged_tree_nesting",
         TSX_MODES,
         RECOVERY,
         damaged_tree_nesting,
     ),
-    StressSpec::new("damaged_trivia", SOURCE_MODES, RECOVERY, damaged_trivia),
-    StressSpec::recovery_pathological(
+    StressFamily::new("damaged_trivia", SOURCE_MODES, RECOVERY, damaged_trivia),
+    StressFamily::recovery_pathological(
         "damaged_argument_lists",
         SOURCE_MODES,
         damaged_argument_lists,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_type_member_bodies",
         ALL_MODES,
         damaged_type_member_bodies,
     ),
-    StressSpec::recovery_pathological("damaged_delimiters", SOURCE_MODES, damaged_delimiters),
-    StressSpec::recovery_pathological("damaged_nested_blocks", SOURCE_MODES, damaged_nested_blocks),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological("damaged_delimiters", SOURCE_MODES, damaged_delimiters),
+    StressFamily::recovery_pathological(
+        "damaged_nested_blocks",
+        SOURCE_MODES,
+        damaged_nested_blocks,
+    ),
+    StressFamily::recovery_pathological(
         "damaged_parenthesized_heads",
         SOURCE_MODES,
         damaged_parenthesized_heads,
     ),
-    StressSpec::recovery_pathological("damaged_generic_heads", SOURCE_MODES, damaged_generic_heads),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
+        "damaged_generic_heads",
+        SOURCE_MODES,
+        damaged_generic_heads,
+    ),
+    StressFamily::recovery_pathological(
         "damaged_arrow_return_heads",
         SOURCE_MODES,
         damaged_arrow_return_heads,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_function_type_heads",
         SOURCE_MODES,
         damaged_function_type_heads,
     ),
-    StressSpec::recovery_pathological("damaged_infix_chains", SOURCE_MODES, damaged_infix_chains),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological("damaged_infix_chains", SOURCE_MODES, damaged_infix_chains),
+    StressFamily::recovery_pathological(
         "damaged_dependency_boundaries",
         ALL_MODES,
         damaged_dependency_boundaries,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_dependency_item_boundaries",
         ALL_MODES,
         damaged_dependency_item_boundaries,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_dependency_target_boundaries",
         ALL_MODES,
         damaged_dependency_target_boundaries,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_import_target_boundaries",
         ALL_MODES,
         damaged_import_target_boundaries,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_export_target_boundaries",
         ALL_MODES,
         damaged_export_target_boundaries,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_export_target_only_boundaries",
         ALL_MODES,
         damaged_export_target_only_boundaries,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_dependency_attribute_boundaries",
         ALL_MODES,
         damaged_dependency_attribute_boundaries,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_dependency_namespace_boundaries",
         ALL_MODES,
         damaged_dependency_namespace_boundaries,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_pattern_boundaries",
         SOURCE_MODES,
         damaged_pattern_boundaries,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_member_boundaries",
         ALL_MODES,
         damaged_member_boundaries,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_template_boundaries",
         SOURCE_MODES,
         damaged_template_boundaries,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_statement_boundaries",
         SOURCE_MODES,
         damaged_statement_boundaries,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_statement_slot_boundaries",
         SOURCE_MODES,
         damaged_statement_slot_boundaries,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_statement_call_boundaries",
         SOURCE_MODES,
         damaged_statement_call_boundaries,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_statement_object_boundaries",
         SOURCE_MODES,
         damaged_statement_object_boundaries,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_delimiter_storms",
         SOURCE_MODES,
         damaged_delimiter_storms,
     ),
-    StressSpec::recovery_pathological(
+    StressFamily::recovery_pathological(
         "damaged_documentation_boundaries",
         ALL_MODES,
         damaged_documentation_boundaries,
@@ -443,8 +451,8 @@ const CASES: &[StressSpec] = &[
 
 /// One generated stress fixture.
 #[derive(Debug, Clone)]
-pub struct StressCase {
-    /// The stable case name.
+pub struct StressFixture {
+    /// The stable fixture name.
     pub name: String,
     /// The generated file path.
     pub path: PathBuf,
@@ -480,24 +488,24 @@ pub(crate) enum StressMode {
     TypeScriptDeclaration,
 }
 
-/// One generated stress case family.
+/// One generated stress fixture family.
 #[derive(Debug, Clone, Copy)]
-struct StressSpec {
+struct StressFamily {
     /// The generated folder name.
     name: &'static str,
     /// The file modes covered by this family.
     modes: &'static [StressMode],
     /// The expected parser result shape.
     expectation: StressExpectation,
-    /// The generated size ladder.
-    size: StressSize,
+    /// The generated variant ladder.
+    ladder: StressLadder,
     /// The source builder for this family.
     generate: fn(StressMode, usize, usize) -> String,
 }
 
-/// Generated case size ladder.
+/// Generated fixture variant ladder.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum StressSize {
+enum StressLadder {
     /// Regular coverage fixtures.
     Regular,
     /// Large pathological fixtures.
@@ -516,9 +524,9 @@ enum StressSize {
     RecoveryPathological,
 }
 
-/// One generated file inside a stress case family.
+/// One generated fixture variant recipe.
 #[derive(Debug, Clone, Copy)]
-struct StressVariantShape {
+struct StressVariant {
     /// The generated file stem.
     name: &'static str,
     /// The generated fixture scale.
@@ -529,9 +537,9 @@ struct StressVariantShape {
     expectation: Option<StressExpectation>,
 }
 
-/// One materialized file inside a stress case family.
+/// One generated fixture source before it is written to disk.
 #[derive(Debug, Clone)]
-struct StressVariant {
+struct StressFixtureSource {
     /// The generated file stem.
     name: &'static str,
     /// The generated source text.
@@ -540,8 +548,8 @@ struct StressVariant {
     expectation: StressExpectation,
 }
 
-impl StressSpec {
-    /// Create one stress case family.
+impl StressFamily {
+    /// Create one stress fixture family.
     const fn new(
         name: &'static str,
         modes: &'static [StressMode],
@@ -552,12 +560,12 @@ impl StressSpec {
             name,
             modes,
             expectation,
-            size: StressSize::Regular,
+            ladder: StressLadder::Regular,
             generate,
         }
     }
 
-    /// Create one pathological stress case family.
+    /// Create one pathological stress fixture family.
     const fn pathological(
         name: &'static str,
         modes: &'static [StressMode],
@@ -568,12 +576,12 @@ impl StressSpec {
             name,
             modes,
             expectation,
-            size: StressSize::Pathological,
+            ladder: StressLadder::Pathological,
             generate,
         }
     }
 
-    /// Create one pathological stress case family capped at brutal scale.
+    /// Create one pathological stress fixture family capped at brutal scale.
     const fn pathological_capped_at_brutal(
         name: &'static str,
         modes: &'static [StressMode],
@@ -584,12 +592,12 @@ impl StressSpec {
             name,
             modes,
             expectation,
-            size: StressSize::PathologicalCappedAtBrutal,
+            ladder: StressLadder::PathologicalCappedAtBrutal,
             generate,
         }
     }
 
-    /// Create one pathological stress case family capped at massive scale.
+    /// Create one pathological stress fixture family capped at massive scale.
     const fn pathological_capped_at_massive(
         name: &'static str,
         modes: &'static [StressMode],
@@ -600,12 +608,12 @@ impl StressSpec {
             name,
             modes,
             expectation,
-            size: StressSize::PathologicalCappedAtMassive,
+            ladder: StressLadder::PathologicalCappedAtMassive,
             generate,
         }
     }
 
-    /// Create one deep nesting stress case family.
+    /// Create one deep nesting stress fixture family.
     const fn deep(
         name: &'static str,
         modes: &'static [StressMode],
@@ -616,12 +624,12 @@ impl StressSpec {
             name,
             modes,
             expectation,
-            size: StressSize::Deep,
+            ladder: StressLadder::Deep,
             generate,
         }
     }
 
-    /// Create one recursive descent stress case family.
+    /// Create one recursive descent stress fixture family.
     const fn recursive(
         name: &'static str,
         modes: &'static [StressMode],
@@ -631,12 +639,12 @@ impl StressSpec {
             name,
             modes,
             expectation: StressExpectation::Valid,
-            size: StressSize::Recursive,
+            ladder: StressLadder::Recursive,
             generate,
         }
     }
 
-    /// Create one recursive expression stress case family.
+    /// Create one recursive expression stress fixture family.
     const fn recursive_expression(
         name: &'static str,
         modes: &'static [StressMode],
@@ -646,12 +654,12 @@ impl StressSpec {
             name,
             modes,
             expectation: StressExpectation::Valid,
-            size: StressSize::RecursiveExpression,
+            ladder: StressLadder::RecursiveExpression,
             generate,
         }
     }
 
-    /// Create one large recovery stress case family.
+    /// Create one large recovery stress fixture family.
     const fn recovery_pathological(
         name: &'static str,
         modes: &'static [StressMode],
@@ -661,22 +669,22 @@ impl StressSpec {
             name,
             modes,
             expectation: StressExpectation::Recovery,
-            size: StressSize::RecoveryPathological,
+            ladder: StressLadder::RecoveryPathological,
             generate,
         }
     }
 
-    /// Generate all variants for one file mode.
-    fn variants(self, mode: StressMode) -> Vec<StressVariant> {
-        self.shapes()
+    /// Generate all fixture sources for one file mode.
+    fn sources(self, mode: StressMode) -> Vec<StressFixtureSource> {
+        self.variants()
             .iter()
-            .map(|shape| shape.variant(mode, self.generate, self.expectation))
+            .map(|variant| variant.source(mode, self.generate, self.expectation))
             .collect()
     }
 
-    /// Return all variant shapes for this family.
-    fn shapes(self) -> &'static [StressVariantShape] {
-        if self.size == StressSize::RecoveryPathological {
+    /// Return all variants for this family.
+    fn variants(self) -> &'static [StressVariant] {
+        if self.ladder == StressLadder::RecoveryPathological {
             return RECOVERY_PATHOLOGICAL_VARIANTS;
         }
 
@@ -684,28 +692,28 @@ impl StressSpec {
             return RECOVERY_VARIANTS;
         }
 
-        match self.size {
-            StressSize::Regular => REGULAR_VARIANTS,
-            StressSize::Pathological => PATHOLOGICAL_VARIANTS,
-            StressSize::PathologicalCappedAtBrutal => PATHOLOGICAL_CAPPED_AT_BRUTAL_VARIANTS,
-            StressSize::PathologicalCappedAtMassive => PATHOLOGICAL_CAPPED_AT_MASSIVE_VARIANTS,
-            StressSize::Deep => DEEP_VARIANTS,
-            StressSize::Recursive => RECURSIVE_VARIANTS,
-            StressSize::RecursiveExpression => RECURSIVE_EXPRESSION_VARIANTS,
-            StressSize::RecoveryPathological => RECOVERY_PATHOLOGICAL_VARIANTS,
+        match self.ladder {
+            StressLadder::Regular => REGULAR_VARIANTS,
+            StressLadder::Pathological => PATHOLOGICAL_VARIANTS,
+            StressLadder::PathologicalCappedAtBrutal => PATHOLOGICAL_CAPPED_AT_BRUTAL_VARIANTS,
+            StressLadder::PathologicalCappedAtMassive => PATHOLOGICAL_CAPPED_AT_MASSIVE_VARIANTS,
+            StressLadder::Deep => DEEP_VARIANTS,
+            StressLadder::Recursive => RECURSIVE_VARIANTS,
+            StressLadder::RecursiveExpression => RECURSIVE_EXPRESSION_VARIANTS,
+            StressLadder::RecoveryPathological => RECOVERY_PATHOLOGICAL_VARIANTS,
         }
     }
 
     /// Return the expectation for one generated variant name.
     fn variant_expectation(self, variant: &str) -> Option<StressExpectation> {
-        self.shapes()
+        self.variants()
             .iter()
-            .find(|shape| shape.name == variant)
-            .map(|shape| shape.expectation.unwrap_or(self.expectation))
+            .find(|recipe| recipe.name == variant)
+            .map(|recipe| recipe.expectation.unwrap_or(self.expectation))
     }
 }
 
-impl StressVariantShape {
+impl StressVariant {
     /// Create one generated variant.
     const fn new(name: &'static str, scale: usize, width: usize) -> Self {
         Self {
@@ -731,14 +739,14 @@ impl StressVariantShape {
         }
     }
 
-    /// Generate one materialized variant.
-    fn variant(
+    /// Generate one fixture source.
+    fn source(
         self,
         mode: StressMode,
         generate: fn(StressMode, usize, usize) -> String,
         default_expectation: StressExpectation,
-    ) -> StressVariant {
-        StressVariant {
+    ) -> StressFixtureSource {
+        StressFixtureSource {
             name: self.name,
             source: generate(mode, self.scale, self.width),
             expectation: self.expectation.unwrap_or(default_expectation),
@@ -746,29 +754,29 @@ impl StressVariantShape {
     }
 }
 
-impl StressCase {
-    /// Load one stress case from a generated fixture path.
+impl StressFixture {
+    /// Load one stress fixture from a generated fixture path.
     pub fn from_path(path: PathBuf) -> Result<Self, String> {
         let file_type = FileType::from_path(&path)
             .ok_or_else(|| format!("unsupported stress file type: {}", path.display()))?;
-        let case = StressCaseDescriptor::from_path(&path)?;
-        let expectation = case.expectation()?;
+        let descriptor = StressFixtureDescriptor::from_path(&path)?;
+        let expectation = descriptor.expectation()?;
 
         Ok(Self {
-            name: case.name(),
+            name: descriptor.name(),
             path,
             file_type,
             expectation,
         })
     }
 
-    /// Return the parser case category.
-    pub fn parser_category() -> &'static str {
+    /// Return the parser fixture category.
+    pub const fn parser_category() -> &'static str {
         "destack_test::stress::parser"
     }
 
-    /// Return the formatter case category.
-    pub fn formatter_category() -> &'static str {
+    /// Return the formatter fixture category.
+    pub const fn formatter_category() -> &'static str {
         "destack_test::stress::formatter"
     }
 
@@ -846,8 +854,8 @@ impl StressMode {
     }
 }
 
-/// Generated stress case identity parsed from a fixture path.
-struct StressCaseDescriptor<'a> {
+/// Generated stress fixture identity parsed from a fixture path.
+struct StressFixtureDescriptor<'a> {
     /// The fixture family name.
     family: &'a str,
     /// The variant name within the family.
@@ -856,48 +864,51 @@ struct StressCaseDescriptor<'a> {
     mode: StressMode,
 }
 
-impl<'a> StressCaseDescriptor<'a> {
+impl<'a> StressFixtureDescriptor<'a> {
     /// Parse a generated stress fixture path.
     fn from_path(path: &'a Path) -> Result<Self, String> {
-        let family = path
+        let family_name = path
             .parent()
             .and_then(|parent| parent.file_name())
             .and_then(|name| name.to_str())
-            .ok_or_else(|| format!("stress path has no case family: {}", path.display()))?;
+            .ok_or_else(|| format!("stress path has no fixture family: {}", path.display()))?;
         let file_name = path
             .file_name()
             .and_then(|name| name.to_str())
             .ok_or_else(|| format!("stress path has no file name: {}", path.display()))?;
 
-        for spec in CASES {
-            if spec.name != family {
+        for family in FAMILIES {
+            if family.name != family_name {
                 continue;
             }
 
-            if let Some((variant, mode)) = Self::variant_and_mode(file_name, spec.modes) {
+            if let Some((variant, mode)) = Self::variant_and_mode(file_name, family.modes) {
                 return Ok(Self {
-                    family,
+                    family: family_name,
                     variant,
                     mode,
                 });
             }
         }
 
-        Err(format!("unknown generated stress case: {}", path.display()))
+        Err(format!(
+            "unknown generated stress fixture: {}",
+            path.display()
+        ))
     }
 
-    /// Return the generated case name.
+    /// Return the generated fixture name.
     fn name(&self) -> String {
         format!("{}::{}::{}", self.family, self.variant, self.mode.label())
     }
 
     /// Return the expected parser result shape.
     fn expectation(&self) -> Result<StressExpectation, String> {
-        let spec = CASES
+        let family = FAMILIES
             .iter()
-            .find(|spec| spec.name == self.family)
+            .find(|family| family.name == self.family)
             .ok_or_else(|| format!("unknown stress family: {}", self.family))?;
-        let expectation = spec.variant_expectation(self.variant).ok_or_else(|| {
+        let expectation = family.variant_expectation(self.variant).ok_or_else(|| {
             format!(
                 "unknown stress variant: {}::{}::{}",
                 self.family,
@@ -939,15 +950,15 @@ fn strip_mode_suffix(file_name: &str, mode: StressMode) -> Option<&str> {
 }
 
 /// Materialize and return the parser stress corpus.
-pub fn materialize_parser_cases() -> Result<Vec<StressCase>, String> {
+pub fn materialize_parser_fixtures() -> Result<Vec<StressFixture>, String> {
     let directory = stress_generated_dir("parser");
-    materialize_cases(&directory, true, true)
+    materialize_fixtures(&directory, true, true)
 }
 
 /// Materialize and return the formatter stress corpus.
-pub fn materialize_formatter_cases() -> Result<Vec<StressCase>, String> {
+pub fn materialize_formatter_fixtures() -> Result<Vec<StressFixture>, String> {
     let directory = stress_generated_dir("formatter");
-    materialize_cases(&directory, true, true)
+    materialize_fixtures(&directory, true, true)
 }
 
 /// Generate one deterministic parser fuzz input from arbitrary bytes.
@@ -960,11 +971,11 @@ pub fn generate_formatter_fuzz_case(data: &[u8]) -> (String, FileType, StressExp
     generate_fuzz_case(data, true)
 }
 
-fn materialize_cases(
+fn materialize_fixtures(
     directory: &Path,
     include_recovery: bool,
     include_bounded: bool,
-) -> Result<Vec<StressCase>, String> {
+) -> Result<Vec<StressFixture>, String> {
     if directory.exists() {
         fs::remove_dir_all(directory)
             .map_err(|error| format!("failed to clear {}: {error}", directory.display()))?;
@@ -972,22 +983,22 @@ fn materialize_cases(
     fs::create_dir_all(directory)
         .map_err(|error| format!("failed to create {}: {error}", directory.display()))?;
 
-    let mut cases = Vec::new();
+    let mut fixtures = Vec::new();
 
-    // write each generated case into its topical directory
-    for spec in CASES {
-        if spec.expectation == StressExpectation::Recovery && !include_recovery {
+    // write each generated fixture into its topical directory
+    for family in FAMILIES {
+        if family.expectation == StressExpectation::Recovery && !include_recovery {
             continue;
         }
 
-        for mode in spec.modes {
-            let case_directory = directory.join(spec.name);
-            fs::create_dir_all(&case_directory).map_err(|error| {
-                format!("failed to create {}: {error}", case_directory.display())
+        for mode in family.modes {
+            let family_directory = directory.join(family.name);
+            fs::create_dir_all(&family_directory).map_err(|error| {
+                format!("failed to create {}: {error}", family_directory.display())
             })?;
 
-            for variant in spec.variants(*mode) {
-                let expectation = variant.expectation;
+            for source in family.sources(*mode) {
+                let expectation = source.expectation;
                 if expectation == StressExpectation::Recovery && !include_recovery {
                     continue;
                 }
@@ -996,13 +1007,13 @@ fn materialize_cases(
                     continue;
                 }
 
-                let file_name = format!("{}.{}.{}", variant.name, mode.label(), mode.extension());
-                let path = case_directory.join(file_name);
-                fs::write(&path, variant.source)
+                let file_name = format!("{}.{}.{}", source.name, mode.label(), mode.extension());
+                let path = family_directory.join(file_name);
+                fs::write(&path, source.source)
                     .map_err(|error| format!("failed to write {}: {error}", path.display()))?;
 
-                cases.push(StressCase {
-                    name: format!("{}::{}::{}", spec.name, variant.name, mode.label()),
+                fixtures.push(StressFixture {
+                    name: format!("{}::{}::{}", family.name, source.name, mode.label()),
                     path,
                     file_type: mode.file_type(),
                     expectation,
@@ -1011,7 +1022,7 @@ fn materialize_cases(
         }
     }
 
-    Ok(cases)
+    Ok(fixtures)
 }
 
 fn stress_generated_dir(kind: &str) -> PathBuf {
@@ -1026,18 +1037,18 @@ fn generate_fuzz_case(
         seed.wrapping_mul(131).wrapping_add(u64::from(*byte))
     });
 
-    let specs = CASES
+    let families = FAMILIES
         .iter()
-        .filter(|spec| include_recovery || spec.expectation == StressExpectation::Valid)
+        .filter(|family| include_recovery || family.expectation == StressExpectation::Valid)
         .collect::<Vec<_>>();
-    let spec = specs[seed as usize % specs.len()];
-    let mode = spec.modes[(seed as usize / specs.len()) % spec.modes.len()];
-    let scale_seed = seed as usize / specs.len() / spec.modes.len();
+    let family = families[seed as usize % families.len()];
+    let mode = family.modes[(seed as usize / families.len()) % family.modes.len()];
+    let scale_seed = seed as usize / families.len() / family.modes.len();
     let scale = 1 + scale_seed % FUZZ_MAX_SCALE;
     let width = FUZZ_WIDTHS[(scale_seed / FUZZ_MAX_SCALE) % FUZZ_WIDTHS.len()];
-    let source = (spec.generate)(mode, scale, width);
+    let source = (family.generate)(mode, scale, width);
 
-    (source, mode.file_type(), spec.expectation)
+    (source, mode.file_type(), family.expectation)
 }
 
 #[cfg(test)]
@@ -1045,7 +1056,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_generate_parser_fuzz_case_uses_small_stress_cases() {
+    fn test_generate_parser_fuzz_case_uses_small_sources() {
         let (source, _file_type, expectation) = generate_parser_fuzz_case(&[0, 16, 6]);
 
         assert_ne!(expectation, StressExpectation::Bounded);
@@ -1053,7 +1064,7 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_formatter_fuzz_case_includes_recovery_cases() {
+    fn test_generate_formatter_fuzz_case_includes_recovery_sources() {
         let mut saw_recovery = false;
 
         for seed in 0_u16..1_024 {
