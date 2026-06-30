@@ -650,3 +650,82 @@ const keepFormattedToo = 2;
         DestackFormatOptions::default(),
     );
 }
+
+/// Prefix ignore directives should preserve a semicolon on the ignored statement line.
+#[test]
+fn test_format_program_ignore_directive_preserves_same_line_semicolon() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"// format-ignore
+run(  alpha,  beta  );
+const formatted =  1
+"#,
+        r#"// format-ignore
+run(  alpha,  beta  );
+const formatted = 1;
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Prefix ignore directives should not absorb a semicolon from the next line.
+#[test]
+fn test_format_program_ignore_directive_keeps_next_line_semicolon_separate() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"// format-ignore
+run(  alpha,  beta  )
+;
+const formatted =  1
+"#,
+        r#"// format-ignore
+run(  alpha,  beta  )
+;
+const formatted = 1;
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Trailing ignore directives should attach across statement separator trivia.
+#[test]
+fn test_format_program_trailing_ignore_preserves_same_line_semicolon() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"run(  alpha  ); // format-ignore
+const formatted =  1
+"#,
+        r#"run(  alpha  ); // format-ignore
+const formatted = 1;
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// File ignore directives should only apply before the first source token.
+#[test]
+fn test_format_program_file_ignore_requires_file_prefix_position() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"// format-ignore-file
+const raw   =  [  1,2,3 ]
+"#,
+        r#"// format-ignore-file
+const raw   =  [  1,2,3 ]
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+
+    assert_format_program_roundtrip_with_file_type(
+        r#"const formatted =  1
+// format-ignore-file
+const alsoFormatted =  [  1,2,3 ]
+"#,
+        r#"const formatted = 1;
+// format-ignore-file
+const alsoFormatted = [1, 2, 3];
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
