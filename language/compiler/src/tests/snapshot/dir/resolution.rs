@@ -416,8 +416,7 @@ fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projecti
             format!("variant.tag({})", builder.global_type_label(*ty))
         }
         dir::Projection::VariantPayload {
-            owner,
-            member,
+            case,
             generic_arguments,
             ty,
             ..
@@ -426,8 +425,8 @@ fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projecti
 
             format!(
                 "variant.payload({}.{}{arguments}, {})",
-                builder.symbol_path_label(*owner),
-                builder.symbol_path_label(*member),
+                builder.symbol_path_label(case.owner),
+                builder.static_key(case.key),
                 builder.global_type_label(*ty)
             )
         }
@@ -761,15 +760,15 @@ fn add_construct_resolution_row(
         }
         dir::ConstructTarget::Variant(candidate) => row
             .field("kind", "variant")
-            .field("owner", builder.symbol_path_label(candidate.owner))
-            .field("variant", builder.symbol_path_label(candidate.variant))
+            .field("owner", builder.symbol_path_label(candidate.case.owner))
+            .field("variant", builder.static_key(candidate.case.key))
             .optional_field(
                 "instance",
-                generic_instance_label(builder, candidate.owner, &candidate.generic_arguments),
+                generic_instance_label(builder, candidate.case.owner, &candidate.generic_arguments),
             )
             .field(
                 "discriminant",
-                builder.scalar_literal_label(&candidate.discriminant),
+                builder.scalar_literal_value_label(&candidate.discriminant),
             ),
     };
 
@@ -905,7 +904,7 @@ fn add_pattern_test_fields(
 ) -> SnapshotRow {
     match predicate_condition(predicate) {
         Some(dir::PredicateCondition::Literal(value)) => {
-            row.field("value", builder.scalar_literal_label(value))
+            row.field("value", builder.scalar_literal_value_label(value))
         }
         Some(dir::PredicateCondition::Range(range)) => row
             .type_field("domain", builder.global_type_label(range.domain))
@@ -967,6 +966,13 @@ fn add_pattern_destructure_fields(
             .object_field(
                 "fields",
                 pattern_keyed_fields_label(builder, segment, &nominal.fields),
+            )
+            .optional_field(
+                "rest",
+                nominal
+                    .rest
+                    .as_ref()
+                    .map(|rest| pattern_rest_label(builder, segment, rest)),
             ),
         dir::PatternDestructureResolution::Sequence(sequence) => add_pattern_sequence_fields(
             builder,
@@ -1235,7 +1241,7 @@ fn add_construct_target_generic_instances(
                 builder,
                 anchor,
                 source,
-                candidate.owner,
+                candidate.case.owner,
                 &candidate.generic_arguments,
             );
         }
@@ -1331,11 +1337,11 @@ fn add_projection_generic_instance(
             add_generic_instance(builder, anchor, source, *symbol, generic_arguments);
         }
         dir::Projection::VariantPayload {
-            owner,
+            case,
             generic_arguments,
             ..
         } => {
-            add_generic_instance(builder, anchor, source, *owner, generic_arguments);
+            add_generic_instance(builder, anchor, source, case.owner, generic_arguments);
         }
         _ => {}
     }

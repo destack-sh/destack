@@ -318,6 +318,11 @@ impl DirSnapshotBuilder<'_> {
 
                 format!("NoInfer<{target}>")
             }
+            dir::TypeOperation::Awaited(unary) => {
+                let target = self.type_id_label(types, unary.target);
+
+                format!("Awaited<{target}>")
+            }
             dir::TypeOperation::TryOutput { value } => {
                 let value = self.type_id_label(types, *value);
 
@@ -576,7 +581,7 @@ impl DirSnapshotBuilder<'_> {
     /// Return one type field label.
     fn type_field_label(&self, types: &dir::TypeTable<'_>, field: &dir::TypeField) -> String {
         // render common field modifiers
-        let key = self.static_key(field.key);
+        let key = self.type_field_key_label(field.key);
         let readonly = if field.is_readonly { "readonly " } else { "" };
         let optional = if field.is_optional { "?" } else { "" };
 
@@ -592,6 +597,14 @@ impl DirSnapshotBuilder<'_> {
             let ty = self.type_id_label(types, field.ty);
 
             format!("{readonly}{key}{optional}: {ty}")
+        }
+    }
+
+    /// Return one field key as it appears in object type text.
+    fn type_field_key_label(&self, key: dir::StaticKey) -> String {
+        match key {
+            dir::StaticKey::Symbol(_) => format!("[{}]", self.static_key(key)),
+            _ => self.static_key(key),
         }
     }
 

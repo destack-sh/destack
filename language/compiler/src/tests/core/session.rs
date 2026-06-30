@@ -608,6 +608,7 @@ impl TestSession {
         artifact_key: fn(&Self, &str) -> ArtifactKey,
         is_checked: bool,
     ) {
+        let rows = rows.with_environment();
         let dir = self.render_dir_snapshots(paths, rows, is_checked);
 
         // require artifacts without diagnostics by default
@@ -661,7 +662,7 @@ impl TestSession {
         let bound = self.dir_bound(entry);
         let expanded = self.dir_expanded(entry);
         let checked = self.dir_checked(entry);
-        let bindings = expanded.binding_table(&bound);
+        let bindings = checked.binding_table(&bound, &expanded);
         let foreign_artifacts = self.foreign_artifacts_for(entry, true);
         let foreign_bindings = foreign_artifacts
             .iter()

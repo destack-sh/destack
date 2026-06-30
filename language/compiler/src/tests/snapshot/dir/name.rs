@@ -208,22 +208,6 @@ impl<'a> BindingSnapshotName<'a> {
         }
     }
 
-    /// Return whether one symbol should be path-qualified.
-    fn symbol_should_qualify(&self, symbol: &dir::Symbol) -> bool {
-        symbol.role == dir::SymbolRole::Item
-            || symbol.role == dir::SymbolRole::Namespace
-            || symbol.kind == dir::SymbolKind::TypeAlias
-            || symbol.kind == dir::SymbolKind::GenericTypeParameter
-            || symbol.kind == dir::SymbolKind::GenericValueParameter
-    }
-
-    /// Return the owner symbol for the symbol scope.
-    fn symbol_scope_owner(&self, symbol: &dir::Symbol) -> Option<dir::LocalSymbolId> {
-        let scope = self.bindings.get_scope_by_id(symbol.scope.id);
-
-        scope.owner
-    }
-
     /// Return one semantic symbol path without duplicate suffixes.
     fn symbol_path_base(
         &self,
@@ -234,29 +218,18 @@ impl<'a> BindingSnapshotName<'a> {
             return path.clone();
         }
 
-        let symbol = self.bindings.get_symbol(symbol_id);
-        let label = self.symbol_base_label(symbol_id, symbol);
-        if !self.symbol_should_qualify(symbol) {
-            bases.insert(symbol_id, label.clone());
+        let path = self
+            .bindings
+            .symbol_path(symbol_id)
+            .symbols()
+            .iter()
+            .map(|symbol| {
+                let entry = self.bindings.get_symbol(*symbol);
 
-            return label;
-        }
-
-        let Some(owner) = self.symbol_scope_owner(symbol) else {
-            bases.insert(symbol_id, label.clone());
-
-            return label;
-        };
-
-        let owner_symbol = self.bindings.get_symbol(owner);
-        if owner_symbol.role == dir::SymbolRole::Namespace && owner_symbol.name().is_none() {
-            bases.insert(symbol_id, label.clone());
-
-            return label;
-        }
-
-        let owner = self.symbol_path_base(owner, bases);
-        let path = format!("{owner}.{label}");
+                self.symbol_base_label(*symbol, entry)
+            })
+            .collect::<Vec<_>>()
+            .join(".");
         bases.insert(symbol_id, path.clone());
 
         path
