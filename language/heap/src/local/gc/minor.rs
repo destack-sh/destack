@@ -1,4 +1,4 @@
-use destack_mir::TraceTable;
+use crate::TraceView;
 
 use crate::local::gc::{DirtyCard, DirtyExtent, GC_METADATA_STEP_BYTES, Phase, charge_bitmap_skip};
 use crate::local::storage::{GcKind, GcStats, HeapPlace, HeapStorage, LargeBlockId};
@@ -12,14 +12,14 @@ impl HeapStorage {
     pub(crate) fn collect_minor<E>(
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> Result<GcStats, E>
     where
         E: From<HeapError>,
     {
         self.start_young_gc()?;
 
-        self.drain_young_gc(roots, usize::MAX, trace_table)
+        self.drain_young_gc(roots, usize::MAX, trace_view)
     }
 
     /// Drain the active local young collection and return its completed stats.
@@ -27,14 +27,14 @@ impl HeapStorage {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> Result<GcStats, E>
     where
         E: From<HeapError>,
     {
         // drain the cycle in bounded steps
         loop {
-            match self.step_young_gc(roots, budget_bytes, trace_table)? {
+            match self.step_young_gc(roots, budget_bytes, trace_view)? {
                 GcProgress::Complete(stats) => return Ok(stats),
                 GcProgress::Active => continue,
                 GcProgress::Idle => {
@@ -83,7 +83,7 @@ impl HeapStorage {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> Result<GcProgress, E>
     where
         E: From<HeapError>,
@@ -95,8 +95,8 @@ impl HeapStorage {
 
         match self.collector.minor_phase {
             Phase::Idle => Ok(GcProgress::Idle),
-            Phase::Mark => self.step_young_gc_mark(roots, budget_bytes, trace_table),
-            Phase::Sweep => self.step_young_gc_sweep(roots, budget_bytes, trace_table),
+            Phase::Mark => self.step_young_gc_mark(roots, budget_bytes, trace_view),
+            Phase::Sweep => self.step_young_gc_sweep(roots, budget_bytes, trace_view),
         }
     }
 
@@ -105,7 +105,7 @@ impl HeapStorage {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> Result<GcProgress, E>
     where
         E: From<HeapError>,
@@ -114,11 +114,11 @@ impl HeapStorage {
         self.seed_young_roots(roots)?;
 
         // scan remembered mature writes first
-        let dirty_bytes = self.step_dirty_young_reference_scan(budget_bytes, trace_table)?;
+        let dirty_bytes = self.step_dirty_young_reference_scan(budget_bytes, trace_view)?;
 
         // use remaining budget for young graph tracing
         let marked_bytes = if dirty_bytes < budget_bytes {
-            self.step_young_reference_mark(budget_bytes - dirty_bytes, trace_table)?
+            self.step_young_reference_mark(budget_bytes - dirty_bytes, trace_view)?
         } else {
             0
         };
@@ -140,7 +140,7 @@ impl HeapStorage {
             self.collector.minor_phase = Phase::Sweep;
             let remaining_bytes = budget_bytes - dirty_bytes - marked_bytes;
 
-            return self.step_young_gc_sweep(roots, remaining_bytes, trace_table);
+            return self.step_young_gc_sweep(roots, remaining_bytes, trace_view);
         }
 
         // advance to sweep for the next safepoint
@@ -215,7 +215,7 @@ impl HeapStorage {
     fn step_young_reference_mark(
         &mut self,
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<usize> {
         let mut marked_bytes = 0usize;
         let mut pending = std::mem::take(&mut self.collector.minor_queue);
@@ -241,7 +241,7 @@ impl HeapStorage {
             let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
             let base_address = self.mapping.base_address() + extent.base.offset();
             let scan_result = self
-                .trace_map_for_place_ref(extent.storage, trace_table)
+                .trace_map_for_place_ref(extent.storage, trace_view)
                 .and_then(|trace_map| {
                     scan_references::<HeapReference>(
                         &trace_map,
@@ -277,7 +277,7 @@ impl HeapStorage {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> Result<GcProgress, E>
     where
         E: From<HeapError>,
@@ -295,7 +295,7 @@ impl HeapStorage {
             && self.collector.young_sweep_span_cursor >= self.young.spans.len()
         {
             // young relocation must drain before the mutator resumes
-            self.relocate_young_survivors(roots, trace_table)?;
+            self.relocate_young_survivors(roots, trace_view)?;
 
             return self
                 .finish_young_gc()
@@ -411,7 +411,7 @@ impl HeapStorage {
 
                 // marked slots survive this cycle
                 if bits.marked.contains(slot_index) {
-                    *swept_bytes += span.class.size_class.max(1);
+                    *swept_bytes += span.class.size_class().max(1);
 
                     continue;
                 }
@@ -421,10 +421,10 @@ impl HeapStorage {
                 bits.marked.clear(slot_index);
                 let reference = HeapReference::new(span.slot_offset(slot_index));
                 self.collector.remove_shared_edge_root(reference);
-                self.record_young_free(span.class.size_class);
+                self.record_young_free(span.class.size_class());
                 self.collector.young_freed_allocations += 1;
-                self.collector.young_freed_bytes += span.class.size_class as u64;
-                *swept_bytes += span.class.size_class.max(1);
+                self.collector.young_freed_bytes += span.class.size_class() as u64;
+                *swept_bytes += span.class.size_class().max(1);
             }
 
             // advance after all reserved slots drain
@@ -484,12 +484,12 @@ impl HeapStorage {
     fn step_dirty_young_reference_scan(
         &mut self,
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<usize> {
         let mut scanned_bytes = 0usize;
         let mut pending = std::mem::take(&mut self.collector.minor_queue);
 
-        self.step_dirty_extent_scan(budget_bytes, &mut scanned_bytes, &mut pending, trace_table)?;
+        self.step_dirty_extent_scan(budget_bytes, &mut scanned_bytes, &mut pending, trace_view)?;
 
         self.collector.minor_queue = pending;
 
@@ -502,7 +502,7 @@ impl HeapStorage {
         budget_bytes: usize,
         scanned_bytes: &mut usize,
         pending: &mut TraceQueue<HeapReference>,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         // scan queued dirty extents
         while *scanned_bytes < budget_bytes
@@ -511,7 +511,7 @@ impl HeapStorage {
             // select and scan the next dirty card
             let dirty_index = self.collector.young_dirty_extent_cursor;
             let extent = self.collector.dirty_extents[dirty_index];
-            let card = self.scan_dirty_extent_card(extent, pending, trace_table)?;
+            let card = self.scan_dirty_extent_card(extent, pending, trace_view)?;
 
             // finish extents that no longer have dirty cards
             let Some(card) = card else {
@@ -536,14 +536,14 @@ impl HeapStorage {
         &mut self,
         extent: DirtyExtent,
         pending: &mut TraceQueue<HeapReference>,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<Option<DirtyCardScan>> {
         match extent {
             DirtyExtent::Span(span_index) => {
-                self.scan_dirty_span_card(span_index, pending, trace_table)
+                self.scan_dirty_span_card(span_index, pending, trace_view)
             }
             DirtyExtent::Large(block_id) => {
-                self.scan_dirty_large_card(block_id, pending, trace_table)
+                self.scan_dirty_large_card(block_id, pending, trace_view)
             }
         }
     }
@@ -566,7 +566,7 @@ impl HeapStorage {
 
         Ok(Some(DirtySpanCard {
             card,
-            size_class: span.class.size_class,
+            size_class: span.class.size_class(),
             slot_count: span.slot_count,
             first_offset: span.first_offset,
         }))
@@ -589,7 +589,7 @@ impl HeapStorage {
         &mut self,
         span_index: usize,
         pending: &mut TraceQueue<HeapReference>,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<Option<DirtyCardScan>> {
         let Some(card) = self.select_dirty_span_card(span_index)? else {
             return Ok(None);
@@ -605,7 +605,7 @@ impl HeapStorage {
             // scan young references in the dirty slice into the reusable scratch
             let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
             let base_address = self.mapping.base_address() + card.first_offset + overlap.slot_start;
-            self.small_slot_trace_map_ref(span_index, overlap.slot_index, trace_table)
+            self.small_slot_trace_map_ref(span_index, overlap.slot_index, trace_view)
                 .and_then(|trace_map| {
                     scan_references::<HeapReference>(
                         &trace_map,
@@ -684,7 +684,7 @@ impl HeapStorage {
         &mut self,
         block_id: LargeBlockId,
         pending: &mut TraceQueue<HeapReference>,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<Option<DirtyCardScan>> {
         let Some(card) = self.select_dirty_large_card(block_id)? else {
             return Ok(None);
@@ -694,7 +694,7 @@ impl HeapStorage {
         // scan the dirty byte range into the reusable scratch
         let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
         let base_address = self.mapping.base_address() + card.first_offset;
-        self.trace_map_for_place_ref(HeapPlace::LargeBlock(block_id), trace_table)
+        self.trace_map_for_place_ref(HeapPlace::LargeBlock(block_id), trace_view)
             .and_then(|trace_map| {
                 scan_references::<HeapReference>(
                     &trace_map,

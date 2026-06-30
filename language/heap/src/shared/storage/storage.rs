@@ -3,8 +3,9 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
+use crate::TraceView;
 use destack_memory::AddressSpace;
-use destack_mir::{TraceMap, TraceTable};
+use destack_mir::TraceMap;
 use parking_lot::RwLock;
 
 use super::{AllocationCache, HeapPageMapEntry, HeapPlace, LargeBlock, SmallSpan};
@@ -226,7 +227,7 @@ impl HeapStorage {
         &self,
         span_index: usize,
         slot_index: usize,
-        trace_table: &'a TraceTable,
+        trace_view: TraceView<'a>,
     ) -> HeapResult<Cow<'a, TraceMap>> {
         // resolve the small span
         let store = self.state.read();
@@ -239,7 +240,7 @@ impl HeapStorage {
             return Err(HeapError::internal("missing small slot"));
         }
 
-        span.trace_map(slot_index, trace_table)
+        span.trace_map(slot_index, trace_view)
     }
 
     /// Return the base reference for one shared heap storage.
@@ -264,7 +265,7 @@ impl HeapStorage {
                 let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
                     return Err(HeapError::internal("missing span"));
                 };
-                let slot_offset = span.class.size_class * slot.slot_index();
+                let slot_offset = span.class.size_class() * slot.slot_index();
 
                 span.first_offset + slot_offset
             }
@@ -323,7 +324,7 @@ impl HeapAccounting {
             let occupied_count = span.occupied_count();
             accounting.allocate_many(
                 occupied_count,
-                occupied_count as u64 * span.class.size_class as u64,
+                occupied_count as u64 * span.class.size_class() as u64,
             );
             if occupied_count > 0 && !span.pages_empty() {
                 accounting.retain_pages(span.pages(), page_size_bytes);

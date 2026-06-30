@@ -80,20 +80,20 @@ impl HeapStorage {
         let span = store.small.spans.get(span_index)?.clone();
         let logical_byte_offset =
             logical_page_index * self.allocator.page_size_bytes() + page_offset;
-        let slot_index = logical_byte_offset / span.class.size_class;
-        let slot_offset = logical_byte_offset % span.class.size_class;
+        let slot_index = logical_byte_offset / span.class.size_class();
+        let slot_offset = logical_byte_offset % span.class.size_class();
 
         // reject empty or free slots
         if slot_index >= span.slot_count || !span.contains_slot(slot_index) {
             return None;
         }
 
-        let byte_len = span.class.size_class;
+        let byte_len = span.class.size_class();
         if slot_offset >= byte_len {
             return None;
         }
 
-        let slot_base_offset = slot_index * span.class.size_class;
+        let slot_base_offset = slot_index * span.class.size_class();
         let base_offset = span.first_offset + slot_base_offset;
         let slot = Slot::new(span_index, slot_index).ok()?;
 

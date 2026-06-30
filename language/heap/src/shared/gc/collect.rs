@@ -1,6 +1,6 @@
 use std::sync::atomic::Ordering;
 
-use destack_mir::TraceTable;
+use crate::TraceView;
 
 use crate::shared::gc::{GcPhase, MarkWork, SharedMarkWorker};
 use crate::shared::storage::{HeapPlace, HeapStorage, small_slot_offset};
@@ -39,14 +39,14 @@ impl HeapStorage {
     pub(crate) fn collect_full(
         &self,
         roots: &[SharedHeapReference],
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<GcStats> {
         // mark phase
         self.start_mark(roots)?;
 
         // concurrent mark
         while !self.mark_idle() {
-            self.step_mark(None, &[], usize::MAX, trace_table)?;
+            self.step_mark(None, &[], usize::MAX, trace_view)?;
         }
 
         // sweep phase
@@ -68,7 +68,7 @@ impl HeapStorage {
         worker: Option<&SharedMarkWorker>,
         roots: &[SharedHeapReference],
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         // phase
         if self.gc.phase() != GcPhase::Mark {
@@ -102,7 +102,7 @@ impl HeapStorage {
 
             // trace claimed work
             let trace_result =
-                self.trace_batch(worker, &batch, budget_bytes - marked_bytes, trace_table);
+                self.trace_batch(worker, &batch, budget_bytes - marked_bytes, trace_view);
             let traced = match trace_result {
                 Ok(result) => result,
                 Err(error) => {
@@ -153,7 +153,7 @@ impl HeapStorage {
         worker: Option<&SharedMarkWorker>,
         batch: &[MarkWork],
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<TracedBatch> {
         let mut start = 0usize;
         let mut marked_bytes = 0usize;
@@ -172,7 +172,7 @@ impl HeapStorage {
                     start: range_start,
                 } => {
                     marked_bytes +=
-                        self.trace_large_range(worker, reference, range_start, trace_table)?;
+                        self.trace_large_range(worker, reference, range_start, trace_view)?;
                     start += 1;
                 }
 
@@ -193,7 +193,7 @@ impl HeapStorage {
                         worker,
                         span_index,
                         budget_bytes - marked_bytes,
-                        trace_table,
+                        trace_view,
                     )?;
                     start = end;
                 }
@@ -217,7 +217,7 @@ impl HeapStorage {
         worker: Option<&SharedMarkWorker>,
         reference: SharedHeapReference,
         start: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<usize> {
         // resolve and verify the large block
         let Some(extent) = self.resolve_extent(reference) else {
@@ -228,7 +228,7 @@ impl HeapStorage {
         };
 
         // skip empty ranges and noscan payloads
-        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_table)?;
+        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_view)?;
         if !trace_map.has_shared_reference() {
             return Ok(extent.byte_len);
         }
@@ -281,7 +281,7 @@ impl HeapStorage {
         worker: Option<&SharedMarkWorker>,
         span_index: usize,
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<usize> {
         let mut scanned_bytes = 0usize;
 
@@ -296,13 +296,13 @@ impl HeapStorage {
         };
         // keep draining until this span really goes idle
         while scanned_bytes < budget_bytes {
-            let slot_bytes = span.class.size_class.max(1);
+            let slot_bytes = span.class.size_class().max(1);
             let mark_epoch = self.gc.mark_epoch();
             let Some(slot_index) = span.claim_next_marked_slot(mark_epoch) else {
                 return Ok(scanned_bytes);
             };
-            let slot_offset = small_slot_offset(span.class.size_class, slot_index);
-            let trace_map = span.trace_map(slot_index, trace_table)?;
+            let slot_offset = small_slot_offset(span.class.size_class(), slot_index);
+            let trace_map = span.trace_map(slot_index, trace_view)?;
             scanned_bytes += slot_bytes;
 
             // noscan slots cost one claimed unit only

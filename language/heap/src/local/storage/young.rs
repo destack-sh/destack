@@ -336,18 +336,18 @@ impl YoungSpan {
 
     /// Return the number of slots in this span.
     pub(crate) const fn slot_count(&self) -> usize {
-        self.span_size_bytes() / self.class.size_class
+        self.span_size_bytes() / self.class.size_class()
     }
 
     /// Return the number of slots reserved through one next offset.
     pub(crate) const fn reserved_slot_count_with(&self, next_offset: usize) -> usize {
-        (next_offset - self.first_offset) / self.class.size_class
+        (next_offset - self.first_offset) / self.class.size_class()
     }
 
     /// Return the base byte offset for one slot.
     #[inline(always)]
     pub(crate) fn slot_offset(&self, slot_index: usize) -> usize {
-        self.first_offset + slot_index * self.class.size_class
+        self.first_offset + slot_index * self.class.size_class()
     }
 }
 
@@ -378,12 +378,12 @@ impl YoungCursor {
     /// Reserve one reference from this cursor.
     #[inline(always)]
     pub(crate) fn reserve_reference(&mut self) -> Option<HeapReference> {
-        if self.class.size_class > self.end_offset - self.next_offset {
+        if self.class.size_class() > self.end_offset - self.next_offset {
             return None;
         }
 
         let reference = HeapReference::new(self.next_offset);
-        self.next_offset += self.class.size_class;
+        self.next_offset += self.class.size_class();
 
         Some(reference)
     }
@@ -392,7 +392,7 @@ impl YoungCursor {
     #[inline(always)]
     pub(crate) fn pending_usage(&self) -> AllocationUsage {
         let allocated_bytes = self.next_offset - self.accounted_offset;
-        let allocation_count = allocated_bytes / self.class.size_class;
+        let allocation_count = allocated_bytes / self.class.size_class();
 
         AllocationUsage::new(allocation_count, allocated_bytes as u64)
     }
@@ -427,7 +427,7 @@ impl YoungCursor {
         byte_len: usize,
         class: SmallSpanClass,
     ) -> Option<HeapReference> {
-        if !class.is_noscan || !self.matches(class, byte_len) {
+        if !class.is_noscan() || !self.matches(class, byte_len) {
             return None;
         }
 

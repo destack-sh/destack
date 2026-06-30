@@ -5,7 +5,7 @@ use crate::{
 };
 use destack_mir::{TraceMap, TraceVariant};
 
-use super::{TestHeapPlan, heap_allocation_plan, read_mapped_bytes, test_storage, trace_table};
+use super::{TestHeapPlan, heap_allocation_plan, read_mapped_bytes, test_storage, trace_view};
 
 /// Reject one zero-size heap block.
 #[test]
@@ -195,7 +195,7 @@ fn test_write_heap_rejects_interior_reference_crossing_bounds() {
 
     // writing two bytes from offset 7 crosses the block boundary
     let error = heap
-        .write_barrier(reference, 0, 2, trace_table())
+        .write_barrier(reference, 0, 2, trace_view())
         .expect_err("heap write should reject bounds crossing");
 
     assert_eq!(

@@ -1,4 +1,5 @@
-use destack_mir::{TraceMap, TraceTable};
+use crate::TraceView;
+use destack_mir::TraceMap;
 
 use crate::allocator::Slot;
 use crate::local::gc::{DirtyCard, DirtyExtent};
@@ -101,7 +102,7 @@ impl HeapStorage {
     pub(super) fn relocate_young_survivors<E>(
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> Result<(), E>
     where
         E: From<HeapError>,
@@ -109,11 +110,11 @@ impl HeapStorage {
         let mut forwarding = ForwardingTable::default();
 
         // copy eligible survivors before publishing forwarded references
-        self.promote_young_range_survivors(&mut forwarding, trace_table)?;
-        self.promote_young_span_survivors(&mut forwarding, trace_table)?;
+        self.promote_young_range_survivors(&mut forwarding, trace_view)?;
+        self.promote_young_span_survivors(&mut forwarding, trace_view)?;
 
         // rewrite every visible local reference before the mutator resumes
-        self.rewrite_promoted_references(roots, &forwarding, trace_table)?;
+        self.rewrite_promoted_references(roots, &forwarding, trace_view)?;
 
         Ok(())
     }
@@ -122,7 +123,7 @@ impl HeapStorage {
     fn promote_young_range_survivors(
         &mut self,
         forwarding: &mut ForwardingTable,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         let mut start = 0usize;
 
@@ -157,7 +158,7 @@ impl HeapStorage {
                 target_place,
                 range.byte_len,
                 &trace_map,
-                trace_table,
+                trace_view,
             )?;
             forwarding.push_range(range_index, target);
             self.retire_promoted_young_range(range_index, source, range.byte_len);
@@ -170,7 +171,7 @@ impl HeapStorage {
     fn promote_young_span_survivors(
         &mut self,
         forwarding: &mut ForwardingTable,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         self.flush_young_cursor();
 
@@ -201,10 +202,9 @@ impl HeapStorage {
                     continue;
                 }
 
-                let trace_map =
-                    self.trace_map_for_place(HeapPlace::YoungSlot(slot), trace_table)?;
+                let trace_map = self.trace_map_for_place(HeapPlace::YoungSlot(slot), trace_view)?;
                 let target_place = self.allocate_promoted_payload(
-                    span.class.size_class,
+                    span.class.size_class(),
                     &trace_map,
                     source.offset(),
                 )?;
@@ -213,12 +213,12 @@ impl HeapStorage {
                 self.publish_promoted_payload(
                     target,
                     target_place,
-                    span.class.size_class,
+                    span.class.size_class(),
                     &trace_map,
-                    trace_table,
+                    trace_view,
                 )?;
                 forwarding.push_slot(slot, target);
-                self.retire_promoted_young_slot(slot, source, span.class.size_class)?;
+                self.retire_promoted_young_slot(slot, source, span.class.size_class())?;
             }
         }
 
@@ -232,7 +232,7 @@ impl HeapStorage {
         storage: HeapPlace,
         byte_len: usize,
         trace_map: &TraceMap,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         if trace_map.has_shared_reference() {
             self.collector.track_shared_edge_root(reference);
@@ -248,7 +248,7 @@ impl HeapStorage {
             },
             0,
             byte_len,
-            trace_table,
+            trace_view,
         )
     }
 
@@ -289,7 +289,7 @@ impl HeapStorage {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         forwarding: &ForwardingTable,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> Result<(), E>
     where
         E: From<HeapError>,
@@ -302,8 +302,8 @@ impl HeapStorage {
         self.rewrite_root_references(roots, forwarding)?;
 
         // payloads after roots, while forwarding is still live
-        self.rewrite_young_payload_references(forwarding, trace_table)?;
-        self.rewrite_remembered_mature_references(forwarding, trace_table)?;
+        self.rewrite_young_payload_references(forwarding, trace_view)?;
+        self.rewrite_remembered_mature_references(forwarding, trace_view)?;
 
         Ok(())
     }
@@ -334,7 +334,7 @@ impl HeapStorage {
     fn rewrite_young_payload_references(
         &self,
         forwarding: &ForwardingTable,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         // rewrite live young range payloads
         let mut start = 0usize;
@@ -363,14 +363,14 @@ impl HeapStorage {
                 return Err(HeapError::internal("missing span"));
             };
             let first_offset = span.first_offset;
-            let size_class = span.class.size_class;
+            let size_class = span.class.size_class();
             let byte_len = span.byte_len();
             let Some(reserved_slots) = self.young.span_reserved_slot_count(span_index) else {
                 return Err(HeapError::internal("missing span"));
             };
 
             // skip spans without local references
-            let trace_map = self.young_slot_trace_map_ref(span_index, trace_table)?;
+            let trace_map = self.young_slot_trace_map_ref(span_index, trace_view)?;
             if !trace_map.has_local_reference() {
                 continue;
             }
@@ -396,14 +396,14 @@ impl HeapStorage {
     fn rewrite_remembered_mature_references(
         &mut self,
         forwarding: &ForwardingTable,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         let dirty_region_count = self.collector.dirty_extents.len();
 
         for dirty_index in 0..dirty_region_count {
             match self.collector.dirty_extents[dirty_index] {
                 DirtyExtent::Span(span_index) => {
-                    self.rewrite_dirty_span_references(span_index, forwarding, trace_table)?;
+                    self.rewrite_dirty_span_references(span_index, forwarding, trace_view)?;
                 }
                 DirtyExtent::Large(block_id) => {
                     self.rewrite_dirty_large_references(block_id, forwarding)?;
@@ -419,7 +419,7 @@ impl HeapStorage {
         &mut self,
         span_index: usize,
         forwarding: &ForwardingTable,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         let mut card_cursor = 0usize;
 
@@ -431,7 +431,7 @@ impl HeapStorage {
             };
 
             let has_young_reference =
-                self.rewrite_dirty_span_card(span_index, card, forwarding, trace_table)?;
+                self.rewrite_dirty_span_card(span_index, card, forwarding, trace_view)?;
             self.finish_rewritten_dirty_span_card(
                 span_index,
                 card.card.index,
@@ -458,7 +458,7 @@ impl HeapStorage {
         Ok(Some(DirtySpanRewrite {
             card,
             first_offset: span.first_offset,
-            size_class: span.class.size_class,
+            size_class: span.class.size_class(),
             slot_count: span.slot_count,
         }))
     }
@@ -469,7 +469,7 @@ impl HeapStorage {
         span_index: usize,
         card: DirtySpanRewrite,
         forwarding: &ForwardingTable,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<bool> {
         let mut has_young_reference = false;
 
@@ -484,7 +484,7 @@ impl HeapStorage {
 
             // skip slots without local heap references
             let trace_map =
-                self.small_slot_trace_map(span_index, overlap.slot_index, trace_table)?;
+                self.small_slot_trace_map(span_index, overlap.slot_index, trace_view)?;
             if !trace_map.has_local_reference() {
                 continue;
             }
@@ -810,8 +810,8 @@ impl HeapStorage {
         let Some(span_offset) = logical_byte_offset.checked_sub(span.first_offset) else {
             return Ok(None);
         };
-        let slot_index = span_offset / span.class.size_class;
-        let slot_offset = span_offset % span.class.size_class;
+        let slot_index = span_offset / span.class.size_class();
+        let slot_offset = span_offset % span.class.size_class();
         let slot = Slot::new(span_index, slot_index)?;
         let Some(target) = forwarding.slot(slot) else {
             return Ok(None);

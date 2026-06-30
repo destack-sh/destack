@@ -7,7 +7,7 @@ use crate::{
     SharedHeapOptions, SizeClassTable, test_aligned_layout, test_layout,
 };
 
-use super::{heap_allocation_plan, read_mapped_bytes, test_allocate, trace_table};
+use super::{heap_allocation_plan, read_mapped_bytes, test_allocate, trace_view};
 
 const SMALL_ALLOCATION_COUNT: usize = 1024;
 const SMALL_ALLOCATION_BYTES: usize = 32;
@@ -240,7 +240,7 @@ fn test_reject_shared_heap_allocation_when_limit_exceeded() {
             &mut allocator,
             &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&[1]),
-            trace_table(),
+            trace_view(),
         )
         .expect_err("shared heap block should be rejected");
 

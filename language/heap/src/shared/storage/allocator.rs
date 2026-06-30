@@ -226,7 +226,7 @@ impl SmallSizeClassCache {
 
             return self
                 .cursor
-                .reserve_slot(self.first_offset, class.size_class);
+                .reserve_slot(self.first_offset, class.size_class());
         }
 
         // first pass through never-tried slots
@@ -263,7 +263,7 @@ impl SmallSizeClassCache {
                 return false;
             };
 
-            return self.cursor.has_available_slot(class.size_class);
+            return self.cursor.has_available_slot(class.size_class());
         }
 
         // never-tried slots remain
@@ -291,7 +291,7 @@ impl SmallSizeClassCache {
                 return;
             };
 
-            span.publish_dense_len(self.cursor.next_slot(self.first_offset, class.size_class));
+            span.publish_dense_len(self.cursor.next_slot(self.first_offset, class.size_class()));
         }
     }
 
@@ -311,7 +311,7 @@ impl SmallSizeClassCache {
     #[inline(always)]
     pub(super) fn reference_for_slot(&self, slot_index: usize) -> Option<SharedHeapReference> {
         let class = self.class()?;
-        let mapping_offset = self.first_offset + class.size_class * slot_index;
+        let mapping_offset = self.first_offset + class.size_class() * slot_index;
 
         Some(SharedHeapReference::new(mapping_offset))
     }
@@ -336,11 +336,11 @@ impl SmallSizeClassCache {
 
         // dense spans cover newly mapped spans
         let end_offset = if is_dense {
-            span.first_offset + span.class.size_class * span.slot_count
+            span.first_offset + span.class.size_class() * span.slot_count
         } else {
             0
         };
-        let next_offset = span.first_offset + span.class.size_class * next_slot;
+        let next_offset = span.first_offset + span.class.size_class() * next_slot;
 
         // publish cursor bounds to the allocator hot path
         self.cursor.install(next_offset, end_offset);

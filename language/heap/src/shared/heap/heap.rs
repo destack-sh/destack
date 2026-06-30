@@ -2,7 +2,8 @@ use destack_serde::Reflect;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_mir::{TraceMap, TraceTable};
+use crate::TraceView;
+use destack_mir::TraceMap;
 use serde::{Deserialize, Serialize};
 
 use super::limits::SharedHeapLimits;
@@ -251,7 +252,7 @@ impl SharedHeap {
         cache: &mut AllocationCache,
         layout: &Allocation<'_>,
         block: Payload<'_>,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<SharedHeapReference> {
         // reject invalid blocks
         if layout.is_empty() {
@@ -277,7 +278,7 @@ impl SharedHeap {
         let pressure_bytes = retained_byte_delta.max(0) as usize;
 
         // assist before increasing retained heap pressure
-        self.assist_allocation(worker, pressure_bytes, trace_table)?;
+        self.assist_allocation(worker, pressure_bytes, trace_view)?;
 
         // allocate from the shared heap storage
         let reference = self
@@ -314,11 +315,11 @@ impl SharedHeap {
         cache: &mut AllocationCache,
         plan: AllocationPlan,
         trace_map: &TraceMap,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<SharedHeapReference> {
         let layout = plan.allocation(trace_map);
 
-        self.allocate_payload(worker, cache, &layout, Payload::Zeroed, trace_table)
+        self.allocate_payload(worker, cache, &layout, Payload::Zeroed, trace_view)
     }
 
     /// Allocate one uninitialized payload from one allocation plan.
@@ -330,11 +331,11 @@ impl SharedHeap {
         cache: &mut AllocationCache,
         plan: AllocationPlan,
         trace_map: &TraceMap,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<SharedHeapReference> {
         let layout = plan.allocation(trace_map);
 
-        self.allocate_payload(worker, cache, &layout, Payload::Uninit, trace_table)
+        self.allocate_payload(worker, cache, &layout, Payload::Uninit, trace_view)
     }
 
     /// Allocate one byte-initialized payload from one allocation plan.
@@ -347,11 +348,11 @@ impl SharedHeap {
         plan: AllocationPlan,
         trace_map: &TraceMap,
         bytes: &[u8],
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<SharedHeapReference> {
         let layout = plan.allocation(trace_map);
 
-        self.allocate_payload(worker, cache, &layout, Payload::Bytes(bytes), trace_table)
+        self.allocate_payload(worker, cache, &layout, Payload::Bytes(bytes), trace_view)
     }
 
     /// Return whether one shared heap reference currently refers to one live block.
@@ -380,9 +381,9 @@ impl SharedHeap {
     pub fn trace_map(
         &self,
         reference: SharedHeapReference,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<TraceMap> {
-        self.storage.trace_map(reference, trace_table)
+        self.storage.trace_map(reference, trace_view)
     }
 
     /// Record one shared heap write barrier before one byte store.
@@ -391,10 +392,10 @@ impl SharedHeap {
         reference: SharedHeapReference,
         start: usize,
         bytes: &[u8],
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         self.storage
-            .write_barrier_bytes(reference, start, bytes, trace_table)
+            .write_barrier_bytes(reference, start, bytes, trace_view)
     }
 
     /// Record one shared heap write barrier after one completed byte store.
@@ -403,10 +404,10 @@ impl SharedHeap {
         reference: SharedHeapReference,
         start: usize,
         byte_len: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         self.storage
-            .write_barrier(reference, start, byte_len, trace_table)
+            .write_barrier(reference, start, byte_len, trace_view)
     }
 
     /// Request one shared collection cycle at the next world step.
@@ -439,12 +440,12 @@ impl SharedHeap {
     pub fn collect_full(
         &self,
         roots: &[SharedHeapReference],
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<GcStats> {
         self.gc_pacer
             .begin_cycle(&self.options, self.heap_allocated_bytes());
 
-        let stats = self.storage.collect_full(roots, trace_table)?;
+        let stats = self.storage.collect_full(roots, trace_view)?;
         self.record_gc_cycle(stats);
 
         Ok(stats)
@@ -456,9 +457,9 @@ impl SharedHeap {
         roots: &[SharedHeapReference],
         roots_complete: bool,
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<GcProgress> {
-        self.step_collection_for_worker(None, roots, roots_complete, budget_bytes, trace_table)
+        self.step_collection_for_worker(None, roots, roots_complete, budget_bytes, trace_view)
     }
 
     /// Register one shared mark worker.
@@ -473,7 +474,7 @@ impl SharedHeap {
         roots: &[SharedHeapReference],
         roots_complete: bool,
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<GcProgress> {
         // empty budget
         if budget_bytes == 0 {
@@ -488,7 +489,7 @@ impl SharedHeap {
         // concurrent mark
         if self.gc_phase() == GcPhase::Mark {
             self.storage
-                .step_mark(worker, roots, budget_bytes, trace_table)?;
+                .step_mark(worker, roots, budget_bytes, trace_view)?;
 
             // termination check
             if roots_complete {
@@ -675,7 +676,7 @@ impl SharedHeap {
         &self,
         worker: &SharedMarkWorker,
         allocated_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         if allocated_bytes == 0 || self.gc_phase() == GcPhase::Idle {
             return Ok(());
@@ -692,7 +693,7 @@ impl SharedHeap {
             return Ok(());
         }
 
-        self.step_collection_for_worker(Some(worker), &[], false, budget_bytes, trace_table)?;
+        self.step_collection_for_worker(Some(worker), &[], false, budget_bytes, trace_view)?;
 
         Ok(())
     }
