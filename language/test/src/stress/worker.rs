@@ -6,44 +6,29 @@ use std::time::{Duration, Instant};
 
 use crate::core::CaseResult;
 
-use super::StressCase;
+use super::StressFixture;
+use super::target::StressTarget;
 
-/// Child stress worker kind.
-#[derive(Debug, Clone, Copy)]
-pub(super) enum StressWorker {
-    /// Parser stress worker.
-    Parser,
-    /// Formatter stress worker.
-    Formatter,
-}
-
-impl StressWorker {
-    /// Return the hidden command flag for this worker.
-    fn flag(self) -> &'static str {
-        match self {
-            Self::Parser => "--run-parser-case",
-            Self::Formatter => "--run-formatter-case",
-        }
-    }
-}
-
-/// Run one stress case in a subprocess.
-pub(super) fn run_stress_child(
-    worker: StressWorker,
-    test: &StressCase,
+/// Run one stress fixture in a worker subprocess.
+pub(super) fn run_stress_worker(
+    target: StressTarget,
+    fixture: &StressFixture,
     timeout: Duration,
 ) -> CaseResult {
     let mut child = match Command::new(current_executable())
-        .arg(worker.flag())
-        .arg(&test.path)
+        .arg(target.worker_flag())
+        .arg(&fixture.path)
         .stdout(Stdio::null())
-        .stderr(stress_log(test))
+        .stderr(stress_log(fixture))
         .spawn()
     {
         Ok(child) => child,
         Err(error) => {
             return CaseResult::Failed {
-                message: format!("failed to spawn stress worker for {}: {error}", test.name),
+                message: format!(
+                    "failed to spawn stress worker for {}: {error}",
+                    fixture.name
+                ),
             };
         }
     };
@@ -56,7 +41,7 @@ pub(super) fn run_stress_child(
             Ok(None) => {}
             Err(error) => {
                 return CaseResult::Failed {
-                    message: format!("failed to poll stress worker for {}: {error}", test.name),
+                    message: format!("failed to poll stress worker for {}: {error}", fixture.name),
                 };
             }
         }
@@ -67,7 +52,7 @@ pub(super) fn run_stress_child(
             let _ = child.wait();
 
             return CaseResult::Failed {
-                message: format!("timeout after {timeout:?}: {}", test.path.display()),
+                message: format!("timeout after {timeout:?}: {}", fixture.path.display()),
             };
         }
 
@@ -78,12 +63,15 @@ pub(super) fn run_stress_child(
         Ok(status) => status,
         Err(error) => {
             return CaseResult::Failed {
-                message: format!("failed to collect stress worker for {}: {error}", test.name),
+                message: format!(
+                    "failed to collect stress worker for {}: {error}",
+                    fixture.name
+                ),
             };
         }
     };
 
-    let stderr = match fs::read_to_string(stress_log_path(test)) {
+    let stderr = match fs::read_to_string(stress_log_path(fixture)) {
         Ok(stderr) => stderr,
         Err(error) => format!("failed to read stress worker log: {error}"),
     };
@@ -99,9 +87,9 @@ pub(super) fn run_stress_child(
     CaseResult::Failed {
         message: format!(
             "{} failed with {}\npath: {}\n\nstderr:\n{}",
-            test.name,
+            fixture.name,
             status,
-            test.path.display(),
+            fixture.path.display(),
             tail_output(&stderr),
         ),
     }
@@ -112,19 +100,19 @@ fn current_executable() -> PathBuf {
     std::env::current_exe().expect("stress test executable is unavailable")
 }
 
-/// Open the stderr log for one stress child.
-fn stress_log(test: &StressCase) -> Stdio {
-    File::create(stress_log_path(test))
+/// Open the stderr log for one stress worker.
+fn stress_log(fixture: &StressFixture) -> Stdio {
+    File::create(stress_log_path(fixture))
         .map(Stdio::from)
         .unwrap_or_else(|_| Stdio::null())
 }
 
-/// Return the stderr log path for one stress child.
-fn stress_log_path(test: &StressCase) -> PathBuf {
-    test.path.with_extension("stress.log")
+/// Return the stderr log path for one stress worker.
+fn stress_log_path(fixture: &StressFixture) -> PathBuf {
+    fixture.path.with_extension("stress.log")
 }
 
-/// Return the final lines from one child output.
+/// Return the final lines from one worker output.
 fn tail_output(output: &str) -> String {
     const MAX_OUTPUT_LINES: usize = 160;
 

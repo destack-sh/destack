@@ -1,9 +1,11 @@
-mod case;
+mod fixture;
 mod formatter;
-mod metric;
 mod parser;
-mod process;
+mod suite;
+mod target;
+mod throughput;
+mod worker;
 
-pub use case::*;
+pub use fixture::*;
 pub use formatter::FormatterStressSuite;
 pub use parser::ParserStressSuite;
