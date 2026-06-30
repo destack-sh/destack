@@ -122,7 +122,7 @@ fn format_expressions(
         side_tokens,
         &side_span,
         strings,
-        parents,
+        &parents,
     );
 
     // ensure a trailing newline

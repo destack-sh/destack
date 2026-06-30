@@ -176,7 +176,7 @@ fn format_expressions(
         side_tokens,
         &side_span,
         strings,
-        parents,
+        &parents,
     );
 
     // format expressions
