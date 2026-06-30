@@ -8,6 +8,7 @@ use crate::annotation::{
 };
 use crate::collection::{TrailingSeparator, separated_entries};
 use crate::context::PreparedFormat;
+use crate::operator::write_range_operator;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
     AssignPattern, AssignPatternField, Declarator, DecoratorPosition, Expression, LocalNodeId,
@@ -89,19 +90,19 @@ fn format_prefixed_pattern<'ast>(
 /// Format one ordered range pattern.
 fn format_range_pattern<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Pattern>,
     start: Option<LocalNodeId<Expression>>,
     end: Option<LocalNodeId<Expression>>,
     end_kind: RangeEnd,
 ) -> FormatResult<()> {
+    let start_end = start.map(|start| f.context().node_token_end(start));
+    let end_start = end.map(|end| f.context().node_token_start(end));
+
     if let Some(start) = start {
         write!(f, [start])?;
     }
 
-    let operator = match end_kind {
-        RangeEnd::Open => "..",
-        RangeEnd::Inclusive => "..=",
-    };
-    write!(f, [token(operator)])?;
+    write_range_operator(f, f.context().span(node_id), start_end, end_start, end_kind)?;
 
     if let Some(end) = end {
         write!(f, [end])?;
@@ -870,7 +871,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 end,
                 end_kind,
             } => {
-                format_range_pattern(f, *start, *end, *end_kind)?;
+                format_range_pattern(f, node_id, *start, *end, *end_kind)?;
             }
 
             Pattern::Tuple { fields } => {
