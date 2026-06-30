@@ -83,7 +83,9 @@ fn shape(data: &Data) -> syn::Result<proc_macro2::TokenStream> {
             let variants = data
                 .variants
                 .iter()
+                .filter_map(|variant| active_variant(variant).transpose())
                 .map(|variant| {
+                    let variant = variant?;
                     let name = variant.ident.to_string();
                     let docs = docs(&variant.attrs);
                     let payload = payload(&variant.fields)?;
@@ -165,6 +167,15 @@ fn unnamed_fields(fields: &syn::FieldsUnnamed) -> syn::Result<proc_macro2::Token
         .collect::<syn::Result<Vec<_>>>()?;
 
     Ok(quote!(vec![#(#fields),*]))
+}
+
+/// Return one variant unless it is skipped by serde.
+fn active_variant(variant: &syn::Variant) -> syn::Result<Option<&syn::Variant>> {
+    if is_serde_skip(&variant.attrs)? {
+        Ok(None)
+    } else {
+        Ok(Some(variant))
+    }
 }
 
 /// Return one field unless it is skipped by serde.
