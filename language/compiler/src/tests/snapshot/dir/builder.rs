@@ -857,7 +857,11 @@ impl<'a> DirSnapshotBuilder<'a> {
     }
 
     /// Return whether to render one checked type node row.
-    pub(crate) fn should_render_type_node(&self, node_id: dir::GlobalNodeIdAny) -> bool {
+    pub(crate) fn should_render_type_node(
+        &self,
+        node_id: dir::GlobalNodeIdAny,
+        type_id: dir::GlobalTypeId,
+    ) -> bool {
         if !self.type_nodes {
             return false;
         }
@@ -877,6 +881,9 @@ impl<'a> DirSnapshotBuilder<'a> {
         if self.expression_has_boring_type_node(expression) {
             return false;
         }
+        if self.expression_has_boring_void_type_node(node_id, expression, type_id) {
+            return false;
+        }
 
         self.type_references || !expression.is_reference()
     }
@@ -893,6 +900,46 @@ impl<'a> DirSnapshotBuilder<'a> {
                 | dir::Expression::Using { .. }
                 | dir::Expression::Return { .. }
         ) || self.expression_is_named_declaration(expression)
+    }
+
+    /// Return whether one multiline control expression only reports `void`.
+    fn expression_has_boring_void_type_node(
+        &self,
+        node_id: dir::GlobalNodeIdAny,
+        expression: &dir::Expression,
+        type_id: dir::GlobalTypeId,
+    ) -> bool {
+        if self.node_source(node_id).is_some() {
+            return false;
+        }
+        if !self.global_type_is_void(type_id) {
+            return false;
+        }
+
+        matches!(
+            expression,
+            dir::Expression::If { .. }
+                | dir::Expression::While { .. }
+                | dir::Expression::ForEach { .. }
+                | dir::Expression::For { .. }
+                | dir::Expression::Loop { .. }
+                | dir::Expression::Try { .. }
+                | dir::Expression::Match { .. }
+        )
+    }
+
+    /// Return whether one global type id names `void`.
+    fn global_type_is_void(&self, type_id: dir::GlobalTypeId) -> bool {
+        let types = if type_id.module_id == self.tree.module_id {
+            self.types.as_ref()
+        } else {
+            self.foreign_types.get(&type_id.module_id)
+        };
+
+        matches!(
+            types.map(|types| types.get_type(type_id.local_id)),
+            Some(dir::Type::Void)
+        )
     }
 
     /// Return whether one expression is a named declaration wrapper.

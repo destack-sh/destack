@@ -25,7 +25,6 @@ while (true) {
 
 === checked ===
 while (true) {
-/// @type.node type=void
 /// @type.node source=true type=true
 
     const stop = () => {

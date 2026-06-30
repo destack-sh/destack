@@ -28,7 +28,6 @@ declare const value: unknown;
 /// @type.symbol symbol=value source=value type=unknown
 
 if (value is string) {
-/// @type.node type=void
 /// @type.node source="value is string" type=boolean
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
@@ -71,7 +70,6 @@ declare const value: Dynamic<unknown>;
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
 
 if (value is { name: string }) {
-/// @type.node type=void
 /// @type.node source="value is { name: string }" type=boolean
 /// @type.node source=value type=Dynamic<unknown>
 /// @resolution.name source=value target=value
@@ -120,7 +118,6 @@ declare const value: string | int32;
 /// @type.symbol symbol=value source=value type=string | int32
 
 if (value is string) {
-/// @type.node type=void
 /// @type.node source="value is string" type=boolean
 /// @type.node source=value type=string | int32
 /// @resolution.name source=value target=value
@@ -168,7 +165,6 @@ declare const value: string;
 /// @type.symbol symbol=value source=value type=string
 
 if (value is int32) {
-/// @type.node type=void
 /// @type.node source="value is int32" type=boolean
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
@@ -229,7 +225,6 @@ declare const value: unknown;
 /// @type.symbol symbol=value source=value type=unknown
 
 if (value is &readonly Node) {
-/// @type.node type=void
 /// @type.node source="value is &readonly Node" type=boolean
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
@@ -277,7 +272,6 @@ function check<T>(value: unknown): void {
 /// @type.symbol symbol=value source="value: unknown" type=unknown
 
     if (value is T) {
-    /// @type.node type=void
     /// @type.node source="value is T" type=boolean
     /// @type.node source=value type=unknown
     /// @resolution.name source=value target=value

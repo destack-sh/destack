@@ -174,7 +174,6 @@ class User {
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 
         if (enabled) {
-        /// @type.node type=void
         /// @type.node source=enabled type=boolean
         /// @resolution.name source=enabled target=User.constructor.enabled
 

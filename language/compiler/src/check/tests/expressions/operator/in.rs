@@ -261,7 +261,6 @@ declare const value: Named | Numbered;
 /// @resolution.name source=Numbered target=Numbered
 
 if ("name" in value) {
-/// @type.node type=void
 /// @type.node source="\"name\" in value" type=boolean
 /// @type.node source="\"name\"" type="name"
 /// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered predicate="has(Named | Numbered, name)" narrowed={ name: string }

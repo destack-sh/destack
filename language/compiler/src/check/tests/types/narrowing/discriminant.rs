@@ -93,7 +93,6 @@ function read(state: State): int32 {
 /// @resolution.name source=State target=State
 
     if (state.kind == "pending") {
-    /// @type.node type=void
     /// @type.node source="state.kind == \"pending\"" type=boolean
     /// @type.node source=state type=read.T0
     /// @type.node source=state.kind type="pending" | "fulfilled"
