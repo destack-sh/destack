@@ -1517,7 +1517,7 @@ define_language_items! {
             Required => (Type, "types/object", "Required"),
 
             /// Contextual object receiver marker.
-            ThisType => (Interface, "types/object", "ThisType"),
+            ThisType => (NewtypeInterface, "types/object", "ThisType"),
         }
 
         /// `destack:types/string`.

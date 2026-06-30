@@ -1167,6 +1167,8 @@ pub enum TypeOperation {
     KeyOf(UnaryType),
     /// Inference blocker like `NoInfer<T>`.
     NoInfer(UnaryType),
+    /// Awaited value type, like `Awaited<Promise<T>>`.
+    Awaited(UnaryType),
     /// Try success projection like `value?` continuing evaluation.
     TryOutput {
         /// The tried value type.
@@ -1433,6 +1435,7 @@ impl Type {
                 }
                 TypeOperation::KeyOf(unary) => visit(unary.target),
                 TypeOperation::NoInfer(unary) => visit(unary.target),
+                TypeOperation::Awaited(unary) => visit(unary.target),
                 TypeOperation::TryOutput { value } | TypeOperation::TryResidual { value } => {
                     visit(*value)
                 }
@@ -1594,6 +1597,7 @@ impl Type {
                 }
                 TypeOperation::KeyOf(unary) => unary.target = map(unary.target),
                 TypeOperation::NoInfer(unary) => unary.target = map(unary.target),
+                TypeOperation::Awaited(unary) => unary.target = map(unary.target),
                 TypeOperation::TryOutput { value } | TypeOperation::TryResidual { value } => {
                     *value = map(*value)
                 }
