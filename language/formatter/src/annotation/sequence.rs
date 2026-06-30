@@ -24,6 +24,11 @@ where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
 {
+    // skip token and side-span lookups when no comments can be attached
+    if !context.comments().has_unprinted_comments() {
+        return Vec::new();
+    }
+
     let token_start = context.node_token_start(node_id);
 
     if let Some(leading_span) = context

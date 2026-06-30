@@ -55,8 +55,13 @@ where
     Tree: TreeStore<T>,
     F: FnMut(&mut DestackFormatter<'ast, '_>, LocalNodeId<T>) -> FormatResult<()>,
 {
-    let comment_tokens = f.context().comment_tokens();
-    let ignore_ranges = ignore_ranges_for_nodes(f.context(), node_ids, comment_tokens);
+    // ignore ranges: only compute when the file may contain ignore directives
+    let ignore_ranges = if f.context().has_ignore_directive_markers() {
+        let comment_tokens = f.context().comment_tokens();
+        ignore_ranges_for_nodes(f.context(), node_ids, comment_tokens)
+    } else {
+        std::collections::HashMap::new()
+    };
 
     let mut skip_until: Option<u32> = None;
     for (index, node_id) in node_ids.iter().copied().enumerate() {

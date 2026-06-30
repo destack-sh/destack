@@ -25,86 +25,7 @@ fn token_type_is_trivia(token_type: TokenType) -> bool {
     token_type_is_whitespace(token_type) || token_type_is_comment(token_type)
 }
 
-/// Return the next non-whitespace token and slice cursor at or after one cursor.
-fn next_non_whitespace_token(
-    tokens: &[TokenSpan],
-    mut cursor: usize,
-) -> Option<(usize, TokenSpan)> {
-    while let Some(token) = tokens.get(cursor).copied() {
-        if token_type_is_whitespace(token.token.ty()) {
-            cursor += 1;
-            continue;
-        }
-
-        return Some((cursor, token));
-    }
-
-    None
-}
-
-/// Extend one span to include trailing tokens on the same line.
-fn extend_span_to_line_end(tokens: &[TokenSpan], span: Span) -> Span {
-    let mut end = span.end;
-    let token_index = tokens.partition_point(|token| token.span.start < span.end);
-
-    for token in tokens[token_index..].iter().copied() {
-        match token.token.ty() {
-            TokenType::Whitespace => {
-                end = token.span.end;
-            }
-            TokenType::Newline => {
-                break;
-            }
-            _ => {
-                end = token.span.end;
-            }
-        }
-    }
-
-    if end > span.end {
-        Span::new(span.file, span.start, end)
-    } else {
-        span
-    }
-}
-
-/// Extend one span to include a standalone trailing semicolon.
-fn extend_span_with_trailing_statement_terminator(tokens: &[TokenSpan], span: Span) -> Span {
-    let token_index = tokens.partition_point(|token| token.span.start < span.end);
-    let Some((candidate_cursor, candidate)) = next_non_whitespace_token(tokens, token_index) else {
-        return span;
-    };
-
-    if candidate.token.ty() != TokenType::Semicolon {
-        return span;
-    }
-
-    let mut lookahead_cursor = candidate_cursor + 1;
-
-    while let Some(token) = tokens.get(lookahead_cursor).copied() {
-        match token.token.ty() {
-            TokenType::Whitespace => {}
-            TokenType::Newline | TokenType::End => {
-                return Span::new(span.file, span.start, candidate.span.end);
-            }
-            _ => {
-                return span;
-            }
-        }
-
-        lookahead_cursor += 1;
-    }
-
-    Span::new(span.file, span.start, candidate.span.end)
-}
-
 impl<'a> DestackFormatContext<'a> {
-    /// Return all tokens across main and side streams sorted by source position.
-    #[inline]
-    pub(crate) fn all_tokens(&self) -> &[TokenSpan] {
-        self.source_index.all_tokens()
-    }
-
     /// Return the first non-trivia token start for one node.
     pub fn node_token_start<T>(&self, node_id: LocalNodeId<T>) -> u32
     where
@@ -513,11 +434,16 @@ impl<'a> DestackFormatContext<'a> {
         )
     }
 
-    /// Extend one span to include trailing same-line content and a standalone semicolon.
-    #[inline]
+    /// Extend one span to the end of its physical source line.
     pub fn extend_span_with_trailing_line_tokens(&self, span: Span) -> Span {
-        let tokens = self.all_tokens();
-        let span = extend_span_to_line_end(tokens, span);
-        extend_span_with_trailing_statement_terminator(tokens, span)
+        let Some((line_index, _)) = self.file.get_position(span.end) else {
+            return span;
+        };
+
+        let Some(line_span) = self.file.get_line_span(line_index) else {
+            return span;
+        };
+
+        Span::new(span.file, span.start, line_span.end)
     }
 }
