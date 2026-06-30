@@ -3,6 +3,7 @@ use std::sync::Arc;
 use destack_artifact::{DirBound, DirParsed};
 use destack_dir as dir;
 use destack_source::ModuleId;
+use indexmap::IndexMap;
 
 use crate::Compiler;
 use crate::bind::stats::BindStats;
@@ -27,8 +28,12 @@ pub(in crate::bind) struct BindState<'a> {
     pub(in crate::bind) options: dir::NodeVisitorOptions,
     /// The lexical scope stack.
     pub(in crate::bind) scope_stack: Vec<dir::LocalScopeId>,
+    /// The conditional type scopes that own active `infer` binders.
+    pub(in crate::bind) infer_scope_stack: Vec<dir::LocalScopeId>,
     /// The active binding context stack.
     pub(in crate::bind) binding_stack: Vec<BindingContext>,
+    /// Shared binding symbols for active union patterns.
+    pub(in crate::bind) union_pattern_symbols: Vec<IndexMap<dir::StaticKey, dir::LocalSymbolId>>,
 
     /// The binding table being built.
     pub(in crate::bind) bindings: dir::BindingSegment,
@@ -75,10 +80,12 @@ impl<'a> BindState<'a> {
             parsed,
             options: dir::NodeVisitorOptions::default(),
             scope_stack: vec![namespace_scope],
+            infer_scope_stack: Vec::new(),
             binding_stack: vec![BindingContext {
                 export: None,
                 mutability: None,
             }],
+            union_pattern_symbols: Vec::new(),
             bindings,
             types: dir::TypeSegment::new(module),
             statics: dir::StaticSegment::new(module),
@@ -165,6 +172,23 @@ impl<'a> BindState<'a> {
         self.scope_stack.pop().expect("bind scope stack underflow");
     }
 
+    /// Push one conditional type scope while visiting its infer pattern.
+    pub(in crate::bind) fn push_infer_scope(&mut self, scope_id: dir::LocalScopeId) {
+        self.infer_scope_stack.push(scope_id);
+    }
+
+    /// Pop one conditional type scope after visiting its infer pattern.
+    pub(in crate::bind) fn pop_infer_scope(&mut self) {
+        self.infer_scope_stack
+            .pop()
+            .expect("bind infer scope stack underflow");
+    }
+
+    /// Return the conditional type scope that owns active infer binders.
+    pub(in crate::bind) fn infer_scope(&self) -> Option<dir::LocalScopeId> {
+        self.infer_scope_stack.last().copied()
+    }
+
     /// Push one binding context while visiting a pattern subtree.
     pub(in crate::bind) fn push_binding(&mut self, binding: BindingContext) {
         self.binding_stack.push(binding);
@@ -185,6 +209,36 @@ impl<'a> BindState<'a> {
             .expect("bind binding stack is empty")
     }
 
+    /// Push shared symbols for one union pattern.
+    pub(in crate::bind) fn push_union_pattern_symbols(
+        &mut self,
+        symbols: IndexMap<dir::StaticKey, dir::LocalSymbolId>,
+    ) {
+        self.union_pattern_symbols.push(symbols);
+    }
+
+    /// Pop shared symbols for one union pattern.
+    pub(in crate::bind) fn pop_union_pattern_symbols(&mut self) {
+        self.union_pattern_symbols
+            .pop()
+            .expect("bind union pattern symbol stack underflow");
+    }
+
+    /// Return the shared symbol for one active union pattern binding.
+    pub(in crate::bind) fn union_pattern_symbol(
+        &self,
+        key: dir::StaticKey,
+    ) -> Option<dir::LocalSymbolId> {
+        self.union_pattern_symbols
+            .last()
+            .and_then(|symbols| symbols.get(&key).copied())
+    }
+
+    /// Return whether shared union pattern symbols are active.
+    pub(in crate::bind) fn has_union_pattern_symbols(&self) -> bool {
+        !self.union_pattern_symbols.is_empty()
+    }
+
     /// Insert one symbol in the current lexical scope.
     pub(in crate::bind) fn insert_symbol(
         &mut self,
@@ -200,6 +254,29 @@ impl<'a> BindState<'a> {
             .insert_symbol(role, kind, key, scope, export, visibility)
             .0;
         if scope.id == self.global_scope {
+            self.bindings.get_symbol_mut(symbol_id).origin = dir::SymbolOrigin::Global;
+        }
+
+        symbol_id
+    }
+
+    /// Insert one symbol in the given lexical scope.
+    pub(in crate::bind) fn insert_symbol_in_scope(
+        &mut self,
+        scope_id: dir::LocalScopeId,
+        role: dir::SymbolRole,
+        kind: dir::SymbolKind,
+        key: Option<dir::StaticKey>,
+        export: Option<dir::ExportKind>,
+        visibility: dir::SymbolVisibility,
+    ) -> dir::LocalSymbolId {
+        let mark = self.bindings.get_scope_mark(scope_id);
+        let scope = dir::LocalScope::new(scope_id, mark);
+        let symbol_id = self
+            .bindings
+            .insert_symbol(role, kind, key, scope, export, visibility)
+            .0;
+        if scope_id == self.global_scope {
             self.bindings.get_symbol_mut(symbol_id).origin = dir::SymbolOrigin::Global;
         }
 

@@ -161,3 +161,120 @@ function visit({ id }: User, [first]: Items) {
 "#,
     );
 }
+
+#[test]
+fn test_bind_union_pattern_reuses_shared_binding_symbols() {
+    let compiler = TestSession::builder()
+        .module(
+            "main.ds",
+            r#"
+declare const packet: { left: int32 } | { right: int32 };
+
+if (let { left: value } | { right: value } = packet) {
+    value;
+}
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_bound(
+        "main.ds",
+        DirRows::binding().with_binding_nodes().with_summaries(),
+        r#"
+declare const packet: { left: int32 } | { right: int32 };
+/// @binding.node node=expression scope=<module>@1 source="declare const packet: { left: int32 } | { right: int32 }"
+/// @binding.symbol symbol=packet role=local kind=variable scope=<module>@5 mutability=immutable
+/// @binding.node node=declarator scope=<module>@1 source="packet: { left: int32 } | { right: int32 }"
+/// @binding.node node=pattern scope=<module>@6 source=packet
+/// @binding.node node=type_expression scope=<module>@1 source={ left: int32 }
+/// @binding.node node=type_expression scope=<module>@1 source={ left: int32 } | { right: int32 }
+/// @binding.symbol symbol=left role=item kind=variable scope=<module>@1 visibility=member
+/// @binding.node node=type_member scope=<module>@1 source="left: int32"
+/// @binding.receiver node=type_member symbol=symbol2
+/// @binding.node node=type_expression scope=<module>@3 source=int32
+/// @binding.node node=type_expression scope=<module>@3 source={ right: int32 }
+/// @binding.symbol symbol=right role=item kind=variable scope=<module>@3 visibility=member
+/// @binding.node node=type_member scope=<module>@3 source="right: int32"
+/// @binding.receiver node=type_member symbol=symbol4
+/// @binding.node node=type_expression scope=<module>@5 source=int32
+
+if (let { left: value } | { right: value } = packet) {
+/// @binding.scope scope=scope2 kind=block parent=<module>@6
+/// @binding.node node=expression scope=scope2@end
+/// @binding.node node=declarator scope=scope2@0 source="{ left: value } | { right: value } = packet"
+/// @binding.node node=pattern scope=scope2@0 source={ left: value } | { right: value }
+/// @binding.node node=pattern scope=scope2@1 source={ left: value }
+/// @binding.node node=pattern_field scope=scope2@1 source="left: value"
+/// @binding.symbol symbol=value role=local kind=variable scope=scope2@0
+/// @binding.node node=pattern scope=scope2@1 source=value
+/// @binding.node node=pattern scope=scope2@1 source={ right: value }
+/// @binding.node node=pattern_field scope=scope2@1 source="right: value"
+/// @binding.node node=pattern scope=scope2@1 source=value
+/// @binding.node node=expression scope=scope2@0 source=packet
+/// @binding.scope scope=scope3 kind=block parent=scope2@1
+/// @binding.node node=block scope=scope3@0
+/// @binding.node node=expression scope=scope2@1
+
+    value;
+    /// @binding.node node=expression scope=scope3@0 source=value
+
+}
+
+/// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
+/// @binding.symbol symbol=symbol2 role=local kind=variable scope=<module>@2
+/// @binding.symbol symbol=symbol4 role=local kind=variable scope=<module>@4
+/// @binding.scope scope=<module> kind=module owner=<module>
+/// @binding.scope scope=scope1 kind=global
+
+/// @binding.summary symbols=7 scopes=4 declarations=5 receivers=2 node_scopes=23
+"#,
+    );
+}
+
+#[test]
+fn test_bind_union_pattern_keeps_distinct_branch_symbols() {
+    let compiler = TestSession::builder()
+        .module(
+            "main.ds",
+            r#"
+declare const packet: { left: int32 } | { right: int32 };
+
+if (let { left: value } | { right: other } = packet) {
+    value;
+    other;
+}
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_bound(
+        "main.ds",
+        DirRows::binding().with_summaries(),
+        r#"
+declare const packet: { left: int32 } | { right: int32 };
+/// @binding.symbol symbol=packet role=local kind=variable scope=<module>@5 mutability=immutable
+/// @binding.symbol symbol=left role=item kind=variable scope=<module>@1 visibility=member
+/// @binding.receiver node=type_member symbol=symbol2
+/// @binding.symbol symbol=right role=item kind=variable scope=<module>@3 visibility=member
+/// @binding.receiver node=type_member symbol=symbol4
+
+if (let { left: value } | { right: other } = packet) {
+/// @binding.scope scope=scope2 kind=block parent=<module>@6
+/// @binding.symbol symbol=value role=local kind=variable scope=scope2@0
+/// @binding.symbol symbol=other role=local kind=variable scope=scope2@1
+/// @binding.scope scope=scope3 kind=block parent=scope2@2
+
+    value;
+    other;
+}
+
+/// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
+/// @binding.symbol symbol=symbol2 role=local kind=variable scope=<module>@2
+/// @binding.symbol symbol=symbol4 role=local kind=variable scope=<module>@4
+/// @binding.scope scope=<module> kind=module owner=<module>
+/// @binding.scope scope=scope1 kind=global
+
+/// @binding.summary symbols=8 scopes=4 declarations=5 receivers=2 node_scopes=24
+"#,
+    );
+}

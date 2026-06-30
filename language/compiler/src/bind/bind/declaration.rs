@@ -20,7 +20,7 @@ impl Compiler {
         let key = declaration.name().map(|name| name.static_key());
         let export = declaration.export();
 
-        // declare surface symbol and scope
+        // declare symbol and owned scope
         let (symbol_id, scope_id) = state.insert_symbol_with_scope(
             role,
             kind,

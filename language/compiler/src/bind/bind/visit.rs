@@ -59,7 +59,7 @@ impl dir::NodeVisitor for BindState<'_> {
             return;
         }
 
-        // bind named declarations with their owned surface scope
+        // bind named declarations with their owned scope
         if let Some(scope_id) = self.compiler.bind_declaration_symbol(self, id, declaration) {
             self.bind_node_to_scope(id.into_any(), scope_id);
 
@@ -117,6 +117,13 @@ impl dir::NodeVisitor for BindState<'_> {
     ) {
         self.stats.patterns += 1;
         self.bind_node(id.into_any());
+
+        // bind union alternatives with shared symbols when their binders match
+        if let dir::Pattern::Union { patterns } = pattern {
+            self.compiler.bind_union_pattern(self, tree, patterns);
+
+            return;
+        }
 
         // bind pattern symbol
         self.compiler.bind_pattern_symbol(self, id, pattern);
