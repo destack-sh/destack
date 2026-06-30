@@ -6,10 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::StringId;
 
-type SectionWord = u128;
-
-const SECTION_TABLE_WORD_BYTES: usize = mem::size_of::<SectionWord>();
-const SECTION_TABLE_ALIGNMENT_BYTES: usize = mem::align_of::<SectionWord>();
+const SECTION_TABLE_CHUNK_BYTES: usize = mem::size_of::<u128>();
+const SECTION_TABLE_ALIGNMENT_BYTES: usize = mem::align_of::<u128>();
 
 /// Invalid section image shape.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,7 +31,7 @@ pub enum SectionImageError {
         /// Explanation for the invalid section.
         reason: &'static str,
     },
-    /// Table bytes do not fit in the backing word storage.
+    /// Table bytes do not fit in the backing chunk storage.
     TruncatedTable {
         /// Required initialized table bytes.
         required: u64,
@@ -510,9 +508,9 @@ impl<T> EntryStore<T> {
 
 /// One immutable entry type that can be stored directly in a typed section.
 ///
-/// Implementors must be fixed-width values with stable target layout and no process-local
-/// ownership.
-/// Their alignment must not exceed the table word alignment.
+/// Implementors must have stable fixed-width layout, no process-local ownership, and no invalid
+/// bit patterns in the section image format.
+/// Their alignment must not exceed the section table alignment.
 pub unsafe trait SectionEntry: Copy + 'static {}
 
 // SAFETY: primitive integers and string ids are fixed-width entry scalars.
@@ -669,96 +667,139 @@ impl<T: SectionEntry> From<Option<T>> for Optional<T> {
 // SAFETY: Optional<T> is repr(C), Copy, and stores one initialized value only when present.
 unsafe impl<T: SectionEntry> SectionEntry for Optional<T> {}
 
-/// Immutable section tables and aligned entry bytes.
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct SectionImage {
+/// Section ids and byte ranges for one image.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct SectionDirectory {
     /// Loadable image segments.
     segments: SegmentTable,
     /// Logical image sections.
     sections: SectionTable,
     /// Segment holding immutable entry tables.
     table_segment: SegmentId,
-    /// Immutable table segment storage.
-    table_storage: SectionStorage,
     /// Number of initialized bytes in the table segment.
     table_byte_len: u64,
 }
 
-/// Immutable aligned section storage.
-#[derive(Debug, Clone)]
-enum SectionStorage {
-    /// Owned aligned section words.
-    Owned(Vec<SectionWord>),
-    /// Prelinked static section words.
-    Static(&'static [SectionWord]),
-}
-
-impl Serialize for SectionStorage {
-    /// Serialize section storage as its logical aligned words.
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.words().serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for SectionStorage {
-    /// Deserialize section storage into owned aligned words.
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let words = Vec::<SectionWord>::deserialize(deserializer)?;
-
-        Ok(Self::Owned(words))
-    }
-}
-
-impl Reflect for SectionStorage {
-    /// Reflect section storage as its logical aligned words.
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        Vec::<SectionWord>::reflect(registry)
-    }
-}
-
-impl SectionStorage {
-    /// Create empty owned section storage.
-    fn new() -> Self {
-        Self::Owned(Vec::new())
-    }
-
-    /// Create prelinked static section storage.
-    fn from_static_words(words: &'static [SectionWord]) -> Self {
-        Self::Static(words)
-    }
-
-    /// Return immutable section words.
-    fn words(&self) -> &[SectionWord] {
-        match self {
-            Self::Owned(words) => words,
-            Self::Static(words) => words,
-        }
-    }
-
-    /// Return mutable owned section words.
-    fn owned_words_mut(&mut self) -> &mut Vec<SectionWord> {
-        match self {
-            Self::Owned(words) => words,
-            Self::Static(_) => panic!("cannot mutate static section storage"),
-        }
-    }
-}
-
-impl Default for SectionImage {
-    /// Create an empty section image.
+impl Default for SectionDirectory {
+    /// Create an empty section directory.
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl SectionImage {
-    /// Create an empty section image.
+/// Immutable aligned section storage.
+#[derive(Debug, Clone)]
+pub enum SectionStorage {
+    /// Owned aligned section chunks.
+    Owned(Vec<u128>),
+    /// Prelinked static section chunks.
+    Static(&'static [u128]),
+}
+
+impl Serialize for SectionStorage {
+    /// Serialize section storage as its logical aligned chunks.
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.chunks().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for SectionStorage {
+    /// Deserialize section storage into owned aligned chunks.
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let chunks = Vec::<u128>::deserialize(deserializer)?;
+
+        Ok(Self::Owned(chunks))
+    }
+}
+
+impl Reflect for SectionStorage {
+    /// Reflect section storage as its logical aligned chunks.
+    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
+        Vec::<u128>::reflect(registry)
+    }
+}
+
+impl SectionStorage {
+    /// Create prelinked static section storage.
+    pub fn from_static(chunks: &'static [u128]) -> Self {
+        Self::Static(chunks)
+    }
+
+    /// Create owned section storage from raw table bytes.
+    pub fn from_table_bytes(
+        table_bytes: &[u8],
+        table_byte_len: u64,
+    ) -> Result<Self, SectionImageError> {
+        let Ok(table_byte_len) = usize::try_from(table_byte_len) else {
+            return Err(SectionImageError::TruncatedTable {
+                required: table_byte_len,
+                available: table_bytes.len() as u64,
+            });
+        };
+
+        // reject truncated table storage before copying
+        if table_bytes.len() < table_byte_len {
+            return Err(SectionImageError::TruncatedTable {
+                required: table_byte_len as u64,
+                available: table_bytes.len() as u64,
+            });
+        }
+
+        // copy into aligned table storage
+        let chunk_len = table_byte_len.div_ceil(SECTION_TABLE_CHUNK_BYTES);
+        let mut chunks = vec![0; chunk_len];
+        let destination = chunks.as_mut_ptr().cast::<u8>();
+
+        // SAFETY: chunks has enough initialized byte storage for table_byte_len bytes.
+        unsafe {
+            std::ptr::copy_nonoverlapping(table_bytes.as_ptr(), destination, table_byte_len);
+        }
+
+        Ok(Self::Owned(chunks))
+    }
+
+    /// Return immutable aligned storage chunks.
+    fn chunks(&self) -> &[u128] {
+        match self {
+            Self::Owned(chunks) => chunks,
+            Self::Static(chunks) => chunks,
+        }
+    }
+}
+
+/// Mutable writer that packs typed sections into one section image.
+#[derive(Debug, Clone)]
+pub struct SectionPacker {
+    /// Section image directory being packed.
+    directory: SectionDirectory,
+    /// Mutable table image storage being packed.
+    storage: Vec<u128>,
+}
+
+/// Borrowed read-only section view.
+#[derive(Clone, Copy, Debug)]
+pub struct SectionImage<'a> {
+    /// Section directory.
+    directory: &'a SectionDirectory,
+    /// Aligned section storage chunks.
+    chunks: &'a [u128],
+}
+
+impl Default for SectionPacker {
+    /// Create an empty section packer.
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SectionDirectory {
+    /// Create an empty section directory.
     pub fn new() -> Self {
         let mut segments = SegmentTable::new();
         let table_segment = segments.insert(Segment {
@@ -773,29 +814,23 @@ impl SectionImage {
             segments,
             sections: SectionTable::new(),
             table_segment,
-            table_storage: SectionStorage::new(),
             table_byte_len: 0,
         }
     }
 
-    /// Create a section image backed by prelinked table words.
-    pub fn from_static_table_words(
+    /// Create one section directory from explicit parts.
+    pub fn from_parts(
         segments: SegmentTable,
         sections: SectionTable,
         table_segment: SegmentId,
-        table_words: &'static [SectionWord],
         table_byte_len: u64,
-    ) -> Result<Self, SectionImageError> {
-        let image = Self {
+    ) -> Self {
+        Self {
             segments,
             sections,
             table_segment,
-            table_storage: SectionStorage::from_static_words(table_words),
             table_byte_len,
-        };
-        image.validate()?;
-
-        Ok(image)
+        }
     }
 
     /// Return the loadable image segments.
@@ -813,17 +848,25 @@ impl SectionImage {
         self.table_segment
     }
 
-    /// Validate section ids and image byte ranges.
-    pub fn validate(&self) -> Result<(), SectionImageError> {
+    /// Return the number of table bytes.
+    pub fn table_byte_len(&self) -> u64 {
+        self.table_byte_len
+    }
+
+    /// Check section ids and byte ranges against aligned chunks.
+    fn check(&self, chunks: &[u128]) -> Result<(), SectionImageError> {
+        // resolve the table segment first
         let Some(table_segment) = self.segments.get(self.table_segment) else {
             return Err(SectionImageError::MissingTableSegment {
                 segment: self.table_segment,
             });
         };
 
-        // validate segment bounds
+        // check segment bounds
         for (index, segment) in self.segments.segments().iter().copied().enumerate() {
             let segment_id = SegmentId(index as u32);
+
+            // require usable segment alignment
             if segment.alignment == 0 || !segment.alignment.is_power_of_two() {
                 return Err(SectionImageError::InvalidSegment {
                     segment: segment_id,
@@ -831,6 +874,7 @@ impl SectionImage {
                 });
             }
 
+            // require initialized bytes to fit in mapped memory
             if segment.byte_len > segment.memory_len {
                 return Err(SectionImageError::InvalidSegment {
                     segment: segment_id,
@@ -838,6 +882,7 @@ impl SectionImage {
                 });
             }
 
+            // reject unknown access flags
             if !segment.access.is_valid() {
                 return Err(SectionImageError::InvalidSegment {
                     segment: segment_id,
@@ -846,7 +891,7 @@ impl SectionImage {
             }
         }
 
-        // validate table segment storage
+        // check table segment storage
         if table_segment.byte_len < self.table_byte_len {
             return Err(SectionImageError::InvalidSegment {
                 segment: self.table_segment,
@@ -854,8 +899,7 @@ impl SectionImage {
             });
         }
 
-        let available_table_bytes =
-            (self.table_word_slice().len() * SECTION_TABLE_WORD_BYTES) as u64;
+        let available_table_bytes = (chunks.len() * SECTION_TABLE_CHUNK_BYTES) as u64;
         if available_table_bytes < self.table_byte_len {
             return Err(SectionImageError::TruncatedTable {
                 required: self.table_byte_len,
@@ -863,9 +907,11 @@ impl SectionImage {
             });
         }
 
-        // validate logical sections
+        // check logical sections
         for (index, section) in self.sections.sections().iter().copied().enumerate() {
             let section_id = SectionId(index as u32);
+
+            // resolve containing segment
             let Some(segment) = self.segments.get(section.segment) else {
                 return Err(SectionImageError::InvalidSection {
                     section: section_id,
@@ -873,6 +919,7 @@ impl SectionImage {
                 });
             };
 
+            // require usable section alignment
             if section.alignment == 0 || !section.alignment.is_power_of_two() {
                 return Err(SectionImageError::InvalidSection {
                     section: section_id,
@@ -880,6 +927,7 @@ impl SectionImage {
                 });
             }
 
+            // require the section range to fit in its segment
             let byte_end = section.byte_offset as u64 + section.byte_len as u64;
             if byte_end > segment.memory_len {
                 return Err(SectionImageError::InvalidSection {
@@ -891,26 +939,58 @@ impl SectionImage {
 
         Ok(())
     }
+}
+
+impl SectionPacker {
+    /// Create an empty section packer.
+    pub fn new() -> Self {
+        Self {
+            directory: SectionDirectory::new(),
+            storage: Vec::new(),
+        }
+    }
+
+    /// Borrow this packer as a read-only section view.
+    pub fn view(&self) -> SectionImage<'_> {
+        // SAFETY: SectionPacker creates directory and storage together through insert.
+        unsafe { SectionImage::from_chunks_unchecked(&self.directory, &self.storage) }
+    }
+
+    /// Return the section directory.
+    pub fn directory(&self) -> &SectionDirectory {
+        &self.directory
+    }
+
+    /// Return immutable aligned storage chunks.
+    #[cfg(test)]
+    fn chunks(&self) -> &[u128] {
+        &self.storage
+    }
+
+    /// Finish this packer into its directory and storage.
+    pub fn finish(self) -> (SectionDirectory, SectionStorage) {
+        (self.directory, SectionStorage::Owned(self.storage))
+    }
 
     /// Insert one typed entry section.
-    pub fn insert<T: SectionEntry>(&mut self, entries: Vec<T>) -> SectionSlice<T> {
+    pub fn insert<T: SectionEntry>(&mut self, entries: impl AsRef<[T]>) -> SectionSlice<T> {
         debug_assert_ne!(mem::size_of::<T>(), 0);
         debug_assert!(mem::align_of::<T>() <= SECTION_TABLE_ALIGNMENT_BYTES);
 
+        let entries = entries.as_ref();
         let byte_len = entries.len() * mem::size_of::<T>();
         let alignment = mem::align_of::<T>().max(1);
-        let byte_offset = align_usize(self.table_byte_len as usize, alignment);
+        let byte_offset = align_usize(self.directory.table_byte_len as usize, alignment);
 
         // copy typed entries into the aligned table image
         let section_end = byte_offset + byte_len;
-        let word_len = section_end.div_ceil(SECTION_TABLE_WORD_BYTES);
-        let table_words = self.table_storage.owned_words_mut();
-        table_words.resize(word_len, 0);
+        let chunk_len = section_end.div_ceil(SECTION_TABLE_CHUNK_BYTES);
+        self.storage.resize(chunk_len, 0);
 
         let source = entries.as_ptr().cast::<u8>();
 
-        // SAFETY: table_words was resized to contain section_end bytes above.
-        let destination = unsafe { table_words.as_mut_ptr().cast::<u8>().add(byte_offset) };
+        // SAFETY: storage was resized to contain section_end bytes above.
+        let destination = unsafe { self.storage.as_mut_ptr().cast::<u8>().add(byte_offset) };
 
         // SAFETY: source points to byte_len initialized entry bytes and destination
         // points to distinct table storage with enough initialized capacity.
@@ -919,97 +999,144 @@ impl SectionImage {
         }
 
         // record the logical section inside the table segment
-        let section = self.sections.insert(Section {
-            segment: self.table_segment,
+        let section = self.directory.sections.insert(Section {
+            segment: self.directory.table_segment,
             byte_offset: byte_offset as u32,
             byte_len: byte_len as u32,
             alignment: alignment as u32,
         });
-        self.table_byte_len = section_end as u64;
+        self.directory.table_byte_len = section_end as u64;
 
         // update the physical table segment extent
-        if let Some(segment) = self.segments.get_mut(self.table_segment) {
-            segment.byte_len = self.table_byte_len;
-            segment.memory_len = self.table_byte_len;
+        if let Some(segment) = self
+            .directory
+            .segments
+            .get_mut(self.directory.table_segment)
+        {
+            segment.byte_len = self.directory.table_byte_len;
+            segment.memory_len = self.directory.table_byte_len;
         }
 
         SectionSlice::new(section, 0, entries.len() as u32)
     }
+}
+
+impl<'a> SectionImage<'a> {
+    /// Load one checked read-only section view.
+    pub fn load(
+        directory: &'a SectionDirectory,
+        storage: &'a SectionStorage,
+    ) -> Result<Self, SectionImageError> {
+        directory.check(storage.chunks())?;
+
+        // SAFETY: check above verified directory and storage coherence.
+        Ok(unsafe { Self::new_unchecked(directory, storage) })
+    }
+
+    /// Create one read-only section view without checking directory and storage coherence.
+    ///
+    /// # Safety
+    ///
+    /// The directory must describe initialized storage bytes, all sections must fit in their
+    /// segments, and all typed section slices must only be read as their original SectionEntry
+    /// types.
+    pub unsafe fn new_unchecked(
+        directory: &'a SectionDirectory,
+        storage: &'a SectionStorage,
+    ) -> Self {
+        Self {
+            directory,
+            chunks: storage.chunks(),
+        }
+    }
+
+    /// Create one read-only section view from aligned chunks without checking coherence.
+    ///
+    /// # Safety
+    ///
+    /// The directory must describe initialized storage chunks, all sections must fit in their
+    /// segments, and all typed section slices must only be read as their original SectionEntry
+    /// types.
+    unsafe fn from_chunks_unchecked(directory: &'a SectionDirectory, chunks: &'a [u128]) -> Self {
+        Self { directory, chunks }
+    }
+
+    /// Return the section directory.
+    pub fn directory(&self) -> &'a SectionDirectory {
+        self.directory
+    }
 
     /// Borrow one typed entry slice from the image.
-    pub fn entries<T: SectionEntry>(&self, slice: SectionSlice<T>) -> &[T] {
+    pub fn entries<T: SectionEntry>(&self, slice: SectionSlice<T>) -> &'a [T] {
         debug_assert_ne!(mem::size_of::<T>(), 0);
 
         if slice.is_empty() {
             return &[];
         }
 
-        let Some(section) = self.sections.get(slice.section) else {
+        let Some(section) = self.directory.sections.get(slice.section) else {
             unreachable!("section slice references missing section");
         };
-        debug_assert_eq!(section.segment, self.table_segment);
+        debug_assert_eq!(section.segment, self.directory.table_segment);
 
         let byte_offset = section.byte_offset as usize + slice.byte_offset as usize;
         let byte_len = slice.len as usize * mem::size_of::<T>();
         let byte_end = byte_offset + byte_len;
-        debug_assert!(byte_end <= self.table_byte_len as usize);
+        debug_assert!(byte_end <= self.directory.table_byte_len as usize);
         debug_assert_eq!(byte_offset % mem::align_of::<T>(), 0);
 
-        let bytes = self.table_word_slice().as_ptr().cast::<u8>();
+        let bytes = self.chunk_slice().as_ptr().cast::<u8>();
         let entries = unsafe { bytes.add(byte_offset).cast::<T>() };
 
         // SAFETY: entries enter the table image only through insert<T>.
-        // insert<T> copies SectionEntry values into an aligned word buffer and records an
+        // insert<T> copies SectionEntry values into an aligned chunk buffer and records an
         // aligned section offset, so this slice is aligned, initialized, and immutable.
         unsafe { slice::from_raw_parts(entries, slice.len as usize) }
     }
 
     /// Borrow one typed entry by index.
-    pub fn entry<T: SectionEntry>(&self, slice: SectionSlice<T>, index: usize) -> Option<&T> {
+    pub fn entry<T: SectionEntry>(&self, slice: SectionSlice<T>, index: usize) -> Option<&'a T> {
         self.entries(slice).get(index)
     }
 
     /// Borrow one typed entry range from an image slice.
-    pub fn range<T: SectionEntry>(&self, slice: SectionSlice<T>, range: EntryRange<T>) -> &[T] {
+    pub fn range<T: SectionEntry>(&self, slice: SectionSlice<T>, range: EntryRange<T>) -> &'a [T] {
         range.slice(self.entries(slice))
     }
 
     /// Iterate one typed entry slice.
-    pub fn iter<T: SectionEntry>(&self, slice: SectionSlice<T>) -> slice::Iter<'_, T> {
+    pub fn iter<T: SectionEntry>(&self, slice: SectionSlice<T>) -> slice::Iter<'a, T> {
         self.entries(slice).iter()
     }
 
     /// Return immutable table bytes.
-    pub fn table_bytes(&self) -> &[u8] {
-        let byte_len = self.table_byte_len as usize;
-        let bytes = self.table_word_slice().as_ptr().cast::<u8>();
+    pub fn table_bytes(&self) -> &'a [u8] {
+        let byte_len = self.directory.table_byte_len as usize;
+        let bytes = self.chunk_slice().as_ptr().cast::<u8>();
 
-        // SAFETY: table_word_slice returns at least table_byte_len initialized bytes.
+        // SAFETY: chunk_slice returns at least table_byte_len initialized bytes.
         unsafe { slice::from_raw_parts(bytes, byte_len) }
     }
 
     /// Return the number of table bytes.
     pub fn table_byte_len(&self) -> u64 {
-        self.table_byte_len
+        self.directory.table_byte_len
     }
 
-    /// Return immutable table words.
-    fn table_word_slice(&self) -> &[SectionWord] {
-        self.table_storage.words()
+    /// Return immutable aligned storage chunks.
+    fn chunk_slice(&self) -> &'a [u128] {
+        self.chunks
     }
 }
 
-impl PartialEq for SectionImage {
+impl PartialEq for SectionImage<'_> {
     /// Compare section images by logical image content.
     fn eq(&self, other: &Self) -> bool {
-        self.segments == other.segments
-            && self.sections == other.sections
-            && self.table_segment == other.table_segment
-            && self.table_bytes() == other.table_bytes()
+        self.directory == other.directory && self.table_bytes() == other.table_bytes()
     }
 }
 
-impl Eq for SectionImage {}
+impl Eq for SectionImage<'_> {}
 
 fn align_usize(value: usize, alignment: usize) -> usize {
     let mask = alignment - 1;
@@ -1023,28 +1150,25 @@ mod tests {
 
     #[test]
     fn test_borrow_static_section_image() {
-        let mut owned = SectionImage::new();
-        let values = owned.insert(vec![1u32, 2, 3]);
+        let mut packer = SectionPacker::new();
+        let values = packer.insert(vec![1u32, 2, 3]);
+        let owned = packer.view();
 
-        let words = owned.table_word_slice().to_vec().into_boxed_slice();
+        let directory = packer.directory().clone();
+        let chunks = packer.chunks().to_vec().into_boxed_slice();
 
-        let words = Box::leak(words);
-        let prelinked = SectionImage::from_static_table_words(
-            owned.segments.clone(),
-            owned.sections.clone(),
-            owned.table_segment(),
-            words,
-            owned.table_byte_len(),
-        )
-        .unwrap();
+        let chunks = Box::leak(chunks);
+        let storage = SectionStorage::from_static(chunks);
+        let prelinked = SectionImage::load(&directory, &storage).unwrap();
 
         assert_eq!(prelinked.entries(values), &[1, 2, 3]);
         assert_eq!(prelinked.entry(values, 1), Some(&2));
         assert_eq!(prelinked.iter(values).copied().sum::<u32>(), 6);
         assert_eq!(prelinked, owned);
 
-        let bytes = destack_serde::to_vec(&prelinked).unwrap();
-        let decoded = destack_serde::from_slice::<SectionImage>(&bytes).unwrap();
+        let bytes = destack_serde::to_vec(&directory).unwrap();
+        let decoded = destack_serde::from_slice::<SectionDirectory>(&bytes).unwrap();
+        let decoded = SectionImage::load(&decoded, &storage).unwrap();
 
         assert_eq!(decoded, owned);
     }
