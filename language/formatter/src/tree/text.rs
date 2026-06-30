@@ -4,7 +4,7 @@ use super::whitespace::{
     tree_text_is_whitespace_only,
 };
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{LocalNodeId, TreeChild};
+use destack_dir::{Expression, LocalNodeId, TreeChild};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
     empty_line, format_with, hard_line_break, if_group_breaks, if_group_fits_on_line,
@@ -22,24 +22,37 @@ enum TreeTextChunk<'a> {
     Word(&'a str),
 }
 
-/// One split tree child used by the JSX child-list fill layout.
+/// One embedded tree child in an inline content stream.
 #[derive(Clone, Debug)]
-enum TreeSplitChild {
+struct TreeInlineEmbedded {
+    /// The embedded tree child.
+    child_id: LocalNodeId<TreeChild>,
+    /// Whether trailing inline punctuation can attach to this child.
+    allows_trailing_punctuation: bool,
+    /// Inline punctuation that belongs to the embedded child.
+    trailing_punctuation: Option<String>,
+}
+
+/// One item in a mixed tree child inline content stream.
+#[derive(Clone, Debug)]
+enum TreeInlineItem {
     /// One text word.
     Word(String),
+    /// One punctuation run.
+    Punctuation(String),
     /// One JSX whitespace separator.
     Whitespace,
     /// One source newline separator.
     Newline,
     /// One source empty-line separator.
     EmptyLine,
-    /// One non-text child.
-    NonText(LocalNodeId<TreeChild>),
+    /// One embedded non-text child.
+    Embedded(TreeInlineEmbedded),
 }
 
-/// Separator before one split tree child in fill layout.
+/// Separator before one inline tree item in fill layout.
 #[derive(Clone, Copy, Debug)]
-enum TreeSplitSeparator {
+enum TreeInlineSeparator {
     /// No separator.
     None,
     /// JSX whitespace.
@@ -166,39 +179,108 @@ fn tree_whitespace_run_spacing(
     (false, false)
 }
 
-/// Push one split JSX child with whitespace coalescing rules.
-fn push_tree_split_child(children: &mut Vec<TreeSplitChild>, child: TreeSplitChild) {
-    match children.last_mut() {
-        Some(
-            last @ (TreeSplitChild::EmptyLine
-            | TreeSplitChild::Newline
-            | TreeSplitChild::Whitespace),
-        ) => {
-            if matches!(child, TreeSplitChild::Whitespace) {
-                *last = child;
-            } else if matches!(child, TreeSplitChild::NonText(_) | TreeSplitChild::Word(_)) {
-                children.push(child);
-            }
-        }
-        _ => children.push(child),
+/// Return whether one word is inline punctuation.
+fn tree_text_word_is_inline_punctuation(word: &str) -> bool {
+    !word.is_empty()
+        && word
+            .chars()
+            .all(|character| matches!(character, '.' | ',' | ':' | ';' | '!' | '?'))
+}
+
+/// Return whether one text string is only inline punctuation.
+pub(crate) fn tree_text_is_inline_punctuation(text: &str) -> bool {
+    let chunks = tree_text_chunks(text);
+
+    match chunks.as_slice() {
+        [TreeTextChunk::Word(word)] => tree_text_word_is_inline_punctuation(word),
+        _ => false,
     }
 }
 
-/// Split tree children with JSX child-list rules.
-fn split_tree_children(
+/// Return whether one tree child can own following inline punctuation.
+pub(crate) fn tree_child_allows_trailing_inline_punctuation(
+    context: &DestackFormatContext<'_>,
+    child_id: LocalNodeId<TreeChild>,
+) -> bool {
+    match context.tree.get(child_id) {
+        TreeChild::Expression { value } => !matches!(context.tree.get(*value), Expression::Stub),
+        TreeChild::Tree { .. } => true,
+        TreeChild::Text { .. } | TreeChild::Spread { .. } | TreeChild::Error => false,
+    }
+}
+
+/// Push one inline item with whitespace coalescing and punctuation attachment rules.
+fn push_tree_inline_item(items: &mut Vec<TreeInlineItem>, item: TreeInlineItem) {
+    match item {
+        // coalesce whitespace layout separators
+        TreeInlineItem::Whitespace => match items.last_mut() {
+            Some(
+                last @ (TreeInlineItem::EmptyLine
+                | TreeInlineItem::Newline
+                | TreeInlineItem::Whitespace),
+            ) => {
+                *last = TreeInlineItem::Whitespace;
+            }
+            _ => items.push(TreeInlineItem::Whitespace),
+        },
+
+        // attach punctuation to the previous inline box
+        TreeInlineItem::Punctuation(punctuation) => match items.last_mut() {
+            Some(TreeInlineItem::Word(word)) => {
+                word.push_str(&punctuation);
+            }
+            Some(TreeInlineItem::Embedded(embedded)) if embedded.allows_trailing_punctuation => {
+                if let Some(trailing_punctuation) = &mut embedded.trailing_punctuation {
+                    trailing_punctuation.push_str(&punctuation);
+                } else {
+                    embedded.trailing_punctuation = Some(punctuation);
+                }
+            }
+            _ => items.push(TreeInlineItem::Punctuation(punctuation)),
+        },
+
+        TreeInlineItem::Word(_)
+        | TreeInlineItem::Embedded(_)
+        | TreeInlineItem::Newline
+        | TreeInlineItem::EmptyLine => items.push(item),
+    }
+}
+
+/// Push one text word with JSX inline text rules.
+fn push_tree_inline_word(items: &mut Vec<TreeInlineItem>, word: &str) {
+    let item = if tree_text_word_is_inline_punctuation(word) {
+        TreeInlineItem::Punctuation(word.to_string())
+    } else {
+        TreeInlineItem::Word(word.to_string())
+    };
+
+    push_tree_inline_item(items, item);
+}
+
+/// Split tree children into an inline content stream.
+fn tree_inline_items(
     context: &DestackFormatContext<'_>,
     children: &[LocalNodeId<TreeChild>],
-) -> Vec<TreeSplitChild> {
-    let mut split_children = Vec::new();
+) -> Vec<TreeInlineItem> {
+    let mut items = Vec::new();
 
     for child_id in children {
         if tree_child_is_jsx_space_expression(context, *child_id) {
-            push_tree_split_child(&mut split_children, TreeSplitChild::Whitespace);
+            push_tree_inline_item(&mut items, TreeInlineItem::Whitespace);
             continue;
         }
 
         let Some(text) = tree_text_child_text(context, *child_id) else {
-            push_tree_split_child(&mut split_children, TreeSplitChild::NonText(*child_id));
+            push_tree_inline_item(
+                &mut items,
+                TreeInlineItem::Embedded(TreeInlineEmbedded {
+                    child_id: *child_id,
+                    allows_trailing_punctuation: tree_child_allows_trailing_inline_punctuation(
+                        context, *child_id,
+                    ),
+                    trailing_punctuation: None,
+                }),
+            );
             continue;
         };
 
@@ -212,32 +294,29 @@ fn split_tree_children(
                 if chunks.peek().is_none() {
                     let newline_count = whitespace.bytes().filter(|byte| *byte == b'\n').count();
                     if newline_count > 1 {
-                        push_tree_split_child(&mut split_children, TreeSplitChild::EmptyLine);
+                        push_tree_inline_item(&mut items, TreeInlineItem::EmptyLine);
                     }
 
                     continue;
                 }
 
-                push_tree_split_child(&mut split_children, TreeSplitChild::Newline);
+                push_tree_inline_item(&mut items, TreeInlineItem::Newline);
             } else {
-                push_tree_split_child(&mut split_children, TreeSplitChild::Whitespace);
+                push_tree_inline_item(&mut items, TreeInlineItem::Whitespace);
             }
         }
 
         while let Some(chunk) = chunks.next() {
             match chunk {
                 TreeTextChunk::Word(word) => {
-                    push_tree_split_child(
-                        &mut split_children,
-                        TreeSplitChild::Word(word.to_string()),
-                    );
+                    push_tree_inline_word(&mut items, word);
                 }
                 TreeTextChunk::Whitespace(whitespace) => {
                     if chunks.peek().is_none() {
                         if whitespace.contains('\n') {
-                            push_tree_split_child(&mut split_children, TreeSplitChild::Newline);
+                            push_tree_inline_item(&mut items, TreeInlineItem::Newline);
                         } else {
-                            push_tree_split_child(&mut split_children, TreeSplitChild::Whitespace);
+                            push_tree_inline_item(&mut items, TreeInlineItem::Whitespace);
                         }
                     }
                 }
@@ -246,53 +325,73 @@ fn split_tree_children(
     }
 
     if matches!(
-        split_children.last(),
-        Some(TreeSplitChild::EmptyLine | TreeSplitChild::Newline)
+        items.last(),
+        Some(TreeInlineItem::EmptyLine | TreeInlineItem::Newline)
     ) {
-        split_children.pop();
+        items.pop();
     }
 
     if matches!(
-        split_children.first(),
-        Some(TreeSplitChild::EmptyLine | TreeSplitChild::Newline)
+        items.first(),
+        Some(TreeInlineItem::EmptyLine | TreeInlineItem::Newline)
     ) {
-        split_children.remove(0);
+        items.remove(0);
     }
 
-    split_children
+    items
 }
 
-/// Return the separator before one visible split child.
-fn tree_split_separator(
-    previous_visible: Option<&TreeSplitChild>,
-    pending_separator: TreeSplitSeparator,
-    current: &TreeSplitChild,
-) -> TreeSplitSeparator {
-    if !matches!(pending_separator, TreeSplitSeparator::None) {
+/// Return the separator before one visible inline item.
+fn tree_inline_separator(
+    previous_visible: Option<&TreeInlineItem>,
+    pending_separator: TreeInlineSeparator,
+    current: &TreeInlineItem,
+) -> TreeInlineSeparator {
+    if !matches!(pending_separator, TreeInlineSeparator::None) {
         return pending_separator;
     }
 
     match (previous_visible, current) {
-        (Some(TreeSplitChild::Word(_)), TreeSplitChild::Word(_)) => TreeSplitSeparator::SoftOrSpace,
-        (Some(TreeSplitChild::Word(_)), TreeSplitChild::NonText(_))
-        | (Some(TreeSplitChild::NonText(_)), TreeSplitChild::Word(_)) => TreeSplitSeparator::Soft,
-        (Some(TreeSplitChild::NonText(_)), TreeSplitChild::NonText(_)) => TreeSplitSeparator::Hard,
-        _ => TreeSplitSeparator::None,
+        (Some(TreeInlineItem::Word(_)), TreeInlineItem::Word(_))
+        | (
+            Some(TreeInlineItem::Embedded(TreeInlineEmbedded {
+                trailing_punctuation: Some(_),
+                ..
+            })),
+            TreeInlineItem::Word(_),
+        )
+        | (Some(TreeInlineItem::Punctuation(_)), TreeInlineItem::Word(_)) => {
+            TreeInlineSeparator::SoftOrSpace
+        }
+        (Some(TreeInlineItem::Word(_)), TreeInlineItem::Embedded(_))
+        | (Some(TreeInlineItem::Embedded(_)), TreeInlineItem::Word(_)) => TreeInlineSeparator::Soft,
+        (Some(TreeInlineItem::Embedded(_)), TreeInlineItem::Embedded(_)) => {
+            TreeInlineSeparator::Hard
+        }
+        (
+            Some(TreeInlineItem::Embedded(TreeInlineEmbedded {
+                allows_trailing_punctuation: false,
+                ..
+            })),
+            TreeInlineItem::Punctuation(_),
+        ) => TreeInlineSeparator::Hard,
+        (_, TreeInlineItem::Punctuation(_)) => TreeInlineSeparator::None,
+        _ => TreeInlineSeparator::None,
     }
 }
 
-/// Format one split child separator.
-fn write_tree_split_separator<'ast>(
+/// Format one inline item separator.
+fn write_tree_inline_separator<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    separator: TreeSplitSeparator,
+    separator: TreeInlineSeparator,
 ) -> FormatResult<()> {
     match separator {
-        TreeSplitSeparator::None => {}
-        TreeSplitSeparator::Whitespace => write_tree_jsx_whitespace_separator(f)?,
-        TreeSplitSeparator::SoftOrSpace => write!(f, [soft_line_break_or_space()])?,
-        TreeSplitSeparator::Soft => write!(f, [soft_line_break()])?,
-        TreeSplitSeparator::Hard => write!(f, [hard_line_break()])?,
-        TreeSplitSeparator::Empty => write!(f, [empty_line()])?,
+        TreeInlineSeparator::None => {}
+        TreeInlineSeparator::Whitespace => write_tree_jsx_whitespace_separator(f)?,
+        TreeInlineSeparator::SoftOrSpace => write!(f, [soft_line_break_or_space()])?,
+        TreeInlineSeparator::Soft => write!(f, [soft_line_break()])?,
+        TreeInlineSeparator::Hard => write!(f, [hard_line_break()])?,
+        TreeInlineSeparator::Empty => write!(f, [empty_line()])?,
     }
 
     Ok(())
@@ -320,14 +419,27 @@ fn write_tree_jsx_whitespace_separator<'ast>(
     )
 }
 
-/// Format mixed tree children with fill separators.
-pub(crate) fn format_tree_children_fill<'ast>(
+/// Write one embedded inline tree item.
+fn write_tree_inline_embedded<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    embedded: &TreeInlineEmbedded,
+) -> FormatResult<()> {
+    write_tree_child(f, embedded.child_id, None)?;
+    if let Some(punctuation) = embedded.trailing_punctuation.as_deref() {
+        write!(f, [text(punctuation)])?;
+    }
+
+    Ok(())
+}
+
+/// Format mixed tree children with inline fill layout.
+pub(crate) fn format_tree_children_inline_fill<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     children: &[LocalNodeId<TreeChild>],
     force_multiline: bool,
 ) -> FormatResult<()> {
-    let split_children = split_tree_children(f.context(), children);
-    if split_children.is_empty() {
+    let inline_items = tree_inline_items(f.context(), children);
+    if inline_items.is_empty() {
         let (has_newline_spacing, has_inline_spacing) =
             tree_whitespace_run_spacing(f.context(), children);
         if has_newline_spacing {
@@ -340,49 +452,49 @@ pub(crate) fn format_tree_children_fill<'ast>(
     }
 
     let mut fill = f.fill();
-    let mut previous_visible = None::<TreeSplitChild>;
-    let mut pending_separator = TreeSplitSeparator::None;
+    let mut previous_visible = None::<TreeInlineItem>;
+    let mut pending_separator = TreeInlineSeparator::None;
 
-    for child in &split_children {
-        match child {
-            TreeSplitChild::Whitespace => {
+    for item in &inline_items {
+        match item {
+            TreeInlineItem::Whitespace => {
                 if force_multiline {
-                    pending_separator = TreeSplitSeparator::Whitespace;
+                    pending_separator = TreeInlineSeparator::Whitespace;
                     continue;
                 }
 
                 let separator =
-                    tree_split_separator(previous_visible.as_ref(), pending_separator, child);
-                let separator = format_with(|f| write_tree_split_separator(f, separator));
+                    tree_inline_separator(previous_visible.as_ref(), pending_separator, item);
+                let separator = format_with(|f| write_tree_inline_separator(f, separator));
                 let whitespace = format_with(write_tree_jsx_whitespace_separator);
                 fill.entry(&separator, &whitespace);
-                previous_visible = Some(child.clone());
-                pending_separator = TreeSplitSeparator::None;
+                previous_visible = Some(item.clone());
+                pending_separator = TreeInlineSeparator::None;
             }
-            TreeSplitChild::Newline => {
-                pending_separator = TreeSplitSeparator::Hard;
+            TreeInlineItem::Newline => {
+                pending_separator = TreeInlineSeparator::Hard;
             }
-            TreeSplitChild::EmptyLine => {
-                pending_separator = TreeSplitSeparator::Empty;
+            TreeInlineItem::EmptyLine => {
+                pending_separator = TreeInlineSeparator::Empty;
             }
-            TreeSplitChild::Word(word) => {
+            TreeInlineItem::Word(word) | TreeInlineItem::Punctuation(word) => {
                 let separator =
-                    tree_split_separator(previous_visible.as_ref(), pending_separator, child);
-                let separator = format_with(|f| write_tree_split_separator(f, separator));
+                    tree_inline_separator(previous_visible.as_ref(), pending_separator, item);
+                let separator = format_with(|f| write_tree_inline_separator(f, separator));
                 fill.entry(&separator, &text(word.as_str()));
-                previous_visible = Some(child.clone());
-                pending_separator = TreeSplitSeparator::None;
+                previous_visible = Some(item.clone());
+                pending_separator = TreeInlineSeparator::None;
             }
-            TreeSplitChild::NonText(child_id) => {
+            TreeInlineItem::Embedded(embedded) => {
                 let separator =
-                    tree_split_separator(previous_visible.as_ref(), pending_separator, child);
-                let separator = format_with(|f| write_tree_split_separator(f, separator));
+                    tree_inline_separator(previous_visible.as_ref(), pending_separator, item);
+                let separator = format_with(|f| write_tree_inline_separator(f, separator));
                 fill.entry(
                     &separator,
-                    &format_with(|f| write_tree_child(f, *child_id, None)),
+                    &format_with(|f| write_tree_inline_embedded(f, embedded)),
                 );
-                previous_visible = Some(child.clone());
-                pending_separator = TreeSplitSeparator::None;
+                previous_visible = Some(item.clone());
+                pending_separator = TreeInlineSeparator::None;
             }
         }
     }

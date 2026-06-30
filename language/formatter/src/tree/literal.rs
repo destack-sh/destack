@@ -1,4 +1,7 @@
-use super::text::{format_tree_children_fill, write_tree_text_words};
+use super::text::{
+    format_tree_children_inline_fill, tree_child_allows_trailing_inline_punctuation,
+    tree_text_is_inline_punctuation, write_tree_text_words,
+};
 use crate::annotation::{FormatTrailingComments, block_infix_annotations, format_leading_comments};
 use crate::chain::{argument_value_id_if_present, transparent_inner_expression};
 use crate::context::PreparedFormat;
@@ -191,12 +194,22 @@ fn format_tree_children_multiline<'ast>(
             continue;
         }
 
-        if wrote_child {
-            let has_blank_line_between_children =
-                previous_emitted_child.is_some_and(|previous_child_id| {
-                    tree_children_have_blank_line_between(f.context(), previous_child_id, *child_id)
-                });
+        let text = tree_text_child_text(f.context(), *child_id).map(str::to_owned);
+        let is_inline_punctuation = text.as_deref().is_some_and(tree_text_is_inline_punctuation);
+        let previous_allows_inline_punctuation =
+            previous_emitted_child.is_some_and(|previous_child_id| {
+                tree_child_allows_trailing_inline_punctuation(f.context(), previous_child_id)
+            });
+        let has_blank_line_between_children =
+            previous_emitted_child.is_some_and(|previous_child_id| {
+                tree_children_have_blank_line_between(f.context(), previous_child_id, *child_id)
+            });
+        let should_attach_inline_punctuation = is_inline_punctuation
+            && previous_allows_inline_punctuation
+            && !pending_blank_line
+            && !has_blank_line_between_children;
 
+        if wrote_child && !should_attach_inline_punctuation {
             if pending_blank_line || has_blank_line_between_children {
                 write!(f, [empty_line()])?;
                 pending_blank_line = false;
@@ -205,7 +218,6 @@ fn format_tree_children_multiline<'ast>(
             }
         }
 
-        let text = tree_text_child_text(f.context(), *child_id).map(str::to_owned);
         let wrote_text = if let Some(text) = text.as_deref() {
             write_tree_text_words(f, text)?
         } else {
@@ -316,7 +328,7 @@ fn format_tree_children<'ast>(
         return format_tree_children_tree_per_line(f, children);
     }
 
-    format_tree_children_fill(f, children, layout.force_break)
+    format_tree_children_inline_fill(f, children, layout.force_break)
 }
 
 /// Collect top-level layout data for one tree literal.
