@@ -84,7 +84,167 @@ const node = (
         Current usage for X is $
         {(() => {
             // comment
-        })()}
+        })()}.
+    </p>
+);
+```
+
+### text punctuation attaches to element children
+
+Punctuation-only text after a wrapped child stays attached to the child.
+
+```tsx:main.tsx line-width=30
+const node = <p>Start <b>bold</b>, then stop.</p>
+```
+
+```tsx expected
+const node = (
+    <p>
+        Start <b>bold</b>,
+        then stop.
+    </p>
+);
+```
+
+### inline prose fills around embedded children
+
+Mixed text, expressions, and tree children wrap as inline prose.
+
+```tsx:main.tsx line-width=45
+const node = <p>Hello {name}, see <Link>docs</Link> for details.</p>
+```
+
+```tsx expected
+const node = (
+    <p>
+        Hello {name}, see <Link>docs</Link> for
+        details.
+    </p>
+);
+```
+
+### inline prose keeps punctuation with embedded expression
+
+Punctuation between expression and following text stays attached to the expression.
+
+```tsx:main.tsx line-width=35
+const node = <p>Hello {name}, welcome back.</p>
+```
+
+```tsx expected
+const node = (
+    <p>
+        Hello {name}, welcome back.
+    </p>
+);
+```
+
+### inline prose keeps source newline before punctuation
+
+Punctuation with leading source newline remains its own text line.
+
+```tsx:main.tsx
+const node = <p>{value}
+.</p>
+```
+
+```tsx expected
+const node = (
+    <p>
+        {value}
+        .
+    </p>
+);
+```
+
+### inline prose keeps source space before punctuation
+
+Punctuation with leading source space remains separated from the previous expression.
+
+```tsx:main.tsx
+const node = <p>Hello {name} .</p>
+```
+
+```tsx expected
+const node = <p>Hello {name} .</p>;
+```
+
+### inline prose keeps whitespace expression before punctuation
+
+Punctuation after an explicit JSX whitespace container remains separated from the previous expression.
+
+```tsx:main.tsx
+const node = <p>Hello {name}{" "}.</p>
+```
+
+```tsx expected
+const node = <p>Hello {name} .</p>;
+```
+
+### inline prose keeps punctuation runs attached
+
+Punctuation runs stay attached to the previous inline expression before wrapping prose.
+
+```tsx:main.tsx line-width=30
+const node = <p>Hello {name}?! Really...</p>
+```
+
+```tsx expected
+const node = (
+    <p>
+        Hello {name}?!
+        Really...
+    </p>
+);
+```
+
+### inline prose keeps punctuation with fragment child
+
+Punctuation after a fragment child stays attached to the fragment.
+
+```tsx:main.tsx line-width=35
+const node = <p>Start <>{value}</>, done.</p>
+```
+
+```tsx expected
+const node = (
+    <p>
+        Start <>{value}</>, done.
+    </p>
+);
+```
+
+### inline prose keeps punctuation after forced child break
+
+Punctuation after a multiline expression child stays attached when attributes force multiline layout.
+
+```tsx:main.tsx line-width=40
+const node = <p title="Long title value" description="Long description value">{value}.</p>
+```
+
+```tsx expected
+const node = (
+    <p
+        title="Long title value"
+        description="Long description value"
+    >
+        {value}.
+    </p>
+);
+```
+
+### inline prose keeps comment boundary before punctuation
+
+Punctuation after a JSX comment remains its own text child.
+
+```tsx:main.tsx
+const node = <p>{/* keep */}.</p>
+```
+
+```tsx expected
+const node = (
+    <p>
+        {/* keep */}
         .
     </p>
 );
@@ -154,7 +314,7 @@ const node = (
 
 ### mixed text with spaced expressions
 
-Whitespace expression containers become JSX text spacing when inline text fits.
+Whitespace expression containers become JSX text spacing in inline prose.
 
 ```tsx:main.tsx
 const node = <T>
@@ -165,7 +325,12 @@ const node = <T>
 ```
 
 ```tsx expected
-const node = <T>Pro tip: See more <Link href="https://example.com">Docs</Link> for details.</T>;
+const node = (
+    <T>
+        Pro tip: See more <Link href="https://example.com">Docs</Link>
+        for details.
+    </T>
+);
 ```
 
 ### text with inline elements breaks into lines
