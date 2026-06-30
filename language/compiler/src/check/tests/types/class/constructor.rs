@@ -370,6 +370,7 @@ class Box {
 }
 
 new Box(true);
+/// @type.node source="new Box(true)" type=<error>
 /// @resolution.name source=Box target=Box
 /// @type.node source=true type=true
 

@@ -31,16 +31,19 @@ point satisfies Point;
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @definition.field symbol=Point.y source="y: int32" key=y type=int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
     y: int32;
     /// @type.symbol symbol=Point.y source="y: int32" type=int32
+
 }
 
 const point = Point { x: 1, y: 2 };
-/// @type.symbol symbol=point type=Point
+/// @type.symbol symbol=point source=point type=Point
 /// @resolution.name source=Point target=Point
 
 point satisfies Point;
@@ -80,13 +83,15 @@ struct Counter {
     }
 }
 
-const next: Counter = Counter { value: 1 }.increment();
+const next: Counter = (Counter { value: 1 }).increment();
 next satisfies Counter;
 
 === checked ===
 struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
+/// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
+/// @definition.method symbol=Counter.increment slot=increment type=(this: Counter) => Counter
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
@@ -97,15 +102,18 @@ struct Counter {
 
         Counter { value: this.value + 1 }
         /// @resolution.name source=Counter target=Counter
-        /// @resolution.name source=this target=this
         /// @resolution.member source=this.value receiver=Counter kind=symbol target=Counter.value
+        /// @resolution.call source="this.value + 1" parameters=() return=int32 kind=builtin builtin=binary.add
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
+
     }
 }
 
 const next = Counter { value: 1 }.increment();
-/// @type.symbol symbol=next type=Counter
+/// @type.symbol symbol=next source=next type=Counter
 /// @resolution.name source=Counter target=Counter
 /// @resolution.member source="Counter { value: 1 }.increment" receiver=Counter kind=symbol target=Counter.increment
+/// @resolution.call source="Counter { value: 1 }.increment()" parameters=() return=Counter kind=symbol target=Counter.increment receiver=Counter
 
 next satisfies Counter;
 /// @resolution.name source=next target=next
@@ -137,27 +145,30 @@ struct Point {
     y: int32;
 }
 
-const point = Point { x: 1 };
+const point: Point = Point { x: 1 };
 
 === checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @definition.field symbol=Point.y source="y: int32" key=y type=int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
     y: int32;
     /// @type.symbol symbol=Point.y source="y: int32" type=int32
+
 }
 
 const point = Point { x: 1 };
-/// @type.symbol symbol=point type=<error>
+/// @type.symbol symbol=point source=point type=Point
 /// @resolution.name source=Point target=Point
 "#,
         r#"
 /// @diagnostic.error code=EC215 message="missing required property 'y' for type 'Point'"
-/// @diagnostic.label line=7 column=15 source="const point = Point { x: 1 };"
+/// @diagnostic.label line=7 column=15 span="Point { x: 1 }" line_source="const point = Point { x: 1 };"
 "#,
     );
 }
@@ -185,27 +196,30 @@ struct Point {
     y: int32;
 }
 
-const point = Point { x: 1, y: 2, z: 3 };
+const point: Point = Point { x: 1, y: 2, z: 3 };
 
 === checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @definition.field symbol=Point.y source="y: int32" key=y type=int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
     y: int32;
     /// @type.symbol symbol=Point.y source="y: int32" type=int32
+
 }
 
 const point = Point { x: 1, y: 2, z: 3 };
-/// @type.symbol symbol=point type=<error>
+/// @type.symbol symbol=point source=point type=Point
 /// @resolution.name source=Point target=Point
 "#,
         r#"
 /// @diagnostic.error code=EC205 message="unknown property 'z' in object literal for type 'Point'"
-/// @diagnostic.label line=7 column=34 source="const point = Point { x: 1, y: 2, z: 3 };"
+/// @diagnostic.label line=7 column=15 span="Point { x: 1, y: 2, z: 3 }" line_source="const point = Point { x: 1, y: 2, z: 3 };"
 "#,
     );
 }
@@ -239,21 +253,24 @@ const point = new Point(1, 2);
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @definition.field symbol=Point.y source="y: int32" key=y type=int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
     y: int32;
     /// @type.symbol symbol=Point.y source="y: int32" type=int32
+
 }
 
 const point = new Point(1, 2);
-/// @type.symbol symbol=point type=<error>
+/// @type.symbol symbol=point source=point type=<error>
 /// @resolution.name source=Point target=Point
 "#,
         r#"
-/// @diagnostic.error code=EC300 message="type 'Point' is not constructible with 'new'"
-/// @diagnostic.label line=7 column=15 source="const point = new Point(1, 2);"
+/// @diagnostic.error code=EC313 message="type 'Point' cannot be constructed with 'new'; construct value types with 'T { … }'"
+/// @diagnostic.label line=7 column=15 span="new Point(1, 2)" line_source="const point = new Point(1, 2);"
 "#,
     );
 }
@@ -299,6 +316,8 @@ next satisfies int32;
 struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
+/// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
+/// @definition.method symbol=Counter.increment slot=increment type=(this: Counter) => int32
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
@@ -307,25 +326,28 @@ struct Counter {
     /// @type.symbol symbol=Counter.increment type=(this: Counter) => int32
 
         this.value = this.value + 1;
-        /// @resolution.name source=this target=this
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
+        /// @resolution.pattern.assign source=this.value kind=place place=field(Counter.value) type=int32
         /// @resolution.member source=this.value receiver=Counter kind=symbol target=Counter.value
-        /// @resolution.name source=this target=this
-        /// @resolution.member source=this.value receiver=Counter kind=symbol target=Counter.value
+        /// @resolution.call source="this.value + 1" parameters=() return=int32 kind=builtin builtin=binary.add
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
 
         this.value
-        /// @resolution.name source=this target=this
         /// @resolution.member source=this.value receiver=Counter kind=symbol target=Counter.value
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
+
     }
 }
 
 let counter = Counter { value: 1 };
-/// @type.symbol symbol=counter type=Counter
+/// @type.symbol symbol=counter source=counter type=Counter
 /// @resolution.name source=Counter target=Counter
 
 const next = counter.increment();
-/// @type.symbol symbol=next type=int32
+/// @type.symbol symbol=next source=next type=int32
 /// @resolution.name source=counter target=counter
 /// @resolution.member source=counter.increment receiver=Counter kind=symbol target=Counter.increment
+/// @resolution.call source=counter.increment() parameters=() return=int32 kind=symbol target=Counter.increment receiver=Counter
 
 next satisfies int32;
 /// @resolution.name source=next target=next
@@ -360,9 +382,11 @@ const counter: Counter = { value: 1 };
 struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
+/// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
+
 }
 
 const counter: Counter = { value: 1 };
@@ -371,7 +395,7 @@ const counter: Counter = { value: 1 };
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '{ value: 1 }' is not assignable to type 'Counter'"
-/// @diagnostic.label line=6 column=7 source="const counter: Counter = { value: 1 };"
+/// @diagnostic.label line=6 column=26 span="{ value: 1 }" line_source="const counter: Counter = { value: 1 };"
 "#,
     );
 }
