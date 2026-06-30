@@ -1,4 +1,5 @@
 mod fold;
+mod generic;
 mod intersection;
 mod intrinsic;
 mod memory;

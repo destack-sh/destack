@@ -1,9 +1,8 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, Origin, TypeRewrite, TypeSubstitution, Widening};
+use crate::check::{CheckState, Widening};
 use crate::{CompilerError, CompilerResult};
 
 /// Stable id for one declaration-side generic parameter.
@@ -36,17 +35,6 @@ pub(in crate::check) struct GenericInductionParameter {
     pub(in crate::check) is_comptime: bool,
     /// The reason this parameter was induced.
     pub(in crate::check) induction: dir::GenericParameterInduction,
-}
-
-/// How omitted generic arguments are resolved at one instantiation site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum GenericArgumentMode {
-    /// Infer omitted arguments from surrounding constraints.
-    Infer,
-    /// Match omitted arguments exactly from an already-formed type.
-    Match,
-    /// Fill omitted arguments from declared defaults.
-    Default,
 }
 
 /// Inference bookkeeping over working generic segments.
@@ -196,15 +184,7 @@ impl CheckState<'_> {
     }
 
     /// Return the inference widening policy for one generic parameter.
-    pub(in crate::check) fn generic_parameter_widening(
-        &self,
-        id: GenericParameterId,
-        mode: GenericArgumentMode,
-    ) -> Widening {
-        if mode == GenericArgumentMode::Match {
-            return Widening::Preserve;
-        }
-
+    pub(in crate::check) fn generic_parameter_widening(&self, id: GenericParameterId) -> Widening {
         let Some(parameter) = self.generic_parameter(id) else {
             return Widening::Preserve;
         };
@@ -255,96 +235,6 @@ impl CheckState<'_> {
         Ok(parameters)
     }
 
-    /// Return whether one type graph contains a NoInfer wrapper.
-    pub(in crate::check) fn type_blocks_inference(
-        &self,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
-        let mut visited = IndexSet::new();
-        pending.push(ty);
-
-        while let Some(ty) = pending.pop() {
-            let ty = self.settled_root(ty)?;
-            if !visited.insert(ty) {
-                continue;
-            }
-
-            let ty = self.ty(ty)?;
-            if matches!(ty, dir::Type::Operation(dir::TypeOperation::NoInfer(_))) {
-                return Ok(true);
-            }
-            if let dir::Type::Instance(instance) = ty
-                && self
-                    .environment
-                    .language
-                    .item(instance.symbol)
-                    .is_some_and(|item| item == dir::LanguageItem::NoInfer)
-            {
-                return Ok(true);
-            }
-
-            ty.for_each_child(|child| pending.push(child));
-        }
-
-        Ok(false)
-    }
-
-    /// Create one instantiated function signature type.
-    pub(in crate::check) fn instantiate_signature_type(
-        &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
-        signature: &dir::FunctionSignatureType,
-        substitution: &TypeSubstitution,
-        return_type: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let this_parameter = match signature.this_parameter {
-            Some(this_parameter) if substitution.is_empty() => Some(this_parameter),
-            Some(this_parameter) => {
-                let this_parameter =
-                    self.fold_type(module, source, this_parameter, substitution.rewrite())?;
-                let this_parameter =
-                    self.fold_type(module, source, this_parameter, TypeRewrite::Resolve)?;
-
-                Some(this_parameter)
-            }
-            None => None,
-        };
-        let parameters = signature
-            .parameters
-            .iter()
-            .map(|parameter| {
-                let ty = if substitution.is_empty() {
-                    parameter.ty
-                } else {
-                    self.fold_type(module, source, parameter.ty, substitution.rewrite())?
-                };
-                let ty = self.fold_type(module, source, ty, TypeRewrite::Resolve)?;
-
-                Ok(dir::FunctionParameterType {
-                    ty,
-                    static_parameter: None,
-                    is_optional: parameter.is_optional,
-                    is_rest: parameter.is_rest,
-                })
-            })
-            .collect::<CompilerResult<Vec<_>>>()?;
-
-        self.push_type(
-            module,
-            dir::Type::FunctionSignature(dir::FunctionSignatureType {
-                asynchrony: signature.asynchrony,
-                template: None,
-                this_parameter,
-                parameters,
-                return_type: Some(return_type),
-                is_generator: signature.is_generator,
-            }),
-            source,
-        )
-    }
-
     /// Return selected generic argument bindings for one ordered parameter list.
     pub(in crate::check) fn generic_argument_bindings(
         &self,
@@ -389,34 +279,6 @@ impl CheckState<'_> {
         let parameters = self.generic_template_parameters(template);
 
         self.generic_argument_bindings(&parameters, arguments)
-    }
-
-    /// Return one generic parameter's default after earlier arguments apply.
-    pub(in crate::check) fn generic_parameter_default(
-        &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
-        parameter: GenericParameterId,
-        parameters: &[GenericParameterId],
-        arguments: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(default) = self
-            .generic_parameter(parameter)
-            .and_then(|binding| binding.default)
-        else {
-            return Ok(None);
-        };
-        if parameters.is_empty() {
-            return Ok(Some(default));
-        }
-        let substitution = TypeSubstitution {
-            parameters: parameters.iter().copied().collect(),
-            arguments: arguments.iter().copied().collect(),
-            receiver: None,
-        };
-        let default = self.fold_type(module, source, default, substitution.rewrite())?;
-
-        Ok(Some(default))
     }
 
     /// Open the generic template at one source node.
@@ -542,90 +404,5 @@ impl CheckState<'_> {
         binding.default = default;
 
         Ok(())
-    }
-
-    /// Instantiate one template's parameters.
-    /// Returns the substitution from parameters to variable types.
-    pub(in crate::check) fn instantiate_template(
-        &mut self,
-        origin: Origin,
-        template: GenericTemplateId,
-        written: &[dir::GlobalTypeId],
-        mode: GenericArgumentMode,
-    ) -> CompilerResult<Option<TypeSubstitution>> {
-        let parameters = self.generic_template_parameters(template);
-
-        self.instantiate_generic_parameters(origin, &parameters, written, mode)
-    }
-
-    /// Instantiate one ordered generic parameter list.
-    /// Returns the substitution from parameters to applied argument types.
-    pub(in crate::check) fn instantiate_generic_parameters(
-        &mut self,
-        origin: Origin,
-        parameters: &[GenericParameterId],
-        written: &[dir::GlobalTypeId],
-        mode: GenericArgumentMode,
-    ) -> CompilerResult<Option<TypeSubstitution>> {
-        if written.len() > parameters.len() {
-            return Ok(None);
-        }
-        let source = self.origin_source_node(origin)?;
-        let mut arguments = SmallVec::new();
-
-        // apply written arguments before opening inference variables
-        for (index, parameter) in parameters.iter().copied().enumerate() {
-            let ty = match written.get(index).copied() {
-                Some(written) => written,
-                None => match mode {
-                    GenericArgumentMode::Default => {
-                        let Some(default) = self.generic_parameter_default(
-                            origin.module(),
-                            source,
-                            parameter,
-                            &parameters[..index],
-                            &arguments,
-                        )?
-                        else {
-                            return Ok(None);
-                        };
-
-                        default
-                    }
-                    GenericArgumentMode::Infer | GenericArgumentMode::Match => {
-                        let widening = self.generic_parameter_widening(parameter, mode);
-                        let variable = self.allocate_variable(origin.module(), origin, widening);
-                        let ty = self.push_variable_type(variable, source)?;
-
-                        // add declared constraints as upper bounds
-                        let constraint = self
-                            .generic_parameter(parameter)
-                            .and_then(|binding| binding.constraint);
-                        if let Some(constraint) = constraint {
-                            self.push_upper_bound(variable, constraint)?;
-                        }
-                        if let Some(default) = self.generic_parameter_default(
-                            origin.module(),
-                            source,
-                            parameter,
-                            &parameters[..index],
-                            &arguments,
-                        )? {
-                            self.set_variable_default(variable, default)?;
-                        }
-
-                        ty
-                    }
-                },
-            };
-
-            arguments.push(ty);
-        }
-
-        Ok(Some(TypeSubstitution {
-            parameters: parameters.iter().copied().collect(),
-            arguments,
-            receiver: None,
-        }))
     }
 }

@@ -64,6 +64,15 @@ impl Answer<bool> {
         matches!(self, Self::Ready(false))
     }
 
+    /// Return `Some(value)` when this answer is true.
+    pub(in crate::check) fn then_some<T>(self, value: T) -> Answer<Option<T>> {
+        match self {
+            Self::Ready(true) => Answer::Ready(Some(value)),
+            Self::Ready(false) => Answer::Ready(None),
+            Self::Pending(blockers) => Answer::Pending(blockers),
+        }
+    }
+
     /// Combine two boolean answers conjunctively.
     pub(in crate::check) fn and(self, other: Self) -> Self {
         match (self, other) {

@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckEvent, CheckState, Constraint, Dependency, Origin, Relation, Task, VariableBounds,
-    Widening, answer,
+    Answer, CheckEvent, CheckState, Constraint, Dependency, Origin, Relation, Task, TypeBound,
+    VariableBounds, Widening, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -75,17 +75,25 @@ impl CheckState<'_> {
         let default = state.default;
         let lower = state.lower.clone();
         let upper = state.upper.clone();
+        let lower_types = lower
+            .iter()
+            .map(|bound| bound.ty)
+            .collect::<SmallVec<[_; 2]>>();
+        let upper_types = upper
+            .iter()
+            .map(|bound| bound.ty)
+            .collect::<SmallVec<[_; 2]>>();
 
         // propagate errors before waiting on contextual holes
-        for bound in &lower {
+        for bound in &lower_types {
             if self.ty(*bound)?.is_error() {
-                self.set_solution(representative, *bound)?;
+                self.commit_solution(representative, *bound)?;
 
                 return Ok(Answer::Ready(true));
             }
         }
 
-        let blockers = self.bound_blockers(representative, &lower, &upper, default)?;
+        let blockers = self.bound_blockers(representative, &lower_types, &upper_types, default)?;
         if !blockers.is_empty() {
             self.record_event(CheckEvent::VariableBlocked {
                 variable: representative,
@@ -102,19 +110,22 @@ impl CheckState<'_> {
 
         // solve from lower bounds, falling back to contextual upper bounds
         let origin = self.solver.variable(representative)?.origin;
-        let (solution, check_upper) = if !lower.is_empty() {
-            let joined = self.best_common(representative, &lower)?;
+        let (solution, check_upper) = if !lower_types.is_empty() {
+            let joined = self.best_common(representative, &lower_types)?;
+            let widened = self.widen_solution(representative, joined, widening)?;
+            let solution =
+                answer!(self.fit_widened_solution(origin, joined, widened, &upper_types)?);
 
-            (
-                Some(self.widen_solution(representative, joined, widening)?),
-                true,
-            )
+            (Some(solution), true)
         } else if let Some(default) = default {
             (Some(default), true)
-        } else if let [bound] = upper.as_slice() {
+        } else if let [bound] = upper_types.as_slice() {
             (Some(*bound), false)
-        } else if !upper.is_empty() {
-            (Some(self.intersect_bounds(representative, &upper)?), false)
+        } else if !upper_types.is_empty() {
+            (
+                Some(self.intersect_bounds(representative, &upper_types)?),
+                false,
+            )
         } else {
             (None, false)
         };
@@ -132,24 +143,21 @@ impl CheckState<'_> {
 
             return Ok(Answer::Ready(true));
         };
-        let solution = answer!(self.reduce_type_root(origin, solution)?);
+        let solution = answer!(self.reduce_type_head(origin, solution)?);
         let mut bounds_hold = true;
         let mut pending = SmallVec::<[Dependency; 2]>::new();
 
         // check inferred solutions against their contextual upper bounds
         if check_upper {
             for bound in upper {
-                let source = self
-                    .origin_source_node(origin)?
-                    .into_global(origin.module());
-                match self.constrain_generic_argument(origin, source, solution, bound)? {
+                match self.constrain_generic_argument(origin, bound.source, solution, bound.ty)? {
                     Answer::Ready(true) => {}
                     Answer::Ready(false) => {
                         bounds_hold = false;
                         self.push_constraint(Constraint::check(
                             Relation::Assignable,
                             solution,
-                            bound,
+                            bound.ty,
                             origin,
                         ));
                     }
@@ -158,7 +166,7 @@ impl CheckState<'_> {
                         self.push_constraint(Constraint::check(
                             Relation::Assignable,
                             solution,
-                            bound,
+                            bound.ty,
                             origin,
                         ));
                     }
@@ -166,7 +174,7 @@ impl CheckState<'_> {
             }
         }
         if !pending.is_empty() {
-            self.set_solution(representative, solution)?;
+            self.commit_solution(representative, solution)?;
             self.record_event(CheckEvent::VariableBlocked {
                 variable: representative,
                 bounds: VariableBounds {
@@ -180,9 +188,34 @@ impl CheckState<'_> {
             return Ok(Answer::Pending(pending));
         }
 
-        self.set_solution(representative, solution)?;
+        self.commit_solution(representative, solution)?;
 
         Ok(Answer::Ready(bounds_hold))
+    }
+
+    /// Keep literal widening only when every exact upper bound still accepts it.
+    fn fit_widened_solution(
+        &mut self,
+        origin: Origin,
+        exact: dir::GlobalTypeId,
+        widened: dir::GlobalTypeId,
+        upper: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        if exact == widened || upper.is_empty() {
+            return Ok(Answer::Ready(widened));
+        }
+
+        // test the widened candidate against every upper bound
+        let mut blockers = SmallVec::<[Dependency; 2]>::new();
+        for bound in upper {
+            match self.decide_relation(origin, Relation::Satisfies, widened, *bound)? {
+                Answer::Ready(true) => {}
+                Answer::Ready(false) => return Ok(Answer::Ready(exact)),
+                Answer::Pending(pending) => blockers.extend(pending),
+            }
+        }
+
+        Ok(Answer::ready_unless_blocked(widened, blockers))
     }
 
     /// Return open variables that one variable currently depends on.
@@ -210,7 +243,7 @@ impl CheckState<'_> {
     }
 
     /// Record one variable solution and wake its waiters.
-    pub(in crate::check) fn set_solution(
+    pub(in crate::check) fn commit_solution(
         &mut self,
         variable: dir::TypeVariableId,
         solution: dir::GlobalTypeId,
@@ -286,10 +319,10 @@ impl CheckState<'_> {
 
         // push moved bounds through the checked paths
         for bound in lower {
-            self.push_lower_bound(target, bound)?;
+            self.push_lower_bound(target, bound.source, bound.ty)?;
         }
         for bound in upper {
-            self.push_upper_bound(target, bound)?;
+            self.push_upper_bound(target, bound.source, bound.ty)?;
         }
 
         // move tasks parked on the old representative
@@ -310,6 +343,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn push_lower_bound(
         &mut self,
         variable: dir::TypeVariableId,
+        source: dir::GlobalNodeIdAny,
         bound: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         let representative = self.solver.representative(variable)?;
@@ -330,6 +364,7 @@ impl CheckState<'_> {
             return Ok(());
         }
 
+        let bound = TypeBound::new(bound, source);
         let pushed = {
             let state = self.solver.variable_mut(representative)?;
             if state.lower.contains(&bound) {
@@ -340,7 +375,7 @@ impl CheckState<'_> {
             }
         };
         if pushed {
-            self.wait_for_bound_variables(representative, bound)?;
+            self.wait_for_bound_variables(representative, bound.ty)?;
             self.queue_task(Task::Solve(representative));
         }
 
@@ -351,6 +386,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn push_upper_bound(
         &mut self,
         variable: dir::TypeVariableId,
+        source: dir::GlobalNodeIdAny,
         bound: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         let representative = self.solver.representative(variable)?;
@@ -361,9 +397,6 @@ impl CheckState<'_> {
         // late bounds against a solved variable become relation checks
         if let Some(solution) = self.solver.variable(representative)?.solution {
             let origin = self.solver.variable(representative)?.origin;
-            let source = self
-                .origin_source_node(origin)?
-                .into_global(origin.module());
             match self.constrain_generic_argument(origin, source, solution, bound)? {
                 Answer::Ready(true) => {}
                 Answer::Ready(false) | Answer::Pending(_) => {
@@ -379,6 +412,7 @@ impl CheckState<'_> {
             return Ok(());
         }
 
+        let bound = TypeBound::new(bound, source);
         let pushed = {
             let state = self.solver.variable_mut(representative)?;
             if state.upper.contains(&bound) {
@@ -389,7 +423,7 @@ impl CheckState<'_> {
             }
         };
         if pushed {
-            self.wait_for_bound_variables(representative, bound)?;
+            self.wait_for_bound_variables(representative, bound.ty)?;
             self.queue_task(Task::Solve(representative));
         }
 
@@ -405,7 +439,7 @@ impl CheckState<'_> {
         let task = Task::Solve(variable);
         for blocker in self.type_variables(bound)? {
             if blocker != variable {
-                self.park_task(task.clone(), &[Dependency::Variable(blocker)])?;
+                self.park_task(&task, &[Dependency::Variable(blocker)])?;
             }
         }
 

@@ -11,7 +11,7 @@ impl CheckState<'_> {
         &mut self,
         propagation: TryPropagation,
     ) -> CompilerResult<Answer<()>> {
-        let value = answer!(self.node_type(propagation.value)?);
+        let value = answer!(self.node_type_at(propagation.value)?);
 
         match propagation.target {
             TryPropagationTarget::Failure { ty } => {
@@ -76,20 +76,15 @@ impl CheckState<'_> {
         self.decide_relation(origin, Relation::Implements, return_type, target)
     }
 
-    /// Return the failure channel projected from one try value.
+    /// Return the residual projected from one try value.
     fn try_residual(
         &mut self,
         source: dir::GlobalNodeIdAny,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let operation = dir::TypeOperation::TryResidual { value };
-        let residual = self.push_type(
-            source.module_id,
-            dir::Type::Operation(operation),
-            source.local_id,
-        )?;
-        let residual = answer!(self.reduce_type_root(Origin::Node(source), residual)?);
-
-        Ok(Answer::Ready(residual))
+        self.reduce_operation_type(
+            Origin::Node(source),
+            dir::TypeOperation::TryResidual { value },
+        )
     }
 }

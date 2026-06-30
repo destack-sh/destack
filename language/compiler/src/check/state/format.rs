@@ -281,7 +281,11 @@ impl CheckState<'_> {
         parameter: &dir::FunctionParameterType,
         depth: usize,
     ) -> CompilerResult<String> {
-        let parameter_type = self.format_depth_at(module, parameter.ty, depth)?;
+        let parameter_type = if parameter.is_rest {
+            self.format_rest_parameter_type_at(module, parameter.ty, depth)?
+        } else {
+            self.format_depth_at(module, parameter.ty, depth)?
+        };
         let parameter_type = if parameter.is_rest {
             format!("...{parameter_type}")
         } else {
@@ -289,6 +293,26 @@ impl CheckState<'_> {
         };
 
         Ok(parameter_type)
+    }
+
+    /// Format one rest parameter payload relative to an optional source module.
+    fn format_rest_parameter_type_at(
+        &self,
+        module: Option<ModuleId>,
+        ty: dir::GlobalTypeId,
+        depth: usize,
+    ) -> CompilerResult<String> {
+        let ty = self.settled_root(ty)?;
+
+        // arrays use the source rest spelling
+        match self.ty(ty)? {
+            dir::Type::Array(array) => {
+                let element = self.format_depth_at(module, array.element, depth)?;
+
+                Ok(format!("{element}[]"))
+            }
+            _ => self.format_depth_at(module, ty, depth),
+        }
     }
 
     /// Format one memory form relative to an optional source module.
@@ -385,6 +409,9 @@ impl CheckState<'_> {
                 self.format_depth_at(module, index.left, depth)?,
                 self.format_depth_at(module, index.index, depth)?,
             ),
+            dir::TypeOperation::TypeOf(query) => {
+                format!("typeof {}", self.format_type_query(query.value))
+            }
             dir::TypeOperation::StaticBinary(binary) => format!(
                 "{} {} {}",
                 self.format_depth_at(module, binary.left, depth)?,
@@ -421,6 +448,24 @@ impl CheckState<'_> {
         };
 
         Ok(rendered)
+    }
+
+    /// Format one type query operand.
+    fn format_type_query(&self, value: dir::GlobalNodeIdAny) -> String {
+        if value.local_id.ty != dir::NodeType::Expression {
+            return self.node_message(value);
+        }
+
+        let id = value.into_typed::<dir::Expression>().local_id;
+        let Some(path) = self.module(value.module_id).view().reference_path(id) else {
+            return self.node_message(value);
+        };
+
+        path.segments
+            .iter()
+            .map(|segment| self.text(*segment))
+            .collect::<Vec<_>>()
+            .join(".")
     }
 
     /// Format one scalar literal type.

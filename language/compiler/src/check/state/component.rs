@@ -57,8 +57,8 @@ pub(in crate::check) struct CheckState<'a> {
     /// Active component solver state.
     pub(in crate::check) solver: Solver,
 
-    // memoized closed facts, valid across rejected probes
-    /// Memoized closed type reductions keyed by original type.
+    // memoized closed reductions, valid across rejected probes
+    /// Memoized closed reduced types keyed by surface type.
     pub(in crate::check) reduced_types: IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
     /// Generic instances, argument variables, and induction bookkeeping.
     pub(in crate::check) generics: GenericIndex,
@@ -233,6 +233,7 @@ impl CheckState<'_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check module {module:?} has no working types"),
             })?;
+
         let local = working.types.insert_type_from_any(ty, source);
 
         Ok(local.into_global(module))

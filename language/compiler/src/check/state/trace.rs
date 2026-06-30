@@ -3,7 +3,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CheckState, ConstraintId, Dependency, DumpContext, ObligationId, Task, Widening,
+    CheckState, ConstraintId, Dependency, DumpContext, ObligationId, Task, TypeBound, Widening,
 };
 
 /// Derived size counters for one checked component.
@@ -29,9 +29,9 @@ pub(in crate::check) struct CheckStats {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::check) struct VariableBounds {
     /// Types that must be assignable to the variable.
-    pub(in crate::check) lower: SmallVec<[dir::GlobalTypeId; 2]>,
+    pub(in crate::check) lower: SmallVec<[TypeBound; 2]>,
     /// Types the variable must be assignable to.
-    pub(in crate::check) upper: SmallVec<[dir::GlobalTypeId; 2]>,
+    pub(in crate::check) upper: SmallVec<[TypeBound; 2]>,
     /// The default solution applied when no bounds arrive.
     pub(in crate::check) default: Option<dir::GlobalTypeId>,
 }
