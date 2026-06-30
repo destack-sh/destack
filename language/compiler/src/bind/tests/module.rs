@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_bind_module_scope_surface() {
+fn test_bind_module_scopes() {
     let compiler = TestSession::builder()
         .module(
             "main.ds",

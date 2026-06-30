@@ -224,8 +224,10 @@ impl Compiler {
         let scope_id = state.insert_child_scope(dir::ScopeKind::TypeConditional);
         state.bind_node_to_scope(id.into_any(), scope_id);
         state.push_scope(scope_id);
+        state.push_infer_scope(scope_id);
         let extends_node = tree.get(extends_type);
         state.visit_type_expression(tree, extends_type, extends_node);
+        state.pop_infer_scope();
         let then_node = tree.get(then_type);
         state.visit_type_expression(tree, then_type, then_node);
         state.pop_scope();
@@ -309,13 +311,24 @@ impl Compiler {
 
         // declare named inferred type parameter
         if let Some(name) = name {
-            let symbol_id = state.insert_symbol(
-                dir::SymbolRole::Local,
-                dir::SymbolKind::TypeAlias,
-                Some(dir::StaticKey::Name(name)),
-                None,
-                dir::SymbolVisibility::Forward,
-            );
+            let key = Some(dir::StaticKey::Name(name));
+            let symbol_id = match state.infer_scope() {
+                Some(scope_id) => state.insert_symbol_in_scope(
+                    scope_id,
+                    dir::SymbolRole::Local,
+                    dir::SymbolKind::TypeAlias,
+                    key,
+                    None,
+                    dir::SymbolVisibility::Forward,
+                ),
+                None => state.insert_symbol(
+                    dir::SymbolRole::Local,
+                    dir::SymbolKind::TypeAlias,
+                    key,
+                    None,
+                    dir::SymbolVisibility::Forward,
+                ),
+            };
             state.declare_symbol(symbol_id, id);
         }
     }
