@@ -75,6 +75,20 @@ enum SchemaChoice {
     },
 }
 
+/// Internal payload without schema support.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SchemaInternalPayload;
+
+/// Enum schema item with an omitted internal variant.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, crate::Reflect)]
+enum SchemaSkippedChoice {
+    /// Visible choice.
+    Visible,
+    /// Internal choice.
+    #[serde(skip)]
+    Hidden(SchemaInternalPayload),
+}
+
 /// Internally tagged enum used by codec compatibility tests.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind")]
@@ -178,6 +192,26 @@ fn test_build_schema_omits_skipped_fields() {
 
     assert_eq!(fields.len(), 1);
     assert_eq!(fields[0].name, "visible");
+}
+
+#[test]
+fn test_build_schema_omits_skipped_variants() {
+    let mut registry = SchemaRegistry::default();
+    registry.register::<SchemaSkippedChoice>();
+    let _internal = SchemaSkippedChoice::Hidden(SchemaInternalPayload);
+
+    let item = SchemaName::new(module_path!(), "SchemaSkippedChoice");
+    let item = registry
+        .items
+        .get(&item)
+        .expect("skipped variant schema item");
+
+    let SchemaShape::Enum(variants) = &item.shape else {
+        panic!("skipped variant item should be an enum");
+    };
+
+    assert_eq!(variants.len(), 1);
+    assert_eq!(variants[0].name, "Visible");
 }
 
 #[test]
