@@ -88,6 +88,20 @@ impl<'a> TypeTable<'a> {
         entries.into_iter()
     }
 
+    /// Iterate checked reduced types.
+    pub fn reduced_types(&self) -> impl Iterator<Item = (GlobalTypeId, GlobalTypeId)> + '_ {
+        let mut entries = IndexMap::new();
+
+        // apply later segment values over earlier ones
+        for segment in self.segments.iter() {
+            for (source, target) in &segment.reduced_types {
+                entries.insert(*source, *target);
+            }
+        }
+
+        entries.into_iter()
+    }
+
     /// Get the effective checked type id for a node.
     pub fn get_node_type_id(&self, node_id: GlobalNodeIdAny) -> Option<GlobalTypeId> {
         for segment in self.segments.iter().rev() {
@@ -108,6 +122,45 @@ impl<'a> TypeTable<'a> {
         }
 
         None
+    }
+
+    /// Get the reduced type id for a checked type.
+    pub fn get_reduced_type_id(&self, type_id: GlobalTypeId) -> GlobalTypeId {
+        let mut current = type_id;
+        // follow reduction rows until they reach a fixed point
+        let mut seen = Vec::new();
+        while !seen.contains(&current) {
+            seen.push(current);
+            let Some(reduced) = self.get_direct_reduced_type_id(current) else {
+                return current;
+            };
+            current = reduced;
+        }
+
+        panic!("DIR type reduction cycle contains {current:?}");
+    }
+
+    /// Get the directly stored reduced type id for a checked type.
+    fn get_direct_reduced_type_id(&self, type_id: GlobalTypeId) -> Option<GlobalTypeId> {
+        for segment in self.segments.iter().rev() {
+            if let Some(reduced) = segment.get_reduced_type_id(type_id) {
+                return Some(reduced);
+            }
+        }
+
+        None
+    }
+
+    /// Get the reduced checked type id for a node.
+    pub fn get_reduced_node_type_id(&self, node_id: GlobalNodeIdAny) -> Option<GlobalTypeId> {
+        self.get_node_type_id(node_id)
+            .map(|type_id| self.get_reduced_type_id(type_id))
+    }
+
+    /// Get the reduced checked type id for a symbol.
+    pub fn get_reduced_symbol_type_id(&self, symbol_id: GlobalSymbolId) -> Option<GlobalTypeId> {
+        self.get_symbol_type_id(symbol_id)
+            .map(|type_id| self.get_reduced_type_id(type_id))
     }
 
     /// Get a type by its id.
@@ -199,6 +252,8 @@ pub struct TypeSegment {
     pub(crate) node_types: IndexMap<GlobalNodeIdAny, GlobalTypeId>,
     /// Checked declaration type keyed by symbol.
     pub(crate) symbol_types: IndexMap<GlobalSymbolId, GlobalTypeId>,
+    /// Reduced checked type keyed by surface type.
+    pub(crate) reduced_types: IndexMap<GlobalTypeId, GlobalTypeId>,
 }
 
 impl TypeSegment {
@@ -211,6 +266,7 @@ impl TypeSegment {
             sources: Arena::new(),
             node_types: IndexMap::new(),
             symbol_types: IndexMap::new(),
+            reduced_types: IndexMap::new(),
         }
     }
 
@@ -223,6 +279,7 @@ impl TypeSegment {
             sources: Arena::new(),
             node_types: IndexMap::new(),
             symbol_types: IndexMap::new(),
+            reduced_types: IndexMap::new(),
         }
     }
 
@@ -270,6 +327,13 @@ impl TypeSegment {
             .map(|(symbol_id, type_id)| (*symbol_id, *type_id))
     }
 
+    /// Iterate checked reduced types.
+    pub fn reduced_types(&self) -> impl Iterator<Item = (GlobalTypeId, GlobalTypeId)> + '_ {
+        self.reduced_types
+            .iter()
+            .map(|(source, target)| (*source, *target))
+    }
+
     /// Set the effective checked type for a node.
     pub fn set_node_type(&mut self, node_id: GlobalNodeIdAny, ty: GlobalTypeId) {
         self.node_types.insert(node_id, ty);
@@ -288,6 +352,20 @@ impl TypeSegment {
     /// Get the solved type id for a symbol.
     pub fn get_symbol_type_id(&self, symbol_id: GlobalSymbolId) -> Option<GlobalTypeId> {
         self.symbol_types.get(&symbol_id).copied()
+    }
+
+    /// Set the reduced type for one checked surface type.
+    pub fn set_type_reduction(&mut self, source: GlobalTypeId, target: GlobalTypeId) {
+        if source == target {
+            self.reduced_types.shift_remove(&source);
+        } else {
+            self.reduced_types.insert(source, target);
+        }
+    }
+
+    /// Get the reduced type id for a checked type.
+    pub fn get_reduced_type_id(&self, type_id: GlobalTypeId) -> Option<GlobalTypeId> {
+        self.reduced_types.get(&type_id).copied()
     }
 
     /// Get a type by its id.
@@ -374,7 +452,10 @@ impl TypeSegment {
 
     /// Return true when this table has no entries.
     pub fn is_empty(&self) -> bool {
-        self.types.is_empty() && self.node_types.is_empty() && self.symbol_types.is_empty()
+        self.types.is_empty()
+            && self.node_types.is_empty()
+            && self.symbol_types.is_empty()
+            && self.reduced_types.is_empty()
     }
 
     /// Return whether this segment contains the given type id.
