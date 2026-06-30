@@ -3,15 +3,12 @@ use std::ffi::c_void;
 use super::{NativeContinuation, NativeMaterialization, NativeTrapCode, NativeValue};
 use crate::{NativeConstantSpace, NativeStaticSpace};
 
-/// Opaque runtime-owned native call state.
-pub type NativeCall = c_void;
-
 /// Native call context passed to generated native code.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NativeContext {
     /// Opaque runtime-owned native call state.
-    pub state: *mut NativeCall,
+    pub state: *mut c_void,
     /// Program constant bytes.
     pub constants: NativeConstantSpace,
     /// Runtime-shared static bytes.
@@ -25,7 +22,7 @@ pub struct NativeContext {
 impl NativeContext {
     /// Create one native call context.
     pub const fn new(
-        state: *mut NativeCall,
+        state: *mut c_void,
         constants: NativeConstantSpace,
         shared_statics: NativeStaticSpace,
         local_statics: NativeStaticSpace,

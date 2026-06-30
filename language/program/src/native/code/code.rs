@@ -1,6 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
+use destack_core::StringId;
 use destack_mir::TargetLayout;
 use destack_source::ContentId;
 
@@ -14,7 +15,7 @@ pub struct Code {
     /// Destack native ABI version required by this code.
     pub abi_version: u32,
     /// Target triple or equivalent target identity.
-    pub target: String,
+    pub target: StringId,
     /// Target ABI layout expected by this code.
     pub target_layout: TargetLayout,
     /// The native image.
@@ -30,7 +31,7 @@ pub struct Code {
 impl Code {
     /// Create one native code payload.
     pub fn new(
-        target: String,
+        target: StringId,
         target_layout: TargetLayout,
         image: Image,
         imports: ImportTable,

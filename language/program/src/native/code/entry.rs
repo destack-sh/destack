@@ -1,3 +1,4 @@
+use destack_core::{Optional, SectionEntry, SectionImage, SectionPacker, SectionSlice, StringId};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -7,68 +8,90 @@ use crate::{FrameStateId, FunctionId};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct EntryTable {
     /// Native function entries keyed by program function id.
-    pub(super) function: Vec<Option<Entry>>,
+    pub(super) function: SectionSlice<Optional<Entry>>,
     /// Native resume entries keyed by frame state id.
-    pub(super) resume: Vec<Option<Resume>>,
+    pub(super) resume: SectionSlice<Optional<Resume>>,
 }
 
 impl EntryTable {
-    /// Create one native entry table.
-    pub fn new(function: Vec<Option<Entry>>, resume: Vec<Option<Resume>>) -> Self {
-        Self { function, resume }
+    /// Pack one native entry table.
+    pub fn pack(
+        sections: &mut SectionPacker,
+        function: Vec<Option<Entry>>,
+        resume: Vec<Option<Resume>>,
+    ) -> Self {
+        let function = function.into_iter().map(Optional::from).collect::<Vec<_>>();
+        let resume = resume.into_iter().map(Optional::from).collect::<Vec<_>>();
+
+        Self {
+            function: sections.insert(function),
+            resume: sections.insert(resume),
+        }
     }
 
     /// Return one native function entry.
-    pub fn function(&self, function: FunctionId) -> Option<&Entry> {
-        self.function.get(function.index()).and_then(Option::as_ref)
+    pub fn function(&self, sections: SectionImage<'_>, function: FunctionId) -> Option<Entry> {
+        sections
+            .entries(self.function)
+            .get(function.index())
+            .and_then(|entry| entry.get())
     }
 
     /// Return one native resume entry.
-    pub fn resume(&self, frame_state: FrameStateId) -> Option<&Resume> {
-        self.resume
+    pub fn resume(&self, sections: SectionImage<'_>, frame_state: FrameStateId) -> Option<Resume> {
+        sections
+            .entries(self.resume)
             .get(frame_state.0 as usize)
-            .and_then(Option::as_ref)
+            .and_then(|entry| entry.get())
     }
 
     /// Return native function entries in dense program function id order.
-    pub fn functions(&self) -> &[Option<Entry>] {
-        &self.function
+    pub fn functions<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<Entry>] {
+        sections.entries(self.function)
     }
 
     /// Return native resume entries in dense frame state id order.
-    pub fn resumes(&self) -> &[Option<Resume>] {
-        &self.resume
+    pub fn resumes<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<Resume>] {
+        sections.entries(self.resume)
     }
 }
 
 /// Native function entry resolved by symbol name.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Entry {
     /// The function implemented by this entry.
     pub function: FunctionId,
     /// The native symbol exported by the linked image.
-    pub symbol: String,
+    pub symbol: StringId,
 }
 
 impl Entry {
     /// Create one native function entry.
-    pub fn new(function: FunctionId, symbol: String) -> Self {
+    pub fn new(function: FunctionId, symbol: StringId) -> Self {
         Self { function, symbol }
     }
 }
 
 /// Native continuation resume entry resolved by symbol name.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Resume {
     /// The frame state resumed by this entry.
     pub frame_state: FrameStateId,
     /// The native symbol exported by the linked image.
-    pub symbol: String,
+    pub symbol: StringId,
 }
+
+// SAFETY: native entries are fixed-width program entries.
+unsafe impl SectionEntry for Entry {}
+
+// SAFETY: native resume entries are fixed-width program entries.
+unsafe impl SectionEntry for Resume {}
 
 impl Resume {
     /// Create one native resume entry.
-    pub fn new(frame_state: FrameStateId, symbol: String) -> Self {
+    pub fn new(frame_state: FrameStateId, symbol: StringId) -> Self {
         Self {
             frame_state,
             symbol,
