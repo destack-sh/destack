@@ -32,7 +32,6 @@ const values: int32[] = [1, 2, 3];
 /// @type.node source=3 type=int32
 
 for (const value of values) {
-/// @type.node type=void
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=values type=Array<int32>
@@ -70,7 +69,6 @@ for (const value of 1) {
 
 === checked ===
 for (const value of 1) {
-/// @type.node type=void
 /// @type.symbol symbol=value source=value type=<error>
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
@@ -120,7 +118,6 @@ const target = { a: 1, b: 2 };
 /// @type.node source=2 type=float64
 
 for (const key in target) {
-/// @type.node type=void
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=target type=Managed<{ a: float64; b: float64 }>
@@ -168,7 +165,6 @@ const target = { a: 1, b: 2 };
 /// @type.node source=2 type=float64
 
 for (const key in target) {
-/// @type.node type=void
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=target type=Managed<{ a: float64; b: float64 }>
@@ -217,7 +213,6 @@ declare const target: { a: int32 } | { b: int32 };
 /// @type.symbol symbol=target source=target type={ a: int32 } | { b: int32 }
 
 for (const key in target) {
-/// @type.node type=void
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=target type={ a: int32 } | { b: int32 }
@@ -265,7 +260,6 @@ const target = { a: 1, b: 2 };
 /// @type.node source=2 type=float64
 
 for (const key in &readonly target) {
-/// @type.node type=void
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source="&readonly target" type=Borrowed<Managed<{ a: float64; b: float64 }>, memory.type.LifetimeOr<Managed<{ a: float64; b: float64 }>, "static">, "readonly">
@@ -304,7 +298,6 @@ for (const key in 1) {
 
 === checked ===
 for (const key in 1) {
-/// @type.node type=void
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=1 type=1
@@ -351,7 +344,6 @@ declare const target: unknown;
 /// @type.symbol symbol=target source=target type=unknown
 
 for (const key in target) {
-/// @type.node type=void
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=target type=unknown
@@ -392,7 +384,6 @@ for (const key in [1, 2, 3]) {
 
 === checked ===
 for (const key in [1, 2, 3]) {
-/// @type.node type=void
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=[1, 2, 3] type=Array<float64>
@@ -467,7 +458,6 @@ declare const point: Point;
 /// @resolution.name source=Point target=Point
 
 for (const key in point) {
-/// @type.node type=void
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=point type=Point
@@ -530,7 +520,6 @@ declare const user: User;
 /// @resolution.name source=User target=User
 
 for (const key in user) {
-/// @type.node type=void
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=user type=User
@@ -579,7 +568,6 @@ declare const target: { name: string; readonly [token]: int32 };
 /// @resolution.name source=token target=token
 
 for (const key in target) {
-/// @type.node type=void
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=target type={ name: string; readonly [token]: int32 }
@@ -623,7 +611,6 @@ declare const target: { name?: string; active: boolean };
 /// @type.symbol symbol=target source=target type={ name?: string; active: boolean }
 
 for (const key in target) {
-/// @type.node type=void
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=target type={ name?: string; active: boolean }

@@ -57,7 +57,6 @@ function use(onValue?: (value: unknown) => void): void {
 /// @type.symbol symbol=onValue source="onValue?: (value: unknown) => void" type=Function<(unknown,), void> | undefined
 
     if (onValue !== undefined) {
-    /// @type.node type=void
     /// @type.node source="onValue !== undefined" type=boolean
     /// @type.node source=onValue type=Function<(unknown,), void> | undefined
     /// @resolution.name source=onValue target=onValue

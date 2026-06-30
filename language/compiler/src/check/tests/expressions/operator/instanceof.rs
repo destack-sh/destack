@@ -107,7 +107,6 @@ declare const value: User | Team;
 /// @resolution.name source=Team target=Team
 
 if (value instanceof User) {
-/// @type.node type=void
 /// @type.node source="value instanceof User" type=boolean
 /// @type.node source=value type=User | Team
 /// @resolution.name source=value target=value
@@ -195,7 +194,6 @@ declare const value: User | Team;
 /// @resolution.name source=Team target=Team
 
 if (value instanceof User) {
-/// @type.node type=void
 /// @type.node source="value instanceof User" type=boolean
 /// @type.node source=value type=User | Team
 /// @resolution.name source=value target=value

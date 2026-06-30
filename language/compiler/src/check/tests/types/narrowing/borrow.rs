@@ -66,7 +66,6 @@ function read<L: Lifetime>(shape: Borrowed<Rectangle | Circle, L>): int32 {
 /// @type.symbol symbol=shape type=Borrowed<Rectangle | Circle, read.L, "mutable">
 
     if (shape is Borrowed<Rectangle, L>) {
-    /// @type.node type=void
     /// @type.node source="shape is Borrowed<Rectangle, L>" type=boolean
     /// @type.node source=shape type=Borrowed<Rectangle | Circle, read.L, "mutable">
     /// @resolution.name source=shape target=shape
