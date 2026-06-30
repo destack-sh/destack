@@ -111,16 +111,25 @@ pub struct TraceVariant {
 }
 
 /// Stable non-zero identifier for one trace map.
+#[repr(transparent)]
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
 pub struct TraceId(NonZeroU32);
 
 impl TraceId {
+    /// Create a trace identifier when the raw id is non-zero.
+    pub const fn from_raw(raw: u32) -> Option<Self> {
+        match NonZeroU32::new(raw) {
+            Some(raw) => Some(Self(raw)),
+            None => None,
+        }
+    }
+
     /// Create a trace identifier from one raw table id.
     pub const fn new(raw: u32) -> Self {
-        match NonZeroU32::new(raw) {
-            Some(raw) => Self(raw),
+        match Self::from_raw(raw) {
+            Some(id) => id,
             None => unreachable!(),
         }
     }
