@@ -951,7 +951,7 @@ pub enum IntrinsicDest {
     Frame(MoveSlot),
 }
 
-/// Intrinsic operand shape carried by executable side records.
+/// Intrinsic operand shape carried by VM side records.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum IntrinsicOperand {
     /// No value.

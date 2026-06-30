@@ -18,6 +18,7 @@ const CELL_FORMAT_FUNCTION_POINTER: u32 = 8;
 const CELL_FORMAT_BFLOAT16: u32 = 9;
 const CELL_FORMAT_FLOAT32: u32 = 10;
 const CELL_FORMAT_FLOAT64: u32 = 11;
+const CELL_FORMAT_MASK: u32 = 0xff;
 const FLOAT_CAST_DEST_SHIFT: u32 = 8;
 const FLOAT_TO_INT_WIDTH_SHIFT: u32 = 8;
 
@@ -93,8 +94,9 @@ impl FloatCast {
 
     /// Decode the source and destination float layouts.
     pub fn decode(self) -> Result<(CellLayout, CellLayout)> {
-        let source = float_layout_from_field(self.field & 0xff)?;
-        let destination = float_layout_from_field((self.field >> FLOAT_CAST_DEST_SHIFT) & 0xff)?;
+        let source = float_layout_from_field(self.field & CELL_FORMAT_MASK)?;
+        let destination =
+            float_layout_from_field((self.field >> FLOAT_CAST_DEST_SHIFT) & CELL_FORMAT_MASK)?;
 
         Ok((source, destination))
     }
@@ -165,8 +167,8 @@ impl FloatToIntCast {
 
     /// Decode the source float layout and destination integer width.
     pub fn decode(self) -> Result<(CellLayout, u8)> {
-        let source = float_layout_from_field(self.field & 0xff)?;
-        let width = ((self.field >> FLOAT_TO_INT_WIDTH_SHIFT) & 0xff) as u8;
+        let source = float_layout_from_field(self.field & CELL_FORMAT_MASK)?;
+        let width = ((self.field >> FLOAT_TO_INT_WIDTH_SHIFT) & CELL_FORMAT_MASK) as u8;
 
         Ok((source, width))
     }

@@ -1,94 +1,199 @@
-use destack_heap::{AllocationPlan, SmallAllocationPlan};
-use destack_mir::{
-    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
-    TensorGatherDimensionNumbers, TensorScatterDimensionNumbers,
+use destack_core::{
+    EntryRange, EntryStore, SectionEntry, SectionImage, SectionPacker, SectionSlice,
 };
+use destack_heap::{AllocationPlan, SmallAllocationPlan};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::Signature;
+use crate::{FunctionSignature, Signature, TypeId};
 
 use super::{
     AggregateSelect, AllocationBranch, AtomicCompareExchange, Call, CallBranch, CallDynamic,
-    CallDynamicBranch, CallVirtual, CallVirtualBranch, ConstValue, FunctionBind, IndirectCall,
-    IndirectCallBranch, IndirectTailCall, IntrinsicCall, MoveRange, Projection,
+    CallDynamicBranch, CallVirtual, CallVirtualBranch, ConstValue, ConstValueBuilder, FunctionBind,
+    IndirectCall, IndirectCallBranch, IndirectTailCall, IntrinsicCall, MoveRange, Projection,
     SliceAllocationBranch, SliceProjection, SwitchCase, TailCall, TailCallDynamic, TailCallVirtual,
     TensorBinary, TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorContiguousUnary,
-    TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill,
-    TensorGather, TensorIndexReduce, TensorLayout, TensorLoad, TensorPad, TensorReduce,
-    TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore, TensorTranspose,
+    TensorConvert, TensorConvolution, TensorConvolutionDimensions,
+    TensorConvolutionDimensionsBuilder, TensorConvolutionWindow, TensorConvolutionWindowBuilder,
+    TensorCopy, TensorDot, TensorDotDimensions, TensorDotDimensionsBuilder, TensorExtract,
+    TensorFill, TensorGather, TensorGatherDimensions, TensorGatherDimensionsBuilder,
+    TensorIndexReduce, TensorLayout, TensorLayoutBuilder, TensorLayoutView, TensorLoad, TensorPad,
+    TensorReduce, TensorReshape, TensorScatter, TensorScatterDimensions,
+    TensorScatterDimensionsBuilder, TensorSelect, TensorSlice, TensorStore, TensorTranspose,
     TensorUnary, TensorView, TensorViewCast, VectorBinary, VectorConvert, VectorExtract,
     VectorInsert, VectorReduce, VectorSelect, VectorShuffle, VectorSplat, VectorUnary,
 };
 
 /// Identifier for one pooled check constraint.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct CheckId(pub u32);
 
 /// One lowered runtime check.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum Check {
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct Check {
+    /// Check kind.
+    pub kind: CheckKind,
+    /// Bounds check payload.
+    pub bounds: BoundsCheck,
+    /// Shift range check payload.
+    pub shift: ShiftRangeCheck,
+    /// Integer narrowing check payload.
+    pub narrow: NarrowCheck,
+    /// Overflow check payload.
+    pub overflow: OverflowCheck,
+    /// Variant tag check payload.
+    pub variant: VariantCheck,
+    /// Single value cell offset.
+    pub value: u32,
+    /// Expected type id or related scalar payload.
+    pub expected: u32,
+}
+
+impl Check {
+    /// Create a bounds check.
+    pub const fn bounds(kind: CheckKind, bounds: BoundsCheck) -> Self {
+        Self {
+            kind,
+            bounds,
+            ..Self::empty()
+        }
+    }
+
+    /// Create a null check.
+    pub const fn null(value: u32) -> Self {
+        Self {
+            kind: CheckKind::Null,
+            value,
+            ..Self::empty()
+        }
+    }
+
+    /// Create a division-by-zero check.
+    pub const fn div_zero(kind: CheckKind, divisor: u32) -> Self {
+        Self {
+            kind,
+            value: divisor,
+            ..Self::empty()
+        }
+    }
+
+    /// Create a shift range check.
+    pub const fn shift(kind: CheckKind, shift: ShiftRangeCheck) -> Self {
+        Self {
+            kind,
+            shift,
+            ..Self::empty()
+        }
+    }
+
+    /// Create a narrowing check.
+    pub const fn narrow(kind: CheckKind, narrow: NarrowCheck) -> Self {
+        Self {
+            kind,
+            narrow,
+            ..Self::empty()
+        }
+    }
+
+    /// Create an overflow check.
+    pub const fn overflow(kind: CheckKind, overflow: OverflowCheck) -> Self {
+        Self {
+            kind,
+            overflow,
+            ..Self::empty()
+        }
+    }
+
+    /// Create a runtime type check.
+    pub const fn type_id(kind: CheckKind, value: u32, expected: u32) -> Self {
+        Self {
+            kind,
+            value,
+            expected,
+            ..Self::empty()
+        }
+    }
+
+    /// Create a variant tag check.
+    pub const fn variant(variant: VariantCheck) -> Self {
+        Self {
+            kind: CheckKind::Variant,
+            variant,
+            ..Self::empty()
+        }
+    }
+
+    /// Create an empty check payload.
+    const fn empty() -> Self {
+        Self {
+            kind: CheckKind::BoundsIntInt,
+            bounds: BoundsCheck::empty(),
+            shift: ShiftRangeCheck::empty(),
+            narrow: NarrowCheck::empty(),
+            overflow: OverflowCheck::empty(),
+            variant: VariantCheck::empty(),
+            value: 0,
+            expected: 0,
+        }
+    }
+}
+
+/// Lowered runtime check kind.
+#[repr(u32)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum CheckKind {
     /// Bounds check over signed index and signed length cells.
-    BoundsIntInt(BoundsCheck),
+    #[default]
+    BoundsIntInt = 0,
     /// Bounds check over signed index and unsigned length cells.
-    BoundsIntUint(BoundsCheck),
+    BoundsIntUint = 1,
     /// Bounds check over unsigned index and signed length cells.
-    BoundsUintInt(BoundsCheck),
+    BoundsUintInt = 2,
     /// Bounds check over unsigned index and unsigned length cells.
-    BoundsUintUint(BoundsCheck),
+    BoundsUintUint = 3,
     /// Non-null check over one cell.
-    Null {
-        /// The value cell offset.
-        value: u32,
-    },
+    Null = 4,
     /// Division-by-zero check over one signed cell.
-    DivZeroInt { divisor: u32 },
+    DivZeroInt = 5,
     /// Division-by-zero check over one unsigned cell.
-    DivZeroUint { divisor: u32 },
+    DivZeroUint = 6,
     /// Shift range check over one signed shift amount cell.
-    ShiftRangeInt(ShiftRangeCheck),
+    ShiftRangeInt = 7,
     /// Shift range check over one unsigned shift amount cell.
-    ShiftRangeUint(ShiftRangeCheck),
+    ShiftRangeUint = 8,
     /// Signed integer narrowing check over one cell.
-    NarrowInt(NarrowCheck),
+    NarrowInt = 9,
     /// Unsigned integer narrowing check over one cell.
-    NarrowUint(NarrowCheck),
+    NarrowUint = 10,
     /// Signed add overflow check over two cells.
-    OverflowAddInt(OverflowCheck),
+    OverflowAddInt = 11,
     /// Unsigned add overflow check over two cells.
-    OverflowAddUint(OverflowCheck),
+    OverflowAddUint = 12,
     /// Signed subtract overflow check over two cells.
-    OverflowSubInt(OverflowCheck),
+    OverflowSubInt = 13,
     /// Unsigned subtract overflow check over two cells.
-    OverflowSubUint(OverflowCheck),
+    OverflowSubUint = 14,
     /// Signed multiply overflow check over two cells.
-    OverflowMulInt(OverflowCheck),
+    OverflowMulInt = 15,
     /// Unsigned multiply overflow check over two cells.
-    OverflowMulUint(OverflowCheck),
+    OverflowMulUint = 16,
     /// Signed divide or remainder overflow check over two cells.
-    OverflowDivInt(OverflowCheck),
+    OverflowDivInt = 17,
     /// Unsigned divide or remainder overflow check over two cells.
-    OverflowDivUint(OverflowCheck),
+    OverflowDivUint = 18,
     /// Exact runtime type-id check.
-    TypeId {
-        /// The type-id cell offset.
-        value: u32,
-        /// The expected type id.
-        expected: u32,
-    },
+    TypeId = 19,
     /// Runtime subtype check over one type-id cell.
-    SubtypeId {
-        /// The type-id cell offset.
-        value: u32,
-        /// The expected supertype id.
-        expected: u32,
-    },
+    SubtypeId = 20,
     /// Variant tag check.
-    Variant(VariantCheck),
+    Variant = 21,
 }
 
 /// Bounds check over index and length cells.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct BoundsCheck {
     /// The index cell offset.
     pub index: u32,
@@ -96,8 +201,19 @@ pub struct BoundsCheck {
     pub length: u32,
 }
 
+impl BoundsCheck {
+    /// Return an empty bounds check payload.
+    pub const fn empty() -> Self {
+        Self {
+            index: 0,
+            length: 0,
+        }
+    }
+}
+
 /// Shift amount range check over one cell.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ShiftRangeCheck {
     /// The shift amount cell offset.
     pub value: u32,
@@ -105,8 +221,19 @@ pub struct ShiftRangeCheck {
     pub bit_width: u8,
 }
 
+impl ShiftRangeCheck {
+    /// Return an empty shift range check payload.
+    pub const fn empty() -> Self {
+        Self {
+            value: 0,
+            bit_width: 0,
+        }
+    }
+}
+
 /// Integer narrowing check over one cell.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct NarrowCheck {
     /// The value cell offset.
     pub value: u32,
@@ -114,8 +241,19 @@ pub struct NarrowCheck {
     pub to_width: u8,
 }
 
+impl NarrowCheck {
+    /// Return an empty narrowing check payload.
+    pub const fn empty() -> Self {
+        Self {
+            value: 0,
+            to_width: 0,
+        }
+    }
+}
+
 /// Variant tag check over one cell.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct VariantCheck {
     /// The tag cell offset.
     pub value: u32,
@@ -123,8 +261,19 @@ pub struct VariantCheck {
     pub expected: u64,
 }
 
+impl VariantCheck {
+    /// Return an empty variant check payload.
+    pub const fn empty() -> Self {
+        Self {
+            value: 0,
+            expected: 0,
+        }
+    }
+}
+
 /// Two cell inputs for one overflow check.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct OverflowCheck {
     /// The left input cell offset.
     pub left: u32,
@@ -134,19 +283,34 @@ pub struct OverflowCheck {
     pub width: u8,
 }
 
+impl OverflowCheck {
+    /// Return an empty overflow check payload.
+    pub const fn empty() -> Self {
+        Self {
+            left: 0,
+            right: 0,
+            width: 0,
+        }
+    }
+}
+
 /// Identifier for one pooled switch case table.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SwitchCasesId(pub u32);
 
 /// Identifier for one pooled dense switch table.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SwitchTableId(pub u32);
 
 /// Identifier for one pooled control edge.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct EdgeId(pub u32);
 
 /// One lowered control-flow edge.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Edge {
     /// The target block.
@@ -156,8 +320,18 @@ pub struct Edge {
 }
 
 /// One pooled dense switch table.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SwitchTable {
+    /// The smallest value covered by the table.
+    pub min: i128,
+    /// The table entries.
+    pub cases: EntryRange<SwitchCase>,
+}
+
+/// Build-time dense switch table.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct SwitchTableBuilder {
     /// The smallest value covered by the table.
     pub min: i128,
     /// The table entries.
@@ -165,64 +339,77 @@ pub struct SwitchTable {
 }
 
 /// Identifier for one pooled allocation plan.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct AllocationPlanId(pub u32);
 
 /// Identifier for one pooled small allocation plan.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SmallAllocationPlanId(pub u32);
 
 /// Identifier for one pooled constant value.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ConstValueId(pub u32);
 
 /// Identifier for one pooled address projection.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ProjectionId(pub u32);
 
 /// Identifier for one pooled slice projection.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SliceProjectionId(pub u32);
 
 /// Identifier for one pooled u32 slice.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct U32RangeId(pub u32);
 
 /// Identifier for one pooled tensor dot descriptor.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TensorDotId(pub u32);
 
 /// Identifier for one pooled tensor convolution dimension descriptor.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TensorConvolutionId(pub u32);
 
 /// Identifier for one pooled tensor convolution window descriptor.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TensorWindowId(pub u32);
 
 /// Identifier for one pooled tensor gather descriptor.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TensorGatherId(pub u32);
 
 /// Identifier for one pooled tensor scatter descriptor.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TensorScatterId(pub u32);
 
 /// Identifier for one pooled tensor layout.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TensorLayoutId(pub u32);
 
 /// Identifier for one pooled callable signature.
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SignatureId(pub u32);
 
 /// Record stored outside the fixed instruction cells.
-pub trait SideRecord: Copy {
+pub trait SideRecord: Copy + SectionEntry {
     /// Add one side record to the table.
     fn push(table: &mut SideTableBuilder, record: Self) -> u32;
 
     /// Borrow one side record from the table.
-    fn get(table: &SideTable, id: u32) -> &Self;
+    fn get<'a>(table: &SideTable, sections: SectionImage<'a>, id: u32) -> &'a Self;
 }
 
 macro_rules! side_record_table {
@@ -231,7 +418,7 @@ macro_rules! side_record_table {
         #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Reflect)]
         struct SideRecordTable {
             $(
-                $field: Box<[$ty]>,
+                $field: SectionSlice<$ty>,
             )+
         }
 
@@ -244,11 +431,11 @@ macro_rules! side_record_table {
         }
 
         impl SideRecordTableBuilder {
-            /// Finish the immutable table.
-            fn finish(self) -> SideRecordTable {
+            /// Pack the immutable table.
+            fn pack(self, sections: &mut SectionPacker) -> SideRecordTable {
                 SideRecordTable {
                     $(
-                        $field: self.$field.into_boxed_slice(),
+                        $field: sections.insert(self.$field),
                     )+
                 }
             }
@@ -265,10 +452,13 @@ macro_rules! side_record_table {
                 }
 
                 #[inline(always)]
-                fn get(table: &SideTable, id: u32) -> &Self {
-                    &table.record.$field[id as usize]
+                fn get<'a>(table: &SideTable, sections: SectionImage<'a>, id: u32) -> &'a Self {
+                    &sections.entries(table.record.$field)[id as usize]
                 }
             }
+
+            // SAFETY: side records are fixed-width VM entries.
+            unsafe impl SectionEntry for $ty {}
         )+
     };
 }
@@ -332,41 +522,53 @@ side_record_table! {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SideTable {
     /// Pooled side records.
-    record: Box<SideRecordTable>,
+    record: SideRecordTable,
     /// Pooled allocation plans.
-    allocation_plan: Box<[AllocationPlan]>,
+    allocation_plan: SectionSlice<AllocationPlan>,
     /// Pooled small allocation plans.
-    small_allocation_plan: Box<[SmallAllocationPlan]>,
+    small_allocation_plan: SectionSlice<SmallAllocationPlan>,
     /// Pooled constants.
-    constant: Box<[ConstValue]>,
+    constant: SectionSlice<ConstValue>,
+    /// Flattened constant bytes.
+    constant_bytes: SectionSlice<u8>,
     /// Pooled address projections.
-    projection: Box<[Projection]>,
+    projection: SectionSlice<Projection>,
     /// Pooled slice projections.
-    slice_projection: Box<[SliceProjection]>,
+    slice_projection: SectionSlice<SliceProjection>,
     /// Pooled check constraints.
-    check: Box<[Check]>,
+    check: SectionSlice<Check>,
     /// Pooled switch case tables.
-    switch_cases: Box<[Box<[SwitchCase]>]>,
+    switch_cases: SectionSlice<EntryRange<SwitchCase>>,
+    /// Flattened switch case entries.
+    switch_case_entries: SectionSlice<SwitchCase>,
     /// Pooled dense switch tables.
-    switch_table: Box<[SwitchTable]>,
+    switch_table: SectionSlice<SwitchTable>,
     /// Pooled control edges.
-    edge: Box<[Edge]>,
+    edge: SectionSlice<Edge>,
     /// Pooled u32 slices.
-    u32_ranges: Box<[Box<[u32]>]>,
+    u32_ranges: SectionSlice<EntryRange<u32>>,
+    /// Flattened u32 entries.
+    u32_entries: SectionSlice<u32>,
+    /// Flattened tensor u64 entries.
+    tensor_u64_entries: SectionSlice<u64>,
+    /// Flattened tensor flag entries.
+    tensor_flag_entries: SectionSlice<u8>,
     /// Pooled tensor dot descriptors.
-    tensor_dot: Box<[TensorDotDimensionNumbers]>,
+    tensor_dot: SectionSlice<TensorDotDimensions>,
     /// Pooled tensor convolution dimension descriptors.
-    tensor_convolution: Box<[TensorConvolutionDimensionNumbers]>,
+    tensor_convolution: SectionSlice<TensorConvolutionDimensions>,
     /// Pooled tensor convolution window descriptors.
-    tensor_window: Box<[TensorConvolutionWindow]>,
+    tensor_window: SectionSlice<TensorConvolutionWindow>,
     /// Pooled tensor gather descriptors.
-    tensor_gather: Box<[TensorGatherDimensionNumbers]>,
+    tensor_gather: SectionSlice<TensorGatherDimensions>,
     /// Pooled tensor scatter descriptors.
-    tensor_scatter: Box<[TensorScatterDimensionNumbers]>,
+    tensor_scatter: SectionSlice<TensorScatterDimensions>,
     /// Pooled tensor layouts.
-    tensor_layout: Box<[TensorLayout]>,
+    tensor_layout: SectionSlice<TensorLayout>,
     /// Pooled callable signatures.
-    signature: Box<[Signature]>,
+    signature: SectionSlice<FunctionSignature>,
+    /// Flattened callable signature parameters.
+    signature_parameters: SectionSlice<TypeId>,
 }
 
 /// Mutable side table used while lowering one program.
@@ -379,7 +581,7 @@ pub struct SideTableBuilder {
     /// Pooled switch case tables.
     switch_cases: Vec<Box<[SwitchCase]>>,
     /// Pooled dense switch tables.
-    switch_table: Vec<SwitchTable>,
+    switch_table: Vec<SwitchTableBuilder>,
     /// Pooled control edges.
     edge: Vec<Edge>,
     /// Pooled allocation plans.
@@ -387,7 +589,7 @@ pub struct SideTableBuilder {
     /// Pooled small allocation plans.
     small_allocation_plan: Vec<SmallAllocationPlan>,
     /// Pooled constants.
-    constant: Vec<ConstValue>,
+    constant: Vec<ConstValueBuilder>,
     /// Pooled address projections.
     projection: Vec<Projection>,
     /// Pooled slice projections.
@@ -395,24 +597,24 @@ pub struct SideTableBuilder {
     /// Pooled u32 slices.
     u32_ranges: Vec<Box<[u32]>>,
     /// Pooled tensor dot descriptors.
-    tensor_dot: Vec<TensorDotDimensionNumbers>,
+    tensor_dot: Vec<TensorDotDimensionsBuilder>,
     /// Pooled tensor convolution dimension descriptors.
-    tensor_convolution: Vec<TensorConvolutionDimensionNumbers>,
+    tensor_convolution: Vec<TensorConvolutionDimensionsBuilder>,
     /// Pooled tensor convolution window descriptors.
-    tensor_window: Vec<TensorConvolutionWindow>,
+    tensor_window: Vec<TensorConvolutionWindowBuilder>,
     /// Pooled tensor gather descriptors.
-    tensor_gather: Vec<TensorGatherDimensionNumbers>,
+    tensor_gather: Vec<TensorGatherDimensionsBuilder>,
     /// Pooled tensor scatter descriptors.
-    tensor_scatter: Vec<TensorScatterDimensionNumbers>,
+    tensor_scatter: Vec<TensorScatterDimensionsBuilder>,
     /// Pooled tensor layouts.
-    tensor_layout: Vec<TensorLayout>,
+    tensor_layout: Vec<TensorLayoutBuilder>,
     /// Pooled callable signatures.
     signature: Vec<Signature>,
 }
 
 impl SideTableBuilder {
-    /// Finish the immutable side table.
-    pub fn finish(self) -> SideTable {
+    /// Pack the immutable side table.
+    pub fn pack(self, sections: &mut SectionPacker) -> SideTable {
         let Self {
             record,
             check,
@@ -434,25 +636,86 @@ impl SideTableBuilder {
             signature,
         } = self;
 
+        let mut constant_bytes = EntryStore::new();
+        let mut switch_case_entries = EntryStore::new();
+        let mut u32_entries = EntryStore::new();
+        let mut tensor_u64_entries = EntryStore::new();
+        let mut tensor_flag_entries = EntryStore::new();
+        let mut signature_parameters = EntryStore::new();
+
+        let constant = constant
+            .into_iter()
+            .map(|constant| constant.build(&mut constant_bytes))
+            .collect::<Vec<_>>();
+        let switch_cases = switch_cases
+            .into_iter()
+            .map(|cases| switch_case_entries.append(cases))
+            .collect::<Vec<_>>();
+        let switch_table = switch_table
+            .into_iter()
+            .map(|table| table.build(&mut switch_case_entries))
+            .collect::<Vec<_>>();
+        let u32_ranges = u32_ranges
+            .into_iter()
+            .map(|values| u32_entries.append(values))
+            .collect::<Vec<_>>();
+        let tensor_dot = tensor_dot
+            .into_iter()
+            .map(|dimensions| dimensions.build(&mut u32_entries))
+            .collect::<Vec<_>>();
+        let tensor_convolution = tensor_convolution
+            .into_iter()
+            .map(|dimensions| dimensions.build(&mut u32_entries))
+            .collect::<Vec<_>>();
+        let tensor_window = tensor_window
+            .into_iter()
+            .map(|window| window.build(&mut tensor_u64_entries, &mut tensor_flag_entries))
+            .collect::<Vec<_>>();
+        let tensor_gather = tensor_gather
+            .into_iter()
+            .map(|dimensions| dimensions.build(&mut u32_entries))
+            .collect::<Vec<_>>();
+        let tensor_scatter = tensor_scatter
+            .into_iter()
+            .map(|dimensions| dimensions.build(&mut u32_entries))
+            .collect::<Vec<_>>();
+        let tensor_layout = tensor_layout
+            .into_iter()
+            .map(|layout| layout.build(&mut tensor_u64_entries))
+            .collect::<Vec<_>>();
+        let signature = signature
+            .into_iter()
+            .map(|signature| FunctionSignature {
+                parameters: signature_parameters.append(signature.parameters),
+                result: signature.result,
+            })
+            .collect::<Vec<_>>();
+
         SideTable {
-            record: Box::new(record.finish()),
-            allocation_plan: allocation_plan.into_boxed_slice(),
-            small_allocation_plan: small_allocation_plan.into_boxed_slice(),
-            constant: constant.into_boxed_slice(),
-            projection: projection.into_boxed_slice(),
-            slice_projection: slice_projection.into_boxed_slice(),
-            check: check.into_boxed_slice(),
-            switch_cases: switch_cases.into_boxed_slice(),
-            switch_table: switch_table.into_boxed_slice(),
-            edge: edge.into_boxed_slice(),
-            u32_ranges: u32_ranges.into_boxed_slice(),
-            tensor_dot: tensor_dot.into_boxed_slice(),
-            tensor_convolution: tensor_convolution.into_boxed_slice(),
-            tensor_window: tensor_window.into_boxed_slice(),
-            tensor_gather: tensor_gather.into_boxed_slice(),
-            tensor_scatter: tensor_scatter.into_boxed_slice(),
-            tensor_layout: tensor_layout.into_boxed_slice(),
-            signature: signature.into_boxed_slice(),
+            record: record.pack(sections),
+            allocation_plan: sections.insert(allocation_plan),
+            small_allocation_plan: sections.insert(small_allocation_plan),
+            constant: sections.insert(constant),
+            constant_bytes: sections.insert(constant_bytes.into_entries()),
+            projection: sections.insert(projection),
+            slice_projection: sections.insert(slice_projection),
+            check: sections.insert(check),
+            switch_cases: sections.insert(switch_cases),
+            switch_case_entries: sections.insert(switch_case_entries.into_entries()),
+            switch_table: sections.insert(switch_table),
+            edge: sections.insert(edge),
+            u32_ranges: sections.insert(u32_ranges),
+            u32_entries: sections.insert(u32_entries.into_entries()),
+            tensor_u64_entries: sections.insert(tensor_u64_entries.into_entries()),
+            tensor_flag_entries: sections.insert(tensor_flag_entries.into_entries()),
+            tensor_dot: sections.insert(tensor_dot),
+            tensor_convolution: sections.insert(tensor_convolution),
+            tensor_window: sections.insert(tensor_window),
+            tensor_gather: sections.insert(tensor_gather),
+            tensor_scatter: sections.insert(tensor_scatter),
+            tensor_layout: sections.insert(tensor_layout),
+            signature: sections.insert(signature),
+            signature_parameters: sections.insert(signature_parameters.into_entries()),
         }
     }
 
@@ -473,7 +736,7 @@ impl SideTableBuilder {
     }
 
     /// Add one dense switch table to the side table.
-    pub fn push_switch_table(&mut self, table: SwitchTable) -> SwitchTableId {
+    pub fn push_switch_table(&mut self, table: SwitchTableBuilder) -> SwitchTableId {
         let id = self.switch_table.len() as u32;
         self.switch_table.push(table);
 
@@ -508,7 +771,7 @@ impl SideTableBuilder {
     }
 
     /// Add one constant to the side table.
-    pub fn push_constant(&mut self, constant: ConstValue) -> ConstValueId {
+    pub fn push_constant(&mut self, constant: ConstValueBuilder) -> ConstValueId {
         let id = self.constant.len() as u32;
         self.constant.push(constant);
 
@@ -540,7 +803,7 @@ impl SideTableBuilder {
     }
 
     /// Add one tensor dot descriptor to the side table.
-    pub fn push_tensor_dot(&mut self, dimensions: TensorDotDimensionNumbers) -> TensorDotId {
+    pub fn push_tensor_dot(&mut self, dimensions: TensorDotDimensionsBuilder) -> TensorDotId {
         let id = self.tensor_dot.len() as u32;
         self.tensor_dot.push(dimensions);
 
@@ -550,7 +813,7 @@ impl SideTableBuilder {
     /// Add one tensor convolution dimension descriptor to the side table.
     pub fn push_tensor_convolution(
         &mut self,
-        dimensions: TensorConvolutionDimensionNumbers,
+        dimensions: TensorConvolutionDimensionsBuilder,
     ) -> TensorConvolutionId {
         let id = self.tensor_convolution.len() as u32;
         self.tensor_convolution.push(dimensions);
@@ -559,7 +822,7 @@ impl SideTableBuilder {
     }
 
     /// Add one tensor convolution window descriptor to the side table.
-    pub fn push_tensor_window(&mut self, window: TensorConvolutionWindow) -> TensorWindowId {
+    pub fn push_tensor_window(&mut self, window: TensorConvolutionWindowBuilder) -> TensorWindowId {
         let id = self.tensor_window.len() as u32;
         self.tensor_window.push(window);
 
@@ -569,7 +832,7 @@ impl SideTableBuilder {
     /// Add one tensor gather descriptor to the side table.
     pub fn push_tensor_gather(
         &mut self,
-        dimensions: TensorGatherDimensionNumbers,
+        dimensions: TensorGatherDimensionsBuilder,
     ) -> TensorGatherId {
         let id = self.tensor_gather.len() as u32;
         self.tensor_gather.push(dimensions);
@@ -580,7 +843,7 @@ impl SideTableBuilder {
     /// Add one tensor scatter descriptor to the side table.
     pub fn push_tensor_scatter(
         &mut self,
-        dimensions: TensorScatterDimensionNumbers,
+        dimensions: TensorScatterDimensionsBuilder,
     ) -> TensorScatterId {
         let id = self.tensor_scatter.len() as u32;
         self.tensor_scatter.push(dimensions);
@@ -589,7 +852,7 @@ impl SideTableBuilder {
     }
 
     /// Add one tensor layout to the side table.
-    pub fn push_tensor_layout(&mut self, layout: TensorLayout) -> TensorLayoutId {
+    pub fn push_tensor_layout(&mut self, layout: TensorLayoutBuilder) -> TensorLayoutId {
         if let Some(id) = self
             .tensor_layout
             .iter()
@@ -624,106 +887,245 @@ impl SideTableBuilder {
 impl SideTable {
     /// Borrow one pooled u32 slice.
     #[inline(always)]
-    pub fn u32_range(&self, id: U32RangeId) -> &[u32] {
-        &self.u32_ranges[id.0 as usize]
+    pub fn u32_range<'a>(&self, sections: SectionImage<'a>, id: U32RangeId) -> &'a [u32] {
+        let range = sections.entries(self.u32_ranges)[id.0 as usize];
+
+        sections.range(self.u32_entries, range)
     }
 
-    /// Borrow one tensor dot descriptor.
+    /// Borrow one tensor u32 entry range.
     #[inline(always)]
-    pub fn tensor_dot(&self, id: TensorDotId) -> &TensorDotDimensionNumbers {
-        &self.tensor_dot[id.0 as usize]
+    pub fn tensor_u32_range<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        range: EntryRange<u32>,
+    ) -> &'a [u32] {
+        sections.range(self.u32_entries, range)
     }
 
-    /// Borrow one tensor convolution dimension descriptor.
+    /// Borrow one tensor u64 entry range.
+    #[inline(always)]
+    pub fn tensor_u64_range<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        range: EntryRange<u64>,
+    ) -> &'a [u64] {
+        sections.range(self.tensor_u64_entries, range)
+    }
+
+    /// Borrow one tensor flag entry range.
+    #[inline(always)]
+    pub fn tensor_flag_range<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        range: EntryRange<u8>,
+    ) -> &'a [u8] {
+        sections.range(self.tensor_flag_entries, range)
+    }
+
+    /// Return one tensor dot descriptor.
+    #[inline(always)]
+    pub fn tensor_dot(&self, sections: SectionImage<'_>, id: TensorDotId) -> TensorDotDimensions {
+        sections.entries(self.tensor_dot)[id.0 as usize]
+    }
+
+    /// Return one tensor convolution dimension descriptor.
     #[inline(always)]
     pub fn tensor_convolution(
         &self,
+        sections: SectionImage<'_>,
         id: TensorConvolutionId,
-    ) -> &TensorConvolutionDimensionNumbers {
-        &self.tensor_convolution[id.0 as usize]
+    ) -> TensorConvolutionDimensions {
+        sections.entries(self.tensor_convolution)[id.0 as usize]
     }
 
-    /// Borrow one tensor convolution window descriptor.
+    /// Return one tensor convolution window descriptor.
     #[inline(always)]
-    pub fn tensor_window(&self, id: TensorWindowId) -> &TensorConvolutionWindow {
-        &self.tensor_window[id.0 as usize]
+    pub fn tensor_window(
+        &self,
+        sections: SectionImage<'_>,
+        id: TensorWindowId,
+    ) -> TensorConvolutionWindow {
+        sections.entries(self.tensor_window)[id.0 as usize]
     }
 
-    /// Borrow one tensor gather descriptor.
+    /// Return one tensor gather descriptor.
     #[inline(always)]
-    pub fn tensor_gather(&self, id: TensorGatherId) -> &TensorGatherDimensionNumbers {
-        &self.tensor_gather[id.0 as usize]
+    pub fn tensor_gather(
+        &self,
+        sections: SectionImage<'_>,
+        id: TensorGatherId,
+    ) -> TensorGatherDimensions {
+        sections.entries(self.tensor_gather)[id.0 as usize]
     }
 
-    /// Borrow one tensor scatter descriptor.
+    /// Return one tensor scatter descriptor.
     #[inline(always)]
-    pub fn tensor_scatter(&self, id: TensorScatterId) -> &TensorScatterDimensionNumbers {
-        &self.tensor_scatter[id.0 as usize]
+    pub fn tensor_scatter(
+        &self,
+        sections: SectionImage<'_>,
+        id: TensorScatterId,
+    ) -> TensorScatterDimensions {
+        sections.entries(self.tensor_scatter)[id.0 as usize]
     }
 
     /// Borrow one pooled tensor layout.
     #[inline(always)]
-    pub fn tensor_layout(&self, id: TensorLayoutId) -> &TensorLayout {
-        &self.tensor_layout[id.0 as usize]
+    pub fn tensor_layout<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        id: TensorLayoutId,
+    ) -> TensorLayoutView<'a> {
+        let layout = sections.entries(self.tensor_layout)[id.0 as usize];
+
+        TensorLayoutView {
+            entry: layout,
+            shape: sections.range(self.tensor_u64_entries, layout.shape),
+            strides: sections.range(self.tensor_u64_entries, layout.strides),
+        }
     }
 
-    /// Borrow one pooled callable signature.
+    /// Return one pooled callable signature.
     #[inline(always)]
-    pub fn signature(&self, id: SignatureId) -> &Signature {
-        &self.signature[id.0 as usize]
+    pub fn signature(&self, sections: SectionImage<'_>, id: SignatureId) -> FunctionSignature {
+        sections.entries(self.signature)[id.0 as usize]
     }
 
-    /// Borrow one pooled allocation plan.
+    /// Borrow one pooled callable signature parameter slice.
     #[inline(always)]
-    pub fn allocation_plan(&self, id: AllocationPlanId) -> &AllocationPlan {
-        &self.allocation_plan[id.0 as usize]
+    pub fn signature_parameters<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        signature: FunctionSignature,
+    ) -> &'a [TypeId] {
+        sections.range(self.signature_parameters, signature.parameters)
     }
 
-    /// Borrow one pooled small allocation plan.
+    /// Return one pooled allocation plan.
     #[inline(always)]
-    pub fn small_allocation_plan(&self, id: SmallAllocationPlanId) -> &SmallAllocationPlan {
-        &self.small_allocation_plan[id.0 as usize]
+    pub fn allocation_plan(
+        &self,
+        sections: SectionImage<'_>,
+        id: AllocationPlanId,
+    ) -> AllocationPlan {
+        sections.entries(self.allocation_plan)[id.0 as usize]
     }
 
-    /// Borrow one pooled constant.
+    /// Return one pooled small allocation plan.
     #[inline(always)]
-    pub fn constant(&self, id: ConstValueId) -> &ConstValue {
-        &self.constant[id.0 as usize]
+    pub fn small_allocation_plan(
+        &self,
+        sections: SectionImage<'_>,
+        id: SmallAllocationPlanId,
+    ) -> SmallAllocationPlan {
+        sections.entries(self.small_allocation_plan)[id.0 as usize]
     }
 
-    /// Borrow one pooled address projection.
+    /// Return one pooled constant.
     #[inline(always)]
-    pub fn projection(&self, id: ProjectionId) -> &Projection {
-        &self.projection[id.0 as usize]
+    pub fn constant(&self, sections: SectionImage<'_>, id: ConstValueId) -> ConstValue {
+        sections.entries(self.constant)[id.0 as usize]
     }
 
-    /// Borrow one pooled slice projection.
+    /// Borrow one pooled constant byte range.
     #[inline(always)]
-    pub fn slice_projection(&self, id: SliceProjectionId) -> &SliceProjection {
-        &self.slice_projection[id.0 as usize]
+    pub fn constant_bytes<'a>(&self, sections: SectionImage<'a>, constant: ConstValue) -> &'a [u8] {
+        sections.range(self.constant_bytes, constant.bytes)
     }
 
-    /// Borrow one pooled check constraint.
+    /// Return one pooled address projection.
     #[inline(always)]
-    pub fn check(&self, id: CheckId) -> &Check {
-        &self.check[id.0 as usize]
+    pub fn projection(&self, sections: SectionImage<'_>, id: ProjectionId) -> Projection {
+        sections.entries(self.projection)[id.0 as usize]
+    }
+
+    /// Return one pooled slice projection.
+    #[inline(always)]
+    pub fn slice_projection(
+        &self,
+        sections: SectionImage<'_>,
+        id: SliceProjectionId,
+    ) -> SliceProjection {
+        sections.entries(self.slice_projection)[id.0 as usize]
+    }
+
+    /// Return one pooled check constraint.
+    #[inline(always)]
+    pub fn check(&self, sections: SectionImage<'_>, id: CheckId) -> Check {
+        sections.entries(self.check)[id.0 as usize]
     }
 
     /// Borrow one pooled switch case table.
     #[inline(always)]
-    pub fn switch_cases(&self, id: SwitchCasesId) -> &[SwitchCase] {
-        &self.switch_cases[id.0 as usize]
+    pub fn switch_cases<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        id: SwitchCasesId,
+    ) -> &'a [SwitchCase] {
+        let range = sections.entries(self.switch_cases)[id.0 as usize];
+
+        sections.range(self.switch_case_entries, range)
     }
 
-    /// Borrow one pooled dense switch table.
+    /// Return one pooled dense switch table.
     #[inline(always)]
-    pub fn switch_table(&self, id: SwitchTableId) -> &SwitchTable {
-        &self.switch_table[id.0 as usize]
+    pub fn switch_table(&self, sections: SectionImage<'_>, id: SwitchTableId) -> SwitchTable {
+        sections.entries(self.switch_table)[id.0 as usize]
+    }
+
+    /// Borrow one pooled dense switch table's cases.
+    #[inline(always)]
+    pub fn switch_table_cases<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        table: SwitchTable,
+    ) -> &'a [SwitchCase] {
+        sections.range(self.switch_case_entries, table.cases)
     }
 
     /// Return one pooled control edge.
     #[inline(always)]
-    pub fn edge(&self, id: EdgeId) -> Edge {
-        self.edge[id.0 as usize]
+    pub fn edge(&self, sections: SectionImage<'_>, id: EdgeId) -> Edge {
+        sections.entries(self.edge)[id.0 as usize]
     }
 }
+
+impl SwitchTableBuilder {
+    /// Build this switch table into one section entry.
+    fn build(self, cases: &mut EntryStore<SwitchCase>) -> SwitchTable {
+        SwitchTable {
+            min: self.min,
+            cases: cases.append(self.cases),
+        }
+    }
+}
+
+// SAFETY: side-table ids are fixed-width VM entry scalars.
+unsafe impl SectionEntry for CheckId {}
+unsafe impl SectionEntry for SwitchCasesId {}
+unsafe impl SectionEntry for SwitchTableId {}
+unsafe impl SectionEntry for EdgeId {}
+unsafe impl SectionEntry for AllocationPlanId {}
+unsafe impl SectionEntry for SmallAllocationPlanId {}
+unsafe impl SectionEntry for ConstValueId {}
+unsafe impl SectionEntry for ProjectionId {}
+unsafe impl SectionEntry for SliceProjectionId {}
+unsafe impl SectionEntry for U32RangeId {}
+unsafe impl SectionEntry for TensorDotId {}
+unsafe impl SectionEntry for TensorConvolutionId {}
+unsafe impl SectionEntry for TensorWindowId {}
+unsafe impl SectionEntry for TensorGatherId {}
+unsafe impl SectionEntry for TensorScatterId {}
+unsafe impl SectionEntry for TensorLayoutId {}
+unsafe impl SectionEntry for SignatureId {}
+
+// SAFETY: side-table entries contain only fixed-width VM entry values.
+unsafe impl SectionEntry for Check {}
+unsafe impl SectionEntry for CheckKind {}
+unsafe impl SectionEntry for BoundsCheck {}
+unsafe impl SectionEntry for ShiftRangeCheck {}
+unsafe impl SectionEntry for NarrowCheck {}
+unsafe impl SectionEntry for VariantCheck {}
+unsafe impl SectionEntry for OverflowCheck {}
+unsafe impl SectionEntry for Edge {}
+unsafe impl SectionEntry for SwitchTable {}

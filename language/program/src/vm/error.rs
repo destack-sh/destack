@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::FunctionId;
+use crate::{FunctionId, Signature};
 
 /// VM program record result.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -11,6 +11,15 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     /// Type mismatch while building or decoding a VM program.
     TypeMismatch { expected: String, actual: String },
+    /// Function call signature does not match the target function.
+    FunctionSignatureMismatch {
+        /// The target function.
+        function: FunctionId,
+        /// Expected call signature.
+        expected: Signature,
+        /// Actual function signature.
+        actual: Signature,
+    },
     /// Invalid VM instruction encoding.
     InvalidInstruction,
     /// Invalid VM cast encoding.
@@ -40,6 +49,19 @@ impl Error {
         Self::TypeMismatch {
             expected: expected.into(),
             actual: actual.into(),
+        }
+    }
+
+    /// Return one function signature mismatch error.
+    pub fn function_signature_mismatch(
+        function: FunctionId,
+        expected: Signature,
+        actual: Signature,
+    ) -> Self {
+        Self::FunctionSignatureMismatch {
+            function,
+            expected,
+            actual,
         }
     }
 
