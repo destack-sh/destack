@@ -71,3 +71,27 @@ const isEdge = match (value) {
     _ => false
 };
 ```
+
+## comments
+
+### range pattern boundary comments
+
+Comments around range pattern operators keep readable operator boundaries.
+
+```ds
+const label = match (value) {
+    0 /* min */ ..= /* max */ 10 => "small"
+    MIN /* low */ .. /* high */ MAX => "symbolic"
+    20 .. /* open */ => "large"
+    _ => "other"
+}
+```
+
+```ds expected
+const label = match (value) {
+    0 /* min */ ..= /* max */ 10 => "small"
+    MIN /* low */ .. /* high */ MAX => "symbolic"
+    20 .. /* open */ => "large"
+    _ => "other"
+};
+```

@@ -43,3 +43,25 @@ const window = start + 1..end * 2;
 const nested = (1..4) + count;
 const negative = -3..3;
 ```
+
+### range boundary comments
+
+Comments around range operators keep readable operator boundaries.
+
+```ds
+const window = start /* start */ .. /* end */ end
+const inclusive = 0 /* min */ ..= /* max */ 255
+const from = start /* start */ ..
+const fromCommented = start .. /* open */
+const to = .. /* end */ end
+const full = .. /* all */
+```
+
+```ds expected
+const window = start /* start */ .. /* end */ end;
+const inclusive = 0 /* min */ ..= /* max */ 255;
+const from = start /* start */ ..;
+const fromCommented = start .. /* open */;
+const to = .. /* end */ end;
+const full = .. /* all */;
+```
