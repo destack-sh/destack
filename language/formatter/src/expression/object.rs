@@ -548,8 +548,12 @@ fn struct_literal_layout(
     let keep_newline =
         has_leading_newline_before_first_property || (has_newline_in_source && in_type_context);
     let property_has_newline = properties_have_newline(f.context(), properties_ids);
-    let comment_tokens = f.context().comment_tokens();
-    let has_ignore_ranges = any_ignore_range_for_nodes(f.context(), properties_ids, comment_tokens);
+    let has_ignore_ranges = if f.context().has_ignore_directive_markers() {
+        let comment_tokens = f.context().comment_tokens();
+        any_ignore_range_for_nodes(f.context(), properties_ids, comment_tokens)
+    } else {
+        false
+    };
     let has_comments = properties_ids.iter().any(|property_id| {
         let property_span = f.context().span(*property_id);
         !f.context()

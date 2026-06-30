@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use destack_dir::{LocalNodeId, Node, TokenSpan, TokenType, Tree, TreeStore};
+use destack_dir::{LocalNodeId, Node, TokenSpan, Tree, TreeStore};
 use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
@@ -163,16 +163,10 @@ fn comment_token_is_line_leading(ctx: &DestackFormatContext<'_>, token: TokenSpa
 
 /// Return whether a trailing ignore gap contains only separators.
 fn trailing_ignore_gap_is_allowed(ctx: &DestackFormatContext<'_>, span: Span) -> bool {
-    ctx.all_tokens()
+    ctx.source_text()
+        .bytes_range(span.start, span.end)
         .iter()
-        .copied()
-        .filter(|token| token.span.intersects(span))
-        .all(|token| {
-            matches!(
-                token.token.ty(),
-                TokenType::Whitespace | TokenType::Semicolon | TokenType::Comma
-            )
-        })
+        .all(|byte| matches!(*byte, b' ' | b'\t' | b'\r' | b'\n' | b';' | b','))
 }
 
 /// Return one same-line trailing ignore directive token for a node span.
@@ -209,6 +203,10 @@ pub fn node_has_trailing_ignore_directive<T: Node + Clone>(
 where
     Tree: TreeStore<T>,
 {
+    if !ctx.has_ignore_directive_markers() {
+        return false;
+    }
+
     let node_span = ignore_target_span(ctx, node_id);
     let comment_tokens = ctx.comment_tokens();
 
@@ -223,6 +221,10 @@ pub fn node_has_trailing_line_ignore_directive<T: Node + Clone>(
 where
     Tree: TreeStore<T>,
 {
+    if !ctx.has_ignore_directive_markers() {
+        return false;
+    }
+
     let node_span = ignore_target_span(ctx, node_id);
     let comment_tokens = ctx.comment_tokens();
 
@@ -377,28 +379,23 @@ pub fn has_file_ignore_directive(ctx: &DestackFormatContext<'_>) -> bool {
         return false;
     }
 
-    for token in ctx.all_tokens().iter().copied() {
-        match token.token.ty() {
-            TokenType::Whitespace | TokenType::Newline => {
-                continue;
-            }
-            TokenType::LineComment
-            | TokenType::BlockComment
-            | TokenType::DocLineComment
-            | TokenType::DocBlockComment => {
-                if matches!(
-                    directive_token_for_comment_token(ctx, token),
-                    Some(IgnoreDirective::IgnoreFile)
-                ) {
-                    return true;
-                }
-                continue;
-            }
-            _ => return false,
-        }
+    let Some(first_comment) = ctx.comment_tokens().first().copied() else {
+        return false;
+    };
+
+    if !ctx
+        .source_text()
+        .all_bytes_match(0, first_comment.span.start, |byte| {
+            byte.is_ascii_whitespace()
+        })
+    {
+        return false;
     }
 
-    false
+    matches!(
+        directive_token_for_comment_token(ctx, first_comment),
+        Some(IgnoreDirective::IgnoreFile)
+    )
 }
 
 /// Extract the source for an ignored span.

@@ -814,31 +814,31 @@ fn union_should_hug(
         return true;
     }
 
-    let has_object_type = elements.iter().copied().any(|element_id| {
-        matches!(
-            f.context().tree.get(element_id),
-            TypeExpression::Object { .. } | TypeExpression::Reference { .. }
-        )
-    });
+    let mut has_object_type = false;
+    let mut non_nullish_count = 0usize;
 
-    if !has_object_type {
-        return false;
+    // find the single non-nullish arm required by the hugging policy
+    for element_id in elements.iter().copied() {
+        match f.context().tree.get(element_id) {
+            TypeExpression::Literal {
+                value: TypeLiteral::Void | TypeLiteral::Null,
+            } => {}
+            TypeExpression::Object { .. } | TypeExpression::Reference { .. } => {
+                has_object_type = true;
+                non_nullish_count += 1;
+            }
+            _ => {
+                non_nullish_count += 1;
+            }
+        }
+
+        if non_nullish_count > 1 {
+            return false;
+        }
     }
 
-    let nullish_count = elements
-        .iter()
-        .copied()
-        .filter(|element_id| {
-            matches!(
-                f.context().tree.get(*element_id),
-                TypeExpression::Literal {
-                    value: TypeLiteral::Void | TypeLiteral::Null,
-                }
-            )
-        })
-        .count();
-
-    if elements.len() - 1 != nullish_count {
+    // reject pure nullish unions
+    if !has_object_type {
         return false;
     }
 
@@ -2408,8 +2408,12 @@ pub(crate) fn format_type_member_block_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     members: &[LocalNodeId<TypeMember>],
 ) -> FormatResult<()> {
-    let comment_tokens = f.context().comment_tokens();
-    let ignore_ranges = ignore_ranges_for_nodes(f.context(), members, comment_tokens);
+    let ignore_ranges = if f.context().has_ignore_directive_markers() {
+        let comment_tokens = f.context().comment_tokens();
+        ignore_ranges_for_nodes(f.context(), members, comment_tokens)
+    } else {
+        std::collections::HashMap::new()
+    };
     let entries = FormatSeparatedIter::new(members.iter().copied(), ";")
         .with_trailing_separator(TrailingSeparator::Allowed);
     let mut skip_until = None;
