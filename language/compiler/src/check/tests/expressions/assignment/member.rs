@@ -31,7 +31,7 @@ state.count = 1;
 /// @resolution.pattern.assign source=state.count kind=place place=field(count) type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=6 constraints=1 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=6 constraints=2 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error code=EC214 message="cannot assign to readonly member 'count'"
