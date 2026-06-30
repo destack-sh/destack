@@ -90,7 +90,8 @@ fn add_type_alias_row(
             "template",
             definition.template.map(|template| format!("{template:?}")),
         )
-        .type_field("value", builder.global_type_label(definition.value));
+        .type_field("value", builder.global_type_label(definition.value))
+        .optional_type_field("reduced", builder.reduced_type_label(definition.value));
 
     builder.push(row);
 }
