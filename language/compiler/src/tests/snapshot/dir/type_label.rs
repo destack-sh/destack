@@ -303,6 +303,11 @@ impl DirSnapshotBuilder<'_> {
 
                 format!("{left}[{index}]")
             }
+            dir::TypeOperation::TypeOf(query) => {
+                let value = self.reference_source_label(query.value);
+
+                format!("typeof {value}")
+            }
             dir::TypeOperation::TemplateLiteral(template) => {
                 self.template_type_label(types, template)
             }
@@ -534,7 +539,11 @@ impl DirSnapshotBuilder<'_> {
         element: &dir::TypeElement,
     ) -> String {
         // render element modifiers independently
-        let ty = self.type_id_label(types, element.ty);
+        let ty = if element.is_rest {
+            self.rest_type_label(types, element.ty)
+        } else {
+            self.type_id_label(types, element.ty)
+        };
         let label = element
             .label
             .map(|label| format!("{}: ", self.strings.get(label)))
@@ -544,6 +553,22 @@ impl DirSnapshotBuilder<'_> {
         let optional = if element.is_optional { "?" } else { "" };
 
         format!("{readonly}{rest}{label}{ty}{optional}")
+    }
+
+    /// Return one rest tuple element type label.
+    fn rest_type_label(&self, types: &dir::TypeTable<'_>, ty: dir::GlobalTypeId) -> String {
+        if ty.module_id != types.module_id {
+            return self.global_type_label(ty);
+        }
+
+        match types.get_type(ty.local_id) {
+            dir::Type::Array(array) => {
+                let element = self.type_id_label(types, array.element);
+
+                format!("{element}[]")
+            }
+            _ => self.type_id_label(types, ty),
+        }
     }
 
     /// Return one shape type label.
@@ -720,7 +745,12 @@ impl DirSnapshotBuilder<'_> {
         if parameter.is_rest {
             label.push_str("...");
         }
-        label.push_str(&self.type_id_label(types, parameter.ty));
+        let ty = if parameter.is_rest {
+            self.rest_type_label(types, parameter.ty)
+        } else {
+            self.type_id_label(types, parameter.ty)
+        };
+        label.push_str(&ty);
 
         label
     }
