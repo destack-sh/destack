@@ -4,7 +4,6 @@ use super::child::{
     tree_child_should_inline_braced_expression, tree_control_child_should_expand,
     tree_expression_contains_callback_break,
 };
-use super::expression_source_extent_end;
 use crate::annotation::{
     FormatTrailingComments, format_trailing_comments, infix_or_postfix_annotations,
     prefix_annotations, prefix_annotations_after_offset, prefix_annotations_before_offset,
@@ -137,7 +136,7 @@ fn write_tree_expression_child<'ast>(
 ) -> FormatResult<bool> {
     let value_expr = f.context().tree.get(value);
     let child_span = f.context().span(child_id);
-    let value_end = expression_source_extent_end(f.context(), value);
+    let value_end = f.context().tree.get_source_extent(value).end;
     let has_callback_break = tree_expression_contains_callback_break(f.context(), value);
 
     let trailing_comments = |f: &DestackFormatter<'ast, '_>| {

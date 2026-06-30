@@ -41,6 +41,7 @@ pub(crate) use self::statement::{
 };
 pub(crate) use self::ternary::{
     argument_value, format_expanded_ternary_expression, jsx_chain_ternary_needs_expanded_branches,
+    ternary_branch_trailing_comments,
 };
 pub(crate) use self::r#type::{format_type_member_block_list, write_type_expression_node};
 pub(crate) use super::operator::{

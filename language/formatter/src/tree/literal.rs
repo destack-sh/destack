@@ -2,10 +2,11 @@ use super::text::{
     format_tree_children_inline_fill, tree_child_allows_trailing_inline_punctuation,
     tree_text_is_inline_punctuation, write_tree_text_words,
 };
-use crate::annotation::{FormatTrailingComments, block_infix_annotations, format_leading_comments};
+use crate::annotation::{block_infix_annotations, format_leading_comments, write_comment_slice};
 use crate::chain::{argument_value_id_if_present, transparent_inner_expression};
 use crate::context::PreparedFormat;
 use crate::declaration::expression_is_in_statement_context;
+use crate::expression::ternary_branch_trailing_comments;
 use crate::tree::{
     FormatTreeOpeningElement, should_force_break_tree_attributes, tree_child_breaks_element,
     tree_children_have_blank_line_between, tree_text_child_text, tree_text_is_whitespace_only,
@@ -13,7 +14,7 @@ use crate::tree::{
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
-    Argument, Declaration, Expression, FunctionForm, GenericArgument, IfForm, LocalNodeId,
+    Argument, Comment, Declaration, Expression, FunctionForm, GenericArgument, IfForm, LocalNodeId,
     NodeType, ScalarLiteral, Tree, TreeAttribute, TreeChild,
 };
 use destack_fir::format::{Buffer, FormatResult};
@@ -23,6 +24,7 @@ use destack_fir::prelude::{
 };
 use destack_fir::write;
 use destack_source::Span;
+use smallvec::SmallVec;
 
 /// Return the value expression id for one tree child.
 fn tree_child_value_id(
@@ -579,86 +581,17 @@ fn tree_literal_should_expand_in_parent(
     }
 }
 
-/// Return the source span for the rendered tag body.
-fn tree_literal_tag_span(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> Span {
-    context
-        .tree
-        .get_head_span(node_id)
-        .unwrap_or_else(|| context.span(node_id))
-}
-
-/// Return whether conditional branch trailing comments were written for one tree literal.
-pub(crate) fn tree_literal_uses_conditional_trailing_comments(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent_by_id(node_id.id) else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_id = LocalNodeId::<Expression>::new(parent_id);
-    let Expression::If {
-        form: IfForm::Ternary,
-        then_expression,
-        else_expression,
-        ..
-    } = context.tree.get(parent_id)
-    else {
-        return false;
-    };
-
-    *then_expression == node_id || else_expression.as_ref().is_some_and(|id| *id == node_id)
-}
-
-/// Return whether conditional branch trailing comments were written for one tree literal.
-fn write_tree_literal_conditional_trailing_comments<'ast>(
+/// Write ternary branch trailing comments attached to one tree literal.
+fn write_tree_literal_ternary_branch_trailing_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<bool> {
-    if !tree_literal_uses_conditional_trailing_comments(f.context(), node_id) {
-        return Ok(false);
-    }
-
-    let Some((parent_id, _)) = f.context().parent_by_id(node_id.id) else {
-        return Ok(false);
-    };
-    let parent_id = LocalNodeId::<Expression>::new(parent_id);
-    let Expression::If {
-        then_expression,
-        else_expression,
-        ..
-    } = f.context().tree.get(parent_id)
-    else {
+    let Some((_, comments)) = ternary_branch_trailing_comments(f.context(), node_id) else {
         return Ok(false);
     };
 
-    // alternate branch interior
-    let comments = if else_expression
-        .as_ref()
-        .is_some_and(|else_expression| *else_expression == node_id)
-    {
-        let parent_span = f.context().span(parent_id);
-        f.context().comments().comments_before(parent_span.end)
-    }
-    // consequent line suffix
-    else if *then_expression == node_id {
-        let node_span = tree_literal_tag_span(f.context(), node_id);
-        f.context()
-            .comments()
-            .end_of_line_comments_after(node_span.end)
-    }
-    // other branch positions use default trailing comments
-    else {
-        return Ok(false);
-    };
-
-    write!(f, [FormatTrailingComments::Comments(comments)])?;
+    let comments: SmallVec<[Comment; 2]> = comments.iter().copied().collect();
+    write_comment_slice(f, comments.as_slice())?;
 
     Ok(true)
 }
@@ -668,7 +601,7 @@ fn write_tree_literal_trailing_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    if write_tree_literal_conditional_trailing_comments(f, node_id)? {
+    if write_tree_literal_ternary_branch_trailing_comments(f, node_id)? {
         return Ok(());
     }
 

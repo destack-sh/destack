@@ -138,8 +138,8 @@ const node = (
             isVideo ? (
                 <Video />
             ) : (
-                <Image />
-            ) // eslint-disable-line
+                <Image /> // eslint-disable-line
+            )
         }
     </div>
 );
@@ -194,7 +194,7 @@ const node = (
 ```
 
 ```tsx expected
-const node = <div>{isVideo ? <Video /> : /* video-comment */ <Image /> /* image-comment */}</div>;
+const node = <div>{isVideo ? <Video /> /* video-comment */ : <Image /> /* image-comment */}</div>;
 ```
 
 ### ternary alternate trailing line comment
@@ -233,13 +233,11 @@ const node = <div>{isVideo ? <Video /> /* keep-video */ : <Image /> /* keep-imag
 ```tsx expected
 const node = (
     <div>
-        {
-            isVideo ? (
-                <Video />
-            ) : (
-                /* keep-video */ <Image />
-            ) /* keep-image */
-        }
+        {isVideo ? (
+            <Video /> /* keep-video */
+        ) : (
+            <Image /> /* keep-image */
+        )}
     </div>
 );
 ```

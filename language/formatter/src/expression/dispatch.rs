@@ -1,3 +1,4 @@
+use super::ternary::expression_is_ternary_branch;
 use crate::annotation::{format_leading_comments, format_trailing_comments, prefix_annotations};
 use crate::context::FormatNodeWithoutTrailingComments;
 use crate::expression::{
@@ -6,7 +7,6 @@ use crate::expression::{
 };
 use crate::file::{node_has_ignore_directive, write_ignored_node};
 use crate::operator::{format_operator_expression, write_operator_expression_trailing_annotations};
-use crate::tree::tree_literal_uses_conditional_trailing_comments;
 use crate::{DestackFormatter, FormatNode};
 use destack_dir::{Expression, LocalNodeId};
 use destack_fir::format::{Buffer, FormatResult};
@@ -162,11 +162,10 @@ fn write_expression_trailing_node_annotations<'ast>(
         .unwrap_or(expression_span);
     let following_span_start = f.context().following_span_start();
 
-    let has_tree_literal_owned_trailing_comments =
-        matches!(expression, Expression::TreeExpression { .. })
-            && tree_literal_uses_conditional_trailing_comments(f.context(), expression_id);
+    let is_tree_literal_ternary_branch = matches!(expression, Expression::TreeExpression { .. })
+        && expression_is_ternary_branch(f.context(), expression_id);
 
-    if !has_tree_literal_owned_trailing_comments {
+    if !is_tree_literal_ternary_branch {
         write!(
             f,
             [format_trailing_comments(
