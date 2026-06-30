@@ -30,6 +30,20 @@ impl StaticGate {
 }
 
 impl WalkState<'_, '_> {
+    /// Return the static key named by one key.
+    pub(in crate::check) fn static_key(
+        &self,
+        key: dir::Key,
+    ) -> CompilerResult<Option<dir::StaticKey>> {
+        match key {
+            dir::Key::Name(name) => Ok(Some(name.static_key())),
+            dir::Key::Private(_) => Ok(None),
+            dir::Key::Expression(expression) => self
+                .check
+                .static_key_from_expression(self.module, expression),
+        }
+    }
+
     /// Decide the static gates attached to one decorated node.
     ///
     /// Example:
@@ -189,11 +203,6 @@ impl WalkState<'_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let node = expression.into_global_any(self.module);
-        if let Some(ty) = self.check.node_type_maybe(node) {
-            return Ok(ty);
-        }
-
         let source = expression.into_any();
 
         // embed eagerly evaluable subtrees as literals, covering profile
@@ -233,7 +242,7 @@ impl WalkState<'_, '_> {
                 } = self.tree.get(*value)
                 {
                     let ty = self.open_variable_type((*value).into_any(), Widening::Preserve)?;
-                    self.write_node_type(*value, ty)?
+                    self.commit_node_type(*value, ty)?
                 } else {
                     self.walk_type_expression(*value)?
                 };
@@ -388,7 +397,7 @@ impl WalkState<'_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = self.write_node_type(expression, ty)?;
+        let ty = self.commit_node_type(expression, ty)?;
         self.complete_node_infer(expression);
 
         Ok(ty)

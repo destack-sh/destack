@@ -48,6 +48,7 @@ impl CheckState<'_> {
         // walk expanded roots
         for root in &expanded.roots {
             walk.walk_expression(*root, tree.get(*root), None)?;
+            walk.queue_node_task(*root)?;
         }
         walk.finish();
 

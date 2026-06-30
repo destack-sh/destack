@@ -30,6 +30,7 @@ impl WalkState<'_, '_> {
             // update flow through reachable expressions
             if is_reachable {
                 self.walk_expression(*expression, self.tree.get(*expression), None)?;
+                self.queue_node_task(*expression)?;
                 is_reachable = self.expression_can_complete_normally(*expression);
             }
             // check unreachable expression in isolated flow
@@ -41,6 +42,7 @@ impl WalkState<'_, '_> {
                 }
                 let before = self.fork_flow();
                 self.walk_expression(*expression, self.tree.get(*expression), None)?;
+                self.queue_node_task(*expression)?;
                 self.restore_flow(before);
             }
         }
@@ -50,6 +52,9 @@ impl WalkState<'_, '_> {
             // update flow through reachable tail
             if is_reachable {
                 self.walk_expression(expression, self.tree.get(expression), expectation)?;
+                if expectation.is_none() {
+                    self.queue_node_task(expression)?;
+                }
             }
             // check unreachable tail in isolated flow
             else {
@@ -59,6 +64,9 @@ impl WalkState<'_, '_> {
                 }
                 let before = self.fork_flow();
                 self.walk_expression(expression, self.tree.get(expression), expectation)?;
+                if expectation.is_none() {
+                    self.queue_node_task(expression)?;
+                }
                 self.restore_flow(before);
             }
         }
@@ -68,7 +76,7 @@ impl WalkState<'_, '_> {
             self.queue_node_task(id)?;
         } else {
             let void = self.push_type(dir::Type::Void, id.into_any())?;
-            self.write_node_type(id, void)?;
+            self.commit_node_type(id, void)?;
         }
 
         Ok(())

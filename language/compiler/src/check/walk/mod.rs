@@ -21,6 +21,7 @@ mod r#type;
 mod visit;
 
 pub(in crate::check) use argument::GenericArgument;
+pub(in crate::check) use function::{FunctionHeader, ParameterType};
 pub(in crate::check) use generic::{GenericInductionDeclaration, GenericInductionPosition};
 pub(in crate::check) use narrow::ConditionBranch;
 pub(in crate::check) use state::*;
