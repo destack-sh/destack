@@ -1,4 +1,5 @@
-use destack_mir::{TraceMap, TraceTable};
+use crate::TraceView;
+use destack_mir::TraceMap;
 use std::borrow::Cow;
 
 use super::storage::block_byte_offset;
@@ -12,10 +13,10 @@ impl HeapStorage {
     pub(crate) fn trace_map(
         &self,
         reference: SharedHeapReference,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<TraceMap> {
         let (extent, _) = self.resolve_range(reference, 0, 0)?;
-        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_table)?;
+        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_view)?;
 
         Ok(trace_map.into_owned())
     }
@@ -26,11 +27,11 @@ impl HeapStorage {
         reference: SharedHeapReference,
         start: usize,
         bytes: &[u8],
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         let (_, byte_offset) = self.resolve_range(reference, start, bytes.len())?;
 
-        self.write_shared_barrier_bytes(reference, byte_offset, bytes, trace_table)
+        self.write_shared_barrier_bytes(reference, byte_offset, bytes, trace_view)
     }
 
     /// Record one shared heap write barrier after one completed byte store.
@@ -39,11 +40,11 @@ impl HeapStorage {
         reference: SharedHeapReference,
         start: usize,
         byte_len: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         let (extent, byte_offset) = self.resolve_range(reference, start, byte_len)?;
 
-        self.publish_extent_edges(extent, byte_offset, byte_len, trace_table)
+        self.publish_extent_edges(extent, byte_offset, byte_len, trace_view)
     }
 
     /// Publish shared edges from one already-resolved byte range.
@@ -52,7 +53,7 @@ impl HeapStorage {
         extent: HeapExtent,
         byte_offset: usize,
         byte_len: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         // inactive collector
         let Some(_publication) = self.gc.begin_mark_publication() else {
@@ -65,7 +66,7 @@ impl HeapStorage {
         }
 
         // scan inserted shared references in mapped heap memory
-        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_table)?;
+        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_view)?;
         let base_address = self.mapping.base_address() + extent.base.offset();
         visit_references::<SharedHeapReference>(
             &trace_map,
@@ -97,12 +98,12 @@ impl HeapStorage {
     pub(crate) fn trace_map_for_place_ref<'a>(
         &self,
         storage: HeapPlace,
-        trace_table: &'a TraceTable,
+        trace_view: TraceView<'a>,
     ) -> HeapResult<Cow<'a, TraceMap>> {
         // dispatch by physical shared heap storage
         match storage {
             HeapPlace::SmallSlot(slot) => {
-                self.small_slot_trace_map_ref(slot.span_index(), slot.slot_index(), trace_table)
+                self.small_slot_trace_map_ref(slot.span_index(), slot.slot_index(), trace_view)
             }
             HeapPlace::LargeBlock(block_id) => {
                 let trace_map = self

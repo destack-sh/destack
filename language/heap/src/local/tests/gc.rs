@@ -1,14 +1,14 @@
 use crate::local::gc::Phase;
 use crate::local::storage::{HeapPlace, HeapStorage};
 use crate::{
-    GcKind, GcOptions, GcProgress, Heap, HeapError, HeapOptions, HeapReference, HeapResult,
-    Payload, PayloadShape, RootSlot, SharedHeapReference, SizeClassTable, TestLayout,
+    AllocationShape, GcKind, GcOptions, GcProgress, Heap, HeapError, HeapOptions, HeapReference,
+    HeapResult, Payload, RootSlot, SharedHeapReference, SizeClassTable, TestLayout, TraceView,
     local_trace_map, shared_trace_map, test_layout, test_layouts, visit_heap_references,
 };
 use destack_mir::{TraceMap, TraceTable};
 
 use super::{
-    TestHeapPlan, owned_allocation_plan, read_mapped_bytes, test_heap, test_storage, trace_table,
+    TestHeapPlan, owned_allocation_plan, read_mapped_bytes, test_heap, test_storage, trace_view,
     write_mapped_bytes,
 };
 
@@ -82,7 +82,7 @@ fn test_collect_minor_promotes_reachable_entries() {
 
     // collect the nursery from the explicit root set
     let stats = heap
-        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_table())
+        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
         .expect("young collection should succeed");
 
     // promote the reachable payload and drop the unreachable payload
@@ -130,7 +130,7 @@ fn test_collect_minor_promotes_reachable_noscan_spans() {
 
     // collect the nursery from the fixed-size span root
     let stats = heap
-        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_table())
+        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
         .expect("young collection should succeed");
 
     // promote the live span slot without freeing anything
@@ -158,8 +158,8 @@ fn test_reserve_local_young_span_uses_exact_trace_cache() {
     let second_trace_id = trace_table.insert(second_map.clone());
     let options = HeapOptions::local();
     let mut heap = test_heap(options);
-    let first_shape = PayloadShape::new(16, 1, Some(first_trace_id), &first_map);
-    let second_shape = PayloadShape::new(16, 1, Some(second_trace_id), &second_map);
+    let first_shape = AllocationShape::new(16, 1, Some(first_trace_id), &first_map);
+    let second_shape = AllocationShape::new(16, 1, Some(second_trace_id), &second_map);
     let first_site = owned_allocation_plan(heap.options(), first_shape);
     let second_site = owned_allocation_plan(heap.options(), second_shape);
 
@@ -194,7 +194,7 @@ fn test_collect_minor_recycles_young_zeroed_bytes() {
     assert!(heap.is_young(reference));
 
     // collect with no roots so the young page can be recycled
-    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_table())
+    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
         .expect("young collection should succeed");
 
     // reuse young space through the zeroed path
@@ -228,7 +228,7 @@ fn test_collect_minor_promotes_reachable_child_entries() {
 
     // collect and rewrite both parent and child references
     let stats = heap
-        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_table())
+        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
         .expect("young collection should succeed");
 
     // promote the reachable graph without freeing anything
@@ -262,7 +262,8 @@ fn test_collect_minor_promotes_table_traced_young_span_slots() {
     let parent_map = local_trace_map(&[0]);
     let mut trace_table = TraceTable::new();
     let parent_trace_id = trace_table.insert(parent_map.clone());
-    let parent_layout = PayloadShape::new(8, 1, Some(parent_trace_id), &parent_map);
+    let trace_view = TraceView::new(trace_table.traces());
+    let parent_layout = AllocationShape::new(8, 1, Some(parent_trace_id), &parent_map);
     let mut heap = test_storage(&options);
 
     // root the parent and make the child reachable only through table-backed metadata
@@ -274,7 +275,7 @@ fn test_collect_minor_promotes_table_traced_young_span_slots() {
 
     // collect using the trace table that owns the parent map
     let stats = heap
-        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), &trace_table)
+        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view)
         .expect("young collection should succeed");
 
     // promote the parent and preserve its traced child edge
@@ -302,7 +303,7 @@ fn test_collect_minor_rejects_invalid_root() {
 
     // reject the invalid root before mutating collection state
     let error = heap
-        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_table())
+        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
         .expect_err("invalid roots should fail collection");
 
     assert_eq!(error, HeapError::invalid_heap_reference(invalid));
@@ -320,7 +321,7 @@ fn test_collect_minor_updates_gc_state() {
 
     // span one complete minor collection
     let stats = heap
-        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_table())
+        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
         .expect("young collection should succeed");
 
     // record the completed collection in heap state
@@ -396,7 +397,7 @@ fn test_collect_minor_promotes_interior_roots() {
     let mut roots = [HeapReference::new(reference.offset() + 5)];
 
     // collection should rewrite the interior root, not just the base
-    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_table())
+    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
         .expect("young collection should succeed");
     let extent = heap
         .resolve_extent(roots[0])
@@ -432,7 +433,7 @@ fn test_collect_minor_traces_pinned_roots() {
 
     // pinned roots should seed minor marking
     let stats = heap
-        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_table())
+        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
         .expect("young collection should succeed");
 
     // keep the pinned parent in storage while promoting the child
@@ -479,7 +480,7 @@ fn test_collect_minor_retains_dirty_card_for_pinned_young_child() {
     assert!(!heap.is_young(parent));
 
     // first minor collection should retain the dirty card for the pinned child
-    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_table())
+    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
         .expect("young collection should keep pinned child");
 
     assert_eq!(read_heap_reference(&heap, roots[0]), child);
@@ -488,7 +489,7 @@ fn test_collect_minor_retains_dirty_card_for_pinned_young_child() {
 
     // after unpinning, the retained dirty card should let minor collection promote the child
     heap.unpin(child).expect("unpin should succeed");
-    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_table())
+    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
         .expect("young collection should rescan retained card");
 
     let promoted_child = read_heap_reference(&heap, roots[0]);
@@ -516,7 +517,7 @@ fn test_collect_full_traces_pinned_roots() {
 
     // full collection should trace pins even without explicit roots
     let stats = heap
-        .collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
+        .collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_view())
         .expect("full collection should succeed");
 
     // keep the pinned payload live
@@ -546,7 +547,7 @@ fn test_trace_shared_roots_uses_shared_reference_width() {
     heap.start_shared_edge_scan();
 
     let scanned_bytes = heap
-        .trace_shared_roots(&mut roots, options.page_size_bytes, trace_table())
+        .trace_shared_roots(&mut roots, options.page_size_bytes, trace_view())
         .expect("shared root scan should succeed");
 
     // account for the full shared-reference width
@@ -594,7 +595,7 @@ fn test_trace_shared_roots_scans_large_blocks_incrementally() {
     heap.start_shared_edge_scan();
 
     let first_scanned = heap
-        .trace_shared_roots(&mut roots, 1, trace_table())
+        .trace_shared_roots(&mut roots, 1, trace_view())
         .expect("first shared-root scan should succeed");
 
     // first step should discover only the first page reference
@@ -603,7 +604,7 @@ fn test_trace_shared_roots_scans_large_blocks_incrementally() {
     assert!(!heap.shared_edge_scan_idle());
 
     let second_scanned = heap
-        .trace_shared_roots(&mut roots, 1, trace_table())
+        .trace_shared_roots(&mut roots, 1, trace_view())
         .expect("second shared-root scan should succeed");
 
     // second step should discover the second page reference
@@ -613,7 +614,7 @@ fn test_trace_shared_roots_scans_large_blocks_incrementally() {
     // drain the rest of the large block scan cursor
     while !heap.shared_edge_scan_idle() {
         let scanned_bytes = heap
-            .trace_shared_roots(&mut roots, 1, trace_table())
+            .trace_shared_roots(&mut roots, 1, trace_view())
             .expect("remaining shared-root scan should succeed");
         assert!(scanned_bytes > 0);
     }
@@ -654,13 +655,13 @@ fn test_trace_shared_roots_survives_active_root_removal() {
 
     // scan the first root, then remove it while the cursor points past it
     let first_work = heap
-        .trace_shared_roots(&mut roots, 1, trace_table())
+        .trace_shared_roots(&mut roots, 1, trace_view())
         .expect("first shared root scan should succeed");
     heap.free(first_local)
         .expect("freeing scanned root should succeed");
 
     let remaining_work = heap
-        .trace_shared_roots(&mut roots, usize::MAX, trace_table())
+        .trace_shared_roots(&mut roots, usize::MAX, trace_view())
         .expect("remaining shared root scan should succeed");
 
     // retain pending roots even when earlier tracked roots are removed
@@ -686,7 +687,7 @@ fn test_step_collection_stays_idle_without_request() {
         .step_collection(
             &mut |visit| visit_roots(&mut roots, visit),
             budget_bytes,
-            trace_table(),
+            trace_view(),
         )
         .expect("collection step should succeed");
 
@@ -709,7 +710,7 @@ fn test_step_collection_runs_full_after_pressure() {
         .step_collection(
             &mut |visit| visit_roots(&mut roots, visit),
             budget_bytes,
-            trace_table(),
+            trace_view(),
         )
         .expect("collection step should succeed");
     let stats = progress
@@ -755,7 +756,7 @@ fn test_step_collection_runs_minor_after_young_occupancy() {
         .step_collection(
             &mut |visit| visit_roots(&mut roots, visit),
             budget_bytes,
-            trace_table(),
+            trace_view(),
         )
         .expect("collection step should succeed");
 
@@ -792,11 +793,7 @@ fn test_step_collection_bounds_minor_at_safepoint() {
 
     // minor collection should respect the caller budget
     let progress = heap
-        .step_collection(
-            &mut |visit| visit_roots(&mut roots, visit),
-            1,
-            trace_table(),
-        )
+        .step_collection(&mut |visit| visit_roots(&mut roots, visit), 1, trace_view())
         .expect("small-budget collection should succeed");
 
     // leave the cycle active
@@ -835,7 +832,7 @@ fn test_step_collection_spreads_minor_across_large_nursery() {
         .step_collection(
             &mut |visit| visit_roots(&mut roots, visit),
             budget_bytes,
-            trace_table(),
+            trace_view(),
         )
         .expect("first collection step should succeed");
 
@@ -852,7 +849,7 @@ fn test_step_collection_spreads_minor_across_large_nursery() {
         heap.step_collection(
             &mut |visit| visit_roots(&mut roots, visit),
             budget_bytes,
-            trace_table(),
+            trace_view(),
         )
         .expect("collection step should succeed");
     }
@@ -880,7 +877,7 @@ fn test_step_collection_honors_manual_full_request() {
         .step_collection(
             &mut |visit| visit_roots(&mut roots, visit),
             budget_bytes,
-            trace_table(),
+            trace_view(),
         )
         .expect("collection step should succeed");
     let stats = progress
@@ -911,11 +908,7 @@ fn test_step_major_gc_spreads_full_cycle() {
         .expect("major collection should start");
 
     let first = heap
-        .step_major_gc(
-            &mut |visit| visit_roots(&mut roots, visit),
-            1,
-            trace_table(),
-        )
+        .step_major_gc(&mut |visit| visit_roots(&mut roots, visit), 1, trace_view())
         .expect("major step should succeed");
 
     // first step should leave the major cycle active
@@ -924,11 +917,7 @@ fn test_step_major_gc_spreads_full_cycle() {
 
     // finish the bounded major cycle
     let stats = heap
-        .drain_major_gc(
-            &mut |visit| visit_roots(&mut roots, visit),
-            1,
-            trace_table(),
-        )
+        .drain_major_gc(&mut |visit| visit_roots(&mut roots, visit), 1, trace_view())
         .expect("major drain should succeed");
 
     // reclaim only the unreachable mature block
@@ -960,11 +949,7 @@ fn test_step_major_gc_keeps_young_noscan_span_allocated_during_cycle() {
 
     // drain the active cycle
     let stats = heap
-        .drain_major_gc(
-            &mut |visit| visit_roots(&mut roots, visit),
-            1,
-            trace_table(),
-        )
+        .drain_major_gc(&mut |visit| visit_roots(&mut roots, visit), 1, trace_view())
         .expect("major drain should succeed");
 
     // preserve post-cycle blocks by treating them as black
@@ -1006,11 +991,7 @@ fn test_step_major_gc_scans_large_blocks_incrementally() {
         .expect("major collection should start");
 
     let first = heap
-        .step_major_gc(
-            &mut |visit| visit_roots(&mut roots, visit),
-            1,
-            trace_table(),
-        )
+        .step_major_gc(&mut |visit| visit_roots(&mut roots, visit), 1, trace_view())
         .expect("major step should succeed");
 
     // first step should not scan the entire large block
@@ -1019,11 +1000,7 @@ fn test_step_major_gc_scans_large_blocks_incrementally() {
 
     // finish the bounded scan and sweep
     let stats = heap
-        .drain_major_gc(
-            &mut |visit| visit_roots(&mut roots, visit),
-            1,
-            trace_table(),
-        )
+        .drain_major_gc(&mut |visit| visit_roots(&mut roots, visit), 1, trace_view())
         .expect("major drain should succeed");
 
     // retain both children reached through the large parent
@@ -1044,7 +1021,7 @@ fn test_collect_full_reclaims_later_unreachable_allocations() {
     let mut roots = [root];
 
     // the first full cycle should leave only the explicit root
-    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_view())
         .expect("full collection should succeed");
 
     assert_eq!(heap.allocation_count(), 1);
@@ -1057,7 +1034,7 @@ fn test_collect_full_reclaims_later_unreachable_allocations() {
     assert!(heap.is_young(even_more));
 
     // the next minor cycle should clear the unreachable nursery
-    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_table())
+    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
         .expect("minor collection should succeed");
 
     assert_eq!(heap.allocation_count(), 1);
@@ -1069,7 +1046,7 @@ fn test_step_young_gc_keeps_rooted_allocation_during_sweep() {
     // young range layouts carry one local reference and no table id
     let options = HeapOptions::local();
     let range_map = local_trace_map(&[0]);
-    let layout = PayloadShape::new(8, 1, None, &range_map);
+    let layout = AllocationShape::new(8, 1, None, &range_map);
     let mut heap = test_storage(&options);
 
     // root one survivor and leave several ranges unreachable for sweep work
@@ -1087,12 +1064,8 @@ fn test_step_young_gc_keeps_rooted_allocation_during_sweep() {
             break;
         }
 
-        heap.step_young_gc(
-            &mut |visit| visit_roots(&mut roots, visit),
-            1,
-            trace_table(),
-        )
-        .expect("young step should succeed");
+        heap.step_young_gc(&mut |visit| visit_roots(&mut roots, visit), 1, trace_view())
+            .expect("young step should succeed");
     }
     assert_eq!(heap.collector.minor_phase, Phase::Sweep);
 
@@ -1104,7 +1077,7 @@ fn test_step_young_gc_keeps_rooted_allocation_during_sweep() {
     heap.drain_young_gc(
         &mut |visit| visit_roots(&mut roots, visit),
         usize::MAX,
-        trace_table(),
+        trace_view(),
     )
     .expect("young drain should succeed");
 
@@ -1136,11 +1109,7 @@ fn test_reserve_small_noscan_keeps_allocation_during_major_sweep() {
         .start_major_gc(&mut |visit| visit_roots(&mut roots, visit))
         .expect("major collection should start");
     heap.storage
-        .step_major_gc(
-            &mut |visit| visit_roots(&mut roots, visit),
-            1,
-            trace_table(),
-        )
+        .step_major_gc(&mut |visit| visit_roots(&mut roots, visit), 1, trace_view())
         .expect("major step should succeed");
     assert_eq!(heap.storage.collector.major_phase, Phase::Sweep);
 
@@ -1158,7 +1127,7 @@ fn test_reserve_small_noscan_keeps_allocation_during_major_sweep() {
         .drain_major_gc(
             &mut |visit| visit_roots(&mut roots, visit),
             usize::MAX,
-            trace_table(),
+            trace_view(),
         )
         .expect("major drain should succeed");
 
@@ -1177,7 +1146,8 @@ fn test_collect_minor_rewrites_pinned_young_slot_payload() {
     let parent_map = local_trace_map(&[0]);
     let mut trace_table = TraceTable::new();
     let parent_trace_id = trace_table.insert(parent_map.clone());
-    let parent_layout = PayloadShape::new(8, 1, Some(parent_trace_id), &parent_map);
+    let trace_view = TraceView::new(trace_table.traces());
+    let parent_layout = AllocationShape::new(8, 1, Some(parent_trace_id), &parent_map);
     let mut heap = test_storage(&options);
 
     // pin the parent so it survives in place while the child promotes
@@ -1190,7 +1160,7 @@ fn test_collect_minor_rewrites_pinned_young_slot_payload() {
     assert!(heap.is_young(child));
 
     // collect the nursery while the parent stays pinned
-    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), &trace_table)
+    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view)
         .expect("young collection should succeed");
 
     // keep the pinned parent in place
@@ -1234,7 +1204,7 @@ fn test_step_collection_recycles_filled_default_nursery() {
         heap.step_collection(
             &mut |visit| visit_roots(&mut roots, visit),
             budget_bytes,
-            trace_table(),
+            trace_view(),
         )
         .expect("collection step should succeed");
     }
@@ -1257,8 +1227,8 @@ fn test_reserve_young_spans_reuse_across_noscan_trace_ids() {
     let mut trace_table = TraceTable::new();
     let first_trace_id = trace_table.insert(first_map.clone());
     let second_trace_id = trace_table.insert(second_map.clone());
-    let first_layout = PayloadShape::new(16, 1, Some(first_trace_id), &first_map);
-    let second_layout = PayloadShape::new(16, 1, Some(second_trace_id), &second_map);
+    let first_layout = AllocationShape::new(16, 1, Some(first_trace_id), &first_map);
+    let second_layout = AllocationShape::new(16, 1, Some(second_trace_id), &second_map);
     let mut heap = test_storage(&options);
 
     // allocate alternately between the two classes
@@ -1284,9 +1254,10 @@ fn test_collect_minor_rescans_card_dirtied_after_extent_scan() {
     let mature_map = local_trace_map(&[0, 256]);
     let mut trace_table = TraceTable::new();
     let mature_trace_id = trace_table.insert(mature_map.clone());
-    let mature_layout = PayloadShape::new(512, 1, Some(mature_trace_id), &mature_map);
+    let trace_view = TraceView::new(trace_table.traces());
+    let mature_layout = AllocationShape::new(512, 1, Some(mature_trace_id), &mature_map);
     let chain_map = local_trace_map(&[0]);
-    let chain_layout = PayloadShape::new(8, 1, None, &chain_map);
+    let chain_layout = AllocationShape::new(8, 1, None, &chain_map);
     let young_layout = test_layout(8, TraceMap::empty());
     let mut heap = test_storage(&options);
 
@@ -1296,7 +1267,7 @@ fn test_collect_minor_rescans_card_dirtied_after_extent_scan() {
     let mature = heap.test_allocate(mature_layout, Payload::Zeroed);
     let mature_address = heap.base_address() + mature.offset();
     write_mapped_bytes(mature_address, &first_child.bits().to_le_bytes());
-    heap.write_barrier(mature, 0, HeapReference::BYTE_LEN, &trace_table)
+    heap.write_barrier(mature, 0, HeapReference::BYTE_LEN, trace_view)
         .expect("first card barrier should succeed");
 
     // root a young chain so marking stays busy after the dirty cards drain
@@ -1318,13 +1289,13 @@ fn test_collect_minor_rescans_card_dirtied_after_extent_scan() {
             heap.collector.young_dirty_extent_cursor >= heap.collector.dirty_extents.len();
         if !wrote_late_reference && dirty_drained && heap.collector.minor_phase == Phase::Mark {
             write_mapped_bytes(mature_address + 256, &second_child.bits().to_le_bytes());
-            heap.write_barrier(mature, 256, HeapReference::BYTE_LEN, &trace_table)
+            heap.write_barrier(mature, 256, HeapReference::BYTE_LEN, trace_view)
                 .expect("second card barrier should succeed");
             wrote_late_reference = true;
         }
 
         let progress = heap
-            .step_young_gc(&mut |visit| visit_roots(&mut roots, visit), 1, &trace_table)
+            .step_young_gc(&mut |visit| visit_roots(&mut roots, visit), 1, trace_view)
             .expect("young step should succeed");
         if progress.completed_stats().is_some() {
             break;

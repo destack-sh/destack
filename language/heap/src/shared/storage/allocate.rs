@@ -120,7 +120,7 @@ impl HeapStorage {
         let Some(class) = size_class_cache.class() else {
             return;
         };
-        let usage = size_class_cache.cursor.flush_usage(class.size_class);
+        let usage = size_class_cache.cursor.flush_usage(class.size_class());
         if usage.allocation_count() == 0 {
             return;
         }
@@ -146,7 +146,7 @@ impl HeapStorage {
             let Some(class) = size_class_cache.class() else {
                 continue;
             };
-            let span_size_bytes = class.size_class * size_class_cache.slot_count;
+            let span_size_bytes = class.size_class() * size_class_cache.slot_count;
             let span_end = size_class_cache.first_offset + span_size_bytes;
             if offset < size_class_cache.first_offset || offset >= span_end {
                 continue;
@@ -171,7 +171,7 @@ impl HeapStorage {
         }
 
         // small blocks may reuse worker-local or central slots
-        if let Some(small) = layout.class.small() {
+        if let Some(small) = layout.class.as_small() {
             let cache_index = small.cache_index();
             if let Some(size_class_cache) = cache.small.get(cache_index)
                 && size_class_cache.span.as_ref().is_some_and(|span| {
@@ -186,7 +186,7 @@ impl HeapStorage {
                 return Ok(0);
             }
 
-            return Ok(small.class.span_size_bytes as i64);
+            return Ok(small.class.span_size_bytes() as i64);
         }
 
         // large blocks retain whole pages
@@ -258,7 +258,7 @@ impl HeapStorage {
         should_keep_worker_cache: bool,
     ) -> HeapResult<HeapPlace> {
         // small blocks use worker-local caches and size-class spans
-        if let Some(small) = layout.class.small() {
+        if let Some(small) = layout.class.as_small() {
             let cache_index = small.cache_index();
             let class = small.class;
             cache.ensure_small(small);
@@ -342,12 +342,12 @@ impl HeapStorage {
                 if span.occupied_count() == 0 && span.pages_empty() {
                     let pages = store
                         .page_span_cache
-                        .allocate_pages(&self.allocator, class.span_size_bytes)?;
+                        .allocate_pages(&self.allocator, class.span_size_bytes())?;
                     let first_offset = span.first_offset;
 
                     // materialize the full span before worker-local spans use it
                     self.mapping
-                        .materialize(first_offset, class.span_size_bytes)?;
+                        .materialize(first_offset, class.span_size_bytes())?;
 
                     self.map_page_span(store, first_offset, &pages, |logical_page_index| {
                         HeapPageMapEntry::SmallSpan {
@@ -371,19 +371,19 @@ impl HeapStorage {
         }
 
         // otherwise map a new span for this size class
-        let slot_count = (class.span_size_bytes / class.size_class).max(1);
+        let slot_count = (class.span_size_bytes() / class.size_class()).max(1);
         let pages = store
             .page_span_cache
-            .allocate_pages(&self.allocator, class.span_size_bytes)?;
-        let first_offset = self.reserve_address_range(store, class.span_size_bytes)?;
+            .allocate_pages(&self.allocator, class.span_size_bytes())?;
+        let first_offset = self.reserve_address_range(store, class.span_size_bytes())?;
 
         // materialize the full span before worker-local spans use it
         self.mapping
-            .materialize(first_offset, class.span_size_bytes)?;
+            .materialize(first_offset, class.span_size_bytes())?;
         // SAFETY: the span range was materialized above
         unsafe {
             self.mapping
-                .zero_mapped_bytes(first_offset, class.span_size_bytes);
+                .zero_mapped_bytes(first_offset, class.span_size_bytes());
         }
 
         let span = SmallSpan::new(first_offset, *class, slot_count, pages, SpanList::Worker);
@@ -438,7 +438,7 @@ impl HeapStorage {
                             return Err(HeapError::internal("missing cache class"));
                         };
 
-                        self.accounting.allocate(class.size_class);
+                        self.accounting.allocate(class.size_class());
                     }
                     // active marking cannot leave free slots hidden in the worker
                     else if !should_keep_worker_cache {
@@ -497,7 +497,7 @@ impl HeapStorage {
                 return Err(HeapError::internal("missing cache class"));
             };
 
-            self.accounting.allocate(class.size_class);
+            self.accounting.allocate(class.size_class());
         }
 
         // return published caches to the central partial list
@@ -549,7 +549,7 @@ impl HeapStorage {
                 return;
             };
 
-            self.accounting.allocate(class.size_class);
+            self.accounting.allocate(class.size_class());
         }
     }
 
@@ -591,10 +591,10 @@ impl HeapStorage {
         unsafe {
             match payload {
                 // clear stale tail bytes before copying short payloads
-                Payload::Bytes(bytes) if bytes.len() < class.size_class => {
+                Payload::Bytes(bytes) if bytes.len() < class.size_class() => {
                     if needs_zero {
                         self.mapping
-                            .zero_mapped_bytes(mapping_offset, class.size_class);
+                            .zero_mapped_bytes(mapping_offset, class.size_class());
                     }
 
                     self.mapping.write_mapped_bytes(mapping_offset, bytes);
@@ -605,14 +605,14 @@ impl HeapStorage {
                 Payload::Zeroed => {
                     if needs_zero {
                         self.mapping
-                            .zero_mapped_bytes(mapping_offset, class.size_class);
+                            .zero_mapped_bytes(mapping_offset, class.size_class());
                     }
                 }
                 // no-scan slots keep zeroed reuse semantics even when uninitialized
                 Payload::Uninit if !trace_map.has_reference() => {
                     if needs_zero {
                         self.mapping
-                            .zero_mapped_bytes(mapping_offset, class.size_class);
+                            .zero_mapped_bytes(mapping_offset, class.size_class());
                     }
                 }
                 // traced uninitialized slots are owned by the caller until written

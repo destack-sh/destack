@@ -1,5 +1,5 @@
 use destack_heap::{
-    AllocationCache, AllocationPlan, Heap, HeapReference, PayloadShape, SharedHeap,
+    AllocationCache, AllocationPlan, AllocationShape, Heap, HeapReference, SharedHeap,
     SharedHeapReference, SharedMarkWorker,
 };
 use destack_mir::{TraceMap, TraceTable};
@@ -80,8 +80,8 @@ impl ObjectGraphWorkload {
         let mut trace_table = TraceTable::new();
         let record_trace_id = trace_table.insert(trace_map.clone());
         let leaf_map = TraceMap::Empty;
-        let leaf_shape = PayloadShape::new(self.leaf_bytes, 1, None, &leaf_map);
-        let record_shape = PayloadShape::new(
+        let leaf_shape = AllocationShape::new(self.leaf_bytes, 1, None, &leaf_map);
+        let record_shape = AllocationShape::new(
             self.record_bytes,
             REFERENCE_BYTES,
             Some(record_trace_id),
@@ -123,8 +123,8 @@ impl ObjectGraphWorkload {
         let mut trace_table = TraceTable::new();
         let record_trace_id = trace_table.insert(trace_map.clone());
         let leaf_map = TraceMap::Empty;
-        let leaf_shape = PayloadShape::new(self.leaf_bytes, 1, None, &leaf_map);
-        let record_shape = PayloadShape::new(
+        let leaf_shape = AllocationShape::new(self.leaf_bytes, 1, None, &leaf_map);
+        let record_shape = AllocationShape::new(
             self.record_bytes,
             REFERENCE_BYTES,
             Some(record_trace_id),
@@ -187,8 +187,8 @@ impl ReferenceArrayWorkload {
         let trace_map = local_reference_array_map(self.objects);
         let trace_id = trace_table.insert(trace_map.clone());
         let leaf_map = TraceMap::Empty;
-        let leaf_shape = PayloadShape::new(self.leaf_bytes, 1, None, &leaf_map);
-        let array_shape = PayloadShape::new(
+        let leaf_shape = AllocationShape::new(self.leaf_bytes, 1, None, &leaf_map);
+        let array_shape = AllocationShape::new(
             self.objects * REFERENCE_BYTES,
             REFERENCE_BYTES,
             Some(trace_id),
@@ -227,8 +227,8 @@ impl ReferenceArrayWorkload {
         let trace_map = shared_reference_array_map(self.objects);
         let trace_id = trace_table.insert(trace_map.clone());
         let leaf_map = TraceMap::Empty;
-        let leaf_shape = PayloadShape::new(self.leaf_bytes, 1, None, &leaf_map);
-        let array_shape = PayloadShape::new(
+        let leaf_shape = AllocationShape::new(self.leaf_bytes, 1, None, &leaf_map);
+        let array_shape = AllocationShape::new(
             self.objects * REFERENCE_BYTES,
             REFERENCE_BYTES,
             Some(trace_id),
@@ -271,14 +271,14 @@ fn write_word(bytes: &mut [u8], offset: usize, value: usize) {
 
 /// Build one explicit local allocation plan for graph workloads.
 #[inline(always)]
-fn local_allocation_plan(heap: &Heap, shape: PayloadShape<'_>) -> AllocationPlan {
-    heap.options().allocation_plan_for_shape(shape)
+fn local_allocation_plan(heap: &Heap, shape: AllocationShape<'_>) -> AllocationPlan {
+    heap.options().allocation_plan(shape)
 }
 
 /// Build one explicit shared allocation plan for graph workloads.
 #[inline(always)]
-fn shared_allocation_plan(shared: &SharedHeap, shape: PayloadShape<'_>) -> AllocationPlan {
-    shared.options().allocation_plan_for_shape(shape)
+fn shared_allocation_plan(shared: &SharedHeap, shape: AllocationShape<'_>) -> AllocationPlan {
+    shared.options().allocation_plan(shape)
 }
 
 /// Build the scan map for one record with a local reference field.

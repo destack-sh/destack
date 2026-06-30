@@ -1,4 +1,5 @@
-use destack_mir::{TraceMap, TraceTable};
+use crate::TraceView;
+use destack_mir::TraceMap;
 
 use super::{HeapExtent, HeapPlace, HeapStorage};
 use crate::{
@@ -37,13 +38,13 @@ impl HeapStorage {
     pub(crate) fn trace_map(
         &self,
         reference: HeapReference,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<TraceMap> {
         let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_heap_reference(reference));
         };
 
-        self.trace_map_for_place(extent.storage, trace_table)
+        self.trace_map_for_place(extent.storage, trace_view)
     }
 
     /// Record one heap write barrier for one live heap block.
@@ -52,11 +53,11 @@ impl HeapStorage {
         reference: HeapReference,
         start: usize,
         byte_len: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         let (extent, byte_offset) = self.resolve_range(reference, start, byte_len)?;
 
-        self.record_write_barrier(reference, extent, byte_offset, byte_len, trace_table)
+        self.record_write_barrier(reference, extent, byte_offset, byte_len, trace_view)
     }
 
     /// Return old and new shared edges for one heap store before it writes.
@@ -65,11 +66,11 @@ impl HeapStorage {
         reference: HeapReference,
         start: usize,
         bytes: &[u8],
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<Vec<SharedHeapReference>> {
         let (extent, byte_offset) = self.resolve_range(reference, start, bytes.len())?;
 
-        self.shared_write_barrier_extent_bytes(extent, byte_offset, bytes, trace_table)
+        self.shared_write_barrier_extent_bytes(extent, byte_offset, bytes, trace_view)
     }
 
     /// Return old and new shared edges for one already-resolved heap store.
@@ -78,10 +79,10 @@ impl HeapStorage {
         extent: HeapExtent,
         byte_offset: usize,
         bytes: &[u8],
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<Vec<SharedHeapReference>> {
         // skip ranges that cannot contain shared references
-        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_table)?;
+        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_view)?;
         if !self.overlaps_shared_roots(&trace_map, byte_offset, bytes.len()) {
             return Ok(Vec::new());
         }
@@ -136,13 +137,13 @@ impl HeapStorage {
         extent: HeapExtent,
         byte_offset: usize,
         byte_len: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         // local collector metadata
-        self.record_local_write(extent, byte_offset, byte_len, trace_table)?;
+        self.record_local_write(extent, byte_offset, byte_len, trace_view)?;
 
         // shared collector metadata
-        self.record_shared_edge_write(reference, extent, byte_offset, byte_len, trace_table)
+        self.record_shared_edge_write(reference, extent, byte_offset, byte_len, trace_view)
     }
 
     /// Record local collector metadata for one live heap extent.
@@ -151,9 +152,9 @@ impl HeapStorage {
         extent: HeapExtent,
         byte_offset: usize,
         byte_len: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
-        self.write_major_barrier(extent, byte_offset, byte_len, trace_table)?;
+        self.write_major_barrier(extent, byte_offset, byte_len, trace_view)?;
 
         // only mature extents need remembered-write bookkeeping
         match extent.storage {
@@ -164,7 +165,7 @@ impl HeapStorage {
                     let trace_map = self.small_slot_trace_map_ref(
                         slot.span_index(),
                         slot.slot_index(),
-                        trace_table,
+                        trace_view,
                     )?;
 
                     overlaps_heap_range(&trace_map, byte_offset, byte_len)
@@ -193,7 +194,7 @@ impl HeapStorage {
         extent: HeapExtent,
         byte_offset: usize,
         byte_len: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         // inactive local-to-shared scan
         if !self.collector.is_scanning_shared_edges {
@@ -202,7 +203,7 @@ impl HeapStorage {
 
         // skip writes that cannot touch shared references
         let is_overlapping = {
-            let trace_map = self.trace_map_for_place_ref(extent.storage, trace_table)?;
+            let trace_map = self.trace_map_for_place_ref(extent.storage, trace_view)?;
 
             self.overlaps_shared_roots(&trace_map, byte_offset, byte_len)
         };
@@ -210,7 +211,7 @@ impl HeapStorage {
             return Ok(());
         }
 
-        self.queue_shared_reference(reference, trace_table)
+        self.queue_shared_reference(reference, trace_view)
     }
 }
 

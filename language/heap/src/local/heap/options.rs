@@ -8,10 +8,10 @@ use crate::allocator::{
     SizeClassTable,
 };
 use crate::{
-    AllocationClass, AllocationPlan, DEFAULT_ADDRESS_SPACE_SIZE_BYTES,
+    AllocationClass, AllocationPlan, AllocationShape, DEFAULT_ADDRESS_SPACE_SIZE_BYTES,
     DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_SIZE_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
     DEFAULT_SMALL_SIZE_BYTES, DEFAULT_YOUNG_SIZE_BYTES, GcOptions, HeapConfigurationError,
-    HeapError, PayloadShape, allocation_class, validate_address_space_size_bytes,
+    HeapError, allocation_class, validate_address_space_size_bytes,
     validate_allocator_chunk_size_bytes, validate_page_size_bytes, validate_size_class_alignment,
     validate_small_span_size_bytes,
 };
@@ -40,19 +40,19 @@ pub struct HeapOptions {
 }
 
 impl HeapOptions {
-    /// Resolve one heap allocation plan for this payload shape.
+    /// Resolve one heap allocation plan for this allocation shape.
     #[inline(always)]
-    pub fn allocation_plan_for_shape(&self, shape: PayloadShape<'_>) -> AllocationPlan {
-        let class = self.allocation_class_for_shape(shape);
+    pub fn allocation_plan(&self, shape: AllocationShape<'_>) -> AllocationPlan {
+        let class = self.classify_allocation(shape);
 
         AllocationPlan::new(shape, class)
     }
 
     /// Resolve one heap allocation class for this allocation shape.
     #[inline(always)]
-    fn allocation_class_for_shape(&self, shape: PayloadShape<'_>) -> AllocationClass {
+    fn classify_allocation(&self, shape: AllocationShape<'_>) -> AllocationClass {
         if shape.trace_map.has_tagged_reference() {
-            return AllocationClass::Large;
+            return AllocationClass::large();
         }
 
         self.allocation_class(

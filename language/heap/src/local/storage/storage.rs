@@ -2,8 +2,9 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use crate::TraceView;
 use destack_memory::AddressSpace;
-use destack_mir::{TraceMap, TraceTable};
+use destack_mir::TraceMap;
 
 use super::{
     CollectorState, GcState, HeapPageMapEntry, HeapPlace, IndexedYoungRange, LargeBlock,
@@ -215,11 +216,14 @@ impl HeapStorage {
     }
 
     /// Rebuild the tracked local references that may contain shared edges.
-    pub(crate) fn rebuild_shared_edge_roots(&mut self, trace_table: &TraceTable) -> HeapResult<()> {
+    pub(crate) fn rebuild_shared_edge_roots(
+        &mut self,
+        trace_view: TraceView<'_>,
+    ) -> HeapResult<()> {
         self.collector.clear_shared_edge_roots();
 
         for reference in self.live_references()? {
-            if !self.reference_has_shared_roots(reference, trace_table)? {
+            if !self.reference_has_shared_roots(reference, trace_view)? {
                 continue;
             }
 
@@ -322,9 +326,9 @@ impl HeapStorage {
     pub(crate) fn trace_map_for_place(
         &self,
         storage: HeapPlace,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<TraceMap> {
-        let trace_map = self.trace_map_for_place_ref(storage, trace_table)?;
+        let trace_map = self.trace_map_for_place_ref(storage, trace_view)?;
 
         Ok(trace_map.into_owned())
     }
@@ -333,17 +337,17 @@ impl HeapStorage {
     pub(crate) fn trace_map_for_place_ref<'a>(
         &'a self,
         storage: HeapPlace,
-        trace_table: &'a TraceTable,
+        trace_view: TraceView<'a>,
     ) -> HeapResult<Cow<'a, TraceMap>> {
         match storage {
             HeapPlace::YoungRange { first_offset } => {
                 Ok(Cow::Owned(self.young_range_trace_map(first_offset)?))
             }
             HeapPlace::YoungSlot(slot) => {
-                self.young_slot_trace_map_ref(slot.span_index(), trace_table)
+                self.young_slot_trace_map_ref(slot.span_index(), trace_view)
             }
             HeapPlace::MatureSlot(slot) => {
-                self.small_slot_trace_map_ref(slot.span_index(), slot.slot_index(), trace_table)
+                self.small_slot_trace_map_ref(slot.span_index(), slot.slot_index(), trace_view)
             }
             HeapPlace::LargeBlock(block_id) => {
                 let block = self
@@ -381,7 +385,7 @@ impl HeapStorage {
                     return Err(HeapError::internal("missing small slot"));
                 }
 
-                Ok(span.class.size_class)
+                Ok(span.class.size_class())
             }
             HeapPlace::LargeBlock(block_id) => Ok(self
                 .large_block(block_id)
@@ -410,7 +414,7 @@ impl HeapStorage {
                 let Some(span) = self.span(slot.span_index()) else {
                     return Err(HeapError::internal("missing span"));
                 };
-                let slot_offset = span.class.size_class * slot.slot_index();
+                let slot_offset = span.class.size_class() * slot.slot_index();
 
                 span.first_offset + slot_offset
             }
@@ -460,9 +464,9 @@ impl HeapStorage {
         &self,
         span_index: usize,
         slot_index: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<TraceMap> {
-        let trace_map = self.small_slot_trace_map_ref(span_index, slot_index, trace_table)?;
+        let trace_map = self.small_slot_trace_map_ref(span_index, slot_index, trace_view)?;
 
         Ok(trace_map.into_owned())
     }
@@ -472,7 +476,7 @@ impl HeapStorage {
         &'a self,
         span_index: usize,
         slot_index: usize,
-        trace_table: &'a TraceTable,
+        trace_view: TraceView<'a>,
     ) -> HeapResult<Cow<'a, TraceMap>> {
         let Some(span) = self.span(span_index) else {
             return Err(HeapError::internal("missing span"));
@@ -482,8 +486,8 @@ impl HeapStorage {
         }
 
         // table-backed classes share one canonical map
-        if let Some(trace_id) = span.class.trace_id {
-            let trace_map = trace_table
+        if let Some(trace_id) = span.class.trace_id() {
+            let trace_map = trace_view
                 .trace(trace_id)
                 .ok_or(HeapError::internal("missing trace map"))?;
 
@@ -494,8 +498,8 @@ impl HeapStorage {
             &span.local_reference_bits,
             &span.shared_reference_bits,
             slot_index,
-            span.class.size_class,
-            span.class.size_class,
+            span.class.size_class(),
+            span.class.size_class(),
         )))
     }
 
@@ -503,18 +507,18 @@ impl HeapStorage {
     pub(crate) fn young_slot_trace_map_ref<'a>(
         &'a self,
         span_index: usize,
-        trace_table: &'a TraceTable,
+        trace_view: TraceView<'a>,
     ) -> HeapResult<Cow<'a, TraceMap>> {
         let Some(span) = self.young.span(span_index) else {
             return Err(HeapError::internal("missing span"));
         };
 
         // class-less young spans are no-scan
-        let Some(trace_id) = span.class.trace_id else {
+        let Some(trace_id) = span.class.trace_id() else {
             return Ok(Cow::Owned(TraceMap::Empty));
         };
 
-        let trace_map = trace_table
+        let trace_map = trace_view
             .trace(trace_id)
             .ok_or(HeapError::internal("missing trace map"))?;
 

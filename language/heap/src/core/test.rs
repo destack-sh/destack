@@ -1,6 +1,6 @@
 use destack_mir::TraceMap;
 
-use crate::PayloadShape;
+use crate::AllocationShape;
 
 /// One allocation plan used by tests.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -14,9 +14,9 @@ pub(crate) struct TestLayout {
 }
 
 impl TestLayout {
-    /// Return this test layout as one heap payload shape.
-    pub(crate) fn block(&self) -> PayloadShape<'_> {
-        PayloadShape::new(self.byte_len, self.alignment, None, &self.trace_map)
+    /// Return this test layout as one heap allocation shape.
+    pub(crate) fn block(&self) -> AllocationShape<'_> {
+        AllocationShape::new(self.byte_len, self.alignment, None, &self.trace_map)
     }
 }
 

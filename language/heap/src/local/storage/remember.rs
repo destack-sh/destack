@@ -1,4 +1,5 @@
-use destack_mir::{TraceMap, TraceTable};
+use crate::TraceView;
+use destack_mir::TraceMap;
 
 use super::{HeapStorage, LargeBlockId, Phase};
 use crate::local::gc::DirtyExtent;
@@ -6,7 +7,7 @@ use crate::{HeapError, HeapResult, overlaps_heap_range, overlaps_shared_range};
 
 impl HeapStorage {
     /// Rebuild the mature remembered set conservatively.
-    pub(crate) fn rebuild_remembered_set(&mut self, trace_table: &TraceTable) -> HeapResult<()> {
+    pub(crate) fn rebuild_remembered_set(&mut self, trace_view: TraceView<'_>) -> HeapResult<()> {
         self.clear_remembered_set();
 
         // conservatively dirty every mature span slot with heap references
@@ -15,14 +16,14 @@ impl HeapStorage {
                 continue;
             };
             let occupied = span.occupied.clone();
-            let size_class = span.class.size_class;
+            let size_class = span.class.size_class();
 
             for slot_index in 0..span.slot_count {
                 if !occupied.contains(slot_index) {
                     continue;
                 }
 
-                let trace_map = self.small_slot_trace_map(span_index, slot_index, trace_table)?;
+                let trace_map = self.small_slot_trace_map(span_index, slot_index, trace_view)?;
                 if !trace_map.has_reference() {
                     continue;
                 }
@@ -105,7 +106,7 @@ impl HeapStorage {
             return Err(HeapError::internal("missing small slot"));
         }
 
-        let slot_offset = span.class.size_class * slot_index;
+        let slot_offset = span.class.size_class() * slot_index;
         let mut should_queue = false;
 
         // mark the overlapping card range on the owning span

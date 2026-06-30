@@ -1,4 +1,5 @@
-use destack_mir::{TraceMap, TraceTable};
+use crate::TraceView;
+use destack_mir::TraceMap;
 
 use crate::local::gc::{
     GC_METADATA_STEP_BYTES, MajorSweepCursor, MarkWork, Phase, charge_bitmap_skip,
@@ -38,7 +39,7 @@ impl HeapStorage {
         extent: HeapExtent,
         byte_offset: usize,
         byte_len: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         // inactive collector
         if self.collector.major_phase == Phase::Idle {
@@ -49,7 +50,7 @@ impl HeapStorage {
         let scan_len = byte_len.min(self.byte_len_for_place(extent.storage)? - byte_offset);
         let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
         let base_address = self.mapping.base_address() + extent.base.offset();
-        self.trace_map_for_place_ref(extent.storage, trace_table)
+        self.trace_map_for_place_ref(extent.storage, trace_view)
             .and_then(|trace_map| {
                 // skip writes that cannot touch local references
                 if !trace_map.has_local_reference() {
@@ -120,17 +121,17 @@ impl HeapStorage {
     pub(crate) fn collect_full<E>(
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> Result<GcStats, E>
     where
         E: From<HeapError>,
     {
         // collect the nursery first so full collection sees mature references
-        let _minor = self.collect_minor(roots, trace_table)?;
+        let _minor = self.collect_minor(roots, trace_view)?;
 
         self.start_major_gc(roots)?;
 
-        self.drain_major_gc(roots, usize::MAX, trace_table)
+        self.drain_major_gc(roots, usize::MAX, trace_view)
     }
 
     /// Drain the active local major collection and return its completed stats.
@@ -138,14 +139,14 @@ impl HeapStorage {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> Result<GcStats, E>
     where
         E: From<HeapError>,
     {
         // drain the cycle in bounded steps
         loop {
-            match self.step_major_gc(roots, budget_bytes, trace_table)? {
+            match self.step_major_gc(roots, budget_bytes, trace_view)? {
                 GcProgress::Complete(stats) => return Ok(stats),
                 GcProgress::Active => continue,
                 GcProgress::Idle => {
@@ -194,7 +195,7 @@ impl HeapStorage {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> Result<GcProgress, E>
     where
         E: From<HeapError>,
@@ -210,7 +211,7 @@ impl HeapStorage {
             Phase::Mark => {
                 // roots may have changed between incremental steps
                 self.seed_major_roots(roots)?;
-                let marked_bytes = self.step_reachable_reference_mark(budget_bytes, trace_table)?;
+                let marked_bytes = self.step_reachable_reference_mark(budget_bytes, trace_view)?;
 
                 // switch to sweep when mark work drains
                 if self.collector.major_queue.is_empty() {
@@ -228,7 +229,7 @@ impl HeapStorage {
                 Ok(GcProgress::Active)
             }
             Phase::Sweep => {
-                let marked_bytes = self.step_reachable_reference_mark(budget_bytes, trace_table)?;
+                let marked_bytes = self.step_reachable_reference_mark(budget_bytes, trace_view)?;
                 if !self.collector.major_queue.is_empty() {
                     return Ok(GcProgress::Active);
                 }
@@ -458,7 +459,7 @@ impl HeapStorage {
 
         Ok(YoungSpanSweep {
             first_offset: span.first_offset,
-            size_class: span.class.size_class,
+            size_class: span.class.size_class(),
             reserved_slots,
         })
     }
@@ -524,7 +525,7 @@ impl HeapStorage {
 
         Ok(SmallSpanSweep {
             first_offset: span.first_offset,
-            size_class: span.class.size_class,
+            size_class: span.class.size_class(),
             slot_count: span.slot_count,
         })
     }
@@ -617,7 +618,7 @@ impl HeapStorage {
     fn step_reachable_reference_mark(
         &mut self,
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<usize> {
         let mut marked_bytes = 0usize;
 
@@ -631,14 +632,14 @@ impl HeapStorage {
             match work {
                 // large blocks are scanned page by page
                 MarkWork::LargeRange { reference, start } => {
-                    marked_bytes += self.trace_large_range(reference, start, trace_table)?;
+                    marked_bytes += self.trace_large_range(reference, start, trace_view)?;
 
                     continue;
                 }
 
                 // small and young blocks are scanned as one mark item
                 MarkWork::Reference(reference) => {
-                    marked_bytes += self.trace_reference(reference, trace_table)?;
+                    marked_bytes += self.trace_reference(reference, trace_view)?;
                 }
             }
         }
@@ -650,7 +651,7 @@ impl HeapStorage {
     fn trace_reference(
         &mut self,
         reference: HeapReference,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<usize> {
         // resolve the referenced block
         let Some(extent) = self.resolve_extent(reference) else {
@@ -661,7 +662,7 @@ impl HeapStorage {
         let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
         let base_address = self.mapping.base_address() + extent.base.offset();
         let trace_result = self
-            .trace_map_for_place_ref(extent.storage, trace_table)
+            .trace_map_for_place_ref(extent.storage, trace_view)
             .and_then(|trace_map| {
                 scan_references::<HeapReference>(
                     &trace_map,
@@ -692,7 +693,7 @@ impl HeapStorage {
         &mut self,
         reference: HeapReference,
         start: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<usize> {
         // resolve and verify the large block
         let Some(extent) = self.resolve_extent(reference) else {
@@ -704,7 +705,7 @@ impl HeapStorage {
 
         // skip empty ranges and noscan payloads
         let has_local_reference = self
-            .trace_map_for_place_ref(extent.storage, trace_table)
+            .trace_map_for_place_ref(extent.storage, trace_view)
             .map_err(|error| {
                 HeapError::scan_failed(HeapOperationSource::Reference(reference), error)
             })?
@@ -721,7 +722,7 @@ impl HeapStorage {
         let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
         let base_address = self.mapping.base_address() + extent.base.offset();
         let trace_result = self
-            .trace_map_for_place_ref(extent.storage, trace_table)
+            .trace_map_for_place_ref(extent.storage, trace_view)
             .and_then(|trace_map| {
                 scan_references::<HeapReference>(
                     &trace_map,

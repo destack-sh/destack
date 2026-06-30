@@ -5,7 +5,7 @@ use crate::{
     test_layout,
 };
 
-use super::{TestHeapPlan, heap_allocation_plan, test_heap, test_heap_with_limits, trace_table};
+use super::{TestHeapPlan, heap_allocation_plan, test_heap, test_heap_with_limits, trace_view};
 
 const SMALL_ALLOCATION_COUNT: usize = 1024;
 const SMALL_ALLOCATION_BYTES: usize = 32;
@@ -136,7 +136,7 @@ fn test_restore_heap_image_preserves_limits() {
     let image = heap.image().expect("heap image should capture");
 
     // restoring one captured image should keep the existing hard limits
-    heap.restore_image(&image, trace_table())
+    heap.restore_image(&image, trace_view())
         .expect("heap image restore should succeed");
 
     assert_eq!(heap.limits(), limits);

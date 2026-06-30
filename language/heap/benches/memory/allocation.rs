@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 use criterion::{BenchmarkId, Criterion, Throughput};
 use destack_heap::{
-    AllocationPlan, Heap, PayloadShape, SharedHeap, SmallAllocationClass, SmallAllocationPlan,
+    AllocationPlan, AllocationShape, Heap, SharedHeap, SmallAllocationClass, SmallAllocationPlan,
 };
 use destack_mir::{TraceMap, TraceTable};
 
@@ -31,23 +31,23 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
     // derive allocation plans from one representative heap
     let heap = local_heap();
     let shared_heap = shared_heap();
-    let shape = PayloadShape::new(SMALL_BYTES, 1, None, &trace_map);
+    let shape = AllocationShape::new(SMALL_BYTES, 1, None, &trace_map);
     let allocation = local_allocation_plan(&heap, shape);
     let small_site = small_allocation_plan(allocation);
     let shared_allocation = shared_allocation_plan(&shared_heap, shape);
     let shared_small = small_allocation(shared_allocation);
-    let local_shape = PayloadShape::new(SMALL_BYTES, 1, Some(local_trace_id), &local_trace_map);
+    let local_shape = AllocationShape::new(SMALL_BYTES, 1, Some(local_trace_id), &local_trace_map);
     let local_allocation = local_allocation_plan(&heap, local_shape);
     let local_small_site = small_allocation_plan(local_allocation);
     let shared_edge_shape =
-        PayloadShape::new(SMALL_BYTES, 1, Some(shared_trace_id), &shared_trace_map);
+        AllocationShape::new(SMALL_BYTES, 1, Some(shared_trace_id), &shared_trace_map);
     let shared_edge_allocation = local_allocation_plan(&heap, shared_edge_shape);
     let shared_edge_small_site = small_allocation_plan(shared_edge_allocation);
 
     // build initialized payloads for byte-copy paths
     let payload = [0xAB; SMALL_BYTES];
     let large_payload = vec![0xAB; LARGE_BYTES];
-    let large_shape = PayloadShape::new(LARGE_BYTES, 1, None, &trace_map);
+    let large_shape = AllocationShape::new(LARGE_BYTES, 1, None, &trace_map);
     let large_allocation = local_allocation_plan(&heap, large_shape);
     let shared_large_allocation = shared_allocation_plan(&shared_heap, large_shape);
 
@@ -360,7 +360,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("local_zeroed", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let shape = PayloadShape::new(*byte_len, 1, None, &trace_map);
+                let shape = AllocationShape::new(*byte_len, 1, None, &trace_map);
                 let heap = local_heap();
                 let allocation = local_allocation_plan(&heap, shape);
 
@@ -389,7 +389,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("local_bytes", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let shape = PayloadShape::new(*byte_len, 1, None, &trace_map);
+                let shape = AllocationShape::new(*byte_len, 1, None, &trace_map);
                 let heap = local_heap();
                 let allocation = local_allocation_plan(&heap, shape);
                 let payload = vec![0xAB; *byte_len];
@@ -419,7 +419,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("shared_zeroed", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let shape = PayloadShape::new(*byte_len, 1, None, &trace_map);
+                let shape = AllocationShape::new(*byte_len, 1, None, &trace_map);
                 let shared = shared_heap();
                 let allocation = shared_allocation_plan(&shared, shape);
 
@@ -462,7 +462,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("shared_bytes", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let shape = PayloadShape::new(*byte_len, 1, None, &trace_map);
+                let shape = AllocationShape::new(*byte_len, 1, None, &trace_map);
                 let shared = shared_heap();
                 let allocation = shared_allocation_plan(&shared, shape);
                 let payload = vec![0xAB; *byte_len];
@@ -513,7 +513,7 @@ pub(crate) fn bench_shared_parallel_allocation(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("heap_shared_parallel_allocation");
     let trace_map = TraceMap::Empty;
     let trace_table = TraceTable::new();
-    let shape = PayloadShape::new(SMALL_BYTES, 1, None, &trace_map);
+    let shape = AllocationShape::new(SMALL_BYTES, 1, None, &trace_map);
     let shared = shared_heap();
     let allocation = shared_allocation_plan(&shared, shape);
 
@@ -683,14 +683,14 @@ fn small_allocation_plan(allocation: AllocationPlan) -> SmallAllocationPlan {
 
 /// Build one explicit local allocation plan for benchmarks.
 #[inline(always)]
-fn local_allocation_plan(heap: &Heap, shape: PayloadShape<'_>) -> AllocationPlan {
-    heap.options().allocation_plan_for_shape(shape)
+fn local_allocation_plan(heap: &Heap, shape: AllocationShape<'_>) -> AllocationPlan {
+    heap.options().allocation_plan(shape)
 }
 
 /// Build one explicit shared allocation plan for benchmarks.
 #[inline(always)]
-fn shared_allocation_plan(heap: &SharedHeap, shape: PayloadShape<'_>) -> AllocationPlan {
-    heap.options().allocation_plan_for_shape(shape)
+fn shared_allocation_plan(heap: &SharedHeap, shape: AllocationShape<'_>) -> AllocationPlan {
+    heap.options().allocation_plan(shape)
 }
 
 /// Return one trace map with one local reference word.

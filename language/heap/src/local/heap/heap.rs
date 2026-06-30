@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use destack_mir::{TraceMap, TraceTable};
+use crate::TraceView;
+use destack_mir::TraceMap;
 
 use crate::allocator::Allocator;
 use crate::local::storage::HeapStorage;
@@ -121,10 +122,10 @@ impl Heap {
         &mut self,
         roots: &mut Vec<SharedHeapReference>,
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<usize> {
         self.storage
-            .trace_shared_roots(roots, budget_bytes, trace_table)
+            .trace_shared_roots(roots, budget_bytes, trace_view)
     }
 
     /// Stabilize one heap reference in mature space.
@@ -156,7 +157,7 @@ impl Heap {
     pub fn collect_minor<E>(
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> Result<GcStats, E>
     where
         E: From<HeapError>,
@@ -164,7 +165,7 @@ impl Heap {
         self.gc_pacer
             .begin_cycle(self.options.gc, self.heap_allocated_bytes());
 
-        let stats = self.storage.collect_minor(roots, trace_table)?;
+        let stats = self.storage.collect_minor(roots, trace_view)?;
         self.on_after_gc_cycle(stats);
 
         Ok(stats)
@@ -174,7 +175,7 @@ impl Heap {
     pub fn collect_full<E>(
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> Result<GcStats, E>
     where
         E: From<HeapError>,
@@ -182,7 +183,7 @@ impl Heap {
         self.gc_pacer
             .begin_cycle(self.options.gc, self.heap_allocated_bytes());
 
-        let stats = self.storage.collect_full(roots, trace_table)?;
+        let stats = self.storage.collect_full(roots, trace_view)?;
         self.on_after_gc_cycle(stats);
 
         Ok(stats)
@@ -219,7 +220,7 @@ impl Heap {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> Result<GcProgress, E>
     where
         E: From<HeapError>,
@@ -234,7 +235,7 @@ impl Heap {
         if self.storage.minor_gc_active() {
             let progress = self
                 .storage
-                .step_young_gc(roots, budget_bytes, trace_table)?;
+                .step_young_gc(roots, budget_bytes, trace_view)?;
             if let Some(stats) = progress.completed_stats() {
                 self.on_after_gc_cycle(stats);
             }
@@ -246,7 +247,7 @@ impl Heap {
         if self.storage.major_gc_active() {
             let progress = self
                 .storage
-                .step_major_gc(roots, budget_bytes, trace_table)?;
+                .step_major_gc(roots, budget_bytes, trace_view)?;
             if let Some(stats) = progress.completed_stats() {
                 self.on_after_gc_cycle(stats);
             }
@@ -266,7 +267,7 @@ impl Heap {
             self.storage.start_major_gc(roots)?;
             let progress = self
                 .storage
-                .step_major_gc(roots, budget_bytes, trace_table)?;
+                .step_major_gc(roots, budget_bytes, trace_view)?;
 
             if let Some(stats) = progress.completed_stats() {
                 self.on_after_gc_cycle(stats);
@@ -281,7 +282,7 @@ impl Heap {
             self.storage.start_young_gc()?;
             let progress = self
                 .storage
-                .step_young_gc(roots, budget_bytes, trace_table)?;
+                .step_young_gc(roots, budget_bytes, trace_view)?;
 
             if let Some(stats) = progress.completed_stats() {
                 self.on_after_gc_cycle(stats);
@@ -411,9 +412,9 @@ impl Heap {
     pub fn trace_map(
         &self,
         reference: HeapReference,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<TraceMap> {
-        self.storage.trace_map(reference, trace_table)
+        self.storage.trace_map(reference, trace_view)
     }
 
     /// Record one heap write barrier over one byte range.
@@ -422,10 +423,10 @@ impl Heap {
         reference: HeapReference,
         start: usize,
         byte_len: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         self.storage
-            .write_barrier(reference, start, byte_len, trace_table)
+            .write_barrier(reference, start, byte_len, trace_view)
     }
 
     /// Return old and new shared edges for one heap store before it writes.
@@ -434,10 +435,10 @@ impl Heap {
         reference: HeapReference,
         start: usize,
         bytes: &[u8],
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<Vec<SharedHeapReference>> {
         self.storage
-            .shared_write_barrier_bytes(reference, start, bytes, trace_table)
+            .shared_write_barrier_bytes(reference, start, bytes, trace_view)
     }
 
     /// Check heap limits after one requested retained-byte delta.

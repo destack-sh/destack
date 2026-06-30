@@ -1,10 +1,11 @@
 use std::sync::OnceLock;
 
+use crate::TraceView;
 use destack_mir::TraceTable;
 
 use crate::shared::storage::HeapStorage;
 use crate::{
-    Allocation, AllocationCache, AllocationClass, AllocationPlan, Payload, PayloadShape,
+    Allocation, AllocationCache, AllocationClass, AllocationPlan, AllocationShape, Payload,
     SharedHeap, SharedHeapOptions, SharedHeapReference, SharedMarkWorker, allocation_class,
 };
 
@@ -13,11 +14,11 @@ static TRACE_TABLE: OnceLock<TraceTable> = OnceLock::new();
 /// A shared heap layer that can build allocation plans for tests.
 pub(crate) trait TestHeapPlan {
     /// Build one allocation plan for this test heap layer.
-    fn test_allocation_plan<'a>(&self, shape: PayloadShape<'a>) -> Allocation<'a>;
+    fn test_allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> Allocation<'a>;
 }
 
 impl TestHeapPlan for SharedHeap {
-    fn test_allocation_plan<'a>(&self, shape: PayloadShape<'a>) -> Allocation<'a> {
+    fn test_allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> Allocation<'a> {
         allocation_plan(self.options(), shape)
     }
 }
@@ -26,16 +27,16 @@ impl<T> TestHeapPlan for &mut T
 where
     T: TestHeapPlan + ?Sized,
 {
-    fn test_allocation_plan<'a>(&self, shape: PayloadShape<'a>) -> Allocation<'a> {
+    fn test_allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> Allocation<'a> {
         (**self).test_allocation_plan(shape)
     }
 }
 
 impl TestHeapPlan for HeapStorage {
-    fn test_allocation_plan<'a>(&self, shape: PayloadShape<'a>) -> Allocation<'a> {
+    fn test_allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> Allocation<'a> {
         let store = self.state.read();
         let class = if shape.trace_map.has_tagged_reference() {
-            AllocationClass::Large
+            AllocationClass::large()
         } else {
             allocation_class(
                 shape.byte_len,
@@ -54,22 +55,22 @@ impl TestHeapPlan for HeapStorage {
 }
 
 /// Return the shared empty trace table for shared heap tests.
-pub(crate) fn trace_table() -> &'static TraceTable {
-    TRACE_TABLE.get_or_init(TraceTable::new)
+pub(crate) fn trace_view() -> TraceView<'static> {
+    TraceView::new(TRACE_TABLE.get_or_init(TraceTable::new).traces())
 }
 
 /// Build one explicit shared heap allocation plan.
 pub(crate) fn owned_allocation_plan(
     options: &SharedHeapOptions,
-    shape: PayloadShape<'_>,
+    shape: AllocationShape<'_>,
 ) -> AllocationPlan {
-    options.allocation_plan_for_shape(shape)
+    options.allocation_plan(shape)
 }
 
 /// Build one shared heap allocation plan.
 pub(crate) fn allocation_plan<'a>(
     options: &SharedHeapOptions,
-    shape: PayloadShape<'a>,
+    shape: AllocationShape<'a>,
 ) -> Allocation<'a> {
     let plan = owned_allocation_plan(options, shape);
 
@@ -79,7 +80,7 @@ pub(crate) fn allocation_plan<'a>(
 /// Build one allocation plan for a live shared test heap.
 pub(crate) fn heap_allocation_plan<'a>(
     heap: &impl TestHeapPlan,
-    shape: PayloadShape<'a>,
+    shape: AllocationShape<'a>,
 ) -> Allocation<'a> {
     heap.test_allocation_plan(shape)
 }
@@ -89,13 +90,13 @@ pub(crate) fn test_allocate(
     shared: &SharedHeap,
     worker: &SharedMarkWorker,
     cache: &mut AllocationCache,
-    shape: PayloadShape<'_>,
+    shape: AllocationShape<'_>,
     payload: Payload<'_>,
 ) -> SharedHeapReference {
     let plan = heap_allocation_plan(shared, shape);
 
     shared
-        .allocate_payload(worker, cache, &plan, payload, trace_table())
+        .allocate_payload(worker, cache, &plan, payload, trace_view())
         .expect("shared test block should allocate")
 }
 

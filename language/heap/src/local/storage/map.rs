@@ -106,8 +106,8 @@ impl HeapStorage {
     ) -> Option<HeapExtent> {
         let span = self.young.span(span_index)?;
         let span_offset = logical_byte_offset.checked_sub(span.first_offset)?;
-        let slot_index = span_offset / span.class.size_class;
-        let slot_offset = span_offset % span.class.size_class;
+        let slot_index = span_offset / span.class.size_class();
+        let slot_offset = span_offset % span.class.size_class();
         let bits = self.young.span_bits(span_index)?;
         if slot_index >= self.young.span_reserved_slot_count(span_index)?
             || bits.freed.contains(slot_index)
@@ -137,18 +137,18 @@ impl HeapStorage {
         let span = self.span(span_index)?;
         let logical_byte_offset =
             logical_page_index * self.allocator.page_size_bytes() + page_offset;
-        let slot_index = logical_byte_offset / span.class.size_class;
-        let slot_offset = logical_byte_offset % span.class.size_class;
+        let slot_index = logical_byte_offset / span.class.size_class();
+        let slot_offset = logical_byte_offset % span.class.size_class();
         if slot_index >= span.slot_count || !span.occupied.contains(slot_index) {
             return None;
         }
 
-        let byte_len = span.class.size_class;
+        let byte_len = span.class.size_class();
         if slot_offset >= byte_len {
             return None;
         }
 
-        let slot_base_offset = slot_index * span.class.size_class;
+        let slot_base_offset = slot_index * span.class.size_class();
         let base_offset = span.first_offset + slot_base_offset;
         let slot = Slot::new(span_index, slot_index).ok()?;
 

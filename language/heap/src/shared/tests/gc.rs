@@ -1,16 +1,17 @@
 use std::sync::Arc;
 
+use crate::TraceView;
 use destack_mir::{TraceMap, TraceTable};
 
 use crate::{
-    AllocationCache, Allocator, GcKind, GcOptions, GcPhase, GcProgress, HeapAllocationError,
-    HeapError, Payload, PayloadShape, SharedHeap, SharedHeapLimits, SharedHeapOptions,
+    AllocationCache, AllocationShape, Allocator, GcKind, GcOptions, GcPhase, GcProgress,
+    HeapAllocationError, HeapError, Payload, SharedHeap, SharedHeapLimits, SharedHeapOptions,
     SharedHeapReference, SharedMarkWorker, SizeClassTable, TestLayout, shared_trace_map,
     test_layout, test_layouts,
 };
 
 use super::{
-    heap_allocation_plan, owned_allocation_plan, read_mapped_bytes, test_allocate, trace_table,
+    heap_allocation_plan, owned_allocation_plan, read_mapped_bytes, test_allocate, trace_view,
     write_mapped_bytes,
 };
 
@@ -71,7 +72,7 @@ fn test_allocate_shared_rejects_zero_size_layout() {
             &mut allocator,
             &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&[]),
-            trace_table(),
+            trace_view(),
         )
         .expect_err("shared heap block should reject zero-size layouts");
 
@@ -94,7 +95,7 @@ fn test_allocate_shared_zeroed_worker_cache_defers_accounting() {
             &mut allocator,
             &layout,
             Payload::Zeroed,
-            trace_table(),
+            trace_view(),
         )
         .expect("first shared block should succeed");
     let second = shared
@@ -103,7 +104,7 @@ fn test_allocate_shared_zeroed_worker_cache_defers_accounting() {
             &mut allocator,
             &layout,
             Payload::Zeroed,
-            trace_table(),
+            trace_view(),
         )
         .expect("second shared block should succeed");
 
@@ -136,25 +137,20 @@ fn test_reserve_shared_zeroed_misses_different_trace_class() {
     let mut trace_table = TraceTable::new();
     let first_trace_id = trace_table.insert(first_map.clone());
     let second_trace_id = trace_table.insert(second_map.clone());
+    let trace_view = TraceView::new(trace_table.traces());
     let (shared, mut allocator, worker, _) = test_shared_heap(&[]);
-    let first_shape = PayloadShape::new(8, 1, Some(first_trace_id), &first_map);
-    let second_shape = PayloadShape::new(8, 1, Some(second_trace_id), &second_map);
+    let first_shape = AllocationShape::new(8, 1, Some(first_trace_id), &first_map);
+    let second_shape = AllocationShape::new(8, 1, Some(second_trace_id), &second_map);
     let first_site = owned_allocation_plan(shared.options(), first_shape);
     let second_site = owned_allocation_plan(shared.options(), second_shape);
     let second_small = second_site
         .class
-        .small()
+        .as_small()
         .expect("second site should be small");
 
     // prime one worker cache with the first trace class
     let _first = shared
-        .allocate_zeroed(
-            &worker,
-            &mut allocator,
-            first_site,
-            &first_map,
-            &trace_table,
-        )
+        .allocate_zeroed(&worker, &mut allocator, first_site, &first_map, trace_view)
         .expect("first shared block should succeed");
 
     // reject cached cursor reuse across trace classes
@@ -176,7 +172,7 @@ fn test_allocate_shared_bytes_worker_cache_defers_accounting() {
             &mut allocator,
             &layout,
             Payload::Bytes(&[1, 2, 3, 4, 5, 6, 7, 8]),
-            trace_table(),
+            trace_view(),
         )
         .expect("first shared block should succeed");
     let second = shared
@@ -185,7 +181,7 @@ fn test_allocate_shared_bytes_worker_cache_defers_accounting() {
             &mut allocator,
             &layout,
             Payload::Bytes(&[8, 7, 6, 5, 4, 3, 2, 1]),
-            trace_table(),
+            trace_view(),
         )
         .expect("second shared block should succeed");
 
@@ -230,7 +226,7 @@ fn test_collect_shared_frees_unreachable_entries() {
 
     // collect the shared heap from the explicit root set
     let stats = shared
-        .collect_full(&[reachable], trace_table())
+        .collect_full(&[reachable], trace_view())
         .expect("shared collection should succeed");
 
     // free the unreachable entry and preserve root bytes
@@ -293,7 +289,7 @@ fn test_collect_shared_clears_reused_small_slot_tail() {
     flush_shared_cache(&shared, &mut allocator);
 
     shared
-        .collect_full(&[second], trace_table())
+        .collect_full(&[second], trace_view())
         .expect("shared collection should succeed");
     assert!(!shared.is_heap_live(first));
 
@@ -347,7 +343,7 @@ fn test_collect_shared_keeps_reachable_children() {
 
     // collect through the parent root
     let stats = shared
-        .collect_full(&[parent], trace_table())
+        .collect_full(&[parent], trace_view())
         .expect("shared collection should succeed");
 
     // retain the child through the parent payload
@@ -369,7 +365,8 @@ fn test_collect_shared_keeps_table_traced_small_children() {
     let parent_map = shared_trace_map(&[0]);
     let mut trace_table = TraceTable::new();
     let parent_trace_id = trace_table.insert(parent_map.clone());
-    let parent_layout = PayloadShape::new(8, 1, Some(parent_trace_id), &parent_map);
+    let trace_view = TraceView::new(trace_table.traces());
+    let parent_layout = AllocationShape::new(8, 1, Some(parent_trace_id), &parent_map);
     let (shared, mut allocator, worker, _) = test_shared_heap(&[]);
 
     // root the parent and make the child reachable through table-backed metadata
@@ -379,7 +376,7 @@ fn test_collect_shared_keeps_table_traced_small_children() {
             &mut allocator,
             &heap_allocation_plan(&shared, child_layout.block()),
             Payload::Bytes(&[0xC1, 0x1D]),
-            &trace_table,
+            trace_view,
         )
         .expect("child block should succeed");
     let parent = shared
@@ -388,7 +385,7 @@ fn test_collect_shared_keeps_table_traced_small_children() {
             &mut allocator,
             &heap_allocation_plan(&shared, parent_layout),
             Payload::Bytes(&child.bits().to_le_bytes()),
-            &trace_table,
+            trace_view,
         )
         .expect("parent block should succeed");
 
@@ -397,7 +394,7 @@ fn test_collect_shared_keeps_table_traced_small_children() {
 
     // collect using the trace table that owns the parent map
     let stats = shared
-        .collect_full(&[parent], &trace_table)
+        .collect_full(&[parent], trace_view)
         .expect("shared collection should succeed");
 
     // retain the child through table-backed trace metadata
@@ -455,7 +452,7 @@ fn test_collect_shared_scans_small_spans_incrementally() {
     );
 
     shared
-        .step_collection(&[first_parent, second_parent], true, 1, trace_table())
+        .step_collection(&[first_parent, second_parent], true, 1, trace_view())
         .expect("shared collection step should succeed");
 
     assert_eq!(shared.gc_phase(), GcPhase::Mark);
@@ -463,7 +460,7 @@ fn test_collect_shared_scans_small_spans_incrementally() {
 
     // drain the remaining bounded mark and sweep work
     while shared
-        .step_collection(&[first_parent, second_parent], true, 1, trace_table())
+        .step_collection(&[first_parent, second_parent], true, 1, trace_view())
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -527,13 +524,13 @@ fn test_collect_shared_scans_large_blocks_incrementally() {
     );
 
     shared
-        .step_collection(&[parent], true, 1, trace_table())
+        .step_collection(&[parent], true, 1, trace_view())
         .expect("shared collection step should succeed");
     assert_eq!(shared.gc_phase(), GcPhase::Mark);
 
     // drain the remaining bounded mark and sweep work
     while shared
-        .step_collection(&[parent], true, 1, trace_table())
+        .step_collection(&[parent], true, 1, trace_view())
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -563,7 +560,7 @@ fn test_collect_shared_rejects_invalid_root() {
 
     // reject the invalid root before mutating collection state
     let error = shared
-        .collect_full(&[invalid], trace_table())
+        .collect_full(&[invalid], trace_view())
         .expect_err("invalid shared roots should fail collection");
 
     assert_eq!(error, HeapError::invalid_shared_heap_reference(invalid));
@@ -598,7 +595,7 @@ fn test_shared_heap_gc_state_roundtrips_through_image() {
 
     // capture the heap image after collection
     let stats = shared
-        .collect_full(&[reference], trace_table())
+        .collect_full(&[reference], trace_view())
         .expect("shared collection should succeed");
     let image = shared.image().expect("shared image should capture");
     let restored = SharedHeap::from_image_with_limits(&image, SharedHeapLimits::default())
@@ -638,7 +635,7 @@ fn test_shared_heap_gc_state_roundtrips_through_snapshot() {
 
     // capture the serialized heap snapshot after collection
     let stats = shared
-        .collect_full(&[reference], trace_table())
+        .collect_full(&[reference], trace_view())
         .expect("shared collection should succeed");
     let image = shared.image().expect("shared image should capture");
     let snapshot = image.snapshot();
@@ -686,13 +683,13 @@ fn test_collect_shared_barrier_keeps_written_child() {
     );
 
     shared
-        .step_collection(&[parent], false, 1, trace_table())
+        .step_collection(&[parent], false, 1, trace_view())
         .expect("shared collection step should succeed");
     assert_eq!(shared.gc_phase(), GcPhase::Mark);
 
     // publish the child edge through the write barrier before writing bytes
     shared
-        .write_barrier_bytes(parent, 0, &child.bits().to_le_bytes(), trace_table())
+        .write_barrier_bytes(parent, 0, &child.bits().to_le_bytes(), trace_view())
         .expect("shared heap write barrier should record");
     let address = shared.heap_base_address() + parent.offset();
 
@@ -700,7 +697,7 @@ fn test_collect_shared_barrier_keeps_written_child() {
 
     // finish the collection after the barrier-published edge
     while shared
-        .step_collection(&[parent], true, 1, trace_table())
+        .step_collection(&[parent], true, 1, trace_view())
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -734,7 +731,7 @@ fn test_collect_shared_keeps_allocation_created_during_mark() {
     );
 
     shared
-        .step_collection(&[root], false, 1, trace_table())
+        .step_collection(&[root], false, 1, trace_view())
         .expect("shared collection step should succeed");
     assert_eq!(shared.gc_phase(), GcPhase::Mark);
 
@@ -749,7 +746,7 @@ fn test_collect_shared_keeps_allocation_created_during_mark() {
 
     // drain the active cycle
     while shared
-        .step_collection(&[root], true, 1, trace_table())
+        .step_collection(&[root], true, 1, trace_view())
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -792,7 +789,7 @@ fn test_collect_shared_keeps_cache_allocation_created_during_mark() {
 
     // drain the active cycle with no explicit roots
     while shared
-        .step_collection(&[], true, 1, trace_table())
+        .step_collection(&[], true, 1, trace_view())
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -841,7 +838,7 @@ fn test_allocate_shared_assists_sweep_before_returning() {
 
     while shared.gc_phase() == GcPhase::Mark {
         shared
-            .step_collection(&[root], true, 1, trace_table())
+            .step_collection(&[root], true, 1, trace_view())
             .expect("shared collection step should succeed");
     }
 
@@ -860,7 +857,7 @@ fn test_allocate_shared_assists_sweep_before_returning() {
     // drain any remaining sweep work
     while shared.gc_phase() != GcPhase::Idle {
         shared
-            .step_collection(&[], true, 1, trace_table())
+            .step_collection(&[], true, 1, trace_view())
             .expect("shared collection step should succeed");
     }
 
@@ -906,7 +903,7 @@ fn test_collect_shared_requires_explicit_mark_finish() {
     );
 
     shared
-        .step_collection(&[reachable], false, 1, trace_table())
+        .step_collection(&[reachable], false, 1, trace_view())
         .expect("shared collection step should succeed");
 
     // unreachable block should remain live until sweep is allowed
@@ -915,7 +912,7 @@ fn test_collect_shared_requires_explicit_mark_finish() {
 
     // allowing mark termination should finish the cycle and free garbage
     while shared
-        .step_collection(&[reachable], true, 1, trace_table())
+        .step_collection(&[reachable], true, 1, trace_view())
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -944,7 +941,7 @@ fn test_step_collection_stays_idle_without_request() {
 
     // no request and no pressure should produce no work
     let progress = shared
-        .step_collection(&[], true, 1, trace_table())
+        .step_collection(&[], true, 1, trace_view())
         .expect("shared collection step should succeed");
 
     // keep the collector idle
@@ -976,7 +973,7 @@ fn test_step_collection_honors_manual_request() {
     );
 
     shared
-        .step_collection(&[reachable], false, 1, trace_table())
+        .step_collection(&[reachable], false, 1, trace_view())
         .expect("shared collection step should succeed");
 
     // first bounded step should enter mark

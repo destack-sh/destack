@@ -46,7 +46,7 @@ impl HeapStorage {
                     continue;
                 }
 
-                let slot_offset = span.class.size_class * slot_index;
+                let slot_offset = span.class.size_class() * slot_index;
                 let base_offset = span.first_offset + slot_offset;
 
                 references.push(HeapReference::new(base_offset));

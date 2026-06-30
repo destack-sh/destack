@@ -2,7 +2,8 @@ use destack_serde::Reflect;
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicU8, AtomicU64, AtomicUsize, Ordering};
 
-use destack_mir::{TraceMap, TraceTable};
+use crate::TraceView;
+use destack_mir::TraceMap;
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 
@@ -65,7 +66,7 @@ impl SmallSpan {
         pages: PageSpan,
         list: SpanList,
     ) -> Self {
-        let scan_word_count = class.size_class.div_ceil(std::mem::size_of::<usize>());
+        let scan_word_count = class.size_class().div_ceil(std::mem::size_of::<usize>());
 
         Self {
             first_offset,
@@ -270,7 +271,7 @@ impl SmallSpan {
     pub(crate) fn write_reference_bits(&self, slot_index: usize, trace_map: &TraceMap) {
         debug_assert!(!trace_map.has_tagged_reference());
 
-        if self.class.trace_id.is_some() {
+        if self.class.trace_id().is_some() {
             return;
         }
 
@@ -297,16 +298,16 @@ impl SmallSpan {
     pub(crate) fn trace_map<'a>(
         &self,
         slot_index: usize,
-        trace_table: &'a TraceTable,
+        trace_view: TraceView<'a>,
     ) -> HeapResult<Cow<'a, TraceMap>> {
         // no-scan classes never carry reference bits
-        if self.class.is_noscan {
+        if self.class.is_noscan() {
             return Ok(Cow::Owned(TraceMap::Empty));
         }
 
         // table-backed classes share one canonical map
-        if let Some(trace_id) = self.class.trace_id {
-            let trace_map = trace_table
+        if let Some(trace_id) = self.class.trace_id() {
+            let trace_map = trace_view
                 .trace(trace_id)
                 .ok_or(HeapError::internal("missing trace map"))?;
 
@@ -318,8 +319,8 @@ impl SmallSpan {
             |bit_index| self.local_reference_bits.contains(bit_index),
             |bit_index| self.shared_reference_bits.contains(bit_index),
             slot_index,
-            self.class.size_class,
-            self.class.size_class,
+            self.class.size_class(),
+            self.class.size_class(),
         )))
     }
 
@@ -455,7 +456,10 @@ impl SmallSpan {
 
     /// Clear exact reference bits for one slot.
     fn clear_reference_bits(&self, slot_index: usize) {
-        let bit_len = self.class.size_class.div_ceil(std::mem::size_of::<usize>());
+        let bit_len = self
+            .class
+            .size_class()
+            .div_ceil(std::mem::size_of::<usize>());
         let bit_start = slot_index * bit_len;
 
         // clear both edge classes over the slot payload width
@@ -498,7 +502,7 @@ impl SmallSpan {
     /// Return one reference bit index inside this span.
     fn reference_bit_index(&self, slot_index: usize, byte_offset: usize) -> usize {
         let word_bytes = std::mem::size_of::<usize>();
-        let bit_len = self.class.size_class.div_ceil(word_bytes);
+        let bit_len = self.class.size_class().div_ceil(word_bytes);
 
         slot_index * bit_len + byte_offset / word_bytes
     }

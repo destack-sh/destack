@@ -25,11 +25,11 @@ impl HeapStorage {
             Ok(0)
         }
         // use one traced small span when the payload still fits
-        else if let Some(small) = layout.class.small() {
+        else if let Some(small) = layout.class.as_small() {
             if self.has_available_small_slot(&small) {
                 Ok(0)
             } else {
-                Ok(small.class.span_size_bytes as i64)
+                Ok(small.class.span_size_bytes() as i64)
             }
         }
         // otherwise allocate one dedicated large block
@@ -80,7 +80,7 @@ impl HeapStorage {
             return Ok(None);
         }
 
-        let Some(small) = layout.class.small() else {
+        let Some(small) = layout.class.as_small() else {
             return Ok(None);
         };
         let class = small.class;
@@ -95,7 +95,7 @@ impl HeapStorage {
             let Some(span) = self.young.span(span_index) else {
                 return Err(HeapError::internal("missing span"));
             };
-            let slot_index = (reference.offset() - span.first_offset) / class.size_class;
+            let slot_index = (reference.offset() - span.first_offset) / class.size_class();
 
             return Ok(Some(YoungSlot {
                 reference,
@@ -133,14 +133,14 @@ impl HeapStorage {
         class: SmallSpanClass,
         cache_index: usize,
     ) -> HeapResult<Option<usize>> {
-        let size_class = class.size_class;
+        let size_class = class.size_class();
         let first_offset = align_up(self.young.next_offset, self.young.page_size_bytes);
         if first_offset >= self.young.capacity_bytes {
             return Ok(None);
         }
 
         let available_bytes = self.young.capacity_bytes - first_offset;
-        let configured_bytes = class.span_size_bytes;
+        let configured_bytes = class.span_size_bytes();
         let span_bytes = configured_bytes.min(available_bytes);
         let span_bytes = span_bytes / self.young.page_size_bytes * self.young.page_size_bytes;
         if span_bytes < size_class {
@@ -197,7 +197,7 @@ impl HeapStorage {
         self.young.activate_cursor(byte_len, class, span_index)?;
         let reference = self.young.cursor.as_mut()?.reserve_reference()?;
         let span = self.young.span(span_index)?;
-        let slot_index = (reference.offset() - span.first_offset) / class.size_class;
+        let slot_index = (reference.offset() - span.first_offset) / class.size_class();
 
         Some(YoungSlot {
             reference,
@@ -445,7 +445,7 @@ impl HeapStorage {
         }
 
         // allocate from one size class span when the payload still fits
-        if let Some(small) = layout.class.small() {
+        if let Some(small) = layout.class.as_small() {
             let class = small.class;
             let span_index = self.allocate_small_span(&class)?;
             let Some(span) = self.small.spans.get(span_index) else {
@@ -464,7 +464,7 @@ impl HeapStorage {
 
             Ok(MatureAllocation {
                 place: HeapPlace::MatureSlot(slot),
-                charged_bytes: class.size_class,
+                charged_bytes: class.size_class(),
             })
         }
         // otherwise allocate one dedicated large block
@@ -511,7 +511,7 @@ impl HeapStorage {
 
             span.occupied.clear(slot_index);
             span.marked.clear(slot_index);
-            let size_class = span.class.size_class;
+            let size_class = span.class.size_class();
             let local_reference_bits = &mut span.local_reference_bits;
             let shared_reference_bits = &mut span.shared_reference_bits;
             clear_slot_reference_bits(
@@ -696,20 +696,16 @@ impl HeapStorage {
             && let Some(class_index) = self.small.size_classes.class_index_for(byte_len)
         {
             let size_class = self.small.size_classes.classes[class_index];
-            let class = SmallSpanClass {
-                size_class: size_class.bytes,
-                span_size_bytes: size_class
-                    .span_size_bytes(self.allocator.page_size_bytes(), self.small.span_size_bytes)
-                    .max(self.small.span_size_bytes),
-                trace_id: None,
-                is_noscan: true,
-            };
+            let span_size_bytes = size_class
+                .span_size_bytes(self.allocator.page_size_bytes(), self.small.span_size_bytes)
+                .max(self.small.span_size_bytes);
+            let class = SmallSpanClass::new(size_class.bytes, span_size_bytes, None, true);
             let span_index = self.allocate_small_span(&class)?;
             let Some(span) = self.small.spans.get(span_index) else {
                 return Err(HeapError::internal("missing span"));
             };
             let slot_index = span.free_cursor;
-            let target_offset = span.first_offset + slot_index * class.size_class;
+            let target_offset = span.first_offset + slot_index * class.size_class();
             let slot = self.initialize_small_slot(
                 &class,
                 span_index,
@@ -726,13 +722,13 @@ impl HeapStorage {
                     .copy_mapped_bytes(source_offset, target_offset, byte_len);
 
                 // keep zeroed slack semantics for the slot tail
-                if byte_len < class.size_class {
+                if byte_len < class.size_class() {
                     self.mapping
-                        .zero_mapped_bytes(target_offset + byte_len, class.size_class - byte_len);
+                        .zero_mapped_bytes(target_offset + byte_len, class.size_class() - byte_len);
                 }
             }
 
-            self.record_mature_allocation(class.size_class);
+            self.record_mature_allocation(class.size_class());
 
             HeapPlace::MatureSlot(slot)
         } else {
@@ -916,7 +912,7 @@ impl HeapStorage {
             if span.occupied_count < span.slot_count {
                 if span.occupied_count == 0 && span.pages.is_empty() {
                     let first_offset = span.first_offset;
-                    let pages = self.allocate_page_span(class.span_size_bytes)?;
+                    let pages = self.allocate_page_span(class.span_size_bytes())?;
 
                     self.map_page_span(first_offset, &pages, |logical_page_index| {
                         HeapPageMapEntry::MatureSpan {
@@ -934,7 +930,7 @@ impl HeapStorage {
 
                     // materialize the full span before handing out slots
                     self.mapping
-                        .materialize(first_offset, class.span_size_bytes)?;
+                        .materialize(first_offset, class.span_size_bytes())?;
 
                     span.pages = pages;
                 }
@@ -944,15 +940,15 @@ impl HeapStorage {
         }
 
         // otherwise allocate one fresh span for the size class
-        let slot_count = (class.span_size_bytes / class.size_class).max(1);
-        let scan_word_count = class.size_class.div_ceil(std::mem::size_of::<usize>());
-        let dirty_card_bytes = slot_count * class.size_class;
-        let pages = self.allocate_page_span(class.span_size_bytes)?;
-        let first_offset = self.reserve_address_range(class.span_size_bytes)?;
+        let slot_count = (class.span_size_bytes() / class.size_class()).max(1);
+        let scan_word_count = class.size_class().div_ceil(std::mem::size_of::<usize>());
+        let dirty_card_bytes = slot_count * class.size_class();
+        let pages = self.allocate_page_span(class.span_size_bytes())?;
+        let first_offset = self.reserve_address_range(class.span_size_bytes())?;
 
         // materialize the full span before handing out slots
         self.mapping
-            .materialize(first_offset, class.span_size_bytes)?;
+            .materialize(first_offset, class.span_size_bytes())?;
 
         let span = SmallSpan {
             first_offset,
@@ -998,10 +994,10 @@ impl HeapStorage {
             .spans
             .get(span_index)
             .ok_or(HeapError::internal("missing span"))?;
-        let slot_offset = span.class.size_class * slot_index;
+        let slot_offset = span.class.size_class() * slot_index;
         let mapping_offset = span.first_offset + slot_offset;
 
-        init.initialize_mapped(&self.mapping, mapping_offset, class.size_class);
+        init.initialize_mapped(&self.mapping, mapping_offset, class.size_class());
 
         let span = self
             .small
@@ -1010,8 +1006,8 @@ impl HeapStorage {
             .ok_or(HeapError::internal("missing span"))?;
 
         // publish direct trace metadata when the class has no table id
-        if span.class.trace_id.is_none() {
-            let size_class = span.class.size_class;
+        if span.class.trace_id().is_none() {
+            let size_class = span.class.size_class();
             let local_reference_bits = &mut span.local_reference_bits;
             let shared_reference_bits = &mut span.shared_reference_bits;
             write_slot_reference_bits(

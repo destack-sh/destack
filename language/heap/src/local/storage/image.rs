@@ -2,8 +2,8 @@ use destack_serde::Reflect;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use crate::TraceView;
 use destack_memory::AddressSpace;
-use destack_mir::TraceTable;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -185,7 +185,7 @@ impl HeapStorage {
     /// Fork one heap storage over the same shared allocator.
     ///
     /// Call this only from a safepoint where the heap storage cannot mutate.
-    pub(crate) fn fork(&mut self, trace_table: &TraceTable) -> Result<Self, HeapError> {
+    pub(crate) fn fork(&mut self, trace_view: TraceView<'_>) -> Result<Self, HeapError> {
         self.check_branch_boundary()?;
         self.flush_branch_boundary()?;
 
@@ -194,8 +194,8 @@ impl HeapStorage {
         // rebuild remembered-set state conservatively after fork
         space
             .rebuild_page_map()
-            .and_then(|()| space.rebuild_remembered_set(trace_table))
-            .and_then(|()| space.rebuild_shared_edge_roots(trace_table))?;
+            .and_then(|()| space.rebuild_remembered_set(trace_view))
+            .and_then(|()| space.rebuild_shared_edge_roots(trace_view))?;
 
         Ok(space)
     }
@@ -204,7 +204,7 @@ impl HeapStorage {
     pub(crate) fn from_image(
         allocator: Arc<Allocator>,
         image: &HeapStorageImage,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> Result<Self, HeapError> {
         // reject contradictory young space policy
         if image.young().capacity_bytes() != 0
@@ -218,22 +218,22 @@ impl HeapStorage {
             ));
         }
 
-        Self::restore_from_image(allocator, image, trace_table)
+        Self::restore_from_image(allocator, image, trace_view)
     }
 
     /// Restore one heap storage from one checked frozen heap storage image.
     fn restore_from_image(
         allocator: Arc<Allocator>,
         image: &HeapStorageImage,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> Result<Self, HeapError> {
         let mut space = Self::restore_state(allocator.clone(), image)?;
 
         // rebuild remembered-set state conservatively after restore
         space
             .rebuild_page_map()
-            .and_then(|()| space.rebuild_remembered_set(trace_table))
-            .and_then(|()| space.rebuild_shared_edge_roots(trace_table))?;
+            .and_then(|()| space.rebuild_remembered_set(trace_view))
+            .and_then(|()| space.rebuild_shared_edge_roots(trace_view))?;
 
         Ok(space)
     }
@@ -303,10 +303,10 @@ impl HeapStorage {
                 image.young().page_size_bytes(),
                 image.small_bytes(),
             )?;
-            if span.byte_len() == 0 || span.byte_len() > span.class().size_class {
+            if span.byte_len() == 0 || span.byte_len() > span.class().size_class() {
                 return Err(HeapError::invalid_allocation(
                     HeapAllocationError::ByteLengthMismatch {
-                        expected: span.class().size_class,
+                        expected: span.class().size_class(),
                         actual: span.byte_len(),
                     },
                 ));
@@ -315,16 +315,16 @@ impl HeapStorage {
             let class = allocation_class(
                 span.byte_len(),
                 image.young().allocation_alignment_bytes(),
-                span.class().trace_id,
-                span.class().is_noscan,
+                span.class().trace_id(),
+                span.class().is_noscan(),
                 image.size_classes(),
                 image.young().page_size_bytes(),
                 image.small_bytes(),
             );
-            let Some(small) = class.small() else {
+            let Some(small) = class.as_small() else {
                 return Err(HeapError::invalid_allocation(
                     HeapAllocationError::ByteLengthMismatch {
-                        expected: span.class().size_class,
+                        expected: span.class().size_class(),
                         actual: span.byte_len(),
                     },
                 ));
@@ -544,7 +544,7 @@ impl HeapStorage {
     /// Restore one heap span from one frozen span image.
     fn restore_span(allocator: &Allocator, span: &SmallSpanImage) -> HeapResult<SmallSpan> {
         // rebuild the live span around fresh pages
-        let dirty_card_bytes = span.slot_count * span.class.size_class;
+        let dirty_card_bytes = span.slot_count * span.class.size_class();
         let pages = allocator.allocate_pages(span.bytes.len())?;
 
         Ok(SmallSpan {
@@ -799,7 +799,7 @@ fn restored_young_usage(image: &HeapStorageImage) -> AllocationUsage {
         let occupied_count = reserved_count - freed_count;
 
         for _ in 0..occupied_count {
-            usage.allocate(span.class.size_class);
+            usage.allocate(span.class.size_class());
         }
     }
 

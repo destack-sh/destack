@@ -1,4 +1,4 @@
-use destack_mir::TraceTable;
+use crate::TraceView;
 
 use crate::shared::gc::{GcPhase, MarkWork, SharedMarkWorker};
 use crate::shared::storage::{HeapPlace, HeapStorage};
@@ -13,7 +13,7 @@ impl HeapStorage {
         reference: SharedHeapReference,
         byte_offset: usize,
         bytes: &[u8],
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         // inactive collector
         let Some(_publication) = self.gc.begin_mark_publication() else {
@@ -31,7 +31,7 @@ impl HeapStorage {
         };
 
         // scan references overwritten by this store
-        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_table)?;
+        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_view)?;
         let base_address = self.mapping.base_address() + extent.base.offset();
         visit_references::<SharedHeapReference>(
             &trace_map,

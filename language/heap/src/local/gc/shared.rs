@@ -1,4 +1,4 @@
-use destack_mir::TraceTable;
+use crate::TraceView;
 
 use crate::local::gc::EdgeWork;
 use crate::local::storage::{HeapPlace, HeapStorage};
@@ -28,7 +28,7 @@ impl HeapStorage {
         &mut self,
         roots: &mut Vec<SharedHeapReference>,
         budget_bytes: usize,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<usize> {
         // inactive scan
         if !self.collector.is_scanning_shared_edges || budget_bytes == 0 {
@@ -43,7 +43,7 @@ impl HeapStorage {
                 break;
             };
 
-            traced_bytes += self.trace_shared_edge(work, roots, trace_table)?;
+            traced_bytes += self.trace_shared_edge(work, roots, trace_view)?;
         }
 
         // continue the tracked shared-edge walk
@@ -53,7 +53,7 @@ impl HeapStorage {
             };
 
             traced_bytes +=
-                self.trace_shared_edge(EdgeWork::Reference(reference), roots, trace_table)?;
+                self.trace_shared_edge(EdgeWork::Reference(reference), roots, trace_view)?;
         }
 
         Ok(traced_bytes)
@@ -63,11 +63,11 @@ impl HeapStorage {
     pub(crate) fn queue_shared_reference(
         &mut self,
         reference: HeapReference,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         // only live shared-reference carriers need rescanning
         if !self.collector.is_scanning_shared_edges
-            || !self.reference_has_shared_roots(reference, trace_table)?
+            || !self.reference_has_shared_roots(reference, trace_view)?
         {
             return Ok(());
         }
@@ -88,7 +88,7 @@ impl HeapStorage {
     pub(crate) fn reference_has_shared_roots(
         &self,
         reference: HeapReference,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<bool> {
         // freed references cannot publish shared roots
         let Some(extent) = self.resolve_extent(reference) else {
@@ -96,7 +96,7 @@ impl HeapStorage {
         };
 
         // layout metadata decides whether scanning is needed
-        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_table)?;
+        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_view)?;
 
         Ok(trace_map.has_shared_reference())
     }
@@ -106,14 +106,12 @@ impl HeapStorage {
         &mut self,
         work: EdgeWork,
         roots: &mut Vec<SharedHeapReference>,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<usize> {
         match work {
-            EdgeWork::Reference(reference) => {
-                self.trace_shared_edges(reference, roots, trace_table)
-            }
+            EdgeWork::Reference(reference) => self.trace_shared_edges(reference, roots, trace_view),
             EdgeWork::LargeRange { reference, start } => {
-                self.trace_large_shared_edges(reference, start, roots, trace_table)
+                self.trace_large_shared_edges(reference, start, roots, trace_view)
             }
         }
     }
@@ -123,7 +121,7 @@ impl HeapStorage {
         &mut self,
         reference: HeapReference,
         roots: &mut Vec<SharedHeapReference>,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<usize> {
         // freed references contribute no work
         let Some(extent) = self.resolve_extent(reference) else {
@@ -132,7 +130,7 @@ impl HeapStorage {
 
         // load exact shared-reference layout
         let trace_map = self
-            .trace_map_for_place_ref(extent.storage, trace_table)
+            .trace_map_for_place_ref(extent.storage, trace_view)
             .map_err(|error| {
                 HeapError::scan_failed(HeapOperationSource::Reference(reference), error)
             })?;
@@ -144,7 +142,7 @@ impl HeapStorage {
 
         // large references are sliced to keep shared-root scans bounded
         if matches!(extent.storage, HeapPlace::LargeBlock(_)) {
-            return self.trace_large_shared_edges(reference, 0, roots, trace_table);
+            return self.trace_large_shared_edges(reference, 0, roots, trace_view);
         }
 
         // scan mapped heap memory directly
@@ -178,7 +176,7 @@ impl HeapStorage {
         reference: HeapReference,
         start: usize,
         roots: &mut Vec<SharedHeapReference>,
-        trace_table: &TraceTable,
+        trace_view: TraceView<'_>,
     ) -> HeapResult<usize> {
         // freed references contribute no work
         let Some(extent) = self.resolve_extent(reference) else {
@@ -192,7 +190,7 @@ impl HeapStorage {
 
         // load exact shared-reference layout
         let trace_map = self
-            .trace_map_for_place_ref(extent.storage, trace_table)
+            .trace_map_for_place_ref(extent.storage, trace_view)
             .map_err(|error| {
                 HeapError::scan_failed(HeapOperationSource::Reference(reference), error)
             })?;

@@ -123,13 +123,13 @@ impl HeapStorage {
                 }
 
                 // marked slots survive this cycle
-                *swept_bytes += span.class.size_class.max(1);
+                *swept_bytes += span.class.size_class().max(1);
                 if span.is_marked(slot_index, mark_epoch) {
                     continue;
                 }
 
                 // unmarked slots are dead
-                let slot_offset = span.class.size_class * slot_index;
+                let slot_offset = span.class.size_class() * slot_index;
                 let reference = SharedHeapReference::new(span.first_offset + slot_offset);
 
                 return Ok(Some(reference));
