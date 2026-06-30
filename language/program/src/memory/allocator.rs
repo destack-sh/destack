@@ -1,16 +1,12 @@
-use std::collections::HashMap;
+use destack_core::SectionPacker;
 
-use crate::{GlobalId, GlobalRegion, StaticSpace, TypeId};
+use crate::StaticImage;
 
-/// Construction-time allocator for global regions in one static space.
+/// Construction-time allocator for static global bytes.
 #[derive(Debug, Default)]
 pub struct GlobalAllocator {
     /// Static bytes.
     bytes: Vec<u8>,
-    /// Global regions.
-    regions: Vec<GlobalRegion>,
-    /// Region index by global id.
-    region_by_global: HashMap<GlobalId, usize>,
 }
 
 impl GlobalAllocator {
@@ -19,46 +15,21 @@ impl GlobalAllocator {
         Self::default()
     }
 
-    /// Define one global region.
-    pub fn define(
-        &mut self,
-        global: GlobalId,
-        ty: TypeId,
-        alignment: usize,
-        is_mutable: bool,
-        bytes: &[u8],
-    ) -> bool {
-        // global ids are unique inside one static space
-        if self.region_by_global.contains_key(&global) {
-            return false;
-        }
-
-        // align the next region start
+    /// Allocate one static global byte range.
+    pub fn allocate(&mut self, alignment: usize, bytes: &[u8]) -> (usize, usize) {
+        // align the next global start
         let offset = align_static_offset(self.bytes.len(), alignment);
         self.bytes.resize(offset, 0);
 
-        // append region bytes and metadata together
-        let index = self.regions.len();
+        // append global bytes
         self.bytes.extend_from_slice(bytes);
-        self.regions.push(GlobalRegion {
-            global,
-            offset,
-            byte_len: bytes.len(),
-            ty,
-            is_mutable,
-        });
-        self.region_by_global.insert(global, index);
 
-        true
+        (offset, bytes.len())
     }
 
     /// Finish static memory.
-    pub fn finish(self) -> StaticSpace {
-        StaticSpace::new(
-            self.bytes.into_boxed_slice(),
-            self.regions.into_boxed_slice(),
-            self.region_by_global,
-        )
+    pub fn finish(self, sections: &mut SectionPacker) -> StaticImage {
+        StaticImage::pack(sections, self.bytes)
     }
 }
 
