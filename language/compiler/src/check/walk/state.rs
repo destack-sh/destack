@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    CheckState, Constraint, ExpectedType, FlowSite, FlowState, GenericInductionParameter, Origin,
-    PlaceUse, Relation, Task, ValueUse, Widening, WriteTarget,
+    BindSource, CheckState, Constraint, ExpectedType, FlowSite, FlowState,
+    GenericInductionParameter, Origin, PlaceUse, Relation, Task, ValueUse, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -17,8 +17,8 @@ pub(in crate::check) struct WalkState<'check, 'state> {
     pub(in crate::check) module: ModuleId,
     /// How elided borrow lifetimes are handled in the active type position.
     borrow_lifetime_elision: BorrowLifetimeElision,
-    /// Elided borrow lifetime holes tracked by the active return type.
-    return_borrow_lifetimes: Vec<dir::TypeVariableId>,
+    /// Elided borrow lifetimes tracked by the active return type.
+    return_borrow_lifetimes: Vec<(dir::TypeVariableId, GenericInductionParameter)>,
     /// Flow state for the current module walk.
     flow: FlowState,
 }
@@ -64,26 +64,12 @@ impl Expectation {
 
     /// Create an assignable value expectation from another node's type.
     pub(in crate::check) fn assignable_node(
-        target: dir::GlobalNodeIdAny,
+        target: FlowSite,
         origin: Origin,
         use_: ValueUse,
     ) -> Self {
         Self {
             expected: ExpectedType::Node(target),
-            relation: Relation::Assignable,
-            origin,
-            use_,
-        }
-    }
-
-    /// Create an assignable value expectation from a writable place.
-    pub(in crate::check) fn assignable_place(
-        target: WriteTarget,
-        origin: Origin,
-        use_: ValueUse,
-    ) -> Self {
-        Self {
-            expected: ExpectedType::Place(target),
             relation: Relation::Assignable,
             origin,
             use_,
@@ -150,9 +136,15 @@ impl<'check, 'state> WalkState<'check, 'state> {
         if !has_body && !tracked.is_empty() {
             self.check
                 .report_ambient_lifetime_elided(self.module, source);
-            for variable in tracked {
+            for (variable, _) in tracked {
                 let error = self.push_type(dir::Type::Error, source)?;
                 self.check.commit_solution(variable, error)?;
+            }
+        }
+        // bodyful callables generalize elided return lifetimes
+        else {
+            for (variable, induction) in tracked {
+                self.check.generics.insert_induction(variable, induction)?;
             }
         }
 
@@ -183,21 +175,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 self.check.generics.insert_induction(variable, induction)?;
             }
             BorrowLifetimeElision::TrackReturn => {
-                self.return_borrow_lifetimes.push(variable);
+                self.return_borrow_lifetimes.push((variable, induction));
             }
             BorrowLifetimeElision::Frame => unreachable!("frame elision opens no variable"),
         }
 
         Ok(())
-    }
-
-    /// Return one node's checked type when it is already available.
-    pub(in crate::check) fn node_type_maybe<T: dir::Node>(
-        &self,
-        id: dir::LocalNodeId<T>,
-    ) -> Option<dir::GlobalTypeId> {
-        let node = id.into_global_any(self.module);
-        self.check.node_type_maybe(node)
     }
 
     /// Open one explicit type variable at a source node.
@@ -212,8 +195,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.check.push_variable_type(variable, source)
     }
 
-    /// Write one node's own type.
-    pub(in crate::check) fn write_node_type<T: dir::Node>(
+    /// Commit one source-node type.
+    pub(in crate::check) fn commit_node_type<T: dir::Node>(
         &mut self,
         id: dir::LocalNodeId<T>,
         ty: dir::GlobalTypeId,
@@ -292,16 +275,31 @@ impl<'check, 'state> WalkState<'check, 'state> {
     }
 
     /// Queue one symbol binding from an initializer expression.
-    pub(in crate::check) fn queue_bind(
+    pub(in crate::check) fn queue_bind_initializer(
         &mut self,
         symbol: dir::GlobalSymbolId,
         initializer: dir::LocalNodeId<dir::Expression>,
         widening: Widening,
     ) {
+        let site = FlowSite {
+            node: initializer.into_global_any(self.module),
+            flow: self.flow().point(),
+        };
         self.check.queue_task(Task::Bind {
             symbol,
-            initializer: initializer.into_global(self.module),
-            widening,
+            source: BindSource::Initializer { site, widening },
+        });
+    }
+
+    /// Queue one symbol binding from a type graph.
+    pub(in crate::check) fn queue_bind_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        ty: dir::GlobalTypeId,
+    ) {
+        self.check.queue_task(Task::Bind {
+            symbol,
+            source: BindSource::Type(ty),
         });
     }
 
@@ -312,7 +310,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             flow: self.flow().point(),
         };
 
-        self.check.solver.complete_task(Task::Infer {
+        self.check.solver.complete_task(&Task::Infer {
             site,
             use_: PlaceUse::Read,
         });

@@ -1,10 +1,32 @@
 use destack_dir as dir;
+use indexmap::IndexSet;
 
 use crate::CompilerResult;
 use crate::check::{
-    Expectation, FlowBranch, GenericInductionDeclaration, GenericInductionPosition,
-    GenericTemplateId, Origin, ReceiverBinding, Relation, ValueUse, WalkState, Widening,
+    Expectation, FlowBranch, GenericInductionDeclaration, GenericInductionParameter,
+    GenericInductionPosition, GenericTemplateId, Origin, ReceiverBinding, Relation, ValueUse,
+    WalkState, Widening,
 };
+
+/// Type information produced by one parameter header.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) struct ParameterType {
+    /// The type accepted by calls and defaults.
+    pub(in crate::check) argument: dir::GlobalTypeId,
+    /// The type bound inside the function body.
+    pub(in crate::check) binding: dir::GlobalTypeId,
+}
+
+/// Runtime parameter types produced by one function signature header.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct FunctionHeader {
+    /// The generic template declared by the signature.
+    pub(in crate::check) template: Option<GenericTemplateId>,
+    /// The explicit `this` parameter type.
+    pub(in crate::check) this_parameter: Option<dir::GlobalTypeId>,
+    /// The runtime parameter types.
+    pub(in crate::check) parameters: Vec<dir::FunctionParameterType>,
+}
 
 impl<'check, 'state> WalkState<'check, 'state> {
     /// Walk one function signature and return its type.
@@ -17,26 +39,22 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         source: dir::LocalNodeIdAny,
         signature: &dir::FunctionSignature,
-        template: Option<GenericTemplateId>,
+        header: FunctionHeader,
         owner: Option<GenericInductionDeclaration>,
         receiver_type: Option<dir::GlobalTypeId>,
         return_type: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let this_parameter = if let Some(parameter) = signature.this_parameter {
-            receiver_type.or(self.walk_parameter_type(parameter)?)
-        } else {
-            receiver_type
-        };
-
-        // collect runtime parameters
-        let mut parameters = Vec::new();
-        for parameter in &signature.parameters {
-            if let Some(parameter) = self.walk_function_parameter_type(*parameter)? {
-                parameters.push(parameter);
-            }
-        }
-        let template =
-            self.signature_template(template, owner, this_parameter, &parameters, return_type)?;
+        let this_parameter = receiver_type.or(header.this_parameter);
+        let parameters = header.parameters;
+        let return_type =
+            self.apply_result_lifetime_elision(this_parameter, &parameters, return_type)?;
+        let template = self.signature_template(
+            header.template,
+            owner,
+            this_parameter,
+            &parameters,
+            return_type,
+        )?;
 
         let function = dir::FunctionSignatureType {
             asynchrony: signature.asynchrony,
@@ -48,6 +66,94 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
 
         self.push_type(dir::Type::FunctionSignature(function), source)
+    }
+
+    /// Apply elided result lifetimes to the unique input borrow lifetime.
+    fn apply_result_lifetime_elision(
+        &mut self,
+        this_parameter: Option<dir::GlobalTypeId>,
+        parameters: &[dir::FunctionParameterType],
+        return_type: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let Some(return_type) = return_type else {
+            return Ok(None);
+        };
+
+        let mut input_lifetimes = Vec::new();
+        if let Some(this_parameter) = this_parameter {
+            input_lifetimes.extend(self.induced_lifetime_types(this_parameter)?);
+        }
+        for parameter in parameters {
+            input_lifetimes.extend(self.induced_lifetime_types(parameter.ty)?);
+        }
+
+        // de-duplicate aliases introduced by reused lifetime annotations
+        let mut seen = IndexSet::new();
+        input_lifetimes.retain(|(variable, _)| seen.insert(*variable));
+
+        let [(input_variable, input_lifetime)] = input_lifetimes.as_slice() else {
+            return Ok(Some(return_type));
+        };
+        let input_lifetime = *input_lifetime;
+        let return_lifetimes = self.induced_lifetime_types(return_type)?;
+
+        // tie each elided result lifetime to the unique input lifetime
+        for (return_variable, _) in return_lifetimes {
+            if return_variable != *input_variable {
+                self.check
+                    .commit_solution(return_variable, input_lifetime)?;
+            }
+        }
+
+        Ok(Some(return_type))
+    }
+
+    /// Return induced lifetime variables inside one type graph.
+    fn induced_lifetime_types(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Vec<(dir::TypeVariableId, dir::GlobalTypeId)>> {
+        let mut lifetimes = Vec::new();
+        let mut pending = vec![ty];
+        let mut visited = IndexSet::new();
+
+        // walk the type graph without expanding declarations
+        while let Some(ty) = pending.pop() {
+            if !visited.insert(ty) {
+                continue;
+            }
+
+            let current = self.check.ty(ty)?;
+            if let dir::Type::Variable(variable) = current {
+                let representative = self.check.solver.representative(*variable)?;
+                let is_lifetime = match self.check.generics.induction(representative) {
+                    Some(induction) => self.is_lifetime_induction(induction)?,
+                    None => false,
+                };
+                if is_lifetime {
+                    lifetimes.push((representative, ty));
+                }
+
+                continue;
+            }
+
+            current.for_each_child(|child| pending.push(child));
+        }
+
+        Ok(lifetimes)
+    }
+
+    /// Return whether one induced parameter is an elided lifetime.
+    fn is_lifetime_induction(&self, induction: GenericInductionParameter) -> CompilerResult<bool> {
+        let Some(constraint) = induction.constraint else {
+            return Ok(false);
+        };
+        let dir::Type::Instance(instance) = self.check.ty(constraint)? else {
+            return Ok(false);
+        };
+        let item = self.check.environment.language.item(instance.symbol);
+
+        Ok(induction.is_comptime && item == Some(dir::LanguageItem::Lifetime))
     }
 
     /// Return the template owned by one callable signature.
@@ -129,7 +235,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
 
         let this_parameter = if let Some(parameter) = declaration.this_parameter {
-            self.walk_parameter_type(parameter)?
+            self.walk_parameter_type(parameter)?.map(|ty| ty.argument)
         } else {
             None
         };
@@ -339,15 +445,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         )
     }
 
-    /// Walk one runtime function parameter and return its signature slot.
-    ///
-    /// Example:
-    /// ```ds
-    /// (value?: T, ...rest: U[])
-    /// ```
-    fn walk_function_parameter_type(
+    /// Return the signature slot for one walked runtime parameter.
+    pub(in crate::check) fn function_parameter_type(
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
+        ty: ParameterType,
     ) -> CompilerResult<Option<dir::FunctionParameterType>> {
         let parameter = self.tree.get(id);
         let is_rest = matches!(
@@ -356,9 +458,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         );
         let is_optional = parameter.is_optional();
         let is_comptime = parameter.is_comptime();
-        let Some(ty) = self.walk_parameter_type(id)? else {
-            return Ok(None);
-        };
 
         // comptime parameters supply their generic parameter statically
         let static_parameter = if is_comptime {
@@ -373,7 +472,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
 
         Ok(Some(dir::FunctionParameterType {
-            ty,
+            ty: ty.argument,
             static_parameter,
             is_optional,
             is_rest,
@@ -397,7 +496,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         );
         let is_optional = parameter.is_optional();
         let is_comptime = parameter.is_comptime();
-        let Some(written) = self.walk_parameter_type(id)? else {
+        let Some(parameter_type) = self.walk_parameter_type(id)? else {
             return Ok(None);
         };
 
@@ -416,7 +515,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 template,
                 source,
                 symbol,
-                Some(written),
+                Some(parameter_type.argument),
                 default,
                 is_rest,
             )?
@@ -425,56 +524,118 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
 
         Ok(Some(dir::FunctionParameterType {
-            ty: written,
+            ty: parameter_type.argument,
             static_parameter,
             is_optional,
             is_rest,
         }))
     }
 
-    /// Walk one parameter annotation and return its type.
+    /// Walk one parameter annotation and return its argument and binding types.
     ///
     /// Missing annotations use the parameter node variable so contextual
     /// lambdas can still receive an expected type.
     ///
     /// Example:
     /// ```ds
-    /// (value: T)
+    /// (value?: T)
     /// ```
     pub(in crate::check) fn walk_parameter_type(
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let node = id.into_global_any(self.module);
-        if let Some(ty) = self.check.node_type_maybe(node) {
-            return Ok(Some(ty));
-        }
-
+    ) -> CompilerResult<Option<ParameterType>> {
         let declared_type = match self.tree.get(id) {
             dir::Parameter::Error => return Ok(None),
             parameter => parameter.declared_type(),
         };
         let Some(declared_type) = declared_type else {
             let ty = self.open_variable_type(id.into_any(), Widening::Preserve)?;
-            self.write_node_type(id, ty)?;
+            self.commit_node_type(id, ty)?;
 
-            return Ok(Some(ty));
+            return Ok(Some(ParameterType {
+                argument: ty,
+                binding: ty,
+            }));
         };
 
         let is_optional = self.tree.get(id).is_optional();
-        let written = self.walk_type_expression(declared_type)?;
-        let written = self.induce_constraint_type(
+        let argument = self.walk_type_expression(declared_type)?;
+        let argument = self.induce_constraint_type(
             id.into_any(),
-            written,
+            argument,
             GenericInductionPosition::Parameter,
         )?;
-        let written = if is_optional {
-            self.optional_value_type(written, id.into_any())?
+        let binding = if is_optional {
+            self.optional_value_type(argument, id.into_any())?
         } else {
-            written
+            argument
         };
-        self.write_node_type(id, written)?;
+        self.commit_node_type(id, binding)?;
+        let argument = self.parameter_argument_type(id, binding)?;
 
-        Ok(Some(written))
+        Ok(Some(ParameterType { argument, binding }))
+    }
+
+    /// Return the call-site argument type represented by one parameter binding type.
+    fn parameter_argument_type(
+        &mut self,
+        id: dir::LocalNodeId<dir::Parameter>,
+        binding: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let parameter = self.tree.get(id);
+        if !parameter.is_optional() || parameter.declared_type().is_none() {
+            return Ok(binding);
+        }
+        if self.parameter_annotation_includes_undefined(parameter.declared_type()) {
+            return Ok(binding);
+        }
+
+        self.remove_undefined_from_parameter_type(id.into_any(), binding)
+    }
+
+    /// Return whether one parameter annotation explicitly includes `undefined`.
+    fn parameter_annotation_includes_undefined(
+        &self,
+        ty: Option<dir::LocalNodeId<dir::TypeExpression>>,
+    ) -> bool {
+        let Some(ty) = ty else {
+            return false;
+        };
+
+        match self.tree.get(ty) {
+            dir::TypeExpression::ScalarLiteral {
+                value: dir::ScalarLiteral::Undefined,
+            } => true,
+            dir::TypeExpression::Parenthesized { expression } => {
+                self.parameter_annotation_includes_undefined(Some(*expression))
+            }
+            dir::TypeExpression::Union { elements } => elements
+                .iter()
+                .any(|element| self.parameter_annotation_includes_undefined(Some(*element))),
+            _ => false,
+        }
+    }
+
+    /// Remove the synthetic optional-parameter `undefined` arm.
+    fn remove_undefined_from_parameter_type(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let dir::Type::Union(union) = self.check.ty(ty)? else {
+            return Ok(ty);
+        };
+        let mut kept = Vec::new();
+        for element in union.elements.iter().copied() {
+            if !self.check.ty(element)?.is_undefined() {
+                kept.push(element);
+            }
+        }
+
+        match kept.as_slice() {
+            [] => Ok(ty),
+            [single] => Ok(*single),
+            _ => self.normalized_union_type(kept, source),
+        }
     }
 }

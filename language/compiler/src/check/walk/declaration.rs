@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 
 use crate::check::{
     CheckState, ClassInitializationObligation, DeclarationHeritageObligation,
-    ExtensionConformanceObligation, FlowBranch, GenericInductionDeclaration, GenericTemplateId,
-    ImplementationCoherenceObligation, Obligation, Origin, Receiver, ReceiverBinding, Relation,
-    RepresentationObligation, TypeSubstitution, WalkState, Widening,
+    ExtensionConformanceObligation, FlowBranch, FunctionHeader, GenericInductionDeclaration,
+    GenericTemplateId, ImplementationCoherenceObligation, Obligation, Origin, Receiver,
+    ReceiverBinding, Relation, RepresentationObligation, TypeSubstitution, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -287,12 +287,16 @@ impl WalkState<'_, '_> {
 
         // transparent aliases expand to their value, newtypes wrap it
         let definition = if declaration.is_nominal {
+            let receiver = self.nominal_receiver(id.into_any(), symbol)?;
+            let members = self.walk_tagged_variant_members(source, symbol, receiver.ty, value)?;
+
             dir::Definition::Newtype(dir::NewtypeDefinition {
                 template: template.map(|template| template.local_id),
                 value,
+                members,
             })
         } else {
-            self.bind_symbol_type(symbol, value)?;
+            self.queue_bind_type(symbol, value);
 
             dir::Definition::TypeAlias(dir::TypeAliasDefinition {
                 template: template.map(|template| template.local_id),
@@ -321,6 +325,7 @@ impl WalkState<'_, '_> {
             let definition = dir::Definition::Newtype(dir::NewtypeDefinition {
                 template: template.map(|template| template.local_id),
                 value,
+                members: Vec::new(),
             });
             self.check.insert_definition(symbol, source, definition)?;
 
@@ -329,7 +334,7 @@ impl WalkState<'_, '_> {
 
         // transparent intrinsic aliases reduce when applied
         if self.check.is_transparent_intrinsic_alias(symbol)? {
-            self.bind_symbol_type(symbol, value)?;
+            self.queue_bind_type(symbol, value);
             let definition = dir::Definition::TypeAlias(dir::TypeAliasDefinition {
                 template: template.map(|template| template.local_id),
                 value,
@@ -416,14 +421,19 @@ impl WalkState<'_, '_> {
 
         // walk members
         let mut members = Vec::new();
+        let mut member_headers = Vec::new();
         for member in &declaration.members {
-            members.extend(self.walk_member_declaration(
+            let header = self.walk_member_declaration(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
                 Some(induction),
                 declaration.is_ambient,
-            )?);
+            )?;
+            if let Some(definition) = header.definition {
+                members.push(definition);
+            }
+            member_headers.push((*member, header.body));
         }
 
         let definition = dir::Definition::Struct(dir::StructDefinition {
@@ -434,12 +444,13 @@ impl WalkState<'_, '_> {
         self.check.insert_definition(symbol, source, definition)?;
 
         // walk member bodies after the nominal definition exists
-        for member in &declaration.members {
+        for (member, body) in member_headers {
             self.walk_member_body(
-                *member,
-                self.tree.get(*member),
+                member,
+                self.tree.get(member),
                 Some(receiver),
                 declaration.is_ambient,
+                body,
             )?;
         }
 
@@ -557,14 +568,19 @@ impl WalkState<'_, '_> {
 
         // walk members
         let mut members = Vec::new();
+        let mut member_headers = Vec::new();
         for member in &declaration.members {
-            members.extend(self.walk_member_declaration(
+            let header = self.walk_member_declaration(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
                 Some(induction),
                 declaration.is_ambient,
-            )?);
+            )?;
+            if let Some(definition) = header.definition {
+                members.push(definition);
+            }
+            member_headers.push((*member, header.body));
         }
         let constructors = self.class_construct_candidates(
             id.into_any(),
@@ -586,12 +602,13 @@ impl WalkState<'_, '_> {
 
         // walk member bodies after the nominal definition exists
         let mut constructor_branches = Vec::new();
-        for member in &declaration.members {
+        for (member, body) in member_headers {
             if let Some(branch) = self.walk_member_body(
-                *member,
-                self.tree.get(*member),
+                member,
+                self.tree.get(member),
                 Some(receiver),
                 declaration.is_ambient,
+                body,
             )? {
                 constructor_branches.push(branch);
             }
@@ -762,14 +779,19 @@ impl WalkState<'_, '_> {
         for field in &declaration.fields {
             members.extend(self.walk_enum_field(*field, self.tree.get(*field), receiver.ty)?);
         }
+        let mut member_headers = Vec::new();
         for member in &declaration.members {
-            members.extend(self.walk_member_declaration(
+            let header = self.walk_member_declaration(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
                 Some(induction),
                 declaration.is_ambient,
-            )?);
+            )?;
+            if let Some(definition) = header.definition {
+                members.push(definition);
+            }
+            member_headers.push((*member, header.body));
         }
 
         let definition = dir::Definition::Enum(dir::EnumDefinition {
@@ -780,12 +802,13 @@ impl WalkState<'_, '_> {
         self.check.insert_definition(symbol, source, definition)?;
 
         // walk member bodies after the nominal definition exists
-        for member in &declaration.members {
+        for (member, body) in member_headers {
             self.walk_member_body(
-                *member,
-                self.tree.get(*member),
+                member,
+                self.tree.get(member),
                 Some(receiver),
                 declaration.is_ambient,
+                body,
             )?;
         }
 
@@ -964,23 +987,26 @@ impl WalkState<'_, '_> {
 
         // walk members
         let mut members = Vec::new();
+        let mut member_headers = Vec::new();
         for member in &declaration.members {
-            members.extend(self.walk_member_declaration(
+            let header = self.walk_member_declaration(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
                 Some(induction),
                 declaration.is_ambient,
-            )?);
+            )?;
+            if let Some(definition) = header.definition {
+                members.push(definition);
+            }
+            member_headers.push((*member, header.body));
         }
 
-        // named extensions import explicitly, inherent ones travel with their target declaration
-        let form = match &target {
-            dir::ExtensionTarget::Rooted { root, .. } if root.module_id == self.module => {
-                dir::ExtensionForm::Inherent
-            }
-            _ if declaration.name.is_some() => dir::ExtensionForm::Named,
-            _ => dir::ExtensionForm::Local,
+        // exported extensions are visible outside this module
+        let form = if declaration.export.is_some() {
+            dir::ExtensionForm::Exported
+        } else {
+            dir::ExtensionForm::Local
         };
         let definition = dir::Definition::Extension(dir::ExtensionDefinition {
             symbol,
@@ -994,12 +1020,13 @@ impl WalkState<'_, '_> {
         self.check.insert_definition(symbol, source, definition)?;
 
         // walk member bodies after the extension definition exists
-        for member in &declaration.members {
+        for (member, body) in member_headers {
             self.walk_member_body(
-                *member,
-                self.tree.get(*member),
+                member,
+                self.tree.get(member),
                 Some(receiver),
                 declaration.is_ambient,
+                body,
             )?;
         }
 
@@ -1095,7 +1122,8 @@ impl WalkState<'_, '_> {
         let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
         let template =
             self.open_signature_template(source, None, Some(symbol), &declaration.signature)?;
-        self.walk_function_signature(template, &declaration.signature)?;
+        let header = self.walk_function_signature(template, &declaration.signature)?;
+        let this_parameter = header.this_parameter;
         if declaration.body.is_none() && !declaration.is_ambient {
             let source = id.into_global_any(self.module);
             self.check
@@ -1111,7 +1139,7 @@ impl WalkState<'_, '_> {
         let signature = self.walk_function_signature_type(
             id.into_any(),
             &declaration.signature,
-            template,
+            header,
             Some(induction),
             None,
             result,
@@ -1128,11 +1156,12 @@ impl WalkState<'_, '_> {
 
         // walk body after its result exists
         if let (Some(body), Some(result)) = (declaration.body, result) {
-            let receiver = declaration
-                .signature
-                .this_parameter
-                .map(|parameter| self.this_parameter_receiver_binding(parameter, None))
-                .transpose()?;
+            let receiver = match (declaration.signature.this_parameter, this_parameter) {
+                (Some(parameter), Some(ty)) => {
+                    Some(self.this_parameter_receiver_binding(parameter, None, ty)?)
+                }
+                _ => None,
+            };
             self.walk_function_body(symbol, &declaration.signature, body, result, receiver)?;
         }
 
@@ -1157,11 +1186,6 @@ impl WalkState<'_, '_> {
         let (name, value) = (enum_field.name, enum_field.value);
 
         if let Some(value) = value {
-            // check enum values in declaration context
-            let before_value = self.fork_flow();
-            self.walk_expression(value, self.tree.get(value), None)?;
-            self.restore_flow(before_value);
-
             // record the written variant value
             if let Some(symbol) = self
                 .check
@@ -1195,6 +1219,81 @@ impl WalkState<'_, '_> {
                 symbol,
                 source: id.into_global_any(self.module),
                 key: name.static_key(),
+                value: None,
+            },
+        )))
+    }
+
+    /// Walk generated tagged variant members for one nominal newtype.
+    fn walk_tagged_variant_members(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+        owner: dir::GlobalTypeId,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<Vec<dir::DefinitionMember>> {
+        if !self.check.symbol_has_tagged_derive(symbol) {
+            return Ok(Vec::new());
+        }
+
+        let origin = Origin::Node(source);
+        let backing =
+            self.check
+                .reduce_closed_type_head(origin, value, "tagged newtype backing")?;
+        let arms = match self.check.ty(backing)? {
+            dir::Type::Union(union) => union.elements.clone(),
+            _ => vec![backing],
+        };
+
+        // derive one static member per backing arm
+        let mut members = Vec::with_capacity(arms.len());
+        for arm in arms {
+            members.extend(self.walk_tagged_variant_member(source, symbol, owner, arm)?);
+        }
+
+        Ok(members)
+    }
+
+    /// Walk one generated tagged variant member from a backing arm.
+    fn walk_tagged_variant_member(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+        owner: dir::GlobalTypeId,
+        arm: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::DefinitionMember>> {
+        let origin = Origin::Node(source);
+        let arm = self
+            .check
+            .reduce_closed_type_head(origin, arm, "tagged newtype arm")?;
+        let discriminant = self.check.tagged_arm_discriminant_closed(
+            origin,
+            arm,
+            "tagged newtype arm discriminant",
+        )?;
+        let Some(discriminant) = discriminant else {
+            return Ok(None);
+        };
+        let Some(key) = self
+            .check
+            .tagged_case_key_from_discriminant(self.module, discriminant)
+        else {
+            return Ok(None);
+        };
+
+        // insert the case member and bind its singleton type
+        let member = self.check.insert_tagged_variant_symbol(symbol, key)?;
+        let ty = self.push_type(
+            dir::Type::EnumMember(dir::EnumMemberType { owner, member }),
+            source.local_id,
+        )?;
+        self.bind_symbol_type(member, ty)?;
+
+        Ok(Some(dir::DefinitionMember::Variant(
+            dir::VariantDefinition {
+                symbol: member,
+                source,
+                key,
                 value: None,
             },
         )))
@@ -1276,7 +1375,7 @@ impl WalkState<'_, '_> {
         &mut self,
         template: Option<GenericTemplateId>,
         signature: &dir::FunctionSignature,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<FunctionHeader> {
         // walk generic parameters
         if let Some(template) = template {
             for parameter in &signature.generic_parameters {
@@ -1293,21 +1392,32 @@ impl WalkState<'_, '_> {
 
         // walk receiver and runtime parameters
         let is_annotation_required = signature.form != dir::FunctionForm::Lambda;
-        if let Some(parameter) = signature.this_parameter {
+        let this_parameter = if let Some(parameter) = signature.this_parameter {
             self.walk_parameter(
                 template,
                 parameter,
                 self.tree.get(parameter),
                 is_annotation_required,
-            )?;
-        }
+            )?
+            .map(|ty| ty.argument)
+        } else {
+            None
+        };
+
+        let mut parameters = Vec::new();
         for parameter in &signature.parameters {
-            self.walk_parameter(
+            let Some(ty) = self.walk_parameter(
                 template,
                 *parameter,
                 self.tree.get(*parameter),
                 is_annotation_required,
-            )?;
+            )?
+            else {
+                continue;
+            };
+            if let Some(parameter) = self.function_parameter_type(*parameter, ty)? {
+                parameters.push(parameter);
+            }
         }
 
         // walk where clauses
@@ -1315,7 +1425,11 @@ impl WalkState<'_, '_> {
             self.walk_where_clause(*where_clause)?;
         }
 
-        Ok(())
+        Ok(FunctionHeader {
+            template,
+            this_parameter,
+            parameters,
+        })
     }
 
     /// Open the generic template owned by one function signature.
@@ -1345,6 +1459,7 @@ impl WalkState<'_, '_> {
         &mut self,
         parameter: dir::LocalNodeId<dir::Parameter>,
         scope: Option<Receiver>,
+        ty: dir::GlobalTypeId,
     ) -> CompilerResult<ReceiverBinding> {
         // read the receiver binding
         let Some(symbol) = self
@@ -1355,16 +1470,6 @@ impl WalkState<'_, '_> {
             return Err(CompilerError::Internal {
                 message: format!(
                     "this parameter {:?} has no declaration symbol",
-                    parameter.into_global(self.module)
-                ),
-            });
-        };
-
-        // constrain the receiver to its parameter type
-        let Some(ty) = self.walk_parameter_type(parameter)? else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "this parameter {:?} has no type",
                     parameter.into_global(self.module)
                 ),
             });

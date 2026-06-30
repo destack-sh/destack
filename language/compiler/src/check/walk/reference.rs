@@ -83,7 +83,7 @@ impl WalkState<'_, '_> {
                 self.check
                     .report_ambiguous_reference(self.module, id.into_any(), &path);
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.write_node_type(id, error)?;
+                self.commit_node_type(id, error)?;
             }
 
             // missing names fail loudly
@@ -94,13 +94,13 @@ impl WalkState<'_, '_> {
                 self.check
                     .report_unresolved_reference(self.module, id.into_any(), &path);
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.write_node_type(id, error)?;
+                self.commit_node_type(id, error)?;
             }
 
             // reject namespaces used directly as values
             Some(dir::Reference::Namespace(_)) => {
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.write_node_type(id, error)?;
+                self.commit_node_type(id, error)?;
             }
 
             // require resolve to write the bare name reference
@@ -167,7 +167,7 @@ impl WalkState<'_, '_> {
                         .report_ambiguous_reference(self.module, id.into_any(), &path);
                 }
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.write_node_type(id, error)?;
+                self.commit_node_type(id, error)?;
             }
 
             // unresolved name paths fail loudly
@@ -177,13 +177,13 @@ impl WalkState<'_, '_> {
                         .report_unresolved_reference(self.module, id.into_any(), &path);
                 }
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.write_node_type(id, error)?;
+                self.commit_node_type(id, error)?;
             }
 
             // reject namespaces used directly as values
             Some(dir::Reference::Namespace(_)) => {
                 let error = self.push_type(dir::Type::Error, id.into_any())?;
-                self.write_node_type(id, error)?;
+                self.commit_node_type(id, error)?;
             }
 
             // select value member access

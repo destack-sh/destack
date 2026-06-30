@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, Decision, GenericArgument, GenericInductionParameter, Origin, Relation,
-    TypeSubstitution, WalkState, Widening,
+    Decision, GenericArgument, GenericInductionParameter, Origin, Relation, TypeSubstitution,
+    WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -21,21 +21,14 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let node = id.into_global_any(self.module);
-
-        // reuse the recorded type for repeated annotation visits
-        if let Some(ty) = self.check.node_type_maybe(node) {
-            return Ok(ty);
-        }
-
-        let ty = self.walk_type_expression_node(id)?;
-        self.write_node_type(id, ty)?;
+        let ty = self.walk_type_expression_once(id)?;
+        self.commit_node_type(id, ty)?;
 
         Ok(ty)
     }
 
-    /// Return the type for one `TypeExpression` node.
-    fn walk_type_expression_node(
+    /// Walk one type expression that has not already been committed.
+    fn walk_type_expression_once(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -196,21 +189,7 @@ impl WalkState<'_, '_> {
                 )
             }
             // typeof value
-            dir::TypeExpression::TypeOf { value } => {
-                // check the queried expression in declaration context
-                let value = *value;
-                let before_value = self.fork_flow();
-                self.walk_expression(value, self.tree.get(value), None)?;
-                self.restore_flow(before_value);
-
-                let Some(ty) = self.node_type_maybe(value) else {
-                    let error = self.push_type(dir::Type::Error, source)?;
-
-                    return Ok(error);
-                };
-
-                Ok(ty)
-            }
+            dir::TypeExpression::TypeOf { value } => self.walk_typeof_type(id, *value),
             // T! strips nullish members distributively
             dir::TypeExpression::Must { target_type } => {
                 let target = self.walk_type_expression(*target_type)?;
@@ -444,35 +423,202 @@ impl WalkState<'_, '_> {
                 form,
                 name,
                 constraint,
-            } => {
-                let (form, name, constraint) = (*form, *name, *constraint);
-
-                match form {
-                    // open a widening variable for anonymous holes
-                    dir::InferForm::Hole => {
-                        let ty = self.open_variable_type(id.into_any(), Widening::Widen)?;
-                        self.write_node_type(id, ty)
-                    }
-                    // keep infer bindings symbolic for conditional probes
-                    dir::InferForm::Infer => {
-                        let constraint = match constraint {
-                            Some(constraint) => Some(self.walk_type_expression(constraint)?),
-                            None => None,
-                        };
-
-                        self.push_type(
-                            dir::Type::Operation(dir::TypeOperation::Infer(dir::InferType {
-                                name,
-                                constraint,
-                            })),
-                            source,
-                        )
-                    }
-                }
-            }
+            } => self.walk_infer_type_expression(id, *form, *name, *constraint),
             // produce the error type for damaged children
             dir::TypeExpression::Missing | dir::TypeExpression::Error => {
                 self.push_type(dir::Type::Error, source)
+            }
+        }
+    }
+
+    /// Walk one `_` or `infer T` type expression.
+    fn walk_infer_type_expression(
+        &mut self,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        form: dir::InferForm,
+        name: Option<dir::StringId>,
+        constraint: Option<dir::LocalNodeId<dir::TypeExpression>>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let source = id.into_any();
+
+        match form {
+            // open anonymous holes for ordinary inference
+            dir::InferForm::Hole => self.open_variable_type(source, Widening::Widen),
+
+            // preserve named infer bindings for conditional matching
+            dir::InferForm::Infer => {
+                let constraint = match constraint {
+                    Some(constraint) => Some(self.walk_type_expression(constraint)?),
+                    None => None,
+                };
+                let symbol = match name {
+                    Some(_) => Some(
+                        self.check
+                            .module(self.module)
+                            .declaration_symbol(source)
+                            .ok_or_else(|| CompilerError::Internal {
+                                message: format!(
+                                    "named infer binding {id:?} has no declaration symbol"
+                                ),
+                            })?,
+                    ),
+                    None => None,
+                };
+
+                self.push_type(
+                    dir::Type::Operation(dir::TypeOperation::Infer(dir::InferType {
+                        name,
+                        symbol,
+                        constraint,
+                    })),
+                    source,
+                )
+            }
+        }
+    }
+
+    /// Return a deferred type query over one stable value reference.
+    fn walk_typeof_type(
+        &mut self,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        value: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let source = id.into_any();
+
+        // reject expression forms that cannot name a type-query target
+        if self.tree.reference_path(value).is_none() {
+            self.check
+                .report_invalid_type_query(self.module, value.into_any());
+
+            return self.push_type(dir::Type::Error, source);
+        }
+
+        // record lexical decisions without performing a runtime read
+        self.walk_type_query_value(value)?;
+
+        self.push_type(
+            dir::Type::Operation(dir::TypeOperation::TypeOf(dir::TypeOfType {
+                value: value.into_global_any(self.module),
+            })),
+            source,
+        )
+    }
+
+    /// Walk the reference path named by one type query operand.
+    fn walk_type_query_value(
+        &mut self,
+        id: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<()> {
+        match self.tree.get(id) {
+            // record the name binding at the path root
+            dir::Expression::Identifier { name } => {
+                let mut segments = SmallVec::new();
+                segments.push(*name);
+                let path = dir::Path { segments };
+
+                self.walk_type_query_reference(id, path).map(|_| ())
+            }
+
+            // record a fully bound member path or keep walking its owner
+            dir::Expression::Member {
+                left,
+                name: Some(_),
+            } => {
+                if self.walk_type_query_reference_path(id)? {
+                    Ok(())
+                } else {
+                    self.walk_type_query_value(*left)
+                }
+            }
+
+            // reject dynamic member segments before reduction
+            dir::Expression::Member { name: None, .. } => {
+                self.check
+                    .report_invalid_type_query(self.module, id.into_any());
+
+                Ok(())
+            }
+
+            // reject any expression that escaped the static-path guard
+            _ => Err(CompilerError::Internal {
+                message: format!(
+                    "type query operand {} is not a static reference path",
+                    self.check.node_message(id.into_global_any(self.module))
+                ),
+            }),
+        }
+    }
+
+    /// Return true when one type-query path resolved to a complete value declaration.
+    fn walk_type_query_reference_path(
+        &mut self,
+        id: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<bool> {
+        let Some(path) = self.tree.reference_path(id) else {
+            self.check
+                .report_invalid_type_query(self.module, id.into_any());
+
+            return Ok(true);
+        };
+
+        self.walk_type_query_reference(id, path)
+    }
+
+    /// Record the resolver decision for one type-query path.
+    fn walk_type_query_reference(
+        &mut self,
+        id: dir::LocalNodeId<dir::Expression>,
+        path: dir::Path,
+    ) -> CompilerResult<bool> {
+        let source = id.into_global_any(self.module);
+        let reference = self
+            .check
+            .module(self.module)
+            .resolved
+            .references
+            .get(source)
+            .cloned();
+
+        match reference {
+            // complete name paths reduce through their bound declaration
+            Some(dir::Reference::Bound(symbols)) => {
+                let symbols = self.check.present_symbols(&symbols);
+                for symbol in symbols.iter().copied() {
+                    self.capture_symbol_reference(symbol);
+                }
+                self.check.record_decision(
+                    source,
+                    Decision::Name(dir::NameResolution::from_symbols(symbols.to_vec())),
+                )?;
+
+                Ok(true)
+            }
+
+            // member paths off a resolved declaration reduce from the owner path
+            Some(dir::Reference::Projected { .. }) | None => Ok(false),
+
+            // conflicting paths fail at the type query site
+            Some(dir::Reference::Ambiguous(_)) => {
+                self.check
+                    .report_ambiguous_reference(self.module, id.into_any(), &path);
+
+                Ok(true)
+            }
+
+            // missing paths fail at the type query site
+            Some(dir::Reference::Missing) => {
+                self.check
+                    .report_unresolved_reference(self.module, id.into_any(), &path);
+
+                Ok(true)
+            }
+
+            // namespaces alone are not values
+            Some(dir::Reference::Namespace(_)) => {
+                self.check
+                    .report_invalid_type_query(self.module, id.into_any());
+
+                Ok(true)
             }
         }
     }
@@ -486,7 +632,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let source = id.into_global_any(self.module);
 
-        // read resolver output when available
+        // read the resolver output for this lexical reference
         let reference = self
             .check
             .module(self.module)
@@ -638,44 +784,30 @@ impl WalkState<'_, '_> {
         }
 
         // apply written arguments and declared defaults in order
-        let mut arguments = SmallVec::<[dir::GlobalTypeId; 4]>::new();
-        let mut sources = SmallVec::<[dir::GlobalNodeIdAny; 4]>::new();
-        let mut written = applied
+        let written = applied
             .iter()
-            .map(|argument| (argument.ty, argument.source));
-        for (index, parameter) in parameters.iter().copied().enumerate() {
-            let (argument, argument_source) = match written.next() {
-                Some(written) => written,
-                None => {
-                    match self.check.generic_parameter_default(
-                        self.module,
-                        source,
-                        parameter,
-                        &parameters[..index],
-                        &arguments,
-                    )? {
-                        Some(default) => (default, source.into_global(self.module)),
-                        None => {
-                            let name = self.check.format_symbol(symbol);
-                            self.check.report_wrong_generic_arity(
-                                self.module,
-                                source,
-                                name,
-                                parameters.len(),
-                                applied.len(),
-                            );
+            .map(|argument| argument.ty)
+            .collect::<SmallVec<[_; 4]>>();
+        let origin = Origin::Node(source.into_global(self.module));
+        let Some(substitution) =
+            self.check
+                .apply_generic_parameters(origin, &parameters, &written)?
+        else {
+            let name = self.check.format_symbol(symbol);
+            self.check.report_wrong_generic_arity(
+                self.module,
+                source,
+                name,
+                parameters.len(),
+                applied.len(),
+            );
 
-                            return self.push_type(dir::Type::Error, source);
-                        }
-                    }
-                }
-            };
-            arguments.push(argument);
-            sources.push(argument_source);
-        }
+            return self.push_type(dir::Type::Error, source);
+        };
+        let arguments = substitution.arguments;
 
         // constrain type arguments by declared parameter bounds
-        self.constrain_applied_symbol_arguments(source, &parameters, &arguments, &sources)?;
+        self.constrain_applied_symbol_arguments(source, &parameters, &arguments)?;
 
         self.push_type(
             dir::Type::Instance(dir::GenericInstance {
@@ -692,7 +824,6 @@ impl WalkState<'_, '_> {
         source: dir::LocalNodeIdAny,
         parameters: &[dir::GlobalGenericParameterId],
         arguments: &[dir::GlobalTypeId],
-        sources: &[dir::GlobalNodeIdAny],
     ) -> CompilerResult<()> {
         let substitution = TypeSubstitution {
             parameters: parameters.iter().copied().collect(),
@@ -701,12 +832,8 @@ impl WalkState<'_, '_> {
         };
         let origin = Origin::Node(source.into_global(self.module));
 
-        for ((parameter, argument), argument_source) in parameters
-            .iter()
-            .copied()
-            .zip(arguments.iter().copied())
-            .zip(sources.iter().copied())
-        {
+        // enqueue parameter bounds as ordinary type relations
+        for (parameter, argument) in parameters.iter().copied().zip(arguments.iter().copied()) {
             let Some(constraint) = self
                 .check
                 .generic_parameter(parameter)
@@ -718,17 +845,7 @@ impl WalkState<'_, '_> {
                 self.check
                     .substitute_type(self.module, source, constraint, &substitution)?;
 
-            match self.check.constrain_generic_argument(
-                origin,
-                argument_source,
-                argument,
-                constraint,
-            )? {
-                Answer::Ready(true) => {}
-                Answer::Ready(false) | Answer::Pending(_) => {
-                    self.relate_type(origin, Relation::Assignable, argument, constraint);
-                }
-            }
+            self.relate_type(origin, Relation::Satisfies, argument, constraint);
         }
 
         Ok(())
@@ -799,7 +916,7 @@ impl WalkState<'_, '_> {
                 } => {
                     let (declared_type, is_optional, is_readonly) =
                         (*declared_type, *is_optional, *is_readonly);
-                    let Some(key) = key.direct_static_key() else {
+                    let Some(key) = self.static_key(*key)? else {
                         continue;
                     };
                     let ty = match declared_type {
@@ -821,15 +938,22 @@ impl WalkState<'_, '_> {
                     ..
                 } => {
                     let (signature, is_optional) = (signature.clone(), *is_optional);
-                    let Some(key) = key.direct_static_key() else {
+                    let Some(key) = self.static_key(*key)? else {
                         continue;
                     };
+                    let template = self.open_signature_template(
+                        member.into_global_any(self.module),
+                        None,
+                        None,
+                        &signature,
+                    )?;
+                    let header = self.walk_function_signature(template, &signature)?;
                     let result =
                         self.walk_function_result_type(member.into_any(), &signature, None)?;
                     let ty = self.walk_function_signature_type(
                         member.into_any(),
                         &signature,
-                        None,
+                        header,
                         None,
                         None,
                         result,
