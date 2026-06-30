@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalGenericTemplateId, GlobalStaticId,
-    GlobalSymbolId, LanguageItem, MappedTypeModifier, RangeEnd, ScalarDomain, ScalarLiteral,
-    StaticKey, StringId, TypeLiteral, UnaryOperator,
+    Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalGenericTemplateId, GlobalNodeIdAny,
+    GlobalStaticId, GlobalSymbolId, LanguageItem, MappedTypeModifier, RangeEnd, ScalarDomain,
+    ScalarLiteral, StaticKey, StringId, TypeLiteral, UnaryOperator,
 };
 
 use super::{FloatType, PrimitiveType};
@@ -1165,6 +1165,8 @@ pub enum TypeOperation {
     TemplateLiteral(TemplateLiteralType),
     /// Type infer binding in a conditional type pattern, like `infer E`.
     Infer(InferType),
+    /// Type query expression, like `typeof value`.
+    TypeOf(TypeOfType),
     /// `keyof T`.
     KeyOf(UnaryType),
     /// Inference blocker like `NoInfer<T>`.
@@ -1185,6 +1187,13 @@ pub enum TypeOperation {
     StaticBinary(StaticBinaryType),
     /// Static unary operation like `!Wide`.
     StaticUnary(StaticUnaryType),
+}
+
+/// Type query expression, like `typeof value`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct TypeOfType {
+    /// The queried value reference.
+    pub value: GlobalNodeIdAny,
 }
 
 /// A canonical solved type.
@@ -1435,6 +1444,7 @@ impl Type {
                         visit(constraint);
                     }
                 }
+                TypeOperation::TypeOf(_) => {}
                 TypeOperation::KeyOf(unary) => visit(unary.target),
                 TypeOperation::NoInfer(unary) => visit(unary.target),
                 TypeOperation::Awaited(unary) => visit(unary.target),
@@ -1597,6 +1607,7 @@ impl Type {
                         *constraint = map(*constraint);
                     }
                 }
+                TypeOperation::TypeOf(_) => {}
                 TypeOperation::KeyOf(unary) => unary.target = map(unary.target),
                 TypeOperation::NoInfer(unary) => unary.target = map(unary.target),
                 TypeOperation::Awaited(unary) => unary.target = map(unary.target),
