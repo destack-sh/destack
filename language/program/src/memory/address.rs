@@ -9,15 +9,17 @@ use crate::GlobalId;
 pub struct GlobalAddress(u64);
 
 impl GlobalAddress {
+    /// The fixed byte width of one encoded global address.
+    pub const BYTE_LEN: usize = std::mem::size_of::<u64>();
     /// The bit width of the byte offset stored in one global address.
-    const OFFSET_BITS: u32 = u32::BITS;
+    const BYTE_OFFSET_BITS: u32 = u32::BITS;
     /// The mask for the byte offset stored in one global address.
-    const OFFSET_MASK: u64 = u32::MAX as u64;
+    const BYTE_OFFSET_MASK: u64 = u32::MAX as u64;
 
     /// Create a global address.
     #[inline]
     pub const fn new(global: GlobalId, byte_offset: u32) -> Self {
-        let id = (global.0 as u64) << Self::OFFSET_BITS;
+        let id = (global.0 as u64) << Self::BYTE_OFFSET_BITS;
         let byte_offset = byte_offset as u64;
 
         Self(id | byte_offset)
@@ -32,13 +34,13 @@ impl GlobalAddress {
     /// Return the addressed global id.
     #[inline]
     pub const fn global(self) -> GlobalId {
-        GlobalId((self.0 >> Self::OFFSET_BITS) as u32)
+        GlobalId((self.0 >> Self::BYTE_OFFSET_BITS) as u32)
     }
 
     /// Return the byte offset inside the addressed global.
     #[inline]
     pub const fn byte_offset(self) -> usize {
-        (self.0 & Self::OFFSET_MASK) as usize
+        (self.0 & Self::BYTE_OFFSET_MASK) as usize
     }
 
     /// Return raw cell bits.
