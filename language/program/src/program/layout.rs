@@ -1,75 +1,139 @@
 use std::num::NonZeroU32;
 
-use destack_core::StringId;
+use destack_core::{
+    EntryRange, EntryStore, Optional, SectionEntry, SectionImage, SectionPacker, SectionSlice,
+    StringId,
+};
 use destack_mir::{
-    Access, FloatType, Nullability, ReferenceKind, Space, TensorFormat, TensorSharding,
+    Access, FloatType, Nullability, ReferenceKind, Space, TensorFormat, TensorReduction,
     TensorViewFormat, TraceId,
 };
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{Signature, TypeId};
+use crate::GlobalAddress;
 
-const CELL_BYTE_LEN: usize = std::mem::size_of::<u64>();
-const REFERENCE_KIND_MASK: u16 = 0x7;
-const REFERENCE_ACCESS_SHIFT: u8 = 3;
-const REFERENCE_NULLABILITY_SHIFT: u8 = 5;
-const REFERENCE_STORAGE_SHIFT: u8 = 7;
+use super::{FunctionSignature, Signature, TypeId};
 
-/// Shared executable layout table for all runtime value layouts.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
+/// Shared layout table for runtime values.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct LayoutTable {
     /// Layout entries indexed by LayoutId.
-    entries: Vec<Layout>,
+    layouts: SectionSlice<Layout>,
+    /// Flattened field layout entries.
+    fields: SectionSlice<LayoutField>,
+    /// Flattened variant case layout entries.
+    variants: SectionSlice<VariantCaseLayout>,
+    /// Flattened signature parameter type entries.
+    parameters: SectionSlice<TypeId>,
+    /// Flattened tensor sharding axis entries.
+    tensor_axes: SectionSlice<TensorShardingAxis>,
 }
 
 impl LayoutTable {
-    /// Create an empty layout table.
-    pub fn new() -> Self {
-        Self::default()
-    }
+    /// Pack one layout table.
+    pub fn pack(sections: &mut SectionPacker, layouts: Vec<LayoutBuilder>) -> Self {
+        let mut entries = Vec::with_capacity(layouts.len());
+        let mut fields = EntryStore::new();
+        let mut variants = EntryStore::new();
+        let mut parameters = EntryStore::new();
+        let mut tensor_axes = EntryStore::new();
 
-    /// Insert one layout and return its id.
-    pub fn insert(&mut self, layout: Layout) -> LayoutId {
-        let next_index = self.entries.len() + 1;
-        let id = LayoutId::new(next_index as u32);
-        self.entries.push(layout);
-
-        id
-    }
-
-    /// Resize this table with one repeated layout.
-    pub fn resize(&mut self, len: usize, layout: Layout) {
-        self.entries.resize(len, layout);
-    }
-
-    /// Define one existing layout row.
-    pub fn define(&mut self, id: LayoutId, layout: Layout) -> bool {
-        let index = id.index();
-        if index >= self.entries.len() {
-            return false;
+        // flatten variable layout payloads
+        for layout in layouts {
+            entries.push(layout.build(
+                &mut fields,
+                &mut variants,
+                &mut parameters,
+                &mut tensor_axes,
+            ));
         }
 
-        self.entries[index] = layout;
+        let layouts = sections.insert(entries);
+        let fields = sections.insert(fields.into_entries());
+        let variants = sections.insert(variants.into_entries());
+        let parameters = sections.insert(parameters.into_entries());
+        let tensor_axes = sections.insert(tensor_axes.into_entries());
 
-        true
+        Self {
+            layouts,
+            fields,
+            variants,
+            parameters,
+            tensor_axes,
+        }
     }
 
     /// Return one layout by id when present.
-    pub fn get(&self, id: LayoutId) -> Option<&Layout> {
-        self.entries.get(id.index())
+    pub fn get<'a>(&self, sections: SectionImage<'a>, id: LayoutId) -> Option<&'a Layout> {
+        sections.entries(self.layouts).get(id.index())
     }
 
-    /// Return one layout by id.
-    pub fn layout(&self, id: LayoutId) -> &Layout {
-        let index = id.index();
-        self.entries
-            .get(index)
-            .unwrap_or_else(|| unreachable!("missing program layout entry {index}"))
+    /// Return one field by layout index.
+    pub fn field_at<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        layout: &Layout,
+        index: u32,
+    ) -> Option<&'a LayoutField> {
+        self.fields(sections, layout).get(index as usize)
+    }
+
+    /// Return the field count for field-addressable layouts.
+    pub fn field_count(&self, layout: &Layout) -> Option<usize> {
+        match layout.shape {
+            LayoutShape::Struct(fields)
+            | LayoutShape::Tuple(fields)
+            | LayoutShape::Object(fields) => Some(fields.len as usize),
+            _ => None,
+        }
+    }
+
+    /// Return field layouts for field-addressable shapes.
+    pub fn fields<'a>(&self, sections: SectionImage<'a>, layout: &Layout) -> &'a [LayoutField] {
+        match layout.shape {
+            LayoutShape::Struct(fields)
+            | LayoutShape::Tuple(fields)
+            | LayoutShape::Object(fields) => fields.slice(sections.entries(self.fields)),
+            _ => &[],
+        }
+    }
+
+    /// Return variant cases for one variant layout.
+    pub fn variants<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        layout: VariantLayout,
+    ) -> &'a [VariantCaseLayout] {
+        layout.variants.slice(sections.entries(self.variants))
+    }
+
+    /// Return signature parameters for one function signature.
+    pub fn parameters<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        signature: FunctionSignature,
+    ) -> &'a [TypeId] {
+        signature
+            .parameters
+            .slice(sections.entries(self.parameters))
+    }
+
+    /// Return tensor sharding axes for one tensor sharding descriptor.
+    pub fn tensor_axes<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        sharding: TensorSharding,
+    ) -> &'a [TensorShardingAxis] {
+        match sharding {
+            TensorSharding::Unsharded => &[],
+            TensorSharding::Sharded { axes } => axes.slice(sections.entries(self.tensor_axes)),
+        }
     }
 }
 
-/// Opaque identifier for one executable memory layout.
+/// Opaque identifier for one program memory layout.
+#[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct LayoutId(NonZeroU32);
 
@@ -97,6 +161,7 @@ impl LayoutId {
 }
 
 /// Scalar storage format for vector and tensor element operations.
+#[repr(C, u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ScalarFormat {
     /// Signed or unsigned integers with a bit width.
@@ -104,7 +169,7 @@ pub enum ScalarFormat {
         /// The bit width.
         width: u16,
         /// Whether the integer is signed.
-        is_signed: bool,
+        is_signed: u32,
     },
     /// Floating-point values with a concrete format.
     Float {
@@ -115,7 +180,28 @@ pub enum ScalarFormat {
     Boolean,
 }
 
+impl ScalarFormat {
+    /// Create one integer scalar format.
+    pub const fn int(width: u16, is_signed: bool) -> Self {
+        Self::Int {
+            width,
+            is_signed: is_signed as u32,
+        }
+    }
+
+    /// Create one floating-point scalar format.
+    pub const fn float(format: FloatType) -> Self {
+        Self::Float { format }
+    }
+
+    /// Return whether this scalar format is signed.
+    pub const fn is_signed(self) -> bool {
+        matches!(self, Self::Int { is_signed: 1, .. })
+    }
+}
+
 /// Runtime address space for addressable values.
+#[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum AddressSpace {
     /// Local heap storage.
@@ -147,6 +233,7 @@ impl AddressSpace {
 }
 
 /// One-cell storage layout for a scalar or pointer value.
+#[repr(C, u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum CellLayout {
     /// Void value.
@@ -198,12 +285,13 @@ impl CellLayout {
             | Self::StackPointer
             | Self::FramePointer
             | Self::FunctionPointer => pointer_bytes,
-            Self::GlobalAddress => CELL_BYTE_LEN,
+            Self::GlobalAddress => GlobalAddress::BYTE_LEN,
         }
     }
 }
 
 /// Storage class for one reference value.
+#[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ReferenceStorage {
     /// Worker-local heap.
@@ -261,13 +349,29 @@ impl ReferenceStorage {
     }
 }
 
-/// Packed reference flags used by executable layouts.
+/// Packed reference flags used by program layouts.
+#[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ReferenceFlags {
     bits: u16,
 }
 
 impl ReferenceFlags {
+    /// Mask for the packed reference kind.
+    const KIND_MASK: u16 = 0x7;
+    /// Mask for the packed reference access.
+    const ACCESS_MASK: u16 = 0x3;
+    /// Mask for the packed reference nullability.
+    const NULLABILITY_MASK: u16 = 0x3;
+    /// Mask for the packed reference storage.
+    const STORAGE_MASK: u16 = 0x7;
+    /// Shift for the packed reference access.
+    const ACCESS_SHIFT: u8 = 3;
+    /// Shift for the packed reference nullability.
+    const NULLABILITY_SHIFT: u8 = 5;
+    /// Shift for the packed reference storage.
+    const STORAGE_SHIFT: u8 = 7;
+
     /// Empty reference flags.
     pub const NONE: Self = Self { bits: 0 };
 
@@ -302,17 +406,17 @@ impl ReferenceFlags {
             Nullability::NullOrUndefined => 3,
         };
 
-        let mut bits = kind_bits & REFERENCE_KIND_MASK;
-        bits |= access_bits << REFERENCE_ACCESS_SHIFT;
-        bits |= nullability_bits << REFERENCE_NULLABILITY_SHIFT;
-        bits |= storage_bits << REFERENCE_STORAGE_SHIFT;
+        let mut bits = kind_bits & Self::KIND_MASK;
+        bits |= access_bits << Self::ACCESS_SHIFT;
+        bits |= nullability_bits << Self::NULLABILITY_SHIFT;
+        bits |= storage_bits << Self::STORAGE_SHIFT;
 
         Self { bits }
     }
 
     /// Return the reference kind when available.
     pub fn kind(self) -> Option<ReferenceKind> {
-        match self.bits & REFERENCE_KIND_MASK {
+        match self.bits & Self::KIND_MASK {
             0 => None,
             1 => Some(ReferenceKind::Managed),
             2 => Some(ReferenceKind::Unique),
@@ -326,7 +430,7 @@ impl ReferenceFlags {
     pub fn access(self) -> Option<Access> {
         self.kind()?;
 
-        match (self.bits >> REFERENCE_ACCESS_SHIFT) & 0x3 {
+        match (self.bits >> Self::ACCESS_SHIFT) & Self::ACCESS_MASK {
             0 => Some(Access::Readonly),
             1 => Some(Access::Mutable),
             2 => Some(Access::Exclusive),
@@ -336,7 +440,7 @@ impl ReferenceFlags {
 
     /// Return the reference nullability.
     pub fn nullability(self) -> Nullability {
-        match (self.bits >> REFERENCE_NULLABILITY_SHIFT) & 0x3 {
+        match (self.bits >> Self::NULLABILITY_SHIFT) & Self::NULLABILITY_MASK {
             1 => Nullability::Null,
             2 => Nullability::Undefined,
             3 => Nullability::NullOrUndefined,
@@ -346,7 +450,7 @@ impl ReferenceFlags {
 
     /// Return the reference storage.
     pub fn storage(self) -> Option<ReferenceStorage> {
-        let bits = ((self.bits >> REFERENCE_STORAGE_SHIFT) & 0x7) as u8;
+        let bits = ((self.bits >> Self::STORAGE_SHIFT) & Self::STORAGE_MASK) as u8;
 
         ReferenceStorage::from_bits(bits)
     }
@@ -357,8 +461,9 @@ impl ReferenceFlags {
     }
 }
 
-/// Concrete executable memory layout for one runtime value.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+/// Concrete memory layout for one runtime value.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Layout {
     /// The layout shape.
     pub shape: LayoutShape,
@@ -378,13 +483,13 @@ impl Layout {
             LayoutShape::Scalar(ScalarFormat::Boolean) => Some(CellLayout::Boolean),
             LayoutShape::Scalar(ScalarFormat::Int {
                 width,
-                is_signed: true,
+                is_signed: 1,
             }) => u8::try_from(*width)
                 .ok()
                 .map(|width| CellLayout::Int { width }),
             LayoutShape::Scalar(ScalarFormat::Int {
                 width,
-                is_signed: false,
+                is_signed: 0,
             }) => u8::try_from(*width)
                 .ok()
                 .map(|width| CellLayout::Uint { width }),
@@ -427,25 +532,11 @@ impl Layout {
     pub const fn byte_len(&self) -> usize {
         self.size as usize
     }
-
-    /// Return one field by layout index.
-    pub fn field_at(&self, index: u32) -> Option<&LayoutField> {
-        self.shape.fields().get(index as usize)
-    }
-
-    /// Return the field count for field-addressable layouts.
-    pub fn field_count(&self) -> Option<usize> {
-        match &self.shape {
-            LayoutShape::Struct(layout) => Some(layout.fields.len()),
-            LayoutShape::Tuple(layout) => Some(layout.elements.len()),
-            LayoutShape::Object(layout) => Some(layout.fields.len()),
-            _ => None,
-        }
-    }
 }
 
-/// Concrete executable layout shape.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+/// Concrete layout shape.
+#[repr(C, u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum LayoutShape {
     /// No runtime storage.
     None,
@@ -454,11 +545,11 @@ pub enum LayoutShape {
     /// Reference storage.
     Reference(ReferenceLayout),
     /// Function pointer storage.
-    FunctionPointer(Signature),
+    FunctionPointer(FunctionSignature),
     /// Struct storage.
-    Struct(StructLayout),
+    Struct(EntryRange<LayoutField>),
     /// Tuple storage.
-    Tuple(TupleLayout),
+    Tuple(EntryRange<LayoutField>),
     /// Slice header storage.
     Slice(SliceLayout),
     /// Fixed array storage.
@@ -472,7 +563,7 @@ pub enum LayoutShape {
     /// Variant value storage.
     Variant(VariantLayout),
     /// Object storage.
-    Object(ObjectLayout),
+    Object(EntryRange<LayoutField>),
     /// Runtime dynamic value layout.
     Dynamic,
     /// Runtime function value storage.
@@ -481,38 +572,16 @@ pub enum LayoutShape {
     Newtype(NewtypeLayout),
 }
 
-impl LayoutShape {
-    /// Return field layouts for field-addressable shapes.
-    pub fn fields(&self) -> &[LayoutField] {
-        match self {
-            Self::Struct(layout) => &layout.fields,
-            Self::Tuple(layout) => &layout.elements,
-            Self::Object(layout) => &layout.fields,
-            Self::None
-            | Self::Scalar(_)
-            | Self::Reference(_)
-            | Self::FunctionPointer(_)
-            | Self::Slice(_)
-            | Self::Array(_)
-            | Self::Vector(_)
-            | Self::Tensor(_)
-            | Self::TensorView(_)
-            | Self::Variant(_)
-            | Self::Dynamic
-            | Self::Function(_)
-            | Self::Newtype(_) => &[],
-        }
-    }
-}
-
 /// Concrete layout for one slice descriptor.
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SliceLayout {
-    /// The backing data reference.
-    pub data: ReferenceLayout,
+    /// The backing element reference.
+    pub reference: ReferenceLayout,
 }
 
 /// Concrete layout for one reference value.
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ReferenceLayout {
     /// The referenced value type.
@@ -543,29 +612,17 @@ impl ReferenceLayout {
 }
 
 /// Concrete layout for one closure value.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FunctionLayout {
     /// The callable signature.
-    pub signature: Signature,
+    pub signature: FunctionSignature,
     /// The captured environment type.
     pub environment: TypeId,
 }
 
-/// Concrete layout for a struct.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct StructLayout {
-    /// The fields in layout order.
-    pub fields: Vec<LayoutField>,
-}
-
-/// Concrete layout for a tuple.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct TupleLayout {
-    /// The tuple elements in layout order.
-    pub elements: Vec<LayoutField>,
-}
-
 /// Layout for inline indexed element storage.
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ElementLayout {
     /// The stored element type.
@@ -577,7 +634,8 @@ pub struct ElementLayout {
 }
 
 /// Concrete layout for a tensor handle.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorLayout {
     /// The tensor element type.
     pub element: TypeId,
@@ -590,7 +648,8 @@ pub struct TensorLayout {
 }
 
 /// Concrete layout for a tensor view descriptor.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TensorViewLayout {
     /// The viewed element type.
     pub element: TypeId,
@@ -603,37 +662,31 @@ pub struct TensorViewLayout {
 }
 
 /// Concrete layout for a variant value.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VariantLayout {
     /// The tag layout.
     pub tag: VariantTagLayout,
     /// The variant payload byte offset.
     pub payload_offset: u32,
     /// The variant cases.
-    pub variants: Vec<VariantCaseLayout>,
+    pub variants: EntryRange<VariantCaseLayout>,
 }
 
 /// Concrete layout for a variant tag.
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VariantTagLayout {
     /// The tag type when it has been materialized.
-    pub ty: Option<TypeId>,
+    pub ty: Optional<TypeId>,
     /// The tag size in bytes.
     pub size: u32,
     /// The tag alignment in bytes.
     pub alignment: u32,
 }
 
-/// Concrete layout for an object.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct ObjectLayout {
-    /// Byte offset of the virtual dispatch pointer when this object carries one.
-    pub dispatch_offset: Option<u32>,
-    /// The fields in layout order.
-    pub fields: Vec<LayoutField>,
-}
-
 /// Concrete layout for a nominal newtype.
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct NewtypeLayout {
     /// The backing type.
@@ -643,10 +696,11 @@ pub struct NewtypeLayout {
 }
 
 /// Memory layout for a single field.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct LayoutField {
     /// Field name for lookup and debugging.
-    pub name: Option<StringId>,
+    pub name: Optional<StringId>,
     /// Program type of the field.
     pub ty: TypeId,
     /// Byte offset from the start of the aggregate.
@@ -656,14 +710,279 @@ pub struct LayoutField {
     /// Alignment requirement of the field in bytes.
     pub alignment: u32,
     /// Original source index for stable mapping.
-    pub source_index: Option<u32>,
+    pub source_index: Optional<u32>,
 }
 
 /// Concrete layout for one variant case.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VariantCaseLayout {
     /// The logical case type.
     pub ty: TypeId,
     /// The case layout.
     pub layout: LayoutId,
 }
+
+/// Concrete tensor sharding descriptor.
+#[repr(C, u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum TensorSharding {
+    /// Tensor storage is not partitioned across a mesh.
+    Unsharded,
+    /// Tensor storage is mapped across a mesh axis by axis.
+    Sharded {
+        /// The per-axis placement descriptors.
+        axes: EntryRange<TensorShardingAxis>,
+    },
+}
+
+/// Per-axis placement descriptor for a sharded tensor.
+#[repr(C, u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum TensorShardingAxis {
+    /// Split one tensor axis across one mesh axis.
+    Shard {
+        /// The tensor axis being split.
+        axis: i32,
+    },
+    /// Replicate values across one mesh axis.
+    Replicate,
+    /// Store partial results across one mesh axis.
+    Partial {
+        /// The reduction used to combine partial values.
+        reduction: TensorReduction,
+    },
+}
+
+/// Build-time memory layout.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct LayoutBuilder {
+    /// The layout shape.
+    pub shape: LayoutShapeBuilder,
+    /// Total size in bytes, including trailing padding.
+    pub size: u32,
+    /// Alignment requirement in bytes.
+    pub alignment: u32,
+    /// Managed-reference trace id for this layout.
+    pub trace: TraceId,
+}
+
+impl LayoutBuilder {
+    /// Build this layout into one section entry.
+    fn build(
+        self,
+        fields: &mut EntryStore<LayoutField>,
+        variants: &mut EntryStore<VariantCaseLayout>,
+        parameters: &mut EntryStore<TypeId>,
+        tensor_axes: &mut EntryStore<TensorShardingAxis>,
+    ) -> Layout {
+        let shape = self.shape.build(fields, variants, parameters, tensor_axes);
+
+        Layout {
+            shape,
+            size: self.size,
+            alignment: self.alignment,
+            trace: self.trace,
+        }
+    }
+}
+
+/// Build-time layout shape.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum LayoutShapeBuilder {
+    /// No runtime storage.
+    None,
+    /// Builtin scalar storage.
+    Scalar(ScalarFormat),
+    /// Reference storage.
+    Reference(ReferenceLayout),
+    /// Function pointer storage.
+    FunctionPointer(Signature),
+    /// Struct storage.
+    Struct(Vec<LayoutField>),
+    /// Tuple storage.
+    Tuple(Vec<LayoutField>),
+    /// Slice header storage.
+    Slice(SliceLayout),
+    /// Fixed array storage.
+    Array(ElementLayout),
+    /// Vector value storage.
+    Vector(ElementLayout),
+    /// Tensor handle storage.
+    Tensor(TensorLayoutBuilder),
+    /// Tensor view descriptor storage.
+    TensorView(TensorViewLayoutBuilder),
+    /// Variant value storage.
+    Variant(VariantLayoutBuilder),
+    /// Object storage.
+    Object(Vec<LayoutField>),
+    /// Runtime dynamic value layout.
+    Dynamic,
+    /// Runtime function value storage.
+    Function(FunctionLayoutBuilder),
+    /// Transparent nominal storage.
+    Newtype(NewtypeLayout),
+}
+
+impl LayoutShapeBuilder {
+    /// Build this shape into one section entry.
+    fn build(
+        self,
+        fields: &mut EntryStore<LayoutField>,
+        variants: &mut EntryStore<VariantCaseLayout>,
+        parameters: &mut EntryStore<TypeId>,
+        tensor_axes: &mut EntryStore<TensorShardingAxis>,
+    ) -> LayoutShape {
+        match self {
+            Self::None => LayoutShape::None,
+            Self::Scalar(scalar) => LayoutShape::Scalar(scalar),
+            Self::Reference(reference) => LayoutShape::Reference(reference),
+            Self::FunctionPointer(signature) => {
+                LayoutShape::FunctionPointer(build_signature(signature, parameters))
+            }
+            Self::Struct(layout_fields) => LayoutShape::Struct(fields.append(layout_fields)),
+            Self::Tuple(layout_fields) => LayoutShape::Tuple(fields.append(layout_fields)),
+            Self::Slice(slice) => LayoutShape::Slice(slice),
+            Self::Array(element) => LayoutShape::Array(element),
+            Self::Vector(element) => LayoutShape::Vector(element),
+            Self::Tensor(tensor) => LayoutShape::Tensor(tensor.build(tensor_axes)),
+            Self::TensorView(tensor) => LayoutShape::TensorView(tensor.build(tensor_axes)),
+            Self::Variant(variant) => LayoutShape::Variant(VariantLayout {
+                tag: variant.tag,
+                payload_offset: variant.payload_offset,
+                variants: variants.append(variant.variants),
+            }),
+            Self::Object(layout_fields) => LayoutShape::Object(fields.append(layout_fields)),
+            Self::Dynamic => LayoutShape::Dynamic,
+            Self::Function(function) => LayoutShape::Function(FunctionLayout {
+                signature: build_signature(function.signature, parameters),
+                environment: function.environment,
+            }),
+            Self::Newtype(newtype) => LayoutShape::Newtype(newtype),
+        }
+    }
+}
+
+/// Build-time concrete layout for one closure value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct FunctionLayoutBuilder {
+    /// The callable signature.
+    pub signature: Signature,
+    /// The captured environment type.
+    pub environment: TypeId,
+}
+
+/// Build-time concrete layout for a tensor handle.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct TensorLayoutBuilder {
+    /// The tensor element type.
+    pub element: TypeId,
+    /// The tensor storage format.
+    pub format: TensorFormat,
+    /// The tensor placement.
+    pub sharding: TensorShardingBuilder,
+    /// The tensor rank.
+    pub rank: u32,
+}
+
+impl TensorLayoutBuilder {
+    /// Build this tensor layout into one section entry.
+    fn build(self, tensor_axes: &mut EntryStore<TensorShardingAxis>) -> TensorLayout {
+        TensorLayout {
+            element: self.element,
+            format: self.format,
+            sharding: self.sharding.build(tensor_axes),
+            rank: self.rank,
+        }
+    }
+}
+
+/// Build-time concrete layout for a tensor view descriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct TensorViewLayoutBuilder {
+    /// The viewed element type.
+    pub element: TypeId,
+    /// The tensor view format.
+    pub format: TensorViewFormat,
+    /// The tensor placement.
+    pub sharding: TensorShardingBuilder,
+    /// The tensor rank.
+    pub rank: u32,
+}
+
+impl TensorViewLayoutBuilder {
+    /// Build this tensor view layout into one section entry.
+    fn build(self, tensor_axes: &mut EntryStore<TensorShardingAxis>) -> TensorViewLayout {
+        TensorViewLayout {
+            element: self.element,
+            format: self.format,
+            sharding: self.sharding.build(tensor_axes),
+            rank: self.rank,
+        }
+    }
+}
+
+/// Build-time concrete layout for a variant value.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct VariantLayoutBuilder {
+    /// The tag layout.
+    pub tag: VariantTagLayout,
+    /// The variant payload byte offset.
+    pub payload_offset: u32,
+    /// The variant cases.
+    pub variants: Vec<VariantCaseLayout>,
+}
+
+/// Build-time concrete tensor sharding descriptor.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum TensorShardingBuilder {
+    /// Tensor storage is not partitioned across a mesh.
+    Unsharded,
+    /// Tensor storage is mapped across a mesh axis by axis.
+    Sharded {
+        /// The per-axis placement descriptors.
+        axes: Vec<TensorShardingAxis>,
+    },
+}
+
+impl TensorShardingBuilder {
+    /// Build this tensor sharding descriptor into one section entry.
+    fn build(self, tensor_axes: &mut EntryStore<TensorShardingAxis>) -> TensorSharding {
+        match self {
+            Self::Unsharded => TensorSharding::Unsharded,
+            Self::Sharded { axes } => TensorSharding::Sharded {
+                axes: tensor_axes.append(axes),
+            },
+        }
+    }
+}
+
+fn build_signature(signature: Signature, parameters: &mut EntryStore<TypeId>) -> FunctionSignature {
+    FunctionSignature {
+        parameters: parameters.append(signature.parameters),
+        result: signature.result,
+    }
+}
+
+// SAFETY: layout ids, layouts, and layout payloads are fixed-width entry values.
+unsafe impl SectionEntry for Layout {}
+unsafe impl SectionEntry for LayoutId {}
+unsafe impl SectionEntry for ScalarFormat {}
+unsafe impl SectionEntry for AddressSpace {}
+unsafe impl SectionEntry for CellLayout {}
+unsafe impl SectionEntry for ReferenceStorage {}
+unsafe impl SectionEntry for ReferenceFlags {}
+unsafe impl SectionEntry for LayoutShape {}
+unsafe impl SectionEntry for SliceLayout {}
+unsafe impl SectionEntry for ReferenceLayout {}
+unsafe impl SectionEntry for FunctionLayout {}
+unsafe impl SectionEntry for ElementLayout {}
+unsafe impl SectionEntry for TensorLayout {}
+unsafe impl SectionEntry for TensorViewLayout {}
+unsafe impl SectionEntry for VariantLayout {}
+unsafe impl SectionEntry for VariantTagLayout {}
+unsafe impl SectionEntry for NewtypeLayout {}
+unsafe impl SectionEntry for LayoutField {}
+unsafe impl SectionEntry for VariantCaseLayout {}
+unsafe impl SectionEntry for TensorSharding {}
+unsafe impl SectionEntry for TensorShardingAxis {}

@@ -1,4 +1,4 @@
-/// Result of running executable code.
+/// Result of running program code.
 #[derive(Debug)]
 pub enum Outcome<C, O, Y = O> {
     /// Execution completed with a result.

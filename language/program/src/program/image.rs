@@ -70,3 +70,10 @@ pub struct FrameImage {
     /// The captured frame byte width.
     pub byte_len: usize,
 }
+
+impl FrameImage {
+    /// Return the captured frame byte width.
+    pub const fn byte_len(&self) -> usize {
+        self.byte_len
+    }
+}
