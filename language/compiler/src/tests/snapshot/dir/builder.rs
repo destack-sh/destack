@@ -660,8 +660,13 @@ impl<'a> DirSnapshotBuilder<'a> {
     pub(crate) fn static_key(&self, key: dir::StaticKey) -> String {
         match key {
             dir::StaticKey::Name(name) => self.strings.get(name).to_string(),
-            dir::StaticKey::Index(index) => format!("#index({index})"),
-            dir::StaticKey::Symbol(symbol) => symbol.debug_string(self.strings),
+            dir::StaticKey::Index(index) => index.to_string(),
+            dir::StaticKey::Symbol(dir::SymbolKey::Unique(symbol)) => self.symbol_label(symbol),
+            dir::StaticKey::Symbol(dir::SymbolKey::Registry(name)) => {
+                let name = self.strings.get(name);
+
+                format!("Symbol.for(\"{name}\")")
+            }
         }
     }
 
@@ -790,6 +795,14 @@ impl<'a> DirSnapshotBuilder<'a> {
 
                 format!("/{}/{flags}", self.strings.get(*content))
             }
+        }
+    }
+
+    /// Render one scalar literal as a plain row value.
+    pub(crate) fn scalar_literal_value_label(&self, literal: &dir::ScalarLiteral) -> String {
+        match literal {
+            dir::ScalarLiteral::String(value) => self.strings.get(*value).to_string(),
+            _ => self.scalar_literal_label(literal),
         }
     }
 

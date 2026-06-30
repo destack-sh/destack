@@ -65,6 +65,7 @@ fn add_definition_rows(
         }
         dir::Definition::Newtype(definition) => {
             add_newtype_row(builder, symbol, source, definition);
+            add_members(builder, symbol, &definition.members);
         }
         dir::Definition::Extension(extension) => {
             add_extension_row(builder, symbol, source, extension);

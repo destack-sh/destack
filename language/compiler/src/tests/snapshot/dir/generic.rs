@@ -81,7 +81,7 @@ fn generic_template_parameter_label(
         .map(|default| format!(" = {}", builder.global_type_label(default)))
         .unwrap_or_default();
 
-    generic_origin_label(format!("{name}{constraint}{default}"), parameter.origin)
+    format!("{name}{constraint}{default}")
 }
 
 /// Return one generic parameter source name.
@@ -255,27 +255,5 @@ impl DirSnapshotBuilder<'_> {
             .field("source", source)
             .field("id", id);
         self.push(row);
-    }
-}
-
-/// Add one induced origin suffix.
-fn generic_origin_label(name: String, origin: dir::GenericParameterOrigin) -> String {
-    match origin {
-        dir::GenericParameterOrigin::Explicit => name,
-        dir::GenericParameterOrigin::Induced(induction) => {
-            let induction = generic_parameter_induction_label(induction);
-
-            format!("{name} origin=induced.{induction}")
-        }
-    }
-}
-
-/// Return one induced generic reason label.
-fn generic_parameter_induction_label(induction: dir::GenericParameterInduction) -> &'static str {
-    match induction {
-        dir::GenericParameterInduction::ParameterConstraint => "parameter_constraint",
-        dir::GenericParameterInduction::StorageConstraint => "storage_constraint",
-        dir::GenericParameterInduction::Form => "form",
-        dir::GenericParameterInduction::Comptime => "comptime",
     }
 }

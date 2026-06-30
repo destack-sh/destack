@@ -1,5 +1,6 @@
 const CHECK_STATS_ROWS: &[&str] = &["check.stats.solve"];
 const CHECK_EVENT_ROWS: &[&str] = &["check.events"];
+const CHECK_EVENT_ENV: &str = "DESTACK_TEST_CHECK_EVENTS";
 const BIND_STATS_ROWS: &[&str] = &["bind.stats"];
 const IMPORT_STATS_ROWS: &[&str] = &["import.stats"];
 const EXPORT_STATS_ROWS: &[&str] = &["export.stats"];
@@ -203,6 +204,16 @@ impl DirRows {
     /// Include selected event row prefixes.
     pub(crate) const fn with_event_rows(mut self, rows: &'static [&'static str]) -> Self {
         self.event_rows = rows;
+        self
+    }
+
+    /// Apply test-runner row overrides from the environment.
+    pub(crate) fn with_environment(mut self) -> Self {
+        if std::env::var_os(CHECK_EVENT_ENV).is_some_and(|value| !value.is_empty() && value != "0")
+        {
+            self.event_rows = CHECK_EVENT_ROWS;
+        }
+
         self
     }
 
