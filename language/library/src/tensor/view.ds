@@ -19,7 +19,8 @@ export newtype TensorView<
 > = intrinsic;
 
 extension<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: Access> of
-    TensorView<T, Rank, F, P, A> implements Index<Coordinate<Rank>> {
+    TensorView<T, Rank, F, P, A>
+    implements Index<Coordinate<Rank>> {
     /// The indexed output type.
     type Output = T;
 
@@ -154,7 +155,8 @@ extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
 }
 
 extension<T, comptime Rank: int, F: TensorViewFormat, P: Placement> of
-    TensorView<T, Rank, F, P, "exclusive"> implements IndexSet<Coordinate<Rank>, T> {
+    TensorView<T, Rank, F, P, "exclusive">
+    implements IndexSet<Coordinate<Rank>, T> {
     /// Store `value` at `coordinate`.
     indexSet(&exclusive this, coordinate: Coordinate<Rank>, value: T): void {
         todo("TensorView.indexSet");

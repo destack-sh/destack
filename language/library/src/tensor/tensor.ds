@@ -140,14 +140,15 @@ extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placement> of
 }
 
 extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placement> of
-    Tensor<T, Rank, F, P> implements
-    Add<Tensor<T, Rank, F, P>>,
-    Subtract<Tensor<T, Rank, F, P>>,
-    Multiply<Tensor<T, Rank, F, P>>,
-    Divide<Tensor<T, Rank, F, P>>,
-    Remainder<Tensor<T, Rank, F, P>>,
-    Power<Tensor<T, Rank, F, P>>,
-    Negate {
+    Tensor<T, Rank, F, P>
+    implements
+        Add<Tensor<T, Rank, F, P>>,
+        Subtract<Tensor<T, Rank, F, P>>,
+        Multiply<Tensor<T, Rank, F, P>>,
+        Divide<Tensor<T, Rank, F, P>>,
+        Remainder<Tensor<T, Rank, F, P>>,
+        Power<Tensor<T, Rank, F, P>>,
+        Negate {
     /// The elementwise tensor result type.
     type Output = Tensor<T, Rank, F, P>;
 
@@ -188,11 +189,12 @@ extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placement> of
 }
 
 extension<T: int | boolean, comptime Rank: int, F: TensorFormat, P: Placement> of
-    Tensor<T, Rank, F, P> implements
-    And<Tensor<T, Rank, F, P>>,
-    Or<Tensor<T, Rank, F, P>>,
-    Xor<Tensor<T, Rank, F, P>>,
-    Not {
+    Tensor<T, Rank, F, P>
+    implements
+        And<Tensor<T, Rank, F, P>>,
+        Or<Tensor<T, Rank, F, P>>,
+        Xor<Tensor<T, Rank, F, P>>,
+        Not {
     /// The elementwise tensor result type.
     type Output = Tensor<T, Rank, F, P>;
 
