@@ -288,6 +288,7 @@ declare const sink: Sink;
 /// @resolution.name source=Sink target=Sink
 
 const value = sink.value;
+/// @type.symbol symbol=value source=value type=<error>
 /// @resolution.name source=sink target=sink
 "#,
         r#"

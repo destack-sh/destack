@@ -30,23 +30,31 @@ struct Right {
 === checked ===
 struct Left {
 /// @type.symbol symbol=Left type=Left
+/// @definition.struct symbol=Left
+/// @definition.field symbol=Left.right source="right: Right" key=right type=Right
 
     right: Right;
+    /// @type.symbol symbol=Left.right source="right: Right" type=Right
     /// @resolution.name source=Right target=Right
-    /// @type.symbol symbol=Left.right type=Right
+
 }
 
 struct Right {
 /// @type.symbol symbol=Right type=Right
+/// @definition.struct symbol=Right
+/// @definition.field symbol=Right.left source="left: Left" key=left type=Left
 
     left: Left;
+    /// @type.symbol symbol=Right.left source="left: Left" type=Left
     /// @resolution.name source=Left target=Left
-    /// @type.symbol symbol=Right.left type=Left
+
 }
 "#,
         r#"
 /// @diagnostic.error code=EC103 message="type is circular"
-/// @diagnostic.label line=3 column=5 source="right: Right;"
+/// @diagnostic.label line=3 column=5 span="right" line_source="right: Right;"
+/// @diagnostic.error code=EC103 message="type is circular"
+/// @diagnostic.label line=7 column=5 span="left" line_source="left: Left;"
 "#,
     );
 }
@@ -61,6 +69,10 @@ import { World } from "./world.ds";
 
 export class Player {
     world: World;
+
+    constructor(world: World) {
+        this.world = world;
+    }
 }
 "#,
         )
@@ -71,6 +83,10 @@ import { Player } from "./player.ds";
 
 export class World {
     player: Player;
+
+    constructor(player: Player) {
+        this.player = player;
+    }
 }
 "#,
         )
@@ -87,20 +103,37 @@ import { World } from "./world.ds";
 
 export class Player {
     world: World;
+
+    constructor(world: World): Player {
+        this.world = world;
+    }
 }
 
 === checked ===
 import { World } from "./world.ds";
-/// @resolution.name source=World target=world.World
 
 export class Player {
 /// @type.symbol symbol=Player type=Player
+/// @definition.class symbol=Player
+/// @definition.field symbol=Player.world source="world: World" key=world type=world.World
+/// @definition.method symbol=Player.constructor slot=constructor role=constructor type=(world.World) => Player
 
     world: World;
+    /// @type.symbol symbol=Player.world source="world: World" type=world.World
     /// @resolution.name source=World target=world.World
-    /// @type.symbol symbol=Player.world type=world.World
-}
 
+    constructor(world: World) {
+    /// @type.symbol symbol=Player.constructor type=(world.World) => Player
+    /// @type.symbol symbol=Player.constructor.world source="world: World" type=world.World
+    /// @resolution.name source=World target=world.World
+
+        this.world = world;
+        /// @resolution.receiver source=this kind=this declaration=Player type=Player
+        /// @resolution.pattern.assign source=this.world kind=place place=field(Player.world) type=world.World
+        /// @resolution.name source=world target=Player.constructor.world
+
+    }
+}
 
 === world.ds ===
 
@@ -109,18 +142,36 @@ import { Player } from "./player.ds";
 
 export class World {
     player: Player;
+
+    constructor(player: Player): World {
+        this.player = player;
+    }
 }
 
 === checked ===
 import { Player } from "./player.ds";
-/// @resolution.name source=Player target=player.Player
 
 export class World {
 /// @type.symbol symbol=World type=World
+/// @definition.class symbol=World
+/// @definition.field symbol=World.player source="player: Player" key=player type=player.Player
+/// @definition.method symbol=World.constructor slot=constructor role=constructor type=(player.Player) => World
 
     player: Player;
+    /// @type.symbol symbol=World.player source="player: Player" type=player.Player
     /// @resolution.name source=Player target=player.Player
-    /// @type.symbol symbol=World.player type=player.Player
+
+    constructor(player: Player) {
+    /// @type.symbol symbol=World.constructor type=(player.Player) => World
+    /// @type.symbol symbol=World.constructor.player source="player: Player" type=player.Player
+    /// @resolution.name source=Player target=player.Player
+
+        this.player = player;
+        /// @resolution.receiver source=this kind=this declaration=World type=World
+        /// @resolution.pattern.assign source=this.player kind=place place=field(World.player) type=player.Player
+        /// @resolution.name source=player target=World.constructor.player
+
+    }
 }
 "#,
     );

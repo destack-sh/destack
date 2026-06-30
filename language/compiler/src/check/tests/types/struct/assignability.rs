@@ -30,7 +30,7 @@ struct Point {
     x: int32;
 }
 
-const value: HasX = Point { x: 1 } as HasX;
+const value: HasX = Point { x: 1 };
 value satisfies HasX;
 
 === checked ===
@@ -89,7 +89,7 @@ struct Point {
     x: int32;
 }
 
-const point: { readonly x: int32 } = Point { x: 1 } as { readonly x: int32 };
+const point: Point = Point { x: 1 };
 const value: { readonly x: int32 } = point;
 value satisfies { readonly x: int32 };
 
@@ -105,7 +105,7 @@ struct Point {
 }
 
 const point = Point { x: 1 };
-/// @type.symbol symbol=point source=point type={ readonly x: int32 }
+/// @type.symbol symbol=point source=point type=Point
 /// @resolution.name source=Point target=Point
 
 const value: { readonly x: int32 } = point;
@@ -148,7 +148,7 @@ struct Counter {
     count: int32;
 }
 
-const counter: HasCount = Counter { count: 1 } as HasCount;
+const counter: HasCount = Counter { count: 1 };
 counter satisfies HasCount;
 
 === checked ===
@@ -236,7 +236,7 @@ struct Point implements Drawable {
 "#,
         r#"
 /// @diagnostic.error code=EC203 message="type 'Point' does not implement interface 'Drawable'"
-/// @diagnostic.label line=6 column=25 source="struct Point implements Drawable {"
+/// @diagnostic.label line=6 column=25 span="Drawable" line_source="struct Point implements Drawable {"
 "#,
     );
 }
@@ -267,7 +267,7 @@ struct Point implements Left, Right {}
 === checked ===
 interface Base<T> {}
 /// @generic.template symbol=Base parameters=(T)
-/// @type.symbol symbol=Base source="interface Base<T> {}" type=Base<T>
+/// @type.symbol symbol=Base source="interface Base<T> {}" type=Base
 /// @definition.interface symbol=Base source="interface Base<T> {}" template=LocalGenericTemplateId(0)
 /// @type.symbol symbol=Base.T source=T type=T
 
@@ -293,7 +293,7 @@ struct Point implements Left, Right {}
 "#,
         r#"
 /// @diagnostic.error code=EC617 message="type 'Point' has conflicting heritage for 'Base'"
-/// @diagnostic.label line=6 column=31 source="struct Point implements Left, Right {}"
+/// @diagnostic.label line=6 column=31 span="Right" line_source="struct Point implements Left, Right {}"
 "#,
     );
 }
@@ -363,7 +363,7 @@ const value: PointClass = point;
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'Point' is not assignable to type 'PointClass'"
-/// @diagnostic.label line=10 column=7 source="const point = Point { x: 1 };"
+/// @diagnostic.label line=11 column=27 span="point" line_source="const value: PointClass = point;"
 "#,
     );
 }
@@ -398,7 +398,7 @@ class PointClass {
     x: int32 = 0;
 }
 
-const point: Point = new PointClass();
+const point: PointClass = new PointClass();
 const value: Point = point;
 
 === checked ===
@@ -423,8 +423,8 @@ class PointClass {
 }
 
 const point = new PointClass();
-/// @type.symbol symbol=point source=point type=Point
-/// @resolution.construct source="new PointClass()" parameters=() return=PointClass kind=class target=PointClass
+/// @type.symbol symbol=point source=point type=PointClass
+/// @resolution.construct source="new PointClass()" parameters=() return=PointClass kind=class target=PointClass constructor=default
 /// @resolution.name source=PointClass target=PointClass
 
 const value: Point = point;
@@ -434,7 +434,7 @@ const value: Point = point;
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'PointClass' is not assignable to type 'Point'"
-/// @diagnostic.label line=10 column=15 source="const point = new PointClass();"
+/// @diagnostic.label line=11 column=22 span="point" line_source="const value: Point = point;"
 "#,
     );
 }
