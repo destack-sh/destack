@@ -302,10 +302,11 @@ fn test_parse_typescript_extends_type_requires_conditional_branches() {
         })
         .unwrap_err();
 
-    let (span, node_type, token_type) = error.leaf_content();
-    assert_eq!(node_type, None);
-    assert_eq!(token_type, Some(TokenType::Maybe));
-    assert_eq!(parser.get_span_str(span), "");
+    let leaf = error.leaf_content();
+
+    assert_eq!(leaf.node_type, None);
+    assert_eq!(leaf.expected, Some(TokenType::Maybe));
+    assert_eq!(parser.get_span_str(leaf.span), "");
 }
 
 #[test]

@@ -8,12 +8,55 @@ use destack_source::{ContentId, Diagnostic, DiagnosticLabel, Span};
 pub struct ParserError {
     /// The span of the error.
     pub span: Span,
+    /// The actual token type at the error span.
+    pub actual: Option<TokenType>,
     /// The expected token type.
     pub expected: Option<TokenType>,
     /// The node type we tried to parse.
     pub node_type: Option<NodeType>,
     /// The source error.
     pub source: Option<Box<ParserError>>,
+}
+
+/// The source location of one parser error.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ParserErrorLocation {
+    /// The source span of the error.
+    span: Span,
+    /// The actual token type at the error span.
+    actual: Option<TokenType>,
+}
+
+impl From<Span> for ParserErrorLocation {
+    /// Create a parser error location from a source span.
+    #[inline]
+    fn from(span: Span) -> Self {
+        Self { span, actual: None }
+    }
+}
+
+impl From<TokenSpan> for ParserErrorLocation {
+    /// Create a parser error location from a token span.
+    #[inline]
+    fn from(token: TokenSpan) -> Self {
+        Self {
+            span: token.span,
+            actual: Some(token.token.ty()),
+        }
+    }
+}
+
+/// The leaf payload of one parser error chain.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ParserErrorLeaf {
+    /// The source span of the leaf error.
+    pub span: Span,
+    /// The actual token type at the leaf error.
+    pub actual: Option<TokenType>,
+    /// The node type the parser tried to parse at the leaf error.
+    pub node_type: Option<NodeType>,
+    /// The expected token type at the leaf error.
+    pub expected: Option<TokenType>,
 }
 
 /// One parser operation result.
@@ -40,33 +83,42 @@ impl<T> ParserResultExt<T> for Result<T, ParserError> {
 }
 
 impl ParserError {
-    /// Create a parser error leaf without an expected alternative.
+    /// Create a parser error leaf for an unexpected location.
     #[inline]
-    pub fn unexpected(span: Span) -> Self {
+    pub fn unexpected(location: impl Into<ParserErrorLocation>) -> Self {
+        let location = location.into();
+
         ParserError {
-            span,
+            span: location.span,
+            actual: location.actual,
             expected: None,
             node_type: None,
             source: None,
         }
     }
 
-    /// Create a parser error leaf with an unexpected token and node type.
+    /// Create a parser error leaf for an unexpected location and node type.
     #[inline]
-    pub fn unexpected_for(span: Span, node_type: NodeType) -> Self {
+    pub fn unexpected_for(location: impl Into<ParserErrorLocation>, node_type: NodeType) -> Self {
+        let location = location.into();
+
         ParserError {
-            span,
+            span: location.span,
+            actual: location.actual,
             expected: None,
             node_type: Some(node_type),
             source: None,
         }
     }
 
-    /// Create a parser error leaf with an expected alternative.
+    /// Create a parser error leaf with an expected alternative at a location.
     #[inline]
-    pub fn expected(span: Span, expected: TokenType) -> Self {
+    pub fn expected(location: impl Into<ParserErrorLocation>, expected: TokenType) -> Self {
+        let location = location.into();
+
         ParserError {
-            span,
+            span: location.span,
+            actual: location.actual,
             expected: Some(expected),
             node_type: None,
             source: None,
@@ -75,9 +127,16 @@ impl ParserError {
 
     /// Create a parser error leaf with an expected alternative and node type.
     #[inline]
-    pub fn expected_for(span: Span, expected: TokenType, node_type: NodeType) -> Self {
+    pub fn expected_for(
+        location: impl Into<ParserErrorLocation>,
+        expected: TokenType,
+        node_type: NodeType,
+    ) -> Self {
+        let location = location.into();
+
         ParserError {
-            span,
+            span: location.span,
+            actual: location.actual,
             expected: Some(expected),
             node_type: Some(node_type),
             source: None,
@@ -89,6 +148,7 @@ impl ParserError {
     pub fn from_source(span: Span, source: ParserError) -> Self {
         ParserError {
             span,
+            actual: None,
             expected: None,
             node_type: source.node_type,
             source: Some(Box::new(source)),
@@ -100,6 +160,7 @@ impl ParserError {
     pub fn from_source_maybe(span: Span, source: Option<ParserError>) -> Self {
         ParserError {
             span,
+            actual: None,
             expected: None,
             node_type: source.as_ref().and_then(|s| s.node_type),
             source: source.map(Box::new),
@@ -115,11 +176,12 @@ impl ParserError {
 
     /// Compare content.
     pub fn eq_content(&self, other: &Self) -> bool {
-        let (self_span, self_node_type, self_expected) = self.leaf_content();
-        let (other_span, other_node_type, other_expected) = other.leaf_content();
-        self_span == other_span
-            && self_node_type == other_node_type
-            && self_expected == other_expected
+        let self_leaf = self.leaf_content();
+        let other_leaf = other.leaf_content();
+
+        self_leaf.span == other_leaf.span
+            && self_leaf.node_type == other_leaf.node_type
+            && self_leaf.expected == other_leaf.expected
     }
 
     /// Get the leaf error.
@@ -132,9 +194,15 @@ impl ParserError {
     }
 
     /// Get the leaf content.
-    pub fn leaf_content(&self) -> (Span, Option<NodeType>, Option<TokenType>) {
+    pub fn leaf_content(&self) -> ParserErrorLeaf {
         let leaf = self.leaf();
-        (leaf.span, leaf.node_type, leaf.expected)
+
+        ParserErrorLeaf {
+            span: leaf.span,
+            actual: leaf.actual,
+            node_type: leaf.node_type,
+            expected: leaf.expected,
+        }
     }
 
     /// Get the leaf span.
@@ -146,11 +214,16 @@ impl ParserError {
 
 impl fmt::Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let span = self.span;
-        match self.expected {
-            Some(tok) => write!(f, "expected {tok} at {span:?}")?,
-            None => write!(f, "unexpected token at {span:?}")?,
+        let leaf = self.leaf_content();
+
+        match leaf.expected {
+            Some(tok) => write!(f, "expected {tok} at {:?}", leaf.span)?,
+            None => match leaf.actual {
+                Some(tok) => write!(f, "unexpected {tok} at {:?}", leaf.span)?,
+                None => write!(f, "unexpected syntax at {:?}", leaf.span)?,
+            },
         }
+
         Ok(())
     }
 }
@@ -167,31 +240,31 @@ impl std::error::Error for ParserError {
 
 impl ParserError {
     /// Convert this parse error into one source diagnostic.
-    pub fn to_diagnostic(&self, content: ContentId, tokens: &[TokenSpan]) -> Diagnostic {
-        let (span, node_type, expected) = self.leaf_content();
-
-        let token_at_primary_span = tokens
-            .binary_search_by_key(&span.start, |token| token.span.start)
-            .ok()
-            .and_then(|index| tokens.get(index))
-            .map(|token| token.token.ty())
-            .unwrap_or(TokenType::End);
-        let in_node_str = match node_type {
+    pub fn to_diagnostic(&self, content: ContentId) -> Diagnostic {
+        let leaf = self.leaf_content();
+        let in_node_str = match leaf.node_type {
             Some(node_type) => format!(" in {node_type:?}"),
             None => "".to_string(),
         };
-        let message = match expected {
-            Some(token_type) => format!("parse error: expected {token_type}{in_node_str}"),
-            None => format!("parse error: unexpected {token_at_primary_span}{in_node_str}"),
+
+        let (message, label) = match leaf.expected {
+            Some(token_type) => (
+                format!("parse error: expected {token_type}{in_node_str}"),
+                format!("expected {token_type}{in_node_str}"),
+            ),
+            None => {
+                let actual_str = match leaf.actual {
+                    Some(actual) => actual.to_string(),
+                    None => "syntax".to_string(),
+                };
+
+                (
+                    format!("parse error: unexpected {actual_str}{in_node_str}"),
+                    format!("unexpected {actual_str}{in_node_str}"),
+                )
+            }
         };
-        let primary = DiagnosticLabel::message(
-            content,
-            span,
-            match expected {
-                Some(token_type) => format!("expected {token_type}{in_node_str}"),
-                None => format!("unexpected {token_at_primary_span}{in_node_str}"),
-            },
-        );
+        let primary = DiagnosticLabel::message(content, leaf.span, label);
 
         Diagnostic::error("EP001", message, primary)
     }

@@ -321,7 +321,7 @@ impl Parser {
             }
             TokenType::Hash if self.token_type_at_offset(1) == TokenType::Identifier => {
                 if self.language.is_destack() {
-                    return Err(ParserError::unexpected(self.peek()?.span));
+                    return Err(ParserError::unexpected(self.peek()?));
                 }
 
                 self.bump();
@@ -333,7 +333,7 @@ impl Parser {
                 self.tree.set_main_span(id, name_span);
                 Ok((id, false))
             }
-            _ => Err(ParserError::unexpected(self.peek()?.span)),
+            _ => Err(ParserError::unexpected(self.peek()?)),
         }
     }
 
@@ -731,7 +731,7 @@ impl Parser {
             return Ok(self.insert_node(Expression::ImportSource, self.get_span_from(start)));
         }
 
-        Err(ParserError::unexpected(self.peek()?.span))
+        Err(ParserError::unexpected(self.peek()?))
     }
 
     /// Parse value brace primary.

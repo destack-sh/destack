@@ -168,7 +168,7 @@ impl Parser {
         if self.peek_is(TokenType::Literal) {
             Ok(self.peek()?)
         } else {
-            Err(ParserError::unexpected(self.peek()?.span))
+            Err(ParserError::unexpected(self.peek()?))
         }
     }
 
@@ -192,7 +192,7 @@ impl Parser {
     pub fn eat_scalar_literal(&mut self) -> ParserResult<ScalarLiteral> {
         let literal_span = self.eat()?;
         let Some(body) = literal_span.token.literal() else {
-            return Err(ParserError::unexpected(literal_span.span));
+            return Err(ParserError::unexpected(literal_span));
         };
         let has_adjacent_identifier_suffix =
             self.numeric_literal_has_adjacent_identifier_suffix(literal_span);
@@ -508,7 +508,7 @@ impl Parser {
     /// Re-lex and eat the current regex literal.
     pub(crate) fn eat_regex_literal(&mut self) -> ParserResult<ScalarLiteral> {
         if !self.re_lex_regex() {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         self.eat_scalar_literal()
@@ -521,7 +521,7 @@ impl Parser {
     ) -> ParserResult<LocalNodeId<Expression>> {
         let token = self.peek()?;
         let Some(body) = token.token.literal() else {
-            return Err(ParserError::unexpected(token.span));
+            return Err(ParserError::unexpected(token));
         };
         let literal_str = self.file.span_str(token.span);
         let scalar_literal = match body {
@@ -551,7 +551,7 @@ impl Parser {
                 let string_id = self.strings.intern(literal_str);
                 ScalarLiteral::String(string_id)
             }
-            _ => return Err(ParserError::unexpected(token.span)),
+            _ => return Err(ParserError::unexpected(token)),
         };
 
         // continue in the owning tree scope
@@ -729,7 +729,7 @@ impl Parser {
         if self.peek_is(TokenType::TemplateString) || self.peek_is(TokenType::TemplateStringStart) {
             Ok(self.peek()?)
         } else {
-            Err(ParserError::unexpected(self.peek()?.span))
+            Err(ParserError::unexpected(self.peek()?))
         }
     }
 
@@ -867,7 +867,7 @@ impl Parser {
                     if !self.peek_is(TokenType::TemplateStringMiddle)
                         && !self.peek_is(TokenType::TemplateStringEnd)
                     {
-                        return Err(ParserError::unexpected(self.peek()?.span));
+                        return Err(ParserError::unexpected(self.peek()?));
                     }
                     spans.push(span);
                 }
@@ -889,7 +889,7 @@ impl Parser {
             return Ok((strings, spans));
         }
 
-        Err(ParserError::unexpected(next.span))
+        Err(ParserError::unexpected(next))
     }
 
     /// Return the body of one lexer-shaped template chunk.
@@ -1342,7 +1342,7 @@ impl Parser {
         let mark = self.cursor_checkpoint();
         let result = (|| {
             if !self.peek_is(TokenType::LessThan) {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             }
             let unexpected_span = self.peek()?.span;
 
@@ -1522,7 +1522,7 @@ impl Parser {
 
             // jsx namespace names cannot be followed by member access
             if self.tree_literal_path_has_namespace_member(&path) {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             }
 
             path_segment_spans = Some(segment_spans);
@@ -1644,22 +1644,22 @@ impl Parser {
         }
 
         if path.is_some() && self.peek_starts_tree_tag_close() {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         let Some(path) = path else {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         };
 
         let closing_path = self.eat_tree_literal_path()?;
         if self.tree_literal_path_has_namespace_member(&closing_path) {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         self.skip_tree_whitespace()?;
         self.eat_tree_tag_close(follow_mode)?;
         if closing_path != *path {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         Ok(true)

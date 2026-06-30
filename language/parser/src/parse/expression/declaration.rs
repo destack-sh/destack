@@ -98,7 +98,7 @@ impl Parser {
                 self.token_type_at_offset(1),
                 TokenType::Identifier | TokenType::LessThan | TokenType::OpenBrace
             ) {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             }
 
             let declaration = self.eat_enum(start, EnumKind::Enum, header)?;
@@ -241,7 +241,7 @@ impl Parser {
 
         // invalid default enum
         if keyword == Keyword::Enum && header.export == Some(ExportKind::Default) {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         // ambient enum split by newline
@@ -280,7 +280,7 @@ impl Parser {
         checkpoint: Option<(ParserCheckpoint, u32)>,
     ) -> ParserResult<()> {
         let Some((checkpoint, mark)) = checkpoint else {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         };
 
         self.restore(checkpoint, mark);

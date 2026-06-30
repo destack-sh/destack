@@ -100,7 +100,7 @@ impl Parser {
         // require identifier text
         let next = self.peek()?;
         if next.token.ty() != TokenType::Identifier {
-            return Err(ParserError::unexpected(next.span));
+            return Err(ParserError::unexpected(next));
         }
 
         // resolve literals available in all grammar spaces
@@ -111,7 +111,7 @@ impl Parser {
 
         // require type space for contextual literals
         if !self.flags.is_in_type() && !self.flags.is_in_static() {
-            return Err(ParserError::unexpected(next.span));
+            return Err(ParserError::unexpected(next));
         }
 
         // resolve one token contextual literals
@@ -125,7 +125,7 @@ impl Parser {
                 return Ok(TypeLiteral::UniqueSymbol);
             }
 
-            return Err(ParserError::unexpected(next.span));
+            return Err(ParserError::unexpected(next));
         }
 
         // resolve numeric literals with width suffixes
@@ -152,7 +152,7 @@ impl Parser {
             "bfloat16" => Ok(TypeLiteral::Float(FloatType::Bfloat16)),
             "float32" => Ok(TypeLiteral::Float(FloatType::Float32)),
             "float64" => Ok(TypeLiteral::Float(FloatType::Float64)),
-            _ => Err(ParserError::unexpected(next.span)),
+            _ => Err(ParserError::unexpected(next)),
         }
     }
 

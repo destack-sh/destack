@@ -284,7 +284,7 @@ impl Parser {
         };
 
         // stray closers should produce one error node and advance
-        let error = ParserError::unexpected_for(token.span, NodeType::Expression);
+        let error = ParserError::unexpected_for(token, NodeType::Expression);
         self.error(&error);
         self.bump();
 
@@ -907,7 +907,7 @@ impl Parser {
         if !is_statement && !has_separator && !stops_at_block_terminator {
             // keep a plausible next statement head for the outer block loop
             if Self::token_can_start_recovered_statement_item(next_token_type) {
-                let error = ParserError::unexpected(self.peek()?.span);
+                let error = ParserError::unexpected(self.peek()?);
                 self.error(&error);
 
                 self.tree.set_side_span(
@@ -919,7 +919,7 @@ impl Parser {
                 return Ok((expression_id, true));
             }
 
-            let error = ParserError::unexpected(self.peek()?.span);
+            let error = ParserError::unexpected(self.peek()?);
             let recovery_start = self.span_start();
             self.try_recover_in_statement(&recovery_start, Some(error))?;
             self.tree.set_side_span(
@@ -1023,7 +1023,7 @@ impl Parser {
             }
             // labels are the only break operands in TypeScript
             else {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             }
         }
         // trailing value: break "done"
@@ -1033,7 +1033,7 @@ impl Parser {
         }
         // other trailing tokens are invalid operands
         else if !self.is_any_stop() {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         } else {
             (None, None, None)
         };
@@ -1069,13 +1069,13 @@ impl Parser {
         } else if self.peek_is(TokenType::Identifier) {
             let next_token = self.next_token();
             if !self.token_ends_label_statement(next_token) {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             }
 
             let (label, label_span) = self.eat_identifier_with_span()?;
             (Some(label), Some(label_span))
         } else if !self.is_any_stop() {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         } else {
             (None, None)
         };

@@ -96,7 +96,7 @@ impl Parser {
         error: ParserError,
     ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         if self.peek_is(TokenType::CloseParenthesis) {
-            let error = ParserError::unexpected(self.peek()?.span);
+            let error = ParserError::unexpected(self.peek()?);
             self.error(&error);
 
             return Err(ParserError::from_source(error.span, error));

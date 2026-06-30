@@ -151,7 +151,7 @@ impl Parser {
             // stop on closing brace
             if token_type == TokenType::CloseBrace {
                 if !pending_decorators.is_empty() {
-                    let error = ParserError::unexpected(self.peek()?.span);
+                    let error = ParserError::unexpected(self.peek()?);
                     self.error(&error);
                     pending_decorators.clear();
                 }
@@ -258,11 +258,11 @@ impl Parser {
                 match template {
                     TemplateLiteral::String { string } => Name::String(string),
                     TemplateLiteral::InterpolatedString { .. } => {
-                        return Err(ParserError::unexpected(self.peek()?.span));
+                        return Err(ParserError::unexpected(self.peek()?));
                     }
                 }
             } else {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             };
 
             self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;

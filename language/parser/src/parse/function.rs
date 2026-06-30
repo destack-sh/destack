@@ -1117,7 +1117,7 @@ impl Parser {
         head: &ParsedFunctionHead,
     ) -> ParserResult<ParsedFunctionParameters> {
         if head.is_generator && self.is_keyword(Keyword::Yield) {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         let name = self.eat_identifier()?;

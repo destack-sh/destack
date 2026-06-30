@@ -25,7 +25,7 @@ impl Parser {
     pub fn peek_keyword(&mut self, keyword: Keyword) -> ParserResult<TokenSpan> {
         let current = self.peek_token(TokenType::Identifier)?;
         if !self.is_keyword(keyword) {
-            Err(ParserError::expected(current.span, TokenType::Identifier))
+            Err(ParserError::expected(current, TokenType::Identifier))
         } else {
             self.peek_token(TokenType::Identifier)
         }
@@ -36,7 +36,7 @@ impl Parser {
     pub fn peek_any_keyword(&mut self) -> ParserResult<Keyword> {
         let current = self.peek_token(TokenType::Identifier)?;
         self.current_keyword()
-            .ok_or_else(|| ParserError::expected(current.span, TokenType::Identifier))
+            .ok_or_else(|| ParserError::expected(current, TokenType::Identifier))
     }
 
     /// Peek the next keyword.
@@ -86,12 +86,11 @@ impl Parser {
     pub fn eat_keyword_any(&mut self) -> ParserResult<Keyword> {
         let current = self.eat_token(TokenType::Identifier)?;
         if let Some(keyword) = current.token.classified_keyword() {
-            return keyword
-                .ok_or_else(|| ParserError::expected(current.span, TokenType::Identifier));
+            return keyword.ok_or_else(|| ParserError::expected(current, TokenType::Identifier));
         }
 
         keyword_from_identifier(self.get_token_span_str(current))
-            .ok_or_else(|| ParserError::expected(current.span, TokenType::Identifier))
+            .ok_or_else(|| ParserError::expected(current, TokenType::Identifier))
     }
 
     /// Eat one of a list of keywords.

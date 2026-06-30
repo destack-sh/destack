@@ -102,7 +102,7 @@ impl Parser {
         }
 
         if self.is_unparenthesized_lambda_expression(left) && !is_parenthesized {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         self.eat_call(left, Vec::new().into(), PostfixPosition::Direct)
@@ -312,7 +312,7 @@ impl Parser {
                 return Ok(true);
             }
 
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         Ok(false)
@@ -674,7 +674,7 @@ impl Parser {
         left: LocalNodeId<Expression>,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let Some(generic_arguments) = self.eat_generic_arguments_if_valid(true) else {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         };
 
         if self.peek_is(TokenType::OpenParenthesis) {
@@ -704,7 +704,7 @@ impl Parser {
         left: LocalNodeId<Expression>,
     ) -> ParserResult<LocalNodeId<Expression>> {
         if self.language.is_destack() {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         let hash_span = self.peek()?.span;
