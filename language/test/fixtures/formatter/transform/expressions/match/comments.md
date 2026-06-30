@@ -117,3 +117,18 @@ match (result) {
     Result.Err(/* error */ error) => error.code
 }
 ```
+
+### guard boundary comments
+
+Comments around match guards stay between the pattern and branch body.
+
+```ds
+match (packet) { Packet.Data(data) /* pattern */ if /* guard */ (data.isValid()) => /* body */ handle(data); _ => fallback() }
+```
+
+```ds expected
+match (packet) {
+    Packet.Data(data) /* pattern */ if (/* guard */ data.isValid()) => /* body */ handle(data)
+    _ => fallback()
+}
+```

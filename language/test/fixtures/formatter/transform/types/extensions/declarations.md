@@ -106,6 +106,39 @@ extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N> impl
 }
 ```
 
+### extension header boundary comments
+
+Comments around `of`, `implements`, and `where` stay attached to the same header boundary.
+
+```ds line-width=120
+extension<T> of /* target */ Box<T> implements /* iterable */ Iterable<T> where /* constrained */ T: /* copy */ Copy { clone(): Box<T> { return Box { value: this.value } } }
+```
+
+```ds expected
+extension<T> of /* target */ Box<T> implements /* iterable */ Iterable<T> where /* constrained */ T: /* copy */ Copy {
+    clone(): Box<T> {
+        return Box { value: this.value };
+    }
+}
+```
+
+### extension with broken where clause
+
+Long extension headers break before `where` and keep fitting constraints inline.
+
+```ds line-width=60
+extension<T, U, V> of Table<T, U, V> where T: Copy, U: Clone, V: Comparable {
+    compare(left: T, right: U): V;
+}
+```
+
+```ds expected
+extension<T, U, V> of Table<T, U, V>
+where T: Copy, U: Clone, V: Comparable {
+    compare(left: T, right: U): V;
+}
+```
+
 ## Named Extensions
 
 ### named extension
