@@ -42,7 +42,7 @@ impl Parser {
 
         // named aliases are declarations, not type operands
         if self.identifier_starts_type_alias() {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         self.eat_type_keyword_body_expression(start, keyword_span, type_keyword)
@@ -237,7 +237,7 @@ impl Parser {
 
         // reject optional type suffixes outside tuple and parameter heads
         if self.peek_is(TokenType::Maybe) {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         Ok(value)

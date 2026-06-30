@@ -70,12 +70,12 @@ fn assert_expression_rejects_at(input: &str, language: LanguageType, expected_le
     let error = parser
         .eat_expression(parser.flags)
         .expect_err("expected expression to fail");
-    let (span, node_type, token_type) = error.leaf_content();
-    let leaf = parser.get_span_str(span);
+    let leaf = error.leaf_content();
+    let leaf_text = parser.get_span_str(leaf.span);
 
-    assert_eq!(node_type, None);
-    assert_eq!(token_type, None);
-    assert_eq!(leaf, expected_leaf);
+    assert_eq!(leaf.node_type, None);
+    assert_eq!(leaf.expected, None);
+    assert_eq!(leaf_text, expected_leaf);
 }
 
 fn assert_assign_or_parenthesized_assign(

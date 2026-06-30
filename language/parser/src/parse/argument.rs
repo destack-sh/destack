@@ -231,7 +231,7 @@ impl Parser {
     ) -> ParserResult<LocalNodeId<GenericArgument>> {
         let is_spread = self.peek_is(TokenType::Spread);
         if is_spread && !self.language.is_destack() {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
         if is_spread {
             self.eat_token(TokenType::Spread)?;
@@ -1161,7 +1161,7 @@ impl Parser {
 
             // rest parameters must be terminal in untyped parameter lists
             if has_variadic_parameter && in_js {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             }
 
             if matches!(
@@ -1181,7 +1181,7 @@ impl Parser {
                 )
             {
                 let error =
-                    ParserError::unexpected(self.peek()?.span).for_node_type(NodeType::Parameter);
+                    ParserError::unexpected(self.peek()?).for_node_type(NodeType::Parameter);
                 self.try_recover_in_item_list(
                     &parameter_start,
                     if self.flags.is_in_static() {
@@ -1196,7 +1196,7 @@ impl Parser {
 
             // untyped parameter lists reject trailing separators after rest parameters
             if in_js && has_variadic_parameter && self.is_item_stop() {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             }
 
             // continue regular parameter lists after a real separator
@@ -1295,7 +1295,7 @@ impl Parser {
 
         let is_variadic = self.peek_is(TokenType::Spread);
         if is_variadic && !self.language.is_destack() {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
         if is_variadic {
             self.eat_token(TokenType::Spread)?;
@@ -1605,7 +1605,7 @@ impl Parser {
         if !self.peek_is(TokenType::At) && !self.peek_is(TokenType::Spread) {
             // recover empty arguments as list errors, not expression errors
             if Self::is_expression_slot_boundary_token(self.peek_token_type()) {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             }
 
             let value = self.eat_expression(self.positional_argument_flags())?;
@@ -1768,7 +1768,7 @@ impl Parser {
                 let is_tree_literal =
                     token.token.ty() == TokenType::LessThan && self.peek_tree_literal().is_ok();
                 if !is_tree_text && !is_tree_literal {
-                    return Err(ParserError::unexpected(token.span));
+                    return Err(ParserError::unexpected(token));
                 }
 
                 if is_tree_text {
@@ -1879,14 +1879,14 @@ impl Parser {
             return Ok(self.insert_node(TreeChild::Tree { value }, self.get_span_from(&start)));
         }
 
-        Err(ParserError::unexpected(token.span))
+        Err(ParserError::unexpected(token))
     }
 
     /// Eat one tree text child payload and advance in the requested tree mode.
     fn eat_tree_child_text(&mut self, follow_mode: ContextualLexMode) -> ParserResult<StringId> {
         let token = self.peek()?;
         let Some(body) = token.token.literal() else {
-            return Err(ParserError::unexpected(token.span));
+            return Err(ParserError::unexpected(token));
         };
 
         let literal_str = self.file.span_str(token.span);
@@ -1915,7 +1915,7 @@ impl Parser {
                 self.strings.intern(&decoded)
             }
             TokenLiteral::TreeString => self.strings.intern(literal_str),
-            _ => return Err(ParserError::unexpected(token.span)),
+            _ => return Err(ParserError::unexpected(token)),
         };
 
         self.bump_with_contextual_lex_mode(follow_mode);
@@ -1939,7 +1939,7 @@ impl Parser {
             let wrapper_start = self.span_start();
             self.bump_with_contextual_lex_mode(ContextualLexMode::Normal); // eat open brace
             if !self.peek_is(TokenType::Spread) {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             }
             self.bump(); // eat spread
             let value_ambient_context = self.flags.with_tree_literal(false);
@@ -2001,7 +2001,7 @@ impl Parser {
                 }
                 // unexpected attribute value
                 else {
-                    return Err(ParserError::unexpected(self.peek()?.span));
+                    return Err(ParserError::unexpected(self.peek()?));
                 }
             }
             // implicit boolean true

@@ -62,7 +62,7 @@ impl Parser {
                 self.eat_type_reference_operator(start)
             }
             TokenType::Multiply => self.eat_type_pointer_prefix(start),
-            _ => Err(ParserError::unexpected(self.peek()?.span)),
+            _ => Err(ParserError::unexpected(self.peek()?)),
         }
     }
 
@@ -108,10 +108,10 @@ impl Parser {
         start: &ParserSpanStart,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let Some(operator) = self.peek_unary_prefix_operator_maybe() else {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         };
         if !matches!(operator, UnaryOperator::Plus | UnaryOperator::Negate) {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         self.bump();

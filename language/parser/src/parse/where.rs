@@ -109,7 +109,7 @@ impl Parser {
             self.current_keyword(),
             Some(Keyword::Extends | Keyword::Implements)
         ) {
-            let error = ParserError::expected(self.peek()?.span, TokenType::Colon);
+            let error = ParserError::expected(self.peek()?, TokenType::Colon);
             self.error(&error);
             self.bump(); // eat stale relation separator
         } else {

@@ -63,7 +63,7 @@ impl Parser {
         if token.token.ty() == TokenType::ArrowWide {
             Ok(token)
         } else {
-            Err(ParserError::expected(token.span, TokenType::ArrowWide))
+            Err(ParserError::expected(token, TokenType::ArrowWide))
         }
     }
 }

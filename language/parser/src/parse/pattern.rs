@@ -440,7 +440,7 @@ impl Parser {
 
             // spread fields must be terminal in typed and untyped patterns
             if enforce_terminal_spread && has_spread_field {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             }
 
             // parse one field
@@ -464,7 +464,7 @@ impl Parser {
                 let has_non_terminal_newline_after_spread =
                     self.current_token_is_on_new_line() && !self.peek_is(terminator);
                 if has_separator_after_spread || has_non_terminal_newline_after_spread {
-                    return Err(ParserError::unexpected(self.peek()?.span));
+                    return Err(ParserError::unexpected(self.peek()?));
                 }
             }
 
@@ -794,7 +794,7 @@ impl Parser {
         if token.token.ty() != TokenType::Literal
             || !matches!(token.token.literal(), Some(TokenLiteral::Boolean { .. }))
         {
-            return Err(ParserError::unexpected(token.span));
+            return Err(ParserError::unexpected(token));
         }
 
         self.bump();

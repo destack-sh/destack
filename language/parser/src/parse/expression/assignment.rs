@@ -99,7 +99,7 @@ impl Parser {
 
             let left = self.assignment_pattern_from_expression(right)?;
             let Some((operator, operator_span)) = self.eat_assignment_operator(right_scope)? else {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             };
             self.require_assignable_operator(left, operator)?;
             pending.push(PendingAssignmentExpression {

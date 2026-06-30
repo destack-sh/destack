@@ -139,7 +139,7 @@ impl Parser {
 
             // reject export default enum declarations
             if self.is_keyword(Keyword::Enum) {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             }
 
             let value =
@@ -216,7 +216,7 @@ impl Parser {
 
         // require a binding after export and optional type modifier
         if self.peek_dependency_binding().is_err() {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         // binding
@@ -423,7 +423,7 @@ impl Parser {
         if self.peek_dependency_binding_is() {
             Ok(())
         } else {
-            Err(ParserError::unexpected(self.peek()?.span))
+            Err(ParserError::unexpected(self.peek()?))
         }
     }
 
@@ -470,7 +470,7 @@ impl Parser {
             })
         );
         if !is_valid_target {
-            return Err(ParserError::expected(token.span, TokenType::Literal));
+            return Err(ParserError::expected(token, TokenType::Literal));
         }
 
         let content = self.get_string_literal_str(token).to_owned();
@@ -513,7 +513,7 @@ impl Parser {
 
                 // require a supported binding continuation
                 if !self.peek_is(TokenType::OpenBrace) && !self.peek_is(TokenType::Multiply) {
-                    return Err(ParserError::unexpected(self.peek()?.span));
+                    return Err(ParserError::unexpected(self.peek()?));
                 }
             }
             let item = DependencyItem::Binding {
@@ -597,7 +597,7 @@ impl Parser {
                     break;
                 }
 
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             }
 
             self.eat_close_token_or_recover_missing_with(

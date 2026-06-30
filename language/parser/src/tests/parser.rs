@@ -64,8 +64,13 @@ impl TestParser {
             .errors
             .iter()
             .map(|error| {
-                let (span, node_type, token_type) = error.leaf_content();
-                (node_type, token_type, parser.get_span_str(span).to_owned())
+                let leaf = error.leaf_content();
+
+                (
+                    leaf.node_type,
+                    leaf.expected,
+                    parser.get_span_str(leaf.span).to_owned(),
+                )
             })
             .collect();
 

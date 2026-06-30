@@ -45,12 +45,12 @@ struct ParserErrorKey {
 impl ParserErrorKey {
     /// Create one deduplication key from one parser error.
     fn from_error(error: &ParserError) -> Self {
-        let (span, node_type, expected) = error.leaf_content();
+        let leaf = error.leaf_content();
 
         Self {
-            span,
-            node_type,
-            expected,
+            span: leaf.span,
+            node_type: leaf.node_type,
+            expected: leaf.expected,
         }
     }
 }
@@ -305,7 +305,7 @@ impl Parser {
         parse: impl FnOnce(&mut Self) -> ParserResult<T>,
     ) -> ParserResult<T> {
         if self.recursive_descent_depth >= MAX_RECURSIVE_DESCENT_DEPTH {
-            return Err(ParserError::unexpected_for(self.peek()?.span, owner));
+            return Err(ParserError::unexpected_for(self.peek()?, owner));
         }
 
         self.recursive_descent_depth += 1;
@@ -539,7 +539,8 @@ impl Parser {
         }
     }
 
-    /// Return the current semantic tokens.
+    /// Return the current semantic tokens for parser tests.
+    #[cfg(test)]
     #[inline]
     pub(crate) fn tokens(&self) -> Vec<TokenSpan> {
         if !self.token_history.records_tokens() {
@@ -553,7 +554,8 @@ impl Parser {
             .collect()
     }
 
-    /// Lex this file into semantic token spans for non-hot token inspection.
+    /// Lex this file into semantic token spans for parser tests.
+    #[cfg(test)]
     fn lexed_token_spans(&self) -> Vec<TokenSpan> {
         let result = Lexer::lex_with_options(self.file.clone(), self.language, self.trivia_mode);
         let mut tokens = result.tokens;
@@ -673,7 +675,7 @@ impl Parser {
     #[inline]
     pub(crate) fn eat_reference_prefix_operator(&mut self) -> ParserResult<TokenSpan> {
         if !self.re_lex_reference_prefix_operator() {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         let token = self.peek()?;
@@ -724,7 +726,7 @@ impl Parser {
                 | TokenType::ShiftRightAssign
                 | TokenType::UnsignedShiftRightAssign
         ) {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         let token = self.split_current_token_prefix(TokenType::GreaterThan, 1);
@@ -857,7 +859,7 @@ impl Parser {
     #[inline]
     pub(crate) fn eat_expression_type_angle_close(&mut self) -> ParserResult<()> {
         if !Self::starts_expression_type_angle_close(self.peek_token_type()) {
-            return Err(ParserError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         self.eat_type_angle_close()
@@ -1261,12 +1263,15 @@ impl Parser {
 
     /// Build source diagnostics from parser errors.
     pub fn diagnostics(&self) -> DiagnosticCollection {
+        if self.errors.is_empty() {
+            return DiagnosticCollection::new();
+        }
+
         let content = self.file.content_id();
-        let tokens = self.tokens();
         let diagnostics = self
             .errors
             .iter()
-            .map(|error| error.to_diagnostic(content, &tokens))
+            .map(|error| error.to_diagnostic(content))
             .collect();
 
         DiagnosticCollection::from_diagnostics(diagnostics)
@@ -1275,9 +1280,8 @@ impl Parser {
     /// Build one source diagnostic from one parser error.
     pub fn diagnostic(&self, error: &ParserError) -> Diagnostic {
         let content = self.file.content_id();
-        let tokens = self.tokens();
 
-        error.to_diagnostic(content, &tokens)
+        error.to_diagnostic(content)
     }
 
     /// Create a checkpoint for speculative parsing that may allocate tree nodes.
@@ -1659,7 +1663,7 @@ impl Parser {
         if next.token.is(token_type) {
             Ok(next)
         } else {
-            Err(ParserError::unexpected(next.span))
+            Err(ParserError::unexpected(next))
         }
     }
 
@@ -1670,7 +1674,7 @@ impl Parser {
         if token_types.contains(&next.token.ty()) {
             Ok(next)
         } else {
-            Err(ParserError::unexpected(next.span))
+            Err(ParserError::unexpected(next))
         }
     }
 
@@ -1685,7 +1689,7 @@ impl Parser {
         if current.token.is(token_type) {
             Ok(current)
         } else {
-            Err(ParserError::unexpected(current.span))
+            Err(ParserError::unexpected(current))
         }
     }
 
@@ -1715,7 +1719,7 @@ impl Parser {
         if token_types.contains(&current.token.ty()) {
             Ok(current.token.ty())
         } else {
-            Err(ParserError::unexpected(current.span))
+            Err(ParserError::unexpected(current))
         }
     }
 

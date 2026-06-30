@@ -150,7 +150,7 @@ impl Parser {
                     && has_default_case
                     && self.is_keyword(Keyword::Default)
                 {
-                    return Err(ParserError::unexpected(self.peek()?.span));
+                    return Err(ParserError::unexpected(self.peek()?));
                 }
 
                 let case = self

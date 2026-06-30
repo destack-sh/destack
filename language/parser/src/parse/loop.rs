@@ -155,7 +155,7 @@ impl Parser {
                 && operator == ForEachOperator::In
                 && matches!(binding, ForEachBinding::Using { .. })
             {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             }
 
             // iterator

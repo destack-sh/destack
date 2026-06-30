@@ -38,7 +38,7 @@ impl Parser {
             && (self.identifier_is_escaped_keyword(raw)
                 || self.identifier_has_disallowed_escape_code_point(raw))
         {
-            return Err(ParserError::unexpected(token.span));
+            return Err(ParserError::unexpected(token));
         }
 
         let string_id = self.strings.intern(raw);
@@ -199,7 +199,7 @@ impl Parser {
 
         // disallow escaped identifiers in tree literals
         if token_part.contains('\\') {
-            return Err(ParserError::unexpected(token.span));
+            return Err(ParserError::unexpected(token));
         }
 
         // uppercase first letter (except at start)
@@ -239,7 +239,7 @@ impl Parser {
 
             // disallow escaped identifiers in tree literals
             if token.token.ty() == TokenType::Identifier && token_part.contains('\\') {
-                return Err(ParserError::unexpected(token.span));
+                return Err(ParserError::unexpected(token));
             }
             last_span = token.span;
 
@@ -274,7 +274,7 @@ impl Parser {
                 is_terminated: true,
                 has_invalid_escape: false,
             }) => self.peek_token(TokenType::Literal),
-            _ => Err(ParserError::expected(token.span, TokenType::Literal)),
+            _ => Err(ParserError::expected(token, TokenType::Literal)),
         }
     }
 
@@ -353,10 +353,10 @@ impl Parser {
         if token.token.ty() == TokenType::Literal {
             match token.token.literal() {
                 Some(TokenLiteral::Int { .. }) | Some(TokenLiteral::Float { .. }) => Ok(token),
-                _ => Err(ParserError::expected(token.span, TokenType::Literal)),
+                _ => Err(ParserError::expected(token, TokenType::Literal)),
             }
         } else {
-            Err(ParserError::expected(token.span, TokenType::Literal))
+            Err(ParserError::expected(token, TokenType::Literal))
         }
     }
 
@@ -402,7 +402,7 @@ impl Parser {
         }
         // error
         else {
-            Err(ParserError::unexpected(self.peek()?.span))
+            Err(ParserError::unexpected(self.peek()?))
         }
     }
 
@@ -451,7 +451,7 @@ impl Parser {
         }
 
         // invalid key name
-        Err(ParserError::unexpected(self.peek()?.span))
+        Err(ParserError::unexpected(self.peek()?))
     }
 
     /// Return true when the next tokens start a private hash key.
@@ -526,7 +526,7 @@ impl Parser {
         }
         // error
         else {
-            Err(ParserError::unexpected(self.peek()?.span))
+            Err(ParserError::unexpected(self.peek()?))
         }
     }
 
@@ -546,10 +546,10 @@ impl Parser {
         // parse direct index keys through the literal grammar
         let numeric_literal = self.eat_scalar_literal()?;
         let ScalarLiteral::Integer(index) = numeric_literal else {
-            return Err(ParserError::unexpected(token.span));
+            return Err(ParserError::unexpected(token));
         };
 
-        let index = usize::try_from(index).map_err(|_| ParserError::unexpected(token.span))?;
+        let index = usize::try_from(index).map_err(|_| ParserError::unexpected(token))?;
 
         Ok((index, token.span))
     }

@@ -162,19 +162,19 @@ impl Parser {
         // let else
         if self.is_keyword(Keyword::Else) {
             if header.export.is_some() || header.is_ambient {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             }
 
             let declarator = self.tree.get(first_declarator);
             if declarator.value.is_none() {
-                return Err(ParserError::expected(self.peek()?.span, TokenType::Assign));
+                return Err(ParserError::expected(self.peek()?, TokenType::Assign));
             }
 
             let else_span = self.eat_keyword(Keyword::Else)?.span;
 
             // else { ... }
             if !self.peek_is(TokenType::OpenBrace) {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             }
 
             let else_branch = {
@@ -216,7 +216,7 @@ impl Parser {
             }
 
             if !self.declarator_has_statement_boundary() {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?));
             }
 
             break;
@@ -413,7 +413,7 @@ impl Parser {
 
                 (Some(value), Some(operator_span))
             } else if require_value {
-                return Err(ParserError::expected(self.peek()?.span, TokenType::Assign));
+                return Err(ParserError::expected(self.peek()?, TokenType::Assign));
             } else {
                 (None, None)
             };
