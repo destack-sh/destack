@@ -79,6 +79,22 @@ fn test_format_pattern_mixed_move_borrow_chain_compact() {
 }
 
 #[test]
+fn test_format_pattern_prefix_comments() {
+    assert_format_roundtrip!(
+        "& /* borrowed */ item",
+        "& /* borrowed */ item",
+        FileType::Destack,
+        |p| p.eat_pattern()
+    );
+    assert_format_roundtrip!(
+        "* &readonly /* read */ item",
+        "*&readonly /* read */ item",
+        FileType::Destack,
+        |p| p.eat_pattern()
+    );
+}
+
+#[test]
 fn test_format_pattern_must() {
     assert_format!("T!", "T!", |p| p.eat_pattern());
 }

@@ -68,6 +68,7 @@ fn pattern_fields_disallow_trailing_separator(
 /// Format a prefix pattern like `&pattern` or `^pattern`.
 fn format_prefixed_pattern<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Pattern>,
     prefix: &'static str,
     right: LocalNodeId<Pattern>,
     mutability: Option<Mutability>,
@@ -80,6 +81,41 @@ fn format_prefixed_pattern<'ast>(
             Mutability::Exclusive => write!(f, [token("exclusive"), space()])?,
             Mutability::Mutable => {}
         }
+    }
+
+    let operand_has_space = matches!(
+        mutability,
+        Some(Mutability::Immutable | Mutability::Exclusive)
+    );
+    write_prefix_pattern_operand(f, node_id, right, operand_has_space)?;
+
+    Ok(())
+}
+
+/// Return whether one prefix pattern operand needs spacing.
+fn prefix_pattern_operand_needs_spacing(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Pattern>,
+    right: LocalNodeId<Pattern>,
+) -> bool {
+    let right_span = context.span(right);
+    let right_start = context.node_token_start(right);
+    let prefix_span = context.span(node_id);
+    let comments = context.comments();
+
+    comments.has_comment_before(right_start)
+        || comments.has_comment_in_range(right_span.end, prefix_span.end)
+}
+
+/// Write one prefix pattern operand with readable boundary comments.
+fn write_prefix_pattern_operand<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Pattern>,
+    right: LocalNodeId<Pattern>,
+    operand_has_space: bool,
+) -> FormatResult<()> {
+    if !operand_has_space && prefix_pattern_operand_needs_spacing(f.context(), node_id, right) {
+        write!(f, [space()])?;
     }
 
     write!(f, [right])?;
@@ -844,15 +880,16 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             Pattern::Default { .. } => unreachable!("assignment pattern is formatted above"),
 
             Pattern::BorrowOf { right, mutability } => {
-                format_prefixed_pattern(f, "&", *right, *mutability)?;
+                format_prefixed_pattern(f, node_id, "&", *right, *mutability)?;
             }
 
             Pattern::MoveOf { right, mutability } => {
-                format_prefixed_pattern(f, "^", *right, *mutability)?;
+                format_prefixed_pattern(f, node_id, "^", *right, *mutability)?;
             }
 
             Pattern::DereferenceOf { right } => {
-                write!(f, [token("*"), right])?;
+                write!(f, [token("*")])?;
+                write_prefix_pattern_operand(f, node_id, *right, false)?;
             }
 
             Pattern::Binding { name, pattern } => {
