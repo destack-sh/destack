@@ -1,5 +1,4 @@
 use super::attribute::argument_transparent_value_id;
-use super::expression_source_extent_end;
 use crate::annotation::format_comment;
 use crate::chain::{
     chain_nodes, has_comment_between_expressions, member_has_intervening_comment,
@@ -40,15 +39,14 @@ pub(crate) fn tree_child_has_outer_line_comment(
     value_id: LocalNodeId<Expression>,
 ) -> bool {
     let child_span = context.span(child_id);
-    let value_start = context.span(value_id).start;
-    let value_end = expression_source_extent_end(context, value_id);
+    let value_span = context.span(value_id);
 
     context
-        .comment_tokens_in_range(child_span.start, value_start)
+        .comment_tokens_in_range(child_span.start, value_span.start)
         .iter()
         .chain(
             context
-                .comment_tokens_in_range(value_end, child_span.end)
+                .comment_tokens_in_range(value_span.end, child_span.end)
                 .iter(),
         )
         .any(|comment| context.comment_is_line(*comment))
@@ -145,9 +143,10 @@ pub(crate) fn tree_child_should_inline_braced_expression(
         }
 
         if value_span.end < child_span.end
-            && !context
+            && context
                 .comment_tokens_in_range(value_span.end, child_span.end)
-                .is_empty()
+                .iter()
+                .any(|comment| context.comment_is_line(*comment))
         {
             return false;
         }
@@ -193,11 +192,15 @@ pub(crate) fn tree_child_should_inline_braced_expression(
 
             condition.as_expression().is_some()
         }
-        Expression::Declaration(declaration_id) => matches!(
-            context.tree.get(*declaration_id),
-            Declaration::Function(FunctionDeclaration { signature, .. })
-                if signature.form == FunctionForm::Lambda
-        ),
+        Expression::Declaration(declaration_id) => {
+            matches!(
+                context.tree.get(*declaration_id),
+                Declaration::Function(FunctionDeclaration { signature, .. })
+                    if signature.form == FunctionForm::Lambda
+            ) && context
+                .comment_tokens_in_range(value_span.end, child_span.end)
+                .is_empty()
+        }
         _ => false,
     }
 }
@@ -231,7 +234,7 @@ fn expression_has_prefix_star_comment(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression_span = context.span(expression_id);
-    let Some(previous_token) = context.previous_non_whitespace_token_before_span(expression_span)
+    let Some(previous_token) = context.previous_non_trivia_token_before_span(expression_span)
     else {
         return false;
     };

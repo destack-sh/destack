@@ -280,25 +280,27 @@ fn type_conditional_trailing_comments(
     }
 
     let source = context.source_text();
-    let mut index_before_operator = None;
     for (index, comment) in comments.iter().copied().enumerate() {
         if comment.span.end > end {
-            let end = index_before_operator.unwrap_or(index);
-            return comments[..end].to_vec();
+            return comments[..index].to_vec();
         }
 
         if source.contains_newline_between(start, comment.span.start) {
             return comments[..index].to_vec();
+        } else if source.bytes_contain(start, comment.span.start, operator) {
+            if comment.is_line() || comment.followed_by_newline() {
+                return comments[..=index].to_vec();
+            }
+
+            return comments[..index].to_vec();
         } else if comment.is_line() || comment.followed_by_newline() {
             return comments[..=index].to_vec();
-        } else if source.bytes_contain(start, comment.span.start, operator) {
-            index_before_operator = Some(index);
         }
 
         start = comment.span.end;
     }
 
-    comments[..index_before_operator.unwrap_or(comments.len())].to_vec()
+    comments.to_vec()
 }
 
 /// Write the test layout of one conditional type.

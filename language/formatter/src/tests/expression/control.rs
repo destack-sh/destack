@@ -1,6 +1,6 @@
 use crate::{
     DestackFormatOptions, assert_format, assert_format_program,
-    assert_format_program_reference_widths,
+    assert_format_program_reference_widths, assert_format_program_roundtrip_with_file_type,
 };
 use destack_source::FileType;
 
@@ -195,6 +195,58 @@ else {
 "#,
             ),
         ],
+    );
+}
+
+/// Block comments before `else` should stay on the explicit block boundary.
+#[test]
+fn test_format_if_else_block_boundary_comment() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"if (ready) { run() } /* keep-boundary */ else { stop() }
+"#,
+        r#"if (ready) {
+    run();
+} /* keep-boundary */ else {
+    stop();
+}
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Line comments before `else` should stay after the consequent block.
+#[test]
+fn test_format_if_else_line_boundary_comment() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"if (ready) { run() } // keep-boundary
+else { stop() }
+"#,
+        r#"if (ready) {
+    run();
+} // keep-boundary
+else {
+    stop();
+}
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Non-block consequent comments should follow Prettier-style branch layout.
+#[test]
+fn test_format_if_else_statement_boundary_comment() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"if (ready) run() // keep-run
+else stop()
+"#,
+        r#"if (ready)
+    run(); // keep-run
+else stop();
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
     );
 }
 

@@ -2,7 +2,6 @@ use super::conditional::ConditionalLayout;
 use super::dispatch::write_expression_without_trailing_comments;
 use crate::annotation::{FormatTrailingComments, write_comment_slice};
 use crate::chain::{expression_trivia_anchor_end, transparent_inner_expression};
-use crate::tree::expression_source_extent_trailing_line_comments;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Argument, Comment, Expression, IfForm, LocalNodeId, NodeType, ScalarLiteral, Tree,
@@ -97,13 +96,13 @@ pub(crate) fn jsx_chain_ternary_needs_expanded_branches(
         return false;
     };
 
-    !expression_source_extent_trailing_line_comments(context, then_expression).is_empty()
+    ternary_branch_has_breaking_trailing_comments(context, then_expression)
         || else_expression.is_some_and(|expression_id| {
-            !expression_source_extent_trailing_line_comments(context, expression_id).is_empty()
+            ternary_branch_has_breaking_trailing_comments(context, expression_id)
         })
 }
 
-/// Return the separator comments that belong to one ternary branch boundary.
+/// Return comments before one ternary separator token.
 fn ternary_separator_comments<'a>(
     context: &'a DestackFormatContext<'a>,
     mut start: u32,
@@ -116,16 +115,24 @@ fn ternary_separator_comments<'a>(
     }
 
     let source = context.source_text();
-    let mut index_before_operator = None;
 
     for (index, comment) in comments.iter().enumerate() {
         // stop once the next comment belongs to a later range
         if comment.span.end > end {
-            return &comments[..index_before_operator.unwrap_or(index)];
+            return &comments[..index];
         }
 
         // stop once the separator gap contains a newline
         if source.contains_newline_between(start, comment.span.start) {
+            return &comments[..index];
+        }
+
+        // keep line comments on ternary separators with the left branch
+        if source.bytes_contain(start, comment.span.start, operator) {
+            if comment.is_line() || comment.followed_by_newline() {
+                return &comments[..=index];
+            }
+
             return &comments[..index];
         }
 
@@ -134,15 +141,10 @@ fn ternary_separator_comments<'a>(
             return &comments[..=index];
         }
 
-        // remember the last comment that still sits before the separator token
-        if source.bytes_contain(start, comment.span.start, operator) {
-            index_before_operator = Some(index);
-        }
-
         start = comment.span.end;
     }
 
-    &comments[..index_before_operator.unwrap_or(comments.len())]
+    comments
 }
 
 /// Write the separator comments that belong to one ternary branch boundary.
@@ -258,6 +260,86 @@ fn expression_is_jsx_chain_bare_branch(
     }
 }
 
+/// Return the parent ternary for one branch expression.
+fn ternary_branch_parent(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<LocalNodeId<Expression>> {
+    let Some((parent_id, parent_type)) = context.parent_by_id(expression_id.id) else {
+        return None;
+    };
+    if parent_type != NodeType::Expression {
+        return None;
+    }
+
+    let parent_id = LocalNodeId::<Expression>::new(parent_id);
+    let Some((_, then_expression, else_expression)) = ternary_parts(context.tree, parent_id) else {
+        return None;
+    };
+    if then_expression == expression_id || else_expression.is_some_and(|id| id == expression_id) {
+        return Some(parent_id);
+    }
+
+    None
+}
+
+/// Return whether one expression is a direct ternary branch.
+pub(crate) fn expression_is_ternary_branch(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    ternary_branch_parent(context, expression_id).is_some()
+}
+
+/// Return trailing comments attached to one ternary branch.
+pub(crate) fn ternary_branch_trailing_comments<'a>(
+    context: &'a DestackFormatContext<'a>,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<(u32, &'a [Comment])> {
+    let branch_end = expression_trivia_anchor_end(context, expression_id);
+    let parent_id = ternary_branch_parent(context, expression_id)?;
+
+    let Some((_, then_expression, else_expression)) = ternary_parts(context.tree, parent_id) else {
+        return Some((branch_end, &[]));
+    };
+
+    if then_expression == expression_id {
+        let Some(else_expression) = else_expression else {
+            return Some((branch_end, &[]));
+        };
+
+        let else_start = context.expression_token_start(else_expression);
+        let comments = ternary_separator_comments(context, branch_end, else_start, b':');
+
+        return Some((branch_end, comments));
+    }
+
+    let parent_span = context.tree.get_source_extent(parent_id);
+    let comments = context
+        .comments()
+        .comments_in_range(branch_end, parent_span.end);
+
+    Some((branch_end, comments))
+}
+
+/// Return whether branch trailing comments require the branch to break.
+fn ternary_branch_has_breaking_trailing_comments(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((branch_end, comments)) = ternary_branch_trailing_comments(context, expression_id)
+    else {
+        return false;
+    };
+
+    comments.iter().any(|comment| {
+        comment.is_line()
+            || context
+                .source_text()
+                .contains_newline_between(branch_end, comment.span.start)
+    })
+}
+
 /// Format one branch in a jsx ternary chain.
 fn format_jsx_chain_branch<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -268,7 +350,9 @@ fn format_jsx_chain_branch<'ast>(
     let no_wrap =
         expression_is_jsx_chain_bare_branch(f.context(), branch_expression_id, is_alternate);
     let branch_comments: SmallVec<[Comment; 2]> =
-        expression_source_extent_trailing_line_comments(f.context(), expression_id)
+        ternary_branch_trailing_comments(f.context(), expression_id)
+            .map(|(_, comments)| comments)
+            .unwrap_or(&[])
             .iter()
             .copied()
             .collect();
@@ -497,14 +581,6 @@ fn format_jsx_chain_ternary<'ast>(
         write_standard_ternary_test(f, layout, condition, then_expression)?;
         write!(f, [space(), token("?"), space()])?;
         format_jsx_chain_branch(f, then_expression, false)?;
-
-        if let Some(else_expression) = else_expression
-            && !ternary_branch_is_tree_like(f.context(), then_expression)
-        {
-            let then_end = expression_trivia_anchor_end(f.context(), then_expression);
-            let else_start = f.context().expression_token_start(else_expression);
-            write_ternary_separator_comments(f, then_end, else_start, b':')?;
-        }
 
         write!(f, [space(), token(":"), space()])?;
         if let Some(else_expression) = else_expression {

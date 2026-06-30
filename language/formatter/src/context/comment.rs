@@ -145,7 +145,7 @@ impl<'a> Comments<'a> {
             if self
                 .source_text
                 .all_bytes_match(pos, comment.span.start, |byte| {
-                    matches!(byte, b'\t' | b' ' | b'=' | b':')
+                    matches!(byte, b'\t' | b' ' | b'=' | b';')
                 })
             {
                 if comment.is_line() || comment.followed_by_newline() {

@@ -836,12 +836,10 @@ Trailing JSX branch comments format at conditional branch boundaries.
 
 ```ds expected
 <div>
-    {
-        isVideo ? (
-            <Video />
-        ) : (
-            /* keep-video */ <Image />
-        ) /* keep-image */
-    }
+    {isVideo ? (
+        <Video /> /* keep-video */
+    ) : (
+        <Image /> /* keep-image */
+    )}
 </div>;
 ```

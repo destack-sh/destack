@@ -59,3 +59,59 @@ fn test_format_jsx_chain_null_branch_separator_block_comment() {
         DestackFormatOptions::default_with_line_width(100),
     );
 }
+
+/// JSX branch block comments before `:` should stay with the consequent branch.
+#[test]
+fn test_format_jsx_chain_branch_separator_block_comment() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"const node = <div>{isVideo ? <Video /> /* video-comment */ : <Image /> /* image-comment */}</div>
+"#,
+        r#"const node = <div>{isVideo ? <Video /> /* video-comment */ : <Image /> /* image-comment */}</div>;
+"#,
+        FileType::TypeScriptXml,
+        DestackFormatOptions::default_with_line_width(100),
+    );
+}
+
+/// Wrapped JSX branch block comments should stay inside their branch groups.
+#[test]
+fn test_format_jsx_chain_wrapped_branch_separator_comments() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"const node = <div>{isVideo ? <Video /> /* keep-video */ : <Image /> /* keep-image */}</div>
+"#,
+        r#"const node = (
+    <div>
+        {isVideo ? (
+            <Video /> /* keep-video */
+        ) : (
+            <Image /> /* keep-image */
+        )}
+    </div>
+);
+"#,
+        FileType::TypeScriptXml,
+        DestackFormatOptions::default_with_line_width(40),
+    );
+}
+
+/// JSX line comments after `:` should stay with the consequent branch.
+#[test]
+fn test_format_jsx_chain_alternate_line_comment() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"const node = <>{x ? <A /> : // alt-line
+<B />}</>
+"#,
+        r#"const node = (
+    <>
+        {x ? (
+            <A /> // alt-line
+        ) : (
+            <B />
+        )}
+    </>
+);
+"#,
+        FileType::TypeScriptXml,
+        DestackFormatOptions::default_with_line_width(40),
+    );
+}
