@@ -1,3 +1,4 @@
+use destack_core::{Optional, SectionEntry, SectionImage, SectionPacker, SectionSlice, StringId};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -5,13 +6,15 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ImportTable {
     /// Native imports in linker order.
-    import: Vec<Import>,
+    import: SectionSlice<Import>,
 }
 
 impl ImportTable {
-    /// Create one native import table.
-    pub fn new(import: Vec<Import>) -> Self {
-        Self { import }
+    /// Pack one native import table.
+    pub fn pack(sections: &mut SectionPacker, import: Vec<Import>) -> Self {
+        Self {
+            import: sections.insert(import),
+        }
     }
 
     /// Create one empty native import table.
@@ -20,35 +23,88 @@ impl ImportTable {
     }
 
     /// Return native imports in linker order.
-    pub fn imports(&self) -> &[Import] {
-        &self.import
+    pub fn imports<'a>(&self, sections: SectionImage<'a>) -> &'a [Import] {
+        sections.entries(self.import)
     }
 }
 
 /// One native import required by generated native code.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum Import {
-    /// Fixed Destack runtime binding.
-    Runtime(RuntimeBinding),
-    /// External linker-visible symbol.
-    Symbol(SymbolImport),
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct Import {
+    /// Import kind.
+    kind: ImportKind,
+    /// Fixed runtime binding payload.
+    runtime: Optional<RuntimeBinding>,
+    /// External symbol payload.
+    symbol: Optional<SymbolImport>,
+}
+
+impl Import {
+    /// Create one fixed runtime binding import.
+    pub fn runtime(runtime: RuntimeBinding) -> Self {
+        Self {
+            kind: ImportKind::Runtime,
+            runtime: Optional::some(runtime),
+            symbol: Optional::none(),
+        }
+    }
+
+    /// Create one external symbol import.
+    pub fn symbol(symbol: SymbolImport) -> Self {
+        Self {
+            kind: ImportKind::Symbol,
+            runtime: Optional::none(),
+            symbol: Optional::some(symbol),
+        }
+    }
+
+    /// Return this import as a fixed runtime binding.
+    pub fn runtime_value(self) -> Option<RuntimeBinding> {
+        if self.kind == ImportKind::Runtime {
+            self.runtime.get()
+        } else {
+            None
+        }
+    }
+
+    /// Return this import as an external symbol.
+    pub fn symbol_value(self) -> Option<SymbolImport> {
+        if self.kind == ImportKind::Symbol {
+            self.symbol.get()
+        } else {
+            None
+        }
+    }
+}
+
+/// Native import kind.
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum ImportKind {
+    /// Fixed runtime binding import.
+    Runtime = 0,
+    /// External symbol import.
+    Symbol = 1,
 }
 
 /// External linker-visible symbol import.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SymbolImport {
     /// The imported native symbol.
-    pub symbol: String,
+    pub symbol: StringId,
 }
 
 impl SymbolImport {
     /// Create one native symbol import.
-    pub fn new(symbol: String) -> Self {
+    pub const fn new(symbol: StringId) -> Self {
         Self { symbol }
     }
 }
 
 /// Fixed Destack runtime ABI binding imported by generated native code.
+#[repr(u16)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum RuntimeBinding {
     /// Typed heap allocation.
@@ -117,3 +173,9 @@ impl RuntimeBinding {
         }
     }
 }
+
+// SAFETY: native import entries are fixed-width program entries.
+unsafe impl SectionEntry for Import {}
+unsafe impl SectionEntry for ImportKind {}
+unsafe impl SectionEntry for SymbolImport {}
+unsafe impl SectionEntry for RuntimeBinding {}
