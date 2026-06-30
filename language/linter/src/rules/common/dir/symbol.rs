@@ -103,7 +103,11 @@ pub fn resolution_target_symbols(
     }
 
     if let Some(resolution) = resolutions.construct_resolution(node_id) {
-        let symbol = resolution.target.symbol();
+        let symbol = match &resolution.target {
+            dir::ConstructTarget::Class(candidate) => candidate.symbol,
+            dir::ConstructTarget::Newtype(candidate) => candidate.symbol,
+            dir::ConstructTarget::Variant(candidate) => candidate.case.member,
+        };
 
         push_unique_symbol(&mut symbols, symbol);
     }

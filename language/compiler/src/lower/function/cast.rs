@@ -1256,7 +1256,11 @@ impl FunctionLowerer<'_> {
             }
             dir::Expression::New { .. } | dir::Expression::NewMaybe { .. } => self
                 .get_construct_resolution(expression_id)
-                .map(|resolution| resolution.target.symbol()),
+                .map(|resolution| match &resolution.target {
+                    dir::ConstructTarget::Class(candidate) => candidate.symbol,
+                    dir::ConstructTarget::Newtype(candidate) => candidate.symbol,
+                    dir::ConstructTarget::Variant(candidate) => candidate.case.owner,
+                }),
             dir::Expression::StructExpression { ty, .. } => {
                 let type_id = self.type_id_for_type_expression(*ty)?;
                 self.concrete_symbol_for_type(type_id)

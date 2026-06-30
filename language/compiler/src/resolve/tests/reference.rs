@@ -67,6 +67,32 @@ let value: User;
 }
 
 #[test]
+fn test_resolve_records_conditional_infer_branch_reference() {
+    let compiler = TestSession::builder()
+        .module(
+            "main.ds",
+            r#"
+type Args<T> = T extends (...parameters: infer P) => unknown ? P : never;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries().with_resolve_stats(),
+        r#"
+type Args<T> = T extends (...parameters: infer P) => unknown ? P : never;
+/// @reference.bound source=T targets=[Args.T]
+/// @reference.bound source=P targets=[Args.P]
+
+/// @import.summary
+/// @resolve.stats roots=1 expressions=1 types=7
+/// @reference.summary references=2
+"#,
+    );
+}
+
+#[test]
 fn test_resolve_hoists_local_type_references() {
     let compiler = TestSession::builder()
         .module(

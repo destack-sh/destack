@@ -69,10 +69,14 @@ impl ModuleLowerer<'_> {
                 is_shorthand,
                 pattern,
             } => {
+                let is_plain_shorthand =
+                    *is_shorthand && self.is_plain_shorthand_assign_pattern(*pattern, *name);
                 let name = self.lower_name(*name);
-                let pattern = pattern
-                    .map(|pattern_id| self.lower_assign_pattern(pattern_id))
-                    .transpose()?;
+                let pattern = if is_plain_shorthand {
+                    None
+                } else {
+                    Some(self.lower_assign_pattern(*pattern)?)
+                };
                 let assign_pattern_field = js::AssignPatternField::Named {
                     name,
                     is_shorthand: *is_shorthand,
@@ -125,6 +129,26 @@ impl ModuleLowerer<'_> {
         };
 
         Ok(assign_pattern_field_id)
+    }
+
+    /// Return whether one DIR assignment target is the target implied by shorthand syntax.
+    fn is_plain_shorthand_assign_pattern(
+        &self,
+        pattern: dir::LocalNodeId<dir::AssignPattern>,
+        name: dir::Name,
+    ) -> bool {
+        let dir::Name::Identifier(expected) = name else {
+            return false;
+        };
+
+        let dir::AssignPattern::Place { expression } = self.dir_tree.get(pattern) else {
+            return false;
+        };
+
+        matches!(
+            self.dir_tree.get(*expression),
+            dir::Expression::Identifier { name } if *name == expected
+        )
     }
 
     /// Lower a pattern from DIR into JS AST.
