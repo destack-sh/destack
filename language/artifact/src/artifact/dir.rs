@@ -252,6 +252,8 @@ pub struct DirCheckedComponentEntry {
 /// Type-checking segment for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirCheckedModule {
+    /// Checked binding segment.
+    pub bindings: Arc<dir::BindingSegment>,
     /// New annotation invocations.
     pub annotations: Arc<dir::AnnotationSegment>,
     /// New types.
@@ -282,6 +284,19 @@ pub struct DirChecked {
 }
 
 impl DirCheckedModule {
+    /// Return the cumulative binding table for checked DIR.
+    pub fn binding_table(
+        &self,
+        bound: &DirBound,
+        expanded: &DirExpanded,
+    ) -> dir::BindingTable<'static> {
+        dir::BindingTable::from_segments(vec![
+            bound.bindings.clone(),
+            expanded.bindings.clone(),
+            self.bindings.clone(),
+        ])
+    }
+
     /// Return the cumulative annotation table for checked DIR.
     pub fn annotation_table(&self) -> dir::AnnotationTable<'static> {
         dir::AnnotationTable::from_segment(self.annotations.clone())

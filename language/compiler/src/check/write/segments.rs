@@ -7,6 +7,8 @@ use crate::check::CheckModuleState;
 
 /// Checked DIR segments for one module.
 pub(in crate::check) struct CheckedModuleSegments {
+    /// Checked binding segment.
+    pub(super) bindings: dir::BindingSegment,
     /// Checked annotation segment.
     pub(super) annotations: dir::AnnotationSegment,
     /// Checked type segment.
@@ -31,6 +33,7 @@ impl CheckedModuleSegments {
     /// Create checked segments from one solved module state.
     pub(in crate::check) fn from_state(state: CheckModuleState) -> Self {
         Self {
+            bindings: state.bindings_tail,
             annotations: state.annotations,
             types: state.types,
             statics: state.statics,
@@ -48,6 +51,7 @@ impl From<CheckedModuleSegments> for DirCheckedModule {
     /// Convert checked segments into the artifact payload.
     fn from(segments: CheckedModuleSegments) -> Self {
         DirCheckedModule {
+            bindings: Arc::new(segments.bindings),
             annotations: Arc::new(segments.annotations),
             types: Arc::new(segments.types),
             statics: Arc::new(segments.statics),
