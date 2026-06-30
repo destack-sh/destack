@@ -37,11 +37,9 @@ declare const id: UserId;
 /// @resolution.name source=UserId target=UserId
 
 if (let UserId(value) = id) {
-/// @type.node type=void | void
-/// @type.symbol symbol=value source=value type=int64
-/// @type.node source=UserId type=UserId
 /// @resolution.name source=UserId target=UserId
-/// @resolution.pattern source=UserId(value) kind=newtype target=UserId value=pattern
+/// @resolution.pattern source=UserId(value) kind=newtype projection="newtype.payload(UserId, int64)" pattern=pattern
+/// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=id type=UserId
 /// @resolution.name source=id target=id
@@ -93,6 +91,8 @@ match (point) {
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @definition.field symbol=Point.y source="y: int32" key=y type=int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
@@ -107,21 +107,22 @@ declare const point: Point;
 /// @resolution.name source=Point target=Point
 
 match (point) {
+/// @type.node type=int32
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
 
     Point { x, y } => x + y
+    /// @resolution.name source=Point target=Point
+    /// @resolution.pattern source="Point { x, y }" kind=nominal_object target=Point fields={ Point.x, Point.y }
     /// @type.symbol symbol=x source=x type=int32
     /// @type.symbol symbol=y source=y type=int32
-    /// @type.node source=Point type=Point
-    /// @resolution.name source=Point target=Point
-    /// @resolution.pattern source="Point { x, y }" kind=nominal_object target=Point fields={ x, y }
     /// @type.node source="x + y" type=int32
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x
-    /// @resolution.call source="x + y" parameters=(int32, int32) return=int32 kind=builtin builtin=binary.add
+    /// @resolution.call source="x + y" parameters=() return=int32 kind=builtin builtin=binary.add
     /// @type.node source=y type=int32
     /// @resolution.name source=y target=y
+
 }
 "#,
     );
@@ -160,28 +161,23 @@ type Point = { x: int32; y: int32 };
 /// @definition.type symbol=Point source="type Point = { x: int32; y: int32 }" value={ x: int32; y: int32 }
 
 declare const point: Point;
-/// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
+/// @type.symbol symbol=point source=point type=Point reduced={ x: int32; y: int32 }
 /// @resolution.name source=Point target=Point
 
 match (point) {
-/// @type.node source=point type={ x: int32; y: int32 }
+/// @type.node source=point type=Point reduced={ x: int32; y: int32 }
 /// @resolution.name source=point target=point
 
     Point { x, y } => x + y
-    /// @type.symbol symbol=x source=x type=<error>
-    /// @type.symbol symbol=y source=y type=<error>
-    /// @type.node source=Point type={ x: int32; y: int32 }
     /// @resolution.name source=Point target=Point
-    /// @type.node source="x + y" type=<error>
-    /// @type.node source=x type=<error>
     /// @resolution.name source=x target=x
-    /// @type.node source=y type=<error>
     /// @resolution.name source=y target=y
+
 }
 "#,
         r#"
 /// @diagnostic.error code=EC411 message="pattern tag '{ x: int32; y: int32 }' is not a nominal type"
-/// @diagnostic.label line=7 column=5 source="Point { x, y }"
+/// @diagnostic.label line=7 column=5 span="Point { x, y }" line_source="Point { x, y } => x + y"
 "#,
     );
 }
@@ -191,7 +187,7 @@ fn test_nominal_object_pattern_rejects_non_field_member() {
     let session = TestSession::single(
         r#"
 class User {
-    name: string;
+    name: string = "";
     displayName(): string {
         return this.name;
     }
@@ -211,7 +207,7 @@ match (user) {
         r#"
 === annotated ===
 class User {
-    name: string;
+    name: string = "";
     displayName(): string {
         return this.name;
     }
@@ -227,19 +223,21 @@ match (user) {
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
-/// @definition.field symbol=User.name source="name: string" key=name type=string
-/// @definition.method symbol=User.displayName source="displayName(): string {\n        return this.name;\n    }" slot=displayName type=(this: User) => string
+/// @definition.field symbol=User.name source="name: string = \"\"" key=name type=string
+/// @definition.method symbol=User.displayName slot=displayName type=(this: User) => string
 
-    name: string;
-    /// @type.symbol symbol=User.name source="name: string" type=string
+    name: string = "";
+    /// @type.symbol symbol=User.name source="name: string = \"\"" type=string
+    /// @type.node source="\"\"" type=""
 
     displayName(): string {
-    /// @type.symbol symbol=User.displayName source="displayName(): string {\n        return this.name;\n    }" type=(this: User) => string
+    /// @type.symbol symbol=User.displayName type=(this: User) => string
 
         return this.name;
-        /// @type.node source=this.name type=string
         /// @type.node source=this type=User
-        /// @resolution.member source=this.name receiver=User kind=field key=name
+        /// @type.node source=this.name type=string
+        /// @resolution.member source=this.name receiver=User kind=symbol target=User.name
+        /// @resolution.receiver source=this kind=this declaration=User type=User
 
     }
 }
@@ -253,17 +251,15 @@ match (user) {
 /// @resolution.name source=user target=user
 
     User { displayName } => displayName
-    /// @type.symbol symbol=displayName source=displayName type=<error>
-    /// @resolution.pattern source="User { displayName }" kind=nominal_object target=User fields={ displayName }
     /// @resolution.name source=User target=User
-    /// @type.node source=displayName type=<error>
+    /// @resolution.pattern source="User { displayName }" kind=nominal_object target=User fields={}
     /// @resolution.name source=displayName target=displayName
 
 }
 "#,
         r#"
 /// @diagnostic.error code=EC427 message="member 'displayName' on type 'User' is not a field"
-/// @diagnostic.label line=11 column=12 source=displayName
+/// @diagnostic.label line=12 column=12 span="displayName" line_source="User { displayName } => displayName"
 "#,
     );
 }

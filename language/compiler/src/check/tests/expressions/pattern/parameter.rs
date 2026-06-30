@@ -28,23 +28,23 @@ function label({ name, age }: { name: string; age: int32 }): string {
 === checked ===
 function label({ name, age }: { name: string; age: int32 }): string {
 /// @type.symbol symbol=label type=({ name: string; age: int32 }) => string
-/// @type.symbol symbol=name source=name type=string
-/// @type.symbol symbol=age source=age type=int32
-/// @resolution.pattern source="{ name, age }" kind=object fields={ name, age }
+/// @resolution.pattern source={ name, age } kind=object fields={ name, age }
+/// @type.symbol symbol=label.name#2 source=name type=string
+/// @type.symbol symbol=label.age#2 source=age type=int32
 
     name satisfies string;
     /// @type.node source="name satisfies string" type=string
     /// @type.node source=name type=string
-    /// @resolution.name source=name target=name
+    /// @resolution.name source=name target=label.name#2
 
     age satisfies int32;
     /// @type.node source="age satisfies int32" type=int32
     /// @type.node source=age type=int32
-    /// @resolution.name source=age target=age
+    /// @resolution.name source=age target=label.age#2
 
     name
     /// @type.node source=name type=string
-    /// @resolution.name source=name target=name
+    /// @resolution.name source=name target=label.name#2
 
 }
 "#,
@@ -73,13 +73,13 @@ function first([head]: int32[]): int32 {
 === checked ===
 function first([head]: int32[]): int32 {
 /// @type.symbol symbol=first type=(Array<int32>) => int32
-/// @type.symbol symbol=head source=head type=int32
-/// @resolution.pattern source=[head] kind=sequence sequence=array fields=(head)
-/// @resolution.pattern source=head kind=binding target=head
+/// @resolution.pattern source=[head] kind=sequence element=int32 arity=1 fields=(first.head)
+/// @type.symbol symbol=first.head source=head type=int32
+/// @resolution.pattern source=head kind=binding target=first.head
 
     head
     /// @type.node source=head type=int32
-    /// @resolution.name source=head target=head
+    /// @resolution.name source=head target=first.head
 
 }
 "#,

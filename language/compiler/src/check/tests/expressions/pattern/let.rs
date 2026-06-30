@@ -29,14 +29,14 @@ function parse(status: "ready" | "error"): "ready" {
 
 === checked ===
 function parse(status: "ready" | "error"): "ready" {
-/// @type.symbol symbol=parse type=(status: "ready" | "error") => "ready"
-/// @type.symbol symbol=status source="status: \"ready\" | \"error\"" type="ready" | "error"
+/// @type.symbol symbol=parse type=("ready" | "error") => "ready"
+/// @type.symbol symbol=parse.status source="status: \"ready\" | \"error\"" type="ready" | "error"
 
     let "ready" = status else {
     /// @type.node source="\"ready\"" type="ready"
     /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
     /// @type.node source=status type="ready" | "error"
-    /// @resolution.name source=status target=status
+    /// @resolution.name source=status target=parse.status
 
         return "ready";
         /// @type.node source="\"ready\"" type="ready"
@@ -45,7 +45,7 @@ function parse(status: "ready" | "error"): "ready" {
 
     status
     /// @type.node source=status type="ready"
-    /// @resolution.name source=status target=status
+    /// @resolution.name source=status target=parse.status
 
 }
 "#,
@@ -75,23 +75,23 @@ function parse(status: "ready" | "error"): int32 {
 
 === checked ===
 function parse(status: "ready" | "error"): int32 {
-/// @type.symbol symbol=parse type=(status: "ready" | "error") => int32
-/// @type.symbol symbol=status source="status: \"ready\" | \"error\"" type="ready" | "error"
+/// @type.symbol symbol=parse type=("ready" | "error") => int32
+/// @type.symbol symbol=parse.status source="status: \"ready\" | \"error\"" type="ready" | "error"
 
     let "ready" = status;
     /// @type.node source="\"ready\"" type="ready"
     /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
     /// @type.node source=status type="ready" | "error"
-    /// @resolution.name source=status target=status
+    /// @resolution.name source=status target=parse.status
 
     1
-    /// @type.node source=1 type=int32
+    /// @type.node source=1 type=1
 
 }
 "#,
         r#"
 /// @diagnostic.error code=EC406 message="refutable pattern in binding position: '\"error\"' is not covered"
-/// @diagnostic.label line=3 column=9 source="\"ready\""
+/// @diagnostic.label line=3 column=9 span="\"ready\"" line_source="let \"ready\" = status;"
 "#,
     );
 }
@@ -102,7 +102,7 @@ fn test_let_else_branch_cannot_complete_normally() {
         r#"
 function parse(status: "ready" | "error"): int32 {
     let "ready" = status else {
-        0
+        0;
     };
 
     1
@@ -117,7 +117,7 @@ function parse(status: "ready" | "error"): int32 {
 === annotated ===
 function parse(status: "ready" | "error"): int32 {
     let "ready" = status else {
-        0
+        0;
     };
 
     1
@@ -125,28 +125,28 @@ function parse(status: "ready" | "error"): int32 {
 
 === checked ===
 function parse(status: "ready" | "error"): int32 {
-/// @type.symbol symbol=parse type=(status: "ready" | "error") => int32
-/// @type.symbol symbol=status source="status: \"ready\" | \"error\"" type="ready" | "error"
+/// @type.symbol symbol=parse type=("ready" | "error") => int32
+/// @type.symbol symbol=parse.status source="status: \"ready\" | \"error\"" type="ready" | "error"
 
     let "ready" = status else {
     /// @type.node source="\"ready\"" type="ready"
     /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
     /// @type.node source=status type="ready" | "error"
-    /// @resolution.name source=status target=status
+    /// @resolution.name source=status target=parse.status
 
-        0
+        0;
         /// @type.node source=0 type=0
 
     };
 
     1
-    /// @type.node source=1 type=int32
+    /// @type.node source=1 type=1
 
 }
 "#,
         r#"
 /// @diagnostic.error code=EC416 message="else branch of let-else must diverge"
-/// @diagnostic.label line=3 column=31 source="{\n        0\n    }"
+/// @diagnostic.label line=3 column=31 span="{\n        0;\n    }" line_source="let \"ready\" = status else {"
 "#,
     );
 }

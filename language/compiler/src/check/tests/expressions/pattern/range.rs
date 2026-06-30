@@ -28,27 +28,28 @@ function isByte(value: int32): boolean {
             true
         }
         _ => false
-    };
+    } as boolean;
 }
 
 === checked ===
 function isByte(value: int32): boolean {
-/// @type.symbol symbol=isByte type=(value: int32) => boolean
-/// @type.symbol symbol=value source="value: int32" type=int32
+/// @type.symbol symbol=isByte type=(int32) => boolean
+/// @type.symbol symbol=isByte.value source="value: int32" type=int32
 
     return match (value) {
+    /// @type.node type=true | false
     /// @type.node source=value type=int32
-    /// @resolution.name source=value target=value
+    /// @resolution.name source=value target=isByte.value
 
         0..=255 => {
         /// @type.node source=0 type=0
-        /// @type.node source=255 type=255
         /// @resolution.pattern source=0..=255 kind=range domain=int32 start=0 end=255 bound=inclusive
+        /// @type.node source=255 type=255
 
             value satisfies 0..=255;
             /// @type.node source="value satisfies 0..=255" type=0..=255
             /// @type.node source=value type=0..=255
-            /// @resolution.name source=value target=value
+            /// @resolution.name source=value target=isByte.value
 
             true
             /// @type.node source=true type=true
@@ -57,8 +58,8 @@ function isByte(value: int32): boolean {
         _ => false
         /// @resolution.pattern source=_ kind=wildcard
         /// @type.node source=false type=false
-    };
 
+    };
 }
 "#,
     );
@@ -99,21 +100,23 @@ type Tiny = 0..=2;
 /// @definition.type symbol=Tiny source="type Tiny = 0..=2" value=0..=2
 
 declare const value: Tiny;
-/// @type.symbol symbol=value source=value type=0..=2
+/// @type.symbol symbol=value source=value type=Tiny reduced=0..=2
 /// @resolution.name source=Tiny target=Tiny
 
 const label = match (value) {
 /// @type.symbol symbol=label source=label type="low" | "two"
-/// @type.node source=value type=0..=2
+/// @type.node type="low" | "two"
+/// @type.node source=value type=Tiny reduced=0..=2
 /// @resolution.name source=value target=value
 
     0..=1 => "low"
     /// @type.node source=0 type=0
-    /// @type.node source=1 type=1
     /// @resolution.pattern source=0..=1 kind=range domain=0..=2 start=0 end=1 bound=inclusive
+    /// @type.node source=1 type=1
     /// @type.node source="\"low\"" type="low"
 
     2 => "two"
+    /// @type.node source=2 type=2
     /// @resolution.pattern source=2 kind=literal value=2
     /// @type.node source="\"two\"" type="two"
 
@@ -146,7 +149,7 @@ type LowerAscii = 'a'..='z';
 
 declare const value: LowerAscii;
 
-const isEarly: boolean = match (value) {
+const isEarly: true | false = match (value) {
     'a'..='m' => true
     'n'..='z' => false
 };
@@ -157,24 +160,25 @@ type LowerAscii = 'a'..='z';
 /// @definition.type symbol=LowerAscii source="type LowerAscii = 'a'..='z'" value='a'..='z'
 
 declare const value: LowerAscii;
-/// @type.symbol symbol=value source=value type='a'..='z'
+/// @type.symbol symbol=value source=value type=LowerAscii reduced='a'..='z'
 /// @resolution.name source=LowerAscii target=LowerAscii
 
 const isEarly = match (value) {
-/// @type.symbol symbol=isEarly source=isEarly type=boolean
-/// @type.node source=value type='a'..='z'
+/// @type.symbol symbol=isEarly source=isEarly type=true | false
+/// @type.node type=true | false
+/// @type.node source=value type=LowerAscii reduced='a'..='z'
 /// @resolution.name source=value target=value
 
     'a'..='m' => true
     /// @type.node source='a' type='a'
+    /// @resolution.pattern source='a'..='m' kind=range domain='a'..='z' start='a' end='m' bound=inclusive
     /// @type.node source='m' type='m'
-    /// @resolution.pattern source="'a'..='m'" kind=range domain='a'..='z' start='a' end='m' bound=inclusive
     /// @type.node source=true type=true
 
     'n'..='z' => false
     /// @type.node source='n' type='n'
+    /// @resolution.pattern source='n'..='z' kind=range domain='a'..='z' start='n' end='z' bound=inclusive
     /// @type.node source='z' type='z'
-    /// @resolution.pattern source="'n'..='z'" kind=range domain='a'..='z' start='n' end='z' bound=inclusive
     /// @type.node source=false type=false
 
 };
@@ -217,21 +221,23 @@ type Tiny = 0..=3;
 /// @definition.type symbol=Tiny source="type Tiny = 0..=3" value=0..=3
 
 declare const value: Tiny;
-/// @type.symbol symbol=value source=value type=0..=3
+/// @type.symbol symbol=value source=value type=Tiny reduced=0..=3
 /// @resolution.name source=Tiny target=Tiny
 
 const label = match (value) {
 /// @type.symbol symbol=label source=label type="low" | "high"
-/// @type.node source=value type=0..=3
+/// @type.node type="low" | "high"
+/// @type.node source=value type=Tiny reduced=0..=3
 /// @resolution.name source=value target=value
 
     0..=1 => "low"
     /// @type.node source=0 type=0
-    /// @type.node source=1 type=1
     /// @resolution.pattern source=0..=1 kind=range domain=0..=3 start=0 end=1 bound=inclusive
+    /// @type.node source=1 type=1
     /// @type.node source="\"low\"" type="low"
 
     3 => "high"
+    /// @type.node source=3 type=3
     /// @resolution.pattern source=3 kind=literal value=3
     /// @type.node source="\"high\"" type="high"
 
@@ -239,7 +245,7 @@ const label = match (value) {
 "#,
         r#"
 /// @diagnostic.error code=EC403 message="match is not exhaustive: '2' is not covered"
-/// @diagnostic.label line=6 column=15 source="match (value) {\n    0..=1 => \"low\"\n    3 => \"high\"\n}"
+/// @diagnostic.label line=6 column=21 span="(value) {\n    0..=1 => \"low\"\n    3 => \"high\"\n}" line_source="const label = match (value) {"
 "#,
     );
 }

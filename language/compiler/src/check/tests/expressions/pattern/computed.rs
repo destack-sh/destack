@@ -123,7 +123,7 @@ declare const key: string;
 /// @type.symbol symbol=key source=key type=string
 
 declare const bag: Bag;
-/// @type.symbol symbol=bag source=bag type=Bag
+/// @type.symbol symbol=bag source=bag type=Bag reduced={ [key: string]: int32 }
 /// @resolution.name source=Bag target=Bag
 
 let { [key]: value } = bag;
@@ -132,7 +132,7 @@ let { [key]: value } = bag;
 /// @resolution.name source=key target=key
 /// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source=bag type={ [key: string]: int32 }
+/// @type.node source=bag type=Bag reduced={ [key: string]: int32 }
 /// @resolution.name source=bag target=bag
 
 value satisfies int32 | undefined;
@@ -185,7 +185,7 @@ type User = {
 
 function get<K: keyof User>(user: User, key: K): User[K] {
 /// @generic.template symbol=get parameters=(K: keyof User, T1: User)
-/// @type.symbol symbol=get type=<K: keyof User, get.T1: User>(get.T1, K) => User[K]
+/// @type.symbol symbol=get type=<K: keyof User, get.T1: User>(get.T1, K) => User[K] reduced=<K: keyof User, get.T1: User>(get.T1, K) => { readonly name: string; readonly age: int32 }[K]
 /// @type.symbol symbol=get.K source="K: keyof User" type=K
 /// @resolution.name source=User target=User
 /// @type.symbol symbol=get.user source="user: User" type=get.T1
@@ -199,13 +199,13 @@ function get<K: keyof User>(user: User, key: K): User[K] {
     /// @resolution.pattern source={ [key]: value } kind=object fields={ key: get.value }
     /// @type.node source=key type=K
     /// @resolution.name source=key target=get.key
-    /// @type.symbol symbol=get.value source=value type=User[K]
+    /// @type.symbol symbol=get.value source=value type={ readonly name: string; readonly age: int32 }[K]
     /// @resolution.pattern source=value kind=binding target=get.value
     /// @type.node source=user type=get.T1
     /// @resolution.name source=user target=get.user
 
     return value;
-    /// @type.node source=value type=User[K]
+    /// @type.node source=value type={ readonly name: string; readonly age: int32 }[K]
     /// @resolution.name source=value target=get.value
 
 }
@@ -287,7 +287,6 @@ declare const token: unique symbol;
 
 declare const box: { readonly [token]: string };
 /// @type.symbol symbol=box source=box type={ readonly [token]: string }
-/// @resolution.name source=token target=token
 
 let { [token]: value } = box;
 /// @resolution.pattern source={ [token]: value } kind=object fields={ token: value }
@@ -332,9 +331,6 @@ value satisfies string;
 === checked ===
 declare const box: { readonly [Symbol.for("token")]: string };
 /// @type.symbol symbol=box source=box type={ readonly [Symbol.for("token")]: string }
-/// @resolution.name source=Symbol target=types.symbol.Symbol
-/// @resolution.member source=Symbol.for receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.for
-/// @resolution.call source="Symbol.for(\"token\")" parameters=(string) arguments=(provided("token") as string) return=symbol kind=symbol target=types.symbol.Symbol.for receiver=types.symbol.Symbol
 
 let { [Symbol.for("token")]: value } = box;
 /// @resolution.pattern source={ [Symbol.for("token")]: value } kind=object fields={ Symbol.for("token"): value }

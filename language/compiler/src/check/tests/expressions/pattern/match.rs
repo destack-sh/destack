@@ -41,12 +41,12 @@ const label = match (status) {
 
     "ready" => "go"
     /// @type.node source="\"ready\"" type="ready"
-    /// @resolution.pattern source="\"ready\"" kind=literal value=ready
+    /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
     /// @type.node source="\"go\"" type="go"
 
     "error" => "stop"
     /// @type.node source="\"error\"" type="error"
-    /// @resolution.pattern source="\"error\"" kind=literal value=error
+    /// @resolution.pattern source="\"error\"" kind=literal value="error"
     /// @type.node source="\"stop\"" type="stop"
 
 };
@@ -94,7 +94,7 @@ const label = match (status) {
 
     "ready" => "go"
     /// @type.node source="\"ready\"" type="ready"
-    /// @resolution.pattern source="\"ready\"" kind=literal value=ready
+    /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
     /// @type.node source="\"go\"" type="go"
 
 };
@@ -143,13 +143,13 @@ const label = match (status) {
 
     "ready" if (true) => "go"
     /// @type.node source="\"ready\"" type="ready"
-    /// @resolution.pattern source="\"ready\"" kind=literal value=ready
+    /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
     /// @type.node source=true type=true
     /// @type.node source="\"go\"" type="go"
 
     "error" => "stop"
     /// @type.node source="\"error\"" type="error"
-    /// @resolution.pattern source="\"error\"" kind=literal value=error
+    /// @resolution.pattern source="\"error\"" kind=literal value="error"
     /// @type.node source="\"stop\"" type="stop"
 
 };
@@ -261,7 +261,6 @@ declare const config: { enabled: boolean; retries: int32 };
 /// @type.symbol symbol=config source=config type={ enabled: boolean; retries: int32 }
 
 match (config) {
-/// @type.node type=void
 /// @type.node source=config type={ enabled: boolean; retries: int32 }
 /// @resolution.name source=config target=config
 
@@ -330,7 +329,6 @@ declare const packet: { point: { x: int32; y: int32 }; labels: [string; 2] };
 /// @type.symbol symbol=packet source=packet type={ point: { x: int32; y: int32 }; labels: FixedArray<string, 2> }
 
 match (packet) {
-/// @type.node type=void
 /// @type.node source=packet type={ point: { x: int32; y: int32 }; labels: FixedArray<string, 2> }
 /// @resolution.name source=packet target=packet
 
@@ -497,7 +495,6 @@ declare const values: int32[];
 /// @type.symbol symbol=values source=values type=Array<int32>
 
 match (values) {
-/// @type.node type=void
 /// @type.node source=values type=Array<int32>
 /// @resolution.name source=values target=values
 
@@ -609,7 +606,7 @@ const label = match (status) {
 
     "ready" => "go"
     /// @type.node source="\"ready\"" type="ready"
-    /// @resolution.pattern source="\"ready\"" kind=literal value=ready
+    /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
     /// @type.node source="\"go\"" type="go"
 
     _ => status
