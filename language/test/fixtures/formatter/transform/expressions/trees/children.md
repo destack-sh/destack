@@ -448,6 +448,44 @@ const node = (
 );
 ```
 
+### if value with scalar children
+
+If values without tree branches stay inline when they fit.
+
+```ds line-width=80
+const node = <Panel>{if (ready) { label } else { fallback }}</Panel>
+```
+
+```ds expected
+const node = <Panel>{if (ready) { label } else { fallback }}</Panel>;
+```
+
+### if value with condition comment
+
+Line comments in control heads expand the expression child.
+
+```ds line-width=80
+const node = <Panel>{if (
+  // ready state
+  ready
+) { <Ready /> } else { <Pending /> }}</Panel>
+```
+
+```ds expected
+const node = (
+    <Panel>
+        {if (
+            // ready state
+            ready
+        ) {
+            <Ready />
+        } else {
+            <Pending />
+        }}
+    </Panel>
+);
+```
+
 ### match value with element children
 
 Match values used as children keep each element arm attached to its pattern.
@@ -462,6 +500,26 @@ const node = (
         {match (state) {
             Ready(item) => <Ready item={item} />
             Pending => <Pending />
+            Failed(error) => <Failed error={error} />
+        }}
+    </Panel>
+);
+```
+
+### match value with mixed branches
+
+Match values expand when any branch returns a tree.
+
+```ds
+const node = <Panel>{match (state) { Ready(item) => <Ready item={item} />; Empty => "empty"; Failed(error) => <Failed error={error} /> }}</Panel>
+```
+
+```ds expected
+const node = (
+    <Panel>
+        {match (state) {
+            Ready(item) => <Ready item={item} />
+            Empty => "empty"
             Failed(error) => <Failed error={error} />
         }}
     </Panel>
@@ -483,6 +541,28 @@ const node = (
             <Ready data={load()} />
         } catch (error) {
             <Failed error={error} />
+        }}
+    </Panel>
+);
+```
+
+### try value with finally tree branch
+
+Try values expand when the finally branch returns a tree.
+
+```ds
+const node = <Panel>{try { value } catch (error) { fallback } finally { <Cleanup /> }}</Panel>
+```
+
+```ds expected
+const node = (
+    <Panel>
+        {try {
+            value
+        } catch (error) {
+            fallback
+        } finally {
+            <Cleanup />
         }}
     </Panel>
 );
