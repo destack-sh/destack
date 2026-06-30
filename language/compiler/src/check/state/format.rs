@@ -1,6 +1,7 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use crate::CompilerResult;
 use crate::check::CheckState;
@@ -18,8 +19,28 @@ impl CheckState<'_> {
             .unwrap_or_else(|_| "<error>".to_string())
     }
 
+    /// Format one type relative to a source module.
+    pub(in crate::check) fn format_type_at(
+        &self,
+        module: ModuleId,
+        id: dir::GlobalTypeId,
+    ) -> String {
+        self.format_depth_at(Some(module), id, FORMAT_DEPTH)
+            .unwrap_or_else(|_| "<error>".to_string())
+    }
+
     /// Format one type up to a nesting depth.
     fn format_depth(&self, id: dir::GlobalTypeId, depth: usize) -> CompilerResult<String> {
+        self.format_depth_at(None, id, depth)
+    }
+
+    /// Format one type relative to an optional source module.
+    fn format_depth_at(
+        &self,
+        module: Option<ModuleId>,
+        id: dir::GlobalTypeId,
+        depth: usize,
+    ) -> CompilerResult<String> {
         if depth == 0 {
             return Ok("…".to_string());
         }
@@ -48,35 +69,45 @@ impl CheckState<'_> {
             dir::Type::Range(range) => self.format_range(range),
 
             dir::Type::Parameter(parameter) => self.format_parameter(*parameter),
-            dir::Type::Reference(reference) => self.format_symbol(reference.symbol),
+            dir::Type::Reference(reference) => {
+                self.format_symbol_path_maybe_at(module, reference.symbol)
+            }
             dir::Type::Instance(instance) => {
-                let name = self.format_symbol(instance.symbol);
+                let name = self.format_symbol_path_maybe_at(module, instance.symbol);
                 if instance.arguments.is_empty() {
                     name
                 } else {
-                    let arguments = self.format_list(&instance.arguments, next)?;
+                    let arguments = self.format_list_at(module, &instance.arguments, next)?;
 
                     format!("{name}<{arguments}>")
                 }
             }
             dir::Type::Member(member) => {
-                let owner = self.format_depth(member.owner, next)?;
+                let owner = self.format_depth_at(module, member.owner, next)?;
                 let key = self.format_static_key(&member.key);
 
                 format!("{owner}.{key}")
             }
-            dir::Type::EnumMember(member) => self.format_symbol_path(member.member),
+            dir::Type::EnumMember(member) => {
+                self.format_symbol_path_maybe_at(module, member.member)
+            }
 
             // intrinsic collections render their declared names
             dir::Type::Array(array) => {
-                format!("Array<{}>", self.format_depth(array.element, next)?)
+                format!(
+                    "Array<{}>",
+                    self.format_depth_at(module, array.element, next)?
+                )
             }
             dir::Type::Slice(slice) => {
-                format!("Slice<{}>", self.format_depth(slice.element, next)?)
+                format!(
+                    "Slice<{}>",
+                    self.format_depth_at(module, slice.element, next)?
+                )
             }
             dir::Type::FixedArray(array) => {
-                let element = self.format_depth(array.element, next)?;
-                let count = self.format_depth(array.count, next)?;
+                let element = self.format_depth_at(module, array.element, next)?;
+                let count = self.format_depth_at(module, array.count, next)?;
 
                 format!("FixedArray<{element}, {count}>")
             }
@@ -87,19 +118,39 @@ impl CheckState<'_> {
                     .map(|element| element.ty)
                     .collect::<Vec<_>>();
 
-                format!("({})", self.format_list(&elements, next)?)
+                format!("({})", self.format_list_at(module, &elements, next)?)
             }
 
             dir::Type::Shape(shape) => {
                 let mut fields = Vec::new();
                 for field in shape.fields.iter().take(FORMAT_WIDTH) {
-                    let key = self.format_static_key(&field.key);
+                    let key = self.format_type_field_key(&field.key);
                     let optional = if field.is_optional { "?" } else { "" };
-                    let ty = self.format_depth(field.ty, next)?;
+                    let ty = self.format_depth_at(module, field.ty, next)?;
 
                     fields.push(format!("{key}{optional}: {ty}"));
                 }
-                if shape.fields.len() > FORMAT_WIDTH {
+
+                for signature in shape
+                    .index_signatures
+                    .iter()
+                    .take(FORMAT_WIDTH - fields.len())
+                {
+                    let readonly = if signature.is_readonly {
+                        "readonly "
+                    } else {
+                        ""
+                    };
+                    let optional = if signature.is_optional { "?" } else { "" };
+                    let name = self.text(signature.name);
+                    let key = self.format_depth_at(module, signature.key_type, next)?;
+                    let value = self.format_depth_at(module, signature.value_type, next)?;
+
+                    fields.push(format!("{readonly}[{name}: {key}]{optional}: {value}"));
+                }
+
+                let field_count = shape.fields.len() + shape.index_signatures.len();
+                if field_count > FORMAT_WIDTH {
                     fields.push("…".to_string());
                 }
 
@@ -112,25 +163,29 @@ impl CheckState<'_> {
             dir::Type::FunctionSignature(function) => {
                 let mut parameters = Vec::new();
                 for parameter in function.parameters.iter().take(FORMAT_WIDTH) {
-                    parameters.push(self.format_function_parameter(parameter, next)?);
+                    parameters.push(self.format_function_parameter_at(module, parameter, next)?);
                 }
                 if function.parameters.len() > FORMAT_WIDTH {
                     parameters.push("…".to_string());
                 }
                 let result = match function.return_type {
-                    Some(return_type) => self.format_depth(return_type, next)?,
+                    Some(return_type) => self.format_depth_at(module, return_type, next)?,
                     None => "void".to_string(),
                 };
 
                 format!("({}) => {result}", parameters.join(", "))
             }
-            dir::Type::Function(function) => self.format_depth(function.signature, next)?,
-            dir::Type::FunctionPointer(function) => self.format_function_pointer(function, next)?,
+            dir::Type::Function(function) => {
+                self.format_depth_at(module, function.signature, next)?
+            }
+            dir::Type::FunctionPointer(function) => {
+                self.format_function_pointer_at(module, function, next)?
+            }
 
             dir::Type::Union(union) => {
                 let mut elements = Vec::new();
                 for element in union.elements.iter().take(FORMAT_WIDTH) {
-                    elements.push(self.format_depth(*element, next)?);
+                    elements.push(self.format_depth_at(module, *element, next)?);
                 }
                 if union.elements.len() > FORMAT_WIDTH {
                     elements.push("…".to_string());
@@ -141,7 +196,7 @@ impl CheckState<'_> {
             dir::Type::Intersection(intersection) => {
                 let mut elements = Vec::new();
                 for element in intersection.elements.iter().take(FORMAT_WIDTH) {
-                    elements.push(self.format_depth(*element, next)?);
+                    elements.push(self.format_depth_at(module, *element, next)?);
                 }
                 if intersection.elements.len() > FORMAT_WIDTH {
                     elements.push("…".to_string());
@@ -150,22 +205,30 @@ impl CheckState<'_> {
                 elements.join(" & ")
             }
 
-            dir::Type::Form(form) => self.format_form(form, next)?,
+            dir::Type::Form(form) => self.format_form_at(module, form, next)?,
             dir::Type::Dynamic(dynamic) => {
-                format!("Dynamic<{}>", self.format_depth(dynamic.constraint, next)?)
+                format!(
+                    "Dynamic<{}>",
+                    self.format_depth_at(module, dynamic.constraint, next)?
+                )
             }
 
-            dir::Type::Operation(operation) => self.format_operation(operation, next)?,
+            dir::Type::Operation(operation) => self.format_operation_at(module, operation, next)?,
         };
 
         Ok(rendered)
     }
 
-    /// Format one type list up to a nesting depth.
-    fn format_list(&self, ids: &[dir::GlobalTypeId], depth: usize) -> CompilerResult<String> {
+    /// Format one type list relative to an optional source module.
+    fn format_list_at(
+        &self,
+        module: Option<ModuleId>,
+        ids: &[dir::GlobalTypeId],
+        depth: usize,
+    ) -> CompilerResult<String> {
         let mut formatted = Vec::new();
         for id in ids.iter().take(FORMAT_WIDTH) {
-            formatted.push(self.format_depth(*id, depth)?);
+            formatted.push(self.format_depth_at(module, *id, depth)?);
         }
         if ids.len() > FORMAT_WIDTH {
             formatted.push("…".to_string());
@@ -174,22 +237,23 @@ impl CheckState<'_> {
         Ok(formatted.join(", "))
     }
 
-    /// Format one function pointer type with its explicit intrinsic spelling.
-    fn format_function_pointer(
+    /// Format one function pointer type relative to an optional source module.
+    fn format_function_pointer_at(
         &self,
+        module: Option<ModuleId>,
         function: &dir::FunctionPointerType,
         depth: usize,
     ) -> CompilerResult<String> {
         let signature = self.settled_root(function.signature)?;
         let dir::Type::FunctionSignature(signature) = self.ty(signature)? else {
-            let signature = self.format_depth(function.signature, depth)?;
+            let signature = self.format_depth_at(module, function.signature, depth)?;
 
             return Ok(format!("FunctionPointer<{signature}>"));
         };
 
         let mut parameters = Vec::new();
         for parameter in signature.parameters.iter().take(FORMAT_WIDTH) {
-            let parameter = self.format_function_parameter(parameter, depth)?;
+            let parameter = self.format_function_parameter_at(module, parameter, depth)?;
 
             parameters.push(parameter);
         }
@@ -203,20 +267,21 @@ impl CheckState<'_> {
             _ => format!("({})", parameters.join(", ")),
         };
         let result = match signature.return_type {
-            Some(return_type) => self.format_depth(return_type, depth)?,
+            Some(return_type) => self.format_depth_at(module, return_type, depth)?,
             None => "void".to_string(),
         };
 
         Ok(format!("FunctionPointer<{parameters}, {result}>"))
     }
 
-    /// Format one function signature parameter.
-    fn format_function_parameter(
+    /// Format one function signature parameter relative to an optional source module.
+    fn format_function_parameter_at(
         &self,
+        module: Option<ModuleId>,
         parameter: &dir::FunctionParameterType,
         depth: usize,
     ) -> CompilerResult<String> {
-        let parameter_type = self.format_depth(parameter.ty, depth)?;
+        let parameter_type = self.format_depth_at(module, parameter.ty, depth)?;
         let parameter_type = if parameter.is_rest {
             format!("...{parameter_type}")
         } else {
@@ -226,10 +291,14 @@ impl CheckState<'_> {
         Ok(parameter_type)
     }
 
-    /// Format one memory form with its written sigil.
-    /// The managed default reads transparently as its payload.
-    fn format_form(&self, form: &dir::FormType, depth: usize) -> CompilerResult<String> {
-        let value = self.format_depth(form.value, depth)?;
+    /// Format one memory form relative to an optional source module.
+    fn format_form_at(
+        &self,
+        module: Option<ModuleId>,
+        form: &dir::FormType,
+        depth: usize,
+    ) -> CompilerResult<String> {
+        let value = self.format_depth_at(module, form.value, depth)?;
 
         let rendered = match &form.form {
             dir::Form::Managed => value,
@@ -269,23 +338,24 @@ impl CheckState<'_> {
         Ok(rendered)
     }
 
-    /// Format one type operation compactly.
-    fn format_operation(
+    /// Format one type operation relative to an optional source module.
+    fn format_operation_at(
         &self,
+        module: Option<ModuleId>,
         operation: &dir::TypeOperation,
         depth: usize,
     ) -> CompilerResult<String> {
         let rendered = match operation {
             dir::TypeOperation::Conditional(conditional) => format!(
                 "{} extends {} ? {} : {}",
-                self.format_depth(conditional.left, depth)?,
-                self.format_depth(conditional.right, depth)?,
-                self.format_depth(conditional.then_type, depth)?,
-                self.format_depth(conditional.else_type, depth)?,
+                self.format_depth_at(module, conditional.left, depth)?,
+                self.format_depth_at(module, conditional.right, depth)?,
+                self.format_depth_at(module, conditional.then_type, depth)?,
+                self.format_depth_at(module, conditional.else_type, depth)?,
             ),
             dir::TypeOperation::Narrow(narrow) => {
-                let source = self.format_depth(narrow.source, depth)?;
-                let target = self.format_depth(narrow.target, depth)?;
+                let source = self.format_depth_at(module, narrow.source, depth)?;
+                let target = self.format_depth_at(module, narrow.target, depth)?;
                 if narrow.is_positive {
                     format!("Narrow<{source}, {target}>")
                 } else {
@@ -293,21 +363,33 @@ impl CheckState<'_> {
                 }
             }
             dir::TypeOperation::KeyOf(unary) => {
-                format!("keyof {}", self.format_depth(unary.target, depth)?)
+                format!(
+                    "keyof {}",
+                    self.format_depth_at(module, unary.target, depth)?
+                )
             }
             dir::TypeOperation::NoInfer(unary) => {
-                format!("NoInfer<{}>", self.format_depth(unary.target, depth)?)
+                format!(
+                    "NoInfer<{}>",
+                    self.format_depth_at(module, unary.target, depth)?
+                )
+            }
+            dir::TypeOperation::Awaited(unary) => {
+                format!(
+                    "Awaited<{}>",
+                    self.format_depth_at(module, unary.target, depth)?
+                )
             }
             dir::TypeOperation::Index(index) => format!(
                 "{}[{}]",
-                self.format_depth(index.left, depth)?,
-                self.format_depth(index.index, depth)?,
+                self.format_depth_at(module, index.left, depth)?,
+                self.format_depth_at(module, index.index, depth)?,
             ),
             dir::TypeOperation::StaticBinary(binary) => format!(
                 "{} {} {}",
-                self.format_depth(binary.left, depth)?,
+                self.format_depth_at(module, binary.left, depth)?,
                 format_static_binary_operator(binary.operator),
-                self.format_depth(binary.right, depth)?,
+                self.format_depth_at(module, binary.right, depth)?,
             ),
             dir::TypeOperation::StaticUnary(unary) => {
                 let operator = match unary.operator {
@@ -316,16 +398,19 @@ impl CheckState<'_> {
                     dir::StaticUnaryOperator::BitwiseNot => "~",
                 };
 
-                format!("{operator}{}", self.format_depth(unary.target, depth)?)
+                format!(
+                    "{operator}{}",
+                    self.format_depth_at(module, unary.target, depth)?
+                )
             }
             dir::TypeOperation::TryOutput { value } => {
-                format!("Output<{}>", self.format_depth(*value, depth)?)
+                format!("Output<{}>", self.format_depth_at(module, *value, depth)?)
             }
             dir::TypeOperation::TryResidual { value } => {
-                format!("Residual<{}>", self.format_depth(*value, depth)?)
+                format!("Residual<{}>", self.format_depth_at(module, *value, depth)?)
             }
             dir::TypeOperation::StringMapping { target, .. } => {
-                self.format_depth(*target, depth)?
+                self.format_depth_at(module, *target, depth)?
             }
             dir::TypeOperation::Mapped(_) => "{ [mapped] }".to_string(),
             dir::TypeOperation::TemplateLiteral(_) => "`…`".to_string(),
@@ -455,7 +540,24 @@ impl CheckState<'_> {
         let bindings = self.binding_table(symbol.module_id);
         let mut paths = BTreeMap::new();
 
-        self.format_symbol_path_base(bindings, symbol.local_id, &mut paths)
+        self.format_symbol_path_base(&bindings, symbol.local_id, &mut paths)
+    }
+
+    /// Format one semantic symbol path relative to an optional source module.
+    fn format_symbol_path_maybe_at(
+        &self,
+        module: Option<ModuleId>,
+        symbol: dir::GlobalSymbolId,
+    ) -> String {
+        let path = self.format_symbol_path(symbol);
+        if module.is_some_and(|module| module == symbol.module_id) {
+            return path;
+        }
+
+        match module {
+            Some(_) => format!("{}.{}", self.format_module_label(symbol.module_id), path),
+            None => path,
+        }
     }
 
     /// Format one local symbol path without duplicate suffixes.
@@ -510,6 +612,23 @@ impl CheckState<'_> {
             || symbol.kind == dir::SymbolKind::GenericValueParameter
     }
 
+    /// Format one module as a compact qualifier.
+    fn format_module_label(&self, module: ModuleId) -> String {
+        if let Some(module) = self.modules.get(&module) {
+            return trim_module_uri(module.module.uri.as_ref());
+        }
+
+        if let Ok(Some(module)) = self
+            .compiler
+            .repository
+            .module(self.context.revision(), module)
+        {
+            return trim_module_uri(module.uri.as_ref());
+        }
+
+        format!("module#{module}")
+    }
+
     /// Format one member or symbol key.
     pub(in crate::check) fn format_static_key(&self, key: &dir::StaticKey) -> String {
         match key {
@@ -523,6 +642,26 @@ impl CheckState<'_> {
         }
     }
 
+    /// Format one field key as it appears in object type text.
+    fn format_type_field_key(&self, key: &dir::StaticKey) -> String {
+        match key {
+            dir::StaticKey::Symbol(_) => format!("[{}]", self.format_static_key(key)),
+            _ => self.format_static_key(key),
+        }
+    }
+
+    /// Format one owner.case variant label.
+    pub(in crate::check) fn format_variant_case(
+        &self,
+        owner: dir::GlobalTypeId,
+        key: dir::StaticKey,
+    ) -> String {
+        let owner = self.format_type(owner);
+        let key = self.format_static_key(&key);
+
+        format!("{owner}.{key}")
+    }
+
     /// Return interned text from any loaded module pool.
     fn text(&self, id: dir::StringId) -> String {
         // search component pools first
@@ -534,6 +673,25 @@ impl CheckState<'_> {
 
         "<string>".to_string()
     }
+}
+
+/// Trim one module URI to a compact label.
+fn trim_module_uri(uri: &str) -> String {
+    if let Some(path) = uri.strip_prefix("file://") {
+        return Path::new(path)
+            .file_stem()
+            .and_then(|name| name.to_str())
+            .unwrap_or(path)
+            .to_string();
+    }
+
+    let uri = uri.strip_prefix("destack://").unwrap_or(uri);
+    let uri = uri.strip_suffix(".ds").unwrap_or(uri);
+    let uri = uri.trim_start_matches("./");
+    let uri = uri.trim_start_matches(['/', '\\']);
+    let uri = uri.replace(['/', '\\'], ".");
+
+    uri.trim_matches('.').to_string()
 }
 
 /// Format one primitive type.
