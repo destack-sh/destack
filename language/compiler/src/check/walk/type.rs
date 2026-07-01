@@ -1,10 +1,7 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::check::{
-    Decision, GenericArgument, GenericInductionParameter, Origin, Relation, TypeSubstitution,
-    WalkState, Widening,
-};
+use crate::check::{Decision, GenericArgument, Origin, TypeSubstitution, WalkState, Widening};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
@@ -21,14 +18,14 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = self.walk_type_expression_once(id)?;
+        let ty = self.walk_type_expression_type(id)?;
         self.commit_node_type(id, ty)?;
 
         Ok(ty)
     }
 
-    /// Walk one type expression that has not already been committed.
-    fn walk_type_expression_once(
+    /// Return the type denoted by one type expression.
+    fn walk_type_expression_type(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -222,8 +219,23 @@ impl WalkState<'_, '_> {
                 )
             }
             // ^T
-            dir::TypeExpression::OwnedOf { target_type, .. } => {
+            dir::TypeExpression::OwnedOf {
+                mutability,
+                target_type,
+                ..
+            } => {
                 let value = self.walk_type_expression(*target_type)?;
+                let value = if *mutability == Some(dir::Mutability::Immutable) {
+                    self.push_type(
+                        dir::Type::Form(dir::FormType {
+                            form: dir::Form::Readonly,
+                            value,
+                        }),
+                        source,
+                    )?
+                } else {
+                    value
+                };
 
                 self.push_type(
                     dir::Type::Form(dir::FormType {
@@ -247,44 +259,7 @@ impl WalkState<'_, '_> {
                     dir::Type::Memory(dir::MemoryLiteral::Access(access)),
                     source,
                 )?;
-                // close value-level type tests to the current frame
-                let lifetime = if self.borrow_lifetimes_close_to_frame() {
-                    self.push_type(
-                        dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)),
-                        source,
-                    )?
-                }
-                // induce a hidden comptime parameter through declaration sites
-                else {
-                    let lifetime = self.open_variable_type(source, Widening::Preserve)?;
-                    if let Some(variable) = self.check.root_variable(lifetime)? {
-                        // constrain the induced parameter to the lifetime kind
-                        let constraint = match self
-                            .check
-                            .environment
-                            .language
-                            .symbol(dir::LanguageItem::Lifetime)
-                        {
-                            Some(symbol) => Some(self.push_type(
-                                dir::Type::Instance(dir::GenericInstance {
-                                    symbol,
-                                    arguments: Vec::new(),
-                                }),
-                                source,
-                            )?),
-                            None => None,
-                        };
-                        let induction = GenericInductionParameter {
-                            name_prefix: "L",
-                            constraint,
-                            is_comptime: true,
-                            induction: dir::GenericParameterInduction::Form,
-                        };
-                        self.record_borrow_lifetime_elision(variable, induction)?;
-                    }
-
-                    lifetime
-                };
+                let lifetime = self.elided_borrow_lifetime(source)?;
 
                 self.push_type(
                     dir::Type::Form(dir::FormType {
@@ -443,7 +418,7 @@ impl WalkState<'_, '_> {
 
         match form {
             // open anonymous holes for ordinary inference
-            dir::InferForm::Hole => self.open_variable_type(source, Widening::Widen),
+            dir::InferForm::Hole => self.open_type_hole(source, Widening::Widen),
 
             // preserve named infer bindings for conditional matching
             dir::InferForm::Infer => {
@@ -543,7 +518,7 @@ impl WalkState<'_, '_> {
             _ => Err(CompilerError::Internal {
                 message: format!(
                     "type query operand {} is not a static reference path",
-                    self.check.node_message(id.into_global_any(self.module))
+                    self.check.node_label(id.into_global_any(self.module))
                 ),
             }),
         }
@@ -586,7 +561,7 @@ impl WalkState<'_, '_> {
                 for symbol in symbols.iter().copied() {
                     self.capture_symbol_reference(symbol);
                 }
-                self.check.record_decision(
+                self.check.commit_decision(
                     source,
                     Decision::Name(dir::NameResolution::from_symbols(symbols.to_vec())),
                 )?;
@@ -720,17 +695,17 @@ impl WalkState<'_, '_> {
         // record the resolved name for snapshots and downstream selection
         self.capture_symbol_reference(symbol);
         self.check
-            .record_decision(source, Decision::Name(dir::NameResolution::new(symbol)))?;
+            .commit_decision(source, Decision::Name(dir::NameResolution::new(symbol)))?;
 
         // apply written type arguments and declaration defaults
         let applied = self.walk_generic_arguments(generic_arguments)?;
-        let ty = self.apply_symbol_type(id.into_any(), symbol, &applied)?;
+        let ty = self.referenced_symbol_type(id.into_any(), symbol, &applied)?;
 
         Ok(ty)
     }
 
     /// Return the type for one declaration symbol application.
-    fn apply_symbol_type(
+    fn referenced_symbol_type(
         &mut self,
         source: dir::LocalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -845,7 +820,12 @@ impl WalkState<'_, '_> {
                 self.check
                     .substitute_type(self.module, source, constraint, &substitution)?;
 
-            self.relate_type(origin, Relation::Satisfies, argument, constraint);
+            self.relate_generic_bound(
+                origin,
+                source.into_global(self.module),
+                argument,
+                constraint,
+            );
         }
 
         Ok(())
@@ -860,13 +840,13 @@ impl WalkState<'_, '_> {
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     ) -> CompilerResult<dir::GlobalTypeId> {
         self.capture_symbol_reference(base);
-        self.check.record_decision(
+        self.check.commit_decision(
             id.into_global_any(self.module),
             Decision::Name(dir::NameResolution::new(base)),
         )?;
 
         // start from the resolved base symbol
-        let mut ty = self.apply_symbol_type(id.into_any(), base, &[])?;
+        let mut ty = self.referenced_symbol_type(id.into_any(), base, &[])?;
 
         // append each remaining path segment as a type member
         for (index, segment) in tail.iter().copied().enumerate() {

@@ -46,7 +46,7 @@ impl CheckState<'_> {
             dir::Type::Reference(dir::TypeReference { symbol }),
             source,
         )?;
-        self.set_declaration_type(symbol, ty)?;
+        self.commit_declaration_type(symbol, ty)?;
 
         Ok(())
     }
@@ -198,13 +198,13 @@ impl WalkState<'_, '_> {
             // global { ... }
             dir::Declaration::Global(declaration) => {
                 for expression in &declaration.expressions {
-                    self.walk_expression(*expression, self.tree.get(*expression), None)?;
+                    self.walk_expression(*expression, self.tree.get(*expression))?;
                 }
             }
             // module { ... }
             dir::Declaration::Module(declaration) => {
                 for expression in &declaration.expressions {
-                    self.walk_expression(*expression, self.tree.get(*expression), None)?;
+                    self.walk_expression(*expression, self.tree.get(*expression))?;
                 }
             }
             // type X = T
@@ -283,7 +283,7 @@ impl WalkState<'_, '_> {
 
         // walk the written value
         let value = self.walk_type_expression(declaration.value)?;
-        self.record_type_induction_site(induction, value);
+        self.push_type_induction_site(induction, value);
 
         // transparent aliases expand to their value, newtypes wrap it
         let definition = if declaration.is_nominal {
@@ -382,13 +382,13 @@ impl WalkState<'_, '_> {
             self.walk_where_clause(*where_clause)?;
         }
         let receiver = self.nominal_receiver(id.into_any(), symbol)?;
-        let _receiver = self.enter_receiver_maybe(Some(receiver));
+        let _receiver = self.enter_receiver_scope(Some(receiver));
 
         // walk implemented interfaces
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
-            self.record_type_induction_site(induction, ty);
+            self.push_type_induction_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
                     self.relate_heritage_clause(
@@ -495,14 +495,14 @@ impl WalkState<'_, '_> {
             self.walk_where_clause(*where_clause)?;
         }
         let receiver = self.nominal_receiver(id.into_any(), symbol)?;
-        let _receiver = self.enter_receiver_maybe(Some(receiver));
+        let _receiver = self.enter_receiver_scope(Some(receiver));
 
         // walk superclass type
         let mut extends = None;
         let mut super_ty = None;
         if let Some(extends_type) = declaration.extends_type {
             let ty = self.walk_type_expression(extends_type)?;
-            self.record_type_induction_site(induction, ty);
+            self.push_type_induction_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(extends_type, ty)? {
                 if self.check.symbol_kind(instance.symbol) == dir::SymbolKind::Class {
                     self.relate_heritage_clause(extends_type, Relation::Extends, receiver.ty, ty);
@@ -529,7 +529,7 @@ impl WalkState<'_, '_> {
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
-            self.record_type_induction_site(induction, ty);
+            self.push_type_induction_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
                     self.relate_heritage_clause(
@@ -660,7 +660,7 @@ impl WalkState<'_, '_> {
 
     /// Return explicitly declared class construct candidates.
     fn declared_class_construct_candidates(
-        &self,
+        &mut self,
         members: &[dir::DefinitionMember],
     ) -> CompilerResult<Vec<dir::ClassConstructorDefinition>> {
         let mut constructors = Vec::new();
@@ -676,7 +676,7 @@ impl WalkState<'_, '_> {
                 constructor: dir::ClassConstructor::Declared {
                     symbol: method.symbol,
                 },
-                ty: self.check.require_symbol_type(method.symbol)?,
+                ty: self.symbol_type_slot(method.symbol)?,
             });
         }
 
@@ -737,13 +737,13 @@ impl WalkState<'_, '_> {
             self.walk_where_clause(*where_clause)?;
         }
         let receiver = self.nominal_receiver(id.into_any(), symbol)?;
-        let _receiver = self.enter_receiver_maybe(Some(receiver));
+        let _receiver = self.enter_receiver_scope(Some(receiver));
 
         // walk implemented interfaces
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
-            self.record_type_induction_site(induction, ty);
+            self.push_type_induction_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
                     self.relate_heritage_clause(
@@ -853,13 +853,13 @@ impl WalkState<'_, '_> {
             self.walk_where_clause(*where_clause)?;
         }
         let receiver = self.nominal_receiver(id.into_any(), symbol)?;
-        let _receiver = self.enter_receiver_maybe(Some(receiver));
+        let _receiver = self.enter_receiver_scope(Some(receiver));
 
         // walk inherited interfaces
         let mut extends = Vec::new();
         for extends_type in &declaration.extends_types {
             let ty = self.walk_type_expression(*extends_type)?;
-            self.record_type_induction_site(induction, ty);
+            self.push_type_induction_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*extends_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
                     extends.push(dir::NominalHeritage {
@@ -943,7 +943,7 @@ impl WalkState<'_, '_> {
 
         // expose members under the extended receiver
         let target_type = self.walk_type_expression(declaration.target_type)?;
-        self.record_type_induction_site(induction, target_type);
+        self.push_type_induction_site(induction, target_type);
         let target = self.walk_extension_target(target_type)?;
         let target_name = match &target {
             dir::ExtensionTarget::Rooted { root, .. } => self.check.format_symbol(*root),
@@ -954,13 +954,13 @@ impl WalkState<'_, '_> {
             ty: target_type,
             super_ty: None,
         };
-        let _receiver = self.enter_receiver_maybe(Some(receiver));
+        let _receiver = self.enter_receiver_scope(Some(receiver));
 
         // walk implemented interfaces
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
-            self.record_type_induction_site(induction, ty);
+            self.push_type_induction_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
                     implements.push(dir::NominalHeritage {
@@ -1151,7 +1151,7 @@ impl WalkState<'_, '_> {
         } else {
             signature
         };
-        self.record_type_induction_site(induction, function);
+        self.push_type_induction_site(induction, function);
         self.bind_symbol_type(symbol, function)?;
 
         // walk body after its result exists
@@ -1193,7 +1193,7 @@ impl WalkState<'_, '_> {
                 .declaration_symbol(id.into_any())
             {
                 let written = self.walk_static_term(value)?;
-                self.set_static_value(symbol, written)?;
+                self.commit_static_value(symbol, written)?;
             }
         }
 
@@ -1239,7 +1239,7 @@ impl WalkState<'_, '_> {
         let origin = Origin::Node(source);
         let backing =
             self.check
-                .reduce_closed_type_head(origin, value, "tagged newtype backing")?;
+                .require_reduced_type_head(origin, value, "tagged newtype backing")?;
         let arms = match self.check.ty(backing)? {
             dir::Type::Union(union) => union.elements.clone(),
             _ => vec![backing],
@@ -1265,8 +1265,8 @@ impl WalkState<'_, '_> {
         let origin = Origin::Node(source);
         let arm = self
             .check
-            .reduce_closed_type_head(origin, arm, "tagged newtype arm")?;
-        let discriminant = self.check.tagged_arm_discriminant_closed(
+            .require_reduced_type_head(origin, arm, "tagged newtype arm")?;
+        let discriminant = self.check.require_tagged_arm_discriminant(
             origin,
             arm,
             "tagged newtype arm discriminant",
@@ -1529,7 +1529,7 @@ impl WalkState<'_, '_> {
         }
 
         // open the inferred result
-        Ok(Some(self.open_variable_type(source, Widening::Preserve)?))
+        Ok(Some(self.open_type_hole(source, Widening::Preserve)?))
     }
 
     /// Return one nominal declaration receiver scope.

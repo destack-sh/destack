@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Expectation, ExpectedType, FlowNarrowing, FlowPath, FlowSite, Obligation, Origin,
-    PatternCoverage, PatternCoverageObligation, ValueUse, WalkState, Widening,
+    Expectation, ExpectedType, FlowNarrowing, FlowPath, Obligation, Origin, PatternCoverage,
+    PatternCoverageObligation, ValueUse, WalkState, Widening,
 };
 
 impl WalkState<'_, '_> {
@@ -18,13 +18,14 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declarator>,
         declarator: &dir::Declarator,
         binding_kind: Option<dir::LetKind>,
+        decorated: Option<dir::LocalNodeIdAny>,
     ) -> CompilerResult<()> {
         if !self.decide_decorated_presence(id.into_any())? {
             return Ok(());
         }
 
         if let Some(symbol) = self.direct_declarator_symbol(declarator) {
-            self.walk_direct_declarator(symbol, declarator, binding_kind)?;
+            self.walk_direct_declarator(id, symbol, declarator, binding_kind, decorated)?;
         } else {
             self.walk_pattern_declarator(id, declarator)?;
         }
@@ -40,9 +41,11 @@ impl WalkState<'_, '_> {
     /// ```
     fn walk_direct_declarator(
         &mut self,
+        id: dir::LocalNodeId<dir::Declarator>,
         symbol: dir::GlobalSymbolId,
         declarator: &dir::Declarator,
         binding_kind: Option<dir::LetKind>,
+        decorated: Option<dir::LocalNodeIdAny>,
     ) -> CompilerResult<()> {
         // bind annotated declarators before checking their initializers
         if let Some(ty) = declarator.ty {
@@ -63,7 +66,7 @@ impl WalkState<'_, '_> {
                     }),
                     ty.into_any(),
                 )?;
-                self.set_static_value(symbol, value)?;
+                self.commit_static_value(symbol, value)?;
             }
 
             // check annotated initializers before ordinary inference can claim them
@@ -73,7 +76,8 @@ impl WalkState<'_, '_> {
                     Origin::Node(value.into_global_any(self.module)),
                     ValueUse::Store,
                 );
-                self.walk_expression(value, self.tree.get(value), Some(&expectation))?;
+                self.walk_declarator_initializer(id, decorated, value)?;
+                self.queue_node_check(value, expectation)?;
             }
 
             return Ok(());
@@ -84,20 +88,36 @@ impl WalkState<'_, '_> {
 
         // walk the initializer as its own expression
         if let Some(value) = declarator.value {
-            self.walk_expression(value, self.tree.get(value), None)?;
+            self.walk_declarator_initializer(id, decorated, value)?;
         }
 
         // bind inferred declarations from their initializer
         if let Some(value) = declarator.value {
-            self.queue_bind_initializer(symbol, value, widening);
+            self.queue_bind_initializer(symbol, value, widening)?;
 
             return Ok(());
         }
 
         // uninitialized bindings keep a variable for their writes
-        self.binding_type(symbol, widening)?;
+        self.binding_type_slot(symbol, widening)?;
 
         Ok(())
+    }
+
+    /// Walk one direct declarator initializer.
+    fn walk_declarator_initializer(
+        &mut self,
+        id: dir::LocalNodeId<dir::Declarator>,
+        decorated: Option<dir::LocalNodeIdAny>,
+        value: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<()> {
+        let decorated = decorated.unwrap_or_else(|| id.into_any());
+        let directive = self
+            .check
+            .capture_directive_for_source(self.module, decorated)?;
+        self.with_capture_directive(directive, |state| {
+            state.walk_expression(value, state.tree.get(value))
+        })
     }
 
     /// Walk one declarator that destructures or matches a value.
@@ -120,21 +140,18 @@ impl WalkState<'_, '_> {
 
         // walk matched value
         if let Some(value) = declarator.value {
-            self.walk_expression(value, self.tree.get(value), None)?;
+            self.walk_expression(value, self.tree.get(value))?;
         }
 
         // queue pattern checking from the initializer or annotation
         if let Some(value) = declarator.value {
-            let value_site = FlowSite {
-                node: value.into_global_any(self.module),
-                flow: self.flow().point(),
-            };
+            let value_site = self.node_site(value)?;
             let expectation = Expectation::assignable_node(
                 value_site,
                 Origin::Node(value_site.node),
                 ValueUse::Store,
             );
-            self.queue_node_check(declarator.pattern, expectation);
+            self.queue_node_check(declarator.pattern, expectation)?;
 
             // non-matching positions must always succeed
             if self.is_irrefutable_declarator_pattern_required(id) {
@@ -155,7 +172,7 @@ impl WalkState<'_, '_> {
                 Origin::Node(ty.into_global_any(self.module)),
                 ValueUse::Store,
             );
-            self.queue_node_check(declarator.pattern, expectation);
+            self.queue_node_check(declarator.pattern, expectation)?;
 
             // non-matching positions must always succeed
             if self.is_irrefutable_declarator_pattern_required(id) {
@@ -262,6 +279,20 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Declarator>,
     ) -> CompilerResult<()> {
+        self.narrow_declarator_pattern(id, true)
+    }
+
+    /// Narrow flow from one declarator pattern.
+    ///
+    /// Example:
+    /// ```ds
+    /// if let Some(value) = option { value } else { option }
+    /// ```
+    pub(in crate::check) fn narrow_declarator_pattern(
+        &mut self,
+        id: dir::LocalNodeId<dir::Declarator>,
+        is_positive: bool,
+    ) -> CompilerResult<()> {
         let declarator = self.tree.get(id);
         let Some(value) = declarator.value else {
             return Ok(());
@@ -270,19 +301,20 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
 
-        self.narrow_pattern_match(path, declarator.pattern)
+        self.narrow_pattern(path, declarator.pattern, is_positive)
     }
 
-    /// Narrow one flow path from one matched pattern.
+    /// Narrow one flow path from one pattern predicate.
     ///
     /// Example:
     /// ```ds
-    /// value is T
+    /// if let 1 | 2 = value { value } else { value }
     /// ```
-    pub(in crate::check) fn narrow_pattern_match(
+    pub(in crate::check) fn narrow_pattern(
         &mut self,
         path: FlowPath,
         pattern: dir::LocalNodeId<dir::Pattern>,
+        is_positive: bool,
     ) -> CompilerResult<()> {
         match self.tree.get(pattern) {
             // pattern!
@@ -301,13 +333,13 @@ impl WalkState<'_, '_> {
                 ..
             } => {
                 let pattern = *pattern;
-                self.narrow_pattern_match(path, pattern)?;
+                self.narrow_pattern(path, pattern, is_positive)?;
             }
             // value
             dir::Pattern::Expression { .. } => {
                 let narrowing = FlowNarrowing::Pattern {
                     pattern: pattern.into_global(self.module),
-                    is_positive: true,
+                    is_positive,
                 };
 
                 self.narrow_flow_path(path, narrowing);
@@ -318,17 +350,23 @@ impl WalkState<'_, '_> {
                 let fields = fields.clone();
                 let narrowing = FlowNarrowing::Pattern {
                     pattern: pattern.into_global(self.module),
-                    is_positive: true,
+                    is_positive,
                 };
 
-                self.narrow_flow_path(path.clone(), narrowing);
-                self.narrow_pattern_field_match(path, &fields)?;
+                if is_positive {
+                    self.narrow_flow_path(path.clone(), narrowing);
+                    self.narrow_pattern_field_match(path, &fields)?;
+                } else {
+                    self.narrow_flow_path(path, narrowing);
+                }
             }
             // { name }
             dir::Pattern::Object { fields } => {
                 let fields = fields.clone();
 
-                self.narrow_pattern_field_match(path, &fields)?;
+                if is_positive {
+                    self.narrow_pattern_field_match(path, &fields)?;
+                }
             }
             // _, name
             dir::Pattern::Wildcard | dir::Pattern::Binding { pattern: None, .. } => {}
@@ -336,7 +374,7 @@ impl WalkState<'_, '_> {
             dir::Pattern::Range { .. } => {
                 let narrowing = FlowNarrowing::Pattern {
                     pattern: pattern.into_global(self.module),
-                    is_positive: true,
+                    is_positive,
                 };
 
                 self.narrow_flow_path(path, narrowing);
@@ -345,7 +383,7 @@ impl WalkState<'_, '_> {
             dir::Pattern::Union { .. } => {
                 let narrowing = FlowNarrowing::Pattern {
                     pattern: pattern.into_global(self.module),
-                    is_positive: true,
+                    is_positive,
                 };
 
                 self.narrow_flow_path(path, narrowing);
@@ -381,7 +419,7 @@ impl WalkState<'_, '_> {
                     let mut field_path = path.clone();
                     field_path.push_segment(name.static_key());
 
-                    self.narrow_pattern_match(field_path, pattern)?;
+                    self.narrow_pattern(field_path, pattern, true)?;
                 }
                 // { [key]: pattern }
                 dir::PatternField::Computed { .. }

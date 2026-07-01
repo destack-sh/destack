@@ -28,6 +28,8 @@ pub(in crate::check) struct FunctionFrame {
     pub(in crate::check::flow) captured_symbols: IndexSet<dir::GlobalSymbolId>,
     /// Outer receiver read by this function.
     pub(in crate::check::flow) captured_receiver: Option<ReceiverBinding>,
+    /// The capture directive applied to this function.
+    pub(in crate::check::flow) capture_directive: Option<dir::CaptureDirective>,
 }
 
 /// A structured control target currently visible to flow analysis.

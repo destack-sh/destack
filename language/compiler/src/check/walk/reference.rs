@@ -1,32 +1,9 @@
 use destack_dir as dir;
 
-use crate::check::{Decision, WalkState};
+use crate::check::{Decision, PlaceUse, WalkState};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
-    /// Return the single present symbol resolved for one source node.
-    pub(in crate::check) fn single_resolved_symbol(
-        &self,
-        source: dir::GlobalNodeIdAny,
-    ) -> Option<dir::GlobalSymbolId> {
-        let reference = self
-            .check
-            .module(source.module_id)
-            .resolved
-            .references
-            .get(source)?;
-
-        let dir::Reference::Bound(symbols) = reference else {
-            return None;
-        };
-        let symbols = self.check.present_symbols(symbols);
-        let [symbol] = symbols.as_slice() else {
-            return None;
-        };
-
-        Some(*symbol)
-    }
-
     /// Walk one identifier expression.
     ///
     /// Example:
@@ -55,7 +32,7 @@ impl WalkState<'_, '_> {
                     [symbol] => {
                         let symbol = *symbol;
                         self.capture_symbol_reference(symbol);
-                        self.check.record_decision(
+                        self.check.commit_decision(
                             source,
                             Decision::Name(dir::NameResolution::new(symbol)),
                         )?;
@@ -67,7 +44,7 @@ impl WalkState<'_, '_> {
                         for symbol in symbols.iter().copied() {
                             self.capture_symbol_reference(symbol);
                         }
-                        self.check.record_decision(
+                        self.check.commit_decision(
                             source,
                             Decision::Name(dir::NameResolution::from_symbols(symbols.to_vec())),
                         )?;
@@ -111,7 +88,7 @@ impl WalkState<'_, '_> {
             }
         }
 
-        self.queue_node_task(id)?;
+        self.queue_node_task(id, PlaceUse::Read)?;
 
         Ok(())
     }
@@ -144,7 +121,7 @@ impl WalkState<'_, '_> {
                 match symbols.as_slice() {
                     [symbol] => {
                         let symbol = *symbol;
-                        self.check.record_decision(
+                        self.check.commit_decision(
                             source,
                             Decision::Name(dir::NameResolution::new(symbol)),
                         )?;
@@ -152,7 +129,7 @@ impl WalkState<'_, '_> {
                     }
                     // overload sets resolve at their call sites
                     _ => {
-                        self.check.record_decision(
+                        self.check.commit_decision(
                             source,
                             Decision::Name(dir::NameResolution::from_symbols(symbols.to_vec())),
                         )?;
@@ -188,8 +165,8 @@ impl WalkState<'_, '_> {
 
             // select value member access
             Some(dir::Reference::Projected { .. }) | None => {
-                self.walk_expression(left, self.tree.get(left), None)?;
-                self.queue_node_task(id)?;
+                self.walk_expression(left, self.tree.get(left))?;
+                self.queue_node_task(id, PlaceUse::Read)?;
             }
         }
 
@@ -208,13 +185,13 @@ impl WalkState<'_, '_> {
         left: dir::LocalNodeId<dir::Expression>,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     ) -> CompilerResult<()> {
-        self.walk_expression(left, self.tree.get(left), None)?;
+        self.walk_expression(left, self.tree.get(left))?;
 
         // collect written argument types for instantiation selection
         for argument in generic_arguments {
             self.walk_generic_arguments(std::slice::from_ref(argument))?;
         }
-        self.queue_node_task(id)?;
+        self.queue_node_task(id, PlaceUse::Read)?;
 
         Ok(())
     }

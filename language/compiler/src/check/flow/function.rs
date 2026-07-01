@@ -17,6 +17,7 @@ impl WalkState<'_, '_> {
         resume_target: Option<dir::GlobalTypeId>,
         asynchrony: dir::Asynchrony,
         receiver: Option<ReceiverBinding>,
+        capture_directive: Option<dir::CaptureDirective>,
     ) {
         // capture enclosing flow stack boundaries
         let flow = self.flow();
@@ -35,6 +36,7 @@ impl WalkState<'_, '_> {
             asynchrony,
             captured_symbols: IndexSet::new(),
             captured_receiver: None,
+            capture_directive,
         };
 
         // expose function frame to nested flow checks
@@ -44,10 +46,7 @@ impl WalkState<'_, '_> {
     /// Leave the current function body.
     pub(in crate::check) fn leave_function_frame(&mut self) -> CompilerResult<FlowBranch> {
         // collect captures and restore outer flow
-        let (mut capture, flow) = self.flow_mut().pop_function();
-
-        // attach capture directive from source metadata
-        capture.directive = self.check.capture_directive_for_symbol(capture.symbol)?;
+        let (capture, flow) = self.flow_mut().pop_function();
 
         // store capture result
         self.check.module_mut(self.module).captures.push(capture);

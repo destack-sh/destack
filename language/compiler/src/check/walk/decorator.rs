@@ -58,7 +58,7 @@ impl WalkState<'_, '_> {
         };
 
         if let Some(symbol) = symbol {
-            self.check.record_decision(
+            self.check.commit_decision(
                 target.into_global_any(self.module),
                 Decision::Name(dir::NameResolution::new(symbol)),
             )?;

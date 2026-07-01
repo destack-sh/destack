@@ -135,11 +135,11 @@ impl FlowBranch {
 pub(in crate::check) enum AssignedPlace {
     /// A local or member declaration symbol.
     Symbol(dir::GlobalSymbolId),
-    /// A member selected by receiver type and key.
+    /// A member identified by receiver type and key.
     Member {
         /// The receiver type.
         receiver: dir::GlobalTypeId,
-        /// The selected member key.
+        /// The member key.
         key: dir::StaticKey,
     },
 }
@@ -166,9 +166,9 @@ enum FlowChange {
 /// One narrowing value recorded by flow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum FlowNarrowing {
-    /// The values accepted or rejected by one selected pattern.
+    /// The values accepted or rejected by one pattern.
     Pattern {
-        /// The selected pattern node.
+        /// The pattern node.
         pattern: dir::GlobalNodeId<dir::Pattern>,
         /// Whether matching values are kept.
         is_positive: bool,
@@ -183,6 +183,18 @@ pub(in crate::check) enum FlowNarrowing {
 }
 
 impl FlowState {
+    /// Create flow state over an existing durable point table.
+    pub(in crate::check) fn from_points(points: Vec<FlowPoint>) -> Self {
+        if points.is_empty() {
+            return Self::default();
+        }
+
+        Self {
+            points,
+            ..Self::default()
+        }
+    }
+
     /// Move the durable flow point table out of this walk.
     pub(in crate::check) fn into_points(self) -> Vec<FlowPoint> {
         self.points
@@ -205,8 +217,8 @@ impl FlowState {
         self.current = point;
     }
 
-    /// Record one jump that bound no target.
-    pub(in crate::check) fn record_unbound_jump(&mut self, source: dir::LocalNodeIdAny) {
+    /// Mark one jump that bound no target.
+    pub(in crate::check) fn mark_unbound_jump(&mut self, source: dir::LocalNodeIdAny) {
         self.unbound_jumps.insert(source);
     }
 
@@ -243,7 +255,7 @@ impl FlowState {
             symbol: function.symbol,
             symbols,
             receiver: function.captured_receiver,
-            directive: None,
+            directive: function.capture_directive,
         };
         let branch = self.branch(function.checkpoint);
 
@@ -258,9 +270,9 @@ impl FlowState {
         self.functions.last()
     }
 
-    /// Enter one contextual receiver.
-    pub(in crate::check) fn push_receiver(&mut self, receiver: Receiver) {
-        self.receivers.push(Some(receiver));
+    /// Return the current function symbol.
+    pub(in crate::check) fn current_function_symbol(&self) -> Option<dir::GlobalSymbolId> {
+        self.functions.last().map(|function| function.symbol)
     }
 
     /// Enter one explicit contextual receiver scope.
@@ -320,7 +332,7 @@ impl FlowState {
         self.tries.last_mut()
     }
 
-    /// Return the target index selected by one break.
+    /// Return the target index chosen by one break.
     pub(in crate::check) fn break_target_index(
         &self,
         label: Option<dir::StringId>,
@@ -340,7 +352,7 @@ impl FlowState {
             })
     }
 
-    /// Return the target index selected by one continue.
+    /// Return the target index chosen by one continue.
     pub(in crate::check) fn continue_target_index(
         &self,
         label: Option<dir::StringId>,
@@ -360,14 +372,14 @@ impl FlowState {
             })
     }
 
-    /// Return the control checkpoint selected by one target index.
+    /// Return the control checkpoint chosen by one target index.
     pub(in crate::check) fn control_target_checkpoint(&self, index: usize) -> FlowCheckpoint {
         let target = &self.targets[index];
 
         target.checkpoint
     }
 
-    /// Push one break branch onto a selected control target.
+    /// Push one break branch onto a chosen control target.
     pub(in crate::check) fn push_break_branch(
         &mut self,
         index: usize,
@@ -380,7 +392,7 @@ impl FlowState {
         target.break_branches.push(branch);
     }
 
-    /// Push one continue branch onto a selected control target.
+    /// Push one continue branch onto a chosen control target.
     pub(in crate::check) fn push_continue_branch(&mut self, index: usize, branch: FlowBranch) {
         self.targets[index].continue_branches.push(branch);
     }
@@ -652,7 +664,7 @@ impl FlowState {
             .cloned()
             .collect();
 
-        // clear each affected narrowing
+        // clear each invalidated narrowing
         for path in paths {
             self.clear_narrowing(path);
         }

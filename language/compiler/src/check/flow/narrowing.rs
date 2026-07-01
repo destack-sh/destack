@@ -63,7 +63,7 @@ impl CheckState<'_> {
                 left,
                 name: Some(name),
             } => {
-                // extend root path with selected member
+                // extend root path with the member key
                 let left = left.into_global(node.module_id);
                 let mut path = self.flow_path(left)?;
                 path.push_segment(dir::StaticKey::Name(*name));
@@ -94,7 +94,7 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return one source-node type as viewed through one flow site.
+    /// Return one source node type as viewed through one flow site.
     pub(in crate::check) fn node_type_at(
         &mut self,
         site: FlowSite,
@@ -218,7 +218,7 @@ impl CheckState<'_> {
         Ok(Answer::Ready(Some(narrowed)))
     }
 
-    /// Return the type subset accepted by one selected pattern.
+    /// Return the type subset accepted by one pattern.
     fn pattern_narrowing_target(
         &mut self,
         origin: Origin,
@@ -291,7 +291,7 @@ impl CheckState<'_> {
         self.pattern_narrowing_target(origin, pattern.into_typed())
     }
 
-    /// Return the union target accepted by one selected or-pattern.
+    /// Return the union target accepted by one or-pattern.
     fn or_pattern_narrowing_target(
         &mut self,
         origin: Origin,
