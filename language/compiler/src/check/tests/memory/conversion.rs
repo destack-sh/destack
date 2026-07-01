@@ -70,7 +70,7 @@ struct Point {
 }
 
 let point: ^Point = ^Point { x: 1 };
-let borrow: Borrowed<^Point, "static", "mutable"> = &point;
+let borrow: Borrowed<Point, "static", "mutable"> = &point;
 let owned: ^Point = borrow;
 
 === checked ===
@@ -92,19 +92,19 @@ let point = ^Point { x: 1 };
 /// @type.node source=1 type=1
 
 let borrow = &point;
-/// @type.symbol symbol=borrow source=borrow type=Borrowed<Owned<Point>, "static", "mutable"> reduced=Borrowed<Point, "static", "mutable">
-/// @type.node source=&point type=Borrowed<Owned<Point>, "static", "mutable"> reduced=Borrowed<Point, "static", "mutable">
+/// @type.symbol symbol=borrow source=borrow type=Borrowed<Point, "static", "mutable">
+/// @type.node source=&point type=Borrowed<Point, "static", "mutable">
 /// @type.node source=point type=Owned<Point> reduced=Point
 /// @resolution.name source=point target=point
 
 let owned: ^Point = borrow;
 /// @type.symbol symbol=owned source=owned type=Owned<Point> reduced=Point
 /// @resolution.name source=Point target=Point
-/// @type.node source=borrow type=Borrowed<Owned<Point>, "static", "mutable"> reduced=Borrowed<Point, "static", "mutable">
+/// @type.node source=borrow type=Borrowed<Point, "static", "mutable">
 /// @resolution.name source=borrow target=borrow
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '&^Point' is not assignable to type '^Point'"
+/// @diagnostic.error code=EC200 message="type '&Point' is not assignable to type '^Point'"
 /// @diagnostic.label line=8 column=21 span="borrow" line_source="let owned: ^Point = borrow;"
 "#,
     );
