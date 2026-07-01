@@ -5,7 +5,7 @@ use crate::resolve::state::ResolveState;
 use crate::{CompilerError, CompilerResult};
 
 impl ResolveState<'_> {
-    /// Resolve recorded language items to symbols.
+    /// Resolve language items used by active roots.
     ///
     /// Example:
     /// ```ds
@@ -14,11 +14,11 @@ impl ResolveState<'_> {
     /// }
     /// // Promise is used by async syntax even when source does not name it
     /// ```
-    pub(in crate::resolve) fn resolve_language_item_uses(
+    pub(in crate::resolve) fn resolve_language_items(
         &mut self,
         language: &LanguageEnvironment,
     ) -> CompilerResult<()> {
-        let items = self.language_item_uses.iter().copied().collect::<Vec<_>>();
+        let items = self.language_items.iter().copied().collect::<Vec<_>>();
 
         for item in items {
             self.resolve_language_item_use(language, item)?;
@@ -68,7 +68,7 @@ impl ResolveState<'_> {
             .push_global_target(key, dir::ImportTarget::Symbol(symbol));
     }
 
-    /// Resolve one recorded language item to its symbol.
+    /// Resolve one used language item to its symbol.
     ///
     /// Example:
     /// ```ds
