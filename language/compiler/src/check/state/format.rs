@@ -62,6 +62,7 @@ impl CheckState<'_> {
 
             dir::Type::Primitive(primitive) => format_primitive(primitive),
             dir::Type::Literal(literal) => self.format_scalar_literal(literal),
+            dir::Type::Key(key) => self.format_key_type(key),
             dir::Type::Memory(literal) => {
                 format!("\"{}\"", literal.text())
             }
@@ -453,12 +454,12 @@ impl CheckState<'_> {
     /// Format one type query operand.
     fn format_type_query(&self, value: dir::GlobalNodeIdAny) -> String {
         if value.local_id.ty != dir::NodeType::Expression {
-            return self.node_message(value);
+            return self.node_label(value);
         }
 
         let id = value.into_typed::<dir::Expression>().local_id;
         let Some(path) = self.module(value.module_id).view().reference_path(id) else {
-            return self.node_message(value);
+            return self.node_label(value);
         };
 
         path.segments
@@ -480,6 +481,15 @@ impl CheckState<'_> {
             dir::ScalarLiteral::Null => "null".to_string(),
             dir::ScalarLiteral::Undefined => "undefined".to_string(),
             dir::ScalarLiteral::RegexString { .. } => "regex".to_string(),
+        }
+    }
+
+    /// Format one exact property key type.
+    fn format_key_type(&self, key: &dir::StaticKey) -> String {
+        match key {
+            dir::StaticKey::Name(name) => format!("\"{}\"", self.text(*name)),
+            dir::StaticKey::Index(index) => index.to_string(),
+            dir::StaticKey::Symbol(_) => self.format_static_key(key),
         }
     }
 
@@ -588,7 +598,7 @@ impl CheckState<'_> {
         self.format_symbol_path_base(&bindings, symbol.local_id, &mut paths)
     }
 
-    /// Format one semantic symbol path relative to an optional source module.
+    /// Format one symbol path relative to an optional source module.
     fn format_symbol_path_maybe_at(
         &self,
         module: Option<ModuleId>,

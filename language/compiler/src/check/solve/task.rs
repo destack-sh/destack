@@ -1,10 +1,8 @@
 use destack_dir as dir;
 
-use crate::CompilerResult;
-use crate::check::{
-    Answer, CheckState, ConstraintId, FlowPointId, ObligationId, Origin, Relation, ValueUse,
-    Widening,
-};
+use crate::check::{ConstraintId, FlowSite, ObligationId, Origin, Relation, ValueUse, Widening};
+
+const TASK_PRIORITY_COUNT: usize = 7;
 
 /// One syntactic use of a place expression.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -81,6 +79,19 @@ pub(in crate::check) enum BindSource {
 }
 
 impl Task {
+    /// Return the scheduler priority for this task.
+    fn priority(&self) -> TaskPriority {
+        match self {
+            Self::Relate(_) => TaskPriority::Relate,
+            Self::Propagate(_) => TaskPriority::Propagate,
+            Self::Check { .. } => TaskPriority::Check,
+            Self::Infer { .. } => TaskPriority::Infer,
+            Self::Bind { .. } => TaskPriority::Bind,
+            Self::Solve(_) => TaskPriority::Solve,
+            Self::Oblige(_) => TaskPriority::Oblige,
+        }
+    }
+
     /// Return the task family name.
     pub(in crate::check) fn name(&self) -> &'static str {
         match self {
@@ -104,11 +115,11 @@ impl Task {
         }
     }
 
-    /// Return the stable dedupe key for source-node work.
+    /// Return the stable dedupe key for source node work.
     pub(in crate::check) fn key(&self) -> Option<TaskKey> {
         match self {
             Self::Infer { site, use_ } => Some(TaskKey::Infer {
-                node: site.node,
+                site: *site,
                 use_: *use_,
             }),
             Self::Check {
@@ -119,7 +130,7 @@ impl Task {
                 use_,
             } => Some(TaskKey::Check {
                 site: *site,
-                expected: expected.clone(),
+                expected: *expected,
                 relation: *relation,
                 origin: *origin,
                 use_: *use_,
@@ -133,12 +144,59 @@ impl Task {
     }
 }
 
+/// Static task scheduling priority.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TaskPriority {
+    /// Relation constraints run first.
+    Relate,
+    /// Try propagation runs after relation constraints.
+    Propagate,
+    /// Expected checks run before inference.
+    Check,
+    /// Source inference runs after expected checks.
+    Infer,
+    /// Binding publication runs after source typing.
+    Bind,
+    /// Variable solving runs after source tasks.
+    Solve,
+    /// Obligations run after inference and solving.
+    Oblige,
+}
+
+impl TaskPriority {
+    /// Return every priority in scheduler order.
+    fn all() -> [Self; TASK_PRIORITY_COUNT] {
+        [
+            Self::Relate,
+            Self::Propagate,
+            Self::Check,
+            Self::Infer,
+            Self::Bind,
+            Self::Solve,
+            Self::Oblige,
+        ]
+    }
+
+    /// Return the dense array index for this priority.
+    fn index(self) -> usize {
+        match self {
+            Self::Relate => 0,
+            Self::Propagate => 1,
+            Self::Check => 2,
+            Self::Infer => 3,
+            Self::Bind => 4,
+            Self::Solve => 5,
+            Self::Oblige => 6,
+        }
+    }
+}
+
 /// One propagation of a fallible try value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(in crate::check) struct TryPropagation {
     /// The try expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The selected node whose checked type is the tried value.
+    /// The checked source use that produced the tried value.
     pub(in crate::check) value: FlowSite,
     /// The receiver of the propagated failure.
     pub(in crate::check) target: TryPropagationTarget,
@@ -159,13 +217,13 @@ pub(in crate::check) enum TryPropagationTarget {
     },
 }
 
-/// Stable dedupe key for one source-node task.
+/// Stable dedupe key for one source node task.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(in crate::check) enum TaskKey {
     /// Inference of one source node.
     Infer {
-        /// The inferred source node.
-        node: dir::GlobalNodeIdAny,
+        /// The inferred source use.
+        site: FlowSite,
         /// The syntactic place use when the node is a place expression.
         use_: PlaceUse,
     },
@@ -185,7 +243,7 @@ pub(in crate::check) enum TaskKey {
 }
 
 /// Type expected by a deferred check.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum ExpectedType {
     /// A concrete expected type.
     Type(dir::GlobalTypeId),
@@ -193,205 +251,75 @@ pub(in crate::check) enum ExpectedType {
     Node(FlowSite),
 }
 
-impl ExpectedType {
-    /// Resolve this expected type.
-    pub(in crate::check) fn resolve(
-        &self,
-        check: &mut CheckState<'_>,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        match self {
-            Self::Type(ty) => Ok(Answer::Ready(*ty)),
-            Self::Node(site) => check.node_type_at(*site),
-        }
-    }
-}
-
-/// One source use under a flow point.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::check) struct FlowSite {
-    /// The source node.
-    pub(in crate::check) node: dir::GlobalNodeIdAny,
-    /// The flow point where the node is used.
-    pub(in crate::check) flow: FlowPointId,
-}
-
-/// Priority-ordered solver work queues.
+/// Priority ordered solver task queue.
 #[derive(Debug)]
-pub(in crate::check) struct Queue {
-    /// Pending relation constraints.
-    relate: WorkQueue<ConstraintId>,
-    /// Pending try propagation work.
-    propagate: WorkQueue<TryPropagation>,
-    /// Pending source checks with expected types.
-    check: WorkQueue<Task>,
-    /// Pending source inference.
-    infer: WorkQueue<Task>,
-    /// Pending binding publication.
-    bind: WorkQueue<Task>,
-    /// Pending variable solves.
-    solve: WorkQueue<dir::TypeVariableId>,
-    /// Pending obligations.
-    oblige: WorkQueue<ObligationId>,
+pub(in crate::check) struct WorkQueue {
+    /// Queued tasks by static priority.
+    entries: [Vec<Task>; TASK_PRIORITY_COUNT],
+    /// Next unread entry by static priority.
+    heads: [usize; TASK_PRIORITY_COUNT],
 }
 
-/// Mark of a priority-ordered solver work queue.
+/// Mark of a priority ordered solver task queue.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct QueueMark {
-    /// Mark for relation constraints.
-    relate: WorkMark,
-    /// Mark for try propagation.
-    propagate: WorkMark,
-    /// Mark for source checks.
-    check: WorkMark,
-    /// Mark for source inference.
-    infer: WorkMark,
-    /// Mark for binding publication.
-    bind: WorkMark,
-    /// Mark for variable solves.
-    solve: WorkMark,
-    /// Mark for obligations.
-    oblige: WorkMark,
+pub(in crate::check) struct WorkMark {
+    /// Next unread entry by static priority.
+    heads: [usize; TASK_PRIORITY_COUNT],
+    /// Queue length by static priority.
+    lengths: [usize; TASK_PRIORITY_COUNT],
 }
 
-/// One FIFO work queue with cheap rollback marks.
-#[derive(Debug)]
-struct WorkQueue<T> {
-    /// Queued entries.
-    entries: Vec<T>,
-    /// Index of the next unread entry.
-    head: usize,
-}
-
-/// Mark of one FIFO work queue.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct WorkMark {
-    /// The next unread entry at mark time.
-    head: usize,
-    /// The queue length at mark time.
-    len: usize,
-}
-
-impl Queue {
+impl WorkQueue {
     /// Create an empty queue.
     pub(in crate::check) fn new() -> Self {
         Self {
-            relate: WorkQueue::new(),
-            propagate: WorkQueue::new(),
-            check: WorkQueue::new(),
-            infer: WorkQueue::new(),
-            bind: WorkQueue::new(),
-            solve: WorkQueue::new(),
-            oblige: WorkQueue::new(),
+            entries: std::array::from_fn(|_| Vec::new()),
+            heads: [0; TASK_PRIORITY_COUNT],
         }
     }
 
     /// Mark the queue for rollback.
-    pub(in crate::check) fn mark(&self) -> QueueMark {
-        QueueMark {
-            relate: self.relate.mark(),
-            propagate: self.propagate.mark(),
-            check: self.check.mark(),
-            infer: self.infer.mark(),
-            bind: self.bind.mark(),
-            solve: self.solve.mark(),
-            oblige: self.oblige.mark(),
+    pub(in crate::check) fn mark(&self) -> WorkMark {
+        WorkMark {
+            heads: self.heads,
+            lengths: std::array::from_fn(|index| self.entries[index].len()),
         }
     }
 
     /// Roll back to one queue mark.
-    pub(in crate::check) fn rollback(&mut self, mark: QueueMark) {
-        self.relate.rollback(mark.relate);
-        self.propagate.rollback(mark.propagate);
-        self.check.rollback(mark.check);
-        self.infer.rollback(mark.infer);
-        self.bind.rollback(mark.bind);
-        self.solve.rollback(mark.solve);
-        self.oblige.rollback(mark.oblige);
+    pub(in crate::check) fn rollback(&mut self, mark: WorkMark) {
+        for (index, entries) in self.entries.iter_mut().enumerate() {
+            entries.truncate(mark.lengths[index]);
+        }
+        self.heads = mark.heads;
     }
 
     /// Queue one task at the back of its priority class.
     pub(in crate::check) fn push(&mut self, task: Task) {
-        match task {
-            Task::Relate(id) => self.relate.push(id),
-            Task::Propagate(propagation) => self.propagate.push(propagation),
-            Task::Oblige(id) => self.oblige.push(id),
-            Task::Solve(variable) => self.solve.push(variable),
-            task @ Task::Check { .. } => self.check.push(task),
-            task @ Task::Infer { .. } => self.infer.push(task),
-            task @ Task::Bind { .. } => self.bind.push(task),
-        }
+        self.entries[task.priority().index()].push(task);
     }
 
     /// Pop the next task in priority order.
     pub(in crate::check) fn pop(&mut self) -> Option<Task> {
-        // run constraints and checked requests before read inference
-        if let Some(id) = self.relate.pop() {
-            Some(Task::Relate(id))
-        } else if let Some(propagation) = self.propagate.pop() {
-            Some(Task::Propagate(propagation))
-        } else if let Some(task) = self.check.pop() {
-            Some(task)
-        } else if let Some(task) = self.infer.pop() {
-            Some(task)
-        } else if let Some(task) = self.bind.pop() {
-            Some(task)
-        } else if let Some(variable) = self.solve.pop() {
-            Some(Task::Solve(variable))
-        } else {
-            self.oblige.pop().map(Task::Oblige)
+        for priority in TaskPriority::all() {
+            let index = priority.index();
+            let head = self.heads[index];
+            if let Some(task) = self.entries[index].get(head).cloned() {
+                self.heads[index] += 1;
+
+                return Some(task);
+            }
         }
+
+        None
     }
 
     /// Return the total number of queued tasks.
     pub(in crate::check) fn len(&self) -> usize {
-        self.relate.len()
-            + self.propagate.len()
-            + self.check.len()
-            + self.infer.len()
-            + self.bind.len()
-            + self.solve.len()
-            + self.oblige.len()
-    }
-}
-
-impl<T: Clone> WorkQueue<T> {
-    /// Create an empty work queue.
-    fn new() -> Self {
-        Self {
-            entries: Vec::new(),
-            head: 0,
-        }
-    }
-
-    /// Mark the queue for rollback.
-    fn mark(&self) -> WorkMark {
-        WorkMark {
-            head: self.head,
-            len: self.entries.len(),
-        }
-    }
-
-    /// Roll back to one queue mark.
-    fn rollback(&mut self, mark: WorkMark) {
-        self.entries.truncate(mark.len);
-        self.head = mark.head;
-    }
-
-    /// Push one entry to the back.
-    fn push(&mut self, entry: T) {
-        self.entries.push(entry);
-    }
-
-    /// Pop one entry from the front.
-    fn pop(&mut self) -> Option<T> {
-        let entry = self.entries.get(self.head)?.clone();
-        self.head += 1;
-
-        Some(entry)
-    }
-
-    /// Return the number of pending entries.
-    fn len(&self) -> usize {
-        self.entries.len().saturating_sub(self.head)
+        self.entries
+            .iter()
+            .enumerate()
+            .map(|(index, entries)| entries.len().saturating_sub(self.heads[index]))
+            .sum()
     }
 }

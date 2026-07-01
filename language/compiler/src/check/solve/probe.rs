@@ -4,24 +4,17 @@ use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{
-    Answer, CheckState, Dependency, Origin, Relation, SolverSnapshot, TypeMark, TypeSubstitution,
-};
+use crate::check::{Answer, CheckState, Dependency, Origin, Relation, SolverSnapshot};
 
-/// Snapshot of check state before one probe.
+/// Check state mark before one probe.
 #[derive(Debug)]
-pub(in crate::check) struct ProbeSnapshot {
+pub(in crate::check) struct Probe {
     /// The solver state before the probe.
     solver: SolverSnapshot,
+    /// Type counts for each loaded module before the probe.
+    types: IndexMap<ModuleId, u32>,
     /// Layout segment marks before the probe.
-    layouts: LayoutMark,
-}
-
-/// Layout mark for all loaded module layout segments.
-#[derive(Debug, PartialEq, Eq)]
-struct LayoutMark {
-    /// Layout and type-layout counts for each loaded layout segment.
-    modules: IndexMap<ModuleId, LayoutSegmentMark>,
+    layouts: IndexMap<ModuleId, LayoutSegmentMark>,
 }
 
 /// Layout segment mark.
@@ -34,32 +27,36 @@ struct LayoutSegmentMark {
 }
 
 impl CheckState<'_> {
-    /// Begin one probe transaction.
-    pub(in crate::check) fn begin_probe(&mut self) -> ProbeSnapshot {
-        let marks = self
+    /// Begin one probe.
+    pub(in crate::check) fn begin_probe(&mut self) -> Probe {
+        let types = self
             .modules
             .iter()
             .map(|(module, state)| (*module, state.types.type_count()))
             .collect();
-        let solver = self.solver.snapshot(TypeMark::new(marks));
-        let layouts = LayoutMark::new(&self.layouts);
+        let layouts = mark_layouts(&self.layouts);
+        let solver = self.solver.snapshot();
 
-        ProbeSnapshot { solver, layouts }
+        Probe {
+            solver,
+            types,
+            layouts,
+        }
     }
 
-    /// Roll back one probe transaction.
-    pub(in crate::check) fn reject_probe(&mut self, snapshot: ProbeSnapshot) {
-        let marks = self.solver.rollback(snapshot.solver);
+    /// Roll back one rejected probe.
+    pub(in crate::check) fn reject_probe(&mut self, snapshot: Probe) {
+        self.solver.rollback(snapshot.solver);
         self.drop_probe_layouts(snapshot.layouts);
-        self.drop_probe_types(marks);
+        self.drop_probe_types(snapshot.types);
     }
 
-    /// Commit one probe transaction.
-    pub(in crate::check) fn commit_probe(&mut self, snapshot: ProbeSnapshot) {
+    /// Commit one accepted probe.
+    pub(in crate::check) fn commit_probe(&mut self, snapshot: Probe) {
         self.solver.commit(snapshot.solver);
     }
 
-    /// Return dependencies still live after a probe was rejected.
+    /// Return dependencies that survived a rejected probe.
     pub(in crate::check) fn live_blockers(
         &self,
         blockers: SmallVec<[Dependency; 2]>,
@@ -97,7 +94,7 @@ impl CheckState<'_> {
         live
     }
 
-    /// Solve inference variables selected inside the active probe.
+    /// Solve inference variables opened inside the active transaction.
     pub(in crate::check) fn solve_probe_variables(
         &mut self,
         variables: impl IntoIterator<Item = dir::TypeVariableId>,
@@ -141,7 +138,7 @@ impl CheckState<'_> {
         Ok(Answer::ready_unless_blocked(all_bounds_hold, pending))
     }
 
-    /// Infer probe variables from an expected type.
+    /// Try to infer variables from an expected type.
     pub(in crate::check) fn infer_from_expected(
         &mut self,
         origin: Origin,
@@ -189,36 +186,20 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return inference variables referenced by one substitution.
-    pub(in crate::check) fn substitution_variables(
-        &mut self,
-        substitution: &TypeSubstitution,
-    ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 4]>> {
-        let mut variables = SmallVec::new();
-        for argument in substitution.arguments.iter().rev().copied() {
-            if let Some(variable) = self.root_variable(argument)? {
-                variables.push(variable);
-            }
-        }
-
-        Ok(variables)
-    }
-
-    /// Drop probe-local types.
-    fn drop_probe_types(&mut self, marks: TypeMark) {
-        for (module, count) in marks.iter() {
+    /// Drop types allocated inside a rejected probe.
+    fn drop_probe_types(&mut self, marks: IndexMap<ModuleId, u32>) {
+        for (module, count) in marks {
             if let Some(state) = self.modules.get_mut(&module) {
                 state.types.truncate_types(count);
             }
         }
     }
 
-    /// Drop probe-local layouts.
-    fn drop_probe_layouts(&mut self, marks: LayoutMark) {
-        self.layouts
-            .retain(|module, _| marks.modules.contains_key(module));
+    /// Drop layouts allocated inside a rejected probe.
+    fn drop_probe_layouts(&mut self, marks: IndexMap<ModuleId, LayoutSegmentMark>) {
+        self.layouts.retain(|module, _| marks.contains_key(module));
 
-        for (module, mark) in marks.modules {
+        for (module, mark) in marks {
             let Some(segment) = self.layouts.get_mut(&module) else {
                 continue;
             };
@@ -227,22 +208,20 @@ impl CheckState<'_> {
     }
 }
 
-impl LayoutMark {
-    /// Mark every loaded layout segment.
-    fn new(layouts: &IndexMap<ModuleId, dir::LayoutSegment>) -> Self {
-        let modules = layouts
-            .iter()
-            .map(|(module, segment)| {
-                (
-                    *module,
-                    LayoutSegmentMark {
-                        layouts: segment.layout_count(),
-                        type_layouts: segment.type_layout_count(),
-                    },
-                )
-            })
-            .collect();
-
-        Self { modules }
-    }
+/// Mark every loaded layout segment.
+fn mark_layouts(
+    layouts: &IndexMap<ModuleId, dir::LayoutSegment>,
+) -> IndexMap<ModuleId, LayoutSegmentMark> {
+    layouts
+        .iter()
+        .map(|(module, segment)| {
+            (
+                *module,
+                LayoutSegmentMark {
+                    layouts: segment.layout_count(),
+                    type_layouts: segment.type_layout_count(),
+                },
+            )
+        })
+        .collect()
 }

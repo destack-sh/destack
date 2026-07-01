@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
 use crate::check::{
-    Answer, BindSource, CheckEvent, CheckState, Constraint, ConstraintId, ConstraintState,
-    Dependency, Task, Widening, answer,
+    Answer, BindSource, CheckEvent, CheckState, Constraint, ConstraintId, Dependency, ExpectedType,
+    PlaceUse, Task, Widening, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -20,13 +20,13 @@ impl CheckState<'_> {
                 continue;
             }
 
-            let answer = self.run_task(task.clone())?;
+            let answer = self.run_task(&task)?;
 
             // park pending tasks on their blockers
             if let Answer::Pending(blockers) = answer {
                 self.park_task(&task, &blockers)?;
             }
-            // mark source-node work complete after it reaches a ready answer
+            // mark source node work complete after it reaches a ready answer
             else {
                 self.solver.complete_task(&task);
             }
@@ -44,13 +44,13 @@ impl CheckState<'_> {
     }
 
     /// Run one solver task once.
-    fn run_task(&mut self, task: Task) -> CompilerResult<Answer<()>> {
+    fn run_task(&mut self, task: &Task) -> CompilerResult<Answer<()>> {
         match task {
-            Task::Relate(constraint) => self.run_relate(constraint),
-            Task::Propagate(propagation) => self.run_propagate(propagation),
-            Task::Oblige(obligation) => self.run_obligation(obligation),
-            Task::Solve(variable) => self.run_solve(variable),
-            Task::Infer { site, use_ } => self.infer_node(site, use_),
+            Task::Relate(constraint) => self.run_relate(*constraint),
+            Task::Propagate(propagation) => self.run_propagate(propagation.clone()),
+            Task::Oblige(obligation) => self.run_obligation(*obligation),
+            Task::Solve(variable) => self.run_solve(*variable),
+            Task::Infer { site, use_ } => self.infer_node(*site, *use_),
             Task::Check {
                 site,
                 expected,
@@ -58,11 +58,11 @@ impl CheckState<'_> {
                 origin,
                 use_,
             } => {
-                let target = answer!(expected.resolve(self)?);
+                let target = answer!(self.resolve_expected_type(expected)?);
 
-                self.check_node(site, target, relation, origin, use_)
+                self.check_node(*site, target, *relation, *origin, *use_)
             }
-            Task::Bind { symbol, source } => self.run_bind(symbol, source),
+            Task::Bind { symbol, source } => self.run_bind(*symbol, *source),
         }
     }
 
@@ -72,22 +72,27 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(()));
         }
 
-        // copy the relation before solver calls can mutate state
-        let (relation, value_use, left, right, origin) = {
-            let constraint = self.solver.constraints.get(id)?;
-
-            (
-                constraint.relation(),
-                constraint.value_use(),
-                constraint.left(),
-                constraint.right(),
-                constraint.origin(),
-            )
+        let constraint = self.solver.constraints.get(id)?.clone();
+        let state = match constraint {
+            Constraint::Check(constraint) => self.apply_type_constraint(
+                constraint.origin,
+                constraint.relation,
+                constraint.subject,
+                constraint.left,
+                constraint.right,
+            )?,
+            Constraint::Value(constraint) => self.apply_relation(
+                constraint.origin,
+                constraint.relation,
+                Some(constraint.use_),
+                constraint.source,
+                constraint.target,
+            )?,
         };
 
-        match self.apply_relation(origin, relation, value_use, left, right)? {
+        match state {
             Answer::Ready(state) => {
-                self.set_constraint_state(id, state)?;
+                self.solver.set_constraint_state(id, state)?;
                 self.record_event(CheckEvent::RelationChecked {
                     constraint: id,
                     is_finished: true,
@@ -109,19 +114,30 @@ impl CheckState<'_> {
         }
     }
 
-    /// Bind one inferred symbol type from its initializer.
+    /// Resolve one expected type payload.
+    pub(in crate::check) fn resolve_expected_type(
+        &mut self,
+        expected: &ExpectedType,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        match expected {
+            ExpectedType::Type(ty) => Ok(Answer::Ready(*ty)),
+            ExpectedType::Node(site) => self.infer_node_type(*site, PlaceUse::Read),
+        }
+    }
+
+    /// Bind one symbol type from its deferred source.
     fn run_bind(
         &mut self,
         symbol: dir::GlobalSymbolId,
         source: BindSource,
     ) -> CompilerResult<Answer<()>> {
         let bound = match source {
-            // keep the written type as the symbol surface
+            // keep the written type as the symbol type
             BindSource::Type(ty) => self.settled_root(ty)?,
 
             // infer initializer symbols from the checked expression occurrence
             BindSource::Initializer { site, widening } => {
-                let ty = answer!(self.node_type_at(site)?);
+                let ty = answer!(self.infer_node_type(site, PlaceUse::Read)?);
 
                 match widening {
                     Widening::Preserve => ty,
@@ -166,14 +182,5 @@ impl CheckState<'_> {
         }
 
         Ok(())
-    }
-
-    /// Set one constraint state.
-    pub(in crate::check) fn set_constraint_state(
-        &mut self,
-        id: ConstraintId,
-        state: ConstraintState,
-    ) -> CompilerResult<()> {
-        self.solver.set_constraint_state(id, state)
     }
 }

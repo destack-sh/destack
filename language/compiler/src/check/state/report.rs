@@ -114,6 +114,17 @@ impl CheckState<'_> {
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
 
+    /// Report a for-of source that has no iterable implementation.
+    pub(in crate::check) fn report_for_of_source_not_iterable(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let diagnostic = CheckError::ForOfSourceNotIterable { anchor, module };
+
+        self.module_mut(module).diagnostics.push(diagnostic.into());
+    }
+
     /// Report an await outside an async context.
     pub(in crate::check) fn report_await_outside_async_context(
         &mut self,
@@ -331,14 +342,14 @@ impl CheckState<'_> {
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
 
-    /// Report an unsupported tree expression.
-    pub(in crate::check) fn report_unsupported_tree_expression(
+    /// Report a tree expression without an active builder.
+    pub(in crate::check) fn report_missing_tree_builder(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::UnsupportedTreeExpression { anchor, module };
+        let diagnostic = CheckError::MissingTreeBuilder { anchor, module };
 
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
@@ -526,6 +537,23 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one construction whose arguments match no constructor.
+    pub(in crate::check) fn report_no_matching_construct(
+        &mut self,
+        origin: Origin,
+        arguments: &[dir::GlobalTypeId],
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::NoMatchingConstruct {
+            anchor,
+            module,
+            arguments: self.format_types(arguments),
+        };
+        self.module_mut(module).diagnostics.push(error.into());
+
+        Ok(())
+    }
+
     /// Report one call with the wrong argument count.
     pub(in crate::check) fn report_wrong_argument_count(
         &mut self,
@@ -590,7 +618,7 @@ impl CheckState<'_> {
             }
 
             // report generic bound mismatch on the supplied or inferred argument source
-            SignatureRejection::Constraint {
+            SignatureRejection::Bound {
                 source_node,
                 source,
                 target,
@@ -847,6 +875,40 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one repeated pattern field.
+    pub(in crate::check) fn report_duplicate_pattern_field(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        key: String,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let error = CheckError::DuplicatePatternField {
+            anchor,
+            module,
+            key,
+        };
+
+        self.module_mut(module).diagnostics.push(error.into());
+    }
+
+    /// Report one repeated pattern binding.
+    pub(in crate::check) fn report_duplicate_pattern_binding(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        name: String,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let error = CheckError::DuplicatePatternBinding {
+            anchor,
+            module,
+            name,
+        };
+
+        self.module_mut(module).diagnostics.push(error.into());
+    }
+
     /// Report one computed pattern key that cannot select a field.
     pub(in crate::check) fn report_computed_pattern_key_not_valid(
         &mut self,
@@ -1013,11 +1075,11 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        // object literals name their missing required property directly
+        // property literals name their missing required property directly
         if matches!(
             relation,
             Relation::Assignable | Relation::Writable | Relation::Satisfies
-        ) && let Some(key) = self.object_literal_missing_property(origin, left, right)?
+        ) && let Some(key) = self.property_literal_missing_property(origin, left, right)?
         {
             let error = CheckError::MissingRequiredProperty {
                 anchor,
@@ -1034,11 +1096,11 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        // object literals name their excess property directly
+        // property literals name their excess property directly
         if matches!(
             relation,
             Relation::Assignable | Relation::Writable | Relation::Satisfies
-        ) && let Some(key) = self.object_literal_excess_property(origin, left, right)?
+        ) && let Some(key) = self.property_literal_excess_property(origin, left, right)?
         {
             let error = CheckError::ExcessProperty {
                 anchor,
@@ -1483,8 +1545,8 @@ impl CheckState<'_> {
         Ok(Some(self.diagnostic_anchor(id.module_id, source)))
     }
 
-    /// Return the first excess property one object literal supplies to one target.
-    pub(in crate::check) fn object_literal_excess_property(
+    /// Return the first excess property one property literal supplies to one target.
+    pub(in crate::check) fn property_literal_excess_property(
         &mut self,
         origin: Origin,
         left: dir::GlobalTypeId,
@@ -1493,12 +1555,7 @@ impl CheckState<'_> {
         let Some(expression) = origin.expression() else {
             return Ok(None);
         };
-        if !matches!(
-            self.module(expression.module_id)
-                .view()
-                .get(expression.local_id),
-            dir::Expression::ObjectExpression { .. }
-        ) {
+        if !self.is_property_literal_expression(expression) {
             return Ok(None);
         }
 
@@ -1565,8 +1622,8 @@ impl CheckState<'_> {
         Ok(Some((source, key, value)))
     }
 
-    /// Return the first required property one object literal misses for one target.
-    pub(in crate::check) fn object_literal_missing_property(
+    /// Return the first required property one property literal misses for one target.
+    pub(in crate::check) fn property_literal_missing_property(
         &mut self,
         origin: Origin,
         left: dir::GlobalTypeId,
@@ -1575,12 +1632,7 @@ impl CheckState<'_> {
         let Some(expression) = origin.expression() else {
             return Ok(None);
         };
-        if !matches!(
-            self.module(expression.module_id)
-                .view()
-                .get(expression.local_id),
-            dir::Expression::ObjectExpression { .. }
-        ) {
+        if !self.is_property_literal_expression(expression) {
             return Ok(None);
         }
 
@@ -1600,25 +1652,66 @@ impl CheckState<'_> {
             .map(|field| field.key)
             .collect::<SmallVec<[_; 8]>>();
 
-        let Some(right) = self.reduce_type_head(origin, right)?.ready() else {
-            return Ok(None);
-        };
-        let dir::Type::Shape(target) = self.ty(right)? else {
+        let Some(required) = self.required_property_keys(origin, right)? else {
             return Ok(None);
         };
 
-        for field in &target.fields {
-            if field.is_optional {
-                continue;
-            }
-            if source_keys.contains(&field.key) {
+        for key in required {
+            if source_keys.contains(&key) {
                 continue;
             }
 
-            return Ok(Some(self.format_static_key(&field.key)));
+            return Ok(Some(self.format_static_key(&key)));
         }
 
         Ok(None)
+    }
+
+    /// Return whether one expression supplies literal properties.
+    fn is_property_literal_expression(
+        &self,
+        expression: dir::GlobalNodeId<dir::Expression>,
+    ) -> bool {
+        matches!(
+            self.module(expression.module_id)
+                .view()
+                .get(expression.local_id),
+            dir::Expression::ObjectExpression { .. } | dir::Expression::StructExpression { .. }
+        )
+    }
+
+    /// Collect the property keys one target requires, none when not statically enumerable.
+    fn required_property_keys(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<SmallVec<[dir::StaticKey; 8]>>> {
+        let Some(target) = self.reduce_type_head(origin, target)?.ready() else {
+            return Ok(None);
+        };
+
+        match self.ty(target)? {
+            dir::Type::Shape(shape) => Ok(Some(
+                shape
+                    .fields
+                    .iter()
+                    .filter(|field| !field.is_optional)
+                    .map(|field| field.key)
+                    .collect(),
+            )),
+            dir::Type::Instance(instance) => match self.definition(instance.symbol) {
+                Some(dir::Definition::Struct(_)) => {
+                    Ok(Some(self.nominal_field_keys(instance.symbol)))
+                }
+                _ => Ok(None),
+            },
+            dir::Type::Form(form) => {
+                let value = self.settled_root(form.value)?;
+
+                self.required_property_keys(origin, value)
+            }
+            _ => Ok(None),
+        }
     }
 
     /// Collect the property keys one target accepts, none when it accepts any.

@@ -19,7 +19,7 @@ impl ConstraintId {
     }
 }
 
-/// One relation collected for the solver.
+/// One solver constraint.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum Constraint {
     /// Pure type relation without a value constraint.
@@ -39,6 +39,8 @@ pub(in crate::check) struct TypeConstraint {
     pub(in crate::check) right: dir::GlobalTypeId,
     /// The source that produced the constraint.
     pub(in crate::check) origin: Origin,
+    /// The source subject blamed when this relation fails.
+    pub(in crate::check) subject: Option<ConstraintSubject>,
 }
 
 /// Relation attached to a runtime value use.
@@ -54,6 +56,22 @@ pub(in crate::check) struct ValueConstraint {
     pub(in crate::check) origin: Origin,
     /// The checked value use.
     pub(in crate::check) use_: ValueUse,
+}
+
+/// Source subject blamed by one type constraint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum ConstraintSubject {
+    /// Generic application argument checked against its declared bound.
+    ///
+    /// Examples:
+    /// ```ds
+    /// Box<string>          // string satisfies Box<T: DynamicSafe>
+    /// Borrowed<T, L, A>    // L satisfies Lifetime, A satisfies Access
+    /// ```
+    GenericArgument {
+        /// The source node for the applied argument.
+        source: dir::GlobalNodeIdAny,
+    },
 }
 
 /// Runtime value use checked by one value constraint.
@@ -110,6 +128,7 @@ impl Constraint {
             left,
             right,
             origin,
+            subject: None,
         })
     }
 

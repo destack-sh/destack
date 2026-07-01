@@ -1,62 +1,13 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Constraint, ExpectedType, FlowSite, ForInSourceObligation, Obligation,
-    Origin, Relation, Task, ValueUse, Widening, answer,
+    Answer, CheckState, FlowSite, ForInSourceObligation, Obligation, Origin, PlaceUse, Relation,
+    ValueUse, answer,
 };
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Infer one block from its tail expression.
-    pub(in crate::check) fn infer_block(
-        &mut self,
-        site: FlowSite,
-        block: dir::LocalNodeId<dir::Block>,
-    ) -> CompilerResult<Answer<()>> {
-        let node = site.node;
-        let module = node.module_id;
-        let tail = self.module(module).view().get(block).value_expression();
-        let ty = match tail {
-            Some(tail) => answer!(self.node_type_at(site.sibling(tail.into_global_any(module)))?),
-            None => self.push_type(module, dir::Type::Void, node.local_id)?,
-        };
-        self.commit_node_type(node, ty)?;
-
-        Ok(Answer::Ready(()))
-    }
-
-    /// Infer one expression whose type is exactly its child expression type.
-    pub(in crate::check) fn infer_forward_expression(
-        &mut self,
-        site: FlowSite,
-        child: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<()>> {
-        let module = site.node.module_id;
-        let ty = answer!(self.node_type_at(site.sibling(child.into_global_any(module)))?);
-        self.commit_node_type(site.node, ty)?;
-
-        Ok(Answer::Ready(()))
-    }
-
-    /// Infer one sequence expression from its final expression.
-    pub(in crate::check) fn infer_sequence_expression(
-        &mut self,
-        site: FlowSite,
-        expressions: &[dir::LocalNodeId<dir::Expression>],
-    ) -> CompilerResult<Answer<()>> {
-        let node = site.node.into_typed::<dir::Expression>();
-        let ty = match expressions.last().copied() {
-            Some(last) => {
-                answer!(self.node_type_at(site.sibling(last.into_global_any(node.module_id)))?)
-            }
-            None => self.push_type(node.module_id, dir::Type::Void, node.local_id.into_any())?,
-        };
-        self.commit_node_type(node.into_any(), ty)?;
-
-        Ok(Answer::Ready(()))
-    }
-
     /// Infer one if expression from its branches.
     pub(in crate::check) fn infer_if_expression(
         &mut self,
@@ -67,11 +18,11 @@ impl CheckState<'_> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let source = node.local_id.into_any();
-        let then_type =
-            answer!(self.node_type_at(site.sibling(then_expression.into_global_any(module)))?);
+        let then_site = self.node_site(then_expression.into_global_any(module))?;
+        let then_type = answer!(self.infer_node_type(then_site, PlaceUse::Read)?);
         let result = if let Some(else_expression) = else_expression {
-            let else_type =
-                answer!(self.node_type_at(site.sibling(else_expression.into_global_any(module)))?);
+            let else_site = self.node_site(else_expression.into_global_any(module))?;
+            let else_type = answer!(self.infer_node_type(else_site, PlaceUse::Read)?);
             self.normalized_union_type(module, [then_type, else_type], source)?
         } else {
             let void = self.push_type(module, dir::Type::Void, source)?;
@@ -82,64 +33,47 @@ impl CheckState<'_> {
         Ok(Answer::Ready(()))
     }
 
-    /// Infer one for-each binding from its iterator expression.
-    pub(in crate::check) fn infer_for_each_expression(
+    /// Check one if expression under an expected result type.
+    pub(in crate::check) fn check_if_expression(
         &mut self,
         site: FlowSite,
-        operator: dir::ForEachOperator,
-        binding: &dir::ForEachBinding,
-        iterator: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<()>> {
+        then_expression: dir::LocalNodeId<dir::Expression>,
+        else_expression: Option<dir::LocalNodeId<dir::Expression>>,
+        target: dir::GlobalTypeId,
+        relation: Relation,
+        origin: Origin,
+        use_: ValueUse,
+    ) -> CompilerResult<Answer<bool>> {
         let module = site.node.module_id;
         let source = site.node.local_id;
-        let iterator_type =
-            answer!(self.node_type_at(site.sibling(iterator.into_global_any(module)))?);
-        let value_type = match operator {
-            dir::ForEachOperator::Of => {
-                let origin = Origin::Node(site.node);
-                let variable = self.allocate_variable(module, origin, Widening::Preserve);
-                let value = self.push_variable_type(variable, source)?;
-                let unknown = self.push_type(module, dir::Type::Unknown, source)?;
-                let iterable = self.push_language_type(
-                    module,
-                    source,
-                    dir::LanguageItem::Iterable,
-                    vec![value, unknown, unknown],
-                )?;
-                self.push_constraint(Constraint::check(
-                    Relation::Assignable,
-                    iterator_type,
-                    iterable,
-                    origin,
-                ));
 
-                value
-            }
-            dir::ForEachOperator::In => {
-                self.push_obligation(Obligation::ForInSource(ForInSourceObligation {
-                    source: site.node,
-                    ty: iterator_type,
-                }));
-                self.push_type(
-                    module,
-                    dir::Type::Primitive(dir::PrimitiveType::String),
-                    source,
-                )?
-            }
-        };
-        let pattern = match binding {
-            dir::ForEachBinding::Pattern { pattern, .. }
-            | dir::ForEachBinding::Using { pattern, .. } => *pattern,
-        };
-        self.queue_task(Task::Check {
-            site: site.sibling(pattern.into_global_any(module)),
-            expected: ExpectedType::Type(value_type),
-            relation: Relation::Assignable,
-            origin: Origin::Node(site.node),
-            use_: ValueUse::Store,
-        });
+        // check the then branch against the incoming expectation
+        let then_site = self.node_site(then_expression.into_global_any(module))?;
+        let () = answer!(self.check_node(then_site, target, relation, origin, use_)?);
+        let then_type = answer!(self.node_type_at(then_site)?);
+        let mut is_result_relation_needed = false;
 
-        Ok(Answer::Ready(()))
+        // check an else branch, or make the missing branch explicit as void
+        let result = if let Some(else_expression) = else_expression {
+            let else_site = self.node_site(else_expression.into_global_any(module))?;
+            let () = answer!(self.check_node(else_site, target, relation, origin, use_)?);
+            let else_type = answer!(self.node_type_at(else_site)?);
+
+            self.normalized_union_type(module, [then_type, else_type], source)?
+        } else {
+            let void = self.push_type(module, dir::Type::Void, source)?;
+            is_result_relation_needed = true;
+
+            self.normalized_union_type(module, [then_type, void], source)?
+        };
+        self.commit_node_type(site.node, result)?;
+
+        // relate the result when branch checks did not cover every arm
+        if is_result_relation_needed {
+            let () = answer!(self.constrain_node_value(site, relation, target, origin, use_)?);
+        }
+
+        Ok(Answer::Ready(true))
     }
 
     /// Infer one try expression from its body and catch branches.
@@ -151,11 +85,12 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<()>> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
-        let body_type = answer!(self.node_type_at(site.sibling(body.into_global_any(module)))?);
+        let body_site = self.node_site(body.into_global_any(module))?;
+        let body_type = answer!(self.infer_node_type(body_site, PlaceUse::Read)?);
         let result = if let Some(catch) = catch {
             let catch_body = self.module(module).view().get(catch).body;
-            let catch_type =
-                answer!(self.node_type_at(site.sibling(catch_body.into_global_any(module)))?);
+            let catch_site = self.node_site(catch_body.into_global_any(module))?;
+            let catch_type = answer!(self.infer_node_type(catch_site, PlaceUse::Read)?);
 
             self.normalized_union_type(module, [body_type, catch_type], node.local_id.into_any())?
         } else {
@@ -181,7 +116,8 @@ impl CheckState<'_> {
                 dir::MatchCase::Expression { body, .. } => body.into_global_any(module),
                 dir::MatchCase::Block { body, .. } => body.into_global_any(module),
             };
-            values.push(answer!(self.node_type_at(site.sibling(body))?));
+            let body_site = self.node_site(body)?;
+            values.push(answer!(self.infer_node_type(body_site, PlaceUse::Read)?));
         }
 
         let result = if values.is_empty() {
@@ -194,137 +130,98 @@ impl CheckState<'_> {
         Ok(Answer::Ready(()))
     }
 
-    /// Check one expression whose value is exactly its child value.
-    pub(in crate::check) fn check_forward_expression(
+    /// Infer one for-in or for-of expression.
+    pub(in crate::check) fn infer_for_each_expression(
         &mut self,
         site: FlowSite,
-        child: dir::LocalNodeId<dir::Expression>,
-        target: dir::GlobalTypeId,
-        relation: Relation,
-        origin: Origin,
-        use_: ValueUse,
-    ) -> CompilerResult<Answer<bool>> {
-        let module = site.node.module_id;
-        let () = answer!(self.check_node(
-            site.sibling(child.into_global_any(module)),
+        operator: dir::ForEachOperator,
+        binding: dir::ForEachBinding,
+        iterator: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Answer<()>> {
+        let node = site.node.into_typed::<dir::Expression>();
+        let module = node.module_id;
+        let iterator_site = self.node_site(iterator.into_global_any(module))?;
+        let iterator_type = answer!(self.infer_node_type(iterator_site, PlaceUse::Read)?);
+        let target = answer!(self.for_each_value_type(site.node, operator, iterator_type)?);
+
+        // check the binding against the value produced by the iteration source
+        let pattern = match binding {
+            dir::ForEachBinding::Pattern { pattern, .. }
+            | dir::ForEachBinding::Using { pattern, .. } => pattern,
+        };
+        let pattern_site = self.node_site(pattern.into_global_any(module))?;
+        answer!(self.check_node(
+            pattern_site,
             target,
-            relation,
-            origin,
-            use_
+            Relation::Assignable,
+            Origin::Node(site.node),
+            ValueUse::Store
         )?);
-        let child_type = answer!(self.node_type_at(site.sibling(child.into_global_any(module)))?);
-        self.commit_node_type(site.node, child_type)?;
 
-        Ok(Answer::Ready(true))
+        // for-in and for-of evaluate to void
+        let void = self.push_type(module, dir::Type::Void, node.local_id.into_any())?;
+        self.commit_node_type(site.node, void)?;
+
+        Ok(Answer::Ready(()))
     }
 
-    /// Check one block expression under an expected result type.
-    pub(in crate::check) fn check_block_expression(
+    /// Return the value type bound by one for-in or for-of source.
+    fn for_each_value_type(
         &mut self,
-        site: FlowSite,
-        block: dir::LocalNodeId<dir::Block>,
-        target: dir::GlobalTypeId,
-        relation: Relation,
-        origin: Origin,
-        use_: ValueUse,
-    ) -> CompilerResult<Answer<bool>> {
-        let module = site.node.module_id;
-        let value = self.module(module).view().get(block).value_expression();
-        match value {
-            Some(value) => {
-                let value_node = value.into_global_any(module);
-                let () = answer!(self.check_node(
-                    site.sibling(value_node),
-                    target,
-                    relation,
-                    origin,
-                    use_
-                )?);
-                let value_type = answer!(self.node_type_at(site.sibling(value_node))?);
-                self.commit_node_type(site.node, value_type)?;
-            }
-            None => {
-                let void = self.push_type(module, dir::Type::Void, site.node.local_id)?;
-                self.commit_node_type(site.node, void)?;
-                self.push_constraint(Constraint::value(relation, void, target, origin, use_));
-            }
+        source: dir::GlobalNodeIdAny,
+        operator: dir::ForEachOperator,
+        iterator_type: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        match operator {
+            dir::ForEachOperator::In => self.for_in_value_type(source, iterator_type),
+            dir::ForEachOperator::Of => self.for_of_value_type(source, iterator_type),
         }
-
-        Ok(Answer::Ready(true))
     }
 
-    /// Check one sequence expression under an expected result type.
-    pub(in crate::check) fn check_sequence_expression(
+    /// Return the key type bound by one for-in source.
+    fn for_in_value_type(
         &mut self,
-        site: FlowSite,
-        expressions: &[dir::LocalNodeId<dir::Expression>],
-        target: dir::GlobalTypeId,
-        relation: Relation,
-        origin: Origin,
-        use_: ValueUse,
-    ) -> CompilerResult<Answer<bool>> {
-        let module = site.node.module_id;
-        match expressions.last().copied() {
-            Some(value) => {
-                let value_node = value.into_global_any(module);
-                let () = answer!(self.check_node(
-                    site.sibling(value_node),
-                    target,
-                    relation,
-                    origin,
-                    use_
-                )?);
-                let value_type = answer!(self.node_type_at(site.sibling(value_node))?);
-                self.commit_node_type(site.node, value_type)?;
-            }
-            None => {
-                let void = self.push_type(module, dir::Type::Void, site.node.local_id)?;
-                self.commit_node_type(site.node, void)?;
-                self.push_constraint(Constraint::value(relation, void, target, origin, use_));
-            }
-        }
+        source: dir::GlobalNodeIdAny,
+        iterator_type: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        self.push_obligation(Obligation::ForInSource(ForInSourceObligation {
+            source,
+            ty: iterator_type,
+        }));
+        let string = self.push_type(
+            source.module_id,
+            dir::Type::Primitive(dir::PrimitiveType::String),
+            source.local_id,
+        )?;
 
-        Ok(Answer::Ready(true))
+        Ok(Answer::Ready(string))
     }
 
-    /// Check one conditional expression under an expected result type.
-    pub(in crate::check) fn check_if_expression(
+    /// Return the yielded value type of one for-of source.
+    fn for_of_value_type(
         &mut self,
-        site: FlowSite,
-        then_expression: dir::LocalNodeId<dir::Expression>,
-        else_expression: Option<dir::LocalNodeId<dir::Expression>>,
-        target: dir::GlobalTypeId,
-        relation: Relation,
-        origin: Origin,
-        use_: ValueUse,
-    ) -> CompilerResult<Answer<bool>> {
-        let module = site.node.module_id;
-        let source = site.node.local_id;
-        let then_node = then_expression.into_global_any(module);
-        let () =
-            answer!(self.check_node(site.sibling(then_node), target, relation, origin, use_)?);
-        let then_type = answer!(self.node_type_at(site.sibling(then_node))?);
+        source: dir::GlobalNodeIdAny,
+        iterator_type: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let protocol = self.language_symbol(dir::LanguageItem::Iterable);
+        let implementation = answer!(self.select_protocol_implementation(
+            Origin::Node(source),
+            iterator_type,
+            iterator_type,
+            protocol,
+        )?);
+        let Some(implementation) = implementation else {
+            self.report_for_of_source_not_iterable(source);
+            let error = self.push_type(source.module_id, dir::Type::Error, source.local_id)?;
 
-        let result = if let Some(else_expression) = else_expression {
-            let else_node = else_expression.into_global_any(module);
-            let () = answer!(self.check_node(
-                site.sibling(else_node),
-                target,
-                relation,
-                origin,
-                use_
-            )?);
-            let else_type = answer!(self.node_type_at(site.sibling(else_node))?);
-
-            self.normalized_union_type(module, [then_type, else_type], source)?
-        } else {
-            let void = self.push_type(module, dir::Type::Void, site.node.local_id)?;
-            self.push_constraint(Constraint::value(relation, void, target, origin, use_));
-            self.normalized_union_type(module, [then_type, void], source)?
+            return Ok(Answer::Ready(error));
+        };
+        let Some(value) = implementation.arguments.first().copied() else {
+            return Err(CompilerError::Internal {
+                message: "Iterable protocol implementation has no value argument".to_owned(),
+            });
         };
 
-        self.commit_node_type(site.node, result)?;
-
-        Ok(Answer::Ready(true))
+        Ok(Answer::Ready(value))
     }
 }

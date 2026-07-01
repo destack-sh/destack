@@ -34,14 +34,18 @@ pub(in crate::check) enum Decision {
 }
 
 impl CheckState<'_> {
-    /// Record one node decision and wake its waiters.
-    pub(in crate::check) fn record_decision(
+    /// Commit one node decision and wake its waiters.
+    pub(in crate::check) fn commit_decision(
         &mut self,
         node: dir::GlobalNodeIdAny,
         decision: Decision,
     ) -> CompilerResult<()> {
-        self.decisions
-            .decide(node, decision, self.node_message(node))?;
+        let inserted = self
+            .decisions
+            .decide(node, decision, self.node_label(node))?;
+        if !inserted {
+            return Ok(());
+        }
         self.record_event(CheckEvent::NodeDecided { node });
 
         // wake tasks parked on the decision
@@ -52,7 +56,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Return one selected node decision.
+    /// Return one node decision.
     pub(in crate::check) fn decision(&self, node: dir::GlobalNodeIdAny) -> Option<&Decision> {
         self.decisions.get(node)
     }
@@ -78,26 +82,26 @@ impl DecisionTable {
         self.decisions.get(&node)
     }
 
-    /// Record one node decision.
+    /// Commit one node decision and return whether it was inserted.
     /// Re-derived matching decisions collapse, conflicting decisions error.
     pub(in crate::check) fn decide(
         &mut self,
         node: dir::GlobalNodeIdAny,
         decision: Decision,
         message: String,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<bool> {
         match self.decisions.get(&node) {
-            // collapse identical re-derivations without waking anyone
-            Some(previous) if previous == &decision => Ok(()),
+            // collapse identical re-derivations
+            Some(previous) if previous == &decision => Ok(false),
             // a node must decide exactly once
             Some(_) => Err(CompilerError::Internal {
                 message: format!("check node {message} was decided twice"),
             }),
-            // first decision without waiters
+            // insert the first decision
             None => {
                 self.decisions.insert(node, decision);
 
-                Ok(())
+                Ok(true)
             }
         }
     }

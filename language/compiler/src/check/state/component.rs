@@ -48,7 +48,7 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) declaration_types: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Body-owned binding symbol types.
     pub(in crate::check) binding_types: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
-    /// Checked source-node occurrence types.
+    /// Checked source node occurrence types.
     pub(in crate::check) node_types: IndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
     /// Stable source node decisions.
     pub(in crate::check) decisions: DecisionTable,
@@ -58,7 +58,7 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) solver: Solver,
 
     // memoized closed reductions, valid across rejected probes
-    /// Memoized closed reduced types keyed by surface type.
+    /// Memoized closed reduced types keyed by source type.
     pub(in crate::check) reduced_types: IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
     /// Generic instances, argument variables, and induction bookkeeping.
     pub(in crate::check) generics: GenericIndex,
@@ -195,6 +195,30 @@ impl<'a> CheckState<'a> {
             unreachable!("language item {item} is missing from the global environment")
         })
     }
+
+    /// Return the language item named by one resolved symbol.
+    pub(in crate::check) fn language_item(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<dir::LanguageItem>> {
+        let symbol = self.resolve_symbol_alias(symbol)?;
+
+        Ok(self.environment.language.item(symbol))
+    }
+
+    /// Return the nominal symbol named by one type head.
+    pub(in crate::check) fn type_symbol(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        let symbol = match self.ty(ty)? {
+            dir::Type::Reference(reference) => Some(reference.symbol),
+            dir::Type::Instance(instance) => Some(instance.symbol),
+            _ => None,
+        };
+
+        Ok(symbol)
+    }
 }
 
 impl CheckState<'_> {
@@ -260,27 +284,7 @@ impl CheckState<'_> {
         source: dir::LocalNodeIdAny,
         key: dir::StaticKey,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty =
-            match key {
-                dir::StaticKey::Name(name) => dir::Type::Literal(dir::ScalarLiteral::String(name)),
-                dir::StaticKey::Index(index) => match i64::try_from(index) {
-                    Ok(index) => dir::Type::Literal(dir::ScalarLiteral::Integer(index)),
-                    Err(_) => dir::Type::Primitive(dir::PrimitiveType::Integer(
-                        dir::IntegerType::Pointer { is_signed: false },
-                    )),
-                },
-                dir::StaticKey::Symbol(dir::SymbolKey::Unique(symbol)) => {
-                    dir::Type::Instance(dir::GenericInstance {
-                        symbol,
-                        arguments: Vec::new(),
-                    })
-                }
-                dir::StaticKey::Symbol(dir::SymbolKey::Registry(_)) => {
-                    dir::Type::Primitive(dir::PrimitiveType::Symbol)
-                }
-            };
-
-        self.push_type(module, ty, source)
+        self.push_type(module, dir::Type::Key(key), source)
     }
 
     /// Allocate the type read from an optional index signature.
