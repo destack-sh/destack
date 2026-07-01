@@ -1,3 +1,4 @@
+mod file;
 mod fixture;
 mod formatter;
 mod parser;

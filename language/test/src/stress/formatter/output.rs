@@ -1,6 +1,5 @@
-use std::fs;
-
 use crate::stress::StressFixture;
+use crate::stress::file::write_complete_file;
 
 /// Write one formatted stress output file.
 pub(super) fn write_formatted_output(
@@ -28,6 +27,5 @@ pub(super) fn write_formatted_output(
     let output_name = format!("{stem}.{profile}.formatted.{extension}");
     let output_path = fixture.path.with_file_name(output_name);
 
-    fs::write(&output_path, output)
-        .map_err(|error| format!("failed to write {}: {error}", output_path.display()))
+    write_complete_file(&output_path, output)
 }

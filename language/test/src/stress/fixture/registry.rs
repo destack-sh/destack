@@ -1,9 +1,9 @@
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use destack_source::FileType;
 
 use crate::core::fixtures_dir;
+use crate::stress::file::write_complete_file;
 
 use super::array::large_array;
 use super::block::{control_flow, nested_block};
@@ -782,7 +782,7 @@ impl StressFixture {
 
     /// Load the generated source.
     pub fn source(&self) -> Result<String, String> {
-        fs::read_to_string(&self.path)
+        std::fs::read_to_string(&self.path)
             .map_err(|error| format!("failed to read {}: {error}", self.path.display()))
     }
 
@@ -976,11 +976,7 @@ fn materialize_fixtures(
     include_recovery: bool,
     include_bounded: bool,
 ) -> Result<Vec<StressFixture>, String> {
-    if directory.exists() {
-        fs::remove_dir_all(directory)
-            .map_err(|error| format!("failed to clear {}: {error}", directory.display()))?;
-    }
-    fs::create_dir_all(directory)
+    std::fs::create_dir_all(directory)
         .map_err(|error| format!("failed to create {}: {error}", directory.display()))?;
 
     let mut fixtures = Vec::new();
@@ -993,7 +989,7 @@ fn materialize_fixtures(
 
         for mode in family.modes {
             let family_directory = directory.join(family.name);
-            fs::create_dir_all(&family_directory).map_err(|error| {
+            std::fs::create_dir_all(&family_directory).map_err(|error| {
                 format!("failed to create {}: {error}", family_directory.display())
             })?;
 
@@ -1009,8 +1005,7 @@ fn materialize_fixtures(
 
                 let file_name = format!("{}.{}.{}", source.name, mode.label(), mode.extension());
                 let path = family_directory.join(file_name);
-                fs::write(&path, source.source)
-                    .map_err(|error| format!("failed to write {}: {error}", path.display()))?;
+                write_complete_file(&path, source.source)?;
 
                 fixtures.push(StressFixture {
                     name: format!("{}::{}::{}", family.name, source.name, mode.label()),
