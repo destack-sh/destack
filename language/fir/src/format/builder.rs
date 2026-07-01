@@ -449,7 +449,7 @@ impl<Context> Format<Context> for BlockIndent<'_, Context> {
             content_buffer.into_vec()
         };
 
-        let Some(content) = f.intern_vec(content) else {
+        let Some(content) = prepare_block_indent_content(content) else {
             return Ok(());
         };
 
@@ -463,7 +463,10 @@ impl<Context> Format<Context> for BlockIndent<'_, Context> {
             }
         }
 
-        f.write_node(content);
+        match content {
+            BlockIndentContent::Flat(nodes) => f.write_nodes(nodes),
+            BlockIndentContent::Nested(node) => f.write_node(node),
+        }
 
         f.write_node(FormatNode::Tag(EndIndent));
 
@@ -473,6 +476,37 @@ impl<Context> Format<Context> for BlockIndent<'_, Context> {
             IndentMode::SoftSpace => write!(f, [soft_line_break_or_space()]),
             IndentMode::SoftLineOrSpace => Ok(()),
         }
+    }
+}
+
+/// Prepared block-indent content.
+enum BlockIndentContent {
+    /// Nodes that can stay in the surrounding buffer.
+    Flat(Vec<FormatNode>),
+    /// One node that contains nested indent structure.
+    Nested(FormatNode),
+}
+
+/// Prepare block-indent content for the surrounding indentation tags.
+fn prepare_block_indent_content(mut content: Vec<FormatNode>) -> Option<BlockIndentContent> {
+    if content.is_empty() {
+        return None;
+    }
+
+    let needs_single_node_body = content.iter().any(|node| {
+        matches!(
+            node,
+            FormatNode::Interned(_) | FormatNode::Tag(StartIndent) | FormatNode::Tag(EndIndent)
+        )
+    });
+
+    if needs_single_node_body {
+        Some(BlockIndentContent::Nested(match content.len() {
+            1 => content.remove(0),
+            _ => FormatNode::Interned(Interned::new(content)),
+        }))
+    } else {
+        Some(BlockIndentContent::Flat(content))
     }
 }
 
