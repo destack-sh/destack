@@ -12,7 +12,7 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, Capture, CheckError, CheckState, CheckWarning, Constraint, Dependency, FlowPoint,
-    FlowSite, Origin, Relation, ValueUse, answer,
+    FlowPointId, FlowSite, Origin, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -65,6 +65,8 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) captures: Vec<Capture>,
     /// Durable flow states discovered while walking this module.
     pub(in crate::check) flows: Vec<FlowPoint>,
+    /// Entry flow point for each walked source node occurrence.
+    pub(in crate::check) node_flows: IndexMap<dir::GlobalNodeIdAny, FlowPointId>,
 
     // statically false gates
     /// Presence decisions for decorated source nodes.
@@ -127,6 +129,7 @@ impl CheckModuleState {
             external_modules: IndexSet::new(),
             captures: Vec::new(),
             flows: Vec::new(),
+            node_flows: IndexMap::new(),
             diagnostics: Vec::new(),
             warnings: Vec::new(),
         }
@@ -256,6 +259,27 @@ impl CheckState<'_> {
             .collect()
     }
 
+    /// Return the unique live symbol referenced by one source node.
+    pub(in crate::check) fn reference_symbol(
+        &self,
+        source: dir::GlobalNodeIdAny,
+    ) -> Option<dir::GlobalSymbolId> {
+        let reference = self
+            .module(source.module_id)
+            .resolved
+            .references
+            .get(source)?;
+        let dir::Reference::Bound(symbols) = reference else {
+            return None;
+        };
+        let symbols = self.present_symbols(symbols);
+        let [symbol] = symbols.as_slice() else {
+            return None;
+        };
+
+        Some(*symbol)
+    }
+
     /// Return whether one symbol's guard decided statically false.
     pub(in crate::check) fn is_absent_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
         self.modules
@@ -286,7 +310,7 @@ impl CheckState<'_> {
             .unwrap_or_else(|| unreachable!("check module {module:?} was not loaded"))
     }
 
-    /// Return one committed source-node type, if present.
+    /// Return one committed source node type, if present.
     pub(in crate::check) fn committed_node_type_maybe(
         &self,
         node: dir::GlobalNodeIdAny,
@@ -294,7 +318,7 @@ impl CheckState<'_> {
         self.node_types.get(&node).copied()
     }
 
-    /// Return one committed source-node type.
+    /// Return one committed source node type.
     pub(in crate::check) fn committed_node_type(
         &self,
         node: dir::GlobalNodeIdAny,
@@ -306,34 +330,19 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return an invariant message for one source node.
-    pub(in crate::check) fn node_message(&self, node: dir::GlobalNodeIdAny) -> String {
+    /// Return an invariant label for one source node.
+    pub(in crate::check) fn node_label(&self, node: dir::GlobalNodeIdAny) -> String {
         let module = self.module(node.module_id);
-        let view = module.view();
-        let detail = match node.local_id.ty {
-            dir::NodeType::Expression => {
-                let id = node.into_typed::<dir::Expression>().local_id;
-                format!("{:?}", view.get(id))
-            }
-            dir::NodeType::Pattern => {
-                let id = node.into_typed::<dir::Pattern>().local_id;
-                format!("{:?}", view.get(id))
-            }
-            dir::NodeType::AssignPattern => {
-                let id = node.into_typed::<dir::AssignPattern>().local_id;
-                format!("{:?}", view.get(id))
-            }
-            dir::NodeType::TypeExpression => {
-                let id = node.into_typed::<dir::TypeExpression>().local_id;
-                format!("{:?}", view.get(id))
-            }
-            _ => format!("{:?}", node.local_id.ty),
-        };
 
-        format!("node {node:?}: {detail}")
+        // include source position without inspecting the node's syntax variant
+        if let Some(span) = module.diagnostic_span(node.local_id) {
+            format!("node {node:?} at {span:?}")
+        } else {
+            format!("node {node:?}")
+        }
     }
 
-    /// Return one committed source-node type or fail on an internal invariant break.
+    /// Return one committed source node type or fail on an internal invariant break.
     pub(in crate::check) fn require_committed_node_type(
         &self,
         node: dir::GlobalNodeIdAny,
@@ -342,7 +351,7 @@ impl CheckState<'_> {
             return Err(CompilerError::Internal {
                 message: format!(
                     "required node has no checked type: {}",
-                    self.node_message(node)
+                    self.node_label(node)
                 ),
             });
         };
@@ -350,7 +359,7 @@ impl CheckState<'_> {
         Ok(ty)
     }
 
-    /// Commit one source-node type.
+    /// Commit one source node type.
     pub(in crate::check) fn commit_node_type(
         &mut self,
         node: dir::GlobalNodeIdAny,
@@ -363,7 +372,7 @@ impl CheckState<'_> {
 
             let previous = self.format_type(previous);
             let ty = self.format_type(ty);
-            let node = self.node_message(node);
+            let node = self.node_label(node);
 
             return Err(CompilerError::Internal {
                 message: format!("check node {node} received two types: {previous} and {ty}"),
@@ -378,6 +387,21 @@ impl CheckState<'_> {
         }
 
         Ok(())
+    }
+
+    /// Commit the error type for one rejected source node.
+    pub(in crate::check) fn commit_error_node(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if let Some(ty) = self.committed_node_type_maybe(node) {
+            return Ok(ty);
+        }
+
+        let ty = self.push_type(node.module_id, dir::Type::Error, node.local_id)?;
+        self.commit_node_type(node, ty)?;
+
+        Ok(ty)
     }
 
     /// Constrain one source node's runtime value type.
@@ -395,6 +419,22 @@ impl CheckState<'_> {
         Ok(Answer::Ready(()))
     }
 
+    /// Return one source node's recorded flow site.
+    pub(in crate::check) fn node_site(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<FlowSite> {
+        let Some(flow) = self.module(node.module_id).node_flows.get(&node).copied() else {
+            let node = self.node_label(node);
+
+            return Err(CompilerError::Internal {
+                message: format!("check node {node} has no recorded flow site"),
+            });
+        };
+
+        Ok(FlowSite { node, flow })
+    }
+
     /// Return one component declaration type, if present.
     pub(in crate::check) fn declaration_type_maybe(
         &self,
@@ -403,15 +443,17 @@ impl CheckState<'_> {
         self.declaration_types.get(&symbol).copied()
     }
 
-    /// Record one declaration symbol type.
-    pub(in crate::check) fn set_declaration_type(
+    /// Commit one declaration symbol type.
+    pub(in crate::check) fn commit_declaration_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        if let Some(previous) = self.declaration_type_maybe(symbol)
-            && previous != ty
-        {
+        if let Some(previous) = self.declaration_type_maybe(symbol) {
+            if previous == ty {
+                return Ok(());
+            }
+
             return Err(CompilerError::Internal {
                 message: format!(
                     "declaration symbol {symbol:?} already has type {previous:?}, got {ty:?}"
@@ -435,14 +477,17 @@ impl CheckState<'_> {
         self.binding_types.get(&symbol).copied()
     }
 
-    /// Record one binding symbol type.
-    pub(in crate::check) fn set_binding_type(
+    /// Commit one binding symbol type.
+    pub(in crate::check) fn commit_binding_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let previous = self.binding_type_maybe(symbol);
-        if previous.is_some_and(|previous| previous != ty) {
+        if let Some(previous) = self.binding_type_maybe(symbol) {
+            if previous == ty {
+                return Ok(());
+            }
+
             return Err(CompilerError::Internal {
                 message: format!(
                     "binding symbol {symbol:?} already has type {previous:?}, got {ty:?}"
@@ -483,9 +528,9 @@ impl CheckState<'_> {
         }
 
         if is_binding {
-            self.set_binding_type(symbol, ty)?;
+            self.commit_binding_type(symbol, ty)?;
         } else {
-            self.set_declaration_type(symbol, ty)?;
+            self.commit_declaration_type(symbol, ty)?;
         }
 
         Ok(ty)
@@ -601,8 +646,8 @@ impl CheckState<'_> {
             .and_then(|module| module.static_values.get(&symbol).copied())
     }
 
-    /// Record the inferred static value of one source symbol as a singleton type.
-    pub(in crate::check) fn set_static_value(
+    /// Commit the inferred static value of one source symbol as a singleton type.
+    pub(in crate::check) fn commit_static_value(
         &mut self,
         symbol: dir::GlobalSymbolId,
         value: dir::GlobalTypeId,

@@ -6,8 +6,8 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     Constraint, ConstraintId, ConstraintState, ConstraintTable, Dependency, Obligation,
-    ObligationId, ObligationTable, Origin, Queue, QueueMark, RelationCache, RelationCacheSnapshot,
-    Task, TaskKey, VariableState, VariableTable, Widening,
+    ObligationId, ObligationTable, Origin, RelationCache, RelationCacheSnapshot, Task, TaskKey,
+    VariableState, VariableTable, Widening, WorkMark, WorkQueue,
 };
 
 /// Solver state for one checked component.
@@ -25,7 +25,7 @@ pub(in crate::check) struct Solver {
     /// Constraints collected for this component.
     pub(in crate::check) constraints: ConstraintTable,
     /// Tasks queued for this component.
-    pub(in crate::check) queue: Queue,
+    pub(in crate::check) queue: WorkQueue,
     /// Relation decisions memoized for this component.
     pub(in crate::check) relations: RelationCache,
     /// Obligations collected for this component.
@@ -33,7 +33,7 @@ pub(in crate::check) struct Solver {
 
     /// Tasks parked on unresolved dependencies.
     waiters: IndexMap<Dependency, SmallVec<[Task; 2]>>,
-    /// Completed source-node task keys.
+    /// Completed source node task keys.
     completed_keys: IndexSet<TaskKey>,
     /// Undo entries recorded by active snapshots.
     undo: Vec<Undo>,
@@ -49,51 +49,42 @@ pub(in crate::check) struct SolverSnapshot {
     /// The next obligation id before the probe.
     next_obligation: u32,
     /// The queued work before the probe.
-    queue: QueueMark,
+    queue: WorkMark,
     /// The undo log length before the probe.
     undo: usize,
     /// Relation cache snapshot before the probe.
     relations: RelationCacheSnapshot,
-    /// Type arena mark at probe entry.
-    types: TypeMark,
 }
 
 /// One solver storage undo entry.
 #[derive(Debug, Clone)]
 enum Undo {
-    /// Undo one variable row mutation.
+    /// Undo one variable entry mutation.
     Variable {
         /// The changed variable.
         id: dir::TypeVariableId,
         /// The previous variable state.
         previous: Option<VariableState>,
     },
-    /// Undo one constraint row mutation.
+    /// Undo one constraint entry mutation.
     Constraint {
         /// The changed constraint.
         id: ConstraintId,
-        /// The previous constraint state row.
+        /// The previous constraint state.
         previous: ConstraintState,
     },
-    /// Undo one waiter row mutation.
+    /// Undo one waiter entry mutation.
     Waiters {
         /// The changed dependency.
         dependency: Dependency,
-        /// The previous waiter row.
+        /// The previous waiter list.
         previous: Option<SmallVec<[Task; 2]>>,
     },
-    /// Undo one completed source-node task key.
+    /// Undo one completed source node task key.
     CompletedKey {
         /// The completed task key.
         key: TaskKey,
     },
-}
-
-/// Type arena mark for all loaded module type segments.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::check) struct TypeMark {
-    /// The type count for each loaded component module.
-    modules: IndexMap<ModuleId, u32>,
 }
 
 impl Solver {
@@ -105,7 +96,7 @@ impl Solver {
             next_obligation: 0,
             variables: VariableTable::new(),
             constraints: ConstraintTable::new(),
-            queue: Queue::new(),
+            queue: WorkQueue::new(),
             relations: RelationCache::new(),
             obligations: ObligationTable::new(),
             waiters: IndexMap::new(),
@@ -116,7 +107,7 @@ impl Solver {
     }
 
     /// Snapshot the solver before one probe.
-    pub(in crate::check) fn snapshot(&mut self, types: TypeMark) -> SolverSnapshot {
+    pub(in crate::check) fn snapshot(&mut self) -> SolverSnapshot {
         self.snapshot_depth += 1;
 
         SolverSnapshot {
@@ -125,12 +116,11 @@ impl Solver {
             queue: self.queue.mark(),
             undo: self.undo.len(),
             relations: self.relations.snapshot(),
-            types,
         }
     }
 
     /// Roll back to one solver snapshot.
-    pub(in crate::check) fn rollback(&mut self, snapshot: SolverSnapshot) -> TypeMark {
+    pub(in crate::check) fn rollback(&mut self, snapshot: SolverSnapshot) {
         while self.undo.len() > snapshot.undo {
             if let Some(undo) = self.undo.pop() {
                 self.rollback_undo(undo);
@@ -144,8 +134,6 @@ impl Solver {
         self.next_constraint = snapshot.next_constraint;
         self.next_obligation = snapshot.next_obligation;
         self.snapshot_depth -= 1;
-
-        snapshot.types
     }
 
     /// Commit one solver snapshot.
@@ -331,7 +319,7 @@ impl Solver {
         }
     }
 
-    /// Record one variable row if a snapshot is active.
+    /// Record one variable entry if a snapshot is active.
     fn record_variable(&mut self, id: dir::TypeVariableId) -> CompilerResult<()> {
         if self.snapshot_depth > 0 {
             let previous = self.variables.get(id)?.clone();
@@ -344,7 +332,7 @@ impl Solver {
         Ok(())
     }
 
-    /// Record one constraint row if a snapshot is active.
+    /// Record one constraint entry if a snapshot is active.
     fn record_constraint(&mut self, id: ConstraintId) -> CompilerResult<()> {
         if self.snapshot_depth > 0 {
             self.undo.push(Undo::Constraint {
@@ -356,7 +344,7 @@ impl Solver {
         Ok(())
     }
 
-    /// Record one waiter row if a snapshot is active.
+    /// Record one waiter entry if a snapshot is active.
     fn record_waiters(&mut self, dependency: Dependency) {
         if self.snapshot_depth > 0 {
             self.undo.push(Undo::Waiters {
@@ -406,17 +394,5 @@ impl Solver {
         for index in next..self.next_obligation {
             self.obligations.remove(ObligationId::at(index as usize));
         }
-    }
-}
-
-impl TypeMark {
-    /// Create a type mark from loaded module type counts.
-    pub(in crate::check) fn new(modules: IndexMap<ModuleId, u32>) -> Self {
-        Self { modules }
-    }
-
-    /// Iterate per-module type counts.
-    pub(in crate::check) fn iter(&self) -> impl Iterator<Item = (ModuleId, u32)> + '_ {
-        self.modules.iter().map(|(module, count)| (*module, *count))
     }
 }

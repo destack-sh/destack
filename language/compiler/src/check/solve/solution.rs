@@ -150,7 +150,7 @@ impl CheckState<'_> {
         // check inferred solutions against their contextual upper bounds
         if check_upper {
             for bound in upper {
-                match self.constrain_generic_argument(origin, bound.source, solution, bound.ty)? {
+                match self.constrain_generic_bound(origin, bound.source, solution, bound.ty)? {
                     Answer::Ready(true) => {}
                     Answer::Ready(false) => {
                         bounds_hold = false;
@@ -218,7 +218,7 @@ impl CheckState<'_> {
         Ok(Answer::ready_unless_blocked(widened, blockers))
     }
 
-    /// Return open variables that one variable currently depends on.
+    /// Return open variables that block one variable.
     pub(in crate::check) fn bound_blockers(
         &self,
         variable: dir::TypeVariableId,
@@ -397,7 +397,7 @@ impl CheckState<'_> {
         // late bounds against a solved variable become relation checks
         if let Some(solution) = self.solver.variable(representative)?.solution {
             let origin = self.solver.variable(representative)?.origin;
-            match self.constrain_generic_argument(origin, source, solution, bound)? {
+            match self.constrain_generic_bound(origin, source, solution, bound)? {
                 Answer::Ready(true) => {}
                 Answer::Ready(false) | Answer::Pending(_) => {
                     self.push_constraint(Constraint::check(

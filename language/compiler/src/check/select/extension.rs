@@ -5,80 +5,11 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, DeclaredMember, Dependency, GenericArgumentMode, GenericTemplateId,
-    MemberCandidate, MemberLookup, Origin, Relation, TypeRewrite, TypeSubstitution, answer,
+    Answer, CheckState, DeclaredMember, Dependency, GenericTemplateId, MemberCandidate,
+    MemberLookup, Origin, Relation, TypeSubstitution, answer,
 };
 
 impl CheckState<'_> {
-    /// Return whether a selected extension satisfies its where-clauses.
-    pub(in crate::check) fn extension_clauses_hold(
-        &mut self,
-        origin: Origin,
-        owner: Option<dir::GlobalSymbolId>,
-        arguments: &[dir::GenericArgumentBinding],
-    ) -> CompilerResult<Answer<bool>> {
-        let Some(owner) = owner else {
-            return Ok(Answer::Ready(true));
-        };
-        let Some(dir::Definition::Extension(extension)) = self.definition(owner) else {
-            return Ok(Answer::Ready(true));
-        };
-        let where_clauses = extension.where_clauses.clone();
-        if where_clauses.is_empty() {
-            return Ok(Answer::Ready(true));
-        }
-
-        // substitute selected arguments into the extension clauses
-        let module = origin.module();
-        let source = self.origin_source_node(origin)?;
-        let substitution = match self.symbol_template(owner) {
-            Some(template) => {
-                let parameters = self.generic_template_parameters(template);
-                let mut selected = SmallVec::<[dir::GlobalTypeId; 4]>::new();
-                for parameter in parameters.iter().copied() {
-                    let Some(argument) = arguments
-                        .iter()
-                        .find(|argument| argument.parameter == parameter)
-                        .map(|argument| argument.argument)
-                    else {
-                        return Ok(Answer::Ready(false));
-                    };
-
-                    selected.push(argument);
-                }
-                if selected.len() != parameters.len() {
-                    return Ok(Answer::Ready(false));
-                }
-
-                TypeSubstitution {
-                    parameters,
-                    arguments: selected,
-                    receiver: None,
-                }
-            }
-            None => TypeSubstitution::default(),
-        };
-
-        // require every extension clause to hold
-        for clause in where_clauses {
-            let left = if substitution.is_empty() {
-                clause.left
-            } else {
-                self.fold_type(module, source, clause.left, substitution.rewrite())?
-            };
-            let right = if substitution.is_empty() {
-                clause.right
-            } else {
-                self.fold_type(module, source, clause.right, substitution.rewrite())?
-            };
-            if !answer!(self.decide_relation(origin, Relation::Satisfies, left, right)?) {
-                return Ok(Answer::Ready(false));
-            }
-        }
-
-        Ok(Answer::Ready(true))
-    }
-
     /// Look up one extension member on a declaration reference.
     pub(in crate::check) fn lookup_extension_member(
         &mut self,
@@ -88,21 +19,21 @@ impl CheckState<'_> {
         instance: &dir::GenericInstance,
         space: dir::MemberSpace,
         key: dir::StaticKey,
-    ) -> CompilerResult<MemberLookup> {
+    ) -> CompilerResult<Answer<MemberLookup>> {
         let extensions = self.visible_extensions(module, instance.symbol);
 
         // visit extension declarations in resolution order
         let mut candidates = Vec::new();
         let mut seen = IndexSet::new();
         for extension_symbol in extensions {
-            let lookup = self.lookup_extension_symbol_member(
+            let lookup = answer!(self.lookup_extension_symbol_member(
                 origin,
                 module,
                 receiver,
                 extension_symbol,
                 space,
                 key,
-            )?;
+            )?);
 
             match lookup {
                 MemberLookup::Found(found) => {
@@ -114,53 +45,11 @@ impl CheckState<'_> {
                         candidates.push(candidate);
                     }
                 }
-                MemberLookup::Pending(blockers) => return Ok(MemberLookup::Pending(blockers)),
                 MemberLookup::Missing | MemberLookup::Field(_) => {}
             }
         }
 
-        Ok(MemberLookup::from_candidates(candidates))
-    }
-
-    /// Look up extension members on visible implementations for one receiver.
-    pub(in crate::check) fn lookup_receiver_extension_member(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        receiver: dir::GlobalTypeId,
-        space: dir::MemberSpace,
-        key: dir::StaticKey,
-    ) -> CompilerResult<MemberLookup> {
-        let extensions = self.visible_receiver_extensions(module, receiver)?;
-        let mut candidates = Vec::new();
-        let mut seen = IndexSet::new();
-
-        // collect extension members without ordinary member shadowing
-        for extension_symbol in extensions {
-            let lookup = self.lookup_extension_symbol_member(
-                origin,
-                module,
-                receiver,
-                extension_symbol,
-                space,
-                key,
-            )?;
-
-            match lookup {
-                MemberLookup::Found(found) => {
-                    for candidate in found {
-                        if candidate.symbol.is_some_and(|symbol| !seen.insert(symbol)) {
-                            continue;
-                        }
-                        candidates.push(candidate);
-                    }
-                }
-                MemberLookup::Pending(blockers) => return Ok(MemberLookup::Pending(blockers)),
-                MemberLookup::Missing | MemberLookup::Field(_) => {}
-            }
-        }
-
-        Ok(MemberLookup::from_candidates(candidates))
+        Ok(Answer::Ready(MemberLookup::from_candidates(candidates)))
     }
 
     /// Look up one static extension member on a declaration reference.
@@ -170,15 +59,20 @@ impl CheckState<'_> {
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
         key: dir::StaticKey,
-    ) -> CompilerResult<MemberLookup> {
+    ) -> CompilerResult<Answer<MemberLookup>> {
         let extensions = self.visible_extensions(module, symbol);
         let mut candidates = Vec::new();
         let mut seen = IndexSet::new();
 
         // visit extension declarations in resolution order
         for extension_symbol in extensions {
-            let lookup =
-                self.lookup_one_static_extension(origin, module, symbol, extension_symbol, key)?;
+            let lookup = answer!(self.lookup_one_static_extension(
+                origin,
+                module,
+                symbol,
+                extension_symbol,
+                key
+            )?);
 
             match lookup {
                 MemberLookup::Found(found) => {
@@ -189,12 +83,11 @@ impl CheckState<'_> {
                         candidates.push(candidate);
                     }
                 }
-                MemberLookup::Pending(blockers) => return Ok(MemberLookup::Pending(blockers)),
                 MemberLookup::Missing | MemberLookup::Field(_) => {}
             }
         }
 
-        Ok(MemberLookup::from_candidates(candidates))
+        Ok(Answer::Ready(MemberLookup::from_candidates(candidates)))
     }
 
     /// Collect extension symbols visible from one module for one target.
@@ -252,6 +145,9 @@ impl CheckState<'_> {
 
         // try each visible implementation declaration
         for extension_symbol in extensions {
+            if self.is_absent_symbol(extension_symbol) {
+                continue;
+            }
             let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)
             else {
                 continue;
@@ -266,20 +162,10 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // copy extension fields before matching mutates solver state
+            // take declaration inputs before entering the candidate probe
             let target_type = extension.target.r#type();
             let where_clauses = extension.where_clauses.clone();
             let template = self.symbol_template(extension_symbol);
-
-            // require extension availability before matching
-            match self.decide_availability(extension_symbol)? {
-                Answer::Ready(true) => {}
-                Answer::Ready(false) => continue,
-                Answer::Pending(pending) => {
-                    blockers.extend(pending);
-                    continue;
-                }
-            }
 
             // match the extension target under a probe
             let probe = self.begin_probe();
@@ -305,14 +191,20 @@ impl CheckState<'_> {
                 Err(error) => Err(error),
             };
 
-            // reject solver state created by this candidate
-            self.reject_probe(probe);
-
             let matched = matched?;
             match matched {
-                Answer::Ready(true) => return Ok(Answer::Ready(true)),
-                Answer::Ready(false) => {}
-                Answer::Pending(pending) => blockers.extend(self.live_blockers(pending)),
+                Answer::Ready(true) => {
+                    self.commit_probe(probe);
+
+                    return Ok(Answer::Ready(true));
+                }
+                Answer::Ready(false) => {
+                    self.reject_probe(probe);
+                }
+                Answer::Pending(pending) => {
+                    self.reject_probe(probe);
+                    blockers.extend(self.live_blockers(pending));
+                }
             }
         }
 
@@ -325,42 +217,16 @@ impl CheckState<'_> {
         module: ModuleId,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[dir::GlobalSymbolId; 4]>> {
-        let scope = self.extension_root(receiver)?;
-
-        match scope {
-            Some(scope) => {
-                if !self.is_component_module(scope.module_id) {
-                    self.import_external_module(scope.module_id)?;
-                }
-
-                Ok(self.visible_extensions(module, scope))
-            }
-            None => Ok(self.visible_blanket_extensions(module)),
-        }
-    }
-
-    /// Return the extension lookup root for one receiver type.
-    pub(in crate::check) fn extension_root(
-        &mut self,
-        receiver: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        let root = match self.ty(receiver)? {
-            dir::Type::Form(form) => return self.extension_root(form.value),
-            dir::Type::EnumMember(member) => return self.extension_root(member.owner),
-            dir::Type::Instance(instance) => Some(self.resolve_symbol_alias(instance.symbol)?),
-            dir::Type::Literal(literal) => {
-                literal.owner_item().map(|item| self.language_symbol(item))
-            }
-            dir::Type::Primitive(primitive) => primitive
-                .owner_item()
-                .map(|item| self.language_symbol(item)),
-            dir::Type::Array(_) => Some(self.language_symbol(dir::LanguageItem::Array)),
-            dir::Type::Slice(_) => Some(self.language_symbol(dir::LanguageItem::Slice)),
-            dir::Type::FixedArray(_) => Some(self.language_symbol(dir::LanguageItem::FixedArray)),
-            _ => None,
+        let Some(instance) = self.apparent_instance(receiver)? else {
+            return Ok(self.visible_blanket_extensions(module));
         };
+        let scope = instance.symbol;
 
-        Ok(root)
+        if !self.is_component_module(scope.module_id) {
+            self.import_external_module(scope.module_id)?;
+        }
+
+        Ok(self.visible_extensions(module, scope))
     }
 
     /// Collect blanket extension symbols visible from one module.
@@ -385,214 +251,6 @@ impl CheckState<'_> {
         symbols
     }
 
-    /// Decide whether one selected extension implements one interface.
-    pub(in crate::check) fn selected_extension_implements_interface(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        extension_symbol: dir::GlobalSymbolId,
-        extension_arguments: &[dir::GlobalTypeId],
-        interface: &dir::GenericInstance,
-    ) -> CompilerResult<Answer<bool>> {
-        let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol) else {
-            return Ok(Answer::Ready(false));
-        };
-        let implements = extension.implements.clone();
-        if implements.is_empty() {
-            return Ok(Answer::Ready(false));
-        }
-        let extension = dir::GenericInstance {
-            symbol: extension_symbol,
-            arguments: extension_arguments.to_vec(),
-        };
-        let substitution = self.instance_substitution(&extension)?;
-
-        self.extension_implements_interface(origin, module, &substitution, &implements, interface)
-    }
-
-    /// Decide whether one selected member owner satisfies one interface.
-    pub(in crate::check) fn selected_member_owner_implements_interface(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        receiver: dir::GlobalTypeId,
-        owner: dir::GlobalSymbolId,
-        owner_arguments: &[dir::GenericArgumentBinding],
-        interface: &dir::GenericInstance,
-    ) -> CompilerResult<Answer<bool>> {
-        if matches!(self.definition(owner), Some(dir::Definition::Extension(_))) {
-            let owner_arguments = owner_arguments
-                .iter()
-                .map(|argument| argument.argument)
-                .collect::<Vec<_>>();
-
-            return self.selected_extension_implements_interface(
-                origin,
-                module,
-                owner,
-                &owner_arguments,
-                interface,
-            );
-        }
-
-        let source = self.origin_source_node(origin)?;
-        let interface = self.push_type(module, dir::Type::Instance(interface.clone()), source)?;
-
-        self.decide_relation(origin, Relation::Implements, receiver, interface)
-    }
-
-    /// Decide whether one selected member owner names or inherits one protocol.
-    pub(in crate::check) fn selected_member_owner_has_protocol(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        receiver: dir::GlobalTypeId,
-        owner: dir::GlobalSymbolId,
-        owner_arguments: &[dir::GenericArgumentBinding],
-        protocol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<bool>> {
-        if matches!(self.definition(owner), Some(dir::Definition::Extension(_))) {
-            let owner_arguments = owner_arguments
-                .iter()
-                .map(|argument| argument.argument)
-                .collect::<Vec<_>>();
-
-            return self.selected_extension_has_protocol(
-                origin,
-                module,
-                owner,
-                &owner_arguments,
-                protocol,
-            );
-        }
-
-        let receiver = answer!(self.reduce_type_root(origin, receiver)?);
-        let instance = match self.ty(receiver)? {
-            dir::Type::Form(form) => match self.ty(form.value)? {
-                dir::Type::Instance(instance) => Some(instance.clone()),
-                _ => None,
-            },
-            dir::Type::Instance(instance) => Some(instance.clone()),
-            _ => None,
-        };
-        let Some(instance) = instance else {
-            return Ok(Answer::Ready(false));
-        };
-        if instance.symbol == protocol {
-            return Ok(Answer::Ready(true));
-        }
-
-        let inherited = answer!(self.heritage_instance(origin, &instance, protocol)?);
-
-        Ok(Answer::Ready(inherited.is_some()))
-    }
-
-    /// Decide whether one selected extension names or inherits one protocol.
-    fn selected_extension_has_protocol(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        extension_symbol: dir::GlobalSymbolId,
-        extension_arguments: &[dir::GlobalTypeId],
-        protocol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<bool>> {
-        let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol) else {
-            return Ok(Answer::Ready(false));
-        };
-        let implements = extension.implements.clone();
-        if implements.is_empty() {
-            return Ok(Answer::Ready(false));
-        }
-        let extension = dir::GenericInstance {
-            symbol: extension_symbol,
-            arguments: extension_arguments.to_vec(),
-        };
-        let substitution = self.instance_substitution(&extension)?;
-
-        self.extension_has_protocol(origin, module, &substitution, &implements, protocol)
-    }
-
-    /// Decide whether implemented heritage names or inherits one protocol.
-    fn extension_has_protocol(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        substitution: &TypeSubstitution,
-        implements: &[dir::NominalHeritage],
-        protocol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<bool>> {
-        let source = self.origin_source_node(origin)?;
-
-        // compare each declared interface by protocol symbol
-        for heritage in implements {
-            let implemented = self.substituted_heritage(module, source, substitution, heritage)?;
-            if implemented.symbol == protocol {
-                return Ok(Answer::Ready(true));
-            }
-            if answer!(self.heritage_instance(origin, &implemented, protocol)?).is_some() {
-                return Ok(Answer::Ready(true));
-            }
-        }
-
-        Ok(Answer::Ready(false))
-    }
-
-    /// Decide whether implemented heritage covers one requested interface.
-    fn extension_implements_interface(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        substitution: &TypeSubstitution,
-        implements: &[dir::NominalHeritage],
-        interface: &dir::GenericInstance,
-    ) -> CompilerResult<Answer<bool>> {
-        let source = self.origin_source_node(origin)?;
-
-        // compare each declared interface
-        for heritage in implements {
-            let implemented = self.substituted_heritage(module, source, substitution, heritage)?;
-            let matches = if implemented.symbol == interface.symbol {
-                self.decide_each_argument(origin, &implemented, interface)?
-            } else if let Some(inherited) =
-                answer!(self.heritage_instance(origin, &implemented, interface.symbol)?)
-            {
-                self.decide_each_argument(origin, &inherited, interface)?
-            } else {
-                Answer::Ready(false)
-            };
-
-            if !matches!(matches, Answer::Ready(false)) {
-                return Ok(matches);
-            }
-        }
-
-        Ok(Answer::Ready(false))
-    }
-
-    /// Return implemented heritage after extension generic substitution.
-    fn substituted_heritage(
-        &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
-        substitution: &TypeSubstitution,
-        heritage: &dir::NominalHeritage,
-    ) -> CompilerResult<dir::GenericInstance> {
-        let arguments = if substitution.is_empty() {
-            heritage.arguments.clone()
-        } else {
-            heritage
-                .arguments
-                .iter()
-                .map(|argument| self.fold_type(module, source, *argument, substitution.rewrite()))
-                .collect::<CompilerResult<Vec<_>>>()?
-        };
-
-        Ok(dir::GenericInstance {
-            symbol: heritage.symbol,
-            arguments,
-        })
-    }
-
     /// Look up matching members from one extension declaration.
     pub(in crate::check) fn lookup_extension_symbol_member(
         &mut self,
@@ -602,36 +260,35 @@ impl CheckState<'_> {
         extension_symbol: dir::GlobalSymbolId,
         space: dir::MemberSpace,
         key: dir::StaticKey,
-    ) -> CompilerResult<MemberLookup> {
-        // require extension availability before member lookup
-        match self.decide_availability(extension_symbol)? {
-            Answer::Ready(true) => {}
-            Answer::Ready(false) => return Ok(MemberLookup::Missing),
-            Answer::Pending(blockers) => return Ok(MemberLookup::Pending(blockers)),
+    ) -> CompilerResult<Answer<MemberLookup>> {
+        // skip extensions removed by statically false gates
+        if self.is_absent_symbol(extension_symbol) {
+            return Ok(Answer::Ready(MemberLookup::Missing));
         }
 
         // read the extension members
         let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol) else {
-            return Ok(MemberLookup::Missing);
+            return Ok(Answer::Ready(MemberLookup::Missing));
         };
         if !extension.is_visible_from(module) {
-            return Ok(MemberLookup::Missing);
+            return Ok(Answer::Ready(MemberLookup::Missing));
         }
         let target_type = extension.target.r#type();
-        let matched = extension
-            .members
-            .iter()
-            .filter_map(DeclaredMember::from_definition)
-            .filter(|member| member.matches(space, key))
-            .collect::<SmallVec<[_; 2]>>();
+        let where_clauses = extension.where_clauses.clone();
+        let definition_members = extension.members.clone();
+        let mut matched = SmallVec::<[_; 2]>::new();
+        for member in &definition_members {
+            let Some(member) = answer!(self.declared_member(member)?) else {
+                continue;
+            };
+            if member.matches(space, key) {
+                matched.push(member);
+            }
+        }
         if matched.is_empty() {
-            return Ok(MemberLookup::Missing);
+            return Ok(Answer::Ready(MemberLookup::Missing));
         }
         let members = matched;
-        let where_clauses = match self.definition(extension_symbol) {
-            Some(dir::Definition::Extension(extension)) => extension.where_clauses.clone(),
-            _ => Vec::new(),
-        };
 
         // open extension generics and match the receiver
         let template = self.symbol_template(extension_symbol);
@@ -647,25 +304,25 @@ impl CheckState<'_> {
             &members,
         );
         match result {
-            Ok(Answer::Ready(lookup @ (MemberLookup::Field(_) | MemberLookup::Found(_)))) => {
+            Ok(Answer::Ready(Some(candidates))) => {
                 self.commit_probe(probe);
 
-                Ok(lookup)
+                Ok(Answer::Ready(MemberLookup::from_candidates(candidates)))
             }
-            Ok(Answer::Ready(MemberLookup::Missing)) => {
+            Ok(Answer::Ready(None)) => {
                 self.reject_probe(probe);
 
-                Ok(MemberLookup::Missing)
+                Ok(Answer::Ready(MemberLookup::Missing))
             }
             // blockers that died with the probe cannot wake this extension
-            Ok(Answer::Pending(blockers) | Answer::Ready(MemberLookup::Pending(blockers))) => {
+            Ok(Answer::Pending(blockers)) => {
                 self.reject_probe(probe);
 
                 let blockers = self.live_blockers(blockers);
                 if blockers.is_empty() {
-                    Ok(MemberLookup::Missing)
+                    Ok(Answer::Ready(MemberLookup::Missing))
                 } else {
-                    Ok(MemberLookup::Pending(blockers))
+                    Ok(Answer::Pending(blockers))
                 }
             }
             Err(error) => {
@@ -684,36 +341,38 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         extension_symbol: dir::GlobalSymbolId,
         key: dir::StaticKey,
-    ) -> CompilerResult<MemberLookup> {
-        // require extension availability before member lookup
-        match self.decide_availability(extension_symbol)? {
-            Answer::Ready(true) => {}
-            Answer::Ready(false) => return Ok(MemberLookup::Missing),
-            Answer::Pending(blockers) => return Ok(MemberLookup::Pending(blockers)),
+    ) -> CompilerResult<Answer<MemberLookup>> {
+        // skip extensions removed by statically false gates
+        if self.is_absent_symbol(extension_symbol) {
+            return Ok(Answer::Ready(MemberLookup::Missing));
         }
 
         // read matching static members from extensions of this declaration
         let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol) else {
-            return Ok(MemberLookup::Missing);
+            return Ok(Answer::Ready(MemberLookup::Missing));
         };
         if !extension.is_visible_from(module) {
-            return Ok(MemberLookup::Missing);
+            return Ok(Answer::Ready(MemberLookup::Missing));
         }
         if extension.target.root() != Some(symbol) {
-            return Ok(MemberLookup::Missing);
-        }
-        let members = extension
-            .members
-            .iter()
-            .filter_map(DeclaredMember::from_definition)
-            .filter(|member| member.matches(dir::MemberSpace::Static, key))
-            .collect::<SmallVec<[_; 2]>>();
-        if members.is_empty() {
-            return Ok(MemberLookup::Missing);
+            return Ok(Answer::Ready(MemberLookup::Missing));
         }
         let where_clauses = extension.where_clauses.clone();
+        let definition_members = extension.members.clone();
+        let mut members = SmallVec::<[_; 2]>::new();
+        for member in &definition_members {
+            let Some(member) = answer!(self.declared_member(member)?) else {
+                continue;
+            };
+            if member.matches(dir::MemberSpace::Static, key) {
+                members.push(member);
+            }
+        }
+        if members.is_empty() {
+            return Ok(Answer::Ready(MemberLookup::Missing));
+        }
 
-        self.lookup_open_static_extension(
+        self.lookup_parameterized_static_extension(
             origin,
             module,
             extension_symbol,
@@ -722,18 +381,17 @@ impl CheckState<'_> {
         )
     }
 
-    /// Look up static extension members without solving extension generics.
-    fn lookup_open_static_extension(
+    /// Look up static extension members with unspecialized extension parameters.
+    fn lookup_parameterized_static_extension(
         &mut self,
         origin: Origin,
         module: ModuleId,
         extension_symbol: dir::GlobalSymbolId,
         where_clauses: &[dir::ExtensionWhereClause],
         members: &[DeclaredMember],
-    ) -> CompilerResult<MemberLookup> {
+    ) -> CompilerResult<Answer<MemberLookup>> {
         let source = self.origin_source_node(origin)?;
-        let substitution = TypeSubstitution::default();
-        let arguments = self.open_extension_arguments(origin, extension_symbol)?;
+        let arguments = self.extension_parameter_arguments(origin, extension_symbol)?;
 
         // require clauses that do not depend on call inference now
         if !where_clauses.is_empty() && self.symbol_template(extension_symbol).is_none() {
@@ -745,51 +403,42 @@ impl CheckState<'_> {
                     clause.right,
                 )? {
                     Answer::Ready(true) => {}
-                    Answer::Ready(false) => return Ok(MemberLookup::Missing),
-                    Answer::Pending(blockers) => return Ok(MemberLookup::Pending(blockers)),
+                    Answer::Ready(false) => return Ok(Answer::Ready(MemberLookup::Missing)),
+                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
                 }
             }
         }
 
-        // expose matching static members as open callable candidates
+        // expose matching static members for later call inference
         let mut candidates = Vec::new();
         for member in members {
             let Some(ty) = member.ty else {
                 continue;
             };
-            match self.decide_member_availability(
-                origin,
-                module,
-                member.condition,
-                &substitution,
-            )? {
-                Answer::Ready(true) => {}
-                Answer::Ready(false) => continue,
-                Answer::Pending(blockers) => return Ok(MemberLookup::Pending(blockers)),
-            }
-
-            let ty = member.read_type(self, ty)?;
+            let ty = member.value_type(self, ty)?;
             let written = member.symbol.and_then(|symbol| self.static_value(symbol));
 
             let generic_arguments =
                 self.symbol_generic_argument_bindings(extension_symbol, &arguments)?;
+            let ty = self.resolve_type_variables(module, source, ty)?;
+            let ty = answer!(self.projected_member_type(origin, None, member.role, ty)?);
 
             candidates.push(MemberCandidate {
                 symbol: member.symbol,
                 owner: extension_symbol,
                 role: member.role,
-                ty: self.fold_type(module, source, ty, TypeRewrite::Resolve)?,
+                ty,
                 generic_arguments,
                 value: member.value,
                 value_type: written,
             });
         }
 
-        Ok(MemberLookup::from_candidates(candidates))
+        Ok(Answer::Ready(MemberLookup::from_candidates(candidates)))
     }
 
-    /// Return generic parameter types for one open extension head.
-    fn open_extension_arguments(
+    /// Return generic parameter placeholder arguments for one extension head.
+    fn extension_parameter_arguments(
         &mut self,
         origin: Origin,
         extension_symbol: dir::GlobalSymbolId,
@@ -809,7 +458,7 @@ impl CheckState<'_> {
     }
 
     /// Match one extension target against a receiver under an active probe.
-    fn match_extension_target(
+    pub(in crate::check) fn match_extension_target(
         &mut self,
         origin: Origin,
         module: ModuleId,
@@ -820,50 +469,35 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<TypeSubstitution>>> {
         let source = self.origin_source_node(origin)?;
 
-        // instantiate the extension's generic parameters
+        // bind extension generics from the receiver target pattern
         let substitution = match template {
             Some(template) => {
-                match self.instantiate_template(
+                let parameters = self.generic_template_parameters(template);
+                let Some(substitution) = answer!(self.match_generic_pattern(
                     origin,
-                    template,
-                    &[],
-                    GenericArgumentMode::Match,
-                )? {
-                    Some(substitution) => substitution,
-                    None => return Ok(Answer::Ready(None)),
-                }
+                    &parameters,
+                    target_type,
+                    receiver
+                )?) else {
+                    return Ok(Answer::Ready(None));
+                };
+
+                substitution
             }
             None => Default::default(),
         };
         let substitution = substitution.with_receiver(receiver);
-        let target_type = if substitution.is_empty() {
-            target_type
-        } else {
-            self.fold_type(module, source, target_type, substitution.rewrite())?
-        };
-        // match the receiver against the extension target
-        if !answer!(self.constrain_extension_target(origin, receiver, target_type)?) {
-            return Ok(Answer::Ready(None));
-        }
 
-        // reject extensions whose inferred arguments violate their constraints
-        let variables = self.substitution_variables(&substitution)?;
-        if !answer!(self.solve_probe_variables(variables)?) {
+        // prove the receiver satisfies the completed target
+        let target_type = self.substitute_type(module, source, target_type, &substitution)?;
+        if !answer!(self.decide_relation(origin, Relation::Assignable, receiver, target_type,)?) {
             return Ok(Answer::Ready(None));
         }
 
         // require every where clause to hold
         for clause in where_clauses {
-            let left = if substitution.is_empty() {
-                clause.left
-            } else {
-                self.fold_type(module, source, clause.left, substitution.rewrite())?
-            };
-            let right = if substitution.is_empty() {
-                clause.right
-            } else {
-                self.fold_type(module, source, clause.right, substitution.rewrite())?
-            };
+            let left = self.substitute_type(module, source, clause.left, &substitution)?;
+            let right = self.substitute_type(module, source, clause.right, &substitution)?;
 
             if !answer!(self.decide_relation(origin, Relation::Satisfies, left, right)?) {
                 return Ok(Answer::Ready(None));
@@ -873,110 +507,39 @@ impl CheckState<'_> {
         Ok(Answer::Ready(Some(substitution)))
     }
 
-    /// Constrain one receiver against one extension target.
-    fn constrain_extension_target(
-        &mut self,
-        origin: Origin,
-        receiver: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let receiver = answer!(self.reduce_type_root(origin, receiver)?);
-        let target = answer!(self.reduce_type_root(origin, target)?);
-
-        // same-root targets bind extension arguments as a pattern
-        let matching_reference = match (self.ty(receiver)?, self.ty(target)?) {
-            (dir::Type::Instance(receiver), dir::Type::Instance(target))
-                if receiver.symbol == target.symbol
-                    && receiver.arguments.len() == target.arguments.len() =>
-            {
-                let receiver_arguments = receiver
-                    .arguments
-                    .iter()
-                    .copied()
-                    .collect::<SmallVec<[_; 4]>>();
-                let target_arguments = target
-                    .arguments
-                    .iter()
-                    .copied()
-                    .collect::<SmallVec<[_; 4]>>();
-
-                Some((receiver_arguments, target_arguments))
-            }
-            _ => None,
-        };
-        if let Some((receiver_arguments, target_arguments)) = matching_reference {
-            let mut matched = Answer::Ready(true);
-            for (receiver, target) in receiver_arguments.iter().zip(&target_arguments) {
-                let constraint = self.constrain(origin, Relation::Equal, *receiver, *target)?;
-                matched = matched.and(constraint);
-                if matched.is_ready_false() {
-                    return Ok(matched);
-                }
-            }
-
-            return Ok(matched);
-        }
-
-        // broader targets use regular assignability
-        self.constrain(origin, Relation::Assignable, receiver, target)
-    }
-
-    /// Match one extension member declaration against a receiver.
-    fn match_extension(
+    /// Return substituted member candidates for one matched extension.
+    pub(in crate::check) fn extension_member_candidates(
         &mut self,
         origin: Origin,
         module: ModuleId,
-        receiver: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
-        template: Option<GenericTemplateId>,
-        target_type: dir::GlobalTypeId,
-        where_clauses: &[dir::ExtensionWhereClause],
+        substitution: &TypeSubstitution,
         members: &[DeclaredMember],
-    ) -> CompilerResult<Answer<MemberLookup>> {
+    ) -> CompilerResult<Answer<Vec<MemberCandidate>>> {
         let source = self.origin_source_node(origin)?;
-        let Some(substitution) = answer!(self.match_extension_target(
-            origin,
-            module,
-            receiver,
-            template,
-            target_type,
-            where_clauses,
-        )?) else {
-            return Ok(Answer::Ready(MemberLookup::Missing));
-        };
-
-        // resolve matched members through solved inference variables
         let mut candidates = Vec::new();
+
+        // substitute extension parameters in each matching member
         for member in members {
             let Some(ty) = member.ty else {
                 continue;
             };
 
-            // gate members on their substituted @if availability
-            match self.decide_member_availability(
-                origin,
-                module,
-                member.condition,
-                &substitution,
-            )? {
-                Answer::Ready(true) => {}
-                Answer::Ready(false) => continue,
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-            }
-            let ty = if substitution.is_empty() {
-                ty
-            } else {
-                self.fold_type(module, source, ty, substitution.rewrite())?
-            };
-            let ty = self.fold_type(module, source, ty, TypeRewrite::Resolve)?;
-            let ty = member.read_type(self, ty)?;
+            let ty = self.substitute_type(module, source, ty, substitution)?;
+            let ty = self.resolve_type_variables(module, source, ty)?;
+            let ty = member.value_type(self, ty)?;
+            let ty =
+                match self.projected_member_type(origin, substitution.receiver, member.role, ty)? {
+                    Answer::Ready(ty) => ty,
+                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                };
 
-            // carry substituted static value types for projections
+            // substitute static projections through the same extension instance
             let written = match member.symbol.and_then(|symbol| self.static_value(symbol)) {
-                Some(written) if !substitution.is_empty() => {
-                    let folded = self.fold_type(module, source, written, substitution.rewrite())?;
+                Some(written) => {
+                    let written = self.substitute_type(module, source, written, substitution)?;
 
-                    Some(self.fold_type(module, source, folded, TypeRewrite::Resolve)?)
+                    Some(self.resolve_type_variables(module, source, written)?)
                 }
                 written => written,
             };
@@ -995,6 +558,43 @@ impl CheckState<'_> {
             });
         }
 
-        Ok(Answer::Ready(MemberLookup::from_candidates(candidates)))
+        Ok(Answer::Ready(candidates))
+    }
+
+    /// Match one extension member declaration against a receiver.
+    pub(in crate::check) fn match_extension(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        receiver: dir::GlobalTypeId,
+        extension_symbol: dir::GlobalSymbolId,
+        template: Option<GenericTemplateId>,
+        target_type: dir::GlobalTypeId,
+        where_clauses: &[dir::ExtensionWhereClause],
+        members: &[DeclaredMember],
+    ) -> CompilerResult<Answer<Option<Vec<MemberCandidate>>>> {
+        let Some(substitution) = answer!(self.match_extension_target(
+            origin,
+            module,
+            receiver,
+            template,
+            target_type,
+            where_clauses,
+        )?) else {
+            return Ok(Answer::Ready(None));
+        };
+
+        let candidates = answer!(self.extension_member_candidates(
+            origin,
+            module,
+            extension_symbol,
+            &substitution,
+            members,
+        )?);
+        if candidates.is_empty() {
+            return Ok(Answer::Ready(None));
+        }
+
+        Ok(Answer::Ready(Some(candidates)))
     }
 }

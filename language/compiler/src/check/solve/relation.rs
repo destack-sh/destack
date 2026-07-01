@@ -59,13 +59,6 @@ struct RelationStackEntry {
 }
 
 /// Memoized relation decisions.
-///
-/// A pair already on the decision stack answers true, which terminates recursive types.
-///
-/// A recursive cycle re-enters through the pair that opened it.
-/// Decisions made through that cycle stay provisional until the opening pair settles.
-/// Keys are reduced roots.
-/// Probe snapshots roll back decision rows through the relation undo log.
 #[derive(Debug)]
 pub(in crate::check) struct RelationCache {
     /// The decisions keyed by relation pair.
@@ -74,8 +67,8 @@ pub(in crate::check) struct RelationCache {
     stack: Vec<RelationStackEntry>,
     /// Provisional holds with the cycle frame they depend on.
     provisional: Vec<(RelationKey, usize)>,
-    /// Decision rows to undo when a snapshot rolls back.
-    undo: Vec<RelationUndo>,
+    /// Decision map entries to undo when a snapshot rolls back.
+    undo: Vec<DecisionUndo>,
     /// The number of nested snapshots.
     snapshot_depth: usize,
 }
@@ -93,7 +86,7 @@ pub(in crate::check) struct RelationCacheSnapshot {
 
 /// One relation decision-map undo entry.
 #[derive(Debug, Clone, Copy)]
-struct RelationUndo {
+struct DecisionUndo {
     /// The changed relation key.
     key: RelationKey,
     /// The previous decision for the key.
@@ -248,7 +241,6 @@ impl RelationCache {
     /// Pop one frame off the stack, requiring LIFO closing.
     fn pop(&mut self, frame: RelationFrame) -> RelationStackEntry {
         let entry = self.stack.pop();
-
         match entry {
             Some(entry) if entry.key == frame.key && self.stack.len() == frame.index => entry,
             _ => unreachable!("check relation frames must close in LIFO order"),
@@ -256,8 +248,6 @@ impl RelationCache {
     }
 
     /// Resolve every provisional decision depending on one closing frame.
-    /// They settle when the frame held on its own, re-target when it held
-    /// provisionally, and unwind when it failed or stayed pending.
     fn resolve_dependents(
         &mut self,
         index: usize,
@@ -295,25 +285,25 @@ impl RelationCache {
         }
     }
 
-    /// Set one decision-map row.
+    /// Set one decision-map entry.
     fn set_decision(&mut self, key: RelationKey, decision: RelationDecision) {
         self.record_decision(key);
         self.decisions.insert(key, decision);
     }
 
-    /// Remove one decision-map row.
+    /// Remove one decision-map entry.
     fn remove_decision(&mut self, key: RelationKey) {
         self.record_decision(key);
         self.decisions.swap_remove(&key);
     }
 
-    /// Record one decision-map row before mutating it.
+    /// Record one decision-map entry before mutating it.
     fn record_decision(&mut self, key: RelationKey) {
         if self.snapshot_depth == 0 {
             return;
         }
 
-        self.undo.push(RelationUndo {
+        self.undo.push(DecisionUndo {
             key,
             previous: self.decisions.get(&key).copied(),
         });

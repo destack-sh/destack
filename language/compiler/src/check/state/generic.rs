@@ -2,7 +2,7 @@ use destack_dir as dir;
 use indexmap::IndexMap;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, Widening};
+use crate::check::CheckState;
 use crate::{CompilerError, CompilerResult};
 
 /// Stable id for one declaration-side generic parameter.
@@ -37,7 +37,7 @@ pub(in crate::check) struct GenericInductionParameter {
     pub(in crate::check) induction: dir::GenericParameterInduction,
 }
 
-/// Inference bookkeeping over working generic segments.
+/// Generic declaration index over working generic segments.
 #[derive(Debug)]
 pub(in crate::check) struct GenericIndex {
     /// Template ids keyed by declaring source node.
@@ -88,8 +88,8 @@ impl GenericIndex {
         self.parameters_by_symbol.get(&symbol).copied()
     }
 
-    /// Record one induction site.
-    pub(in crate::check) fn record_induction_site(&mut self, site: GenericInductionSite) {
+    /// Push one induction site.
+    pub(in crate::check) fn push_induction_site(&mut self, site: GenericInductionSite) {
         self.induction_sites.push(site);
     }
 
@@ -183,19 +183,6 @@ impl CheckState<'_> {
         None
     }
 
-    /// Return the inference widening policy for one generic parameter.
-    pub(in crate::check) fn generic_parameter_widening(&self, id: GenericParameterId) -> Widening {
-        let Some(parameter) = self.generic_parameter(id) else {
-            return Widening::Preserve;
-        };
-
-        if parameter.is_const || parameter.is_comptime {
-            Widening::Preserve
-        } else {
-            Widening::Widen
-        }
-    }
-
     /// Collect one template's parameter ids in declaration order.
     pub(in crate::check) fn generic_template_parameters(
         &self,
@@ -235,7 +222,7 @@ impl CheckState<'_> {
         Ok(parameters)
     }
 
-    /// Return selected generic argument bindings for one ordered parameter list.
+    /// Return applied generic argument bindings for one ordered parameter list.
     pub(in crate::check) fn generic_argument_bindings(
         &self,
         parameters: &[GenericParameterId],
@@ -261,7 +248,7 @@ impl CheckState<'_> {
         Ok(bindings)
     }
 
-    /// Return selected generic argument bindings for one symbol template.
+    /// Return applied generic argument bindings for one symbol template.
     pub(in crate::check) fn symbol_generic_argument_bindings(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -273,7 +260,7 @@ impl CheckState<'_> {
             }
 
             return Err(CompilerError::Internal {
-                message: format!("nongeneric symbol {symbol:?} has selected generic arguments"),
+                message: format!("nongeneric symbol {symbol:?} has applied generic arguments"),
             });
         };
         let parameters = self.generic_template_parameters(template);

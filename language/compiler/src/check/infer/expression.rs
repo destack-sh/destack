@@ -2,8 +2,10 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use super::InferMode;
-use crate::CompilerResult;
-use crate::check::{Answer, CheckState, ConstructResult, Decision, FlowSite, PlaceUse, answer};
+use crate::check::{
+    Answer, CheckState, ConstructResult, Decision, Dependency, FlowSite, PlaceUse, answer,
+};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Infer one expression node.
@@ -11,8 +13,13 @@ impl CheckState<'_> {
         &mut self,
         site: FlowSite,
         use_: PlaceUse,
+        mode: InferMode,
     ) -> CompilerResult<Answer<()>> {
         let node = site.node.into_typed::<dir::Expression>();
+        if self.committed_node_type_maybe(node.into_any()).is_some() {
+            return Ok(Answer::Ready(()));
+        }
+
         let expression = self
             .module(node.module_id)
             .view()
@@ -23,17 +30,27 @@ impl CheckState<'_> {
             dir::Expression::Identifier { .. } => {
                 let Some(Decision::Name(resolution)) = self.decision(node.into_any()).cloned()
                 else {
-                    return Ok(Answer::Ready(()));
+                    return Ok(Answer::pending([Dependency::Decision(node.into_any())]));
                 };
 
                 self.infer_name_expression(site, &resolution)
             }
             dir::Expression::Block(block) => self.infer_block(site, block),
+            dir::Expression::Parenthesized { expression } if mode == InferMode::Const => {
+                let expression_site = self.node_site(expression.into_global_any(node.module_id))?;
+                answer!(self.infer_expression(expression_site, PlaceUse::Read, mode)?);
+                let ty = answer!(self.node_type_at(expression_site)?);
+                self.commit_node_type(node.into_any(), ty)?;
+
+                Ok(Answer::Ready(()))
+            }
             dir::Expression::Parenthesized { expression } => {
                 self.infer_forward_expression(site, expression)
             }
             dir::Expression::Comptime { body } => self.infer_forward_expression(site, body),
-            dir::Expression::MoveOf { right, .. } => self.infer_forward_expression(site, right),
+            dir::Expression::MoveOf {
+                mutability, right, ..
+            } => self.infer_move_expression(site, mutability, right),
             dir::Expression::BorrowOf {
                 mutability, right, ..
             } => self.infer_borrow_expression(site, mutability, right),
@@ -46,12 +63,6 @@ impl CheckState<'_> {
                 else_expression,
                 ..
             } => self.infer_if_expression(site, then_expression, else_expression),
-            dir::Expression::ForEach {
-                operator,
-                binding,
-                iterator,
-                ..
-            } => self.infer_for_each_expression(site, operator, &binding, iterator),
             dir::Expression::Try { body, catch, .. } => {
                 self.infer_try_expression(site, body, catch)
             }
@@ -64,7 +75,7 @@ impl CheckState<'_> {
             dir::Expression::TemplateExpression { value } => {
                 if let dir::TemplateLiteral::InterpolatedString { arguments, .. } = value {
                     for argument in arguments {
-                        let _ty = answer!(self.argument_value_type(site, argument)?);
+                        answer!(self.argument_value_type(site, argument)?);
                     }
                 }
 
@@ -81,7 +92,7 @@ impl CheckState<'_> {
                 let ty = answer!(self.infer_array_expression(
                     site,
                     &elements.into_iter().collect::<SmallVec<[_; 4]>>(),
-                    InferMode::Normal,
+                    mode,
                 )?);
                 self.commit_node_type(node.into_any(), ty)?;
 
@@ -97,7 +108,7 @@ impl CheckState<'_> {
                 let ty = answer!(self.infer_tuple_expression(
                     site,
                     &elements.into_iter().collect::<SmallVec<[_; 4]>>(),
-                    InferMode::Normal,
+                    mode,
                 )?);
                 self.commit_node_type(node.into_any(), ty)?;
 
@@ -106,6 +117,12 @@ impl CheckState<'_> {
             dir::Expression::Match { cases, .. } => {
                 self.infer_match_expression(site, &cases.into_iter().collect::<SmallVec<[_; 4]>>())
             }
+            dir::Expression::ForEach {
+                operator,
+                binding,
+                iterator,
+                ..
+            } => self.infer_for_each_expression(site, operator, binding, iterator),
             dir::Expression::Member { left, name }
             | dir::Expression::PrivateMember { left, name } => {
                 if let Some(Decision::Name(resolution)) = self.decision(node.into_any()).cloned() {
@@ -118,14 +135,14 @@ impl CheckState<'_> {
                 let ty = answer!(self.infer_object_expression(
                     site,
                     &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
-                    InferMode::Normal,
+                    mode,
                 )?);
                 self.commit_node_type(node.into_any(), ty)?;
 
                 Ok(Answer::Ready(()))
             }
-            dir::Expression::StructExpression { properties, .. } => {
-                let target = answer!(self.committed_node_type(node.into_any())?);
+            dir::Expression::StructExpression { ty, properties } => {
+                let target = answer!(self.committed_node_type(ty.into_global_any(node.module_id))?);
 
                 self.select_property_merge(
                     site,
@@ -174,7 +191,7 @@ impl CheckState<'_> {
                 end_kind,
             } => self.infer_range_expression(site, start, end, end_kind),
             dir::Expression::Unary { operator, right } => {
-                self.select_unary_operator_with_use(site, operator, right, use_)
+                self.select_unary_operator(site, operator, right, use_)
             }
             dir::Expression::New { ty, arguments } => self.select_construct(
                 site,
@@ -189,7 +206,7 @@ impl CheckState<'_> {
                 ConstructResult::Fallible,
             ),
             dir::Expression::Index { left, index, .. } => {
-                self.select_index_with_use(site, left, index, use_)
+                self.select_index(site, left, index, use_)
             }
             dir::Expression::Instantiation {
                 left,
@@ -202,7 +219,13 @@ impl CheckState<'_> {
             dir::Expression::TaggedTemplateExpression { tag, .. } => {
                 self.select_tagged_template(site, tag)
             }
-            dir::Expression::TreeExpression { .. } => self.select_tree(node),
+            dir::Expression::TreeExpression { .. } => {
+                self.report_missing_tree_builder(node.module_id, node.local_id.into_any());
+                self.commit_decision(node.into_any(), Decision::Rejected)?;
+                self.commit_error_node(node.into_any())?;
+
+                Ok(Answer::Ready(()))
+            }
             dir::Expression::Assign {
                 left,
                 operator,
@@ -215,12 +238,23 @@ impl CheckState<'_> {
                 self.infer_try_projection_expression(site, left)
             }
             dir::Expression::Await { expression } => self.infer_await_expression(site, expression),
-            _ => Ok(Answer::Ready(())),
+            expression => self.reject_unhandled_expression_inference(node, expression),
         }
     }
 
+    /// Reject expression inference that reached solve without an owner.
+    fn reject_unhandled_expression_inference(
+        &self,
+        node: dir::GlobalNodeId<dir::Expression>,
+        expression: dir::Expression,
+    ) -> CompilerResult<Answer<()>> {
+        Err(CompilerError::Internal {
+            message: format!("cannot infer expression {node:?}: {expression:?}"),
+        })
+    }
+
     /// Infer one expression that resolved to one lexical symbol.
-    pub(in crate::check) fn infer_name_expression(
+    fn infer_name_expression(
         &mut self,
         site: FlowSite,
         resolution: &dir::NameResolution,
@@ -237,26 +271,5 @@ impl CheckState<'_> {
         self.commit_node_type(site.node, ty)?;
 
         Ok(Answer::Ready(()))
-    }
-
-    /// Return the single present symbol resolved for one source node.
-    pub(in crate::check) fn single_resolved_symbol(
-        &self,
-        source: dir::GlobalNodeIdAny,
-    ) -> Option<dir::GlobalSymbolId> {
-        let reference = self
-            .module(source.module_id)
-            .resolved
-            .references
-            .get(source)?;
-        let dir::Reference::Bound(symbols) = reference else {
-            return None;
-        };
-        let symbols = self.present_symbols(symbols);
-        let [symbol] = symbols.as_slice() else {
-            return None;
-        };
-
-        Some(*symbol)
     }
 }

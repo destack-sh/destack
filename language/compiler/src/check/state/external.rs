@@ -56,16 +56,6 @@ impl CheckExternalModuleState {
 }
 
 impl CheckState<'_> {
-    /// Return the language item named by one resolved symbol.
-    pub(in crate::check) fn language_item(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<dir::LanguageItem>> {
-        let symbol = self.resolve_symbol_alias(symbol)?;
-
-        Ok(self.environment.language.item(symbol))
-    }
-
     /// Return loaded state for one external module.
     pub(in crate::check) fn external_module(&self, module: ModuleId) -> &CheckExternalModuleState {
         self.external_modules

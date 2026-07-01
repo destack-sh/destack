@@ -6,7 +6,7 @@ use crate::check::{
 };
 
 impl CheckState<'_> {
-    /// Propagate one fallible try value into its selected target.
+    /// Propagate one fallible try value into its propagation target.
     pub(in crate::check) fn run_propagate(
         &mut self,
         propagation: TryPropagation,
