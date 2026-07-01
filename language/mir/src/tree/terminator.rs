@@ -249,13 +249,13 @@ pub enum Terminator {
         cases: SwitchCaseSlice,
     },
 
-    /// Yield from a coroutine.
+    /// Yield from a coroutine to its current owner.
     Yield {
         /// The yielded value.
         value: Value,
-        /// The block to resume at when the coroutine is continued.
+        /// The block entered when the coroutine receives a resume command.
         resume: BlockTarget,
-        /// The cleanup block when the suspended frame is cancelled or dropped.
+        /// The cleanup block when the yield is left by panic unwinding.
         unwind: Option<BlockTarget>,
     },
 
