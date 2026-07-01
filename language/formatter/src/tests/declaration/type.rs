@@ -318,12 +318,13 @@ fn test_format_extension_implements_list_layout() {
         &[
             (
                 80,
-                r#"extension<T> of Deque<T> implements
-  Index<number>,
-  IndexSet<number, T>,
-  Iterable<T>,
-  Iterable<&readonly T>,
-  Extend<T, "exclusive"> {
+                r#"extension<T> of Deque<T>
+  implements
+    Index<number>,
+    IndexSet<number, T>,
+    Iterable<T>,
+    Iterable<&readonly T>,
+    Extend<T, "exclusive"> {
   index(index: number): T;
 }
 "#,
@@ -351,8 +352,9 @@ fn test_format_extension_implements_generic_item_layout() {
         &[
             (
                 80,
-                r#"extension<R> of X implements
-  IndexSet<VeryLongCoordinateName<R>, VeryLongSliceName<R>> where R: Copy {
+                r#"extension<R> of X
+  implements
+    IndexSet<VeryLongCoordinateName<R>, VeryLongSliceName<R>> where R: Copy {
   indexSet(
     coordinate: VeryLongCoordinateName<R>,
     value: VeryLongSliceName<R>,
