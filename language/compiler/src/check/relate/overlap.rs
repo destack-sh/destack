@@ -11,8 +11,8 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let left = answer!(self.reduce_type_root(origin, left)?);
-        let right = answer!(self.reduce_type_root(origin, right)?);
+        let left = answer!(self.reduce_type_head(origin, left)?);
+        let right = answer!(self.reduce_type_head(origin, right)?);
 
         let left_type = self.ty(left)?.clone();
         let right_type = self.ty(right)?.clone();
@@ -34,7 +34,7 @@ impl CheckState<'_> {
             return self.any_type_arm_may_overlap(origin, union.elements, left);
         }
 
-        // compare generic parameters through their declared constraints
+        // compare generic parameters through their declared bounds
         if let dir::Type::Parameter(parameter) = left_type {
             let Some(constraint) = self
                 .generic_parameter(parameter)
@@ -84,9 +84,9 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(false));
         }
 
-        // reject distinct closed nominal runtime identities
+        // reject distinct concrete runtime identities
         if let (dir::Type::Instance(left), dir::Type::Instance(right)) = (&left_type, &right_type) {
-            return self.nominal_references_may_overlap(origin, left, right);
+            return self.generic_instances_may_overlap(origin, left, right);
         }
 
         Ok(Answer::Ready(true))
@@ -134,27 +134,27 @@ impl CheckState<'_> {
         Some(overlaps)
     }
 
-    /// Return whether two nominal references can name the same runtime identity.
-    fn nominal_references_may_overlap(
+    /// Return whether two generic instances can name the same runtime identity.
+    fn generic_instances_may_overlap(
         &mut self,
         origin: Origin,
         left: &dir::GenericInstance,
         right: &dir::GenericInstance,
     ) -> CompilerResult<Answer<bool>> {
         if left.symbol == right.symbol {
-            return self.nominal_arguments_may_overlap(origin, &left.arguments, &right.arguments);
+            return self.generic_arguments_may_overlap(origin, &left.arguments, &right.arguments);
         }
 
         let left_kind = self.symbol_kind(left.symbol);
         let right_kind = self.symbol_kind(right.symbol);
-        let left_is_closed = matches!(
+        let left_is_concrete = matches!(
             left_kind,
             dir::SymbolKind::Class
                 | dir::SymbolKind::Struct
                 | dir::SymbolKind::Enum
                 | dir::SymbolKind::Newtype
         );
-        let right_is_closed = matches!(
+        let right_is_concrete = matches!(
             right_kind,
             dir::SymbolKind::Class
                 | dir::SymbolKind::Struct
@@ -162,11 +162,11 @@ impl CheckState<'_> {
                 | dir::SymbolKind::Newtype
         );
 
-        Ok(Answer::Ready(!(left_is_closed && right_is_closed)))
+        Ok(Answer::Ready(!(left_is_concrete && right_is_concrete)))
     }
 
-    /// Return whether nominal arguments can describe one shared instance.
-    fn nominal_arguments_may_overlap(
+    /// Return whether two argument lists can describe one shared generic instance.
+    fn generic_arguments_may_overlap(
         &mut self,
         origin: Origin,
         left: &[dir::GlobalTypeId],

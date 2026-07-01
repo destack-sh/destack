@@ -29,7 +29,7 @@ impl Variance {
     }
 
     /// Compose one occurrence position with an inner position.
-    fn compose(self, inner: Variance) -> Variance {
+    pub(in crate::check) fn compose(self, inner: Variance) -> Variance {
         match (self, inner) {
             (Variance::Bivariant, _) | (_, Variance::Bivariant) => Variance::Bivariant,
             (Variance::Invariant, _) | (_, Variance::Invariant) => Variance::Invariant,
@@ -39,7 +39,7 @@ impl Variance {
     }
 
     /// Flip into the contravariant position.
-    fn flip(self) -> Variance {
+    pub(in crate::check) fn flip(self) -> Variance {
         Variance::Contravariant.compose(self)
     }
 }
@@ -60,7 +60,7 @@ impl From<dir::VarianceModifier> for Variance {
 pub(in crate::check) enum VarianceEntry {
     /// The derivation is on the stack, recursive uses stay optimistic.
     Deriving,
-    /// The derivation finished.
+    /// The derived variance.
     Derived(Variance),
 }
 
@@ -78,7 +78,7 @@ impl CheckState<'_> {
             return Ok(modifier.into());
         }
 
-        // replay finished derivations, recursive uses start optimistic
+        // replay derived variances, recursive uses start optimistic
         match self.variances.get(&parameter) {
             Some(VarianceEntry::Derived(variance)) => return Ok(*variance),
             Some(VarianceEntry::Deriving) => return Ok(Variance::Bivariant),
@@ -99,7 +99,7 @@ impl CheckState<'_> {
         &mut self,
         parameter: dir::GlobalGenericParameterId,
     ) -> CompilerResult<Variance> {
-        // find the declaring definition through the parameter's template
+        // find the definition that owns the parameter's template
         let Some(binding) = self.generic_parameter(parameter) else {
             return Ok(Variance::Invariant);
         };
@@ -107,41 +107,41 @@ impl CheckState<'_> {
         let Some(template) = self.generic_template(template) else {
             return Ok(Variance::Invariant);
         };
-        let source = template.source;
-        let Some(module) = self.modules.get(&source.module_id) else {
+        let Some(symbol) = template.symbol else {
             return Ok(Variance::Invariant);
         };
-        let Some(symbol) = module.declaration_symbol(source.local_id) else {
-            return Ok(Variance::Invariant);
-        };
-        let Some(definition) = self.definition(symbol) else {
+        let Some(definition) = self.definition(symbol).cloned() else {
             // function templates infer per call and need no variance
             return Ok(Variance::Invariant);
         };
 
         // collect the measured member types before walking type graphs
-        let members = definition
-            .members()
-            .iter()
-            .filter_map(|member| match member {
+        let mut members = SmallVec::<[_; 8]>::new();
+        for member in definition.members() {
+            let measured = match member {
                 // mutable fields force both positions
-                dir::DefinitionMember::Field(field) => Some((field.ty, Variance::Invariant)),
-                dir::DefinitionMember::Method(method) => Some((method.ty, Variance::Covariant)),
+                dir::DefinitionMember::Field(_) => self
+                    .require_definition_member_type(member)?
+                    .map(|ty| (ty, Variance::Invariant)),
+                dir::DefinitionMember::Method(_) | dir::DefinitionMember::AssociatedConst(_) => {
+                    self.require_definition_member_type(member)?
+                        .map(|ty| (ty, Variance::Covariant))
+                }
                 dir::DefinitionMember::AssociatedType(associated) => associated
                     .value
                     .or(associated.constraint)
                     .map(|ty| (ty, Variance::Covariant)),
-                dir::DefinitionMember::AssociatedConst(associated) => {
-                    Some((associated.ty, Variance::Covariant))
-                }
                 dir::DefinitionMember::CallSignature(signature)
                 | dir::DefinitionMember::ConstructSignature(signature)
                 | dir::DefinitionMember::IndexSignature(signature) => {
                     Some((signature.ty, Variance::Covariant))
                 }
                 dir::DefinitionMember::Variant(_) => None,
-            })
-            .collect::<SmallVec<[_; 8]>>();
+            };
+            if let Some(measured) = measured {
+                members.push(measured);
+            }
+        }
         let heritages = definition
             .heritages()
             .iter()
@@ -263,7 +263,7 @@ impl CheckState<'_> {
 
             // memory forms follow their aliasing behavior
             dir::Type::Form(form) => match form.form {
-                // readable views keep their position
+                // readonly forms keep their position
                 dir::Form::Readonly => self.measure_type(form.value, position, parameter)?,
                 // owned and placed payloads are values
                 dir::Form::Owned | dir::Form::Placed { .. } => {
@@ -326,8 +326,8 @@ impl CheckState<'_> {
         Ok(measured)
     }
 
-    /// Decide same-template argument pairs by their parameter variances.
-    pub(in crate::check) fn decide_arguments_by_variance(
+    /// Decide same-template type arguments.
+    pub(in crate::check) fn decide_type_arguments(
         &mut self,
         origin: Origin,
         symbol: dir::GlobalSymbolId,
@@ -343,7 +343,7 @@ impl CheckState<'_> {
 
         let mut decision = Answer::Ready(true);
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
-            // unknown templates compare invariantly
+            // map the declared variance to its argument relation
             let variance = match &parameters {
                 Some(parameters) => match parameters.get(index) {
                     Some(parameter) => self.parameter_variance(*parameter)?,
@@ -353,7 +353,6 @@ impl CheckState<'_> {
             };
 
             let answer = match variance {
-                // unused parameters relate freely
                 Variance::Bivariant => Answer::Ready(true),
                 Variance::Covariant => {
                     self.decide_relation(origin, Relation::Assignable, *source, *target)?
@@ -374,8 +373,8 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
-    /// Constrain same-template argument pairs by their parameter variances.
-    pub(in crate::check) fn constrain_arguments_by_variance(
+    /// Relate same-template type arguments.
+    pub(in crate::check) fn relate_type_arguments(
         &mut self,
         origin: Origin,
         symbol: dir::GlobalSymbolId,
@@ -388,7 +387,7 @@ impl CheckState<'_> {
 
         let mut decision = Answer::Ready(true);
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
-            // unknown templates compare invariantly
+            // map the declared variance to its argument relation
             let variance = match &parameters {
                 Some(parameters) => match parameters.get(index) {
                     Some(parameter) => self.parameter_variance(*parameter)?,
@@ -398,7 +397,6 @@ impl CheckState<'_> {
             };
 
             let answer = match variance {
-                // unused parameters relate freely
                 Variance::Bivariant => Answer::Ready(true),
                 Variance::Covariant => {
                     self.constrain(origin, Relation::Assignable, *source, *target)?

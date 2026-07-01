@@ -1,8 +1,12 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckState, DumpContext, Origin, Relation, Widening};
+use crate::check::{Answer, CheckState, DumpContext, Origin, Relation, Widening, answer};
 use crate::{CompilerError, CompilerResult};
+
+/// Maximum recursive widening depth for self-referential solution graphs.
+const MAX_WIDENING_DEPTH: usize = 16;
 
 impl CheckState<'_> {
     /// Join multiple lower bounds into one best common solution.
@@ -271,7 +275,7 @@ impl CheckState<'_> {
     /// Widen one closed type, rebuilding literal leaves to their bases.
     pub(in crate::check) fn widen_type(
         &mut self,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         source: dir::LocalNodeIdAny,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -289,13 +293,13 @@ impl CheckState<'_> {
     /// Returns none when nothing widens.
     fn widen_tree(
         &mut self,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         source: dir::LocalNodeIdAny,
         id: dir::GlobalTypeId,
         depth: usize,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // recursive solutions stop widening at a fixed depth
-        if depth > 16 {
+        if depth > MAX_WIDENING_DEPTH {
             return Ok(None);
         }
         let id = self.settled_root(id)?;
@@ -309,7 +313,7 @@ impl CheckState<'_> {
             }
             // enum member leaves widen to the owner enum
             dir::Type::EnumMember(member) => Ok(Some(member.owner)),
-            // managed wrappers rebuild around their payloads
+            // managed forms rebuild around their payloads
             dir::Type::Form(form) if form.form == dir::Form::Managed => {
                 let value = form.value;
                 let Some(widened) = self.widen_tree(module, source, value, depth + 1)? else {
@@ -463,7 +467,7 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Answer<bool>> {
         let widens = match (self.ty(source)?.clone(), self.ty(target)?.clone()) {
             (dir::Type::Union(source), _) => self.union_widens_to(origin, &source, target)?,
             (_, dir::Type::Union(target)) => self.widens_to_union(origin, source, &target)?,
@@ -479,22 +483,22 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Answer<bool>> {
         let widens = match (self.ty(source)?.clone(), self.ty(target)?.clone()) {
-            (dir::Type::Literal(literal), target) => literal.widens_to(&target),
-            (dir::Type::Range(range), target) => range.widens_to(&target),
-            (dir::Type::EnumMember(member), _) => self
-                .decide_relation(origin, Relation::Equal, member.owner, target)?
-                .is_ready_true(),
-            (dir::Type::FixedArray(source_array), dir::Type::FixedArray(target_array)) => {
-                let count_matches = self
-                    .decide_equal(origin, source_array.count, target_array.count)?
-                    .is_ready_true();
-
-                count_matches
-                    && self.widens_to(origin, source_array.element, target_array.element)?
+            (dir::Type::Literal(literal), target) => Answer::Ready(literal.widens_to(&target)),
+            (dir::Type::Range(range), target) => Answer::Ready(range.widens_to(&target)),
+            (dir::Type::EnumMember(member), _) => {
+                self.decide_relation(origin, Relation::Equal, member.owner, target)?
             }
-            _ => false,
+            (dir::Type::FixedArray(source_array), dir::Type::FixedArray(target_array)) => {
+                let count_matches =
+                    self.decide_equal(origin, source_array.count, target_array.count)?;
+                let elements_widen =
+                    self.widens_to(origin, source_array.element, target_array.element)?;
+
+                count_matches.and(elements_widen)
+            }
+            _ => Answer::Ready(false),
         };
 
         Ok(widens)
@@ -506,23 +510,23 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target: &dir::UnionType,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Answer<bool>> {
         let Some(domain) = self.union_scalar_domain(origin, target)? else {
-            return Ok(false);
+            return Ok(Answer::Ready(false));
         };
         if self.scalar_domain_type(origin, source)? != Some(domain) {
-            return Ok(false);
+            return Ok(Answer::Ready(false));
         }
 
         // one finite member must contain the source without a representation change
         for element in &target.elements {
             let element = self.reduce_widening_type(origin, *element)?;
-            if self.widens_to_single(origin, source, element)? {
-                return Ok(true);
+            if answer!(self.widens_to_single(origin, source, element)?) {
+                return Ok(Answer::Ready(true));
             }
         }
 
-        Ok(false)
+        Ok(Answer::Ready(false))
     }
 
     /// Return whether one finite scalar union widens into one non-union target.
@@ -531,20 +535,20 @@ impl CheckState<'_> {
         origin: Origin,
         source: &dir::UnionType,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Answer<bool>> {
         if self.union_scalar_domain(origin, source)?.is_none() {
-            return Ok(false);
+            return Ok(Answer::Ready(false));
         }
 
         // every finite member must widen to the same target representation
         for element in &source.elements {
             let element = self.reduce_widening_type(origin, *element)?;
-            if !self.widens_to_single(origin, element, target)? {
-                return Ok(false);
+            if !answer!(self.widens_to_single(origin, element, target)?) {
+                return Ok(Answer::Ready(false));
             }
         }
 
-        Ok(true)
+        Ok(Answer::Ready(true))
     }
 
     /// Return the scalar storage family shared by all union elements.
@@ -577,14 +581,14 @@ impl CheckState<'_> {
         element: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let element = self.settled_root(element)?;
-        match self.reduce_type_root(origin, element)? {
+        match self.reduce_type_head(origin, element)? {
             Answer::Ready(element) => Ok(element),
             Answer::Pending(blockers) => {
                 let context = DumpContext::new(self);
                 let blockers = context.dependency_state_list_label(&blockers);
 
                 Err(CompilerError::Internal {
-                    message: format!("finished widening operand is still pending: {blockers}"),
+                    message: format!("widening operand is still pending: {blockers}"),
                 })
             }
         }

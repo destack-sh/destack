@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, MemberLookup, Origin, Relation, answer};
+use crate::check::{Answer, CheckState, Dependency, Origin, Relation, answer};
 
 /// One applied heritage edge in a nominal declaration closure.
 #[derive(Debug, Clone)]
@@ -50,6 +50,24 @@ impl HeritageClosure {
 }
 
 impl CheckState<'_> {
+    /// Return the substituted backing type for one newtype instance.
+    pub(in crate::check) fn newtype_backing_type(
+        &mut self,
+        origin: Origin,
+        instance: &dir::GenericInstance,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let Some(dir::Definition::Newtype(definition)) = self.definition(instance.symbol) else {
+            return Ok(None);
+        };
+        let backing = definition.value;
+        let substitution = self.instance_substitution(instance)?;
+        let module = origin.module();
+        let source = self.origin_source_node(origin)?;
+        let backing = self.substitute_type(module, source, backing, &substitution)?;
+
+        Ok(Some(backing))
+    }
+
     /// Decide one check-only constraint relation between closed roots.
     pub(in crate::check) fn decide_satisfies(
         &mut self,
@@ -67,14 +85,11 @@ impl CheckState<'_> {
             dir::Type::Memory(source) => Some(source.domain_language_item()),
             _ => None,
         };
-        let target_symbol = match self.ty(target)? {
-            dir::Type::Instance(target) => Some(target.symbol),
-            _ => None,
-        };
-        let target_item = match target_symbol {
-            Some(target_symbol) => self.language_item(target_symbol)?,
-            None => None,
-        };
+        let target_item = self
+            .type_symbol(target)?
+            .map(|symbol| self.language_item(symbol))
+            .transpose()?
+            .flatten();
         if let Some(memory_kind) = memory_kind {
             if target_item == Some(memory_kind) {
                 return Ok(Answer::Ready(true));
@@ -129,20 +144,42 @@ impl CheckState<'_> {
         source_instance: &dir::GenericInstance,
         target_instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<bool>> {
-        // same-symbol applications compare arguments
+        // same-symbol interface applications compare by declared variance
         if source_instance.symbol == target_instance.symbol {
-            return self.decide_each_argument(origin, source_instance, target_instance);
+            if matches!(
+                self.definition(target_instance.symbol),
+                Some(dir::Definition::Interface(_))
+            ) {
+                return self.relate_type_arguments(
+                    origin,
+                    target_instance.symbol,
+                    &source_instance.arguments,
+                    &target_instance.arguments,
+                );
+            }
+
+            return self.constrain_instance_arguments(origin, source_instance, target_instance);
         }
 
         // heritage carries the relation when it names the target
         if let Some(heritage) =
             answer!(self.heritage_instance(origin, source_instance, target_instance.symbol)?)
         {
-            let arguments = self.decide_each_argument(origin, &heritage, target_instance)?;
-            if !matches!(
+            let is_interface = matches!(
                 self.definition(target_instance.symbol),
                 Some(dir::Definition::Interface(_))
-            ) {
+            );
+            let arguments = if is_interface {
+                self.relate_type_arguments(
+                    origin,
+                    target_instance.symbol,
+                    &heritage.arguments,
+                    &target_instance.arguments,
+                )?
+            } else {
+                self.constrain_instance_arguments(origin, &heritage, target_instance)?
+            };
+            if !is_interface {
                 return Ok(arguments);
             }
 
@@ -250,12 +287,16 @@ impl CheckState<'_> {
         let module = origin.module();
         let mut decision = Answer::Ready(true);
         for key in self.nominal_field_keys(target_instance.symbol) {
-            let lookup =
-                self.lookup_member(origin, module, target, dir::MemberSpace::Instance, key)?;
-            let declared = match lookup {
-                MemberLookup::Field(ty) => ty,
-                MemberLookup::Found(_) | MemberLookup::Missing => continue,
-                MemberLookup::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            let lookup = answer!(self.lookup_member(
+                origin,
+                module,
+                target,
+                dir::MemberSpace::Instance,
+                key
+            )?);
+            let declared = match lookup.field_type() {
+                Some(ty) => ty,
+                None => continue,
             };
 
             // the field must be written at an assignable type
@@ -277,7 +318,10 @@ impl CheckState<'_> {
     }
 
     /// Collect one definition's instance field keys through heritage.
-    fn nominal_field_keys(&self, symbol: dir::GlobalSymbolId) -> SmallVec<[dir::StaticKey; 8]> {
+    pub(in crate::check) fn nominal_field_keys(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> SmallVec<[dir::StaticKey; 8]> {
         let mut keys = SmallVec::new();
         let mut pending = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
         let mut visited = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
@@ -362,15 +406,15 @@ impl CheckState<'_> {
         let source = self.reference_type(origin, source_instance)?;
         let mut decision = Answer::Ready(true);
         for (key, field_type, is_optional) in fields {
-            let lookup =
-                self.lookup_member(origin, module, source, dir::MemberSpace::Instance, key)?;
+            let lookup = answer!(self.lookup_member(
+                origin,
+                module,
+                source,
+                dir::MemberSpace::Instance,
+                key
+            )?);
 
-            let member = match lookup {
-                MemberLookup::Field(ty) => Some(ty),
-                MemberLookup::Found(candidates) => candidates.first().map(|candidate| candidate.ty),
-                MemberLookup::Missing => None,
-                MemberLookup::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-            };
+            let member = lookup.value_type();
 
             match member {
                 // missing members satisfy optional targets only
@@ -450,14 +494,11 @@ impl CheckState<'_> {
         let module = origin.module();
         let source = self.origin_source_node(origin)?;
 
-        // walk direct heritage edges in their applied view
+        // walk direct heritage edges with applied arguments
         for heritage in heritages {
             let mut arguments = heritage.arguments;
             for argument in &mut arguments {
-                if !substitution.is_empty() {
-                    *argument =
-                        self.fold_type(module, source, *argument, substitution.rewrite())?;
-                }
+                *argument = self.substitute_type(module, source, *argument, &substitution)?;
             }
             let application = HeritageApplication {
                 source: branch_source.unwrap_or(heritage.source),
@@ -477,7 +518,7 @@ impl CheckState<'_> {
 
             // duplicate applications must use the same arguments
             if let Some(previous) = closure.application(application.instance.symbol) {
-                match self.decide_each_argument(
+                match self.constrain_instance_arguments(
                     origin,
                     &previous.instance,
                     &application.instance,
@@ -524,8 +565,8 @@ impl CheckState<'_> {
         Ok(Answer::Ready(None))
     }
 
-    /// Decide argument-wise equality of two same-template applications.
-    pub(in crate::check) fn decide_each_argument(
+    /// Relate arguments of two same-template applications.
+    pub(in crate::check) fn constrain_instance_arguments(
         &mut self,
         origin: Origin,
         source: &dir::GenericInstance,
@@ -542,7 +583,15 @@ impl CheckState<'_> {
             .zip(target.arguments.iter().copied())
             .collect::<SmallVec<[_; 4]>>();
 
-        self.decide_each(origin, Relation::Equal, &pairs)
+        let mut decision = Answer::Ready(true);
+        for (left, right) in pairs {
+            decision = decision.and(self.constrain(origin, Relation::Equal, left, right)?);
+            if decision.is_ready_false() {
+                return Ok(decision);
+            }
+        }
+
+        Ok(decision)
     }
 
     /// Allocate one reference type for a nominal application.
