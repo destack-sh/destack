@@ -2,8 +2,8 @@ use destack_dir as dir;
 use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Dependency, Origin, answer};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Reduce one type graph to its simplest available form.
@@ -18,28 +18,13 @@ impl CheckState<'_> {
         self.reduce_type_graph(origin, id, &mut memo, &mut active)
     }
 
-    /// Reduce one type root to its simplest available form.
-    pub(in crate::check) fn reduce_type_root(
+    /// Reduce the head of one type to its simplest available form.
+    pub(in crate::check) fn reduce_type_head(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let id = self.settled_root(id)?;
-
-        // rewrite assumed @if predicates to their assumed literal values
-        if !self.assumptions.is_empty() {
-            if let Some(holds) = self.assumed_value(id)? {
-                let literal = dir::Type::Literal(dir::ScalarLiteral::Boolean(holds));
-                let source = self.origin_source_node(origin)?;
-                let id = self.push_type(origin.module(), literal, source)?;
-
-                return Ok(Answer::Ready(id));
-            }
-
-            // assumption contexts bypass closed reduction memoization
-            let mut expanding = IndexSet::new();
-            return self.reduce_type_chain(origin, id, &mut expanding);
-        }
 
         // replay memoized closed reductions
         if let Some(reduced) = self.reduced_types.get(&id) {
@@ -62,7 +47,22 @@ impl CheckState<'_> {
         Ok(answer)
     }
 
-    /// Reduce one settled root with the active expansion chain tracked.
+    /// Reduce one type head that must be ready.
+    pub(in crate::check) fn require_reduced_type_head(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+        operation: &'static str,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        match self.reduce_type_head(origin, id)? {
+            Answer::Ready(value) => Ok(value),
+            Answer::Pending(blockers) => Err(CompilerError::Internal {
+                message: format!("{operation} requires a ready type head: {blockers:?}"),
+            }),
+        }
+    }
+
+    /// Reduce one settled type head with the active expansion chain tracked.
     /// Circular aliases and projections report once and poison to the
     /// error type instead of expanding forever.
     fn reduce_type_chain(
@@ -96,10 +96,10 @@ impl CheckState<'_> {
                 // reduce intrinsic references to their builtin forms
                 if let Some(reduced) = answer!(self.reduce_intrinsic_reference(origin, &instance)?)
                 {
-                    return self.reduce_type_root(origin, reduced);
+                    return self.reduce_type_head(origin, reduced);
                 }
 
-                match self.type_alias_body(origin, &instance)? {
+                match answer!(self.type_alias_body(origin, &instance)?) {
                     Some(value) => {
                         let value = self.settled_root(value)?;
 
@@ -135,8 +135,7 @@ impl CheckState<'_> {
                 self.reduce_type_chain(origin, reduced, expanding)
             }
 
-            // borrows view values: ownership forms under a borrow peel
-            // away, and the borrow's components close alongside it
+            // borrows absorb payload placement and close their components
             dir::Type::Form(form) if matches!(form.form, dir::Form::Borrowed { .. }) => {
                 let form = *form;
                 let dir::Form::Borrowed { lifetime, access } = form.form else {
@@ -145,29 +144,22 @@ impl CheckState<'_> {
 
                 // close the lifetime and access components; open
                 // components keep their written spelling
-                let closed_lifetime = match self.reduce_type_root(origin, lifetime)? {
+                let closed_lifetime = match self.reduce_type_head(origin, lifetime)? {
                     Answer::Ready(closed) => closed,
                     Answer::Pending(_) => lifetime,
                 };
-                let closed_access = match self.reduce_type_root(origin, access)? {
+                let closed_access = match self.reduce_type_head(origin, access)? {
                     Answer::Ready(closed) => closed,
                     Answer::Pending(_) => access,
                 };
 
-                let value = match self.reduce_type_root(origin, form.value)? {
+                let value = match self.reduce_type_head(origin, form.value)? {
                     Answer::Ready(value) => value,
                     // open payloads stay structural until they close
                     Answer::Pending(_) => return Ok(Answer::Ready(id)),
                 };
-                // TODO #Incomplete: meet borrow access with peeled readonly views
-                let peeled = match self.ty(value)? {
-                    dir::Type::Form(inner) if !matches!(inner.form, dir::Form::Raw) => {
-                        Some(inner.value)
-                    }
-                    _ => None,
-                };
-                // unpeeled payloads keep their written spelling
-                let inner = peeled.unwrap_or(form.value);
+                let (inner, closed_access) =
+                    self.reduce_borrow_payload(origin, value, closed_access)?;
                 if inner == form.value && closed_lifetime == lifetime && closed_access == access {
                     return Ok(Answer::Ready(id));
                 }
@@ -185,7 +177,40 @@ impl CheckState<'_> {
                     source,
                 )?;
 
-                self.reduce_type_root(origin, rebuilt)
+                self.reduce_type_head(origin, rebuilt)
+            }
+
+            // non-borrow forms close their payload head so aliases can
+            // contribute nested memory forms
+            dir::Type::Form(form) => {
+                let form = *form;
+                let value = match self.reduce_type_head(origin, form.value)? {
+                    Answer::Ready(value) => value,
+                    Answer::Pending(_) => return Ok(Answer::Ready(id)),
+                };
+
+                // default ownership forms reduce to their payload
+                let is_default_ownership =
+                    answer!(self.is_default_ownership_form(origin, form.form, value)?);
+                if is_default_ownership {
+                    return self.reduce_type_chain(origin, value, expanding);
+                }
+
+                if value == form.value {
+                    return Ok(Answer::Ready(id));
+                }
+
+                let source = self.origin_source_node(origin)?;
+                let rebuilt = self.push_type(
+                    origin.module(),
+                    dir::Type::Form(dir::FormType {
+                        form: form.form,
+                        value,
+                    }),
+                    source,
+                )?;
+
+                self.reduce_type_head(origin, rebuilt)
             }
 
             // intersections merge their structural shape elements
@@ -204,6 +229,40 @@ impl CheckState<'_> {
         }
     }
 
+    /// Reduce forms that a borrow absorbs from its payload.
+    fn reduce_borrow_payload(
+        &mut self,
+        origin: Origin,
+        value: dir::GlobalTypeId,
+        access: dir::GlobalTypeId,
+    ) -> CompilerResult<(dir::GlobalTypeId, dir::GlobalTypeId)> {
+        match self.ty(value)?.clone() {
+            // readonly payloads clamp the borrow access
+            dir::Type::Form(inner) if matches!(inner.form, dir::Form::Readonly) => {
+                let access = self.push_type(
+                    origin.module(),
+                    dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)),
+                    self.origin_source_node(origin)?,
+                )?;
+
+                Ok((inner.value, access))
+            }
+
+            // value placement forms disappear under a borrow
+            dir::Type::Form(inner)
+                if matches!(
+                    inner.form,
+                    dir::Form::Managed | dir::Form::Owned | dir::Form::Placed { .. }
+                ) =>
+            {
+                Ok((inner.value, access))
+            }
+
+            // other payloads keep their written form
+            _ => Ok((value, access)),
+        }
+    }
+
     /// Reduce one type graph with the active reduction path tracked.
     fn reduce_type_graph(
         &mut self,
@@ -217,7 +276,7 @@ impl CheckState<'_> {
         }
 
         let original = id;
-        let id = answer!(self.reduce_type_root(origin, id)?);
+        let id = answer!(self.reduce_type_head(origin, id)?);
         if let Some(done) = memo.get(&id).copied() {
             memo.insert(original, done);
 
@@ -273,28 +332,48 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         instance: &dir::GenericInstance,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         // expand transparent alias definitions only
         let value = {
             let Some(definition) = self.definition(instance.symbol) else {
-                return Ok(None);
+                return Ok(Answer::Ready(None));
             };
             let dir::Definition::TypeAlias(definition) = definition else {
-                return Ok(None);
+                return Ok(Answer::Ready(None));
             };
 
             definition.value
         };
 
-        // substitute applied arguments through the body
-        let substitution = self.instance_substitution(instance)?;
-        if substitution.is_empty() {
-            return Ok(Some(value));
-        }
-        let module = origin.module();
+        // reject invalid applications before expanding the alias body
         let source = self.origin_source_node(origin)?;
-        let substituted = self.fold_type(module, source, value, substitution.rewrite())?;
+        let substitution = self.instance_substitution(instance)?;
+        if let Some(template) = self.symbol_template(instance.symbol) {
+            let parameters = self.generic_template_parameters(template);
+            let sources = SmallVec::<[dir::GlobalNodeIdAny; 4]>::from_iter(std::iter::repeat_n(
+                source.into_global(origin.module()),
+                instance.arguments.len(),
+            ));
 
-        Ok(Some(substituted))
+            if answer!(self.check_generic_arguments(
+                origin,
+                &parameters,
+                &instance.arguments,
+                &sources,
+                &substitution,
+            )?)
+            .is_some()
+            {
+                let error = self.push_type(origin.module(), dir::Type::Error, source)?;
+
+                return Ok(Answer::Ready(Some(error)));
+            }
+        }
+
+        // substitute applied arguments through the body
+        let module = origin.module();
+        let substituted = self.substitute_type(module, source, value, &substitution)?;
+
+        Ok(Answer::Ready(Some(substituted)))
     }
 }
