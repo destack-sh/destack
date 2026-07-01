@@ -52,12 +52,12 @@ impl Suite for GeneratedStressSuite {
     }
 
     fn discover(&self, _options: &RunOptions) -> Vec<Case> {
-        self.target
-            .materialize_fixtures()
-            .unwrap_or_else(|error| {
-                eprintln!("{error}");
-                Vec::new()
-            })
+        let fixtures = match self.target.materialize_fixtures() {
+            Ok(fixtures) => fixtures,
+            Err(error) => panic!("failed to materialize stress fixtures: {error}"),
+        };
+
+        fixtures
             .into_iter()
             .map(|fixture| Case::file(fixture.name, fixture.path, self.target.category()))
             .collect()
