@@ -333,9 +333,9 @@ fn test_format_tagged_template_expression_preserves_generic_arguments() {
     );
 }
 
-/// Template remap comments should stay owned by the template container, not the generic argument.
+/// Template remap comments should stay owned by the mapped `as` boundary.
 #[test]
-fn test_type_template_remap_comment_stays_outside_generic_argument_ownership() {
+fn test_format_type_template_remap_comment_stays_on_remap_boundary() {
     let input = r#"type Paths<T> = {
   [K in keyof T as // remap-note
     `get${Capitalize<K & string>}`]: () => T[K]
@@ -385,8 +385,8 @@ fn test_type_template_remap_comment_stays_outside_generic_argument_ownership() {
     assert_eq!(
         formatted_expression,
         r#"type Paths<T> = {
-    [K in keyof T as `get${Capitalize<K & string> // remap-note
-    }`]: () => T[K];
+    [K in keyof T as // remap-note
+        `get${Capitalize<K & string>}`]: () => T[K];
 };"#
     );
 }

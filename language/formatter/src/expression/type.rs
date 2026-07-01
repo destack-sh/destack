@@ -26,7 +26,7 @@ use destack_dir::{
     Comment, ConstructorType, Declaration, Expression, FunctionForm, FunctionSignature,
     FunctionTypeExpression, GenericArgument, GenericParameter, InferForm, Key, Keyword,
     LocalNodeId, MappedTypeModifier, Member, Mutability, Node, NodeType, Parameter, Property,
-    RangeEnd, TokenType, Tree, TreeStore, TupleElement, TypeExpression, TypeLiteral,
+    RangeEnd, TokenSpan, TokenType, Tree, TreeStore, TupleElement, TypeExpression, TypeLiteral,
     TypeMappedParameter, TypeMember, VarianceBound, WhereClause,
 };
 use destack_fir::format::{Buffer, FormatResult};
@@ -2267,9 +2267,12 @@ fn write_mapped_modifier_suffix<'ast>(
 impl<'ast> FormatNode<'ast, TypeMappedParameter> for TypeMappedParameter {
     fn format_node(
         &self,
-        _node_id: LocalNodeId<TypeMappedParameter>,
+        node_id: LocalNodeId<TypeMappedParameter>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        let source_type_comment_end =
+            mapped_source_type_trailing_comment_end(f.context(), self.source_type, self.key_remap);
+
         write!(
             f,
             [
@@ -2278,15 +2281,84 @@ impl<'ast> FormatNode<'ast, TypeMappedParameter> for TypeMappedParameter {
                 space(),
                 Keyword::In,
                 space(),
-                self.source_type
+                format_node_with_trailing_comments(
+                    f.context().span(node_id),
+                    self.source_type,
+                    source_type_comment_end
+                )
             ]
         )?;
 
         if let Some(key_remap) = self.key_remap {
-            write!(f, [space(), Keyword::As, space(), key_remap])?;
+            write_mapped_key_remap(f, key_remap)?;
         }
 
         write!(f, [token("]")])
+    }
+}
+
+/// Return the `as` token that starts one mapped-type key remap.
+fn mapped_key_remap_as_token(
+    context: &DestackFormatContext<'_>,
+    key_remap: LocalNodeId<TypeExpression>,
+) -> Option<TokenSpan> {
+    let remap_span = context.span(key_remap);
+    let as_token = context.previous_non_trivia_token_before_span(remap_span)?;
+
+    if context.token_keyword(as_token) != Some(Keyword::As) {
+        return None;
+    }
+
+    Some(as_token)
+}
+
+/// Return the offset where mapped source-type trailing comments stop.
+fn mapped_source_type_trailing_comment_end(
+    context: &DestackFormatContext<'_>,
+    source_type: LocalNodeId<TypeExpression>,
+    key_remap: Option<LocalNodeId<TypeExpression>>,
+) -> u32 {
+    key_remap
+        .and_then(|key_remap| mapped_key_remap_as_token(context, key_remap))
+        .map(|as_token| as_token.span.start)
+        .or_else(|| key_remap.map(|key_remap| context.span(key_remap).start))
+        .unwrap_or_else(|| context.span(source_type).end)
+}
+
+/// Write one mapped-type key remap after the source type.
+fn write_mapped_key_remap<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    key_remap: LocalNodeId<TypeExpression>,
+) -> FormatResult<()> {
+    let Some(as_token) = mapped_key_remap_as_token(f.context(), key_remap) else {
+        write!(f, [space(), Keyword::As, space(), key_remap])?;
+        return Ok(());
+    };
+
+    let remap_start = f.context().node_token_start(key_remap);
+    let leading_comments = f
+        .context()
+        .comments()
+        .comments_in_range(as_token.span.end, remap_start)
+        .to_vec();
+    let has_breaking_comment = leading_comments
+        .iter()
+        .any(|comment| comment.is_line() || comment.followed_by_newline());
+
+    write!(f, [space(), Keyword::As, space()])?;
+
+    let format_remap = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if !leading_comments.is_empty() {
+            write!(f, [FormatLeadingComments::Comments(&leading_comments)])?;
+        }
+
+        write_type_expression_without_leading_comments(f, key_remap)
+    });
+
+    if has_breaking_comment {
+        write!(f, [indent(&format_remap)])
+    } else {
+        write!(f, [format_remap])
     }
 }
 
@@ -2767,10 +2839,11 @@ fn write_type_expression_body_at_current_stack<'ast>(
 
                 // key head
                 let format_key = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    let remap_start = parameter
-                        .key_remap
-                        .map(|key_remap| f.context().span(key_remap).start)
-                        .unwrap_or_else(|| f.context().span(parameter.source_type).end);
+                    let source_type_comment_end = mapped_source_type_trailing_comment_end(
+                        f.context(),
+                        parameter.source_type,
+                        parameter.key_remap,
+                    );
 
                     write!(
                         f,
@@ -2783,14 +2856,13 @@ fn write_type_expression_body_at_current_stack<'ast>(
                             format_node_with_trailing_comments(
                                 f.context().span(node_id),
                                 parameter.source_type,
-                                remap_start
+                                source_type_comment_end
                             )
                         ]
                     )?;
 
                     if let Some(key_remap) = parameter.key_remap {
-                        write!(f, [space(), Keyword::As, space()])?;
-                        write!(f, [key_remap])?;
+                        write_mapped_key_remap(f, key_remap)?;
                     }
 
                     write!(f, [token("]")])?;
