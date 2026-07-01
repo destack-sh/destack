@@ -440,7 +440,10 @@ fn stale_skipped_patterns<S: ConformanceDriver>(
         // exact selectors only
         for selector in exact_selectors(entry) {
             let matches = status_for_case(suite, statuses, &selector);
-            if matches.is_some() && !discovered_case_names.contains(&selector) {
+            if matches.is_some()
+                && !discovered_case_names.contains(&selector)
+                && !suite.allows_undiscovered_status(&selector)
+            {
                 stale.push(selector);
             }
         }

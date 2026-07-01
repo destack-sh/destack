@@ -70,9 +70,9 @@ impl OxfmtSuite {
             let relative = path.strip_prefix(&self.tests_dir).unwrap_or(&path);
             let test_name = relative.to_string_lossy().replace('\\', "/");
             let mut test = if expect_error_from_path(&test_name) {
-                Case::fail(test_name, file_type)
+                Case::invalid(test_name, file_type)
             } else {
-                Case::pass(test_name, file_type)
+                Case::valid(test_name, file_type)
             };
 
             if let Some(expected_path) = sibling_with_suffix(&path, ".snap")
@@ -144,7 +144,7 @@ impl ConformanceDriver for OxfmtSuite {
             test.file_type,
             expected_output.as_deref(),
             formatter_options,
-            test.expect_error,
+            test.source_validity.is_invalid(),
             test.check_idempotence,
             show_diff,
         )

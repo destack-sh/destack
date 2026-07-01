@@ -37,6 +37,11 @@ pub trait ConformanceDriver: Send + Sync + Clone {
         false
     }
 
+    /// Return whether one skipped status may point at no discovered case.
+    fn allows_undiscovered_status(&self, _case_name: &str) -> bool {
+        false
+    }
+
     /// Discover all runnable cases in this suite.
     fn discover_cases(&self) -> Vec<Case>;
 
@@ -59,7 +64,7 @@ pub trait ConformanceDriver: Send + Sync + Clone {
             1
         };
 
-        let base_ms = if case.expect_error {
+        let base_ms = if case.source_validity.is_invalid() {
             options.error_timeout_ms
         } else {
             options.parse_timeout_ms
