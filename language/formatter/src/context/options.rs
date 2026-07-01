@@ -1,5 +1,5 @@
 use destack_fir::format::FormatOptions;
-use destack_fir::print::PrintOptions;
+use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions};
 use destack_repository::{
     ArrowParentheses, FormatterOptions, ImportSortOrder, JsdocCommentLineStrategy,
     JsdocLineWrappingStyle, JsdocOptions, OrganizeImports, QuoteProperty, QuoteStyle,
@@ -117,6 +117,7 @@ impl DestackFormatOptions {
             indent_style: self.indent_style,
             indent_width: self.indent_width,
             trim_trailing_whitespace: true,
+            max_output_bytes: MAX_OUTPUT_BYTES,
         }
     }
 
