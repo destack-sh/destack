@@ -1,3 +1,4 @@
+use destack_core::ensure_sufficient_stack;
 use destack_dir::{
     Block, BlockForm, Comment, Expression, LocalNodeId, Node, NodeType, Tree, TreeStore,
 };
@@ -315,6 +316,14 @@ pub(crate) fn write_block_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
+    ensure_sufficient_stack(|| write_block_body_inner(f, node_id))
+}
+
+/// Write one block body.
+fn write_block_body_inner<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Block>,
+) -> FormatResult<()> {
     if should_inline_block(f, node_id) {
         return format_block_body_narrow(f, node_id);
     }
@@ -325,6 +334,14 @@ pub(crate) fn write_block_body<'ast>(
 /// Format a block (without a nested group!).
 /// Format a block with opening and closing braces.
 pub fn format_block<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Block>,
+) -> FormatResult<()> {
+    ensure_sufficient_stack(|| format_block_inner(f, node_id))
+}
+
+/// Format a block.
+fn format_block_inner<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
@@ -344,6 +361,14 @@ pub fn format_block<'ast>(
 
 /// Format one block with expanded contents.
 pub(crate) fn format_block_wide<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Block>,
+) -> FormatResult<()> {
+    ensure_sufficient_stack(|| format_block_wide_inner(f, node_id))
+}
+
+/// Format one expanded block.
+fn format_block_wide_inner<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {

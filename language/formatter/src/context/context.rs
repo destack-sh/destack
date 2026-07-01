@@ -2,7 +2,7 @@ use super::options::DestackFormatOptions;
 use super::source::SourceText;
 use super::{FormatElementCache, FormatSourceIndex};
 
-use destack_core::StringPool;
+use destack_core::{StringPool, ensure_sufficient_stack};
 pub use destack_dir::Decorator;
 use destack_dir::{
     Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator,
@@ -230,7 +230,7 @@ where
 {
     #[inline]
     fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
-        destack_core::ensure_sufficient_stack(|| {
+        ensure_sufficient_stack(|| {
             let context = f.context();
             let node = context.tree.get(*self);
 
