@@ -85,6 +85,22 @@ pub enum CheckError {
         supplied: usize,
     },
 
+    /// Type query operand is not a value reference path.
+    ///
+    /// ```ds
+    /// type T = typeof call();
+    /// ```
+    #[diagnostic(
+        code = "EC106",
+        message = "typeof type query requires a value reference"
+    )]
+    InvalidTypeQuery {
+        /// Report the invalid query operand.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     // -------------------------------------------------------------------------
     // 2xx: relations
     // -------------------------------------------------------------------------
@@ -400,7 +416,7 @@ pub enum CheckError {
     /// ```
     #[diagnostic(
         code = "EC216",
-        message = "type '{source}' is missing IndexSet<{key}, {value}> for writable index signature"
+        message = "type '{source}' is missing IndexSet<{key}> with input '{value}' for writable index signature"
     )]
     WritableIndexRequiresIndexSet {
         /// Report the source type.
@@ -472,6 +488,24 @@ pub enum CheckError {
     )]
     NoMatchingCall {
         /// Report the call expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The supplied argument types.
+        arguments: String,
+    },
+
+    /// No constructor matches the supplied arguments.
+    ///
+    /// ```ds
+    /// new User(true);
+    /// ```
+    #[diagnostic(
+        code = "EC311",
+        message = "no constructor matches arguments ({arguments})"
+    )]
+    NoMatchingConstruct {
+        /// Report the construct expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
@@ -807,6 +841,26 @@ pub enum CheckError {
         target: String,
     },
 
+    /// Member access reads a property that only has a setter.
+    ///
+    /// ```ds
+    /// interface Sink {
+    ///     set value(next: int32);
+    /// }
+    ///
+    /// declare const sink: Sink;
+    /// sink.value;
+    /// ```
+    #[diagnostic(code = "EC321", message = "member '{member}' is write-only")]
+    CannotReadWriteOnlyMember {
+        /// Report the member access.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The selected member key.
+        member: String,
+    },
+
     // -------------------------------------------------------------------------
     // 4xx: expressions
     // -------------------------------------------------------------------------
@@ -839,6 +893,25 @@ pub enum CheckError {
         message = "static condition must evaluate to a boolean"
     )]
     InvalidStaticCondition {
+        /// Report the static condition expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Static inclusion condition could not be decided statically.
+    ///
+    /// ```ds
+    /// function f<comptime Enabled: boolean>() {
+    ///     @if(Enabled)
+    ///     const value = 1;
+    /// }
+    /// ```
+    #[diagnostic(
+        code = "EC404",
+        message = "static @if condition must be statically decidable"
+    )]
+    UndecidableStaticCondition {
         /// Report the static condition expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
@@ -1067,13 +1140,16 @@ pub enum CheckError {
         module: ModuleId,
     },
 
-    /// Tree expression is not valid in checked expressions.
+    /// Tree expression has no active builder.
     ///
     /// ```ds
-    /// tree { value }
+    /// <View />
     /// ```
-    #[diagnostic(code = "EC417", message = "tree expression is not supported here")]
-    UnsupportedTreeExpression {
+    #[diagnostic(
+        code = "EC417",
+        message = "tree expression requires an active tree builder"
+    )]
+    MissingTreeBuilder {
         /// Report the tree expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
