@@ -6,7 +6,17 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{Answer, CheckError, CheckState, Origin, answer};
 
-use super::aggregate::AggregateLayout;
+use super::aggregate::{AggregateLayout, AggregateSlot};
+
+/// Result of requesting one concrete layout.
+pub(in crate::check) enum LayoutResult {
+    /// The type has a concrete layout.
+    Concrete(dir::LocalLayoutId),
+    /// The type is open or erased before a concrete layout can be chosen.
+    NonConcrete,
+    /// The type recursively contains itself by value.
+    Circular(dir::GlobalNodeIdAny),
+}
 
 impl CheckState<'_> {
     /// Check that one type at a representation slot has a layout.
@@ -17,8 +27,16 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<destack_artifact::DiagnosticBuilder<CheckError>>>> {
         let origin = Origin::Node(source);
 
-        if answer!(self.layout_of(origin, ty)?).is_some() {
-            return Ok(Answer::Ready(None));
+        match answer!(self.layout_of(origin, ty)?) {
+            LayoutResult::Concrete(_id) => {
+                return Ok(Answer::Ready(None));
+            }
+            LayoutResult::Circular(source) => {
+                let error = self.circular_type_error(Origin::Node(source))?;
+
+                return Ok(Answer::Ready(Some(error.into())));
+            }
+            LayoutResult::NonConcrete => {}
         }
 
         let ty = self.format_type(ty);
@@ -29,13 +47,16 @@ impl CheckState<'_> {
     }
 
     /// Compute and memoize the layout of one type.
-    /// Returns ready none when the type has no concrete representation.
     pub(in crate::check) fn layout_of(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::LocalLayoutId>>> {
-        LayoutQuery::new(self, origin).layout_id(ty)
+    ) -> CompilerResult<Answer<LayoutResult>> {
+        let source = self
+            .origin_source_node(origin)?
+            .into_global(origin.module());
+
+        LayoutQuery::new(self, origin).layout_result(ty, source)
     }
 }
 
@@ -47,6 +68,8 @@ pub(super) struct LayoutQuery<'state, 'check> {
     pub(super) origin: Origin,
     /// The active recursion chain.
     pub(super) active: IndexSet<dir::GlobalTypeId>,
+    /// The source slot that made layout recursion visible.
+    pub(super) circular_source: Option<dir::GlobalNodeIdAny>,
 }
 
 impl<'state, 'check> LayoutQuery<'state, 'check> {
@@ -56,7 +79,24 @@ impl<'state, 'check> LayoutQuery<'state, 'check> {
             check,
             origin,
             active: IndexSet::new(),
+            circular_source: None,
         }
+    }
+
+    /// Compute one layout result with its diagnostic reason preserved.
+    fn layout_result(
+        &mut self,
+        ty: dir::GlobalTypeId,
+        source: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<Answer<LayoutResult>> {
+        let layout = answer!(self.layout_id(ty, source)?);
+        let result = match (layout, self.circular_source) {
+            (Some(id), _) => LayoutResult::Concrete(id),
+            (None, Some(source)) => LayoutResult::Circular(source),
+            (None, None) => LayoutResult::NonConcrete,
+        };
+
+        Ok(Answer::Ready(result))
     }
 
     /// Compute one layout with the active recursion chain tracked.
@@ -65,11 +105,12 @@ impl<'state, 'check> LayoutQuery<'state, 'check> {
     pub(super) fn layout_id(
         &mut self,
         ty: dir::GlobalTypeId,
+        source: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Answer<Option<dir::LocalLayoutId>>> {
-        // close the represented type first
+        // reduce to the type that owns layout
         let origin = self.origin;
-        let ty = answer!(self.check.reduce_type_root(origin, ty)?);
-        let ty = self.represented_type(ty)?;
+        let ty = answer!(self.check.reduce_type_head(origin, ty)?);
+        let ty = self.layout_type(ty)?;
         let segment = ty.module_id;
 
         // reuse memoized layouts
@@ -81,6 +122,8 @@ impl<'state, 'check> LayoutQuery<'state, 'check> {
 
         // inline recursion has no finite representation
         if !self.active.insert(ty) {
+            self.circular_source.get_or_insert(source);
+
             return Ok(Answer::Ready(None));
         }
         let layout = self.compute_layout(ty, ty);
@@ -105,6 +148,15 @@ impl<'state, 'check> LayoutQuery<'state, 'check> {
             .or_insert_with(|| dir::LayoutSegment::new(module))
     }
 
+    /// Return one computed layout row.
+    pub(super) fn layout(&self, module: ModuleId, id: dir::LocalLayoutId) -> &dir::Layout {
+        self.check
+            .layouts
+            .get(&module)
+            .unwrap_or_else(|| unreachable!("computed layout must own a layout segment"))
+            .get_layout(id)
+    }
+
     /// Compute the layout of one reduced type.
     ///
     /// The qualified root keeps the outer memory forms so `this` binds
@@ -114,6 +166,7 @@ impl<'state, 'check> LayoutQuery<'state, 'check> {
         ty: dir::GlobalTypeId,
         qualified: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::Layout>>> {
+        let owner = ty.module_id;
         let pointer_bytes = self.target_pointer_bytes()?;
 
         match self.check.ty(ty)? {
@@ -148,7 +201,7 @@ impl<'state, 'check> LayoutQuery<'state, 'check> {
                     )))),
                     // direct forms keep the qualified root for `this`
                     dir::Form::Owned | dir::Form::Placed { .. } | dir::Form::Readonly => {
-                        let value = self.represented_type(value)?;
+                        let value = self.layout_type(value)?;
 
                         self.compute_layout(value, qualified)
                     }
@@ -157,7 +210,7 @@ impl<'state, 'check> LayoutQuery<'state, 'check> {
             dir::Type::FixedArray(array) => {
                 let (element, count) = (array.element, array.count);
 
-                self.fixed_array_layout(element, count)
+                self.fixed_array_layout(owner, element, count)
             }
             dir::Type::Slice(_) => Ok(Answer::Ready(Some(dir::Layout {
                 shape: dir::LayoutShape::Slice,
@@ -174,38 +227,46 @@ impl<'state, 'check> LayoutQuery<'state, 'check> {
                 let fields = tuple
                     .elements
                     .iter()
-                    .map(|element| (None, element.ty))
+                    .map(|element| AggregateSlot {
+                        key: None,
+                        ty: element.ty,
+                        source: None,
+                    })
                     .collect::<SmallVec<[_; 4]>>();
 
-                self.aggregate_layout(&fields, AggregateLayout::Tuple)
+                self.aggregate_layout(owner, &fields, AggregateLayout::Tuple)
             }
             dir::Type::Shape(shape) => {
                 let fields = shape
                     .fields
                     .iter()
-                    .map(|field| (Some(field.key), field.ty))
+                    .map(|field| AggregateSlot {
+                        key: Some(field.key),
+                        ty: field.ty,
+                        source: None,
+                    })
                     .collect::<SmallVec<[_; 4]>>();
 
-                self.aggregate_layout(&fields, AggregateLayout::Struct)
+                self.aggregate_layout(owner, &fields, AggregateLayout::Struct)
             }
             dir::Type::EnumMember(member) => self.compute_layout(member.owner, qualified),
             dir::Type::Union(union) => {
                 let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
 
-                self.union_layout(&elements)
+                self.union_layout(owner, &elements)
             }
             dir::Type::Instance(instance) => {
                 let instance = instance.clone();
 
-                self.reference_layout(ty, qualified, &instance)
+                self.reference_layout(owner, ty, qualified, &instance)
             }
             // open or symbolic types have no representation yet
             _ => Ok(Answer::Ready(None)),
         }
     }
 
-    /// Return the type that owns representation for one reduced type.
-    pub(super) fn represented_type(
+    /// Return the type to lay out after primitive lowering.
+    pub(super) fn layout_type(
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -213,7 +274,7 @@ impl<'state, 'check> LayoutQuery<'state, 'check> {
             return Ok(ty);
         };
 
-        // primitive aliases defer representation to their language item
+        // primitive aliases defer storage to their language item
         if let Some(item) = primitive.representation_item() {
             let symbol = self.check.language_symbol(item);
             let reference = dir::Type::Instance(dir::GenericInstance {

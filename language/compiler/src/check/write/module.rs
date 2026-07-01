@@ -3,10 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use indexmap::IndexSet;
 
-use crate::check::{
-    Answer, CheckState, Constraint, ConstraintId, ConstraintState, Decision, Origin, Relation,
-    ValueUse,
-};
+use crate::check::{Answer, CheckState, Decision, Origin};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -16,7 +13,8 @@ impl CheckState<'_> {
         let sealed_variables = self.sealed_variable_types(module)?;
         let node_types = self.resolved_node_types(module, &mut reported)?;
         let symbol_types = self.resolved_symbol_types(module, &mut reported)?;
-        let definition_values = self.resolved_definition_values(module, &mut reported)?;
+        let reduced_types =
+            self.resolved_reduced_types(module, &node_types, &symbol_types, &mut reported)?;
         let symbol_literals = self.static_symbol_literals(module)?;
         let coercions = self.implicit_coercions(module)?;
         if let Some(layouts) = self.layouts.swap_remove(&module) {
@@ -29,21 +27,15 @@ impl CheckState<'_> {
             state.types.update_type(local, sealed);
         }
 
-        // write alias definition values as reduced answers
-        for (symbol, value) in definition_values {
-            if let Some(dir::Definition::TypeAlias(definition)) =
-                state.definitions.definition_mut(symbol)
-            {
-                definition.value = value;
-            }
-        }
-
-        // record inferred node and symbol types
+        // record inferred types and checked reduced types
         for (node, ty) in node_types {
             state.types.set_node_type(node, ty);
         }
         for (symbol, ty) in symbol_types {
             state.types.set_symbol_type(symbol, ty);
+        }
+        for (source, target) in reduced_types {
+            state.types.set_type_reduction(source, target);
         }
 
         // record implicit representation changes beside their value nodes
@@ -72,7 +64,8 @@ impl CheckState<'_> {
         // drain decided node meanings into resolutions
         self.drain_decisions(module);
 
-        // TODO #Incomplete: synthesize capture frames from collected captures
+        // write closure capture frames and bindings
+        self.write_captures(module, &mut reported)?;
 
         Ok(())
     }
@@ -114,95 +107,6 @@ impl CheckState<'_> {
         Ok(sealed)
     }
 
-    /// Return implicit coercions from solved value constraints.
-    pub(in crate::check) fn implicit_coercions(
-        &mut self,
-        module: ModuleId,
-    ) -> CompilerResult<Vec<(dir::GlobalNodeIdAny, dir::Coercion)>> {
-        let mut constraints = Vec::new();
-        for (id, constraint) in self.solver.constraints.iter() {
-            let state = self.solver.constraints.state(id)?;
-            if state == ConstraintState::Holds && constraint.origin().module() == module {
-                constraints.push(id);
-            }
-        }
-        let mut coercions = Vec::new();
-
-        for constraint in constraints {
-            if let Some(coercion) = self.constraint_coercion(module, constraint)? {
-                coercions.push(coercion);
-            }
-        }
-
-        Ok(coercions)
-    }
-
-    /// Return one implicit coercion from one solved value constraint.
-    fn constraint_coercion(
-        &mut self,
-        module: ModuleId,
-        constraint: ConstraintId,
-    ) -> CompilerResult<Option<(dir::GlobalNodeIdAny, dir::Coercion)>> {
-        let (relation, use_, left, right, origin) = {
-            let constraint = self.solver.constraints.get(constraint)?;
-
-            let Constraint::Flow(flow) = constraint else {
-                return Ok(None);
-            };
-
-            (
-                flow.relation,
-                flow.use_,
-                flow.source,
-                flow.target,
-                flow.origin,
-            )
-        };
-        let Some(node) = origin.expression() else {
-            return Ok(None);
-        };
-        if node.module_id != module {
-            return Ok(None);
-        }
-        if relation != Relation::Assignable {
-            return Ok(None);
-        }
-        if !matches!(
-            use_,
-            ValueUse::Store | ValueUse::Argument | ValueUse::Output
-        ) {
-            return Ok(None);
-        }
-
-        let source = self.settled_root(left)?;
-        let target = self.settled_root(right)?;
-        if !self.type_variables(source)?.is_empty() || !self.type_variables(target)?.is_empty() {
-            return Ok(None);
-        }
-
-        let Some(coercion) = self.implicit_coercion(origin, source, target)? else {
-            return Ok(None);
-        };
-
-        Ok(Some((node.into_any(), coercion)))
-    }
-
-    /// Return the implicit coercion required by one solved source-target pair.
-    fn implicit_coercion(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::Coercion>> {
-        if !self.requires_implicit_coercion(origin, source, target)? {
-            return Ok(None);
-        }
-
-        let coercion = dir::Coercion::new(source, target, dir::CastOrigin::Implicit);
-
-        Ok(Some(coercion))
-    }
-
     /// Resolve one module's recorded node types.
     fn resolved_node_types(
         &mut self,
@@ -210,13 +114,14 @@ impl CheckState<'_> {
         reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<Vec<(dir::GlobalNodeIdAny, dir::GlobalTypeId)>> {
         let node_types = self
-            .solver
-            .node_types()
+            .node_types
+            .iter()
+            .map(|(node, ty)| (*node, *ty))
             .filter_map(|(node, ty)| (node.module_id == module).then_some((node, ty)))
             .collect::<Vec<_>>();
         let mut resolved = Vec::with_capacity(node_types.len());
         for (node, ty) in node_types {
-            let ty = self.resolved_node_type(node, ty)?;
+            let ty = self.resolved_node_type(ty)?;
             self.report_unresolved_output_type(Origin::Node(node), ty, reported)?;
             resolved.push((node, ty));
         }
@@ -224,29 +129,30 @@ impl CheckState<'_> {
         Ok(resolved)
     }
 
-    /// Resolve one written node type when reduction is ready.
-    fn resolved_node_type(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = self.settled_root(ty)?;
-        match self.reduce_type(Origin::Node(node), ty)? {
-            Answer::Ready(reduced) => Ok(reduced),
-            Answer::Pending(_) => Ok(ty),
-        }
+    /// Resolve one written node type to its settled type.
+    fn resolved_node_type(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId> {
+        self.settled_root(ty)
     }
 
-    /// Resolve one written type to its reduced canonical form.
-    /// Alias applications and preserved type operations reduce before the tables seal.
-    fn resolved_output_type(
+    /// Resolve one written reduced type.
+    fn resolved_reduced_type(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
+        reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
+    ) -> CompilerResult<Option<(dir::GlobalTypeId, dir::GlobalTypeId)>> {
         let ty = self.settled_root(ty)?;
+        if !self.type_variables(ty)?.is_empty() {
+            return Ok(None);
+        }
+
         match self.reduce_type(origin, ty)? {
-            Answer::Ready(reduced) => Ok(reduced),
+            Answer::Ready(reduced) if reduced == ty => Ok(None),
+            Answer::Ready(reduced) => {
+                self.report_unresolved_output_type(origin, reduced, reported)?;
+
+                Ok(Some((ty, reduced)))
+            }
             Answer::Pending(blockers) => {
                 let (_, anchor) = self.origin_diagnostic_anchor(origin)?;
 
@@ -279,13 +185,7 @@ impl CheckState<'_> {
 
         let mut resolved = Vec::with_capacity(symbol_types.len());
         for (symbol, ty) in symbol_types {
-            // write alias values as reduced answers, every other
-            // symbol keeps its written spelling for lazy use sites
-            let ty = if self.symbol_kind(symbol) == dir::SymbolKind::TypeAlias {
-                self.resolved_output_type(Origin::Symbol(symbol), ty)?
-            } else {
-                self.settled_root(ty)?
-            };
+            let ty = self.settled_root(ty)?;
             self.report_unresolved_output_type(Origin::Symbol(symbol), ty, reported)?;
             resolved.push((symbol, ty));
         }
@@ -293,28 +193,47 @@ impl CheckState<'_> {
         Ok(resolved)
     }
 
-    /// Resolve one module's alias definition values.
-    ///
-    /// Alias values write their reduced answer like alias symbol types.
-    fn resolved_definition_values(
+    /// Resolve one module's checked reduced types.
+    fn resolved_reduced_types(
         &mut self,
         module: ModuleId,
+        node_types: &[(dir::GlobalNodeIdAny, dir::GlobalTypeId)],
+        symbol_types: &[(dir::GlobalSymbolId, dir::GlobalTypeId)],
         reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
-    ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::GlobalTypeId)>> {
-        let aliases = self
-            .module(module)
-            .definitions
-            .iter_definitions()
-            .filter_map(|(symbol, definition)| match definition {
-                dir::Definition::TypeAlias(definition) => Some((symbol, definition.value)),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        let mut resolved = Vec::with_capacity(aliases.len());
-        for (symbol, value) in aliases {
-            let value = self.resolved_output_type(Origin::Symbol(symbol), value)?;
-            self.report_unresolved_output_type(Origin::Symbol(symbol), value, reported)?;
-            resolved.push((symbol, value));
+    ) -> CompilerResult<Vec<(dir::GlobalTypeId, dir::GlobalTypeId)>> {
+        let mut sources = Vec::new();
+        sources.extend(
+            node_types
+                .iter()
+                .map(|(node, ty)| (Origin::Node(*node), *ty)),
+        );
+        sources.extend(
+            symbol_types
+                .iter()
+                .map(|(symbol, ty)| (Origin::Symbol(*symbol), *ty)),
+        );
+        sources.extend(
+            self.module(module)
+                .definitions
+                .iter_definitions()
+                .filter_map(|(symbol, definition)| match definition {
+                    dir::Definition::TypeAlias(definition) => {
+                        Some((Origin::Symbol(symbol), definition.value))
+                    }
+                    _ => None,
+                }),
+        );
+
+        let mut seen = IndexSet::new();
+        let mut resolved = Vec::new();
+        for (origin, ty) in sources {
+            if !seen.insert(ty) {
+                continue;
+            }
+
+            if let Some(reduction) = self.resolved_reduced_type(origin, ty, reported)? {
+                resolved.push(reduction);
+            }
         }
 
         Ok(resolved)
@@ -344,7 +263,7 @@ impl CheckState<'_> {
 
     /// Drain decided node meanings into output resolutions.
     fn drain_decisions(&mut self, module: ModuleId) {
-        let decisions = self.solver.decisions.take_module(module);
+        let decisions = self.decisions.take_module(module);
         let resolutions = &mut self.module_mut(module).resolutions;
         for (node, decision) in decisions {
             match decision {
@@ -363,8 +282,8 @@ impl CheckState<'_> {
                 Decision::Call(resolution) => {
                     resolutions.set_call_resolution(node, resolution);
                 }
-                Decision::ReadWrite(resolution) => {
-                    resolutions.set_read_write_resolution(node, resolution);
+                Decision::Place(resolution) => {
+                    resolutions.set_place_resolution(node, resolution);
                 }
                 Decision::Guard(resolution) => {
                     resolutions.set_guard_resolution(node, resolution);

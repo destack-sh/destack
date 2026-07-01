@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{Answer, answer};
@@ -10,17 +11,26 @@ impl LayoutQuery<'_, '_> {
     /// Compute the inline layout of `Vector<T, N>`.
     pub(super) fn vector_layout(
         &mut self,
+        owner: ModuleId,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<Option<dir::Layout>>> {
         let [element, count] = instance.arguments.as_slice() else {
             return Ok(Answer::Ready(None));
         };
 
-        let Some(slot) = answer!(self.slot_layout(*element)?) else {
+        let source = self
+            .check
+            .origin_source_node(self.origin)?
+            .into_global(self.origin.module());
+        let Some(layout_id) = answer!(self.slot_layout(owner, *element, source)?) else {
             return Ok(Answer::Ready(None));
         };
+        let (element_size, element_alignment, element_niche) = {
+            let layout = self.layout(owner, layout_id);
+            (layout.size, layout.alignment, layout.niche)
+        };
         let origin = self.origin;
-        let count = answer!(self.check.reduce_type_root(origin, *count)?);
+        let count = answer!(self.check.reduce_type_head(origin, *count)?);
         let lanes = match self.check.ty(count)? {
             dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => u32::try_from(*value).ok(),
             _ => None,
@@ -29,7 +39,7 @@ impl LayoutQuery<'_, '_> {
             return Ok(Answer::Ready(None));
         };
 
-        let stride = align_to(slot.size, slot.alignment);
+        let stride = align_to(element_size, element_alignment);
 
         Ok(Answer::Ready(Some(dir::Layout {
             shape: dir::LayoutShape::Vector(dir::ElementLayout {
@@ -38,8 +48,8 @@ impl LayoutQuery<'_, '_> {
                 count: lanes,
             }),
             size: stride.saturating_mul(lanes),
-            alignment: slot.alignment,
-            niche: (lanes > 0).then_some(slot.niche).flatten(),
+            alignment: element_alignment,
+            niche: (lanes > 0).then_some(element_niche).flatten(),
         })))
     }
 
@@ -228,8 +238,8 @@ impl LayoutQuery<'_, '_> {
             return Ok(Answer::Ready(None));
         };
         let origin = self.origin;
-        let reduction = answer!(self.check.reduce_type_root(origin, reduction)?);
-        let reduction = self.represented_type(reduction)?;
+        let reduction = answer!(self.check.reduce_type_head(origin, reduction)?);
+        let reduction = self.layout_type(reduction)?;
         let reduction = match self.check.ty(reduction)? {
             dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
                 dir::TensorReduction::from_discriminant(*value)
@@ -250,8 +260,8 @@ impl LayoutQuery<'_, '_> {
             return Ok(Answer::Ready(None));
         };
         let origin = self.origin;
-        let order = answer!(self.check.reduce_type_root(origin, order)?);
-        let order = self.represented_type(order)?;
+        let order = answer!(self.check.reduce_type_head(origin, order)?);
+        let order = self.layout_type(order)?;
         let order = match self.check.ty(order)? {
             dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
                 dir::TensorDimensionOrder::from_discriminant(*value)
@@ -299,8 +309,8 @@ impl LayoutQuery<'_, '_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::GenericInstance>>> {
         let origin = self.origin;
-        let ty = answer!(self.check.reduce_type_root(origin, ty)?);
-        let ty = self.represented_type(ty)?;
+        let ty = answer!(self.check.reduce_type_head(origin, ty)?);
+        let ty = self.layout_type(ty)?;
         let dir::Type::Instance(instance) = self.check.ty(ty)? else {
             return Ok(Answer::Ready(None));
         };

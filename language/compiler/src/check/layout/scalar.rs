@@ -30,8 +30,8 @@ impl LayoutQuery<'_, '_> {
         convert: impl FnOnce(i64) -> Result<T, std::num::TryFromIntError> + Copy,
     ) -> CompilerResult<Answer<Option<T>>> {
         let origin = self.origin;
-        let value = answer!(self.check.reduce_type_root(origin, value)?);
-        let value = self.represented_type(value)?;
+        let value = answer!(self.check.reduce_type_head(origin, value)?);
+        let value = self.layout_type(value)?;
         let value = match self.check.ty(value)? {
             dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => convert(*value).ok(),
             dir::Type::Static(value) => self.static_integer_value(*value, convert),
