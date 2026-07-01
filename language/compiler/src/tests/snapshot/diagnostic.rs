@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_repository::{Repository, Revision};
 use destack_source::{
-    DiagnosticCollection, DiagnosticLabel, FileId, PrintOptions, print_diagnostics,
+    DiagnosticCollection, DiagnosticLabel, File, FileId, PrintOptions, print_diagnostics,
 };
 
 /// Render one diagnostic collection as stable tripleslash rows.
@@ -55,6 +55,17 @@ fn render_label(repository: &Repository, revision: Revision, label: &DiagnosticL
         .file(revision, label.span.file)
         .expect("diagnostic snapshot file lookup should work")
         .expect("diagnostic snapshot file should exist");
+    let content = repository
+        .content(label.content)
+        .expect("diagnostic snapshot content lookup should work");
+    let file = File::from_content(
+        file.id,
+        file.name.clone(),
+        file.uri.clone(),
+        file.path.clone(),
+        file.ty,
+        content,
+    );
     let (line, column) = file
         .get_position(label.span.start)
         .expect("diagnostic snapshot position should exist");
