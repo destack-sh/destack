@@ -19,6 +19,8 @@ use crate::check::{
 pub(in crate::check) struct WriteTarget {
     /// The selected storage.
     pub(in crate::check) storage: dir::Storage,
+    /// The type written through the storage.
+    pub(in crate::check) ty: dir::GlobalTypeId,
     /// The write validation mode.
     pub(in crate::check) mode: WriteMode,
     /// The source node for diagnostics.
@@ -27,9 +29,14 @@ pub(in crate::check) struct WriteTarget {
 
 impl WriteTarget {
     /// Create a directly writable target.
-    pub(in crate::check) fn new(storage: dir::Storage, source: dir::GlobalNodeIdAny) -> Self {
+    pub(in crate::check) fn new(
+        storage: dir::Storage,
+        ty: dir::GlobalTypeId,
+        source: dir::GlobalNodeIdAny,
+    ) -> Self {
         Self {
             storage,
+            ty,
             mode: WriteMode::Direct,
             source,
         }
@@ -38,22 +45,24 @@ impl WriteTarget {
     /// Create a target that writes through non-exclusive indirection.
     pub(in crate::check) fn stable_overwrite(
         storage: dir::Storage,
+        ty: dir::GlobalTypeId,
         source: dir::GlobalNodeIdAny,
         receiver: dir::GlobalTypeId,
     ) -> Self {
         Self {
             storage,
+            ty,
             mode: WriteMode::StableOverwrite { receiver },
             source,
         }
     }
 
     /// Return the durable place resolution selected by this target.
-    pub(in crate::check) fn resolution(self, ty: dir::GlobalTypeId) -> dir::PlaceResolution {
+    pub(in crate::check) fn resolution(self) -> dir::PlaceResolution {
         dir::PlaceResolution {
             source: self.source,
             storage: self.storage,
-            ty,
+            ty: self.ty,
         }
     }
 }

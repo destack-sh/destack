@@ -139,9 +139,7 @@ impl CheckState<'_> {
         match expression {
             // value
             dir::Expression::Identifier { name } => {
-                let place = self.select_binding_place(source, name)?;
-
-                Ok(Answer::Ready(place))
+                self.select_binding_place(source, name)
             }
             // value.member
             dir::Expression::Member {
@@ -153,7 +151,7 @@ impl CheckState<'_> {
                 left,
                 name: Some(name),
             } => {
-                if let Some(place) = self.binding_place(source) {
+                if let Some(place) = answer!(self.binding_place(source)?) {
                     return Ok(Answer::Ready(Some(place)));
                 }
 
@@ -204,9 +202,8 @@ impl CheckState<'_> {
                 let Some(place) = selection.into_place(index_node) else {
                     return Ok(Answer::Ready(None));
                 };
-                self.commit_node_type(source, ty)?;
 
-                Ok(Answer::Ready(Some(WriteTarget::new(place, source))))
+                Ok(Answer::Ready(Some(WriteTarget::new(place, ty, source))))
             }
             // *value
             dir::Expression::Unary {
@@ -227,9 +224,11 @@ impl CheckState<'_> {
                     Some(Decision::Call(call)) => dir::DereferenceOperation::Call(call.clone()),
                     _ => dir::DereferenceOperation::Direct,
                 };
+                let ty = answer!(self.committed_node_type(source)?);
 
                 Ok(Answer::Ready(Some(WriteTarget::stable_overwrite(
                     dir::Storage::Dereference { read, write },
+                    ty,
                     source,
                     receiver,
                 ))))
@@ -237,26 +236,6 @@ impl CheckState<'_> {
             _ => Err(CompilerError::Internal {
                 message: format!("assignment pattern place {source:?} is not writable"),
             }),
-        }
-    }
-
-    /// Return the type written through one selected place.
-    pub(in crate::check) fn place_type(
-        &mut self,
-        target: WriteTarget,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        match target.storage {
-            dir::Storage::Binding { symbol } => {
-                if let Some(ty) = self.symbol_type_maybe(symbol) {
-                    Ok(Answer::Ready(ty))
-                } else {
-                    Ok(Answer::pending([Dependency::SymbolType(symbol)]))
-                }
-            }
-            dir::Storage::Field { .. }
-            | dir::Storage::Property { .. }
-            | dir::Storage::Subscript { .. }
-            | dir::Storage::Dereference { .. } => self.committed_node_type(target.source),
         }
     }
 
@@ -271,17 +250,14 @@ impl CheckState<'_> {
         lookup: MemberLookup,
     ) -> CompilerResult<Answer<Option<WriteTarget>>> {
         match lookup {
-            MemberLookup::Field(ty) => {
-                self.commit_node_type(source, ty)?;
-
-                Ok(Answer::Ready(Some(WriteTarget::new(
-                    dir::Storage::Field {
-                        receiver,
-                        field: dir::ProjectionField::Key(key),
-                    },
-                    source,
-                ))))
-            }
+            MemberLookup::Field(ty) => Ok(Answer::Ready(Some(WriteTarget::new(
+                dir::Storage::Field {
+                    receiver,
+                    field: dir::ProjectionField::Key(key),
+                },
+                ty,
+                source,
+            )))),
             MemberLookup::Found(candidates) => {
                 self.member_candidate_place(source, origin, receiver, key, use_, candidates)
             }
@@ -328,10 +304,9 @@ impl CheckState<'_> {
         }
 
         if let Some((field, ty)) = fields.into_iter().next() {
-            self.commit_node_type(source, ty)?;
-
             return Ok(Answer::Ready(Some(WriteTarget::new(
                 dir::Storage::Field { receiver, field },
+                ty,
                 source,
             ))));
         }
@@ -368,10 +343,10 @@ impl CheckState<'_> {
                 None => return Ok(Answer::Ready(None)),
             },
         };
-        self.commit_node_type(source, ty)?;
 
         Ok(Answer::Ready(Some(WriteTarget::new(
             dir::Storage::Property { read, write },
+            ty,
             source,
         ))))
     }
@@ -381,7 +356,7 @@ impl CheckState<'_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
         name: dir::StringId,
-    ) -> CompilerResult<Option<WriteTarget>> {
+    ) -> CompilerResult<Answer<Option<WriteTarget>>> {
         let path = dir::Path {
             segments: smallvec::smallvec![name],
         };
@@ -396,52 +371,63 @@ impl CheckState<'_> {
                 let [symbol] = symbols.as_slice() else {
                     self.report_ambiguous_reference(source.module_id, source.local_id, &path);
 
-                    return Ok(None);
+                    return Ok(Answer::Ready(None));
+                };
+                let Some(ty) = self.symbol_type_maybe(*symbol) else {
+                    return Ok(Answer::pending([Dependency::SymbolType(*symbol)]));
                 };
 
-                Ok(Some(WriteTarget::new(
+                Ok(Answer::Ready(Some(WriteTarget::new(
                     dir::Storage::Binding { symbol: *symbol },
+                    ty,
                     source,
-                )))
+                ))))
             }
             Some(dir::Reference::Namespace(_)) => {
                 self.report_invalid_assignment_target(source.module_id, source.local_id);
                 self.commit_error_node(source)?;
 
-                Ok(None)
+                Ok(Answer::Ready(None))
             }
             Some(dir::Reference::Ambiguous(_)) => {
                 self.report_ambiguous_reference(source.module_id, source.local_id, &path);
                 self.commit_error_node(source)?;
 
-                Ok(None)
+                Ok(Answer::Ready(None))
             }
             Some(dir::Reference::Missing) | Some(dir::Reference::Projected { .. }) | None => {
                 self.report_unresolved_reference(source.module_id, source.local_id, &path);
                 self.commit_error_node(source)?;
 
-                Ok(None)
+                Ok(Answer::Ready(None))
             }
         }
     }
 
     /// Return the binding place selected by a resolved name path.
-    fn binding_place(&self, source: dir::GlobalNodeIdAny) -> Option<WriteTarget> {
+    fn binding_place(
+        &self,
+        source: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<Answer<Option<WriteTarget>>> {
         let reference = self
             .module(source.module_id)
             .resolved
             .references
-            .get(source)?;
-        let dir::Reference::Bound(symbols) = reference else {
-            return None;
+            .get(source);
+        let Some(dir::Reference::Bound(symbols)) = reference else {
+            return Ok(Answer::Ready(None));
         };
         let [symbol] = symbols.as_slice() else {
-            return None;
+            return Ok(Answer::Ready(None));
+        };
+        let Some(ty) = self.symbol_type_maybe(*symbol) else {
+            return Ok(Answer::pending([Dependency::SymbolType(*symbol)]));
         };
 
-        Some(WriteTarget::new(
+        Ok(Answer::Ready(Some(WriteTarget::new(
             dir::Storage::Binding { symbol: *symbol },
+            ty,
             source,
-        ))
+        ))))
     }
 }

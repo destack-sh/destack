@@ -35,6 +35,7 @@ impl CheckState<'_> {
 
                 self.infer_name_expression(site, &resolution)
             }
+            dir::Expression::Label { body, .. } => self.infer_transparent_expression(site, body),
             dir::Expression::Block(block) => self.infer_block(site, block),
             dir::Expression::Parenthesized { expression } if mode == InferMode::Const => {
                 let expression_site = self.node_site(expression.into_global_any(node.module_id))?;
@@ -238,6 +239,15 @@ impl CheckState<'_> {
                 self.infer_try_projection_expression(site, left)
             }
             dir::Expression::Await { expression } => self.infer_await_expression(site, expression),
+            dir::Expression::PrivateIdentifier { .. }
+            | dir::Expression::Debugger
+            | dir::Expression::Missing
+            | dir::Expression::Stub
+            | dir::Expression::Error => {
+                self.commit_error_node(node.into_any())?;
+
+                Ok(Answer::Ready(()))
+            }
             expression => self.reject_expression_without_inference_owner(node, expression),
         }
     }

@@ -187,6 +187,8 @@ impl WalkState<'_, '_> {
             }
             // typeof value
             dir::TypeExpression::TypeOf { value } => self.walk_typeof_type(id, *value),
+            // static value
+            dir::TypeExpression::StaticValue { expression } => self.walk_static_term(*expression),
             // T! strips nullish members distributively
             dir::TypeExpression::Must { target_type } => {
                 let target = self.walk_type_expression(*target_type)?;

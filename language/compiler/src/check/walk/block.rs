@@ -29,8 +29,7 @@ impl WalkState<'_, '_> {
         for expression in &block.leading_expressions {
             // update flow through reachable expressions
             if is_reachable {
-                self.walk_expression(*expression, self.tree.get(*expression))?;
-                self.queue_node_task(*expression, PlaceUse::Read)?;
+                self.walk_value_expression(*expression, PlaceUse::Read)?;
                 is_reachable = self.expression_can_complete_normally(*expression);
             }
             // check unreachable expression in isolated flow
@@ -41,8 +40,7 @@ impl WalkState<'_, '_> {
                     warned_unreachable = true;
                 }
                 let before = self.fork_flow();
-                self.walk_expression(*expression, self.tree.get(*expression))?;
-                self.queue_node_task(*expression, PlaceUse::Read)?;
+                self.walk_value_expression(*expression, PlaceUse::Read)?;
                 self.restore_flow(before);
             }
         }
@@ -51,8 +49,7 @@ impl WalkState<'_, '_> {
         if let Some(expression) = block.tail_expression {
             // update flow through reachable tail
             if is_reachable {
-                self.walk_expression(expression, self.tree.get(expression))?;
-                self.queue_node_task(expression, PlaceUse::Read)?;
+                self.walk_value_expression(expression, PlaceUse::Read)?;
             }
             // check unreachable tail in isolated flow
             else {
@@ -61,8 +58,7 @@ impl WalkState<'_, '_> {
                         .report_unreachable_code(self.module, expression.into_any());
                 }
                 let before = self.fork_flow();
-                self.walk_expression(expression, self.tree.get(expression))?;
-                self.queue_node_task(expression, PlaceUse::Read)?;
+                self.walk_value_expression(expression, PlaceUse::Read)?;
                 self.restore_flow(before);
             }
         }
