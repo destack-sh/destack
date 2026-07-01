@@ -24,6 +24,22 @@ pub static FUNCTION_MODIFIERS: [Keyword; 8] = [
     Keyword::New,
 ];
 
+/// The parsed head shape that precedes a possible arrow tail.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ArrowHeadKind {
+    /// A parenthesized identifier that could also be a ternary condition value.
+    ParenthesizedIdentifier,
+    /// Any arrow head where a following colon can only start a return type.
+    ParameterList,
+}
+
+impl ArrowHeadKind {
+    /// Return whether a colon may start an arrow return type after this head.
+    pub(crate) const fn allows_return_type_colon(self, flags: ParserFlags) -> bool {
+        !matches!(self, Self::ParenthesizedIdentifier) || !flags.is_in_ternary_condition()
+    }
+}
+
 /// The head shapes accepted by direct arrow-head parsing.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ArrowHeadShape {
@@ -33,9 +49,29 @@ enum ArrowHeadShape {
     Named {
         /// Whether the parameter has a type annotation.
         has_type_annotation: bool,
+        /// Whether the parameter is optional.
+        is_optional: bool,
         /// Whether the parameter has a prefix modifier.
         has_modifier: bool,
     },
+}
+
+impl ArrowHeadShape {
+    /// Return the arrow head kind for this scanned head.
+    fn kind(self) -> ArrowHeadKind {
+        if matches!(
+            self,
+            Self::Named {
+                has_type_annotation: false,
+                is_optional: false,
+                has_modifier: false,
+            }
+        ) {
+            ArrowHeadKind::ParenthesizedIdentifier
+        } else {
+            ArrowHeadKind::ParameterList
+        }
+    }
 }
 
 /// Parsed function signature syntax.
@@ -512,6 +548,7 @@ impl Parser {
         let mut third_token_type = None;
         let mut has_parameter = false;
         let mut has_modifier = false;
+        let mut is_optional = false;
         let mut has_type_annotation = false;
         let mut has_type_tokens = false;
 
@@ -566,6 +603,13 @@ impl Parser {
                 return None;
             }
 
+            // optionally allow one top level optional marker
+            if !is_optional && !has_type_annotation && token_type == TokenType::Maybe {
+                is_optional = true;
+                self.bump();
+                continue;
+            }
+
             // optionally allow one top level type annotation marker
             if !has_type_annotation {
                 if token_type == TokenType::Colon {
@@ -596,6 +640,7 @@ impl Parser {
         } else if semantic_token_count == 1 && first_token_type == Some(TokenType::Identifier) {
             ArrowHeadShape::Named {
                 has_type_annotation: false,
+                is_optional: false,
                 has_modifier,
             }
         } else if semantic_token_count == 3
@@ -608,6 +653,16 @@ impl Parser {
         {
             ArrowHeadShape::Named {
                 has_type_annotation: true,
+                is_optional: false,
+                has_modifier,
+            }
+        } else if semantic_token_count == 2
+            && first_token_type == Some(TokenType::Identifier)
+            && second_token_type == Some(TokenType::Maybe)
+        {
+            ArrowHeadShape::Named {
+                has_type_annotation: false,
+                is_optional: true,
                 has_modifier,
             }
         } else if has_parameter {
@@ -617,6 +672,7 @@ impl Parser {
 
             ArrowHeadShape::Named {
                 has_type_annotation,
+                is_optional,
                 has_modifier,
             }
         } else {
@@ -646,8 +702,8 @@ impl Parser {
             return Ok(None);
         };
 
-        // require an arrow or a return type marker after the group
-        if !matches!(follow_token_type, TokenType::ArrowWide | TokenType::Colon) {
+        // require an arrow or return type marker after the group
+        if !self.token_starts_arrow_tail(follow_token_type, head_shape.kind()) {
             return Ok(None);
         }
 
@@ -678,11 +734,15 @@ impl Parser {
         let mut parameters = Vec::with_capacity(1);
         if let ArrowHeadShape::Named {
             has_type_annotation,
+            is_optional,
             has_modifier: _,
         } = head_shape
         {
             let parameter_start = self.span_start();
             let (parameter_name, parameter_name_span) = self.eat_binding_identifier_with_span()?;
+            if is_optional {
+                self.eat_token(TokenType::Maybe)?;
+            }
             let (parameter_type, parameter_type_span) = if has_type_annotation {
                 let type_start = self.span_start();
                 self.eat_token(TokenType::Colon)?;
@@ -701,7 +761,7 @@ impl Parser {
             let parameter_id = self.insert_node(
                 Parameter::Named {
                     name: parameter_name,
-                    is_optional: false,
+                    is_optional,
                     is_comptime: false,
                     declared_type: parameter_type,
                     default: None,
@@ -752,7 +812,7 @@ impl Parser {
             } else {
                 return Ok(None);
             };
-        if !matches!(follow_token_type, TokenType::ArrowWide | TokenType::Colon) {
+        if !self.token_starts_arrow_tail(follow_token_type, ArrowHeadKind::ParameterList) {
             return Ok(None);
         }
 
@@ -821,6 +881,15 @@ impl Parser {
         self.bump();
 
         Some(self.peek_token_type())
+    }
+
+    /// Return whether the current context lets this token start an arrow tail.
+    fn token_starts_arrow_tail(&self, token_type: TokenType, head: ArrowHeadKind) -> bool {
+        match token_type {
+            TokenType::ArrowWide => true,
+            TokenType::Colon => head.allows_return_type_colon(self.flags),
+            _ => false,
+        }
     }
 
     /// Eat an arrow return type and body.

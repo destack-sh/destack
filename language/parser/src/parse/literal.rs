@@ -32,6 +32,8 @@ struct OpenTreeLiteral {
     children: Vec<LocalNodeId<TreeChild>>,
     /// The span of the opening tag.
     opening_span: Span,
+    /// The source start of the tree body.
+    body_start: u32,
     /// The lexing mode after this literal closes.
     close_follow_mode: ContextualLexMode,
 }
@@ -1456,13 +1458,17 @@ impl Parser {
             let Some(current) = stack.last() else {
                 return Err(ParserError::unexpected(self.anchor_span_here()));
             };
-            let closes_current = self
-                .try_eat_tree_literal_closing(current.path.as_ref(), current.close_follow_mode)?;
-            if closes_current {
+            let body_span = self.try_eat_tree_literal_closing(
+                current.path.as_ref(),
+                current.close_follow_mode,
+                current.body_start,
+            )?;
+            if let Some(body_span) = body_span {
                 let Some(tree_literal) = stack.pop() else {
                     return Err(ParserError::unexpected(self.anchor_span_here()));
                 };
-                let expression_id = self.insert_tree_literal_expression(*tree_literal, true)?;
+                let expression_id =
+                    self.insert_tree_literal_expression(*tree_literal, true, Some(body_span))?;
 
                 if let Some(parent) = stack.last_mut() {
                     let child = self.insert_tree_literal_child(expression_id);
@@ -1562,9 +1568,10 @@ impl Parser {
                 attributes,
                 children: Vec::new(),
                 opening_span,
+                body_start: opening_span.end,
                 close_follow_mode: follow_mode,
             };
-            let expression_id = self.insert_tree_literal_expression(tree_literal, false)?;
+            let expression_id = self.insert_tree_literal_expression(tree_literal, false, None)?;
 
             return Ok(TreeLiteralOpen::Complete(expression_id));
         }
@@ -1572,6 +1579,7 @@ impl Parser {
         // enter tree child lexing after an opening tag
         self.eat_tree_tag_close(ContextualLexMode::TreeChild)?;
         let opening_span = self.get_span_from(&start);
+        let body_start = opening_span.end;
         self.skip_tree_whitespace_in_child_mode(ContextualLexMode::TreeChild)?;
 
         Ok(TreeLiteralOpen::Open(Box::new(OpenTreeLiteral {
@@ -1582,6 +1590,7 @@ impl Parser {
             attributes,
             children: Vec::new(),
             opening_span,
+            body_start,
             close_follow_mode: follow_mode,
         })))
     }
@@ -1619,28 +1628,31 @@ impl Parser {
         Ok(Some(attributes))
     }
 
-    /// Try to eat a closing tag for the current open tree literal.
+    /// Try to eat a closing tag and return the completed body span.
     fn try_eat_tree_literal_closing(
         &mut self,
         path: Option<&Path>,
         follow_mode: ContextualLexMode,
-    ) -> ParserResult<bool> {
+        body_start: u32,
+    ) -> ParserResult<Option<Span>> {
         if !self.peek_is(TokenType::LessThan) {
-            return Ok(false);
+            return Ok(None);
         }
 
+        let body_end = self.span_start().token_start();
+        let body_span = Span::new(self.file_id, body_start, body_end);
         let closing_start = self.cursor_checkpoint();
         self.bump_with_contextual_lex_mode(ContextualLexMode::TreeTag);
 
         if !self.peek_is(TokenType::Divide) {
             self.rewind(closing_start);
-            return Ok(false);
+            return Ok(None);
         }
         self.bump();
 
         if path.is_none() && self.peek_starts_tree_tag_close() {
             self.eat_tree_tag_close(follow_mode)?;
-            return Ok(true);
+            return Ok(Some(body_span));
         }
 
         if path.is_some() && self.peek_starts_tree_tag_close() {
@@ -1662,7 +1674,7 @@ impl Parser {
             return Err(ParserError::unexpected(self.peek()?));
         }
 
-        Ok(true)
+        Ok(Some(body_span))
     }
 
     /// Insert one tree literal expression from an open tree literal.
@@ -1670,6 +1682,7 @@ impl Parser {
         &mut self,
         tree_literal: OpenTreeLiteral,
         has_children: bool,
+        body_span: Option<Span>,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let OpenTreeLiteral {
             start,
@@ -1679,6 +1692,7 @@ impl Parser {
             attributes,
             children,
             opening_span,
+            body_start: _,
             close_follow_mode: _,
         } = tree_literal;
 
@@ -1708,6 +1722,13 @@ impl Parser {
             NodeSpanType::Region(NodeSpanRegion::Opening),
             opening_span,
         );
+        if let Some(body_span) = body_span {
+            self.tree.set_side_span(
+                expression_id,
+                NodeSpanType::Region(NodeSpanRegion::Body),
+                body_span,
+            );
+        }
 
         Ok(expression_id)
     }

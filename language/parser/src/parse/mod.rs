@@ -45,6 +45,7 @@ pub(crate) use declaration::{
     is_type_relation_keyword,
 };
 pub(crate) use decorator::PendingDecorators;
+pub(crate) use function::ArrowHeadKind;
 pub use function::FUNCTION_MODIFIERS;
 pub use options::{ParserOptions, ParserTokenHistory};
 pub use prelude::*;

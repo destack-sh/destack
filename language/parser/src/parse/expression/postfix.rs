@@ -345,7 +345,7 @@ impl Parser {
 
     /// Return whether generic arguments are separated from their receiver.
     fn generic_arguments_have_leading_gap(&mut self, left: LocalNodeId<Expression>) -> bool {
-        self.tree.get_span(left).end < self.anchor_span_here().start
+        self.tree.get_source_extent(left).end < self.anchor_span_here().start
     }
 
     /// Return whether spaced generic arguments have a strong postfix follow.

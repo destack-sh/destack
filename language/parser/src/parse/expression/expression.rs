@@ -124,6 +124,11 @@ impl Parser {
             )));
         }
 
+        // let identifier-arrow parsing claim the head
+        if self.next_token_type() == TokenType::ArrowWide {
+            return Ok(None);
+        }
+
         let expression_id = self.eat_identifier_expression_path(start)?;
         let expression_id = self.eat_expression_continuation(start, expression_id, false)?;
 
