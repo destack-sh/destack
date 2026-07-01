@@ -658,6 +658,7 @@ fn evaluate_terminal_boolean_type_query(
             | dir::Type::FunctionSignature(_)
             | dir::Type::Function(_)
             | dir::Type::FunctionPointer(_) => false,
+            dir::Type::Key(_) => false,
             dir::Type::Memory(_) => false,
             dir::Type::Parameter(_)
             | dir::Type::Variable(_)
@@ -1398,6 +1399,7 @@ fn type_truthiness_inner(
                     TypeTruthiness::Unknown
                 }
             },
+            dir::Type::Key(_) => TypeTruthiness::AlwaysTruthy,
             dir::Type::Operation(_) => TypeTruthiness::Unknown,
             dir::Type::Array(_)
             | dir::Type::Slice(_)
@@ -1469,7 +1471,8 @@ fn type_nullishness_inner(
             dir::Type::Object
             | dir::Type::Primitive(_)
             | dir::Type::Range(_)
-            | dir::Type::Literal(_) => TypeNullishness::Never,
+            | dir::Type::Literal(_)
+            | dir::Type::Key(_) => TypeNullishness::Never,
             dir::Type::EnumMember(_) => TypeNullishness::Never,
             dir::Type::Slice(_)
             | dir::Type::Array(_)
