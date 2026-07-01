@@ -1,8 +1,10 @@
 use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
 
-use crate::CompilerResult;
-use crate::check::{Answer, CheckError, CheckState, MatchCase, Origin, answer};
+use crate::check::{
+    Answer, CheckError, CheckState, Decision, Dependency, MatchCase, Origin, answer,
+};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Check whether one match covers every known selector value.
@@ -14,17 +16,32 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let origin = Origin::Node(source);
 
-        // collect unguarded covering patterns
+        // collect unguarded patterns with valid pattern decisions
         let mut patterns = Vec::new();
         for case in cases {
             match case {
                 MatchCase::Default => return Ok(Answer::Ready(None)),
                 MatchCase::Pattern {
                     pattern,
-                    guard: None,
-                } => patterns.push(*pattern),
+                    is_guarded: false,
+                } => match self.decision(pattern.into_any()) {
+                    Some(Decision::Pattern(_)) => patterns.push(*pattern),
+                    Some(Decision::Rejected) => {
+                        return Ok(Answer::Ready(None));
+                    }
+                    Some(decision) => {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "match coverage pattern {pattern:?} has non-pattern decision {decision:?}"
+                            ),
+                        });
+                    }
+                    None => return Ok(Answer::pending([Dependency::Decision(pattern.into_any())])),
+                },
                 // guarded cases cannot guarantee coverage
-                MatchCase::Pattern { guard: Some(_), .. } => {}
+                MatchCase::Pattern {
+                    is_guarded: true, ..
+                } => {}
             }
         }
 
