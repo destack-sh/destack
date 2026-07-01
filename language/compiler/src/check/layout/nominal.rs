@@ -1,10 +1,11 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{Answer, TypeSubstitution, answer};
 
-use super::aggregate::AggregateLayout;
+use super::aggregate::{AggregateLayout, AggregateSlot};
 use super::query::LayoutQuery;
 use super::scalar::smallest_tag_bytes;
 
@@ -12,48 +13,66 @@ impl LayoutQuery<'_, '_> {
     /// Compute one nominal reference layout through its definition.
     pub(super) fn reference_layout(
         &mut self,
-        ty: dir::GlobalTypeId,
+        owner: ModuleId,
+        _ty: dir::GlobalTypeId,
         qualified: dir::GlobalTypeId,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<Option<dir::Layout>>> {
         if let Some(item) = self.check.language_item(instance.symbol)?
-            && let Some(layout) = self.language_item_layout(item, instance)?
+            && let Some(layout) = self.language_item_layout(owner, item, instance)?
         {
             return Ok(layout);
         }
 
-        match self.check.definition(instance.symbol) {
+        match self.check.definition(instance.symbol).cloned() {
             // newtypes are transparent over their substituted backing
             Some(dir::Definition::Newtype(definition)) => {
                 let backing = definition.value;
                 let substitution = self.check.instance_substitution(instance)?;
                 let backing = self.substituted_type(backing, &substitution)?;
-                let Some(slot) = answer!(self.slot_layout(backing)?) else {
+                let source = self
+                    .check
+                    .origin_source_node(self.origin)?
+                    .into_global(self.origin.module());
+                let Some(layout_id) = answer!(self.slot_layout(owner, backing, source)?) else {
                     return Ok(Answer::Ready(None));
+                };
+                let (size, alignment, niche) = {
+                    let layout = self.layout(owner, layout_id);
+                    (layout.size, layout.alignment, layout.niche)
                 };
 
                 Ok(Answer::Ready(Some(dir::Layout {
                     shape: dir::LayoutShape::Newtype(dir::NewtypeLayout {
                         backing_type: backing,
-                        backing_layout: slot.id,
+                        backing_layout: layout_id,
                     }),
-                    size: slot.size,
-                    alignment: slot.alignment,
-                    niche: slot.niche,
+                    size,
+                    alignment,
+                    niche,
                 })))
             }
-            // structs and classes lay their available fields out in order
+            // structs and classes lay their fields out in order
             Some(definition @ (dir::Definition::Struct(_) | dir::Definition::Class(_))) => {
-                let members = definition
-                    .instance_fields()
-                    .map(|field| (field.key, field.ty, field.condition))
-                    .collect::<SmallVec<_>>();
+                let mut members = SmallVec::new();
+                for member in definition.members() {
+                    let dir::DefinitionMember::Field(field) = member else {
+                        continue;
+                    };
+                    if field.space != dir::MemberSpace::Instance {
+                        continue;
+                    }
+                    let Some(ty) = answer!(self.check.definition_member_type(member)?) else {
+                        continue;
+                    };
+                    members.push((field.key, ty, field.source));
+                }
                 let shape = match definition {
                     dir::Definition::Struct(_) => AggregateLayout::Struct,
                     _ => AggregateLayout::Object,
                 };
 
-                self.definition_field_layout(ty, qualified, instance, members, shape)
+                self.definition_field_layout(owner, qualified, instance, members, shape)
             }
             // enums store the smallest unsigned integer fitting their variants
             Some(dir::Definition::Enum(definition)) => {
@@ -67,7 +86,13 @@ impl LayoutQuery<'_, '_> {
                     .collect::<SmallVec<[_; 8]>>();
                 let size = smallest_tag_bytes(variants.len());
                 let backing_type = self.enum_backing_type(size)?;
-                let Some(backing_layout) = answer!(self.slot_layout(backing_type)?) else {
+                let source = self
+                    .check
+                    .origin_source_node(self.origin)?
+                    .into_global(self.origin.module());
+                let Some(backing_layout) =
+                    answer!(self.slot_layout(owner, backing_type, source)?)
+                else {
                     return Ok(Answer::Ready(None));
                 };
                 let variant_count = variants.len();
@@ -83,7 +108,7 @@ impl LayoutQuery<'_, '_> {
                 Ok(Answer::Ready(Some(dir::Layout {
                     shape: dir::LayoutShape::Enum(dir::EnumLayout {
                         backing_type,
-                        backing_layout: backing_layout.id,
+                        backing_layout,
                         variants,
                     }),
                     size,
@@ -112,13 +137,13 @@ impl LayoutQuery<'_, '_> {
         self.check.push_type(self.origin.module(), ty, source)
     }
 
-    /// Lay one definition's available fields out in declaration order.
+    /// Lay one definition's stored fields out in declaration order.
     pub(super) fn definition_field_layout(
         &mut self,
-        ty: dir::GlobalTypeId,
+        owner: ModuleId,
         qualified: dir::GlobalTypeId,
         instance: &dir::GenericInstance,
-        members: SmallVec<[(dir::StaticKey, dir::GlobalTypeId, Option<dir::GlobalTypeId>); 4]>,
+        members: SmallVec<[(dir::StaticKey, dir::GlobalTypeId, dir::GlobalNodeIdAny); 4]>,
         shape: AggregateLayout,
     ) -> CompilerResult<Answer<Option<dir::Layout>>> {
         // the laid out application binds its own `this`
@@ -128,35 +153,30 @@ impl LayoutQuery<'_, '_> {
             .with_receiver(qualified);
         let mut fields = SmallVec::<[_; 4]>::new();
 
-        for (key, field, condition) in members {
-            // drop fields whose substituted guards decide false
-            let origin = self.origin;
-            if !answer!(self.check.decide_member_availability(
-                origin,
-                ty.module_id,
-                condition,
-                &substitution
-            )?) {
-                continue;
-            }
-
+        for (key, field, source) in members {
+            // substitute the applied field type
             let field = self.substituted_type(field, &substitution)?;
-            fields.push((Some(key), field));
+            fields.push(AggregateSlot {
+                key: Some(key),
+                ty: field,
+                source: Some(source),
+            });
         }
 
-        self.aggregate_layout(&fields, shape)
+        self.aggregate_layout(owner, &fields, shape)
     }
 
     /// Compute compiler-defined layout for one intrinsic language item.
     pub(super) fn language_item_layout(
         &mut self,
+        owner: ModuleId,
         item: dir::LanguageItem,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<Option<Answer<Option<dir::Layout>>>> {
         let pointer_bytes = self.target_pointer_bytes()?;
 
         let answer = match item {
-            dir::LanguageItem::Vector => self.vector_layout(instance)?,
+            dir::LanguageItem::Vector => self.vector_layout(owner, instance)?,
             dir::LanguageItem::Tensor => {
                 let tensor = match self.tensor_layout_input(instance)? {
                     Answer::Ready(Some(tensor)) => tensor,
@@ -200,13 +220,10 @@ impl LayoutQuery<'_, '_> {
         ty: dir::GlobalTypeId,
         substitution: &TypeSubstitution,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if substitution.is_empty() {
-            return Ok(ty);
-        }
         let origin = self.origin;
         let source = self.check.origin_source_node(origin)?;
 
         self.check
-            .fold_type(origin.module(), source, ty, substitution.rewrite())
+            .substitute_type(origin.module(), source, ty, &substitution)
     }
 }
