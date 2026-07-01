@@ -4,7 +4,7 @@ use destack_dir::{
     Property, ScalarLiteral, TemplateLiteral, TokenType, TreeAttribute, TreeAttributeValue,
     TreeChild, TypeExpression, TypeLiteral,
 };
-use destack_source::LanguageType;
+use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
 use crate::{
     TestParser, assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
@@ -258,27 +258,27 @@ fn test_parse_regex_string_literal() {
     }
 }
 
-/// Reject unterminated regex literals.
+/// Report unterminated regex literals.
 #[test]
-fn test_reject_unterminated_regex_literal() {
+fn test_report_unterminated_regex_literal() {
     // source: /42
     let mut test = TestParser::new("/42");
     let mut parser = test.prepare();
+    let error = parser.eat_regex_literal().unwrap_err();
 
-    let result = parser.eat_regex_literal();
-    assert!(result.is_err());
+    assert_eq!(parser.get_span_str(error.leaf_span()), "/42");
 }
 
-/// Reject regex literals with raw line terminators.
+/// Report regex literals with raw line terminators.
 #[test]
-fn test_reject_regex_literal_with_line_terminator() {
+fn test_report_regex_literal_with_line_terminator() {
     // source: /test
     // /
     let mut test = TestParser::new("/test\n/");
     let mut parser = test.prepare();
+    let error = parser.eat_regex_literal().unwrap_err();
 
-    let result = parser.eat_regex_literal();
-    assert!(result.is_err());
+    assert_eq!(parser.get_span_str(error.leaf_span()), "/test\n/");
 }
 
 /// Parse a template string literal.
@@ -443,15 +443,14 @@ fn test_parse_template_literal_with_escaped_interpolation_prefix() {
     }
 }
 
-/// Reject untagged template literals with legacy octal escapes.
+/// Report untagged template literals with legacy octal escapes.
 #[test]
-fn test_parse_template_literal_rejects_legacy_octal_escape() {
+fn test_report_template_literal_legacy_octal_escape() {
     let mut test = TestParser::new(r"`\1`");
     let mut parser = test.prepare();
+    let error = parser.eat_template_literal().unwrap_err();
 
-    let result = parser.eat_template_literal();
-
-    assert!(result.is_err());
+    assert_eq!(parser.get_span_str(error.leaf_span()), r"`\1`");
 }
 
 #[test]
@@ -710,6 +709,22 @@ fn test_parse_tree_inline_whitespace_text_child() {
             assert_string!(parser, *string_id, " ");
         });
     });
+}
+
+/// Parse tree literal body source spans separately from opening tags.
+#[test]
+fn test_parse_tree_literal_records_body_span() {
+    let mut test =
+        TestParser::new_with_language("<Link>\n  Docs\n</Link>", LanguageType::TypeScriptXml);
+    let mut parser = test.prepare();
+
+    let expression = parser.eat_tree_literal().unwrap();
+    let body_span = parser
+        .tree
+        .get_side_span(expression, NodeSpanType::Region(NodeSpanRegion::Body))
+        .expect("expected tree literal body span");
+
+    assert_eq!(parser.get_span_str(body_span), "\n  Docs\n");
 }
 
 #[test]
@@ -1073,25 +1088,27 @@ fn test_parse_tree_attribute_leading_comments_keep_tag_name_span() {
     });
 }
 
-/// Reject ambiguous tree generic arrows without disambiguators.
+/// Report ambiguous tree generic arrows without disambiguators.
 #[test]
-fn test_peek_tree_literal_ambiguous_tree_generic_arrow() {
+fn test_report_tree_literal_ambiguous_tree_generic_arrow() {
     let mut test = TestParser::new_with_language("<T>(x: T) => x", LanguageType::TypeScriptXml);
     let mut parser = test.prepare();
 
-    // ambiguous tree generics are rejected without disambiguators
+    // require disambiguators for ambiguous tree generics
     assert!(!parser.can_start_generic_arrow_expression());
 }
 
-/// Reject tree literal parsing for disambiguated tree generic arrows.
+/// Report tree literal parsing for disambiguated tree generic arrows.
 #[test]
-fn test_peek_tree_literal_disambiguated_tree_generic_arrow() {
+fn test_report_tree_literal_disambiguated_tree_generic_arrow() {
     let mut test = TestParser::new_with_language("<T,>(x: T) => x", LanguageType::TypeScriptXml);
     let mut parser = test.prepare();
 
     // disambiguators should allow generic arrow parsing
     assert!(parser.can_start_generic_arrow_expression());
-    assert!(parser.peek_tree_literal().is_err());
+    let error = parser.peek_tree_literal().unwrap_err();
+
+    assert_eq!(parser.get_span_str(error.leaf_span()), "<");
 }
 
 /// Recognize tree generic arrows with extends disambiguators.
@@ -1105,9 +1122,9 @@ fn test_peek_tree_generic_arrow_with_extends() {
     assert!(parser.can_start_generic_arrow_expression());
 }
 
-/// Reject malformed tree generic arrows with an unterminated parameter list.
+/// Report malformed tree generic arrows with an unterminated parameter list.
 #[test]
-fn test_peek_tree_generic_arrow_with_missing_parameter_close_parenthesis() {
+fn test_report_tree_generic_arrow_with_missing_parameter_close_parenthesis() {
     let mut test = TestParser::new_with_language("<T,>(x: T => x", LanguageType::TypeScriptXml);
     let mut parser = test.prepare();
 
@@ -2314,9 +2331,9 @@ fn test_parse_tree_fragment_with_keyword_text_before_expression() {
     });
 }
 
-/// Reject tree literal namespace and member combinations during parse.
+/// Report tree literal namespace and member combinations during parse.
 #[test]
-fn test_reject_tree_literal_namespace_member_path_parse_error() {
+fn test_report_tree_literal_namespace_member_path_parse_error() {
     let mut test = TestParser::new_with_language("<a.b:c />", LanguageType::JavaScriptXml);
     let mut parser = test.prepare();
 
@@ -2528,16 +2545,17 @@ function app() {
     });
 }
 
-/// Reject tree-looking input when it continues an expression across a newline.
+/// Report tree-looking input when it continues an expression across a newline.
 #[test]
-fn test_parse_tree_after_expression_newline_is_error() {
+fn test_report_tree_after_expression_newline() {
     let input = "x\n<Comp />";
     let mut test = TestParser::new_with_language(input, LanguageType::JavaScriptXml);
     let mut parser = test.prepare();
 
-    // reject a tree literal after expression newline
-    let result = parser.eat_expression(parser.flags);
-    assert!(result.is_err());
+    // require a valid expression continuation after the newline
+    let error = parser.eat_expression(parser.flags).unwrap_err();
+
+    assert_eq!(parser.get_span_str(error.leaf_span()), "<");
 }
 
 #[test]

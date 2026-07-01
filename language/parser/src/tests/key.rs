@@ -1,11 +1,11 @@
 use crate::tests::TestParser;
-use destack_dir::{Expression, IfForm, Key, ScalarLiteral};
+use destack_dir::{Expression, IfForm, Key, Name, ScalarLiteral};
 use destack_source::LanguageType;
 
 use crate::{assert_expression_path, assert_node, assert_string};
 
 #[test]
-fn test_reject_key_named_type_expression_with_multiline_type() {
+fn test_report_key_named_type_expression_with_multiline_type() {
     let mut test = TestParser::new(
         r#"[key:
     | string
@@ -17,7 +17,7 @@ fn test_reject_key_named_type_expression_with_multiline_type() {
 }
 
 #[test]
-fn test_reject_key_named_type_expression_with_newlines_before_colon_and_close_bracket() {
+fn test_report_key_named_type_expression_with_newlines_before_colon_and_close_bracket() {
     let mut test = TestParser::new(
         r#"[key
 :
@@ -29,9 +29,9 @@ string
     assert_eq!(parser.get_span_str(error.leaf_span()), ":");
 }
 
-/// Reject computed keys with sequence expressions in typed and untyped object forms.
+/// Report computed keys with sequence expressions in typed and untyped object forms.
 #[test]
-fn test_reject_key_computed_sequence_expression_in_typed_and_untyped_object_forms() {
+fn test_report_key_computed_sequence_expression_in_typed_and_untyped_object_forms() {
     // source: [a,b]
     let mut test = TestParser::new_with_language("[a,b]", LanguageType::JavaScript);
     let mut parser = test.prepare();
@@ -41,9 +41,9 @@ fn test_reject_key_computed_sequence_expression_in_typed_and_untyped_object_form
     assert_eq!(parser.get_span_str(error.leaf_span()), ",");
 }
 
-/// Reject legacy octal numeric keys in typed and untyped object forms.
+/// Report legacy octal numeric keys in typed and untyped object forms.
 #[test]
-fn test_reject_legacy_octal_numeric_key_in_typed_and_untyped_object_forms() {
+fn test_report_legacy_octal_numeric_key_in_typed_and_untyped_object_forms() {
     // source: 021
     let mut test = TestParser::new_with_language("021", LanguageType::JavaScript);
     let mut parser = test.prepare();
@@ -51,6 +51,17 @@ fn test_reject_legacy_octal_numeric_key_in_typed_and_untyped_object_forms() {
 
     // 021
     assert_eq!(parser.get_span_str(error.leaf_span()), "021");
+}
+
+/// Parse finite integer property keys as static index keys.
+#[test]
+fn test_parse_key_integer_index() {
+    let mut test = TestParser::new_with_language("2", LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let (key, _span) = parser.eat_key_with_span().unwrap();
+
+    assert_eq!(key, Key::Name(Name::Index(2)));
+    test.assert_no_errors(&parser);
 }
 
 /// Parse computed keys with ternaries.
