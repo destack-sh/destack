@@ -450,7 +450,7 @@ pub struct FixedArrayType {
     pub count: GlobalTypeId,
 }
 
-/// Compact scalar interval type.
+/// Compact discrete scalar interval type.
 ///
 /// Examples:
 /// ```ds
@@ -681,6 +681,154 @@ impl RangeType {
         }
 
         true
+    }
+
+    /// Return the interval shared with another interval.
+    pub fn intersection(&self, other: &RangeType) -> Option<RangeType> {
+        let left_domain = self.scalar_domain();
+        let right_domain = other.scalar_domain();
+        if matches!((left_domain, right_domain), (Some(left), Some(right)) if left != right) {
+            return None;
+        }
+
+        let start = Self::max_start_bound(&self.start, &other.start)?;
+        let (end, is_inclusive) =
+            Self::min_end_bound(&self.end, self.is_inclusive, &other.end, other.is_inclusive)?;
+        if Self::end_excludes_start(&end, is_inclusive, &start) {
+            return None;
+        }
+
+        Some(Self {
+            start,
+            end,
+            is_inclusive,
+        })
+    }
+
+    /// Return the remaining intervals after removing another interval.
+    pub fn subtract_range(&self, removed: &RangeType) -> [Option<RangeType>; 2] {
+        let Some(overlap) = self.intersection(removed) else {
+            return [Some(self.clone()), None];
+        };
+
+        let left = overlap.start.map(|start| RangeType {
+            start: self.start,
+            end: Some(start),
+            is_inclusive: false,
+        });
+        let left = left.filter(RangeType::is_non_empty);
+
+        let right_start = match (&overlap.end, overlap.is_inclusive) {
+            (Some(end), true) => end.successor(),
+            (Some(end), false) => Some(*end),
+            (None, _) => None,
+        };
+        let right = right_start.map(|start| RangeType {
+            start: Some(start),
+            end: self.end,
+            is_inclusive: self.is_inclusive,
+        });
+        let right = right.filter(RangeType::is_non_empty);
+
+        [left, right]
+    }
+
+    /// Return the literal when this interval contains exactly one discrete value.
+    pub fn singleton_literal(&self) -> Option<ScalarLiteral> {
+        let start = self.start?;
+        let end = self.end?;
+
+        if self.is_inclusive && start == end {
+            return Some(start);
+        }
+
+        if !self.is_inclusive && start.successor()? == end {
+            return Some(start);
+        }
+
+        None
+    }
+
+    /// Return whether this interval contains at least one value.
+    pub fn is_non_empty(&self) -> bool {
+        !Self::end_excludes_start(&self.end, self.is_inclusive, &self.start)
+    }
+
+    /// Return the greater inclusive lower bound.
+    fn max_start_bound(
+        left: &Option<ScalarLiteral>,
+        right: &Option<ScalarLiteral>,
+    ) -> Option<Option<ScalarLiteral>> {
+        let start = match (left, right) {
+            (None, None) => None,
+            (Some(left), None) => Some(*left),
+            (None, Some(right)) => Some(*right),
+            (Some(ScalarLiteral::Integer(left)), Some(ScalarLiteral::Integer(right))) => {
+                Some(ScalarLiteral::Integer((*left).max(*right)))
+            }
+            (Some(ScalarLiteral::Bigint(left)), Some(ScalarLiteral::Bigint(right))) => {
+                Some(ScalarLiteral::Bigint((*left).max(*right)))
+            }
+            (Some(ScalarLiteral::Character(left)), Some(ScalarLiteral::Character(right))) => {
+                Some(ScalarLiteral::Character((*left).max(*right)))
+            }
+            (Some(_), Some(_)) => return None,
+        };
+
+        Some(start)
+    }
+
+    /// Return the lesser upper bound.
+    fn min_end_bound(
+        left: &Option<ScalarLiteral>,
+        left_is_inclusive: bool,
+        right: &Option<ScalarLiteral>,
+        right_is_inclusive: bool,
+    ) -> Option<(Option<ScalarLiteral>, bool)> {
+        let end = match (left, right) {
+            (None, None) => (None, left_is_inclusive && right_is_inclusive),
+            (Some(left), None) => (Some(*left), left_is_inclusive),
+            (None, Some(right)) => (Some(*right), right_is_inclusive),
+            (Some(ScalarLiteral::Integer(left)), Some(ScalarLiteral::Integer(right))) => {
+                if left < right {
+                    (Some(ScalarLiteral::Integer(*left)), left_is_inclusive)
+                } else if right < left {
+                    (Some(ScalarLiteral::Integer(*right)), right_is_inclusive)
+                } else {
+                    (
+                        Some(ScalarLiteral::Integer(*left)),
+                        left_is_inclusive && right_is_inclusive,
+                    )
+                }
+            }
+            (Some(ScalarLiteral::Bigint(left)), Some(ScalarLiteral::Bigint(right))) => {
+                if left < right {
+                    (Some(ScalarLiteral::Bigint(*left)), left_is_inclusive)
+                } else if right < left {
+                    (Some(ScalarLiteral::Bigint(*right)), right_is_inclusive)
+                } else {
+                    (
+                        Some(ScalarLiteral::Bigint(*left)),
+                        left_is_inclusive && right_is_inclusive,
+                    )
+                }
+            }
+            (Some(ScalarLiteral::Character(left)), Some(ScalarLiteral::Character(right))) => {
+                if left < right {
+                    (Some(ScalarLiteral::Character(*left)), left_is_inclusive)
+                } else if right < left {
+                    (Some(ScalarLiteral::Character(*right)), right_is_inclusive)
+                } else {
+                    (
+                        Some(ScalarLiteral::Character(*left)),
+                        left_is_inclusive && right_is_inclusive,
+                    )
+                }
+            }
+            (Some(_), Some(_)) => return None,
+        };
+
+        Some(end)
     }
 
     /// Return whether one upper bound excludes one lower bound.

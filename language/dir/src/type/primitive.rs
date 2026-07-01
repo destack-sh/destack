@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_core::{FloatFormat, roundtrip_float};
 
-use crate::{LanguageItem, Layout, Niche, StringId};
+use crate::{LanguageItem, Layout, Niche, RangeType, ScalarLiteral, StringId};
 
 /// A primitive type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -204,6 +204,33 @@ impl IntegerType {
                 }
             }
         }
+    }
+
+    /// Return this integer type as a finite interval, if representable.
+    pub fn finite_interval(self) -> Option<RangeType> {
+        let (start, end) = match self {
+            Self::Fixed {
+                width,
+                is_signed: true,
+            } if (1..=63).contains(&width) => {
+                let limit = 1_i64.checked_shl(u32::from(width - 1))?;
+                (-limit, limit - 1)
+            }
+            Self::Fixed {
+                width,
+                is_signed: false,
+            } if (1..=63).contains(&width) => {
+                let limit = 1_i64.checked_shl(u32::from(width))?;
+                (0, limit - 1)
+            }
+            Self::Integer { .. } | Self::Fixed { .. } | Self::Pointer { .. } => return None,
+        };
+
+        Some(RangeType {
+            start: Some(ScalarLiteral::Integer(start)),
+            end: Some(ScalarLiteral::Integer(end)),
+            is_inclusive: true,
+        })
     }
 
     /// Return this integer's layout.

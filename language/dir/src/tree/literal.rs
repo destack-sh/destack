@@ -102,6 +102,31 @@ impl ScalarLiteral {
         Some(domain)
     }
 
+    /// Return the next literal in this literal's discrete interval domain.
+    pub fn successor(&self) -> Option<Self> {
+        let literal = match self {
+            Self::Integer(value) => Self::Integer(value.checked_add(1)?),
+            Self::Bigint(value) => Self::Bigint(value.checked_add(1)?),
+            Self::Character(value) => {
+                let mut scalar = (*value as u32).checked_add(1)?;
+
+                // skip invalid Unicode scalar values
+                while scalar <= char::MAX as u32 {
+                    if let Some(value) = char::from_u32(scalar) {
+                        return Some(Self::Character(value));
+                    }
+
+                    scalar = scalar.checked_add(1)?;
+                }
+
+                return None;
+            }
+            _ => return None,
+        };
+
+        Some(literal)
+    }
+
     /// Widen one scalar literal to its base type.
     pub fn widen(&self) -> Type {
         match self {
