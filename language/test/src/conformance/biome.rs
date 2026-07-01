@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use super::parse::{ParseOptions, ParseOutcome, TestArea, parse_file};
+use super::parse::{ParseOptions, parse_file};
 use crate::conformance::{
     Case, CaseOutcome, ConformanceDriver, ConformanceSuiteResult, run_conformance_driver,
     suite_fixtures_dir, suite_tests_dir,
@@ -29,7 +29,7 @@ impl BiomeSuite {
         }
     }
 
-    fn discover_in_dir(&self, dir: &Path, prefix: &str, expect_error: bool) -> Vec<Case> {
+    fn discover_in_dir(&self, dir: &Path, prefix: &str) -> Vec<Case> {
         let mut tests = Vec::new();
 
         if let Ok(entries) = std::fs::read_dir(dir) {
@@ -46,12 +46,7 @@ impl BiomeSuite {
                         }
                         let name = format!("{prefix}/{file_name}");
                         let file_type = Case::file_type_from_name(&name);
-                        let test = if expect_error {
-                            Case::fail(name, file_type)
-                        } else {
-                            Case::pass(name, file_type)
-                        };
-                        tests.push(test);
+                        tests.push(Case::valid(name, file_type));
                     }
                 }
             }
@@ -81,18 +76,17 @@ impl ConformanceDriver for BiomeSuite {
         &self.tests_dir
     }
 
+    fn allows_undiscovered_status(&self, case_name: &str) -> bool {
+        case_name.starts_with("error/")
+    }
+
     fn discover_cases(&self) -> Vec<Case> {
         let mut tests = Vec::new();
 
         // Biome has ok/ (should pass) and error/ (should fail) directories
         let ok_dir = self.tests_dir.join("ok");
         if ok_dir.exists() {
-            tests.extend(self.discover_in_dir(&ok_dir, "ok", false));
-        }
-
-        let error_dir = self.tests_dir.join("error");
-        if error_dir.exists() {
-            tests.extend(self.discover_in_dir(&error_dir, "error", true));
+            tests.extend(self.discover_in_dir(&ok_dir, "ok"));
         }
 
         tests
@@ -106,28 +100,17 @@ impl ConformanceDriver for BiomeSuite {
             Err(_) => return CaseOutcome::FailedRead,
         };
 
-        let area = if test.expect_error {
-            TestArea::EarlySyntax
-        } else {
-            TestArea::Parse
-        };
         let parse_outcome = parse_file(
             &path,
             &content,
             test.file_type,
             ParseOptions {
-                area,
                 disallow_ambiguous_tree_literal: false,
                 should_print_diagnostics: show_diff,
             },
         );
 
-        match (test.expect_error, parse_outcome) {
-            (true, ParseOutcome::Error) => CaseOutcome::Passed,
-            (true, ParseOutcome::Ok) => CaseOutcome::FailedParse,
-            (false, ParseOutcome::Ok) => CaseOutcome::Passed,
-            (false, ParseOutcome::Error) => CaseOutcome::FailedParse,
-        }
+        parse_outcome.case_outcome(test.source_validity)
     }
 
     fn fetch_instructions(&self) -> String {

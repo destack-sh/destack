@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use destack_source::FileType;
 
-use super::parse::{ParseOptions, ParseOutcome, TestArea, parse_file};
+use super::parse::{ParseOptions, parse_file};
 use crate::conformance::{
     Case, CaseOutcome, ConformanceDriver, ConformanceSuiteResult, run_conformance_driver,
     suite_fixtures_dir, suite_tests_dir,
@@ -139,13 +139,11 @@ impl BabelSuite {
                         } else {
                             format!("{prefix}/{directory_name}")
                         };
-                        let expect_error = self.should_throw(&path);
-                        let test = if expect_error {
-                            Case::fail(name, file_type)
-                        } else {
-                            Case::pass(name, file_type)
-                        };
-                        tests.push(test);
+                        if self.should_throw(&path) {
+                            continue;
+                        }
+
+                        tests.push(Case::valid(name, file_type));
                     } else {
                         // otherwise recurse into the subdirectory
                         let directory_name = path.file_name().unwrap().to_string_lossy();
@@ -293,6 +291,12 @@ impl ConformanceDriver for BabelSuite {
         &self.tests_dir
     }
 
+    fn allows_undiscovered_status(&self, case_name: &str) -> bool {
+        let test_dir = self.tests_dir.join(case_name);
+
+        test_dir.exists() && self.should_throw(&test_dir)
+    }
+
     fn discover_cases(&self) -> Vec<Case> {
         // discover tests from typescript and jsx directories
         // (flow is intentionally excluded, we don't support Flow, only TypeScript)
@@ -320,29 +324,18 @@ impl ConformanceDriver for BabelSuite {
             Err(_) => return CaseOutcome::FailedRead,
         };
 
-        let area = if test.expect_error {
-            TestArea::EarlySyntax
-        } else {
-            TestArea::Parse
-        };
         let disallow_ambiguous_tree_literal = self.disallow_ambiguous_tree_literal(&test_dir);
         let parse_outcome = parse_file(
             &input_path,
             &content,
             test.file_type,
             ParseOptions {
-                area,
                 disallow_ambiguous_tree_literal,
                 should_print_diagnostics: show_diff,
             },
         );
 
-        match (test.expect_error, parse_outcome) {
-            (true, ParseOutcome::Error) => CaseOutcome::Passed,
-            (true, ParseOutcome::Ok) => CaseOutcome::FailedParse,
-            (false, ParseOutcome::Ok) => CaseOutcome::Passed,
-            (false, ParseOutcome::Error) => CaseOutcome::FailedParse,
-        }
+        parse_outcome.case_outcome(test.source_validity)
     }
 
     fn fetch_instructions(&self) -> String {

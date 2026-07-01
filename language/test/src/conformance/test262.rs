@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use destack_source::FileType;
 
-use super::parse::{ParseOptions, ParseOutcome, TestArea, parse_file};
+use super::parse::{ParseOptions, parse_file};
 use crate::conformance::{
     Case, CaseOutcome, ConformanceDriver, ConformanceSuiteResult, run_conformance_driver,
     suite_fixtures_dir, suite_tests_dir,
@@ -42,7 +42,7 @@ impl Test262Suite {
         }
     }
 
-    fn discover_in_dir(&self, dir: &Path, prefix: &str, expect_error: bool) -> Vec<Case> {
+    fn discover_in_dir(&self, dir: &Path, prefix: &str) -> Vec<Case> {
         let mut tests = Vec::new();
 
         if let Ok(entries) = std::fs::read_dir(dir) {
@@ -52,12 +52,7 @@ impl Test262Suite {
                     && let Some(stem) = path.file_stem()
                 {
                     let name = format!("{prefix}/{}", stem.to_string_lossy());
-                    let test = if expect_error {
-                        Case::fail(name, FileType::JavaScript)
-                    } else {
-                        Case::pass(name, FileType::JavaScript)
-                    };
-                    tests.push(test);
+                    tests.push(Case::valid(name, FileType::JavaScript));
                 }
             }
         }
@@ -86,31 +81,23 @@ impl ConformanceDriver for Test262Suite {
         &self.tests_dir
     }
 
+    fn allows_undiscovered_status(&self, case_name: &str) -> bool {
+        case_name.starts_with("early/") || case_name.starts_with("fail/")
+    }
+
     fn discover_cases(&self) -> Vec<Case> {
         let mut tests = Vec::new();
 
         // pass/ directory: files that should parse successfully
         let pass_dir = self.tests_dir.join("pass");
         if pass_dir.exists() {
-            tests.extend(self.discover_in_dir(&pass_dir, "pass", false));
-        }
-
-        // fail/ directory: files that should fail to parse
-        let fail_dir = self.tests_dir.join("fail");
-        if fail_dir.exists() {
-            tests.extend(self.discover_in_dir(&fail_dir, "fail", true));
+            tests.extend(self.discover_in_dir(&pass_dir, "pass"));
         }
 
         // pass-explicit/ directory: files that should parse in module mode
         let pass_explicit_dir = self.tests_dir.join("pass-explicit");
         if pass_explicit_dir.exists() {
-            tests.extend(self.discover_in_dir(&pass_explicit_dir, "pass-explicit", false));
-        }
-
-        // early/ directory: files with early errors (should be detected as errors)
-        let early_dir = self.tests_dir.join("early");
-        if early_dir.exists() {
-            tests.extend(self.discover_in_dir(&early_dir, "early", true));
+            tests.extend(self.discover_in_dir(&pass_explicit_dir, "pass-explicit"));
         }
 
         tests
@@ -133,33 +120,17 @@ impl ConformanceDriver for Test262Suite {
             Err(_) => return CaseOutcome::FailedRead,
         };
 
-        // early tests use the full early pipeline
-        // fail fixtures include many early syntax errors we intentionally enforce in analyze
-        let area = if category == "early" {
-            TestArea::Early
-        } else if category == "fail" {
-            TestArea::EarlySyntax
-        } else {
-            TestArea::Parse
-        };
-
         let parse_outcome = parse_file(
             &path,
             &content,
             test.file_type,
             ParseOptions {
-                area,
                 disallow_ambiguous_tree_literal: false,
                 should_print_diagnostics: show_diff,
             },
         );
 
-        match (test.expect_error, parse_outcome) {
-            (true, ParseOutcome::Error) => CaseOutcome::Passed,
-            (true, ParseOutcome::Ok) => CaseOutcome::FailedParse,
-            (false, ParseOutcome::Ok) => CaseOutcome::Passed,
-            (false, ParseOutcome::Error) => CaseOutcome::FailedParse,
-        }
+        parse_outcome.case_outcome(test.source_validity)
     }
 
     fn fetch_instructions(&self) -> String {

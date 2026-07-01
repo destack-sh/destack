@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use destack_source::FileType;
 
-use super::parse::{ParseOptions, ParseOutcome, TestArea, parse_file};
+use super::parse::{ParseOptions, parse_file};
 use crate::conformance::{
     Case, CaseOutcome, ConformanceDriver, ConformanceSuiteResult, run_conformance_driver,
     suite_fixtures_dir, suite_tests_dir,
@@ -62,15 +62,11 @@ impl SwcSuite {
 
                         // determine file type based on category and extension
                         let file_type = Self::file_type_for_category(category, &name);
-                        let expect_error =
-                            name.contains("/errors/") || name.contains("typescript-errors");
+                        if name.contains("/errors/") || name.contains("typescript-errors") {
+                            continue;
+                        }
 
-                        let test = if expect_error {
-                            Case::fail(name, file_type)
-                        } else {
-                            Case::pass(name, file_type)
-                        };
-                        tests.push(test);
+                        tests.push(Case::valid(name, file_type));
                     }
                 }
             }
@@ -115,6 +111,10 @@ impl ConformanceDriver for SwcSuite {
         &self.tests_dir
     }
 
+    fn allows_undiscovered_status(&self, case_name: &str) -> bool {
+        case_name.contains("/errors/") || case_name.contains("typescript-errors")
+    }
+
     fn discover_cases(&self) -> Vec<Case> {
         let mut tests = Vec::new();
 
@@ -137,28 +137,17 @@ impl ConformanceDriver for SwcSuite {
             Err(_) => return CaseOutcome::FailedRead,
         };
 
-        let area = if test.expect_error {
-            TestArea::EarlySyntax
-        } else {
-            TestArea::Parse
-        };
         let parse_outcome = parse_file(
             &path,
             &content,
             test.file_type,
             ParseOptions {
-                area,
                 disallow_ambiguous_tree_literal: false,
                 should_print_diagnostics: show_diff,
             },
         );
 
-        match (test.expect_error, parse_outcome) {
-            (true, ParseOutcome::Error) => CaseOutcome::Passed,
-            (true, ParseOutcome::Ok) => CaseOutcome::FailedParse,
-            (false, ParseOutcome::Ok) => CaseOutcome::Passed,
-            (false, ParseOutcome::Error) => CaseOutcome::FailedParse,
-        }
+        parse_outcome.case_outcome(test.source_validity)
     }
 
     fn fetch_instructions(&self) -> String {

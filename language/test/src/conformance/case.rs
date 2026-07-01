@@ -17,6 +17,22 @@ pub enum CaseOutcome {
     FailedRead,
 }
 
+/// Expected parser validity for one conformance source file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceValidity {
+    /// Source should parse without diagnostics.
+    Valid,
+    /// Source should be rejected by parser diagnostics.
+    Invalid,
+}
+
+impl SourceValidity {
+    /// Return whether the source is expected to be rejected.
+    pub const fn is_invalid(self) -> bool {
+        matches!(self, Self::Invalid)
+    }
+}
+
 /// A discovered conformance case with metadata.
 #[derive(Debug, Clone)]
 pub struct Case {
@@ -24,8 +40,8 @@ pub struct Case {
     pub name: String,
     /// File type for parsing.
     pub file_type: FileType,
-    /// Whether this case expects an error outcome.
-    pub expect_error: bool,
+    /// Expected parser validity for the source file.
+    pub source_validity: SourceValidity,
     /// Optional expected output source for parity checks.
     pub expected_output: ExpectedOutput,
     /// Whether to require a stable second pass (some cases aren't meaningfully stable).
@@ -45,23 +61,23 @@ pub enum ExpectedOutput {
 }
 
 impl Case {
-    /// Create a case that should pass with no parse errors.
-    pub fn pass(name: impl Into<String>, file_type: FileType) -> Self {
+    /// Create a source case that should parse without diagnostics.
+    pub fn valid(name: impl Into<String>, file_type: FileType) -> Self {
         Self {
             name: name.into(),
             file_type,
-            expect_error: false,
+            source_validity: SourceValidity::Valid,
             expected_output: ExpectedOutput::None,
             check_idempotence: true,
         }
     }
 
-    /// Create a case that should fail with parse errors.
-    pub fn fail(name: impl Into<String>, file_type: FileType) -> Self {
+    /// Create a source case that should be rejected by parser diagnostics.
+    pub fn invalid(name: impl Into<String>, file_type: FileType) -> Self {
         Self {
             name: name.into(),
             file_type,
-            expect_error: true,
+            source_validity: SourceValidity::Invalid,
             expected_output: ExpectedOutput::None,
             check_idempotence: true,
         }
