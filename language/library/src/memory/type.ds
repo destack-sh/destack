@@ -10,13 +10,13 @@ import { Raw } from "./raw.ds";
 @languageItem("memory.Ownership")
 export type Ownership = "managed" | "owned" | "borrowed" | "raw";
 
-/// Rebase `T` into the shared space.
+/// Resolve ambient placement of `T` in the shared space.
 export type Shared<T> = WithPlace<T, "shared">;
 
-/// Rebase `T` into the local space.
+/// Resolve ambient placement of `T` in the local space.
 export type Local<T> = WithPlace<T, "local">;
 
-/// Rebase `T` into the ambient place.
+/// Resolve ambient placement of `T` in the ambient place.
 export type Ambient<T> = WithPlace<T, "ambient">;
 
 /// Extract the payload under the outermost memory form.
@@ -107,11 +107,11 @@ export newtype WithOwnership<
     comptime L: Lifetime = LifetimeOf<Q>,
 > = intrinsic;
 
-/// Place `Q` in `P`.
+/// Resolve ambient placement of `Q` in place `P`.
 @languageItem("memory.WithPlace")
 export newtype WithPlace<Q, comptime P: Place> = intrinsic;
 
-/// Place `Q` in concrete space `S`.
+/// Resolve ambient placement of `Q` in concrete space `S`.
 @languageItem("memory.WithSpace")
 export newtype WithSpace<Q, comptime S: Space> = intrinsic;
 
