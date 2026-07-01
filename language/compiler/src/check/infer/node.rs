@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{Answer, CheckState, FlowSite, Origin, PlaceUse, Relation, ValueUse};
+use crate::check::{Answer, CheckState, FlowSite, Origin, PlaceUse, Relation, ValueUse, answer};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -16,11 +16,24 @@ impl CheckState<'_> {
         }
 
         match node.local_id.ty {
-            dir::NodeType::Expression => self.infer_expression(site, use_),
+            dir::NodeType::Expression => {
+                self.infer_expression(site, use_, super::InferMode::Normal)
+            }
             dir::NodeType::Block => self.infer_block(site, node.into_typed().local_id),
             dir::NodeType::TypeExpression => Ok(Answer::Ready(())),
             other => self.reject_untyped_node("infer", node, other),
         }
+    }
+
+    /// Infer one source node and return its type at the same flow site.
+    pub(in crate::check) fn infer_node_type(
+        &mut self,
+        site: FlowSite,
+        use_: PlaceUse,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        answer!(self.infer_node(site, use_)?);
+
+        self.node_type_at(site)
     }
 
     /// Check one source node against an expected type.
@@ -56,15 +69,5 @@ impl CheckState<'_> {
         Err(CompilerError::Internal {
             message: format!("cannot {verb} {kind:?} node {node:?}"),
         })
-    }
-}
-
-impl FlowSite {
-    /// Return a source use for one sibling node under the same flow point.
-    pub(in crate::check) fn sibling(self, node: dir::GlobalNodeIdAny) -> Self {
-        Self {
-            node,
-            flow: self.flow,
-        }
     }
 }
