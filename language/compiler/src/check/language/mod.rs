@@ -1,9 +1,8 @@
 mod apparent;
-mod instance;
+mod key;
 mod operator;
-mod select;
 mod subscript;
+mod tagged;
 
-pub(in crate::check) use instance::*;
 pub(in crate::check) use operator::*;
 pub(in crate::check) use subscript::*;
