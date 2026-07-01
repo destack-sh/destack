@@ -60,6 +60,51 @@ pub(crate) struct MemberChain {
     tail_groups: TailChainGroups,
 }
 
+/// One expanded member-chain layout.
+#[derive(Debug, Clone, Copy)]
+struct ExpandedChainLayout {
+    /// The parent expansion behavior.
+    parent: ChainParentLayout,
+    /// The tail-group formatting behavior.
+    tail_groups: ChainTailGroupLayout,
+}
+
+impl ExpandedChainLayout {
+    /// Return the standard expanded chain layout.
+    const fn standard(parent: ChainParentLayout) -> Self {
+        Self {
+            parent,
+            tail_groups: ChainTailGroupLayout::Grouped,
+        }
+    }
+
+    /// Return the direct expanded layout.
+    const fn direct() -> Self {
+        Self {
+            parent: ChainParentLayout::Preserve,
+            tail_groups: ChainTailGroupLayout::Direct,
+        }
+    }
+}
+
+/// The parent layout effect for an expanded chain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ChainParentLayout {
+    /// Preserve the parent group mode.
+    Preserve,
+    /// Expand the parent group.
+    Expand,
+}
+
+/// The tail-group layout for an expanded chain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ChainTailGroupLayout {
+    /// Keep each tail group in a layout group.
+    Grouped,
+    /// Write each tail group directly.
+    Direct,
+}
+
 impl MemberChain {
     /// Build the normalized chain layout for one expression.
     fn from_expression(
@@ -84,6 +129,14 @@ impl MemberChain {
     ) -> FormatResult<bool> {
         Self::from_expression(context, node_id)
             .map(|chain| chain.tail_groups.is_member_call_chain())
+    }
+
+    /// Return whether this chain's minimum width exceeds line width.
+    fn minimum_width_exceeds_line_width(&self, context: &DestackFormatContext<'_>) -> bool {
+        let operation_count = self.chain.len().saturating_sub(1);
+        let minimum_width = 1 + operation_count.saturating_mul(2);
+
+        minimum_width > context.options.line_width as usize
     }
 
     /// Return whether the formatted head breaks.
@@ -224,6 +277,16 @@ impl MemberChain {
                 member_has_intervening_comment(context, *node_id)
             })
     }
+}
+
+/// Return whether one chain carries comments or blank lines that affect chain layout.
+fn chain_has_layout_trivia(
+    context: &DestackFormatContext<'_>,
+    formatted_root_id: LocalNodeId<Expression>,
+) -> bool {
+    let span = context.span(formatted_root_id);
+
+    context.comments().has_comment_in_span(span) || context.has_blank_line(span)
 }
 
 /// Try to merge the first tail group into the chain head.
@@ -427,12 +490,41 @@ fn chain_group_needs_empty_line_before(
 
 impl<'ast> Format<DestackFormatContext<'ast>> for MemberChain {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        let mut chain = self.clone();
-        let formatted_root_id = chain.chain[chain.chain.len() - 1];
+        let formatted_root_id = self.chain[self.chain.len() - 1];
         let chain_span_end = f.context().span(formatted_root_id).end;
+        let minimum_width_exceeds_line_width = self.minimum_width_exceeds_line_width(f.context());
+        let has_layout_trivia = chain_has_layout_trivia(f.context(), formatted_root_id);
+
+        // write guaranteed expanded chains directly
+        if minimum_width_exceeds_line_width && !has_layout_trivia {
+            let format_expanded_chain = format_with(|f| {
+                write_expanded_chain(
+                    f,
+                    formatted_root_id,
+                    ExpandedChainLayout::direct(),
+                    &self.root,
+                    &self.head,
+                    &self.tail_groups,
+                )
+            });
+
+            write!(f, [format_expanded_chain])?;
+            f.context_mut()
+                .comments_mut()
+                .skip_comments_before(chain_span_end);
+
+            return Ok(());
+        }
+
+        let mut chain = self.clone();
         let head_will_break = chain.head_will_break(f, formatted_root_id)?;
         chain.inspect_member_chain_groups(f, formatted_root_id)?;
         let groups_should_break = chain.groups_should_break(f.context(), head_will_break);
+        let parent_layout = if groups_should_break {
+            ChainParentLayout::Expand
+        } else {
+            ChainParentLayout::Preserve
+        };
         let has_member_comment = self.has_member_comment(f.context());
         let has_new_line_or_comment_between = chain
             .tail_groups
@@ -453,15 +545,18 @@ impl<'ast> Format<DestackFormatContext<'ast>> for MemberChain {
             write_expanded_chain(
                 f,
                 formatted_root_id,
-                groups_should_break,
+                ExpandedChainLayout::standard(parent_layout),
                 &chain.root,
                 &chain.head,
                 &chain.tail_groups,
-                true,
             )
         });
 
-        if chain.tail_groups.len() <= 1 && !has_member_comment && !has_new_line_or_comment_between {
+        if chain.tail_groups.len() <= 1
+            && !has_member_comment
+            && !has_new_line_or_comment_between
+            && !minimum_width_exceeds_line_width
+        {
             let is_long_curried_call =
                 first_call_expression_id(f.context(), &chain.root, &chain.head, &chain.tail_groups)
                     .is_some_and(|call_expression_id| {
@@ -481,7 +576,11 @@ impl<'ast> Format<DestackFormatContext<'ast>> for MemberChain {
             return Ok(());
         }
 
-        if has_member_comment || has_new_line_or_comment_between || groups_should_break {
+        if has_member_comment
+            || has_new_line_or_comment_between
+            || groups_should_break
+            || minimum_width_exceeds_line_width
+        {
             write!(f, [group(&format_expanded_chain)])?;
             f.context_mut()
                 .comments_mut()
@@ -579,26 +678,18 @@ fn write_one_line_chain<'ast>(
 fn write_expanded_chain<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     formatted_root_id: LocalNodeId<Expression>,
-    should_expand_parent: bool,
+    layout: ExpandedChainLayout,
     root: &ChainRoot,
     head: &MemberChainGroup,
     tail_groups: &TailChainGroups,
-    expand_if_value_root: bool,
 ) -> FormatResult<()> {
     // parent expansion
-    if should_expand_parent {
+    if layout.parent == ChainParentLayout::Expand {
         write!(f, [expand_parent()])?;
     }
 
     // base
-    write_chain_head(
-        f,
-        formatted_root_id,
-        root,
-        head,
-        tail_groups,
-        expand_if_value_root,
-    )?;
+    write_chain_head(f, formatted_root_id, root, head, tail_groups, true)?;
     skip_comments_after_chain_head(f, root, head)?;
 
     // tail groups
@@ -657,7 +748,12 @@ fn write_expanded_chain<'ast>(
                         .and_then(|group| group.first()),
                 )
             });
-            write!(f, [group(&group_content)])?;
+
+            match layout.tail_groups {
+                ChainTailGroupLayout::Grouped => write!(f, [group(&group_content)])?,
+                ChainTailGroupLayout::Direct => write!(f, [group_content])?,
+            }
+
             skip_comments_after_chain_group(f, tail_group)?;
         }
 
