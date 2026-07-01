@@ -114,7 +114,7 @@ impl Machine {
 
     /// Resume a previously yielded coroutine.
     ///
-    /// The resume value is appended after explicit resume arguments.
+    /// The resume value is bound before explicit resume arguments.
     pub(crate) fn execute_resume(
         &mut self,
         program: &Program,
