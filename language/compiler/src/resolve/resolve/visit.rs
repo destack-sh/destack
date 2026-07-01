@@ -22,7 +22,7 @@ impl ResolveState<'_> {
         self.resolve_path_references()?;
 
         // resolve language item symbols after profile globals
-        self.resolve_language_item_uses(&environment.language)
+        self.resolve_language_items(&environment.language)
     }
 
     /// Walk active roots and collect references and language item uses.
@@ -108,7 +108,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
         declaration: &dir::Declaration,
     ) {
         if let dir::Declaration::Function(function) = declaration {
-            self.record_function_language_items(&function.signature);
+            self.use_function_language_items(&function.signature);
             self.enter_function(&function.signature);
             dir::walk_declaration(self, tree, id, declaration);
             self.leave_function();
@@ -134,7 +134,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
         property: &dir::Property,
     ) {
         if let dir::Property::Method { signature, .. } = property {
-            self.record_function_language_items(signature);
+            self.use_function_language_items(signature);
             self.enter_function(signature);
             dir::walk_property(self, tree, id, property);
             self.leave_function();
@@ -160,7 +160,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
         member: &dir::TypeMember,
     ) {
         if let dir::TypeMember::Method { signature, .. } = member {
-            self.record_function_language_items(signature);
+            self.use_function_language_items(signature);
         }
 
         dir::walk_type_member(self, tree, id, member);
@@ -181,7 +181,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
         member: &dir::Member,
     ) {
         if let dir::Member::Method { signature, .. } = member {
-            self.record_function_language_items(signature);
+            self.use_function_language_items(signature);
             self.enter_function(signature);
             dir::walk_member(self, tree, id, member);
             self.leave_function();
@@ -190,6 +190,96 @@ impl dir::NodeVisitor for ResolveState<'_> {
         }
 
         dir::walk_member(self, tree, id, member);
+    }
+
+    /// Visit one pattern.
+    ///
+    /// Example:
+    /// ```ds
+    /// const { name } = user;
+    /// const [first] = users;
+    /// ```
+    fn visit_pattern(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Pattern>,
+        pattern: &dir::Pattern,
+    ) {
+        match pattern {
+            dir::Pattern::Sequence { .. } => {
+                self.use_sequence_pattern_language_items();
+            }
+            dir::Pattern::Object { .. } => {
+                self.use_apparent_member_language_items();
+            }
+            _ => {}
+        }
+
+        dir::walk_pattern(self, tree, id, pattern);
+    }
+
+    /// Visit one pattern field.
+    ///
+    /// Example:
+    /// ```ds
+    /// const { [key]: value } = object;
+    /// ```
+    fn visit_pattern_field(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::PatternField>,
+        pattern_field: &dir::PatternField,
+    ) {
+        if matches!(pattern_field, dir::PatternField::Computed { .. }) {
+            self.use_language_item(dir::LanguageItem::Index);
+        }
+
+        dir::walk_pattern_field(self, tree, id, pattern_field);
+    }
+
+    /// Visit one assignment pattern.
+    ///
+    /// Example:
+    /// ```ds
+    /// [target] = values;
+    /// ({ name: target } = user);
+    /// ```
+    fn visit_assign_pattern(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::AssignPattern>,
+        pattern: &dir::AssignPattern,
+    ) {
+        match pattern {
+            dir::AssignPattern::Sequence { .. } => {
+                self.use_sequence_pattern_language_items();
+            }
+            dir::AssignPattern::Object { .. } => {
+                self.use_apparent_member_language_items();
+            }
+            _ => {}
+        }
+
+        dir::walk_assign_pattern(self, tree, id, pattern);
+    }
+
+    /// Visit one assignment pattern field.
+    ///
+    /// Example:
+    /// ```ds
+    /// ({ [key]: target } = object);
+    /// ```
+    fn visit_assign_pattern_field(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::AssignPatternField>,
+        field: &dir::AssignPatternField,
+    ) {
+        if matches!(field, dir::AssignPatternField::Computed { .. }) {
+            self.use_language_item(dir::LanguageItem::Index);
+        }
+
+        dir::walk_assign_pattern_field(self, tree, id, field);
     }
 
     /// Visit one decorator.

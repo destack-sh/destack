@@ -41,7 +41,7 @@ pub(in crate::resolve) struct ResolveState<'a> {
     /// Source-visible global keys referenced by active roots.
     pub(in crate::resolve) global_keys: IndexSet<dir::StaticKey>,
     /// Language items used by active roots without source imports.
-    pub(in crate::resolve) language_item_uses: IndexSet<dir::LanguageItem>,
+    pub(in crate::resolve) language_items: IndexSet<dir::LanguageItem>,
     /// Function contexts visible while walking active roots.
     pub(in crate::resolve) function_stack: Vec<FunctionContext>,
     /// The memoized export lookups shared by this provider run.
@@ -114,7 +114,7 @@ impl<'a> ResolveState<'a> {
             path_references: Vec::new(),
             member_chain_depth: 0,
             global_keys: IndexSet::new(),
-            language_item_uses: IndexSet::new(),
+            language_items: IndexSet::new(),
             function_stack: Vec::new(),
             exports: ExportResolver::new(profile),
             options: dir::NodeVisitorOptions::default(),
@@ -177,9 +177,9 @@ impl<'a> ResolveState<'a> {
         }
     }
 
-    /// Record one language item used by active roots.
-    pub(in crate::resolve) fn record_language_item(&mut self, item: dir::LanguageItem) {
-        if self.language_item_uses.insert(item) {
+    /// Use one language item from active roots.
+    pub(in crate::resolve) fn use_language_item(&mut self, item: dir::LanguageItem) {
+        if self.language_items.insert(item) {
             self.stats.language_item_uses += 1;
         }
     }
