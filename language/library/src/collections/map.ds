@@ -219,7 +219,7 @@ extension<K: Hash, V> of Map<K, V>
 
     /// Remove a key-value pair.
     remove<Q: Hash>(&exclusive this, key: &readonly Q): V | undefined
-    where K: Borrow<Q>, Q: Equal<Q> {
+        where K: Borrow<Q>, Q: Equal<Q> {
         todo("Map.remove")
     }
 
@@ -314,7 +314,7 @@ extension<K: Hash, V> of Map<K, V>
 }
 
 extension<K: Hash, V> of ^Map<K, V> implements From<Iterable<(K, V)>>, FromIterator<(K, V)>
-where K: Equal<K> {
+    where K: Equal<K> {
     /// Create an owned map from entries.
     static from(entries: Iterable<(K, V)>): ^Map<K, V> {
         Map.from(entries)

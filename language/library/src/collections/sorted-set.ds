@@ -70,7 +70,7 @@ extension<T: Compare<T>> of SortedSet<T>
 
     /// Borrow the stored value equal to `value` with readonly access.
     get<Q: Compare<Q>>(&readonly this, value: &readonly Q): &readonly T | undefined
-    where T: Borrow<Q> {
+        where T: Borrow<Q> {
         todo("SortedSet.get")
     }
 
@@ -166,7 +166,7 @@ extension<T: Compare<T>> of SortedSet<T>
 
     /// Return values in `range` with readonly access.
     range<Q: Compare<Q>, R: RangeBounds<Q>>(&readonly this, range: R): Iterator<&readonly T>
-    where T: Borrow<Q> {
+        where T: Borrow<Q> {
         todo("SortedSet.range")
     }
 

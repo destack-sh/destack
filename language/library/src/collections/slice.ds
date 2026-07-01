@@ -253,7 +253,7 @@ extension<T, R: RangeBounds<usize>> of Slice<T> implements IndexSet<R, Slice<T>>
 }
 
 extension<T, R: RangeBounds<usize>> of Slice<T> implements IndexSet<R, &readonly Slice<T>>
-where T: Copy {
+    where T: Copy {
     /// Copy `source` into the selected range.
     indexSet(&exclusive this, range: R, source: &readonly Slice<T>): void {
         let target = this.index(range);
