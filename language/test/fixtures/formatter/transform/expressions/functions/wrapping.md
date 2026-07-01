@@ -56,9 +56,27 @@ Multiple where constraints print without grouping parentheses when they fit.
 function process<T, U>(a: T, b: U): void where (T: Copy, U: Clone) { }
 ```
 
-When the signature is too long, the where clause breaks to its own line.
+When the signature is too long, the where clause breaks as an indented continuation.
 
 ```ds expected
 function process<T, U>(a: T, b: U): void
-where T: Copy, U: Clone {}
+    where T: Copy, U: Clone {}
+```
+
+### function with long where constraints
+
+Long where constraints break under the `where` keyword.
+
+```ds line-width=72
+function resolve<T, U, V>(value: T): V where T: VeryLongCopyConstraint, U: VeryLongCloneConstraint, V: VeryLongComparableConstraint { return value }
+```
+
+```ds expected
+function resolve<T, U, V>(value: T): V
+    where
+        T: VeryLongCopyConstraint,
+        U: VeryLongCloneConstraint,
+        V: VeryLongComparableConstraint {
+    return value;
+}
 ```

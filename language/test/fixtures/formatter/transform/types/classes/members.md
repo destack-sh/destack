@@ -152,6 +152,26 @@ class Foo {
 }
 ```
 
+### method with long where constraints
+
+Long method where constraints break under the `where` keyword.
+
+```ds line-width=72
+class Store<K: Hash, V> { get<Q: Hash>(key: &readonly Q): V | undefined where K: VeryLongBorrow<Q>, Q: VeryLongEqual<Q>, V: VeryLongClone { return undefined } }
+```
+
+```ds expected
+class Store<K: Hash, V> {
+    get<Q: Hash>(key: &readonly Q): V | undefined
+        where
+            K: VeryLongBorrow<Q>,
+            Q: VeryLongEqual<Q>,
+            V: VeryLongClone {
+        return undefined;
+    }
+}
+```
+
 ### async method
 
 The `async` keyword precedes the method name.
