@@ -310,7 +310,9 @@ impl Parser {
         let target_id = self.without_parentheses_expression(expression_id);
 
         Ok(self.insert_node(
-            AssignPattern::Place { expression: target_id },
+            AssignPattern::Place {
+                expression: target_id,
+            },
             self.tree.get_span(expression_id),
         ))
     }

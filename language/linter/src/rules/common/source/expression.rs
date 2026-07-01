@@ -106,8 +106,12 @@ pub fn assign_patterns_are_equal(
 
     match (left_pattern, right_pattern) {
         (
-            dir::AssignPattern::Place { expression: left_value },
-            dir::AssignPattern::Place { expression: right_value },
+            dir::AssignPattern::Place {
+                expression: left_value,
+            },
+            dir::AssignPattern::Place {
+                expression: right_value,
+            },
         ) => expression_is_equal(ctx, *left_value, *right_value),
         (
             dir::AssignPattern::Default {

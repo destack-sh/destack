@@ -501,11 +501,9 @@ pub(crate) fn assign_pattern_contains_expression(
         // destructuring fields
         AssignPattern::Sequence { fields }
         | AssignPattern::Tuple { fields }
-        | AssignPattern::Object { fields } => {
-            fields.iter().copied().any(|field_id| {
-                assign_pattern_field_contains_expression(context, field_id, expression_id)
-            })
-        }
+        | AssignPattern::Object { fields } => fields.iter().copied().any(|field_id| {
+            assign_pattern_field_contains_expression(context, field_id, expression_id)
+        }),
     }
 }
 
