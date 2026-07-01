@@ -178,7 +178,7 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return one reference symbol label.
-    fn reference_symbol_label(&self, symbol: dir::GlobalSymbolId) -> String {
+    pub(super) fn reference_symbol_label(&self, symbol: dir::GlobalSymbolId) -> String {
         if let Some(item) = self.language_item_by_symbol.get(&symbol) {
             let key = item.to_string();
             if let Some((_, name)) = key.rsplit_once('.') {
@@ -186,6 +186,13 @@ impl DirSnapshotBuilder<'_> {
             }
 
             return key;
+        }
+
+        if let Some(names) = self.global_names_by_symbol.get(&symbol)
+            && names.len() == 1
+            && let Some(name) = names.first()
+        {
+            return self.strings.get(*name).to_string();
         }
 
         self.symbol_path_label(symbol)
@@ -802,7 +809,7 @@ impl DirSnapshotBuilder<'_> {
             }
             dir::GenericParameterKey::Generated(name) => {
                 let owner = match template.symbol {
-                    Some(symbol) => self.symbol_label(symbol),
+                    Some(symbol) => self.symbol_path_label(symbol),
                     None => self.node_label(template.source),
                 };
                 let name = self.strings.get(name);
