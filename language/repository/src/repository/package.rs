@@ -13,12 +13,12 @@ use crate::{DestackFile, Package, PackageDependencies, PackageExport, PackageInd
 
 impl Repository {
     /// Build one tracked file id for one package-relative file when it exists.
-    fn tracked_file_id(&self, files: TreapRoot, path: &Path) -> Option<FileId> {
+    fn tracked_file_id(&self, file_root: TreapRoot, path: &Path) -> Option<FileId> {
         let file_id = self.file_id(path);
 
         self.files
             .entries
-            .contains(files, &file_id)
+            .contains(file_root, &file_id)
             .then_some(file_id)
     }
 
@@ -26,13 +26,13 @@ impl Repository {
     fn build_package(
         &self,
         revision: Revision,
-        files: TreapRoot,
+        file_root: TreapRoot,
         package: &Package,
     ) -> Result<Arc<Package>, RepositoryError> {
         let destack_file_id = package
             .path
             .as_ref()
-            .and_then(|path| self.tracked_file_id(files, &path.join("destack.json")));
+            .and_then(|path| self.tracked_file_id(file_root, &path.join("destack.json")));
         let destack_config = package
             .path
             .as_ref()
@@ -87,9 +87,9 @@ impl Repository {
     pub(crate) fn package_index_for_files(
         &self,
         revision: Revision,
-        files: TreapRoot,
+        file_root: TreapRoot,
     ) -> Result<PackageIndex, RepositoryError> {
-        let package_roots = self.package_roots_for_files(revision, files)?;
+        let package_roots = self.package_roots_for_files(revision, file_root)?;
         let mut packages = OrdMap::new();
 
         // include the immutable builtin package
@@ -99,7 +99,7 @@ impl Repository {
         // enrich editable workspace packages from config
         for (package_root, kind) in package_roots {
             let package = self.base_package(kind, &package_root);
-            let package = self.build_package(revision, files, &package)?;
+            let package = self.build_package(revision, file_root, &package)?;
 
             packages.insert(package.id, package);
         }
@@ -134,7 +134,7 @@ impl Repository {
     fn package_roots_for_files(
         &self,
         revision: Revision,
-        files: TreapRoot,
+        file_root: TreapRoot,
     ) -> Result<Vec<(PathBuf, PackageKind)>, RepositoryError> {
         let workspace_config = self.destack_for_workspace(revision)?;
         let workspace_packages = workspace_config
@@ -157,10 +157,11 @@ impl Repository {
         }
         // explicit workspace packages
         else {
-            self.files.entries.visit(files, &mut |_file_id, entry| {
+            let files = self.revision_files(revision)?;
+            for (_file_id, entry) in files.iter().copied() {
                 let path = PathBuf::from(self.logical_path_text(entry.logical_path));
                 let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
-                    return;
+                    continue;
                 };
 
                 if file_name == "destack.json" {
@@ -171,10 +172,10 @@ impl Repository {
                         package_roots.push((package_root, PackageKind::Declared));
                     }
                 }
-            });
+            }
         }
 
-        self.push_module_package_roots(revision, files, &mut package_roots, &mut seen)?;
+        self.push_module_package_roots(revision, file_root, &mut package_roots, &mut seen)?;
 
         Ok(package_roots)
     }
@@ -183,7 +184,7 @@ impl Repository {
     fn push_module_package_roots(
         &self,
         revision: Revision,
-        files: TreapRoot,
+        file_root: TreapRoot,
         package_roots: &mut Vec<(PathBuf, PackageKind)>,
         seen: &mut HashSet<PathBuf>,
     ) -> Result<(), RepositoryError> {
@@ -203,7 +204,7 @@ impl Repository {
                 else {
                     continue;
                 };
-                if !self.has_package_config(files, &package_root) {
+                if !self.has_package_config(file_root, &package_root) {
                     continue;
                 }
 
@@ -217,10 +218,10 @@ impl Repository {
     }
 
     /// Return true when one captured package root has a manifest.
-    fn has_package_config(&self, files: TreapRoot, package_root: &Path) -> bool {
+    fn has_package_config(&self, file_root: TreapRoot, package_root: &Path) -> bool {
         let file_id = self.file_id(&package_root.join("destack.json"));
 
-        self.files.entries.contains(files, &file_id)
+        self.files.entries.contains(file_root, &file_id)
     }
 
     /// Return the package index for one revision.

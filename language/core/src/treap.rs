@@ -157,37 +157,35 @@ impl<K, V> Treap<K, V> {
         TreapRoot { node, hash }
     }
 
-    /// Visit all entries in key order.
-    pub fn visit(&self, root: TreapRoot, visit: &mut impl FnMut(&K, &V)) {
+    /// Return copied entries in key order.
+    pub fn entries(&self, root: TreapRoot) -> Vec<(K, V)>
+    where
+        K: Copy,
+        V: Copy,
+    {
         let nodes = self.nodes.read();
+        let mut entries = Vec::new();
 
-        Self::visit_node(&nodes, root.node, visit);
+        Self::collect_node_entries(&nodes, root.node, &mut entries);
+
+        entries
     }
 
-    /// Visit all entries in key order and stop on the first error.
-    pub fn try_visit<E>(
-        &self,
-        root: TreapRoot,
-        visit: &mut impl FnMut(&K, &V) -> Result<(), E>,
-    ) -> Result<(), E> {
-        let nodes = self.nodes.read();
-
-        Self::try_visit_node(&nodes, root.node, visit)
-    }
-
-    /// Visit values from nodes reachable through the given roots once.
-    pub fn visit_unique_values(
-        &self,
-        roots: impl IntoIterator<Item = TreapRoot>,
-        visit: &mut impl FnMut(&V),
-    ) {
+    /// Return values from nodes reachable through the given roots once.
+    pub fn unique_values(&self, roots: impl IntoIterator<Item = TreapRoot>) -> Vec<V>
+    where
+        V: Copy,
+    {
         let nodes = self.nodes.read();
         let mut seen = FxHashSet::default();
+        let mut values = Vec::new();
 
-        // visit shared nodes once across all roots
+        // collect shared nodes once across all roots
         for root in roots {
-            Self::visit_unique_node_values(&nodes, root.node, &mut seen, visit);
+            Self::collect_unique_node_values(&nodes, root.node, &mut seen, &mut values);
         }
+
+        values
     }
 
     /// Retain only nodes reachable from the given roots and rewrite those roots.
@@ -260,49 +258,35 @@ impl<K, V> Treap<K, V> {
         stable_hash_value_256(&(left, key, value, right))
     }
 
-    /// Visit all entries in key order.
-    fn visit_node(
+    /// Collect entries in key order.
+    fn collect_node_entries(
         nodes: &[TreapNode<K, V>],
         node: Option<TreapNodeId>,
-        visit: &mut impl FnMut(&K, &V),
-    ) {
+        entries: &mut Vec<(K, V)>,
+    ) where
+        K: Copy,
+        V: Copy,
+    {
         let Some(node) = node else {
             return;
         };
         let node = &nodes[node.0];
 
-        // visit in key order
-        Self::visit_node(nodes, node.left, visit);
-        visit(&node.key, &node.value);
-        Self::visit_node(nodes, node.right, visit);
+        // collect in key order
+        Self::collect_node_entries(nodes, node.left, entries);
+        entries.push((node.key, node.value));
+        Self::collect_node_entries(nodes, node.right, entries);
     }
 
-    /// Visit all entries in key order and stop on the first error.
-    fn try_visit_node<E>(
-        nodes: &[TreapNode<K, V>],
-        node: Option<TreapNodeId>,
-        visit: &mut impl FnMut(&K, &V) -> Result<(), E>,
-    ) -> Result<(), E> {
-        let Some(node) = node else {
-            return Ok(());
-        };
-        let node = &nodes[node.0];
-
-        // visit in key order
-        Self::try_visit_node(nodes, node.left, visit)?;
-        visit(&node.key, &node.value)?;
-        Self::try_visit_node(nodes, node.right, visit)?;
-
-        Ok(())
-    }
-
-    /// Visit values from treap nodes not yet seen.
-    fn visit_unique_node_values(
+    /// Collect values from treap nodes not yet seen.
+    fn collect_unique_node_values(
         nodes: &[TreapNode<K, V>],
         node: Option<TreapNodeId>,
         seen: &mut FxHashSet<TreapNodeId>,
-        visit: &mut impl FnMut(&V),
-    ) {
+        values: &mut Vec<V>,
+    ) where
+        V: Copy,
+    {
         let Some(node_id) = node else {
             return;
         };
@@ -311,10 +295,10 @@ impl<K, V> Treap<K, V> {
         }
         let node = &nodes[node_id.0];
 
-        // visit shared descendants once
-        Self::visit_unique_node_values(nodes, node.left, seen, visit);
-        visit(&node.value);
-        Self::visit_unique_node_values(nodes, node.right, seen, visit);
+        // collect shared descendants once
+        Self::collect_unique_node_values(nodes, node.left, seen, values);
+        values.push(node.value);
+        Self::collect_unique_node_values(nodes, node.right, seen, values);
     }
 
     /// Insert or replace one key in one node.
