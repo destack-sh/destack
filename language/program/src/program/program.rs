@@ -1,7 +1,7 @@
 use destack_core::{SectionImage, SectionStorage, StringId};
 use destack_heap::{
     AllocationShape, HeapEdge, HeapOptions, HeapReference, HeapResult, ReferenceRange, RootSlot,
-    SharedHeapOptions, SharedHeapReference, TraceMaps, visit_heap_root_slots,
+    SharedHeapOptions, SharedHeapReference, TraceView, visit_heap_root_slots,
 };
 use destack_mir::{ReferenceKind, TargetLayout, TraceId, TraceMap};
 use destack_source::ContentId;
@@ -254,7 +254,7 @@ impl Program {
     }
 
     /// Return decoded program trace maps.
-    pub fn trace_maps(&self) -> TraceMaps<'_> {
+    pub fn trace_maps(&self) -> TraceView<'_> {
         self.traces.maps()
     }
 

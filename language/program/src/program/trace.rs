@@ -3,7 +3,7 @@ use std::fmt;
 use destack_core::{
     EntryRange, EntryStore, SectionEntry, SectionImage, SectionPacker, SectionSlice,
 };
-use destack_heap::TraceMaps;
+use destack_heap::TraceView;
 use destack_mir::{TraceId, TraceMap, TraceVariant};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -133,8 +133,8 @@ impl TraceCache {
     }
 
     /// Return decoded trace maps as a heap trace view.
-    pub fn maps(&self) -> TraceMaps<'_> {
-        TraceMaps::new(&self.maps)
+    pub fn maps(&self) -> TraceView<'_> {
+        TraceView::new(&self.maps)
     }
 
     /// Return one decoded trace map by id.
