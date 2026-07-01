@@ -3,8 +3,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, AutoInterface, CheckError, CheckState, Dependency, MemberLookup, Origin,
-    WritablePlaceObligation, answer,
+    Answer, AutoInterface, CheckError, CheckState, Dependency, Origin, WritablePlaceObligation,
+    answer,
 };
 
 /// Writable storage selected by a source expression.
@@ -82,10 +82,12 @@ impl CheckState<'_> {
                 self.writable_binding_error(target.source, *symbol)?
             }
             dir::Storage::Field { receiver, field } => match field {
-                dir::ProjectionField::Key(key) => {
-                    self.writable_member_error(target.source, *receiver, *key)?
+                dir::ProjectionField::Key(_) => {
+                    self.writable_field_error(target.source, *receiver, *field)?
                 }
-                dir::ProjectionField::Member(_) => Answer::Ready(None),
+                dir::ProjectionField::Member(_) => {
+                    self.writable_field_error(target.source, *receiver, *field)?
+                }
             },
             dir::Storage::Property { .. }
             | dir::Storage::Subscript { .. }
@@ -228,24 +230,42 @@ impl CheckState<'_> {
         Ok(Answer::Ready(None))
     }
 
-    /// Return the diagnostic for one member that rejects writes.
-    fn writable_member_error(
+    /// Return the diagnostic for one field that rejects writes.
+    fn writable_field_error(
         &mut self,
         source: dir::GlobalNodeIdAny,
         owner: dir::GlobalTypeId,
-        key: dir::StaticKey,
+        field: dir::ProjectionField,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let origin = Origin::Node(source);
         let owner = answer!(self.reduce_type_head(origin, owner)?);
+        let member = match field {
+            dir::ProjectionField::Key(key) => self.format_static_key(&key),
+            dir::ProjectionField::Member(symbol) => self.format_symbol(symbol),
+        };
+
+        // readonly receiver views reject stored field writes
+        if answer!(self.receiver_projects_readonly(origin, owner)?) {
+            let (module, anchor) = self.source_anchor(source);
+            let error = CheckError::CannotAssignReadonlyMember {
+                anchor,
+                module,
+                member,
+            };
+            let diagnostic = DiagnosticBuilder::new(error);
+
+            return Ok(Answer::Ready(Some(diagnostic)));
+        }
 
         // structural fields carry their write access directly
-        if let dir::Type::Shape(shape) = self.ty(owner)? {
+        if let dir::ProjectionField::Key(key) = field
+            && let dir::Type::Shape(shape) = self.ty(owner)?
+        {
             let field = shape.fields.iter().find(|field| field.key == key);
 
             if let Some(field) = field {
                 if field.is_readonly {
                     let (module, anchor) = self.source_anchor(source);
-                    let member = self.format_static_key(&key);
                     let error = CheckError::CannotAssignReadonlyMember {
                         anchor,
                         module,
@@ -262,18 +282,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         }
 
-        // declaration members default to writable until access modeling
-        let lookup = self.lookup_member(
-            origin,
-            source.module_id,
-            owner,
-            dir::MemberSpace::Instance,
-            key,
-        )?;
-        match lookup {
-            MemberLookup::Pending(blockers) => Ok(Answer::Pending(blockers)),
-            _ => Ok(Answer::Ready(None)),
-        }
+        Ok(Answer::Ready(None))
     }
 
     /// Add a declaration label to a binding diagnostic when the declaration is local.

@@ -53,10 +53,10 @@ impl CheckState<'_> {
             .cloned()
             .collect::<SmallVec<[_; 2]>>();
 
-        // check unnamed exported foreign extension
+        // reject anonymous exported extensions on nonlocal targets
         let module = source.module_id;
-        if self.is_unnamed_exported_foreign_extension(module, symbol, form, target) {
-            self.report_unnamed_exported_foreign_extension(source, target.r#type());
+        if self.is_unnamed_exported_nonlocal_extension(module, symbol, form, target) {
+            self.report_unnamed_exported_nonlocal_extension(source, target.r#type());
         }
 
         if implements.is_empty() {
@@ -98,7 +98,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether an exported extension needs a source-level name.
-    fn is_unnamed_exported_foreign_extension(
+    fn is_unnamed_exported_nonlocal_extension(
         &self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,

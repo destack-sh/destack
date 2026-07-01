@@ -1967,4 +1967,22 @@ pub enum CheckError {
         /// The declaration whose heritage is circular.
         source: String,
     },
+
+    /// Exported nonlocal extension has no source name.
+    ///
+    /// ```ds
+    /// export extension of External {}
+    /// ```
+    #[diagnostic(
+        code = "EC619",
+        message = "exported extension on nonlocal type '{target}' must have a name"
+    )]
+    UnnamedExportedNonlocalExtension {
+        /// Report the exported extension.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The nonlocal extension target.
+        target: String,
+    },
 }

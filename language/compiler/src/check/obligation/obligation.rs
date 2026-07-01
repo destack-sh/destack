@@ -37,12 +37,12 @@ impl ObligationId {
 pub(in crate::check) enum MatchCase {
     /// Default selector.
     Default,
-    /// Pattern selector with an optional guard type.
+    /// Pattern selector with an optional guard.
     Pattern {
         /// The pattern checked for this case.
         pattern: dir::GlobalNodeId<dir::Pattern>,
-        /// The optional guard type.
-        guard: Option<dir::GlobalTypeId>,
+        /// Whether the selector has a guard expression.
+        is_guarded: bool,
     },
 }
 
@@ -383,7 +383,7 @@ impl CheckState<'_> {
         &mut self,
         obligation: &PatternCoverageObligation,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
-        let value = answer!(obligation.value.resolve(self)?);
+        let value = answer!(self.resolve_expected_type(&obligation.value)?);
 
         match &obligation.coverage {
             PatternCoverage::Match { cases } => {
