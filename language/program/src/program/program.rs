@@ -211,9 +211,9 @@ impl Program {
         &self.header.strings
     }
 
-    /// Return the reflected program table.
-    pub fn info(&self) -> &ProgramInfo {
-        &self.header.info
+    /// Return source reflection when this program ships it.
+    pub fn info(&self) -> Option<&ProgramInfo> {
+        self.header.info.as_ref()
     }
 
     /// Return one program string by stable id when present.
