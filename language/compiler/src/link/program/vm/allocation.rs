@@ -1,4 +1,4 @@
-use destack_heap::{AllocationClass, AllocationPlan, PayloadShape};
+use destack_heap::{AllocationClass, AllocationPlan, AllocationShape};
 use destack_mir as mir;
 
 use destack_program::AddressSpace;
@@ -38,8 +38,8 @@ impl<'a> BlockLowerer<'a> {
         let op = self.allocation_op(
             address_space,
             class,
-            allocation.is_noscan,
-            allocation.has_shared_reference,
+            allocation.is_noscan(),
+            allocation.has_shared_reference(),
             initialization,
         )?;
         // pool the side-table shape consumed by the selected opcode
@@ -111,14 +111,14 @@ impl<'a> BlockLowerer<'a> {
             ));
         }
 
-        if destination_slot.byte_len != value_slot.byte_len {
+        if destination_slot.byte_len() != value_slot.byte_len() {
             return Err(self.invalid_instruction("new complete byte length"));
         }
 
         Ok(Instruction::new(
             Op::MoveAggregate,
             destination_slot.offset,
-            destination_slot.byte_len,
+            destination_slot.byte_len(),
             value_slot.offset,
             0,
         ))
@@ -254,7 +254,7 @@ impl<'a> BlockLowerer<'a> {
 
         // encode the exact layout into the instruction
         let layout = self.layout_for_type(layout)?;
-        let byte_len = layout.byte_len as u64;
+        let byte_len = layout.byte_len() as u64;
         let alignment = encode_alignment_log2(layout.alignment());
 
         Ok(Instruction::new(
@@ -394,18 +394,15 @@ impl BlockLowerer<'_> {
         let is_noscan = !layout.trace_map.has_reference();
         let trace_map = pool.trace_map(&layout.trace_map)?;
         let trace_id = if is_noscan { None } else { Some(trace_map) };
-        let shape = PayloadShape::new(
-            layout.byte_len,
+        let shape = AllocationShape::new(
+            layout.byte_len(),
             layout.alignment(),
             trace_id,
             &layout.trace_map,
         );
         let allocation = match address_space {
-            AddressSpace::Local => self.function.heap_options.allocation_plan_for_shape(shape),
-            AddressSpace::Shared => self
-                .function
-                .shared_heap_options
-                .allocation_plan_for_shape(shape),
+            AddressSpace::Local => self.function.heap_options.allocation_plan(shape),
+            AddressSpace::Shared => self.function.shared_heap_options.allocation_plan(shape),
             _ => {
                 return Err(self.invalid_pointer_type(format!("{address_space:?}")));
             }
@@ -424,7 +421,7 @@ impl BlockLowerer<'_> {
         has_shared_reference: bool,
         initialization: AllocationInitialization,
     ) -> LinkResult<Op> {
-        match (address_space, class.small(), is_noscan, initialization) {
+        match (address_space, class.as_small(), is_noscan, initialization) {
             (AddressSpace::Local, Some(_), _, AllocationInitialization::Zeroed)
                 if has_shared_reference =>
             {
