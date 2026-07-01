@@ -26,7 +26,7 @@ impl WalkState<'_, '_> {
             } => {
                 // check dependency alias in declaration context
                 let before_value = self.fork_flow();
-                self.walk_expression(*value, self.tree.get(*value), None)?;
+                self.walk_expression(*value, self.tree.get(*value))?;
                 self.restore_flow(before_value);
             }
             // import { name }

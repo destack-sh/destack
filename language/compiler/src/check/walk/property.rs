@@ -7,11 +7,11 @@ use crate::check::{
 };
 use crate::{CompilerError, CompilerResult};
 
-/// Declaration products produced by one member header.
+/// Declaration member and body yielded by one member header.
 pub(in crate::check) struct MemberHeader {
     /// The member installed into the containing definition.
     pub(in crate::check) definition: Option<dir::DefinitionMember>,
-    /// The body product consumed after the containing definition exists.
+    /// The method body checked after the containing definition exists.
     pub(in crate::check) body: Option<MethodBody>,
 }
 
@@ -59,19 +59,6 @@ impl WalkState<'_, '_> {
         ReceiverGuard::new(self.flow_mut())
     }
 
-    /// Enter one contextual receiver scope.
-    pub(in crate::check) fn enter_receiver_maybe(
-        &mut self,
-        receiver: Option<Receiver>,
-    ) -> Option<ReceiverGuard> {
-        if let Some(receiver) = receiver {
-            self.flow_mut().push_receiver(receiver);
-            Some(ReceiverGuard::new(self.flow_mut()))
-        } else {
-            None
-        }
-    }
-
     /// Walk one literal's properties.
     pub(in crate::check) fn walk_literal_properties(
         &mut self,
@@ -106,9 +93,9 @@ impl WalkState<'_, '_> {
 
                 // compute runtime property key
                 if let dir::Key::Expression(key) = key {
-                    self.walk_expression(key, self.tree.get(key), None)?;
+                    self.walk_expression(key, self.tree.get(key))?;
                 }
-                self.walk_expression(value, self.tree.get(value), None)?;
+                self.walk_expression(value, self.tree.get(value))?;
 
                 Ok(())
             }
@@ -122,7 +109,7 @@ impl WalkState<'_, '_> {
 
                 if let Some(dir::Key::Expression(key)) = key {
                     // compute runtime property key
-                    self.walk_expression(key, self.tree.get(key), None)?;
+                    self.walk_expression(key, self.tree.get(key))?;
                 }
 
                 let symbol = self
@@ -159,7 +146,7 @@ impl WalkState<'_, '_> {
             // { ...value }
             dir::Property::Spread { value } => {
                 let value = *value;
-                self.walk_expression(value, self.tree.get(value), None)?;
+                self.walk_expression(value, self.tree.get(value))?;
 
                 Ok(())
             }
@@ -238,7 +225,7 @@ impl WalkState<'_, '_> {
                 // write the member symbol type
                 if let (Some(value), Some(symbol)) = (value, symbol) {
                     let induction = GenericInductionDeclaration::new(source, parent, Some(symbol));
-                    self.record_type_induction_site(induction, value);
+                    self.push_type_induction_site(induction, value);
                     self.bind_symbol_type(symbol, value)?;
                 }
 
@@ -293,7 +280,7 @@ impl WalkState<'_, '_> {
                 if let Some(symbol) = symbol {
                     let ty = match declared {
                         Some(declared) => declared,
-                        None => self.symbol_type(symbol)?,
+                        None => self.symbol_type_slot(symbol)?,
                     };
                     self.bind_symbol_type(symbol, ty)?;
 
@@ -307,7 +294,7 @@ impl WalkState<'_, '_> {
                             written,
                             ty,
                         );
-                        self.set_static_value(symbol, written)?;
+                        self.commit_static_value(symbol, written)?;
                     }
                 }
 
@@ -352,7 +339,7 @@ impl WalkState<'_, '_> {
                 // check computed member keys in declaration context
                 if let dir::Key::Expression(key) = key {
                     let before_key = self.fork_flow();
-                    self.walk_expression(key, self.tree.get(key), None)?;
+                    self.walk_expression(key, self.tree.get(key))?;
                     self.restore_flow(before_key);
                 }
 
@@ -382,10 +369,10 @@ impl WalkState<'_, '_> {
                     None => {
                         if let (Some(symbol), Some(default)) = (symbol, default) {
                             let before_default = self.fork_flow();
-                            self.walk_expression(default, self.tree.get(default), None)?;
+                            self.walk_expression(default, self.tree.get(default))?;
                             self.restore_flow(before_default);
 
-                            self.queue_bind_initializer(symbol, default, Widening::Widen);
+                            self.queue_bind_initializer(symbol, default, Widening::Widen)?;
                         }
 
                         None
@@ -395,7 +382,7 @@ impl WalkState<'_, '_> {
                 // write the field symbol type
                 if let (Some(field_type), Some(symbol)) = (field_type, symbol) {
                     if let Some(induction) = induction_declaration {
-                        self.record_type_induction_site(induction, field_type);
+                        self.push_type_induction_site(induction, field_type);
                     }
                     self.bind_symbol_type(symbol, field_type)?;
                 }
@@ -408,7 +395,8 @@ impl WalkState<'_, '_> {
                         Origin::Node(default.into_global_any(self.module)),
                         ValueUse::Store,
                     );
-                    self.walk_expression(default, self.tree.get(default), Some(&expectation))?;
+                    self.walk_expression(default, self.tree.get(default))?;
+                    self.queue_node_check(default, expectation)?;
                     self.restore_flow(before_default);
                 }
 
@@ -450,7 +438,7 @@ impl WalkState<'_, '_> {
                 if let Some(dir::Key::Expression(key)) = *key {
                     // check computed member keys in declaration context
                     let before_key = self.fork_flow();
-                    self.walk_expression(key, self.tree.get(key), None)?;
+                    self.walk_expression(key, self.tree.get(key))?;
                     self.restore_flow(before_key);
                 }
 
@@ -521,7 +509,7 @@ impl WalkState<'_, '_> {
                     result,
                 )?;
                 let induction = GenericInductionDeclaration::new(source, parent, Some(symbol));
-                self.record_type_induction_site(induction, method);
+                self.push_type_induction_site(induction, method);
 
                 // write the method symbol type
                 self.bind_symbol_type(symbol, method)?;
@@ -637,7 +625,7 @@ impl WalkState<'_, '_> {
 
                 // check member blocks in declaration context
                 let before_body = self.fork_flow();
-                self.walk_expression(body, self.tree.get(body), None)?;
+                self.walk_expression(body, self.tree.get(body))?;
                 self.restore_flow(before_body);
 
                 Ok(None)
@@ -918,7 +906,7 @@ impl WalkState<'_, '_> {
                                 declared,
                             );
                         }
-                        self.set_static_value(symbol, written)?;
+                        self.commit_static_value(symbol, written)?;
                     }
                 }
 

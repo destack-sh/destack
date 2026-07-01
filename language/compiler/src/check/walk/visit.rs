@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, WalkState};
+use crate::check::{CheckState, PlaceUse, WalkState};
 
 impl CheckState<'_> {
     /// Walk DIR headers needed before body checking.
@@ -26,7 +26,7 @@ impl CheckState<'_> {
         for root in &expanded.roots {
             walk.walk_expression_header(*root, tree.get(*root))?;
         }
-        walk.finish();
+        walk.commit();
 
         Ok(())
     }
@@ -47,10 +47,10 @@ impl CheckState<'_> {
 
         // walk expanded roots
         for root in &expanded.roots {
-            walk.walk_expression(*root, tree.get(*root), None)?;
-            walk.queue_node_task(*root)?;
+            walk.walk_expression(*root, tree.get(*root))?;
+            walk.queue_node_task(*root, PlaceUse::Read)?;
         }
-        walk.finish();
+        walk.commit();
 
         Ok(())
     }

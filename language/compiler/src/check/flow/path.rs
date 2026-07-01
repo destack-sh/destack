@@ -1,6 +1,17 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
+use crate::check::FlowPointId;
+
+/// One source use under a flow point.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::check) struct FlowSite {
+    /// The source node.
+    pub(in crate::check) node: dir::GlobalNodeIdAny,
+    /// The flow point where the node is used.
+    pub(in crate::check) flow: FlowPointId,
+}
+
 /// One stable value path root tracked by flow analysis.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum FlowRoot {
@@ -15,7 +26,7 @@ pub(in crate::check) enum FlowRoot {
 pub(in crate::check) struct FlowPath {
     /// The root value.
     pub(in crate::check) root: FlowRoot,
-    /// The selected members or keys below the root.
+    /// The members or keys below the root.
     pub(in crate::check) segments: SmallVec<[dir::StaticKey; 2]>,
 }
 
@@ -36,7 +47,7 @@ impl FlowPath {
         }
     }
 
-    /// Add one selected member or key.
+    /// Add one member or key.
     pub(in crate::check) fn push_segment(&mut self, key: dir::StaticKey) {
         self.segments.push(key);
     }

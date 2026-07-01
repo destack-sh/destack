@@ -230,7 +230,10 @@ impl WalkState<'_, '_> {
                             ValueUse::Store,
                         )
                     });
-                    self.walk_expression(default, self.tree.get(default), expectation.as_ref())?;
+                    self.walk_expression(default, self.tree.get(default))?;
+                    if let Some(expectation) = expectation {
+                        self.queue_node_check(default, expectation)?;
+                    }
                     self.restore_flow(before_default);
                 }
 
@@ -298,7 +301,7 @@ impl WalkState<'_, '_> {
                         Origin::Node(pattern.into_global_any(self.module)),
                         ValueUse::Store,
                     );
-                    self.queue_node_check(pattern, expectation);
+                    self.queue_node_check(pattern, expectation)?;
                 }
 
                 // check default after the parameter type is known
@@ -311,7 +314,10 @@ impl WalkState<'_, '_> {
                             ValueUse::Store,
                         )
                     });
-                    self.walk_expression(default, self.tree.get(default), expectation.as_ref())?;
+                    self.walk_expression(default, self.tree.get(default))?;
+                    if let Some(expectation) = expectation {
+                        self.queue_node_check(default, expectation)?;
+                    }
                     self.restore_flow(before_default);
                 }
 
@@ -338,7 +344,7 @@ impl WalkState<'_, '_> {
                         Origin::Node(pattern.into_global_any(self.module)),
                         ValueUse::Store,
                     );
-                    self.queue_node_check(pattern, expectation);
+                    self.queue_node_check(pattern, expectation)?;
                     result = Some(parameter_type);
                 }
             }

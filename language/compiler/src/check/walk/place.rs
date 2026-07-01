@@ -15,10 +15,12 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         access: PlaceUse,
     ) -> CompilerResult<Option<AssignedPlace>> {
+        self.enter_node(id)?;
+
         match self.tree.get(id) {
             // x
-            dir::Expression::Identifier { name } => {
-                return self.walk_named_assigned_place(id.into_any(), *name, access);
+            dir::Expression::Identifier { .. } => {
+                return self.walk_named_assigned_place(id.into_any(), access);
             }
             // value.member
             dir::Expression::Member { left, .. }
@@ -28,14 +30,14 @@ impl WalkState<'_, '_> {
                     return self.walk_name_path_assigned_place(id, access);
                 }
 
-                self.walk_expression(*left, self.tree.get(*left), None)?;
+                self.walk_expression(*left, self.tree.get(*left))?;
             }
             // value[index]
             dir::Expression::Index { left, index, .. } => {
-                self.walk_expression(*left, self.tree.get(*left), None)?;
+                self.walk_expression(*left, self.tree.get(*left))?;
 
                 if let Some(index) = *index {
-                    self.walk_expression(index, self.tree.get(index), None)?;
+                    self.walk_expression(index, self.tree.get(index))?;
                 }
             }
             // *value
@@ -43,11 +45,11 @@ impl WalkState<'_, '_> {
                 operator: dir::UnaryOperator::Dereference,
                 right,
             } => {
-                self.walk_expression(*right, self.tree.get(*right), None)?;
+                self.walk_expression(*right, self.tree.get(*right))?;
             }
             // check non place expression normally
             _ => {
-                self.walk_expression(id, self.tree.get(id), None)?;
+                self.walk_expression(id, self.tree.get(id))?;
             }
         }
 
@@ -80,17 +82,11 @@ impl WalkState<'_, '_> {
         access: PlaceUse,
     ) -> CompilerResult<Option<AssignedPlace>> {
         let source = id.into_global_any(self.module);
-        if let dir::Expression::Identifier { name } = self.tree.get(id) {
-            return self.walk_named_assigned_place(id.into_any(), *name, access);
+        if let dir::Expression::Identifier { .. } = self.tree.get(id) {
+            return self.walk_named_assigned_place(id.into_any(), access);
         };
 
-        let Some(symbol) = self.single_resolved_symbol(source) else {
-            self.walk_expression(id, self.tree.get(id), None)?;
-            if self.is_namespace_reference(source) {
-                self.check
-                    .report_invalid_assignment_target(self.module, id.into_any());
-            }
-
+        let Some(symbol) = self.check.reference_symbol(source) else {
             return Ok(None);
         };
 
@@ -136,12 +132,12 @@ impl WalkState<'_, '_> {
                 Ok(Some(AssignedPlace::Member { receiver, key }))
             }
 
-            // selected dereference writes do not create definite-assignment facts
+            // dereference writes do not create definite-assignment facts
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Dereference,
                 ..
             } => {
-                self.queue_node_task_with_use(id, access)?;
+                self.queue_node_task(id, access)?;
 
                 Ok(None)
             }
@@ -166,13 +162,10 @@ impl WalkState<'_, '_> {
     fn walk_named_assigned_place(
         &mut self,
         source: dir::LocalNodeIdAny,
-        name: dir::StringId,
         access: PlaceUse,
     ) -> CompilerResult<Option<AssignedPlace>> {
         let global = source.into_global(self.module);
-        let Some(symbol) = self.single_resolved_symbol(global) else {
-            self.report_unresolved_assignment_place(source, name)?;
-
+        let Some(symbol) = self.check.reference_symbol(global) else {
             return Ok(None);
         };
 
@@ -208,61 +201,5 @@ impl WalkState<'_, '_> {
         }
 
         None
-    }
-
-    /// Report one named assignment target that did not resolve to a single binding.
-    fn report_unresolved_assignment_place(
-        &mut self,
-        source: dir::LocalNodeIdAny,
-        name: dir::StringId,
-    ) -> CompilerResult<()> {
-        let global = source.into_global(self.module);
-        let path = dir::Path {
-            segments: smallvec::smallvec![name],
-        };
-        let reference = self
-            .check
-            .module(self.module)
-            .resolved
-            .references
-            .get(global);
-
-        match reference {
-            // report namespace objects as non storage
-            Some(dir::Reference::Namespace(_)) => {
-                self.check
-                    .report_invalid_assignment_target(self.module, source);
-            }
-            // report conflicting lexical names
-            Some(dir::Reference::Ambiguous(_)) => {
-                self.check
-                    .report_ambiguous_reference(self.module, source, &path);
-            }
-            // report conflicting lexical names
-            Some(dir::Reference::Bound(_)) => {
-                self.check
-                    .report_ambiguous_reference(self.module, source, &path);
-            }
-            // report unresolved or unresolved overload names
-            Some(dir::Reference::Missing) | Some(dir::Reference::Projected { .. }) | None => {
-                self.check
-                    .report_unresolved_reference(self.module, source, &path);
-            }
-        }
-
-        let error = self.push_type(dir::Type::Error, source)?;
-        self.check.commit_node_type(global, error)
-    }
-
-    /// Return whether one source node resolves to a namespace object.
-    fn is_namespace_reference(&self, source: dir::GlobalNodeIdAny) -> bool {
-        matches!(
-            self.check
-                .module(self.module)
-                .resolved
-                .references
-                .get(source),
-            Some(dir::Reference::Namespace(_))
-        )
     }
 }

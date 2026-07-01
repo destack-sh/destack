@@ -4,8 +4,8 @@ use crate::CompilerResult;
 use crate::check::{Decision, Receiver, ReceiverBinding, WalkState};
 
 impl WalkState<'_, '_> {
-    /// Select the receiver visible at the current walk point.
-    pub(in crate::check) fn select_active_receiver(
+    /// Commit the receiver decision visible at the current walk point.
+    pub(in crate::check) fn commit_active_receiver_decision(
         &mut self,
         source: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Option<Receiver>> {
@@ -15,14 +15,14 @@ impl WalkState<'_, '_> {
 
             // select local receiver directly
             if is_current {
-                self.select_this_receiver_binding(source, receiver)?;
+                self.commit_receiver_binding_decision(source, receiver)?;
             }
             // capture receiver from an outer function
             else {
                 self.flow_mut().capture_receiver(receiver);
                 let resolution = dir::NameResolution::new(receiver.symbol);
                 self.check
-                    .record_decision(source, Decision::Name(resolution))?;
+                    .commit_decision(source, Decision::Name(resolution))?;
             }
 
             return Ok(Some(receiver.receiver));
@@ -35,7 +35,7 @@ impl WalkState<'_, '_> {
 
         // use contextual receiver outside function bodies
         if let Some(receiver) = self.flow().current_receiver() {
-            self.select_this_receiver(source, receiver)?;
+            self.commit_receiver_decision(source, receiver)?;
 
             return Ok(Some(receiver));
         }
@@ -46,12 +46,12 @@ impl WalkState<'_, '_> {
     /// Capture one lexical value reference when required.
     pub(in crate::check) fn capture_symbol_reference(&mut self, symbol: dir::GlobalSymbolId) {
         // ignore references outside function bodies
-        let Some(function) = self.flow().current_function() else {
+        let Some(function) = self.flow().current_function_symbol() else {
             return;
         };
 
-        // ignore references that do not cross a boundary
-        if !self.is_captured_symbol_reference(symbol, function.symbol) {
+        // ignore references that do not cross into an outer function
+        if !self.is_captured_symbol_reference(symbol, function) {
             return;
         }
 
@@ -59,13 +59,15 @@ impl WalkState<'_, '_> {
         self.flow_mut().capture_symbol(symbol);
     }
 
-    /// Return whether one value reference crosses a function boundary.
+    /// Return whether one value reference crosses into an outer function.
     fn is_captured_symbol_reference(
         &self,
         symbol: dir::GlobalSymbolId,
         function: dir::GlobalSymbolId,
     ) -> bool {
         symbol.module_id == self.module
+            && self.check.symbol_kind(symbol) == dir::SymbolKind::Variable
+            && !self.is_lexical_receiver_symbol(symbol)
             && !self
                 .check
                 .module(self.module)
@@ -73,6 +75,13 @@ impl WalkState<'_, '_> {
             && symbol != function
             && !self.is_module_scoped_symbol(symbol)
             && !self.is_symbol_owned_by_function(symbol, function)
+    }
+
+    /// Return whether one symbol is the active lexical receiver.
+    fn is_lexical_receiver_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
+        self.flow()
+            .lexical_receiver()
+            .is_some_and(|(_, receiver)| receiver.symbol == symbol)
     }
 
     /// Return whether one symbol is declared in the module scope.
@@ -115,8 +124,8 @@ impl WalkState<'_, '_> {
         false
     }
 
-    /// Select the contextual receiver for one `this` expression.
-    fn select_this_receiver_binding(
+    /// Commit a receiver decision from one lexical receiver binding.
+    fn commit_receiver_binding_decision(
         &mut self,
         source: dir::GlobalNodeIdAny,
         receiver: ReceiverBinding,
@@ -126,10 +135,10 @@ impl WalkState<'_, '_> {
             let resolution = dir::NameResolution::new(receiver.symbol);
             return self
                 .check
-                .record_decision(source, Decision::Name(resolution));
+                .commit_decision(source, Decision::Name(resolution));
         };
 
-        self.select_this_receiver(
+        self.commit_receiver_decision(
             source,
             Receiver {
                 declaration: Some(declaration),
@@ -139,8 +148,8 @@ impl WalkState<'_, '_> {
         )
     }
 
-    /// Select the contextual receiver type for one `this` expression.
-    fn select_this_receiver(
+    /// Commit one contextual receiver decision.
+    fn commit_receiver_decision(
         &mut self,
         source: dir::GlobalNodeIdAny,
         receiver: Receiver,
@@ -149,7 +158,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
 
-        // select receiver with declaration context
+        // commit receiver with declaration context
         let resolution = dir::ReceiverResolution {
             kind: dir::ReceiverKind::This,
             declaration,
@@ -157,6 +166,6 @@ impl WalkState<'_, '_> {
         };
 
         self.check
-            .record_decision(source, Decision::Receiver(resolution))
+            .commit_decision(source, Decision::Receiver(resolution))
     }
 }

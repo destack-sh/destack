@@ -1,5 +1,6 @@
 mod argument;
 mod block;
+mod capture;
 mod completion;
 mod declaration;
 mod declarator;

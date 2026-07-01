@@ -130,15 +130,15 @@ impl WalkState<'_, '_> {
         Ok(Some(template))
     }
 
-    /// Record one declaration type that can induce generics.
-    pub(in crate::check) fn record_type_induction_site(
+    /// Push one declaration type that can induce generics.
+    pub(in crate::check) fn push_type_induction_site(
         &mut self,
         declaration: GenericInductionDeclaration,
         ty: dir::GlobalTypeId,
     ) {
         self.check
             .generics
-            .record_induction_site(GenericInductionSite {
+            .push_induction_site(GenericInductionSite {
                 declaration: declaration.declaration,
                 parent: declaration.parent,
                 symbol: declaration.symbol,

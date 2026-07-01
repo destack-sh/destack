@@ -1,9 +1,11 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
+use indexmap::IndexMap;
 
 use crate::check::{
-    BindSource, CheckState, Constraint, ExpectedType, FlowSite, FlowState,
-    GenericInductionParameter, Origin, PlaceUse, Relation, Task, ValueUse, Widening,
+    BindSource, CheckState, Constraint, ConstraintSubject, ExpectedType, FlowPointId, FlowSite,
+    FlowState, GenericInductionParameter, Origin, PlaceUse, Relation, Task, TypeConstraint,
+    ValueUse, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -21,11 +23,15 @@ pub(in crate::check) struct WalkState<'check, 'state> {
     return_borrow_lifetimes: Vec<(dir::TypeVariableId, GenericInductionParameter)>,
     /// Flow state for the current module walk.
     flow: FlowState,
+    /// Entry flow point for each source node occurrence walked in this module.
+    node_flows: IndexMap<dir::GlobalNodeIdAny, FlowPointId>,
+    /// Capture directive waiting for an immediate function value initializer.
+    capture_directive: Option<dir::CaptureDirective>,
 }
 
 /// How elided borrow lifetimes are handled while walking types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum BorrowLifetimeElision {
+enum BorrowLifetimeElision {
     /// Elided borrow lifetimes can induce hidden generic parameters.
     Induce,
     /// Elided borrow lifetimes are tracked for a return type rule.
@@ -84,13 +90,19 @@ impl<'check, 'state> WalkState<'check, 'state> {
         tree: dir::View<'check>,
         check: &'check mut CheckState<'state>,
     ) -> Self {
+        let state = check.module_mut(module);
+        let flow = FlowState::from_points(std::mem::take(&mut state.flows));
+        let node_flows = std::mem::take(&mut state.node_flows);
+
         Self {
             check,
             tree,
             module,
             borrow_lifetime_elision: BorrowLifetimeElision::Induce,
             return_borrow_lifetimes: Vec::new(),
-            flow: FlowState::default(),
+            flow,
+            node_flows,
+            capture_directive: None,
         }
     }
 
@@ -104,17 +116,72 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self.flow
     }
 
-    /// Return whether elided borrow lifetimes close to frame.
-    pub(in crate::check) fn borrow_lifetimes_close_to_frame(&self) -> bool {
-        self.borrow_lifetime_elision == BorrowLifetimeElision::Frame
+    /// Walk one initializer with a capture directive for its immediate function value.
+    pub(in crate::check) fn with_capture_directive<T>(
+        &mut self,
+        directive: Option<dir::CaptureDirective>,
+        f: impl FnOnce(&mut Self) -> CompilerResult<T>,
+    ) -> CompilerResult<T> {
+        let previous = self.capture_directive.take();
+        self.capture_directive = directive;
+        let result = f(self);
+
+        self.capture_directive = previous;
+
+        result
     }
 
-    /// Move completed walk state back into check state.
-    pub(in crate::check) fn finish(self) {
+    /// Take the pending capture directive for the current function value.
+    pub(in crate::check) fn take_capture_directive(&mut self) -> Option<dir::CaptureDirective> {
+        self.capture_directive.take()
+    }
+
+    /// Commit completed walk state back into check state.
+    pub(in crate::check) fn commit(self) {
         let module = self.module;
         let flows = self.flow.into_points();
+        let node_flows = self.node_flows;
 
-        self.check.module_mut(module).flows = flows;
+        let state = self.check.module_mut(module);
+        state.flows = flows;
+        state.node_flows = node_flows;
+    }
+
+    /// Enter one source node occurrence at the current flow point.
+    pub(in crate::check) fn enter_node<T: dir::Node>(
+        &mut self,
+        id: dir::LocalNodeId<T>,
+    ) -> CompilerResult<FlowSite> {
+        let node = id.into_global_any(self.module);
+        let flow = self.flow().point();
+        if let Some(previous) = self.node_flows.insert(node, flow)
+            && previous != flow
+        {
+            let node = self.check.node_label(node);
+
+            return Err(CompilerError::Internal {
+                message: format!("check node {node} was walked under two flow sites"),
+            });
+        }
+
+        Ok(FlowSite { node, flow })
+    }
+
+    /// Return one source node occurrence site already reached by the walk.
+    pub(in crate::check) fn node_site<T: dir::Node>(
+        &self,
+        id: dir::LocalNodeId<T>,
+    ) -> CompilerResult<FlowSite> {
+        let node = id.into_global_any(self.module);
+        let Some(flow) = self.node_flows.get(&node).copied() else {
+            let node = self.check.node_label(node);
+
+            return Err(CompilerError::Internal {
+                message: format!("check node {node} has no recorded flow site"),
+            });
+        };
+
+        Ok(FlowSite { node, flow })
     }
 
     /// Walk one return type while tracking elided borrow lifetimes.
@@ -141,11 +208,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 self.check.commit_solution(variable, error)?;
             }
         }
-        // bodyful callables generalize elided return lifetimes
+        // bodyful callables infer elided result lifetimes from returns
         else {
-            for (variable, induction) in tracked {
-                self.check.generics.insert_induction(variable, induction)?;
-            }
+            let _ = tracked;
         }
 
         Ok(ty)
@@ -164,8 +229,53 @@ impl<'check, 'state> WalkState<'check, 'state> {
         result
     }
 
-    /// Record one elided borrow lifetime opened while walking a type.
-    pub(in crate::check) fn record_borrow_lifetime_elision(
+    /// Return the lifetime type for one elided borrow lifetime.
+    pub(in crate::check) fn elided_borrow_lifetime(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if self.borrow_lifetime_elision == BorrowLifetimeElision::Frame {
+            return self.push_type(
+                dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)),
+                source,
+            );
+        }
+
+        // open one hidden lifetime parameter
+        let lifetime = self.open_type_hole(source, Widening::Preserve)?;
+        let Some(variable) = self.check.root_variable(lifetime)? else {
+            return Ok(lifetime);
+        };
+
+        // constrain the induced parameter to the lifetime kind
+        let constraint = match self
+            .check
+            .environment
+            .language
+            .symbol(dir::LanguageItem::Lifetime)
+        {
+            Some(symbol) => Some(self.push_type(
+                dir::Type::Instance(dir::GenericInstance {
+                    symbol,
+                    arguments: Vec::new(),
+                }),
+                source,
+            )?),
+            None => None,
+        };
+        let induction = GenericInductionParameter {
+            name_prefix: "L",
+            constraint,
+            is_comptime: true,
+            induction: dir::GenericParameterInduction::Form,
+        };
+        self.commit_borrow_lifetime_elision(variable, induction)?;
+
+        Ok(lifetime)
+    }
+
+    /// Commit one elided borrow lifetime opened while walking a type.
+    fn commit_borrow_lifetime_elision(
         &mut self,
         variable: dir::TypeVariableId,
         induction: GenericInductionParameter,
@@ -177,14 +287,18 @@ impl<'check, 'state> WalkState<'check, 'state> {
             BorrowLifetimeElision::TrackReturn => {
                 self.return_borrow_lifetimes.push((variable, induction));
             }
-            BorrowLifetimeElision::Frame => unreachable!("frame elision opens no variable"),
+            BorrowLifetimeElision::Frame => {
+                return Err(CompilerError::Internal {
+                    message: "frame lifetime elision cannot record an induced variable".into(),
+                });
+            }
         }
 
         Ok(())
     }
 
-    /// Open one explicit type variable at a source node.
-    pub(in crate::check) fn open_variable_type(
+    /// Open one inference hole at a source node.
+    pub(in crate::check) fn open_type_hole(
         &mut self,
         source: dir::LocalNodeIdAny,
         widening: Widening,
@@ -195,7 +309,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.check.push_variable_type(variable, source)
     }
 
-    /// Commit one source-node type.
+    /// Commit one source node type.
     pub(in crate::check) fn commit_node_type<T: dir::Node>(
         &mut self,
         id: dir::LocalNodeId<T>,
@@ -232,39 +346,43 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .push_constraint(Constraint::value(relation, source, target, origin, use_));
     }
 
-    /// Queue one source-node task.
-    pub(in crate::check) fn queue_node_task<T: dir::Node>(
+    /// Collect one generic argument bound constraint.
+    pub(in crate::check) fn relate_generic_bound(
         &mut self,
-        id: dir::LocalNodeId<T>,
-    ) -> CompilerResult<()> {
-        self.queue_node_task_with_use(id, PlaceUse::Read)
+        origin: Origin,
+        source: dir::GlobalNodeIdAny,
+        argument: dir::GlobalTypeId,
+        bound: dir::GlobalTypeId,
+    ) {
+        self.check
+            .push_constraint(Constraint::Check(TypeConstraint {
+                relation: Relation::Satisfies,
+                left: argument,
+                right: bound,
+                origin,
+                subject: Some(ConstraintSubject::GenericArgument { source }),
+            }));
     }
 
-    /// Queue one source-node task with an explicit place use.
-    pub(in crate::check) fn queue_node_task_with_use<T: dir::Node>(
+    /// Queue one source node task with an explicit place use.
+    pub(in crate::check) fn queue_node_task<T: dir::Node>(
         &mut self,
         id: dir::LocalNodeId<T>,
         use_: PlaceUse,
     ) -> CompilerResult<()> {
-        let site = FlowSite {
-            node: id.into_global_any(self.module),
-            flow: self.flow().point(),
-        };
+        let site = self.node_site(id)?;
         self.check.queue_task(Task::Infer { site, use_ });
 
         Ok(())
     }
 
-    /// Queue one source-node check task.
+    /// Queue one source node check task.
     pub(in crate::check) fn queue_node_check<T: dir::Node>(
         &mut self,
         id: dir::LocalNodeId<T>,
         expectation: Expectation,
-    ) {
-        let site = FlowSite {
-            node: id.into_global_any(self.module),
-            flow: self.flow().point(),
-        };
+    ) -> CompilerResult<()> {
+        let site = self.node_site(id)?;
         self.check.queue_task(Task::Check {
             site,
             expected: expectation.expected,
@@ -272,6 +390,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
             origin: expectation.origin,
             use_: expectation.use_,
         });
+
+        Ok(())
     }
 
     /// Queue one symbol binding from an initializer expression.
@@ -280,15 +400,14 @@ impl<'check, 'state> WalkState<'check, 'state> {
         symbol: dir::GlobalSymbolId,
         initializer: dir::LocalNodeId<dir::Expression>,
         widening: Widening,
-    ) {
-        let site = FlowSite {
-            node: initializer.into_global_any(self.module),
-            flow: self.flow().point(),
-        };
+    ) -> CompilerResult<()> {
+        let site = self.node_site(initializer)?;
         self.check.queue_task(Task::Bind {
             symbol,
             source: BindSource::Initializer { site, widening },
         });
+
+        Ok(())
     }
 
     /// Queue one symbol binding from a type graph.
@@ -303,21 +422,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         });
     }
 
-    /// Mark one source-node inference task complete.
-    pub(in crate::check) fn complete_node_infer<T: dir::Node>(&mut self, id: dir::LocalNodeId<T>) {
-        let site = FlowSite {
-            node: id.into_global_any(self.module),
-            flow: self.flow().point(),
-        };
-
-        self.check.solver.complete_task(&Task::Infer {
-            site,
-            use_: PlaceUse::Read,
-        });
-    }
-
-    /// Return one symbol's checked type.
-    pub(in crate::check) fn symbol_type(
+    /// Return one symbol's type slot.
+    pub(in crate::check) fn symbol_type_slot(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -331,11 +437,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
         // local variables use body-owned binding types
         else if self.check.symbol_kind(symbol) == dir::SymbolKind::Variable {
-            self.binding_type(symbol, Widening::Preserve)?
+            self.binding_type_slot(symbol, Widening::Preserve)?
         }
         // local declarations use stable declaration types
         else {
-            self.declaration_type(symbol, Widening::Preserve)?
+            self.declaration_type_slot(symbol, Widening::Preserve)?
         };
 
         Ok(ty)
@@ -362,8 +468,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(ty)
     }
 
-    /// Return one declaration type, inferring recursive and forward references.
-    pub(in crate::check) fn declaration_type(
+    /// Return one declaration type slot.
+    pub(in crate::check) fn declaration_type_slot(
         &mut self,
         symbol: dir::GlobalSymbolId,
         widening: Widening,
@@ -382,14 +488,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .check
             .allocate_variable(symbol.module_id, origin, widening);
         let ty = self.check.push_variable_type(variable, source)?;
-        self.check.set_declaration_type(symbol, ty)?;
+        self.check.commit_declaration_type(symbol, ty)?;
 
         Ok(ty)
     }
 
-    /// Return one binding's working type, opening a variable with the
-    /// requested widening policy when missing.
-    pub(in crate::check) fn binding_type(
+    /// Return one binding type slot.
+    pub(in crate::check) fn binding_type_slot(
         &mut self,
         symbol: dir::GlobalSymbolId,
         widening: Widening,
@@ -407,7 +512,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .check
             .allocate_variable(symbol.module_id, origin, widening);
         let ty = self.check.push_variable_type(variable, source)?;
-        self.check.set_binding_type(symbol, ty)?;
+        self.check.commit_binding_type(symbol, ty)?;
 
         Ok(ty)
     }
@@ -425,12 +530,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
     }
 
     /// Set one symbol's static value singleton type.
-    pub(in crate::check) fn set_static_value(
+    pub(in crate::check) fn commit_static_value(
         &mut self,
         symbol: dir::GlobalSymbolId,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        self.check.set_static_value(symbol, value)
+        self.check.commit_static_value(symbol, value)
     }
 
     /// Push one working type at a source node.

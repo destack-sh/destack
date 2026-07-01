@@ -1,6 +1,5 @@
 mod assignment;
 mod branch;
-mod capture;
 mod control;
 mod frame;
 mod function;

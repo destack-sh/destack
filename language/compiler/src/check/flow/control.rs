@@ -59,7 +59,7 @@ impl WalkState<'_, '_> {
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // infer the failure result variable
-        let failure = self.open_variable_type(source, Widening::Preserve)?;
+        let failure = self.open_type_hole(source, Widening::Preserve)?;
         let target = TryTarget {
             failure,
             has_failure: false,
@@ -103,12 +103,13 @@ impl WalkState<'_, '_> {
             Some(value) => value,
             None => self.push_type(dir::Type::Void, source)?,
         };
-        // resolve the selected control target
+
+        // resolve the chosen control target
         let Some(index) = self.flow().break_target_index(label) else {
             self.check
                 .report_break_outside_control_target(self.module, source);
             // unbound jumps already emitted diagnostics
-            self.flow_mut().record_unbound_jump(source);
+            self.flow_mut().mark_unbound_jump(source);
 
             return Ok(());
         };
@@ -130,13 +131,13 @@ impl WalkState<'_, '_> {
         value: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // bind the output edge once the value expression is checked
-        let ty = self.open_variable_type(source, Widening::Preserve)?;
+        let ty = self.open_type_hole(source, Widening::Preserve)?;
         let expectation = Expectation::assignable(
             ty,
             Origin::Node(value.into_global_any(self.module)),
             ValueUse::Output,
         );
-        self.queue_node_check(value, expectation);
+        self.queue_node_check(value, expectation)?;
 
         Ok(ty)
     }
@@ -147,12 +148,12 @@ impl WalkState<'_, '_> {
         source: dir::LocalNodeIdAny,
         label: Option<dir::StringId>,
     ) {
-        // resolve the selected loop target
+        // resolve the chosen loop target
         let Some(index) = self.flow().continue_target_index(label) else {
             self.check.report_continue_outside_loop(self.module, source);
 
             // unbound jumps already emitted diagnostics
-            self.flow_mut().record_unbound_jump(source);
+            self.flow_mut().mark_unbound_jump(source);
 
             return;
         };
@@ -169,8 +170,8 @@ impl WalkState<'_, '_> {
         self.flow_mut().take_continue_branches()
     }
 
-    /// Propagate one selected try result to catch or the enclosing return type.
-    pub(in crate::check) fn propagate_selected_try(
+    /// Propagate one try result to catch or the enclosing return type.
+    pub(in crate::check) fn propagate_try(
         &mut self,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<()> {

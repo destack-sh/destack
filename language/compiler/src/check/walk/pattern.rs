@@ -21,6 +21,7 @@ impl WalkState<'_, '_> {
         if !self.decide_decorated_presence(id.into_any())? {
             return Ok(());
         }
+        self.enter_node(id)?;
 
         match pattern {
             // _
@@ -41,7 +42,7 @@ impl WalkState<'_, '_> {
 
                 // check pattern default in selector context
                 let before_value = self.fork_flow();
-                self.walk_expression(*value, self.tree.get(*value), None)?;
+                self.walk_expression(*value, self.tree.get(*value))?;
                 self.restore_flow(before_value);
             }
             // name: pattern
@@ -57,7 +58,7 @@ impl WalkState<'_, '_> {
             dir::Pattern::Expression { value } => {
                 // check value pattern in selector context
                 let before_value = self.fork_flow();
-                self.walk_expression(*value, self.tree.get(*value), None)?;
+                self.walk_expression(*value, self.tree.get(*value))?;
                 self.restore_flow(before_value);
             }
             // start..end
@@ -65,13 +66,13 @@ impl WalkState<'_, '_> {
                 // check range bound in selector context
                 if let Some(start) = *start {
                     let before_start = self.fork_flow();
-                    self.walk_expression(start, self.tree.get(start), None)?;
+                    self.walk_expression(start, self.tree.get(start))?;
                     self.restore_flow(before_start);
                 }
                 // check range bound in selector context
                 if let Some(end) = *end {
                     let before_end = self.fork_flow();
-                    self.walk_expression(end, self.tree.get(end), None)?;
+                    self.walk_expression(end, self.tree.get(end))?;
                     self.restore_flow(before_end);
                 }
             }
@@ -136,7 +137,7 @@ impl WalkState<'_, '_> {
             dir::PatternField::Computed { key, pattern } => {
                 // check computed key in selector context
                 let before_key = self.fork_flow();
-                self.walk_expression(*key, self.tree.get(*key), None)?;
+                self.walk_expression(*key, self.tree.get(*key))?;
                 self.restore_flow(before_key);
 
                 self.walk_pattern(*pattern, self.tree.get(*pattern))?;

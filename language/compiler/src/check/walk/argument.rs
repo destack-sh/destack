@@ -38,7 +38,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
 
-        self.walk_expression(value, self.tree.get(value), None)?;
+        self.walk_expression(value, self.tree.get(value))?;
 
         Ok(())
     }

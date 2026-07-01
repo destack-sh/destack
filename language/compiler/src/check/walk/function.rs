@@ -8,7 +8,7 @@ use crate::check::{
     WalkState, Widening,
 };
 
-/// Type information produced by one parameter header.
+/// Types produced by one parameter header.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct ParameterType {
     /// The type accepted by calls and defaults.
@@ -110,7 +110,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
     /// Return induced lifetime variables inside one type graph.
     fn induced_lifetime_types(
-        &self,
+        &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Vec<(dir::TypeVariableId, dir::GlobalTypeId)>> {
         let mut lifetimes = Vec::new();
@@ -144,14 +144,18 @@ impl<'check, 'state> WalkState<'check, 'state> {
     }
 
     /// Return whether one induced parameter is an elided lifetime.
-    fn is_lifetime_induction(&self, induction: GenericInductionParameter) -> CompilerResult<bool> {
+    fn is_lifetime_induction(
+        &mut self,
+        induction: GenericInductionParameter,
+    ) -> CompilerResult<bool> {
         let Some(constraint) = induction.constraint else {
             return Ok(false);
         };
-        let dir::Type::Instance(instance) = self.check.ty(constraint)? else {
-            return Ok(false);
+        let item = match self.check.ty(constraint)? {
+            dir::Type::Reference(reference) => self.check.language_item(reference.symbol)?,
+            dir::Type::Instance(instance) => self.check.language_item(instance.symbol)?,
+            _ => None,
         };
-        let item = self.check.environment.language.item(instance.symbol);
 
         Ok(induction.is_comptime && item == Some(dir::LanguageItem::Lifetime))
     }
@@ -382,7 +386,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // open the async completion type
         if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
-            let completed = self.open_variable_type(source, Widening::Preserve)?;
+            let completed = self.open_type_hole(source, Widening::Preserve)?;
             let promised =
                 self.language_type_reference(source, dir::LanguageItem::Promise, vec![completed])?;
             self.relate_type(origin, Relation::Assignable, promised, result);
@@ -392,9 +396,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // open the generator yielded, completed, and resumed types
         if signature.is_generator {
-            let yielded = self.open_variable_type(source, Widening::Preserve)?;
-            let completed = self.open_variable_type(source, Widening::Preserve)?;
-            let resumed = self.open_variable_type(source, Widening::Preserve)?;
+            let yielded = self.open_type_hole(source, Widening::Preserve)?;
+            let completed = self.open_type_hole(source, Widening::Preserve)?;
+            let resumed = self.open_type_hole(source, Widening::Preserve)?;
             let item = match signature.asynchrony {
                 // function* f() {}
                 dir::Asynchrony::Sync => dir::LanguageItem::Generator,
@@ -410,6 +414,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
             resume_target = Some(resumed);
         }
 
+        // choose the directive attached to this function value
+        let capture_directive = match self.take_capture_directive() {
+            Some(directive) => Some(directive),
+            None => self.check.capture_directive_for_symbol(symbol)?,
+        };
+
         // enter function flow
         self.enter_function_frame(
             symbol,
@@ -418,6 +428,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             resume_target,
             signature.asynchrony,
             receiver,
+            capture_directive,
         );
 
         // mark entry bindings as definitely assigned
@@ -432,7 +443,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let expectation = (!Self::is_constructor_signature(signature)
             && self.expression_can_complete_normally(body))
         .then(|| Expectation::assignable(return_target, origin, ValueUse::Output));
-        self.walk_expression(body, self.tree.get(body), expectation.as_ref())?;
+        self.walk_expression(body, self.tree.get(body))?;
+        if let Some(expectation) = expectation {
+            self.queue_node_check(body, expectation)?;
+        }
 
         self.leave_function_frame()
     }
@@ -549,7 +563,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             parameter => parameter.declared_type(),
         };
         let Some(declared_type) = declared_type else {
-            let ty = self.open_variable_type(id.into_any(), Widening::Preserve)?;
+            let ty = self.open_type_hole(id.into_any(), Widening::Preserve)?;
             self.commit_node_type(id, ty)?;
 
             return Ok(Some(ParameterType {

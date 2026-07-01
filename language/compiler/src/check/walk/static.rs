@@ -4,7 +4,7 @@ use crate::CompilerResult;
 use crate::check::{Decision, StaticIfCondition, WalkState, Widening};
 use crate::r#static::{StaticContext, StaticError};
 
-/// Source presence selected by closed static gates.
+/// Source presence decided by closed static gates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum StaticGate {
     /// The node is absent.
@@ -77,14 +77,14 @@ impl WalkState<'_, '_> {
                 let StaticIfCondition::Present(condition_expression) = decorator.condition else {
                     self.check
                         .report_invalid_static_guard(self.module, decorator.condition_anchor());
-                    self.record_static_gate(decorated_global, StaticGate::Absent);
+                    self.commit_static_gate(decorated_global, StaticGate::Absent);
 
                     return Ok(StaticGate::Absent);
                 };
 
                 match self.evaluate_static_gate(condition_expression)? {
                     StaticGate::Absent => {
-                        self.record_static_gate(decorated_global, StaticGate::Absent);
+                        self.commit_static_gate(decorated_global, StaticGate::Absent);
 
                         return Ok(StaticGate::Absent);
                     }
@@ -104,13 +104,13 @@ impl WalkState<'_, '_> {
             }
         }
 
-        self.record_static_gate(decorated_global, StaticGate::Present);
+        self.commit_static_gate(decorated_global, StaticGate::Present);
 
         Ok(StaticGate::Present)
     }
 
-    /// Record one static gate decision.
-    fn record_static_gate(&mut self, decorated: dir::GlobalNodeIdAny, gate: StaticGate) {
+    /// Commit one static gate decision.
+    fn commit_static_gate(&mut self, decorated: dir::GlobalNodeIdAny, gate: StaticGate) {
         self.check
             .module_mut(self.module)
             .static_presence
@@ -241,7 +241,7 @@ impl WalkState<'_, '_> {
                     ..
                 } = self.tree.get(*value)
                 {
-                    let ty = self.open_variable_type((*value).into_any(), Widening::Preserve)?;
+                    let ty = self.open_type_hole((*value).into_any(), Widening::Preserve)?;
                     self.commit_node_type(*value, ty)?
                 } else {
                     self.walk_type_expression(*value)?
@@ -295,7 +295,7 @@ impl WalkState<'_, '_> {
                 // record the name edge for checked output
                 let global_source = expression.into_global_any(self.module);
                 self.capture_symbol_reference(symbol);
-                self.check.record_decision(
+                self.check.commit_decision(
                     global_source,
                     Decision::Name(dir::NameResolution::new(symbol)),
                 )?;
@@ -397,10 +397,7 @@ impl WalkState<'_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = self.commit_node_type(expression, ty)?;
-        self.complete_node_infer(expression);
-
-        Ok(ty)
+        self.commit_node_type(expression, ty)
     }
 
     /// Return one eagerly evaluated static term as a scalar literal.

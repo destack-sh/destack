@@ -55,7 +55,9 @@ impl WalkState<'_, '_> {
                     self.narrow_let_condition(*declarator)?;
                 }
                 // failed binding condition
-                dir::ConditionOperand::Binding { .. } => {}
+                dir::ConditionOperand::Binding { declarator, .. } => {
+                    self.narrow_declarator_pattern(*declarator, false)?;
+                }
             }
         }
 

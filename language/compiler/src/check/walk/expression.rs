@@ -44,7 +44,7 @@ impl WalkState<'_, '_> {
                         .module(self.module)
                         .declaration_symbol(declaration.into_any());
                     if let Some(symbol) = symbol {
-                        let ty = self.symbol_type(symbol)?;
+                        let ty = self.symbol_type_slot(symbol)?;
                         self.commit_node_type(id, ty)?;
                     }
                 } else {
@@ -276,7 +276,8 @@ impl WalkState<'_, '_> {
             }
             // this
             dir::Expression::This => {
-                let receiver = self.select_active_receiver(id.into_global_any(self.module))?;
+                let receiver =
+                    self.commit_active_receiver_decision(id.into_global_any(self.module))?;
                 match receiver {
                     Some(receiver) => {
                         self.commit_node_type(id, receiver.ty)?;
@@ -311,7 +312,8 @@ impl WalkState<'_, '_> {
             }
             // super
             dir::Expression::Super => {
-                let receiver = self.select_active_receiver(id.into_global_any(self.module))?;
+                let receiver =
+                    self.commit_active_receiver_decision(id.into_global_any(self.module))?;
                 match receiver.and_then(|receiver| receiver.super_ty) {
                     Some(super_ty) => {
                         self.commit_node_type(id, super_ty)?;
@@ -361,7 +363,7 @@ impl WalkState<'_, '_> {
                 self.walk_expression(*tag, self.tree.get(*tag))?;
                 self.walk_template_literal(value)?;
 
-                // tagged template calls resolve at selection
+                // tagged template calls infer from their queued value use
             }
             // [a, b, c]
             dir::Expression::ArrayExpression { elements } => {
@@ -424,7 +426,7 @@ impl WalkState<'_, '_> {
                     }
                 }
 
-                // select tree construction
+                // tree construction infers from its queued value use
             }
             // (value)
             dir::Expression::Parenthesized { expression: child } => {
@@ -507,14 +509,14 @@ impl WalkState<'_, '_> {
                 // increments invalidate narrowings under the target
                 self.clear_mutated_expression_narrowings(right);
 
-                // select the increment operator
+                // increment operation infers from its queued value use
             }
             // !value, -value
             dir::Expression::Unary { right, .. } => {
                 let right = *right;
                 self.walk_expression(right, self.tree.get(right))?;
 
-                // select the unary operator
+                // unary operation infers from its queued value use
             }
             // ^value
             dir::Expression::MoveOf { right, .. } => {
@@ -541,7 +543,7 @@ impl WalkState<'_, '_> {
                     self.walk_expression(index, self.tree.get(index))?;
                 }
 
-                // select the index expression
+                // index expression infers from its queued value use
             }
             // value<T>
             dir::Expression::Instantiation {
@@ -568,7 +570,7 @@ impl WalkState<'_, '_> {
                     self.walk_argument(*argument, self.tree.get(*argument))?;
                 }
 
-                // select the call expression
+                // call expression infers from its queued value use
             }
             // new Type<T>(argument)
             dir::Expression::New { ty, arguments } => {
@@ -578,7 +580,7 @@ impl WalkState<'_, '_> {
                     self.walk_argument(*argument, self.tree.get(*argument))?;
                 }
 
-                // select checked construction
+                // construction infers from its queued value use
             }
             // new? Type<T>(argument)
             dir::Expression::NewMaybe { ty, arguments } => {
@@ -588,7 +590,7 @@ impl WalkState<'_, '_> {
                     self.walk_argument(*argument, self.tree.get(*argument))?;
                 }
 
-                // select checked construction
+                // construction infers from its queued value use
                 self.propagate_try(id.into_any())?;
             }
             // await? value
@@ -1290,12 +1292,12 @@ impl WalkState<'_, '_> {
             }
         }
 
-        // write the fixed predicate result
+        // `in` inference owns the predicate result
         if operator == dir::BinaryOperator::In {
             return Ok(());
         }
 
-        // select the binary operator
+        // binary operation infers from its queued value use
 
         Ok(())
     }
