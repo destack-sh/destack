@@ -36,7 +36,7 @@ match (status) {
 /// @type.symbol symbol=Status type=Status
 /// @type.symbol symbol=Status.Err type=Status.Err
 /// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status value=error.result.Ok<string> | error.result.Err<int32>
+/// @definition.newtype symbol=Status value=Ok<string> | Err<int32>
 /// @definition.variant symbol=Status.Err key=Err
 /// @definition.variant symbol=Status.Ok key=Ok
 /// @resolution.name source=derive target=decorator.derive.derive
@@ -197,7 +197,7 @@ match (status) {
 /// @type.symbol symbol=Status type=Status
 /// @type.symbol symbol=Status.Err type=Status.Err
 /// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status value=error.result.Ok<string> | error.result.Err<int32>
+/// @definition.newtype symbol=Status value=Ok<string> | Err<int32>
 /// @definition.variant symbol=Status.Err key=Err
 /// @definition.variant symbol=Status.Ok key=Ok
 /// @resolution.name source=derive target=decorator.derive.derive
@@ -209,7 +209,7 @@ newtype Status = Ok<string> | Err<int32>;
 @derive(Tagged)
 /// @type.symbol symbol=Other type=Other
 /// @type.symbol symbol=Other.Ok type=Other.Ok
-/// @definition.newtype symbol=Other value=error.result.Ok<string>
+/// @definition.newtype symbol=Other value=Ok<string>
 /// @definition.variant symbol=Other.Ok key=Ok
 /// @resolution.name source=derive target=decorator.derive.derive
 
@@ -271,7 +271,7 @@ match (status) {
 /// @type.symbol symbol=Status type=Status
 /// @type.symbol symbol=Status.Err type=Status.Err
 /// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status value=error.result.Ok<string> | error.result.Err<int32>
+/// @definition.newtype symbol=Status value=Ok<string> | Err<int32>
 /// @definition.variant symbol=Status.Err key=Err
 /// @definition.variant symbol=Status.Ok key=Ok
 /// @resolution.name source=derive target=decorator.derive.derive
@@ -337,7 +337,7 @@ const label: "ok" | "err" = match (status) {
 /// @type.symbol symbol=Status type=Status
 /// @type.symbol symbol=Status.Err type=Status.Err
 /// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status value=error.result.Ok<string> | error.result.Err<int32>
+/// @definition.newtype symbol=Status value=Ok<string> | Err<int32>
 /// @definition.variant symbol=Status.Err key=Err
 /// @definition.variant symbol=Status.Ok key=Ok
 /// @resolution.name source=derive target=decorator.derive.derive
@@ -411,7 +411,7 @@ const label: "ok" | "err" = match (status) {
 /// @type.symbol symbol=Status type=Status
 /// @type.symbol symbol=Status.Err type=Status.Err
 /// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status value=error.result.Ok<string> | error.result.Err<int32>
+/// @definition.newtype symbol=Status value=Ok<string> | Err<int32>
 /// @definition.variant symbol=Status.Err key=Err
 /// @definition.variant symbol=Status.Ok key=Ok
 /// @resolution.name source=derive target=decorator.derive.derive

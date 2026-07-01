@@ -25,7 +25,7 @@ type Person = { name: string };
 /// @definition.type symbol=Person source="type Person = { name: string }" value={ name: string }
 
 const value: Person = { name: "Ada", extra: true };
-/// @type.symbol symbol=value source=value type=Person
+/// @type.symbol symbol=value source=value type=Person reduced={ name: string }
 /// @resolution.name source=Person target=Person
 /// @type.node source={ name: "Ada", extra: true } type={ name: "Ada"; extra: true }
 /// @type.node source="\"Ada\"" type="Ada"
@@ -35,7 +35,7 @@ const value: Person = { name: "Ada", extra: true };
 
 "#,
         r#"
-/// @diagnostic.error code=EC205 message="unknown property 'extra' in object literal for type '{ name: string }'"
+/// @diagnostic.error code=EC205 message="unknown property 'extra' in object literal for type 'Person'"
 /// @diagnostic.label line=4 column=23 span="{ name: \"Ada\", extra: true }" line_source="const value: Person = { name: \"Ada\", extra: true };"
 "#,
     );
@@ -74,7 +74,7 @@ const source = { name: "Ada", extra: true };
 /// @type.node source=true type=true
 
 const value: Person = source;
-/// @type.symbol symbol=value source=value type=Person
+/// @type.symbol symbol=value source=value type=Person reduced={ name: string }
 /// @resolution.name source=Person target=Person
 /// @type.node source=source type={ name: string; extra: boolean }
 /// @resolution.name source=source target=source
@@ -117,18 +117,18 @@ function keep<T: { name: string }>(value: T): T {
 /// @generic.template symbol=keep parameters=(T: { name: string })
 /// @type.symbol symbol=keep type=<T: { name: string }>(T) => T
 /// @type.symbol symbol=keep.T source="T: { name: string }" type=T
-/// @type.symbol symbol=value#1 source="value: T" type=T
+/// @type.symbol symbol=keep.value source="value: T" type=T
 /// @resolution.name source=T target=keep.T
 /// @resolution.name source=T target=keep.T
 
     return value;
     /// @type.node source=value type=T
-    /// @resolution.name source=value target=value#1
+    /// @resolution.name source=value target=keep.value
 
 }
 
 const value = keep({ name: "Ada", extra: true });
-/// @type.symbol symbol=value#2 source=value type={ name: string; extra: boolean }
+/// @type.symbol symbol=value source=value type={ name: string; extra: boolean }
 /// @type.node source="keep({ name: \"Ada\", extra: true })" type={ name: string; extra: boolean }
 /// @type.node source=keep type=<T: { name: string }>(T) => T
 /// @resolution.name source=keep target=keep
@@ -142,7 +142,7 @@ const extra = value.extra;
 /// @type.symbol symbol=extra source=extra type=boolean
 /// @type.node source=value type={ name: string; extra: boolean }
 /// @type.node source=value.extra type=boolean
-/// @resolution.name source=value target=value#2
+/// @resolution.name source=value target=value
 /// @resolution.member source=value.extra receiver={ name: string; extra: boolean } kind=field key=extra
 
 /// @generic.instance id="keep<{ name: string; extra: boolean }>" template=keep arguments=({ name: string; extra: boolean })

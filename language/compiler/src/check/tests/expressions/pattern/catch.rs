@@ -31,20 +31,20 @@ try {
 
 === checked ===
 declare function read(): Result<string, { code: int32; message: string }>;
-/// @type.symbol symbol=read source="declare function read(): Result<string, { code: int32; message: string }>" type=() => error.result.Result<string, { code: int32; message: string }>
+/// @type.symbol symbol=read source="declare function read(): Result<string, { code: int32; message: string }>" type=() => Result<string, { code: int32; message: string }>
 /// @resolution.name source=Result target=error.result.Result
 
 try {
 /// @type.node type=string | void
 
     read()?
-    /// @type.node source=read type=() => error.result.Result<string, { code: int32; message: string }>
-    /// @type.node source=read() type=error.result.Result<string, { code: int32; message: string }>
+    /// @type.node source=read type=() => Result<string, { code: int32; message: string }>
+    /// @type.node source=read() type=Result<string, { code: int32; message: string }>
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
-    /// @resolution.call source=read() parameters=() return=error.result.Result<string, { code: int32; message: string }> kind=symbol target=read
-    /// @generic.instance source=read id="error.result.Result<string, { code: int32; message: string }>"
-    /// @generic.instance source=read() id="error.result.Result<string, { code: int32; message: string }>"
+    /// @resolution.call source=read() parameters=() return=Result<string, { code: int32; message: string }> kind=symbol target=read
+    /// @generic.instance source=read id="Result<string, { code: int32; message: string }>"
+    /// @generic.instance source=read() id="Result<string, { code: int32; message: string }>"
 
 } catch ({ code, message }) {
 /// @resolution.pattern source={ code, message } kind=object fields={ code, message }
@@ -63,7 +63,7 @@ try {
 
 }
 
-/// @generic.instance id="error.result.Result<string, { code: int32; message: string }>" template=error.result.Result arguments=(string, { code: int32; message: string })
+/// @generic.instance id="Result<string, { code: int32; message: string }>" template=error.result.Result arguments=(string, { code: int32; message: string })
 "#,
     );
 }
@@ -97,20 +97,20 @@ try {
 
 === checked ===
 declare function read(): Result<string, string>;
-/// @type.symbol symbol=read source="declare function read(): Result<string, string>" type=() => error.result.Result<string, string>
+/// @type.symbol symbol=read source="declare function read(): Result<string, string>" type=() => Result<string, string>
 /// @resolution.name source=Result target=error.result.Result
 
 try {
 /// @type.node type=string | void
 
     read()?
-    /// @type.node source=read type=() => error.result.Result<string, string>
-    /// @type.node source=read() type=error.result.Result<string, string>
+    /// @type.node source=read type=() => Result<string, string>
+    /// @type.node source=read() type=Result<string, string>
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
-    /// @resolution.call source=read() parameters=() return=error.result.Result<string, string> kind=symbol target=read
-    /// @generic.instance source=read id="error.result.Result<string, string>"
-    /// @generic.instance source=read() id="error.result.Result<string, string>"
+    /// @resolution.call source=read() parameters=() return=Result<string, string> kind=symbol target=read
+    /// @generic.instance source=read id="Result<string, string>"
+    /// @generic.instance source=read() id="Result<string, string>"
 
 } catch {
     const handled = true;
@@ -119,7 +119,7 @@ try {
 
 }
 
-/// @generic.instance id="error.result.Result<string, string>" template=error.result.Result arguments=(string, string)
+/// @generic.instance id="Result<string, string>" template=error.result.Result arguments=(string, string)
 "#,
     );
 }
@@ -153,20 +153,20 @@ try {
 
 === checked ===
 declare function read(): Result<string, { message: string }>;
-/// @type.symbol symbol=read source="declare function read(): Result<string, { message: string }>" type=() => error.result.Result<string, { message: string }>
+/// @type.symbol symbol=read source="declare function read(): Result<string, { message: string }>" type=() => Result<string, { message: string }>
 /// @resolution.name source=Result target=error.result.Result
 
 try {
 /// @type.node type=string | void
 
     read()?
-    /// @type.node source=read type=() => error.result.Result<string, { message: string }>
-    /// @type.node source=read() type=error.result.Result<string, { message: string }>
+    /// @type.node source=read type=() => Result<string, { message: string }>
+    /// @type.node source=read() type=Result<string, { message: string }>
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
-    /// @resolution.call source=read() parameters=() return=error.result.Result<string, { message: string }> kind=symbol target=read
-    /// @generic.instance source=read id="error.result.Result<string, { message: string }>"
-    /// @generic.instance source=read() id="error.result.Result<string, { message: string }>"
+    /// @resolution.call source=read() parameters=() return=Result<string, { message: string }> kind=symbol target=read
+    /// @generic.instance source=read id="Result<string, { message: string }>"
+    /// @generic.instance source=read() id="Result<string, { message: string }>"
 
 } catch (error) {
 /// @type.symbol symbol=error source=error type={ message: string }
@@ -181,7 +181,7 @@ try {
 
 }
 
-/// @generic.instance id="error.result.Result<string, { message: string }>" template=error.result.Result arguments=(string, { message: string })
+/// @generic.instance id="Result<string, { message: string }>" template=error.result.Result arguments=(string, { message: string })
 "#,
     );
 }
@@ -213,20 +213,20 @@ try {
 
 === checked ===
 declare function read(): Result<string, "missing" | "denied">;
-/// @type.symbol symbol=read source="declare function read(): Result<string, \"missing\" | \"denied\">" type=() => error.result.Result<string, "missing" | "denied">
+/// @type.symbol symbol=read source="declare function read(): Result<string, \"missing\" | \"denied\">" type=() => Result<string, "missing" | "denied">
 /// @resolution.name source=Result target=error.result.Result
 
 try {
 /// @type.node type=string | void
 
     read()?
-    /// @type.node source=read type=() => error.result.Result<string, "missing" | "denied">
-    /// @type.node source=read() type=error.result.Result<string, "missing" | "denied">
+    /// @type.node source=read type=() => Result<string, "missing" | "denied">
+    /// @type.node source=read() type=Result<string, "missing" | "denied">
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
-    /// @resolution.call source=read() parameters=() return=error.result.Result<string, "missing" | "denied"> kind=symbol target=read
-    /// @generic.instance source=read id="error.result.Result<string, \"missing\" | \"denied\">"
-    /// @generic.instance source=read() id="error.result.Result<string, \"missing\" | \"denied\">"
+    /// @resolution.call source=read() parameters=() return=Result<string, "missing" | "denied"> kind=symbol target=read
+    /// @generic.instance source=read id="Result<string, \"missing\" | \"denied\">"
+    /// @generic.instance source=read() id="Result<string, \"missing\" | \"denied\">"
 
 } catch ("missing") {
 /// @type.node source="\"missing\"" type="missing"
@@ -234,7 +234,7 @@ try {
 
 }
 
-/// @generic.instance id="error.result.Result<string, \"missing\" | \"denied\">" template=error.result.Result arguments=(string, "missing" | "denied")
+/// @generic.instance id="Result<string, \"missing\" | \"denied\">" template=error.result.Result arguments=(string, "missing" | "denied")
 "#,
         r#"
 /// @diagnostic.error code=EC437 message="catch pattern must be irrefutable: '\"denied\"' is not covered"

@@ -334,12 +334,12 @@ declare const box: { readonly [Symbol.for("token")]: string };
 
 let { [Symbol.for("token")]: value } = box;
 /// @resolution.pattern source={ [Symbol.for("token")]: value } kind=object fields={ Symbol.for("token"): value }
-/// @type.node source="Symbol.for(\"token\")" type=symbol
-/// @type.node source=Symbol type=types.symbol.Symbol
+/// @type.node source="Symbol.for(\"token\")" type=Symbol.for("token")
+/// @type.node source=Symbol type=Symbol
 /// @type.node source=Symbol.for type=(string) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
-/// @resolution.member source=Symbol.for receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.for
-/// @resolution.call source="Symbol.for(\"token\")" parameters=(string) arguments=(provided("token") as string) return=symbol kind=symbol target=types.symbol.Symbol.for receiver=types.symbol.Symbol
+/// @resolution.member source=Symbol.for receiver=Symbol kind=symbol target=types.symbol.Symbol.for
+/// @resolution.call source="Symbol.for(\"token\")" parameters=(string) arguments=(provided("token") as string) return=Symbol.for("token") kind=symbol target=types.symbol.Symbol.for receiver=Symbol
 /// @type.node source="\"token\"" type="token"
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value

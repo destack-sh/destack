@@ -257,8 +257,8 @@ const mode: "dev" = config.nested.mode;
 const config = { nested: { mode: "dev" } } as const;
 /// @type.symbol symbol=config source=config type={ readonly nested: { readonly mode: "dev" } }
 /// @type.node source="{ nested: { mode: \"dev\" } } as const" type={ readonly nested: { readonly mode: "dev" } }
-/// @type.node source={ nested: { mode: "dev" } } type={ nested: { mode: "dev" } }
-/// @type.node source={ mode: "dev" } type={ mode: "dev" }
+/// @type.node source={ nested: { mode: "dev" } } type={ readonly nested: { readonly mode: "dev" } }
+/// @type.node source={ mode: "dev" } type={ readonly mode: "dev" }
 /// @type.node source="\"dev\"" type="dev"
 
 const mode = config.nested.mode;
@@ -270,7 +270,7 @@ const mode = config.nested.mode;
 /// @resolution.member source=config.nested receiver={ readonly nested: { readonly mode: "dev" } } kind=field key=nested
 /// @resolution.member source=config.nested.mode receiver={ readonly mode: "dev" } kind=field key=mode
 
-/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=5 constraints=0 obligations=0 solutions=0 bounds=0 decisions=3
 "#,
     );
 }
@@ -299,8 +299,8 @@ const value = { env: { mode: "dev" } } as const satisfies { env: { mode: string 
 /// @type.symbol symbol=value source=value type={ readonly env: { readonly mode: "dev" } }
 /// @type.node source="{ env: { mode: \"dev\" } } as const" type={ readonly env: { readonly mode: "dev" } }
 /// @type.node source={ env: { mode: "dev" } } as const satisfies { env: { mode: string } } type={ readonly env: { readonly mode: "dev" } }
-/// @type.node source={ env: { mode: "dev" } } type={ env: { mode: "dev" } }
-/// @type.node source={ mode: "dev" } type={ mode: "dev" }
+/// @type.node source={ env: { mode: "dev" } } type={ readonly env: { readonly mode: "dev" } }
+/// @type.node source={ mode: "dev" } type={ readonly mode: "dev" }
 /// @type.node source="\"dev\"" type="dev"
 
 const mode = value.env.mode;
@@ -312,7 +312,7 @@ const mode = value.env.mode;
 /// @resolution.member source=value.env receiver={ readonly env: { readonly mode: "dev" } } kind=field key=env
 /// @resolution.member source=value.env.mode receiver={ readonly mode: "dev" } kind=field key=mode
 
-/// @check.stats.solve variables=0 types=10 constraints=1 obligations=0 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=8 constraints=1 obligations=0 solutions=0 bounds=0 decisions=3
 "#,
     );
 }

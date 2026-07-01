@@ -31,22 +31,22 @@ type Person = { name: string };
 /// @definition.type symbol=Person source="type Person = { name: string }" value={ name: string }
 
 const source = { name: "Ada" };
-/// @type.symbol symbol=source source=source type=Managed<{ name: string }>
-/// @type.node source="{ name: \"Ada\" }" type=Managed<{ name: string }>
-/// @type.node source="\"Ada\"" type=string
+/// @type.symbol symbol=source source=source type={ name: string }
+/// @type.node source={ name: "Ada" } type={ name: "Ada" }
+/// @type.node source="\"Ada\"" type="Ada"
 
 const person: Person = source;
-/// @type.symbol symbol=person source=person type={ name: string }
+/// @type.symbol symbol=person source=person type=Person reduced={ name: string }
 /// @resolution.name source=Person target=Person
-/// @type.node source=source type=Managed<{ name: string }>
+/// @type.node source=source type={ name: string }
 /// @resolution.name source=source target=source
 
 person.name satisfies string;
 /// @type.node source="person.name satisfies string" type=string
+/// @type.node source=person type=Person reduced={ name: string }
 /// @type.node source=person.name type=string
-/// @type.node source=person type=Person
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver=Person kind=field key=name
+/// @resolution.member source=person.name receiver={ name: string } kind=field key=name
 "#,
     );
 }
