@@ -36,9 +36,19 @@ impl<'a> Comments<'a> {
         }
     }
 
+    /// Return whether this cursor has any comments.
+    #[inline]
+    pub fn has_comments(&self) -> bool {
+        !self.comments.is_empty()
+    }
+
     /// Advance the printed cursor past comments ending before one position.
     #[inline]
     pub fn skip_comments_before(&mut self, pos: u32) {
+        if !self.has_comments() {
+            return;
+        }
+
         let count = self.comments_before(pos).len();
         self.printed_count += count;
     }
@@ -336,6 +346,10 @@ impl<'a> Comments<'a> {
     /// Limit the visible unprinted comment slice to one end position.
     pub fn limit_comments_up_to(&mut self, end_pos: u32) -> Option<usize> {
         let original_limit = self.view_limit;
+        if !self.has_comments() {
+            return original_limit;
+        }
+
         let limit_index = self.comments[self.printed_count..]
             .iter()
             .position(|comment| comment.span.start >= end_pos)

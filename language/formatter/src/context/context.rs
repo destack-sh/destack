@@ -195,12 +195,11 @@ impl<'ast> DestackFormatterSpeculationExt<'ast> for DestackFormatter<'ast, '_> {
             .comments_mut()
             .skip_comments_before(start);
 
-        let will_break = self
-            .intern(content)?
-            .is_some_and(|content| content.will_break());
+        let content = self.intern(content);
 
         // restore
         self.context_mut().comments_mut().restore(snapshot);
+        let will_break = content?.is_some_and(|content| content.will_break());
 
         Ok(will_break)
     }
@@ -249,6 +248,10 @@ where
 {
     #[inline]
     fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
+        if !f.context().comments().has_comments() {
+            return self.0.format(f);
+        }
+
         let node_end = f.context().span(self.0).end;
         let previous_limit = f
             .context_mut()
