@@ -46,7 +46,7 @@ impl FormatterDocumentStats {
             top_level_nodes: nodes.len() as u64,
             ..Self::default()
         };
-        stats.add_nodes(nodes);
+        stats.add_nodes_iterative(nodes);
 
         stats
     }
@@ -71,42 +71,41 @@ impl FormatterDocumentStats {
         )
     }
 
-    /// Add one node slice to this document stats.
-    fn add_nodes(&mut self, nodes: &[FormatNode]) {
-        for node in nodes {
-            self.add_node(node);
-        }
-    }
+    /// Add one node slice and its nested payloads to this document stats.
+    fn add_nodes_iterative(&mut self, nodes: &[FormatNode]) {
+        let mut pending = vec![nodes];
 
-    /// Add one node to this document stats.
-    fn add_node(&mut self, node: &FormatNode) {
-        self.recursive_nodes += 1;
+        while let Some(nodes) = pending.pop() {
+            for node in nodes {
+                self.recursive_nodes += 1;
 
-        match node {
-            FormatNode::Space => self.spaces += 1,
-            FormatNode::Line(_) => self.lines += 1,
-            FormatNode::ExpandParent => self.expand_parents += 1,
-            FormatNode::Token { .. } => self.tokens += 1,
-            FormatNode::Text { .. } => self.texts += 1,
-            FormatNode::SourcePosition { .. } => self.source_positions += 1,
-            FormatNode::FileSlice { .. } => self.file_slices += 1,
-            FormatNode::LineSuffixBoundary => self.line_suffix_boundaries += 1,
-            FormatNode::Interned(interned) => {
-                self.interned_refs += 1;
-                self.interned_payloads += 1;
-                self.interned_payload_nodes += interned.len() as u64;
-                self.add_nodes(interned);
-            }
-            FormatNode::BestFitting { variants, .. } => {
-                self.best_fitting += 1;
-                self.best_fitting_variants += variants.as_slice().len() as u64;
+                match node {
+                    FormatNode::Space => self.spaces += 1,
+                    FormatNode::Line(_) => self.lines += 1,
+                    FormatNode::ExpandParent => self.expand_parents += 1,
+                    FormatNode::Token { .. } => self.tokens += 1,
+                    FormatNode::Text { .. } => self.texts += 1,
+                    FormatNode::SourcePosition { .. } => self.source_positions += 1,
+                    FormatNode::FileSlice { .. } => self.file_slices += 1,
+                    FormatNode::LineSuffixBoundary => self.line_suffix_boundaries += 1,
+                    FormatNode::Interned(interned) => {
+                        self.interned_refs += 1;
+                        self.interned_payloads += 1;
+                        self.interned_payload_nodes += interned.len() as u64;
+                        pending.push(interned);
+                    }
+                    FormatNode::BestFitting { variants, .. } => {
+                        self.best_fitting += 1;
+                        self.best_fitting_variants += variants.as_slice().len() as u64;
 
-                for variant in variants.as_slice() {
-                    self.best_fitting_variant_nodes += variant.len() as u64;
-                    self.add_nodes(variant);
+                        for variant in variants.as_slice() {
+                            self.best_fitting_variant_nodes += variant.len() as u64;
+                            pending.push(variant);
+                        }
+                    }
+                    FormatNode::Tag(_) => self.tags += 1,
                 }
             }
-            FormatNode::Tag(_) => self.tags += 1,
         }
     }
 }
