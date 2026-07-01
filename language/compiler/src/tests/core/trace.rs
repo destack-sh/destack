@@ -218,8 +218,8 @@ pub(crate) struct TraceTable<'a> {
     timeline: bool,
     /// Whether named span totals should be printed.
     times: bool,
-    /// The number of slow attempts to print per trace.
-    attempt_limit: usize,
+    /// The number of slow artifacts to print per trace.
+    slow_artifact_limit: usize,
 }
 
 impl<'a> TraceTable<'a> {
@@ -259,9 +259,9 @@ impl<'a> TraceTable<'a> {
         self
     }
 
-    /// Set how many slow attempts should be printed per trace.
-    pub(crate) fn slow_attempts(mut self, limit: usize) -> Self {
-        self.attempt_limit = limit;
+    /// Set how many slow artifacts should be printed per trace.
+    pub(crate) fn slow_artifacts(mut self, limit: usize) -> Self {
+        self.slow_artifact_limit = limit;
 
         self
     }
@@ -288,9 +288,9 @@ impl<'a> TraceTable<'a> {
             self.print_times();
         }
 
-        // print slow artifact attempts when requested
-        if self.attempt_limit > 0 {
-            self.print_attempts();
+        // print slow artifacts when requested
+        if self.slow_artifact_limit > 0 {
+            self.print_slow_artifacts();
         }
     }
 
@@ -408,10 +408,10 @@ impl<'a> TraceTable<'a> {
         table.print();
     }
 
-    /// Print the slowest artifact attempts for each trace.
-    fn print_attempts(&self) {
+    /// Print the slowest artifacts for each trace.
+    fn print_slow_artifacts(&self) {
         let mut table = TextTable::new()
-            .title("attempts")
+            .title("slow artifacts")
             .color_if(self.color)
             .row(vec![
                 Cell::bold("trace"),
@@ -421,10 +421,10 @@ impl<'a> TraceTable<'a> {
                 Cell::bold("ms"),
             ]);
 
-        // append bounded slow-attempt rows for every trace
+        // append bounded slow artifact rows for every trace
         for row in &self.rows {
-            for attempt in self.attempt_rows(row) {
-                table = table.row(attempt);
+            for artifact in self.slow_artifact_rows(row) {
+                table = table.row(artifact);
             }
         }
 
@@ -435,21 +435,21 @@ impl<'a> TraceTable<'a> {
         table.print();
     }
 
-    /// Return the slowest artifact attempts for one trace.
-    fn attempt_rows(&self, row: &TraceRow<'_>) -> Vec<Vec<Cell>> {
-        let mut attempts = row.trace.artifacts.iter().collect::<Vec<_>>();
-        attempts.sort_by_key(|attempt| Reverse(attempt.micros));
+    /// Return the slowest artifacts for one trace.
+    fn slow_artifact_rows(&self, row: &TraceRow<'_>) -> Vec<Vec<Cell>> {
+        let mut artifacts = row.trace.artifacts.iter().collect::<Vec<_>>();
+        artifacts.sort_by_key(|artifact| Reverse(artifact.micros));
 
         let mut rows = Vec::new();
 
-        // keep only the largest attempts so the report stays readable
-        for attempt in attempts.into_iter().take(self.attempt_limit) {
+        // keep only the largest artifacts so the report stays readable
+        for artifact in artifacts.into_iter().take(self.slow_artifact_limit) {
             rows.push(vec![
                 Cell::new(row.name.clone()),
-                Cell::colored(attempt.stage.clone(), stage_color(&attempt.stage)),
-                Cell::colored(attempt.name.clone(), kind_color(&attempt.name)),
-                Cell::colored(attempt.outcome.clone(), outcome_color(&attempt.outcome)),
-                Cell::colored(format_millis(attempt.micros), "38;5;250"),
+                Cell::colored(artifact.stage.clone(), stage_color(&artifact.stage)),
+                Cell::colored(artifact.name.clone(), kind_color(&artifact.name)),
+                Cell::colored(artifact.outcome.clone(), outcome_color(&artifact.outcome)),
+                Cell::colored(format_millis(artifact.micros), "38;5;250"),
             ]);
         }
 

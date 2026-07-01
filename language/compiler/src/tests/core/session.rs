@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
+use std::{env, thread};
 
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, ComponentGraph, DirBound,
@@ -24,6 +25,17 @@ use crate::tests::snapshot::{
 use super::module::{TestModule, parse_module, parsed_dependencies};
 use super::provider::TestProvider;
 use super::trace::TraceTable;
+
+const DEFAULT_DESTACK_JSON: &str = r#"{
+  "compiler": {
+    "emitStats": true,
+    "emitEvents": true,
+    "emitCheckedTypes": true
+  }
+}"#;
+const TRACE_ENV: &str = "DESTACK_TEST_TRACE";
+const TRACE_SLOW_ARTIFACTS_ENV: &str = "DESTACK_TEST_TRACE_SLOW_ARTIFACTS";
+const DEFAULT_TRACE_SLOW_ARTIFACTS: usize = 8;
 
 /// A test session builder.
 #[derive(Debug, Default)]
@@ -59,23 +71,7 @@ impl TestSessionBuilder {
 
     /// Build the test session.
     pub(crate) fn build(self) -> TestSession {
-        let mut files = self.files;
-
-        // enable sidecar snapshots in compiler tests
-        files
-            .entry("destack.json".to_string())
-            .or_insert_with(|| Content::Text {
-                content: r#"{
-  "compiler": {
-    "emitStats": true,
-    "emitEvents": true,
-    "emitCheckedTypes": true
-  }
-}"#
-                .to_string(),
-            });
-
-        TestSession::build(files)
+        TestSession::build(self.files)
     }
 }
 
@@ -118,40 +114,19 @@ impl TestSession {
 
     /// Build one test session from source files.
     fn build(files: BTreeMap<String, Content>) -> Self {
-        let root = PathBuf::new();
-        let environment = Environment::default();
-        let layout = DestackLayout::resolve(
-            &root,
-            &root,
-            &environment,
-            &Settings::default(),
-            &DestackLayoutOverride::default(),
-            None,
-        );
-        let host = Host::new(
-            environment,
-            Arc::new(MemoryFileSystem::new()),
-            shared_blob_store(),
-        );
-        let repository = Arc::new(
-            Repository::new(root, host, Settings::default(), layout)
-                .with_artifact_store(Arc::new(NullArtifactStore::new())),
-        );
-        let reference = Ref::for_root(repository.path());
-        let revision = repository
-            .current(&reference)
-            .expect("test repository root ref should exist");
+        let (repository, revision) = shared_repository_revision();
+        let repository = repository.clone();
 
         // publish sealed test files
         let edits = files
             .iter()
-            .map(|(path, content)| Edit::AddFile {
+            .map(|(path, content)| Edit::SetFile {
                 logical_path: path.clone(),
                 content: content.clone(),
             })
             .collect::<Vec<_>>();
         let revision = repository
-            .fork_with_edits(revision, edits)
+            .fork_with_edits(*revision, edits)
             .expect("test repository revision should publish");
 
         let modules_by_path = Self::build_modules(repository.as_ref(), revision, &files);
@@ -352,6 +327,7 @@ impl TestSession {
     ) {
         let dir = self.render_dir_snapshots(&[path], rows, true);
         let diagnostics = self.diagnostic_snapshot(self.dir_checked_component_key(path));
+        self.print_trace_if_requested(path);
 
         assert_equal(dir, expected_dir);
         assert_equal(diagnostics, expected_diagnostics);
@@ -384,6 +360,8 @@ impl TestSession {
     /// Assert diagnostics for one artifact key.
     #[track_caller]
     pub(crate) fn assert_diagnostics(&self, key: ArtifactKey, expected: &str) {
+        self.print_trace_if_requested("diagnostics");
+
         assert_equal(self.diagnostic_snapshot(key), expected);
     }
 
@@ -620,6 +598,7 @@ impl TestSession {
             };
             assert_equal(self.diagnostic_snapshot(key), "");
         }
+        self.print_trace_if_requested(&paths.join(","));
 
         assert_equal(dir, expected);
     }
@@ -885,7 +864,7 @@ impl TestSession {
     }
 
     /// Print the detailed artifact trace for this test session.
-    pub(crate) fn print_trace(&self, name: &str, attempt_limit: usize) {
+    pub(crate) fn print_trace(&self, name: &str, slow_artifacts: usize) {
         let trace = self.trace();
 
         TraceTable::new()
@@ -893,8 +872,26 @@ impl TestSession {
             .color()
             .timeline()
             .times()
-            .slow_attempts(attempt_limit)
+            .slow_artifacts(slow_artifacts)
             .print();
+    }
+
+    /// Print the artifact trace when the test trace filter matches.
+    fn print_trace_if_requested(&self, label: &str) {
+        let Ok(filter) = env::var(TRACE_ENV) else {
+            return;
+        };
+        if !trace_filter_matches(&filter, label) {
+            return;
+        }
+
+        let slow_artifacts = env::var(TRACE_SLOW_ARTIFACTS_ENV)
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(DEFAULT_TRACE_SLOW_ARTIFACTS);
+        let name = trace_name(label);
+
+        self.print_trace(&name, slow_artifacts);
     }
 
     /// Return the artifact key that owns one phase sidecar.
@@ -1029,6 +1026,82 @@ impl TestSession {
             .get(path)
             .unwrap_or_else(|| panic!("missing test module path '{path}'"))
     }
+}
+
+/// Return whether one trace filter selects the current test session.
+fn trace_filter_matches(filter: &str, label: &str) -> bool {
+    let filter = filter.trim();
+    if filter.is_empty() {
+        return false;
+    }
+
+    if matches!(filter, "1" | "all" | "*") {
+        return true;
+    }
+
+    let test = current_test_name();
+
+    label.contains(filter) || test.as_deref().is_some_and(|test| test.contains(filter))
+}
+
+/// Return the best display name for one traced test session.
+fn trace_name(label: &str) -> String {
+    if let Some(test) = current_test_name() {
+        format!("{test} {label}")
+    } else {
+        label.to_string()
+    }
+}
+
+/// Return the current Rust test name when the harness names this thread.
+fn current_test_name() -> Option<String> {
+    thread::current().name().map(ToOwned::to_owned)
+}
+
+/// Return the shared compiler-test repository and default-config revision.
+fn shared_repository_revision() -> &'static (Arc<Repository>, Revision) {
+    static BASE: OnceLock<(Arc<Repository>, Revision)> = OnceLock::new();
+
+    BASE.get_or_init(|| {
+        let root = PathBuf::new();
+        let environment = Environment::default();
+        let layout = DestackLayout::resolve(
+            &root,
+            &root,
+            &environment,
+            &Settings::default(),
+            &DestackLayoutOverride::default(),
+            None,
+        );
+        let host = Host::new(
+            environment,
+            Arc::new(MemoryFileSystem::new()),
+            shared_blob_store(),
+        );
+        let repository = Arc::new(
+            Repository::new(root, host, Settings::default(), layout)
+                .with_artifact_store(Arc::new(NullArtifactStore::new())),
+        );
+        let reference = Ref::for_root(repository.path());
+        let revision = repository
+            .current(&reference)
+            .expect("test repository root ref should exist");
+
+        // publish the default compiler-test configuration once
+        let revision = repository
+            .fork_with_edits(
+                revision,
+                [Edit::AddFile {
+                    logical_path: "destack.json".to_string(),
+                    content: Content::Text {
+                        content: DEFAULT_DESTACK_JSON.to_string(),
+                    },
+                }],
+            )
+            .expect("test repository default config should publish");
+
+        (repository, revision)
+    })
 }
 
 /// Return selected sidecar phases in stable order.
