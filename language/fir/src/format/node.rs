@@ -1,4 +1,5 @@
 use std::hash::{Hash, Hasher};
+use std::mem::ManuallyDrop;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -96,14 +97,45 @@ impl std::fmt::Debug for FormatNode {
     }
 }
 
-/// Interned format node.
-#[derive(Clone)]
-pub struct Interned(Rc<[FormatNode]>);
+/// Shared format-node slice.
+pub struct Interned(ManuallyDrop<Rc<Vec<FormatNode>>>);
 
 impl Interned {
-    /// Creates a new Interned from a vector of FormatNodes.
+    /// Create a shared node slice.
     pub(super) fn new(content: Vec<FormatNode>) -> Self {
-        Self(content.into())
+        Self(ManuallyDrop::new(Rc::new(content)))
+    }
+
+    /// Return owned nodes when this is the last shared reference.
+    fn into_nodes(self) -> Option<Vec<FormatNode>> {
+        let mut interned = ManuallyDrop::new(self);
+
+        // SAFETY: take the Rc field while the outer value is manually dropped
+        let nodes = unsafe { ManuallyDrop::take(&mut interned.0) };
+
+        Rc::try_unwrap(nodes).ok()
+    }
+
+    /// Return the pointer identity for this shared node slice.
+    pub(super) fn nodes_ptr(&self) -> *const Vec<FormatNode> {
+        Rc::as_ptr(&self.0)
+    }
+}
+
+impl Clone for Interned {
+    fn clone(&self) -> Self {
+        Self(ManuallyDrop::new(Rc::clone(&self.0)))
+    }
+}
+
+impl Drop for Interned {
+    fn drop(&mut self) {
+        // SAFETY: drop runs once, and the Rc field is consumed by this implementation
+        let nodes = unsafe { ManuallyDrop::take(&mut self.0) };
+
+        if let Ok(nodes) = Rc::try_unwrap(nodes) {
+            drop_owned_nodes(nodes);
+        }
     }
 }
 
@@ -120,13 +152,13 @@ impl Hash for Interned {
     where
         H: Hasher,
     {
-        Rc::as_ptr(&self.0).hash(hasher);
+        self.nodes_ptr().hash(hasher);
     }
 }
 
 impl std::fmt::Debug for Interned {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+        self.deref().fmt(f)
     }
 }
 
@@ -134,6 +166,31 @@ impl Deref for Interned {
     type Target = [FormatNode];
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.0.as_slice()
+    }
+}
+
+/// Drop owned node trees from an explicit work stack.
+fn drop_owned_nodes(nodes: Vec<FormatNode>) {
+    let mut pending = vec![nodes];
+
+    while let Some(nodes) = pending.pop() {
+        for node in nodes {
+            match node {
+                FormatNode::Interned(interned) => {
+                    if let Some(nodes) = interned.into_nodes() {
+                        pending.push(nodes);
+                    }
+                }
+                FormatNode::BestFitting { variants, .. } => {
+                    for interned in variants.into_vec() {
+                        if let Some(nodes) = interned.into_nodes() {
+                            pending.push(nodes);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 }

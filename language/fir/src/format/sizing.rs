@@ -66,6 +66,11 @@ impl BestFittingVariants {
         &self.0
     }
 
+    /// Consume this value and return the owned variants.
+    pub(crate) fn into_vec(self) -> Vec<Interned> {
+        self.0.into_vec()
+    }
+
     /// Get the least expanded variant.
     ///
     /// # Panics
