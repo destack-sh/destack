@@ -345,7 +345,7 @@ fn test_format_type_mapped_with_remap() {
     );
 }
 
-/// Mapped remap block comments should stay before `as`.
+/// Mapped remap block comments should stay after `as`.
 #[test]
 fn test_format_type_mapped_with_remap_separator_block_comment() {
     assert_format_program!(
@@ -355,14 +355,14 @@ fn test_format_type_mapped_with_remap_separator_block_comment() {
 }
 "#,
         r#"type Paths<T> = {
-    [K in keyof T /* remap-note */ as `get${Capitalize<K & string>}`]: () => T[K];
+    [K in keyof T as /* remap-note */ `get${Capitalize<K & string>}`]: () => T[K];
 };
 "#,
         FileType::TypeScript
     );
 }
 
-/// Mapped remap line comments should stay on the mapped field line.
+/// Mapped remap line comments should stay after `as`.
 #[test]
 fn test_format_type_mapped_with_remap_separator_line_comment() {
     assert_format_program!(
@@ -372,7 +372,8 @@ fn test_format_type_mapped_with_remap_separator_line_comment() {
 }
 "#,
         r#"type Paths<T> = {
-    [K in keyof T as Capitalize<K & string>]: () => T[K]; // remap-note
+    [K in keyof T as // remap-note
+        Capitalize<K & string>]: () => T[K];
 };
 "#,
         FileType::TypeScript
