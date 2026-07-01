@@ -1,4 +1,8 @@
-use destack_heap::{DEFAULT_GC_GROWTH_PERCENT, DEFAULT_YOUNG_SIZE_BYTES};
+use destack_heap as heap;
+use destack_heap::{
+    DEFAULT_GC_GROWTH_PERCENT, DEFAULT_GC_MINIMUM_HEAP_BYTES, DEFAULT_GC_MINIMUM_WORK_BYTES,
+    DEFAULT_GC_TRIGGER_PERCENT, DEFAULT_YOUNG_SIZE_BYTES,
+};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -29,6 +33,55 @@ impl Default for HeapOptions {
     }
 }
 
+impl HeapOptions {
+    /// Resolve worker-local heap construction options.
+    pub fn local_heap_options(&self) -> Result<heap::HeapOptions, heap::HeapError> {
+        let options = heap::HeapOptions {
+            heap_young_size_bytes: self.local.young_size_bytes,
+            gc: self.local_gc_options(),
+            ..heap::HeapOptions::local()
+        };
+
+        options.validate_local()?;
+
+        Ok(options)
+    }
+
+    /// Resolve runtime-shared heap construction options.
+    pub fn shared_heap_options(&self) -> Result<heap::SharedHeapOptions, heap::HeapError> {
+        let options = heap::SharedHeapOptions {
+            gc: self.shared_gc_options(),
+            ..heap::SharedHeapOptions::default()
+        };
+
+        options.validate()?;
+
+        Ok(options)
+    }
+
+    /// Resolve local collector policy.
+    fn local_gc_options(&self) -> heap::GcOptions {
+        heap::GcOptions {
+            growth_percent: self.growth_percent,
+            trigger_percent: DEFAULT_GC_TRIGGER_PERCENT,
+            soft_limit_bytes: self.memory_limit_bytes,
+            minimum_heap_bytes: Some(self.local.minimum_heap_bytes()),
+            minimum_work_bytes: DEFAULT_GC_MINIMUM_WORK_BYTES,
+        }
+    }
+
+    /// Resolve shared collector policy.
+    fn shared_gc_options(&self) -> heap::GcOptions {
+        heap::GcOptions {
+            growth_percent: self.growth_percent,
+            trigger_percent: DEFAULT_GC_TRIGGER_PERCENT,
+            soft_limit_bytes: self.memory_limit_bytes,
+            minimum_heap_bytes: Some(self.shared.minimum_heap_bytes()),
+            minimum_work_bytes: DEFAULT_GC_MINIMUM_WORK_BYTES,
+        }
+    }
+}
+
 /// Runtime local-heap policy.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -53,6 +106,16 @@ impl Default for LocalHeapOptions {
     }
 }
 
+impl LocalHeapOptions {
+    /// Resolve the minimum heap byte budget from nursery width.
+    fn minimum_heap_bytes(&self) -> u64 {
+        let young_min_size_bytes = 4 * self.young_size_bytes as u64;
+
+        self.min_bytes
+            .unwrap_or(DEFAULT_GC_MINIMUM_HEAP_BYTES.max(young_min_size_bytes))
+    }
+}
+
 /// Runtime shared-heap policy.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -63,4 +126,11 @@ pub struct SharedHeapOptions {
     pub min_bytes: Option<u64>,
     /// Hard limit for total retained shared heap bytes.
     pub max_bytes: Option<u64>,
+}
+
+impl SharedHeapOptions {
+    /// Resolve the minimum heap byte budget.
+    fn minimum_heap_bytes(&self) -> u64 {
+        self.min_bytes.unwrap_or(DEFAULT_GC_MINIMUM_HEAP_BYTES)
+    }
 }
