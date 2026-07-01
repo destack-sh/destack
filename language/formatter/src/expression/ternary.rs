@@ -127,12 +127,8 @@ fn ternary_separator_comments<'a>(
             return &comments[..index];
         }
 
-        // keep line comments on ternary separators with the left branch
+        // stop once the separator belongs to the right branch
         if source.bytes_contain(start, comment.span.start, operator) {
-            if comment.is_line() || comment.followed_by_newline() {
-                return &comments[..=index];
-            }
-
             return &comments[..index];
         }
 

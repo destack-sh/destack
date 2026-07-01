@@ -16,7 +16,7 @@ fn test_format_ternary_branch_separator_comments() {
     );
 }
 
-/// Ternary line comments before alternates should stay with the consequent line.
+/// Ternary line comments after `:` should stay with the alternate branch.
 #[test]
 fn test_format_ternary_alternate_line_comments() {
     assert_format_program_roundtrip_with_file_type(
@@ -24,8 +24,9 @@ fn test_format_ternary_alternate_line_comments() {
 right
 "#,
         r#"const value = cond
-    ? left // alt-line
-    : right;
+    ? left
+    : // alt-line
+      right;
 "#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(30),
@@ -94,7 +95,7 @@ fn test_format_jsx_chain_wrapped_branch_separator_comments() {
     );
 }
 
-/// JSX line comments after `:` should stay with the consequent branch.
+/// JSX line comments after `:` should stay with the alternate branch.
 #[test]
 fn test_format_jsx_chain_alternate_line_comment() {
     assert_format_program_roundtrip_with_file_type(
@@ -104,8 +105,9 @@ fn test_format_jsx_chain_alternate_line_comment() {
         r#"const node = (
     <>
         {x ? (
-            <A /> // alt-line
+            <A />
         ) : (
+            // alt-line
             <B />
         )}
     </>
