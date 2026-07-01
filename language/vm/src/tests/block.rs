@@ -333,7 +333,7 @@ entry(v0: fn(int32) => int32, v1: int32):
     assert_runtime_error_matches!(
         result,
         Error::Program {
-            reason: ProgramError::TypeMismatch { .. },
+            reason: ProgramError::FunctionSignatureMismatch { .. },
         },
     );
 }

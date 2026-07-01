@@ -7,13 +7,13 @@ use super::frame::{
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Frame, Outcome};
 use crate::options::LimitOptions;
-use destack_program::vm::{ArgumentRange, CallTarget, Function, MoveRange};
+use destack_program::vm::{ArgumentRange, CallTarget, FunctionCode, MoveRange};
 use destack_program::{FrameStateId, FunctionId, Program};
 
 /// Local lowered function target.
 struct LocalFunction<'a> {
     /// The lowered function body.
-    function: &'a Function,
+    function: FunctionCode<'a>,
 }
 
 impl Activation<'_> {
@@ -24,17 +24,13 @@ impl Activation<'_> {
         target: CallTarget,
     ) -> RuntimeResult<LocalFunction<'a>> {
         // reject imports before touching program storage
-        let function_index = match target {
-            CallTarget::Local(index) => index,
-            CallTarget::Import => {
-                return Err(RuntimeError::new(Error::undefined_function(function_id)));
-            }
+        let Some(function_index) = target.local_index() else {
+            return Err(RuntimeError::new(Error::undefined_function(function_id)));
         };
 
         // load the lowered function body
         let function = program
-            .vm_functions()
-            .function_by_index(function_index)
+            .vm_function_by_index(function_index)
             .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?;
 
         Ok(LocalFunction { function })
@@ -42,14 +38,21 @@ impl Activation<'_> {
 
     /// Return the runtime boundary error for one imported call.
     fn imported_call_error(&self, program: &Program, function_id: FunctionId) -> RuntimeError {
-        let Some(function) = program.functions().get(function_id) else {
+        let Some(function) = program.function(function_id) else {
             return self.machine.runtime_error(Error::invalid_program(format!(
                 "missing function tables for {function_id:?}"
             )));
         };
 
-        self.machine
-            .runtime_error(Error::import_forbidden(function.name.clone()))
+        let Some(name) = program.string(function.name) else {
+            return self.machine.runtime_error(Error::invalid_program(format!(
+                "missing function name string {:?}",
+                function.name
+            )));
+        };
+        let name = name.to_owned();
+
+        self.machine.runtime_error(Error::import_forbidden(name))
     }
 
     /// Push one local call frame on the stack.
@@ -57,7 +60,7 @@ impl Activation<'_> {
         &mut self,
         program: &Program,
         limits: LimitOptions,
-        current_func: &Function,
+        current_func: &FunctionCode<'_>,
         callee: LocalFunction<'_>,
         arguments: ArgumentRange,
         env: Option<Cell>,
@@ -71,8 +74,8 @@ impl Activation<'_> {
         }
 
         // load callee entry tables
-        let entry_block = callee.function.entry;
-        let frame_layout = callee.function.frame_layout;
+        let entry_block = callee.function.function.entry;
+        let frame_layout = callee.function.function.frame_layout;
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
@@ -88,14 +91,14 @@ impl Activation<'_> {
         caller_frame.return_state = return_state;
 
         let mut new_frame = Frame::new(
-            callee.function,
+            &callee.function,
             entry_block,
             frame_layout,
             stack_offset,
             frame_base,
         );
         new_frame
-            .store_environment(frame_layout, env)
+            .store_environment(program, frame_layout, env)
             .map_err(|error| self.machine.runtime_error(error))?;
 
         // bind arguments from the caller into the new frame
@@ -105,20 +108,15 @@ impl Activation<'_> {
             .last()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         if let Some(moves) = moves {
-            move_values(
-                caller,
-                &mut new_frame,
-                moves,
-                current_func.move_pool.as_slice(),
-            )
-            .map_err(RuntimeError::new)?;
+            move_values(caller, &mut new_frame, moves, current_func.move_pool)
+                .map_err(RuntimeError::new)?;
         } else {
             move_arguments_between_frames(
                 caller,
                 &mut new_frame,
-                callee.function.argument_pool.as_slice(),
-                callee.function.parameters,
-                current_func.argument_pool.as_slice(),
+                callee.function.argument_pool,
+                callee.function.function.parameters,
+                current_func.argument_pool,
                 arguments,
             )
             .map_err(RuntimeError::new)?;
@@ -138,8 +136,8 @@ impl Activation<'_> {
         env: Option<Cell>,
     ) -> RuntimeResult<()> {
         // load the callee entry tables first
-        let entry_block = callee.function.entry;
-        let frame_layout = callee.function.frame_layout;
+        let entry_block = callee.function.function.entry;
+        let frame_layout = callee.function.function.frame_layout;
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
@@ -162,21 +160,21 @@ impl Activation<'_> {
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
         frame.retarget(
-            callee.function,
+            &callee.function,
             entry_block,
             stack_offset,
-            frame_layout.byte_len as usize,
+            frame_layout.byte_len() as usize,
             frame_base,
         );
         frame
-            .store_environment(frame_layout, env)
+            .store_environment(program, frame_layout, env)
             .map_err(RuntimeError::new)?;
 
         // bind the new arguments into the reused frame
         store_parameters(
             frame,
-            callee.function.argument_pool.as_slice(),
-            callee.function.parameters,
+            callee.function.argument_pool,
+            callee.function.function.parameters,
             arguments,
         )
         .map_err(RuntimeError::new)?;
@@ -189,7 +187,7 @@ impl Activation<'_> {
         &mut self,
         program: &Program,
         limits: LimitOptions,
-        current_func: &Function,
+        current_func: &FunctionCode<'_>,
         function: FunctionId,
         target: CallTarget,
         arguments: ArgumentRange,
@@ -198,7 +196,7 @@ impl Activation<'_> {
         resume_pc: usize,
     ) -> RuntimeResult<()> {
         // complete binding calls immediately in the caller frame
-        if matches!(target, CallTarget::Import) {
+        if target.is_import() {
             return Err(self.imported_call_error(program, function));
         }
 
@@ -222,7 +220,7 @@ impl Activation<'_> {
         &mut self,
         program: &Program,
         limits: LimitOptions,
-        current_func: &Function,
+        current_func: &FunctionCode<'_>,
         function: FunctionId,
         target: CallTarget,
         arguments: ArgumentRange,
@@ -230,7 +228,7 @@ impl Activation<'_> {
         target_state: FrameStateId,
     ) -> RuntimeResult<()> {
         // imported calls resume the continuation immediately
-        if matches!(target, CallTarget::Import) {
+        if target.is_import() {
             return Err(self.imported_call_error(program, function));
         }
 
@@ -244,8 +242,7 @@ impl Activation<'_> {
 
         // resume after the terminator once the callee returns
         let function = program
-            .vm_functions()
-            .function_by_id(caller.function())
+            .vm_function_by_id(caller.function())
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let resume_pc = function
             .block_len(caller.block)
@@ -267,7 +264,7 @@ impl Activation<'_> {
     pub(crate) fn complete_tail_call(
         &mut self,
         program: &Program,
-        current_func: &Function,
+        current_func: &FunctionCode<'_>,
         function: FunctionId,
         target: CallTarget,
         arguments: ArgumentRange,
@@ -281,13 +278,13 @@ impl Activation<'_> {
             .last()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let argument_values = if let Some(moves) = moves {
-            load_moved_arguments(caller, current_func.move_pool.as_slice(), moves)?
+            load_moved_arguments(caller, current_func.move_pool, moves)?
         } else {
-            load_arguments(caller, current_func.argument_pool.as_slice(), arguments)?
+            load_arguments(caller, current_func.argument_pool, arguments)?
         };
 
         // complete binding tail calls before returning to the caller
-        if matches!(target, CallTarget::Import) {
+        if target.is_import() {
             return Err(self.imported_call_error(program, function));
         }
 

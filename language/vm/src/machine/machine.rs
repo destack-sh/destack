@@ -4,13 +4,12 @@ use std::sync::Arc;
 
 use destack_core::{Capture, CaptureMode, SnapshotCodec};
 use destack_heap::{
-    AllocationCache, Heap, HeapReference, HeapResult, PayloadShape, RootSlot, SharedHeap,
-    SharedMarkWorker,
+    AllocationCache, AllocationShape, Heap, HeapReference, HeapResult, RootSlot, SharedHeap,
+    SharedMarkWorker, TraceView,
 };
-use destack_mir::TraceTable;
 use destack_program as program;
-use destack_program::{FrameLayout, Program};
-use program::StaticSpace;
+use destack_program::{FrameLayout, GlobalLocation, Program};
+use program::{StaticImage, StaticSpace};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult, StackTraceFrame};
@@ -78,21 +77,27 @@ impl Machine {
         self.program.clone()
     }
 
-    /// Return the canonical program trace table.
+    /// Return the immutable program.
     #[inline]
-    pub fn trace_table(&self) -> &TraceTable {
-        self.program.trace_table()
+    pub fn program(&self) -> &Program {
+        &self.program
+    }
+
+    /// Return decoded program trace maps.
+    #[inline]
+    pub fn trace_maps(&self) -> TraceView<'_> {
+        self.program.trace_maps()
     }
 
     /// Return immutable program constants.
     #[inline]
-    pub fn constants(&self) -> &StaticSpace {
+    pub fn constants(&self) -> &StaticImage {
         self.program.constants()
     }
 
     /// Return initial shared static storage.
     #[inline]
-    pub fn shared_statics(&self) -> &StaticSpace {
+    pub fn shared_statics(&self) -> &StaticImage {
         self.program.shared_statics()
     }
 
@@ -349,11 +354,12 @@ impl Machine {
     /// Visit mutable heap root slots from one static space.
     pub fn visit_static_root_slots(
         &mut self,
+        location: GlobalLocation,
         static_space: &mut StaticSpace,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> RuntimeResult<()> {
         self.program
-            .visit_static_root_slots(static_space, visit)
+            .visit_static_root_slots(location, static_space, visit)
             .map_err(|error| self.runtime_error(error.into()))
     }
 
@@ -443,8 +449,8 @@ impl Machine {
     pub(crate) fn allocate_frame(&mut self, layout: &FrameLayout) -> RuntimeResult<(usize, usize)> {
         let base = self
             .stack
-            .allocate_zeroed(layout.byte_len as usize, Cell::BYTE_LEN)?;
-        let frame_base = self.stack.address(base, layout.byte_len as usize)?;
+            .allocate_zeroed(layout.byte_len() as usize, Cell::BYTE_LEN)?;
+        let frame_base = self.stack.address(base, layout.byte_len() as usize)?;
 
         Ok((base, frame_base))
     }
@@ -463,7 +469,7 @@ impl Machine {
         // clone frames over the forked stack bytes
         for frame in &self.frames {
             let base = stack
-                .address(frame.stack_offset, frame.byte_len)
+                .address(frame.stack_offset, frame.byte_len())
                 .map_err(|_| RuntimeError::new(Error::invalid_continuation()))?;
             frames.push(frame.fork(base));
         }
@@ -483,7 +489,7 @@ impl Machine {
 
         // restore frame tables over stack image byte ranges
         for frame_image in frame_images {
-            let frame_base = stack.address(frame_image.stack_offset, frame_image.byte_len)?;
+            let frame_base = stack.address(frame_image.stack_offset, frame_image.byte_len())?;
             let frame =
                 Frame::from_image(frame_image, program, frame_image.stack_offset, frame_base)?;
 
@@ -515,8 +521,7 @@ impl Machine {
             .map(|frame| {
                 let function = frame.function();
                 let function_ref = program
-                    .vm_functions()
-                    .function_by_id(function)
+                    .vm_function_by_id(function)
                     .ok_or_else(|| Error::undefined_function(function))?;
                 let block = frame.block;
                 function_ref
@@ -524,9 +529,8 @@ impl Machine {
                     .get(block as usize)
                     .ok_or_else(Error::invalid_instruction)?;
                 let function_name = program
-                    .functions()
-                    .get(function)
-                    .map(|function| function.name.clone());
+                    .function(function)
+                    .and_then(|function| program.string(function.name).map(str::to_owned));
 
                 Ok(StackTraceFrame {
                     function,
@@ -561,7 +565,7 @@ impl Machine {
         }
 
         program
-            .visit_static_root_slots(local_static, visit)
+            .visit_static_root_slots(GlobalLocation::LocalStatic, local_static, visit)
             .map_err(|error| self.runtime_error_with_program(program, error.into()))?;
 
         Ok(())
@@ -615,7 +619,7 @@ impl Machine {
     }
 
     /// Return the heap allocation shape for one layout id.
-    pub fn allocation_shape(&self, layout_id: program::LayoutId) -> VmResult<PayloadShape<'_>> {
+    pub fn allocation_shape(&self, layout_id: program::LayoutId) -> VmResult<AllocationShape<'_>> {
         Ok(self.program.allocation_shape(layout_id)?)
     }
 }

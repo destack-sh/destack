@@ -19,8 +19,7 @@ impl Activation<'_> {
             .last()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let return_type = program
-            .functions()
-            .get(callee.function())
+            .function(callee.function())
             .ok_or_else(|| RuntimeError::new(Error::undefined_function(callee.function())))?
             .signature
             .result;

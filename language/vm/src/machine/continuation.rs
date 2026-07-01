@@ -30,7 +30,7 @@ impl Continuation {
         // clone frames over the forked stack bytes
         for frame in &self.frames {
             let base = stack
-                .address(frame.stack_offset, frame.byte_len)
+                .address(frame.stack_offset, frame.byte_len())
                 .map_err(|_| RuntimeError::new(Error::invalid_continuation()))?;
             frames.push(frame.fork(base));
         }
@@ -117,16 +117,16 @@ impl Continuation {
             let layout = program
                 .frame_layout_by_id(materialization.frame_layout)
                 .ok_or_else(|| RuntimeError::new(Error::invalid_continuation()))?;
-            if frame_image.byte_len < layout.byte_len as usize
+            if frame_image.byte_len() < layout.byte_len() as usize
                 || image
                     .stack
-                    .frame_bytes(frame_image.stack_offset, frame_image.byte_len)
+                    .frame_bytes(frame_image.stack_offset, frame_image.byte_len())
                     .is_none()
             {
                 return Err(RuntimeError::new(Error::invalid_continuation()));
             }
 
-            let frame_base = stack.address(frame_image.stack_offset, frame_image.byte_len)?;
+            let frame_base = stack.address(frame_image.stack_offset, frame_image.byte_len())?;
             let frame =
                 Frame::from_image(frame_image, program, frame_image.stack_offset, frame_base)?;
             frames.push(frame);
@@ -216,7 +216,7 @@ fn capture_frame_image(frame: &Frame, frame_state: FrameStateId) -> FrameImage {
         frame_state,
         return_state: frame.return_state,
         stack_offset: frame.stack_offset,
-        byte_len: frame.byte_len,
+        byte_len: frame.byte_len(),
     }
 }
 
@@ -229,7 +229,7 @@ fn visit_frame_image_root_slots(
 ) -> Result<(), Error> {
     let (layout, materialization) = frame_image_materialization(frame, program)?;
 
-    visit_materialized_slots(layout, materialization, |slot| {
+    visit_materialized_slots(program, layout, materialization, |slot| {
         visit_frame_image_slot_root_slots(frame, stack, program, slot, visit)
     })
 }
@@ -245,7 +245,7 @@ fn frame_image_materialization<'a>(
     let layout = program
         .frame_layout_by_id(materialization.frame_layout)
         .ok_or(Error::invalid_continuation())?;
-    if frame.byte_len < layout.byte_len as usize {
+    if frame.byte_len() < layout.byte_len() as usize {
         return Err(Error::invalid_continuation());
     }
 
@@ -261,9 +261,9 @@ fn visit_frame_image_slot_root_slots(
     visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
 ) -> Result<(), Error> {
     let start = slot.offset as usize;
-    let end = start + slot.byte_len as usize;
+    let end = start + slot.byte_len() as usize;
     let frame_bytes = stack
-        .frame_bytes_mut(frame.stack_offset, frame.byte_len)
+        .frame_bytes_mut(frame.stack_offset, frame.byte_len())
         .ok_or(Error::invalid_continuation())?;
     let bytes = frame_bytes
         .get_mut(start..end)

@@ -9,8 +9,8 @@ use crate::Cell;
 use crate::diagnostic::{Error, ReferenceKind};
 use crate::machine::{Activation, Frame};
 use destack_program::vm::{
-    ArgumentRange, Instruction, MovePair, MoveRange, MoveSlot, MoveSource, Projection,
-    ProjectionId, encode_cell_bytes,
+    ArgumentRange, Instruction, MovePair, MoveRange, MoveSlot, Projection, ProjectionId,
+    encode_cell_bytes,
 };
 use destack_program::{AddressSpace, CellLayout, FrameSlot, Program, ScalarFormat, TypeId};
 
@@ -25,7 +25,7 @@ pub(super) fn frame_element_offset(
 ) -> usize {
     let index = activation.load_cell_at(index).as_u64();
 
-    access.byte_offset + access.byte_stride * index as usize
+    access.byte_offset() + access.byte_stride() * index as usize
 }
 
 /// Execute fixed-offset frame value address calculation.
@@ -189,13 +189,9 @@ pub(crate) fn encode_argument_bytes(
     value: Cell,
 ) -> Result<Vec<u8>, Error> {
     let layout = activation.require_layout(ty)?.clone();
-    if activation.machine.program.is_cell_type(ty) {
-        let cell_layout = require_cell_layout(&activation.machine.program, ty)?;
-        let bytes = encode_cell_bytes(
-            cell_layout,
-            value,
-            activation.machine.program.pointer_bytes(),
-        );
+    if activation.program.is_cell_type(ty) {
+        let cell_layout = require_cell_layout(activation.program, ty)?;
+        let bytes = encode_cell_bytes(cell_layout, value, activation.program.pointer_bytes());
 
         return Ok(bytes.as_slice().to_vec());
     }
@@ -213,13 +209,9 @@ fn store_argument_bytes(
     value: Cell,
     destination: &mut [u8],
 ) -> Result<(), Error> {
-    if activation.machine.program.is_cell_type(ty) {
-        let cell_layout = require_cell_layout(&activation.machine.program, ty)?;
-        let bytes = encode_cell_bytes(
-            cell_layout,
-            value,
-            activation.machine.program.pointer_bytes(),
-        );
+    if activation.program.is_cell_type(ty) {
+        let cell_layout = require_cell_layout(activation.program, ty)?;
+        let bytes = encode_cell_bytes(cell_layout, value, activation.program.pointer_bytes());
         if bytes.len() != destination.len() {
             return Err(Error::invalid_reference(ReferenceKind::Heap));
         }
@@ -288,7 +280,7 @@ pub(crate) fn frame_value_from_cell(
 
 /// Load one lowered frame slot into an owned value.
 fn load_frame_slot_value(frame: &Frame, slot: MoveSlot) -> FrameValue {
-    if slot.is_cell {
+    if slot.is_cell() {
         return FrameValue::cell(slot.ty, frame.read_cell_at(slot.offset));
     }
 
@@ -328,20 +320,20 @@ pub(crate) fn materialize_value(
 
             match boundary_address_space(program, value.ty)? {
                 AddressSpace::Local => {
-                    let plan = heap.options().allocation_plan_for_shape(shape);
+                    let plan = heap.options().allocation_plan(shape);
                     let reference = heap.allocate_bytes(plan, shape.trace_map, &bytes)?;
 
                     Ok(program::Value::HeapReference(reference))
                 }
                 AddressSpace::Shared => {
-                    let plan = shared.options().allocation_plan_for_shape(shape);
+                    let plan = shared.options().allocation_plan(shape);
                     let reference = shared.allocate_bytes(
                         shared_mark_worker,
                         shared_cache,
                         plan,
                         shape.trace_map,
                         &bytes,
-                        program.trace_table(),
+                        program.trace_maps(),
                     )?;
 
                     Ok(program::Value::SharedHeapReference(reference))
@@ -373,7 +365,7 @@ fn materialize_scalar_bytes(
     raw[..bytes.len()].copy_from_slice(bytes);
     let raw = u128::from_le_bytes(raw);
 
-    if is_signed {
+    if is_signed != 0 {
         let value = sign_extend_i128(raw, width);
 
         return Ok(Some(program::Value::Int { value, width }));
@@ -405,7 +397,7 @@ fn boundary_address_space(program: &Program, ty: TypeId) -> Result<AddressSpace,
                 Error::invalid_program(format!("missing reference address space for {ty:?}"))
             })?
         }
-        program::LayoutShape::Slice(slice) => slice.data.address_space().ok_or_else(|| {
+        program::LayoutShape::Slice(slice) => slice.reference.address_space().ok_or_else(|| {
             Error::invalid_program(format!("missing slice address space for {ty:?}"))
         })?,
         _ => AddressSpace::Local,
@@ -446,12 +438,12 @@ pub(crate) fn dematerialize_value(
 
 /// Return the lowered move slot for one program frame slot.
 pub(crate) fn move_slot_from_frame_slot(program: &Program, slot: &FrameSlot) -> MoveSlot {
-    MoveSlot {
-        ty: slot.ty,
-        offset: slot.offset,
-        byte_len: slot.byte_len,
-        is_cell: program.frame_slot_is_cell(slot),
-    }
+    MoveSlot::new(
+        slot.ty,
+        slot.offset,
+        slot.byte_len(),
+        program.frame_slot_is_cell(slot),
+    )
 }
 
 /// Store one two-field frame result in field order.
@@ -462,25 +454,19 @@ pub(crate) fn store_frame_pair(
     second: Cell,
 ) -> Result<(), Error> {
     let layout = activation.require_layout(destination.ty)?.clone();
-    let first_field = layout
-        .field_at(0)
+    let first_field = activation
+        .program
+        .layout_field_at(&layout, 0)
         .ok_or_else(|| Error::type_mismatch("2-field result", format!("{layout:?}")))?;
-    let second_field = layout
-        .field_at(1)
+    let second_field = activation
+        .program
+        .layout_field_at(&layout, 1)
         .ok_or_else(|| Error::type_mismatch("2-field result", format!("{layout:?}")))?;
 
-    let first_layout = require_cell_layout(&activation.machine.program, first_field.ty)?;
-    let second_layout = require_cell_layout(&activation.machine.program, second_field.ty)?;
-    let first_bytes = encode_cell_bytes(
-        first_layout,
-        first,
-        activation.machine.program.pointer_bytes(),
-    );
-    let second_bytes = encode_cell_bytes(
-        second_layout,
-        second,
-        activation.machine.program.pointer_bytes(),
-    );
+    let first_layout = require_cell_layout(activation.program, first_field.ty)?;
+    let second_layout = require_cell_layout(activation.program, second_field.ty)?;
+    let first_bytes = encode_cell_bytes(first_layout, first, activation.program.pointer_bytes());
+    let second_bytes = encode_cell_bytes(second_layout, second, activation.program.pointer_bytes());
 
     let first_offset = destination.offset + first_field.offset;
     let second_offset = destination.offset + second_field.offset;
@@ -542,14 +528,14 @@ fn dematerialize_scalar_bytes(
     let byte_len = (width as usize).div_ceil(8);
     let raw = match (is_signed, value) {
         (
-            true,
+            1,
             program::Value::Int {
                 value,
                 width: value_width,
             },
         ) if *value_width == width => *value as u128,
         (
-            false,
+            0,
             program::Value::UInt {
                 value,
                 width: value_width,
@@ -600,14 +586,14 @@ pub(crate) fn materialize_cell(
         }
         program::LayoutShape::Scalar(ScalarFormat::Int {
             width,
-            is_signed: true,
+            is_signed: 1,
         }) => Ok(program::Value::Int {
             value: value.as_i64() as i128,
             width: *width,
         }),
         program::LayoutShape::Scalar(ScalarFormat::Int {
             width,
-            is_signed: false,
+            is_signed: 0,
         }) => Ok(program::Value::UInt {
             value: value.as_u64() as u128,
             width: *width,
@@ -659,17 +645,18 @@ fn move_frame_slot(
     dest_frame: &mut Frame,
     destination: MoveSlot,
 ) -> Result<(), Error> {
-    if source.byte_len != destination.byte_len || source.is_cell != destination.is_cell {
+    if source.byte_len() != destination.byte_len() || source.is_cell() != destination.is_cell() {
         return Err(Error::type_mismatch(
             format!(
                 "{} bytes, cell={}",
-                destination.byte_len, destination.is_cell
+                destination.byte_len(),
+                destination.is_cell()
             ),
-            format!("{} bytes, cell={}", source.byte_len, source.is_cell),
+            format!("{} bytes, cell={}", source.byte_len(), source.is_cell()),
         ));
     }
 
-    if destination.is_cell {
+    if destination.is_cell() {
         let value = source_frame.read_cell_at(source.offset);
         dest_frame.write_cell_at(destination.offset, value);
 
@@ -684,7 +671,7 @@ fn move_frame_slot(
 
 /// Write void into one lowered frame slot.
 fn store_void_slot(frame: &mut Frame, destination: MoveSlot) {
-    if destination.is_cell {
+    if destination.is_cell() {
         frame.write_cell_at(destination.offset, Cell::ZERO);
 
         return;
@@ -696,7 +683,7 @@ fn store_void_slot(frame: &mut Frame, destination: MoveSlot) {
 /// Borrow one lowered frame slot.
 fn move_slot_bytes(frame: &Frame, slot: MoveSlot) -> &[u8] {
     let start = slot.offset as usize;
-    let end = start + slot.byte_len as usize;
+    let end = start + slot.byte_len() as usize;
 
     &frame.bytes()[start..end]
 }
@@ -704,7 +691,7 @@ fn move_slot_bytes(frame: &Frame, slot: MoveSlot) -> &[u8] {
 /// Borrow one lowered frame slot mutably.
 fn move_slot_bytes_mut(frame: &mut Frame, slot: MoveSlot) -> &mut [u8] {
     let start = slot.offset as usize;
-    let end = start + slot.byte_len as usize;
+    let end = start + slot.byte_len() as usize;
 
     &mut frame.bytes_mut()[start..end]
 }
@@ -743,13 +730,10 @@ pub(crate) fn move_values(
 ) -> Result<(), Error> {
     let pairs = moves.slice(move_pool);
     for pair in pairs {
-        match pair.source {
-            MoveSource::Slot(source) => {
-                move_frame_slot(source_frame, source, dest_frame, pair.dest)?;
-            }
-            MoveSource::Void => {
-                store_void_slot(dest_frame, pair.dest);
-            }
+        if let Some(source) = pair.source.as_slot() {
+            move_frame_slot(source_frame, source, dest_frame, pair.dest)?;
+        } else {
+            store_void_slot(dest_frame, pair.dest);
         }
     }
 
@@ -770,13 +754,13 @@ pub(crate) fn move_values_within_frame(
     // keep scalar edge moves on the cell-only path
     let mut is_cell_move = true;
     for pair in pairs {
-        if !pair.dest.is_cell {
+        if !pair.dest.is_cell() {
             is_cell_move = false;
             break;
         }
 
-        if let MoveSource::Slot(source) = pair.source
-            && !source.is_cell
+        if let Some(source) = pair.source.as_slot()
+            && !source.is_cell()
         {
             is_cell_move = false;
             break;
@@ -788,9 +772,10 @@ pub(crate) fn move_values_within_frame(
 
         // collect sources before writing destinations
         for pair in pairs {
-            let value = match pair.source {
-                MoveSource::Slot(source) => frame.read_cell_at(source.offset),
-                MoveSource::Void => Cell::ZERO,
+            let value = if let Some(source) = pair.source.as_slot() {
+                frame.read_cell_at(source.offset)
+            } else {
+                Cell::ZERO
             };
 
             values.push(value);
@@ -808,35 +793,34 @@ pub(crate) fn move_values_within_frame(
 
     // collect sources before writing destinations
     for pair in pairs {
-        let value = match pair.source {
-            MoveSource::Slot(source) => {
-                if source.byte_len != pair.dest.byte_len || source.is_cell != pair.dest.is_cell {
-                    return Err(Error::type_mismatch(
-                        format!("{} bytes, cell={}", pair.dest.byte_len, pair.dest.is_cell),
-                        format!("{} bytes, cell={}", source.byte_len, source.is_cell),
-                    ));
-                }
-
-                if source.is_cell {
-                    BufferedSlotValue::Cell(frame.read_cell_at(source.offset))
-                } else {
-                    let mut bytes = SmallVec::<[u8; 32]>::with_capacity(source.byte_len as usize);
-                    bytes.extend_from_slice(move_slot_bytes(frame, source));
-
-                    BufferedSlotValue::Bytes(bytes)
-                }
+        let value = if let Some(source) = pair.source.as_slot() {
+            if source.byte_len() != pair.dest.byte_len() || source.is_cell() != pair.dest.is_cell()
+            {
+                return Err(Error::type_mismatch(
+                    format!(
+                        "{} bytes, cell={}",
+                        pair.dest.byte_len(),
+                        pair.dest.is_cell()
+                    ),
+                    format!("{} bytes, cell={}", source.byte_len(), source.is_cell()),
+                ));
             }
-            MoveSource::Void => {
-                if pair.dest.is_cell {
-                    BufferedSlotValue::Cell(Cell::ZERO)
-                } else {
-                    let mut bytes =
-                        SmallVec::<[u8; 32]>::with_capacity(pair.dest.byte_len as usize);
-                    bytes.resize(pair.dest.byte_len as usize, 0);
 
-                    BufferedSlotValue::Bytes(bytes)
-                }
+            if source.is_cell() {
+                BufferedSlotValue::Cell(frame.read_cell_at(source.offset))
+            } else {
+                let mut bytes = SmallVec::<[u8; 32]>::with_capacity(source.byte_len() as usize);
+                bytes.extend_from_slice(move_slot_bytes(frame, source));
+
+                BufferedSlotValue::Bytes(bytes)
             }
+        } else if pair.dest.is_cell() {
+            BufferedSlotValue::Cell(Cell::ZERO)
+        } else {
+            let mut bytes = SmallVec::<[u8; 32]>::with_capacity(pair.dest.byte_len() as usize);
+            bytes.resize(pair.dest.byte_len() as usize, 0);
+
+            BufferedSlotValue::Bytes(bytes)
         };
 
         values.push(value);
@@ -883,9 +867,10 @@ pub(crate) fn load_moved_arguments(
     let pairs = moves.slice(move_pool);
     let mut arguments = SmallVec::with_capacity(pairs.len());
     for pair in pairs {
-        let value = match pair.source {
-            MoveSource::Slot(source) => load_frame_slot_value(frame, source),
-            MoveSource::Void => FrameValue::cell(pair.dest.ty, Cell::ZERO),
+        let value = if let Some(source) = pair.source.as_slot() {
+            load_frame_slot_value(frame, source)
+        } else {
+            FrameValue::cell(pair.dest.ty, Cell::ZERO)
         };
 
         arguments.push(value);
@@ -924,9 +909,9 @@ pub(crate) fn store_frame_slot_value(
     destination: MoveSlot,
     value: FrameValue,
 ) -> Result<(), Error> {
-    match (destination.is_cell, value.body) {
+    match (destination.is_cell(), value.body) {
         (true, FrameValueBody::Cell(value)) => frame.write_cell_at(destination.offset, value),
-        (false, FrameValueBody::Bytes(bytes)) if bytes.len() == destination.byte_len as usize => {
+        (false, FrameValueBody::Bytes(bytes)) if bytes.len() == destination.byte_len() as usize => {
             move_slot_bytes_mut(frame, destination).copy_from_slice(&bytes);
         }
         (false, FrameValueBody::Cell(value)) => {
@@ -943,7 +928,7 @@ pub(crate) fn store_frame_slot_value(
         }
         (false, FrameValueBody::Bytes(bytes)) => {
             return Err(Error::type_mismatch(
-                format!("{} frame bytes", destination.byte_len),
+                format!("{} frame bytes", destination.byte_len()),
                 format!("{} frame bytes", bytes.len()),
             ));
         }

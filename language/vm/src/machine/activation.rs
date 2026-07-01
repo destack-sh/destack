@@ -1,5 +1,6 @@
 use destack_heap::{AllocationCache, Heap, SharedHeap, SharedMarkWorker};
 use destack_program as program;
+use program::Program;
 
 use crate::diagnostic::Error;
 
@@ -7,6 +8,8 @@ use super::Machine;
 
 /// Active VM execution state.
 pub(crate) struct Activation<'run> {
+    /// Immutable program being executed.
+    pub(crate) program: &'run Program,
     /// The durable machine state being executed.
     pub(crate) machine: &'run mut Machine,
     /// Local static memory for this execution.
@@ -32,6 +35,7 @@ pub(crate) struct Activation<'run> {
 impl<'run> Activation<'run> {
     /// Bind durable machine state to runtime memory for execution.
     pub(crate) fn new(
+        program: &'run Program,
         machine: &'run mut Machine,
         local_static: &'run mut program::StaticSpace,
         shared_static: &'run mut program::StaticSpace,
@@ -41,6 +45,7 @@ impl<'run> Activation<'run> {
         shared_cache: &'run mut AllocationCache,
     ) -> Self {
         Self {
+            program,
             machine,
             local_static,
             shared_static,
@@ -64,7 +69,6 @@ impl<'run> Activation<'run> {
         let frame_base = frame.base_address();
         let frame_layout = frame.frame_layout();
         let _frame_layout = self
-            .machine
             .program
             .frame_layout_by_id(frame_layout)
             .ok_or(Error::invalid_instruction())?;

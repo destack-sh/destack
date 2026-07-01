@@ -9,7 +9,6 @@ use crate::machine::{Activation, Continuation, Frame, Machine, Outcome};
 use crate::options::LimitOptions;
 use destack_heap::{AllocationCache, Heap, SharedHeap, SharedMarkWorker};
 use destack_program::Program;
-use destack_program::vm::CallTarget;
 
 impl Machine {
     /// Execute a function by id.
@@ -67,12 +66,22 @@ impl Machine {
         self.reset_stack(limits)?;
 
         // resolve the function target before entering the main loop
-        match program.vm_functions().call_target(function_id) {
-            Some(CallTarget::Import) => {
+        match program.vm_call_target(function_id) {
+            Some(target) if target.is_import() => {
                 let name = program
-                    .functions()
-                    .get(function_id)
-                    .map(|function| function.name.clone())
+                    .function(function_id)
+                    .map(|function| {
+                        program
+                            .string(function.name)
+                            .map(str::to_owned)
+                            .ok_or_else(|| {
+                                self.runtime_error(Error::invalid_program(format!(
+                                    "missing function name string {:?}",
+                                    function.name
+                                )))
+                            })
+                    })
+                    .transpose()?
                     .ok_or_else(|| {
                         self.runtime_error(Error::invalid_program(format!(
                             "missing function tables for {function_id:?}"
@@ -81,7 +90,7 @@ impl Machine {
 
                 return Err(self.runtime_error(Error::import_forbidden(name)));
             }
-            Some(CallTarget::Local(_)) => {}
+            Some(_) => {}
 
             // reject missing functions loudly
             None => {
@@ -192,7 +201,7 @@ impl Machine {
     ) -> RuntimeResult<Outcome> {
         let frame_entry = program.frame_entry(frame_state);
         let received_value_slot = frame_entry
-            .and_then(|frame_entry| frame_entry.received_value)
+            .and_then(|frame_entry| frame_entry.received_value())
             .ok_or_else(|| self.runtime_error(Error::invalid_continuation()))?;
         let frame = self
             .frames
@@ -201,8 +210,8 @@ impl Machine {
         let layout = program
             .frame_layout_by_id(frame.frame_layout())
             .ok_or_else(|| self.runtime_error(Error::invalid_continuation()))?;
-        let received_slot = layout
-            .slot(received_value_slot)
+        let received_slot = program
+            .frame_slot(layout, received_value_slot)
             .ok_or_else(|| self.runtime_error(Error::invalid_continuation()))?;
         let received_type = received_slot.ty;
         let received_value =
@@ -222,6 +231,7 @@ impl Machine {
         })?;
 
         let mut activation = Activation::new(
+            program,
             self,
             statics,
             shared_static,
@@ -256,6 +266,7 @@ impl Machine {
             })?;
 
         let mut activation = Activation::new(
+            program,
             self,
             statics,
             shared_static,
@@ -289,11 +300,10 @@ impl Machine {
     ) -> RuntimeResult<Outcome> {
         // resolve the lowered entry tables
         let function = program
-            .vm_functions()
-            .function_by_id(function_id)
+            .vm_function_by_id(function_id)
             .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?;
-        let entry_block = function.entry;
-        let frame_layout = function.frame_layout;
+        let entry_block = function.function.entry;
+        let frame_layout = function.function.frame_layout;
         let frame_layout_ref = program
             .frame_layout_by_id(frame_layout)
             .ok_or_else(|| self.runtime_error(Error::invalid_instruction()))?;
@@ -301,7 +311,7 @@ impl Machine {
 
         // create the entry frame
         let frame = Frame::new(
-            function,
+            &function,
             entry_block,
             frame_layout_ref,
             stack_offset,
@@ -309,7 +319,7 @@ impl Machine {
         );
 
         // collect entry parameters before moving the frame onto the stack
-        let parameter_slice = function.parameters.slice(function.argument_pool.as_slice());
+        let parameter_slice = function.function.parameters.slice(function.argument_pool);
 
         // push the entry frame
         self.frames.push(frame);
@@ -323,6 +333,7 @@ impl Machine {
         }
 
         let mut activation = Activation::new(
+            program,
             self,
             statics,
             shared_static,
@@ -340,7 +351,7 @@ impl Machine {
         for (index, param) in parameter_slice.iter().enumerate() {
             let value = arguments[index];
 
-            if param.is_cell {
+            if param.is_cell() {
                 activation
                     .active_frame_mut()
                     .write_cell_at(param.offset, value);
@@ -350,7 +361,7 @@ impl Machine {
             let bytes = super::frame::encode_argument_bytes(&mut activation, param.ty, value)
                 .map_err(RuntimeError::new)?;
             let start = param.offset as usize;
-            let end = start + param.byte_len as usize;
+            let end = start + param.byte_len() as usize;
             let destination = activation
                 .active_frame_mut()
                 .bytes_mut()
@@ -397,8 +408,7 @@ impl Activation<'_> {
             };
 
             let current_func = program
-                .vm_functions()
-                .function_by_id(function_id)
+                .vm_function_by_id(function_id)
                 .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?;
 
             // run the current lowered block from the chosen instruction offset
@@ -433,14 +443,13 @@ impl Activation<'_> {
                 let function_id = frame.function();
 
                 program
-                    .vm_functions()
-                    .function_by_id(function_id)
+                    .vm_function_by_id(function_id)
                     .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?
             };
 
             // apply the transfer and stop once it produces an outcome
             if let Some(outcome) =
-                self.complete_transfer(program, limits, current_func, transfer)?
+                self.complete_transfer(program, limits, &current_func, transfer)?
             {
                 return Ok(outcome);
             }

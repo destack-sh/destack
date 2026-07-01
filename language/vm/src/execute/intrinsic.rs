@@ -35,10 +35,10 @@ fn load_intrinsic_arguments(
     let mut cells = SmallVec::with_capacity(argument_slice.len());
 
     for (argument, operand) in argument_slice.iter().zip(operands) {
-        if !argument.is_cell {
+        if !argument.is_cell() {
             return Err(Error::type_mismatch(
                 "cell intrinsic argument",
-                format!("{} frame bytes", argument.byte_len),
+                format!("{} frame bytes", argument.byte_len()),
             ));
         }
         let cell = activation.load_cell_at(argument.offset);

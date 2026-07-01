@@ -123,10 +123,10 @@ impl Runtime {
 
     /// Fork the benchmark heap with the machine trace table.
     pub(crate) fn fork_heap(&mut self) -> Heap {
-        let trace_table = self.machine.trace_table();
+        let trace_maps = self.machine.trace_maps();
 
         self.heap
-            .fork(trace_table)
+            .fork(trace_maps)
             .expect("benchmark heap should fork")
     }
 }

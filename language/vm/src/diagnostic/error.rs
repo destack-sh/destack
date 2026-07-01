@@ -1,7 +1,7 @@
 use destack_heap::{HeapError, HeapReferenceKind};
 use destack_memory::MemoryError;
 use destack_mir::{Block, Local, LocalNodeId, Value};
-use destack_program::{FunctionId, GlobalId, vm};
+use destack_program::{FunctionId, GlobalId, Signature, vm};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -46,6 +46,15 @@ pub enum ProgramError {
     UndefinedGlobal { global: GlobalId },
     /// Type mismatch during execution.
     TypeMismatch { expected: String, actual: String },
+    /// Function call signature does not match the target function.
+    FunctionSignatureMismatch {
+        /// The target function.
+        function: FunctionId,
+        /// Expected call signature.
+        expected: Signature,
+        /// Actual function signature.
+        actual: Signature,
+    },
     /// Invalid instruction.
     InvalidInstruction,
     /// Invalid field access.
@@ -179,6 +188,22 @@ impl Error {
             reason: ProgramError::TypeMismatch {
                 expected: expected.into(),
                 actual: actual.into(),
+            },
+        }
+    }
+
+    /// Return a function signature mismatch error.
+    #[inline]
+    pub fn function_signature_mismatch(
+        function: FunctionId,
+        expected: Signature,
+        actual: Signature,
+    ) -> Self {
+        Self::Program {
+            reason: ProgramError::FunctionSignatureMismatch {
+                function,
+                expected,
+                actual,
             },
         }
     }
@@ -501,6 +526,7 @@ impl ProgramError {
             Self::UndefinedValue { .. } => 1,
             Self::UndefinedBlock { .. } => 2,
             Self::TypeMismatch { .. } => 3,
+            Self::FunctionSignatureMismatch { .. } => 4,
             Self::InvalidInstruction => 11,
             Self::UndefinedLocal { .. } => 16,
             Self::InvalidFieldAccess { .. } => 17,
@@ -534,6 +560,15 @@ impl ProgramError {
             }
             Self::TypeMismatch { expected, actual } => {
                 format!("type mismatch: expected {expected}, got {actual}")
+            }
+            Self::FunctionSignatureMismatch {
+                function,
+                expected,
+                actual,
+            } => {
+                format!(
+                    "function signature mismatch: function {function:?} expected {expected:?}, got {actual:?}"
+                )
             }
             Self::InvalidInstruction => "invalid instruction".to_string(),
             Self::InvalidFieldAccess { index, field_count } => {
@@ -730,6 +765,11 @@ impl From<vm::Error> for Error {
     fn from(error: vm::Error) -> Self {
         match error {
             vm::Error::TypeMismatch { expected, actual } => Self::type_mismatch(expected, actual),
+            vm::Error::FunctionSignatureMismatch {
+                function,
+                expected,
+                actual,
+            } => Self::function_signature_mismatch(function, expected, actual),
             vm::Error::InvalidInstruction => Self::invalid_instruction(),
             vm::Error::InvalidCast => Self::invalid_cast(),
             vm::Error::InvalidFieldAccess { index, field_count } => {

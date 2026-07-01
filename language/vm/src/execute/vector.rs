@@ -174,7 +174,7 @@ fn load_vector_element(
     element_index: usize,
 ) -> Result<Cell, Error> {
     // compute the exact element address
-    let element_offset = element.byte_stride * element_index;
+    let element_offset = element.byte_stride() * element_index;
     let pointer = activation
         .frame_pointer_at(vector_offset)
         .add_bytes(element_offset);
@@ -198,7 +198,7 @@ where
     // write each result element by lowered frame layout
     for element_index in 0..element_count as usize {
         let value = element_value(activation, element_index)?;
-        let element_offset = dest_element.byte_stride * element_index;
+        let element_offset = dest_element.byte_stride() * element_index;
         let pointer = activation
             .frame_pointer_at(dest_offset)
             .add_bytes(element_offset);
@@ -216,6 +216,7 @@ fn execute_vector_binary_elements(
     operation: fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
+    let record = *activation.side::<VectorBinary>(instruction);
     let VectorBinary {
         dest_offset,
         left_offset,
@@ -226,20 +227,20 @@ fn execute_vector_binary_elements(
         kernel: _,
         element_layout,
         element_count,
-    } = activation.side::<VectorBinary>(instruction);
+    } = record;
 
     // execute the scalar operation on each vector element
     store_vector_elements(
         activation,
-        *dest_offset,
-        *dest_element,
-        *element_count,
+        dest_offset,
+        dest_element,
+        element_count,
         |activation, element_index| {
-            let left = load_vector_element(activation, *left_offset, *left_element, element_index)?;
+            let left = load_vector_element(activation, left_offset, left_element, element_index)?;
             let right =
-                load_vector_element(activation, *right_offset, *right_element, element_index)?;
+                load_vector_element(activation, right_offset, right_element, element_index)?;
 
-            operation(*element_layout, left, right)
+            operation(element_layout, left, right)
         },
     )?;
 
@@ -330,6 +331,7 @@ fn execute_vector_unary_elements(
     operation: fn(ScalarFormat, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
+    let record = *activation.side::<VectorUnary>(instruction);
     let VectorUnary {
         dest_offset,
         argument_offset,
@@ -338,23 +340,19 @@ fn execute_vector_unary_elements(
         kernel: _,
         element_layout,
         element_count,
-    } = activation.side::<VectorUnary>(instruction);
+    } = record;
 
     // execute the scalar operation on each vector element
     store_vector_elements(
         activation,
-        *dest_offset,
-        *dest_element,
-        *element_count,
+        dest_offset,
+        dest_element,
+        element_count,
         |activation, element_index| {
-            let value = load_vector_element(
-                activation,
-                *argument_offset,
-                *argument_element,
-                element_index,
-            )?;
+            let value =
+                load_vector_element(activation, argument_offset, argument_element, element_index)?;
 
-            operation(*element_layout, value)
+            operation(element_layout, value)
         },
     )?;
 
@@ -678,17 +676,18 @@ pub(crate) fn execute_vector_extract(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
+    let record = *activation.side::<VectorExtract>(instruction);
     let VectorExtract {
         dest_offset,
         vector_offset,
         index_offset,
         vector_element,
         element_count,
-    } = activation.side::<VectorExtract>(instruction);
+    } = record;
 
     // resolve and validate the dynamic element index
-    let index_value = cell_to_usize(activation.load_cell_at(*index_offset))?;
-    let element_count = *element_count as usize;
+    let index_value = cell_to_usize(activation.load_cell_at(index_offset))?;
+    let element_count = element_count as usize;
     if index_value >= element_count {
         return Err(Error::index_out_of_bounds(
             index_value as u64,
@@ -697,8 +696,8 @@ pub(crate) fn execute_vector_extract(
     }
 
     // load the selected element into the destination cell
-    let result = load_vector_element(activation, *vector_offset, *vector_element, index_value)?;
-    activation.store_cell_at(*dest_offset, result);
+    let result = load_vector_element(activation, vector_offset, vector_element, index_value)?;
+    activation.store_cell_at(dest_offset, result);
 
     Ok(())
 }
@@ -709,6 +708,7 @@ pub(crate) fn execute_vector_insert(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
+    let record = *activation.side::<VectorInsert>(instruction);
     let VectorInsert {
         dest_offset,
         vector_offset,
@@ -717,11 +717,10 @@ pub(crate) fn execute_vector_insert(
         dest_element,
         vector_element,
         element_count,
-    } = activation.side::<VectorInsert>(instruction);
+    } = record;
 
     // resolve and validate the dynamic element index
-    let index_value = cell_to_usize(activation.load_cell_at(*index_offset))?;
-    let element_count = *element_count;
+    let index_value = cell_to_usize(activation.load_cell_at(index_offset))?;
     let element_count_usize = element_count as usize;
 
     // reject out of bounds element indices
@@ -733,20 +732,20 @@ pub(crate) fn execute_vector_insert(
     }
 
     // read the inserted scalar once
-    let inserted_value = activation.load_cell_at(*value_offset);
+    let inserted_value = activation.load_cell_at(value_offset);
 
     // write the updated vector one element at a time
     store_vector_elements(
         activation,
-        *dest_offset,
-        *dest_element,
+        dest_offset,
+        dest_element,
         element_count,
         |activation, element_index| {
             if element_index == index_value {
                 return Ok(inserted_value);
             }
 
-            load_vector_element(activation, *vector_offset, *vector_element, element_index)
+            load_vector_element(activation, vector_offset, vector_element, element_index)
         },
     )?;
 
@@ -759,6 +758,7 @@ pub(crate) fn execute_vector_shuffle(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
+    let record = *activation.side::<VectorShuffle>(instruction);
     let VectorShuffle {
         dest_offset,
         left_offset,
@@ -769,18 +769,19 @@ pub(crate) fn execute_vector_shuffle(
         right_element,
         left_count,
         right_count,
-    } = activation.side::<VectorShuffle>(instruction);
-    let mask = activation.u32_range(*mask);
+    } = record;
+    let program = activation.program;
+    let mask = program.side_table().u32_range(program.sections(), mask);
 
     // resolve source ranges
-    let left_count = *left_count as usize;
-    let right_count = *right_count as usize;
+    let left_count = left_count as usize;
+    let right_count = right_count as usize;
 
     // write the shuffled elements directly
     store_vector_elements(
         activation,
-        *dest_offset,
-        *dest_element,
+        dest_offset,
+        dest_element,
         mask.len() as u32,
         |activation, element_index| {
             let index = *mask.get(element_index).ok_or(Error::index_out_of_bounds(
@@ -789,7 +790,7 @@ pub(crate) fn execute_vector_shuffle(
             ))? as usize;
 
             if index < left_count {
-                return load_vector_element(activation, *left_offset, *left_element, index);
+                return load_vector_element(activation, left_offset, left_element, index);
             }
 
             let right_index = index - left_count;
@@ -800,7 +801,7 @@ pub(crate) fn execute_vector_shuffle(
                 ));
             }
 
-            load_vector_element(activation, *right_offset, *right_element, right_index)
+            load_vector_element(activation, right_offset, right_element, right_index)
         },
     )?;
 
@@ -813,6 +814,7 @@ pub(crate) fn execute_vector_select(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
+    let record = *activation.side::<VectorSelect>(instruction);
     let VectorSelect {
         dest_offset,
         mask_offset,
@@ -823,20 +825,20 @@ pub(crate) fn execute_vector_select(
         then_element,
         else_element,
         element_count,
-    } = activation.side::<VectorSelect>(instruction);
+    } = record;
 
     // write the selected elements directly
     store_vector_elements(
         activation,
-        *dest_offset,
-        *dest_element,
-        *element_count,
+        dest_offset,
+        dest_element,
+        element_count,
         |activation, element_index| {
-            let mask = load_vector_element(activation, *mask_offset, *mask_element, element_index)?;
+            let mask = load_vector_element(activation, mask_offset, mask_element, element_index)?;
             let then_value =
-                load_vector_element(activation, *then_offset, *then_element, element_index)?;
+                load_vector_element(activation, then_offset, then_element, element_index)?;
             let else_value =
-                load_vector_element(activation, *else_offset, *else_element, element_index)?;
+                load_vector_element(activation, else_offset, else_element, element_index)?;
             let select = mask.as_bool();
 
             Ok(if select { then_value } else { else_value })
@@ -853,6 +855,7 @@ fn execute_vector_reduce_elements(
     operation: fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
+    let record = *activation.side::<VectorReduce>(instruction);
     let VectorReduce {
         dest_offset,
         vector_offset,
@@ -860,23 +863,22 @@ fn execute_vector_reduce_elements(
         vector_element,
         element_layout,
         element_count,
-    } = activation.side::<VectorReduce>(instruction);
+    } = record;
 
     // reject empty reductions
-    let element_count = *element_count as usize;
+    let element_count = element_count as usize;
     if element_count == 0 {
         return Err(Error::invalid_instruction());
     }
 
     // fold elements from left to right
-    let mut result = load_vector_element(activation, *vector_offset, *vector_element, 0)?;
+    let mut result = load_vector_element(activation, vector_offset, vector_element, 0)?;
     for element_index in 1..element_count {
-        let value =
-            load_vector_element(activation, *vector_offset, *vector_element, element_index)?;
-        result = operation(*element_layout, result, value)?;
+        let value = load_vector_element(activation, vector_offset, vector_element, element_index)?;
+        result = operation(element_layout, result, value)?;
     }
 
-    activation.store_cell_at(*dest_offset, result);
+    activation.store_cell_at(dest_offset, result);
 
     Ok(())
 }
@@ -920,6 +922,7 @@ fn execute_vector_convert_elements(
     convert: fn(Cell, ScalarFormat, ScalarFormat) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
+    let record = *activation.side::<VectorConvert>(instruction);
     let VectorConvert {
         dest_offset,
         vector_offset,
@@ -929,19 +932,19 @@ fn execute_vector_convert_elements(
         dest_layout,
         source_layout,
         element_count,
-    } = activation.side::<VectorConvert>(instruction);
+    } = record;
 
     // convert the elements one by one
     store_vector_elements(
         activation,
-        *dest_offset,
-        *dest_element,
-        *element_count,
+        dest_offset,
+        dest_element,
+        element_count,
         |activation, element_index| {
             let value =
-                load_vector_element(activation, *vector_offset, *source_element, element_index)?;
+                load_vector_element(activation, vector_offset, source_element, element_index)?;
 
-            convert(value, *source_layout, *dest_layout)
+            convert(value, source_layout, dest_layout)
         },
     )?;
 

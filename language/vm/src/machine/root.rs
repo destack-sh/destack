@@ -13,7 +13,7 @@ impl Frame {
     ) -> Result<(), Error> {
         let layout = frame_layout(program, self)?;
 
-        visit_frame_slots(layout, |slot| {
+        visit_frame_slots(program, layout, |slot| {
             visit_frame_slot_root_slots(program, slot, self.slot_bytes_mut(slot), visit)
         })
     }
@@ -27,7 +27,7 @@ impl Frame {
     ) -> Result<(), Error> {
         let layout = materialized_layout(program, materialization)?;
 
-        visit_materialized_slots(layout, materialization, |slot| {
+        visit_materialized_slots(program, layout, materialization, |slot| {
             visit_frame_slot_root_slots(program, slot, self.slot_bytes_mut(slot), visit)
         })
     }
@@ -35,21 +35,22 @@ impl Frame {
 
 /// Visit each full-frame root slot.
 fn visit_frame_slots(
+    program: &Program,
     layout: &FrameLayout,
     mut visit: impl FnMut(&FrameSlot) -> Result<(), Error>,
 ) -> Result<(), Error> {
     // ssa values
-    for slot in layout.values() {
+    for slot in program.frame_value_slots(layout) {
         visit(slot)?;
     }
 
     // locals
-    for slot in layout.locals() {
+    for slot in program.frame_local_slots(layout) {
         visit(slot)?;
     }
 
     // function environment
-    if let Some(slot) = layout.environment() {
+    if let Some(slot) = program.frame_environment_slot(layout) {
         visit(slot)?;
     }
 
@@ -58,12 +59,15 @@ fn visit_frame_slots(
 
 /// Visit each materialized frame slot once.
 pub(crate) fn visit_materialized_slots(
+    program: &Program,
     layout: &FrameLayout,
     materialization: &FrameMaterialization,
     mut visit: impl FnMut(&FrameSlot) -> Result<(), Error>,
 ) -> Result<(), Error> {
-    for slot in materialization.copied_slots() {
-        let slot = layout.slot(slot).ok_or(Error::invalid_continuation())?;
+    for slot in program.frame_copied_slots(materialization) {
+        let slot = program
+            .frame_slot(layout, *slot)
+            .ok_or(Error::invalid_continuation())?;
         visit(slot)?;
     }
 

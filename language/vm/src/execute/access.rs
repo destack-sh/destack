@@ -14,22 +14,22 @@ const POINTER_BYTE_LEN: usize = usize::BITS as usize / 8;
 #[inline(always)]
 fn debug_assert_cell_access(access: Projection) {
     debug_assert!(access.is_cell());
-    debug_assert!(access.byte_len <= Cell::BYTE_LEN);
+    debug_assert!(access.byte_len() <= Cell::BYTE_LEN);
 }
 
 /// Return one lowered scalar layout.
 #[inline(always)]
 fn scalar_format(access: Projection) -> CellLayout {
-    debug_assert!(access.cell_layout.is_some());
+    debug_assert!(access.cell_layout().is_some());
 
     // SAFETY: scalar projections are lowered with a cell layout and asserted in debug builds
-    unsafe { access.cell_layout.unwrap_unchecked() }
+    unsafe { access.cell_layout().unwrap_unchecked() }
 }
 
 /// Return one lowered slot layout.
 #[inline(always)]
 fn slot_layout(access: SlotProjection) -> CellLayout {
-    access.cell_layout
+    access.cell_layout()
 }
 
 /// Return one local heap native address.
@@ -194,7 +194,7 @@ pub(crate) fn load_raw_scalar_by_layout(
 ) -> Cell {
     debug_assert_cell_access(access);
 
-    let address = raw_address(pointer.as_address(), access.byte_offset);
+    let address = raw_address(pointer.as_address(), access.byte_offset());
 
     load_scalar_by_layout_at_address(address, scalar_format(access))
 }
@@ -207,7 +207,7 @@ pub(crate) fn store_raw_scalar_by_layout(
     value: Cell,
 ) {
     debug_assert_cell_access(access);
-    let address = raw_address(pointer.as_address(), access.byte_offset);
+    let address = raw_address(pointer.as_address(), access.byte_offset());
 
     store_scalar_by_layout_at_address(address, scalar_format(access), value);
 }
@@ -219,7 +219,7 @@ pub(crate) fn store_raw_bytes(
     access: Projection,
     bytes: &[u8],
 ) -> Result<(), Error> {
-    let address = raw_address(pointer.as_address(), access.byte_offset);
+    let address = raw_address(pointer.as_address(), access.byte_offset());
     store_native_bytes(address, bytes);
 
     Ok(())
@@ -234,7 +234,7 @@ pub(crate) fn load_raw_bytes(
     destination: *mut u8,
     destination_len: usize,
 ) -> Result<(), Error> {
-    let address = raw_address(pointer.as_address(), access.byte_offset);
+    let address = raw_address(pointer.as_address(), access.byte_offset());
     load_native_bytes(address, destination, destination_len);
 
     Ok(())
@@ -250,7 +250,7 @@ pub(crate) fn load_heap_bytes(
     destination_len: usize,
 ) -> Result<(), Error> {
     let reference = pointer.as_heap_reference();
-    let address = local_heap_address(activation, reference, access.byte_offset);
+    let address = local_heap_address(activation, reference, access.byte_offset());
     load_native_bytes(address, destination, destination_len);
 
     Ok(())
@@ -266,7 +266,7 @@ pub(crate) fn load_shared_heap_bytes(
     destination_len: usize,
 ) -> Result<(), Error> {
     let reference = pointer.as_shared_heap_reference();
-    let address = shared_heap_address(activation, reference, access.byte_offset);
+    let address = shared_heap_address(activation, reference, access.byte_offset());
     load_native_bytes(address, destination, destination_len);
 
     Ok(())
@@ -281,7 +281,7 @@ pub(crate) fn load_stack_bytes(
     destination: *mut u8,
     destination_len: usize,
 ) -> Result<(), Error> {
-    let pointer = pointer.add_bytes(access.byte_offset);
+    let pointer = pointer.add_bytes(access.byte_offset());
 
     load_native_bytes(pointer.address(), destination, destination_len);
     Ok(())
@@ -296,7 +296,7 @@ pub(crate) fn load_frame_bytes(
     destination: *mut u8,
     destination_len: usize,
 ) -> Result<(), Error> {
-    let pointer = pointer.add_bytes(access.byte_offset);
+    let pointer = pointer.add_bytes(access.byte_offset());
 
     load_native_bytes(pointer.address(), destination, destination_len);
     Ok(())
@@ -312,7 +312,7 @@ pub(crate) fn load_static_bytes(
     destination_len: usize,
 ) -> Result<(), Error> {
     let address = address
-        .add_bytes(access.byte_offset)
+        .add_bytes(access.byte_offset())
         .ok_or(Error::invalid_instruction())?;
     let address = activation.static_native_address(address, destination_len)?;
 
@@ -466,7 +466,7 @@ pub(crate) fn load_heap_scalar_by_layout(
     let reference = pointer.as_heap_reference();
 
     debug_assert_cell_access(access);
-    let address = local_heap_address(activation, reference, access.byte_offset);
+    let address = local_heap_address(activation, reference, access.byte_offset());
 
     load_scalar_by_layout_at_address(address, scalar_format(access))
 }
@@ -481,7 +481,7 @@ pub(crate) fn load_shared_heap_scalar_by_layout(
     let reference = pointer.as_shared_heap_reference();
 
     debug_assert_cell_access(access);
-    let address = shared_heap_address(activation, reference, access.byte_offset);
+    let address = shared_heap_address(activation, reference, access.byte_offset());
 
     load_scalar_by_layout_at_address(address, scalar_format(access))
 }
@@ -493,7 +493,7 @@ pub(crate) fn load_stack_scalar_by_layout(
     pointer: StackPointer,
     access: Projection,
 ) -> Cell {
-    let pointer = pointer.add_bytes(access.byte_offset);
+    let pointer = pointer.add_bytes(access.byte_offset());
 
     debug_assert_cell_access(access);
 
@@ -507,7 +507,7 @@ pub(crate) fn load_frame_scalar_by_layout(
     pointer: FramePointer,
     access: Projection,
 ) -> Cell {
-    let pointer = pointer.add_bytes(access.byte_offset);
+    let pointer = pointer.add_bytes(access.byte_offset());
 
     debug_assert_cell_access(access);
 
@@ -521,9 +521,9 @@ pub(crate) fn load_frame_slot_by_layout(
     pointer: FramePointer,
     access: SlotProjection,
 ) -> Cell {
-    let pointer = pointer.add_bytes(access.byte_offset);
+    let pointer = pointer.add_bytes(access.byte_offset());
 
-    debug_assert!(access.byte_len <= Cell::BYTE_LEN);
+    debug_assert!(access.byte_len() <= Cell::BYTE_LEN);
 
     load_scalar_by_layout_at_address(pointer.address(), slot_layout(access))
 }
@@ -536,9 +536,9 @@ pub(crate) fn load_static_scalar_by_layout(
     access: Projection,
 ) -> Result<Cell, Error> {
     let address = address
-        .add_bytes(access.byte_offset)
+        .add_bytes(access.byte_offset())
         .ok_or(Error::invalid_instruction())?;
-    let address = activation.static_native_address(address, access.byte_len)?;
+    let address = activation.static_native_address(address, access.byte_len())?;
 
     debug_assert_cell_access(access);
 
@@ -559,7 +559,7 @@ pub(crate) fn store_heap_scalar_by_layout(
     debug_assert_cell_access(access);
     let reference = pointer.as_heap_reference();
 
-    let start = access.byte_offset;
+    let start = access.byte_offset();
     let address = local_heap_address(activation, reference, start);
 
     store_scalar_by_layout_at_address(address, scalar_format(access), value);
@@ -575,7 +575,7 @@ pub(crate) fn store_heap_bytes(
 ) -> Result<(), Error> {
     let reference = pointer.as_heap_reference();
 
-    let start = access.byte_offset;
+    let start = access.byte_offset();
     let address = local_heap_address(activation, reference, start);
     store_native_bytes(address, bytes);
 
@@ -593,7 +593,7 @@ pub(crate) fn store_shared_heap_scalar_by_layout(
     debug_assert_cell_access(access);
     let reference = pointer.as_shared_heap_reference();
 
-    let start = access.byte_offset;
+    let start = access.byte_offset();
     let address = shared_heap_address(activation, reference, start);
 
     store_scalar_by_layout_at_address(address, scalar_format(access), value);
@@ -609,7 +609,7 @@ pub(crate) fn store_shared_heap_bytes(
 ) -> Result<(), Error> {
     let reference = pointer.as_shared_heap_reference();
 
-    let start = access.byte_offset;
+    let start = access.byte_offset();
     let address = shared_heap_address(activation, reference, start);
     store_native_bytes(address, bytes);
 
@@ -625,7 +625,7 @@ pub(crate) fn store_stack_scalar_by_layout(
     value: Cell,
 ) {
     debug_assert_cell_access(access);
-    let pointer = pointer.add_bytes(access.byte_offset);
+    let pointer = pointer.add_bytes(access.byte_offset());
 
     store_scalar_by_layout_at_address(pointer.address(), scalar_format(access), value);
 }
@@ -638,7 +638,7 @@ pub(crate) fn store_stack_bytes(
     access: Projection,
     bytes: &[u8],
 ) -> Result<(), Error> {
-    let pointer = pointer.add_bytes(access.byte_offset);
+    let pointer = pointer.add_bytes(access.byte_offset());
 
     store_native_bytes(pointer.address(), bytes);
 
@@ -654,7 +654,7 @@ pub(crate) fn store_frame_scalar_by_layout(
     value: Cell,
 ) {
     debug_assert_cell_access(access);
-    let pointer = pointer.add_bytes(access.byte_offset);
+    let pointer = pointer.add_bytes(access.byte_offset());
 
     store_scalar_by_layout_at_address(pointer.address(), scalar_format(access), value);
 }
@@ -667,9 +667,9 @@ pub(crate) fn store_frame_slot_by_layout(
     access: SlotProjection,
     value: Cell,
 ) {
-    let pointer = pointer.add_bytes(access.byte_offset);
+    let pointer = pointer.add_bytes(access.byte_offset());
 
-    debug_assert!(access.byte_len <= Cell::BYTE_LEN);
+    debug_assert!(access.byte_len() <= Cell::BYTE_LEN);
 
     store_scalar_by_layout_at_address(pointer.address(), slot_layout(access), value);
 }
@@ -684,9 +684,9 @@ pub(crate) fn store_static_scalar_by_layout(
 ) -> Result<(), Error> {
     debug_assert_cell_access(access);
     let address = address
-        .add_bytes(access.byte_offset)
+        .add_bytes(access.byte_offset())
         .ok_or(Error::invalid_instruction())?;
-    let address = activation.static_native_address_mut(address, access.byte_len)?;
+    let address = activation.static_native_address_mut(address, access.byte_len())?;
 
     store_scalar_by_layout_at_address(address, scalar_format(access), value);
     Ok(())
@@ -701,7 +701,7 @@ pub(crate) fn store_static_bytes(
     bytes: &[u8],
 ) -> Result<(), Error> {
     let address = address
-        .add_bytes(access.byte_offset)
+        .add_bytes(access.byte_offset())
         .ok_or(Error::invalid_instruction())?;
     let address = activation.static_native_address_mut(address, bytes.len())?;
 

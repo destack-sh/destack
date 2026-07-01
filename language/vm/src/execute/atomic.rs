@@ -210,7 +210,7 @@ fn truncate(raw: u64, width: AtomicWidth) -> u64 {
 fn atomic_load(address: usize, shape: AtomicShape) -> Result<u64, Error> {
     let order = shape.order.to_std_load()?;
 
-    // compiled layouts guarantee atomic width and alignment
+    // lowered layouts guarantee atomic width and alignment
     let value = match shape.width {
         AtomicWidth::Width8 => atomic_ref!(address, AtomicU8, u8).load(order) as u64,
         AtomicWidth::Width16 => atomic_ref!(address, AtomicU16, u16).load(order) as u64,
@@ -226,7 +226,7 @@ fn atomic_load(address: usize, shape: AtomicShape) -> Result<u64, Error> {
 fn atomic_store(address: usize, raw: u64, shape: AtomicShape) -> Result<(), Error> {
     let order = shape.order.to_std_store()?;
 
-    // compiled layouts guarantee atomic width and alignment
+    // lowered layouts guarantee atomic width and alignment
     match shape.width {
         AtomicWidth::Width8 => atomic_ref!(address, AtomicU8, u8).store(raw as u8, order),
         AtomicWidth::Width16 => atomic_ref!(address, AtomicU16, u16).store(raw as u16, order),
@@ -242,7 +242,7 @@ fn atomic_store(address: usize, raw: u64, shape: AtomicShape) -> Result<(), Erro
 fn atomic_exchange(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
     let order = shape.order.to_std();
 
-    // compiled layouts guarantee atomic width and alignment
+    // lowered layouts guarantee atomic width and alignment
     let value = match shape.width {
         AtomicWidth::Width8 => atomic_ref!(address, AtomicU8, u8).swap(raw as u8, order) as u64,
         AtomicWidth::Width16 => atomic_ref!(address, AtomicU16, u16).swap(raw as u16, order) as u64,
@@ -266,7 +266,7 @@ fn atomic_compare_exchange(
     let success = shape.order.to_std();
     let failure = failure_order.to_std_compare_exchange_failure()?;
 
-    // compiled layouts guarantee atomic width and alignment
+    // lowered layouts guarantee atomic width and alignment
     let value = match shape.width {
         AtomicWidth::Width8 if is_weak => match atomic_ref!(address, AtomicU8, u8)
             .compare_exchange_weak(expected as u8, new_value as u8, success, failure)
@@ -354,7 +354,7 @@ fn atomic_read_modify_write(
 fn atomic_fetch_add(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
     let order = shape.order.to_std();
 
-    // compiled layouts guarantee atomic width and alignment
+    // lowered layouts guarantee atomic width and alignment
     let value = match shape.width {
         AtomicWidth::Width8 => {
             atomic_ref!(address, AtomicU8, u8).fetch_add(raw as u8, order) as u64
@@ -376,7 +376,7 @@ fn atomic_fetch_add(address: usize, raw: u64, shape: AtomicShape) -> Result<u64,
 fn atomic_fetch_sub(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
     let order = shape.order.to_std();
 
-    // compiled layouts guarantee atomic width and alignment
+    // lowered layouts guarantee atomic width and alignment
     let value = match shape.width {
         AtomicWidth::Width8 => {
             atomic_ref!(address, AtomicU8, u8).fetch_sub(raw as u8, order) as u64
@@ -398,7 +398,7 @@ fn atomic_fetch_sub(address: usize, raw: u64, shape: AtomicShape) -> Result<u64,
 fn atomic_fetch_and(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
     let order = shape.order.to_std();
 
-    // compiled layouts guarantee atomic width and alignment
+    // lowered layouts guarantee atomic width and alignment
     let value = match shape.width {
         AtomicWidth::Width8 => {
             atomic_ref!(address, AtomicU8, u8).fetch_and(raw as u8, order) as u64
@@ -420,7 +420,7 @@ fn atomic_fetch_and(address: usize, raw: u64, shape: AtomicShape) -> Result<u64,
 fn atomic_fetch_or(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
     let order = shape.order.to_std();
 
-    // compiled layouts guarantee atomic width and alignment
+    // lowered layouts guarantee atomic width and alignment
     let value = match shape.width {
         AtomicWidth::Width8 => atomic_ref!(address, AtomicU8, u8).fetch_or(raw as u8, order) as u64,
         AtomicWidth::Width16 => {
@@ -440,7 +440,7 @@ fn atomic_fetch_or(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, 
 fn atomic_fetch_xor(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
     let order = shape.order.to_std();
 
-    // compiled layouts guarantee atomic width and alignment
+    // lowered layouts guarantee atomic width and alignment
     let value = match shape.width {
         AtomicWidth::Width8 => {
             atomic_ref!(address, AtomicU8, u8).fetch_xor(raw as u8, order) as u64
@@ -462,7 +462,7 @@ fn atomic_fetch_xor(address: usize, raw: u64, shape: AtomicShape) -> Result<u64,
 fn atomic_fetch_min(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
     let order = shape.order.to_std();
 
-    // compiled layouts guarantee atomic width and alignment
+    // lowered layouts guarantee atomic width and alignment
     let value = match shape.width {
         AtomicWidth::Width8 => {
             atomic_ref!(address, AtomicU8, u8).fetch_min(raw as u8, order) as u64
@@ -484,7 +484,7 @@ fn atomic_fetch_min(address: usize, raw: u64, shape: AtomicShape) -> Result<u64,
 fn atomic_fetch_max(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
     let order = shape.order.to_std();
 
-    // compiled layouts guarantee atomic width and alignment
+    // lowered layouts guarantee atomic width and alignment
     let value = match shape.width {
         AtomicWidth::Width8 => {
             atomic_ref!(address, AtomicU8, u8).fetch_max(raw as u8, order) as u64
@@ -506,7 +506,7 @@ fn atomic_fetch_max(address: usize, raw: u64, shape: AtomicShape) -> Result<u64,
 fn atomic_fetch_min_signed(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
     let order = shape.order.to_std();
 
-    // compiled layouts guarantee atomic width and alignment
+    // lowered layouts guarantee atomic width and alignment
     let value = match shape.width {
         AtomicWidth::Width8 => {
             atomic_ref!(address, AtomicI8, i8).fetch_min(raw as i8, order) as u8 as u64
@@ -530,7 +530,7 @@ fn atomic_fetch_min_signed(address: usize, raw: u64, shape: AtomicShape) -> Resu
 fn atomic_fetch_max_signed(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
     let order = shape.order.to_std();
 
-    // compiled layouts guarantee atomic width and alignment
+    // lowered layouts guarantee atomic width and alignment
     let value = match shape.width {
         AtomicWidth::Width8 => {
             atomic_ref!(address, AtomicI8, i8).fetch_max(raw as i8, order) as u8 as u64
@@ -588,7 +588,7 @@ where
     let success = shape.order.to_std();
     let failure = shape.order.to_std_update_failure();
 
-    // compiled layouts guarantee atomic width and alignment
+    // lowered layouts guarantee atomic width and alignment
     let atomic = atomic_ref!(address, AtomicU32, u32);
     let mut old = atomic.load(failure);
 
@@ -611,7 +611,7 @@ where
     let success = shape.order.to_std();
     let failure = shape.order.to_std_update_failure();
 
-    // compiled layouts guarantee atomic width and alignment
+    // lowered layouts guarantee atomic width and alignment
     let atomic = atomic_ref!(address, AtomicU64, u64);
     let mut old = atomic.load(failure);
 
