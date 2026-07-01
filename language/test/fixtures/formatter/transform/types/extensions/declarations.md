@@ -32,7 +32,7 @@ extension of Vector2 implements Add<Vector2> {}
 
 ### extension with multiline implements
 
-Long implements lists break after the keyword and indent each implemented type.
+Long implements lists break before the keyword and indent each implemented type.
 
 ```ds line-width=80
 extension<T> of Deque<T> implements Index<number>, IndexSet<number, T>, Iterable<T>, Iterable<&readonly T>, Extend<T, "exclusive"> {
@@ -41,12 +41,13 @@ extension<T> of Deque<T> implements Index<number>, IndexSet<number, T>, Iterable
 ```
 
 ```ds expected
-extension<T> of Deque<T> implements
-    Index<number>,
-    IndexSet<number, T>,
-    Iterable<T>,
-    Iterable<&readonly T>,
-    Extend<T, "exclusive"> {
+extension<T> of Deque<T>
+    implements
+        Index<number>,
+        IndexSet<number, T>,
+        Iterable<T>,
+        Iterable<&readonly T>,
+        Extend<T, "exclusive"> {
     index(index: number): T;
 }
 ```
@@ -100,8 +101,9 @@ extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N> impl
 ```
 
 ```ds expected
-extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N> implements
-    IndexSet<R, Slice<T>> where T: Copy {
+extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N>
+    implements
+        IndexSet<R, Slice<T>> where T: Copy {
     indexSet(&exclusive this, range: R, source: Slice<T>): void;
 }
 ```

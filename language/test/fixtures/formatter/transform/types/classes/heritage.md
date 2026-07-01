@@ -46,6 +46,27 @@ declare class Box<T> // box-head
 }
 ```
 
+### class with multiline implements
+
+Long implemented interface lists break before the keyword and indent each implemented type.
+
+```ts:main.ts line-width=60
+class Worker implements VeryLongInterfaceNameOne, VeryLongInterfaceNameTwo, VeryLongInterfaceNameThree {
+  value: string
+}
+```
+
+```ts expected
+class Worker
+    implements
+        VeryLongInterfaceNameOne,
+        VeryLongInterfaceNameTwo,
+        VeryLongInterfaceNameThree
+{
+    value: string;
+}
+```
+
 ## Class Heritage Comments
 
 ### class superclass boundary comment

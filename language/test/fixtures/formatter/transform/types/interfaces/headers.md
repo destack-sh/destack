@@ -119,6 +119,24 @@ export interface Foo {
 
 ## Line Breaking
 
+### interface with multiline extends
+
+Long extended interface lists break before the keyword and indent each extended type.
+
+```ds line-width=60
+interface Foo extends VeryLongBaseInterfaceNameOne, VeryLongBaseInterfaceNameTwo, VeryLongBaseInterfaceNameThree { value: string }
+```
+
+```ds expected
+interface Foo
+    extends
+        VeryLongBaseInterfaceNameOne,
+        VeryLongBaseInterfaceNameTwo,
+        VeryLongBaseInterfaceNameThree {
+    value: string;
+}
+```
+
 ### interface with many type params breaks
 
 When type parameters exceed the line width, they break to multiple lines.

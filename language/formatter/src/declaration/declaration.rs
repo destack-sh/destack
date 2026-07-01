@@ -545,6 +545,20 @@ pub(crate) fn format_super_type_clause_with_expand<'ast>(
     }
 }
 
+/// Format one extension declaration implements type list.
+fn format_extension_implements_types<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    types: &[LocalNodeId<TypeExpression>],
+) -> FormatResult<()> {
+    f.join_with(&format_args![token(","), soft_line_break_or_space()])
+        .entries(types.iter().copied().map(|type_id| {
+            format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+                write_type_expression_with_inline_prefix_annotations(f, type_id)
+            })
+        }))
+        .finish()
+}
+
 /// Format one extension declaration implements clause after one target group.
 fn format_extension_implements_clause<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -556,38 +570,40 @@ fn format_extension_implements_clause<'ast>(
         return Ok(());
     }
 
-    let flat_clause = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-        format_super_type_clause(f, Keyword::Implements, types)
-    });
-    let broken_target_clause = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+    let target_fits_clause = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
         let entries = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-            f.join_with(&format_args![token(","), soft_line_break_or_space()])
-                .entries(types.iter().copied().map(|type_id| {
-                    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                        write_type_expression_with_inline_prefix_annotations(f, type_id)
-                    })
-                }))
-                .finish()
+            format_extension_implements_types(f, types)
         });
 
         write!(
             f,
-            [
+            [group(&indent(&format_args![
+                soft_line_break_or_space(),
+                Keyword::Implements,
+                indent(&format_args![soft_line_break_or_space(), entries])
+            ]))]
+        )
+    });
+    let target_breaks_clause = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        let entries = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+            format_extension_implements_types(f, types)
+        });
+
+        write!(
+            f,
+            [indent(&format_args![
+                hard_line_break(),
                 Keyword::Implements,
                 group(&soft_line_indent_or_space(&entries))
-            ]
+            ])]
         )
     });
 
     write!(
         f,
         [
-            if_group_fits_on_line(&flat_clause).with_group_id(Some(target_group_id)),
-            if_group_breaks(&indent(&format_args![
-                hard_line_break(),
-                broken_target_clause
-            ]))
-            .with_group_id(Some(target_group_id))
+            if_group_fits_on_line(&target_fits_clause).with_group_id(Some(target_group_id)),
+            if_group_breaks(&target_breaks_clause).with_group_id(Some(target_group_id))
         ]
     )
 }
