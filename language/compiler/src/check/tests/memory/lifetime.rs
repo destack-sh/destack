@@ -42,17 +42,17 @@ struct Node {
 }
 
 function first(a: &Node, b: &Node): &Node {
-/// @generic.template symbol=first parameters=(comptime L0: Lifetime origin=induced.form, comptime L1: Lifetime origin=induced.form)
-/// @type.symbol symbol=first type=(Borrowed<Node, first.L0, "mutable">, Borrowed<Node, first.L1, "mutable">) => Borrowed<Node, first.L0, "mutable">
-/// @type.symbol symbol=a source="a: &Node" type=Borrowed<Node, first.L0, "mutable">
+/// @generic.template symbol=first parameters=(comptime L0: Lifetime, comptime L1: Lifetime)
+/// @type.symbol symbol=first type=<comptime first.L0: Lifetime, comptime first.L1: Lifetime>(Borrowed<Node, first.L0, "mutable">, Borrowed<Node, first.L1, "mutable">) => Borrowed<Node, first.L0, "mutable">
+/// @type.symbol symbol=first.a source="a: &Node" type=Borrowed<Node, first.L0, "mutable">
 /// @resolution.name source=Node target=Node
-/// @type.symbol symbol=b source="b: &Node" type=Borrowed<Node, first.L1, "mutable">
+/// @type.symbol symbol=first.b source="b: &Node" type=Borrowed<Node, first.L1, "mutable">
 /// @resolution.name source=Node target=Node
 /// @resolution.name source=Node target=Node
 
     return a;
     /// @type.node source=a type=Borrowed<Node, first.L0, "mutable">
-    /// @resolution.name source=a target=a
+    /// @resolution.name source=a target=first.a
 
 }
 "#);
@@ -101,23 +101,23 @@ struct Node {
 }
 
 function choose(a: &Node, b: &Node, flag: boolean): &Node {
-/// @generic.template symbol=choose parameters=(comptime L0: Lifetime origin=induced.form, comptime L1: Lifetime origin=induced.form)
-/// @type.symbol symbol=choose type=(Borrowed<Node, choose.L0, "mutable">, Borrowed<Node, choose.L1, "mutable">, boolean) => Borrowed<Node, choose.L0 | choose.L1, "mutable">
-/// @type.symbol symbol=a source="a: &Node" type=Borrowed<Node, choose.L0, "mutable">
+/// @generic.template symbol=choose parameters=(comptime L0: Lifetime, comptime L1: Lifetime)
+/// @type.symbol symbol=choose type=<comptime choose.L0: Lifetime, comptime choose.L1: Lifetime>(Borrowed<Node, choose.L0, "mutable">, Borrowed<Node, choose.L1, "mutable">, boolean) => Borrowed<Node, choose.L0 | choose.L1, "mutable">
+/// @type.symbol symbol=choose.a source="a: &Node" type=Borrowed<Node, choose.L0, "mutable">
 /// @resolution.name source=Node target=Node
-/// @type.symbol symbol=b source="b: &Node" type=Borrowed<Node, choose.L1, "mutable">
+/// @type.symbol symbol=choose.b source="b: &Node" type=Borrowed<Node, choose.L1, "mutable">
 /// @resolution.name source=Node target=Node
-/// @type.symbol symbol=flag source="flag: boolean" type=boolean
+/// @type.symbol symbol=choose.flag source="flag: boolean" type=boolean
 /// @resolution.name source=Node target=Node
 
     return flag ? a : b;
     /// @type.node source="flag ? a : b" type=Borrowed<Node, choose.L0, "mutable"> | Borrowed<Node, choose.L1, "mutable">
     /// @type.node source=flag type=boolean
-    /// @resolution.name source=flag target=flag
+    /// @resolution.name source=flag target=choose.flag
     /// @type.node source=a type=Borrowed<Node, choose.L0, "mutable">
-    /// @resolution.name source=a target=a
+    /// @resolution.name source=a target=choose.a
     /// @type.node source=b type=Borrowed<Node, choose.L1, "mutable">
-    /// @resolution.name source=b target=b
+    /// @resolution.name source=b target=choose.b
 
 }
 "#);
@@ -131,7 +131,10 @@ struct Node {
     id: int32;
 }
 
-declare function choose(a: &Node, b: &Node): &Node;
+declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>(
+    a: Borrowed<Node, L0, "mutable">,
+    b: Borrowed<Node, L1, "mutable">,
+): &Node;
 "#,
     );
 
@@ -144,7 +147,10 @@ struct Node {
     id: int32;
 }
 
-declare function choose(a: &Node, b: &Node): &Node;
+declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>(
+    a: Borrowed<Node, L0, "mutable">,
+    b: Borrowed<Node, L1, "mutable">,
+): &Node;
 
 === checked ===
 struct Node {
@@ -157,18 +163,35 @@ struct Node {
 
 }
 
-declare function choose(a: &Node, b: &Node): &Node;
-/// @generic.template symbol=choose parameters=(comptime L0: Lifetime origin=induced.form, comptime L1: Lifetime origin=induced.form, comptime L2: Lifetime origin=induced.form)
-/// @type.symbol symbol=choose source="declare function choose(a: &Node, b: &Node): &Node" type=(Borrowed<Node, choose.L0, "mutable">, Borrowed<Node, choose.L1, "mutable">) => Borrowed<Node, choose.L2, "mutable">
-/// @type.symbol symbol=a source="a: &Node" type=Borrowed<Node, choose.L0, "mutable">
+declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>(
+/// @generic.template symbol=choose parameters=(comptime L0: Lifetime, comptime L1: Lifetime)
+/// @type.symbol symbol=choose type=<comptime L0: Lifetime, comptime L1: Lifetime>(Borrowed<Node, L0, "mutable">, Borrowed<Node, L1, "mutable">) => Borrowed<Node, <error>, "mutable">
+/// @type.symbol symbol=choose.L0 source="comptime L0: Lifetime" type=L0
+/// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
+/// @type.symbol symbol=choose.L1 source="comptime L1: Lifetime" type=L1
+/// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
+
+    a: Borrowed<Node, L0, "mutable">,
+    /// @type.symbol symbol=choose.a source="a: Borrowed<Node, L0, \"mutable\">" type=Borrowed<Node, L0, "mutable">
+    /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+    /// @resolution.name source=Node target=Node
+    /// @resolution.name source=L0 target=choose.L0
+
+    b: Borrowed<Node, L1, "mutable">,
+    /// @type.symbol symbol=choose.b source="b: Borrowed<Node, L1, \"mutable\">" type=Borrowed<Node, L1, "mutable">
+    /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+    /// @resolution.name source=Node target=Node
+    /// @resolution.name source=L1 target=choose.L1
+
+): &Node;
 /// @resolution.name source=Node target=Node
-/// @type.symbol symbol=b source="b: &Node" type=Borrowed<Node, choose.L1, "mutable">
-/// @resolution.name source=Node target=Node
-/// @resolution.name source=Node target=Node
+
+/// @generic.instance id="Borrowed<Node, L0, \"mutable\">" template=memory.borrow.Borrowed arguments=(Node, L0, "mutable")
+/// @generic.instance id="Borrowed<Node, L1, \"mutable\">" template=memory.borrow.Borrowed arguments=(Node, L1, "mutable")
 "#,
         r#"
 /// @diagnostic.error code=EC614 message="ambient signatures must spell result lifetimes explicitly"
-/// @diagnostic.label line=6 column=1 source="declare function choose(a: &Node, b: &Node): &Node;"
+/// @diagnostic.label line=6 column=18 span="choose" line_source="declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>("
 "#,
     );
 }
@@ -232,8 +255,8 @@ struct AssetStore {
 }
 
 struct WorldView {
-/// @generic.template symbol=WorldView parameters=(comptime L0: Lifetime origin=induced.form, comptime L1: Lifetime origin=induced.form)
-/// @type.symbol symbol=WorldView type=WorldView<WorldView.L0, WorldView.L1>
+/// @generic.template symbol=WorldView parameters=(comptime L0: Lifetime, comptime L1: Lifetime)
+/// @type.symbol symbol=WorldView type=WorldView
 /// @definition.struct symbol=WorldView
 /// @definition.field symbol=WorldView.assets source="assets: &AssetStore" key=assets type=Borrowed<AssetStore, WorldView.L1, "mutable">
 /// @definition.field symbol=WorldView.engine source="engine: &Engine" key=engine type=Borrowed<Engine, WorldView.L0, "mutable">
