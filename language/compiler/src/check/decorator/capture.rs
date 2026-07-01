@@ -14,12 +14,22 @@ impl CheckState<'_> {
         let source = self
             .module(module)
             .symbol_declaration_node(symbol.local_id)?;
+        self.capture_directive_for_source(module, source)
+    }
+
+    /// Return the capture directive attached to one decorated source node.
+    pub(in crate::check) fn capture_directive_for_source(
+        &self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<Option<dir::CaptureDirective>> {
         let invocations = self.decorator_invocations(module, source);
         let mut directive = None;
 
         // use the last capture decorator in source order
         for invocation in invocations {
-            if self.decorator_item(module, &invocation) != Some(dir::LanguageItem::Capture) {
+            if self.decorator_language_item(module, &invocation) != Some(dir::LanguageItem::Capture)
+            {
                 continue;
             }
 
