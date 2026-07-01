@@ -40,6 +40,7 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
         dir::Type::Object => "object".to_string(),
         dir::Type::Primitive(primitive) => format_primitive_type(primitive),
         dir::Type::Literal(literal) => format_scalar_literal(literal, strings),
+        dir::Type::Key(key) => format_key_type(key, strings),
         dir::Type::Intrinsic => "intrinsic".to_string(),
         dir::Type::Operation(operation) => format_type_operation(operation, ctx),
         dir::Type::Parameter(parameter) => format_parameter_type(parameter, ctx),
@@ -178,6 +179,15 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
             }
             formatted.join(" & ")
         }
+    }
+}
+
+/// Format one exact property key type.
+fn format_key_type(key: &dir::StaticKey, strings: &StringPool) -> String {
+    match key {
+        dir::StaticKey::Name(name) => format!("\"{}\"", strings.get(*name)),
+        dir::StaticKey::Index(index) => index.to_string(),
+        dir::StaticKey::Symbol(symbol) => format_symbol_key(symbol, strings),
     }
 }
 
