@@ -1129,7 +1129,7 @@ pub enum WhileForm {
 }
 
 /// The kind of a for each expression.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ForEachOperator {
     /// Of expression.
     Of,
