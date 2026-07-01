@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_core::{Treap, TreapRoot};
+use destack_core::Treap;
 use destack_source::{ContentId, File, FileId, FileMetadata, FileType, PathExt, StringId, Uri};
 use rustc_hash::FxHashSet;
 
@@ -72,6 +72,22 @@ impl FileEntry {
 }
 
 impl Repository {
+    /// Return dense editable file bindings for one revision.
+    pub(crate) fn revision_files(
+        &self,
+        revision: Revision,
+    ) -> Result<Arc<[(FileId, FileEntry)]>, RepositoryError> {
+        let revision = self.revision(revision)?;
+        let cache = revision.cache();
+        let files = cache.files.get_or_init(|| {
+            let files = self.files.entries.entries(revision.files());
+
+            Arc::from(files.into_boxed_slice())
+        });
+
+        Ok(Arc::clone(files))
+    }
+
     /// Normalize one logical path for one workspace file path.
     #[track_caller]
     pub fn logical_path(&self, path: &Path) -> String {
@@ -243,10 +259,11 @@ impl Repository {
 
         let revision_state = self.revision(revision)?;
         let revision_cache = revision_state.cache();
+        let files = self.revision_files(revision)?;
         let normalized_path = path.normalize();
         let directory_paths = revision_cache
             .directory_paths
-            .get_or_init(|| Arc::new(self.directory_paths_for_files(revision_state.files())));
+            .get_or_init(|| Arc::new(self.directory_paths_for_files(files.as_ref())));
 
         // directory metadata
         if directory_paths.contains(&normalized_path) {
@@ -305,15 +322,13 @@ impl Repository {
         &self,
         revision: Revision,
     ) -> Result<Vec<(FileId, StringId)>, RepositoryError> {
-        let revision = self.revision(revision)?;
+        let files = self.revision_files(revision)?;
         let mut logical_paths = Vec::new();
 
         // collect editable file paths from the revision root
-        self.files
-            .entries
-            .visit(revision.files(), &mut |file_id, entry| {
-                logical_paths.push((*file_id, entry.logical_path));
-            });
+        for (file_id, entry) in files.iter().copied() {
+            logical_paths.push((file_id, entry.logical_path));
+        }
 
         Ok(logical_paths)
     }
@@ -321,13 +336,12 @@ impl Repository {
     /// Return the file ids visible in one revision.
     pub fn file_ids(&self, revision: Revision) -> Result<Vec<FileId>, RepositoryError> {
         // start with editable revision files
-        let revision = self.revision(revision)?;
-        let mut file_ids = Vec::new();
-        self.files
-            .entries
-            .visit(revision.files(), &mut |file_id, _entry| {
-                file_ids.push(*file_id)
-            });
+        let mut file_ids = self
+            .revision_files(revision)?
+            .iter()
+            .copied()
+            .map(|(file_id, _entry)| file_id)
+            .collect::<Vec<_>>();
 
         // append immutable builtin files
         file_ids.extend(self.builtin.files().iter().map(|builtin| builtin.file_id()));
@@ -338,13 +352,13 @@ impl Repository {
     }
 
     /// Build the workspace directory set for one revision.
-    fn directory_paths_for_files(&self, files: TreapRoot) -> FxHashSet<PathBuf> {
+    fn directory_paths_for_files(&self, files: &[(FileId, FileEntry)]) -> FxHashSet<PathBuf> {
         let mut directories = FxHashSet::default();
         directories.insert(self.root.normalize());
 
         // physical workspace directories
-        self.files.entries.visit(files, &mut |_file_id, entry| {
-            let path = self.file_entry_path(entry);
+        for (_file_id, entry) in files.iter().copied() {
+            let path = self.file_entry_path(&entry);
 
             let mut current = path.parent().map(Path::to_path_buf);
             while let Some(directory) = current {
@@ -361,7 +375,7 @@ impl Repository {
 
                 current = directory.parent().map(Path::to_path_buf);
             }
-        });
+        }
 
         directories
     }

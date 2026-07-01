@@ -105,9 +105,9 @@ impl Repository {
             .collect::<Vec<_>>();
 
         // collect source file contents from shared tree nodes once
-        self.files.entries.visit_unique_values(roots, &mut |entry| {
+        for entry in self.files.entries.unique_values(roots) {
             reachable.insert(entry.content_id);
-        });
+        }
 
         // artifact output contents
         for artifact_version in reachable_artifacts {

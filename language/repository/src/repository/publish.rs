@@ -71,26 +71,28 @@ impl Repository {
     {
         let base_revision = self.revision(base_revision_id)?;
         let (files, delta) = self.apply_edits(base_revision.files(), edits)?;
+        let base = RevisionBase::new(base_revision_id, delta);
         let revision = Arc::new(RevisionState::new(
             files,
             Arc::clone(&base_revision.environment),
-            [RevisionBase::new(base_revision_id, delta.clone())],
+            [base.clone()],
         ));
         let revision_id = revision.revision();
 
-        match self.revisions.entry(revision_id) {
+        let existing = match self.revisions.entry(revision_id) {
             // record another base for identical source states
-            Entry::Occupied(entry) => {
-                entry
-                    .get()
-                    .state()
-                    .add_bases([RevisionBase::new(base_revision_id, delta)]);
-            }
+            Entry::Occupied(entry) => Some(entry.get().state()),
 
             // publish a new source state
             Entry::Vacant(entry) => {
                 entry.insert(Arc::new(RevisionEntry::new(revision)));
+                None
             }
+        };
+
+        // record duplicate source-state bases after releasing the revision-map guard
+        if let Some(revision) = existing {
+            revision.add_bases([base]);
         }
 
         Ok(revision_id)
