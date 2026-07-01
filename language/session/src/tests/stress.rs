@@ -310,7 +310,7 @@ fn test_measure_check_after_single_module_edit() {
             .color()
             .timeline()
             .times()
-            .slow_attempts(8)
+            .slow_artifacts(8)
             .print();
     }
 }
