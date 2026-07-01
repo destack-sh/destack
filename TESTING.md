@@ -29,7 +29,6 @@ just language/test-grammar
 just language/test-conformance
 just language/test-conformance-ecma
 just language/test-conformance-formatter
-just language/update-conformance-catalog
 just language/generate-stress
 just language/test-stress
 just language/test-stress-parser

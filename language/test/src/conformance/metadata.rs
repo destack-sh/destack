@@ -1,13 +1,15 @@
-use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::{fmt, fs, io};
 
 use serde::{Deserialize, Serialize};
 
-use super::{StatusSet, status_json_path_for_dir};
+use crate::core::{Case, fixtures_dir as test_fixtures_dir};
 
 /// The `suite.json` file name.
 pub const SUITE_JSON_FILE_NAME: &str = "suite.json";
+
+/// The runnable tests directory name inside one suite root.
+pub const TESTS_DIRECTORY_NAME: &str = "tests";
 
 /// One conformance domain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
@@ -312,64 +314,27 @@ impl SuiteMetadata {
     }
 }
 
-/// One fully loaded conformance suite record.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConformanceSuiteRecord {
-    /// The suite directory under the conformance fixtures root.
-    pub directory: PathBuf,
-    /// The parsed suite metadata.
-    pub suite: SuiteMetadata,
-    /// The parsed status metadata.
-    pub statuses: StatusSet,
+/// Return the conformance fixtures root.
+pub fn fixtures_dir() -> PathBuf {
+    test_fixtures_dir().join("conformance")
 }
 
-/// One loaded conformance catalog.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConformanceCatalog {
-    /// The loaded suite records in stable order.
-    pub suites: Vec<ConformanceSuiteRecord>,
+/// Return one suite fixtures root.
+pub fn suite_fixtures_dir(suite: &str) -> PathBuf {
+    fixtures_dir().join(suite)
 }
 
-impl ConformanceCatalog {
-    /// Load one catalog from the provided fixtures root.
-    pub fn load(root: &Path) -> Result<Self, String> {
-        let suite_paths = discover_suite_metadata_paths(root)
-            .map_err(|error| format!("failed to discover {}: {error}", root.display()))?;
+/// Return one runnable tests root under one conformance suite.
+pub fn suite_tests_dir(suite: &str) -> PathBuf {
+    suite_fixtures_dir(suite).join(TESTS_DIRECTORY_NAME)
+}
 
-        let mut suites = Vec::with_capacity(suite_paths.len());
-        let mut ids = BTreeSet::new();
+/// Build one outer test case for one conformance suite.
+pub fn suite_case(domain: &str, suite: &str) -> Case {
+    let category = format!("destack_test::conformance::{domain}");
+    let path = suite_fixtures_dir(suite);
 
-        // load each declared suite
-        for suite_path in suite_paths {
-            let Some(directory) = suite_path.parent() else {
-                return Err(format!(
-                    "suite metadata path '{}' has no parent directory",
-                    suite_path.display()
-                ));
-            };
-
-            let suite = SuiteMetadata::load(&suite_path)?;
-            suite.validate(directory)?;
-
-            if !ids.insert(suite.id.clone()) {
-                return Err(format!("duplicate conformance suite id '{}'", suite.id));
-            }
-
-            let status_path = status_json_path_for_dir(directory);
-            let statuses = StatusSet::load(&status_path)?;
-
-            suites.push(ConformanceSuiteRecord {
-                directory: directory.to_path_buf(),
-                suite,
-                statuses,
-            });
-        }
-
-        // keep the catalog deterministic
-        suites.sort_by(|left, right| left.suite.id.cmp(&right.suite.id));
-
-        Ok(Self { suites })
-    }
+    Case::directory(suite, path, category)
 }
 
 /// Return the `suite.json` path for one suite directory.

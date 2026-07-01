@@ -57,7 +57,6 @@ just test-grammar
 just test-conformance
 just test-conformance-ecma
 just test-conformance-formatter
-just update-conformance-catalog
 
 # robustness
 just generate-stress
