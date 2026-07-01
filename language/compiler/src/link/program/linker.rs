@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use destack_core::StringPool;
 use destack_heap as heap;
 use destack_mir as mir;
-use destack_program::{FunctionId, GlobalId, Program, ProgramHeader, ProgramInfo, TypeId};
+use destack_program::{FunctionId, GlobalId, Program, ProgramHeader, TypeId};
 use destack_source::PackageId;
 
 use crate::{LinkError, LinkResult};
@@ -124,7 +124,7 @@ impl ProgramLinker {
             functions,
             dispatch,
             layouts.traces,
-            ProgramInfo::default(),
+            None,
             statics.constants,
             statics.shared,
             statics.local,

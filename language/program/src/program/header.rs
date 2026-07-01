@@ -40,8 +40,8 @@ pub struct ProgramHeader {
     pub traces: TraceTable,
     /// Program globals keyed by dense global id.
     pub globals: GlobalTable,
-    /// Program reflection table.
-    pub info: ProgramInfo,
+    /// Source reflection table when this program ships it.
+    pub info: Option<ProgramInfo>,
 
     /// Immutable constant storage owned by this program.
     pub constant_space: StaticImage,
@@ -71,7 +71,7 @@ impl ProgramHeader {
         dispatch: DispatchTable,
         traces: TraceTable,
         globals: GlobalTable,
-        info: ProgramInfo,
+        info: Option<ProgramInfo>,
         constant_space: StaticImage,
         shared_static_space: StaticImage,
         local_static_space: StaticImage,

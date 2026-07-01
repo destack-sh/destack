@@ -265,7 +265,7 @@ mod tests {
             dispatch,
             traces,
             globals,
-            info,
+            Some(info),
             constant_space,
             shared_static_space,
             local_static_space,
