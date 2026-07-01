@@ -1,7 +1,8 @@
 use super::conditional::ConditionalLayout;
 use crate::annotation::{
     FormatLeadingComments, FormatTrailingComments, format_node_with_trailing_comments,
-    infix_or_postfix_annotations, prefix_annotations, prefix_annotations_without_comments,
+    format_trailing_comments, infix_or_postfix_annotations, prefix_annotations,
+    prefix_annotations_without_comments,
 };
 use crate::collection::literal::format_scalar_literal;
 use crate::collection::{FormatSeparatedIter, TrailingSeparator, separated_entries};
@@ -29,7 +30,7 @@ use destack_dir::{
     RangeEnd, TokenSpan, TokenType, Tree, TreeStore, TupleElement, TypeExpression, TypeLiteral,
     TypeMappedParameter, TypeMember, VarianceBound, WhereClause,
 };
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::{Buffer, FormatNode as FirNode, FormatNodes, FormatResult};
 use destack_fir::prelude::{space, token, *};
 use destack_fir::{format_args, write};
 use destack_repository::TrailingComma;
@@ -120,6 +121,62 @@ struct LeadingCommentsInfo {
     has_end_of_line_comment: bool,
     has_trailing_own_line_block_comment: bool,
     has_trailing_own_line_jsdoc_comment: bool,
+}
+
+/// The object type body layout for type expression formatting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ObjectTypeBodyLayout {
+    /// Use the object type's local body rules.
+    Local,
+    /// Use grouped object body formatting.
+    Grouped,
+}
+
+/// One type expression layout.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct TypeExpressionLayout {
+    /// The derived-parentheses policy.
+    derived_parentheses: DerivedParentheses,
+    /// How object type bodies should be formatted.
+    object_body: ObjectTypeBodyLayout,
+}
+
+impl TypeExpressionLayout {
+    /// The standard type expression layout.
+    pub(crate) const DEFAULT: Self = Self {
+        derived_parentheses: DerivedParentheses::Allowed,
+        object_body: ObjectTypeBodyLayout::Local,
+    };
+
+    /// The standard layout without derived parentheses.
+    const WITHOUT_DERIVED_PARENTHESES: Self = Self {
+        derived_parentheses: DerivedParentheses::Suppressed,
+        object_body: ObjectTypeBodyLayout::Local,
+    };
+
+    /// Return this layout with grouped object type bodies.
+    const fn with_grouped_object_body(self) -> Self {
+        Self {
+            object_body: ObjectTypeBodyLayout::Grouped,
+            ..self
+        }
+    }
+}
+
+/// The derived-parentheses policy for a type expression.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DerivedParentheses {
+    /// Emit derived parentheses when precedence requires them.
+    Allowed,
+    /// Do not emit derived parentheses.
+    Suppressed,
+}
+
+impl DerivedParentheses {
+    /// Return whether derived parentheses may be emitted.
+    const fn is_allowed(self) -> bool {
+        matches!(self, Self::Allowed)
+    }
 }
 
 impl LeadingCommentsInfo {
@@ -535,28 +592,83 @@ fn intersection_type_is_object_like(expression: &TypeExpression) -> bool {
     )
 }
 
+/// Return the object body layout for object arms in one intersection.
+fn intersection_object_body_layout<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    elements: &[LocalNodeId<TypeExpression>],
+) -> FormatResult<ObjectTypeBodyLayout> {
+    for element_id in elements.iter().copied() {
+        let TypeExpression::Object { members } = f.context().tree.get(element_id) else {
+            continue;
+        };
+
+        if prepare_inline_type_object(f, element_id, members, TypeExpressionLayout::DEFAULT)?
+            .is_none()
+        {
+            return Ok(ObjectTypeBodyLayout::Grouped);
+        }
+    }
+
+    Ok(ObjectTypeBodyLayout::Local)
+}
+
+/// Write one type expression with an explicit layout and no trailing comments.
+fn write_type_expression_without_trailing_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<TypeExpression>,
+    layout: TypeExpressionLayout,
+) -> FormatResult<()> {
+    if !f.context().comments().has_comments() {
+        let expression = f.context().tree.get(node_id);
+
+        return write_type_expression_node(f, node_id, expression, layout);
+    }
+
+    let node_end = f.context().span(node_id).end;
+    let previous_limit = f
+        .context_mut()
+        .comments_mut()
+        .limit_comments_up_to(node_end);
+    let expression = f.context().tree.get(node_id);
+    let result = write_type_expression_node(f, node_id, expression, layout);
+
+    f.context_mut()
+        .comments_mut()
+        .restore_view_limit(previous_limit);
+
+    result
+}
+
 /// Write one intersection member with generated-node-style trailing comments.
 fn write_intersection_member<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     intersection_id: LocalNodeId<TypeExpression>,
     element_id: LocalNodeId<TypeExpression>,
     next_element_id: Option<LocalNodeId<TypeExpression>>,
+    object_body: ObjectTypeBodyLayout,
 ) -> FormatResult<()> {
+    let layout = match object_body {
+        ObjectTypeBodyLayout::Local => TypeExpressionLayout::DEFAULT,
+        ObjectTypeBodyLayout::Grouped => TypeExpressionLayout::DEFAULT.with_grouped_object_body(),
+    };
+
     if let Some(next_element_id) = next_element_id {
         let enclosing_span = f.context().span(intersection_id);
+        let element_span = f.context().span(element_id);
         let following_span_start = f.context().span(next_element_id).start;
 
         return write!(
             f,
-            [format_node_with_trailing_comments(
-                enclosing_span,
-                element_id,
-                following_span_start
-            )]
+            [
+                format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+                    write_type_expression_without_trailing_comments(f, element_id, layout)
+                }),
+                format_trailing_comments(enclosing_span, element_span, following_span_start)
+            ]
         );
     }
 
-    write!(f, [element_id])
+    write_type_expression_without_trailing_comments(f, element_id, layout)
 }
 
 /// Write one intersection type with object-chain layout.
@@ -570,6 +682,8 @@ fn write_intersection_type<'ast>(
         return write!(f, [token("&"), elements[0]]);
     }
 
+    let object_body = intersection_object_body_layout(f, elements)?;
+
     let format_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         let last_index = elements.len().saturating_sub(1);
         let mut previous_is_object_like = false;
@@ -582,7 +696,7 @@ fn write_intersection_type<'ast>(
 
             // first element stays inline
             if index == 0 {
-                write_intersection_member(f, node_id, element_id, next_element_id)?;
+                write_intersection_member(f, node_id, element_id, next_element_id, object_body)?;
             }
             // non-object edges use the standard breakable layout
             else if !(previous_is_object_like || is_object_like)
@@ -591,7 +705,7 @@ fn write_intersection_type<'ast>(
                     .has_leading_own_line_comment(f.context().span(element_id).start)
             {
                 let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                    write_intersection_member(f, node_id, element_id, next_element_id)
+                    write_intersection_member(f, node_id, element_id, next_element_id, object_body)
                 });
 
                 write!(f, [soft_line_indent_or_space(&content)])?;
@@ -606,12 +720,24 @@ fn write_intersection_type<'ast>(
 
                 if is_chain_indented {
                     let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                        write_intersection_member(f, node_id, element_id, next_element_id)
+                        write_intersection_member(
+                            f,
+                            node_id,
+                            element_id,
+                            next_element_id,
+                            object_body,
+                        )
                     });
 
                     write!(f, [indent(&content)])?;
                 } else {
-                    write_intersection_member(f, node_id, element_id, next_element_id)?;
+                    write_intersection_member(
+                        f,
+                        node_id,
+                        element_id,
+                        next_element_id,
+                        object_body,
+                    )?;
                 }
             }
 
@@ -804,6 +930,89 @@ fn type_object_should_hug(
         },
         _ => false,
     }
+}
+
+/// Return whether one object type is structurally eligible for direct inline formatting.
+fn type_object_allows_inline_body(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<TypeExpression>,
+    members: &[LocalNodeId<TypeMember>],
+) -> bool {
+    if members.len() != 1 {
+        return false;
+    }
+
+    let span = context.span(node_id);
+    if context
+        .source_text()
+        .has_newline_after_opening_brace(span.start)
+    {
+        return false;
+    }
+
+    if context.has_ignore_directive_markers() || context.comments().has_comment_in_span(span) {
+        return false;
+    }
+
+    true
+}
+
+/// Prepare a direct inline object body when it is measurable and fits.
+fn prepare_inline_type_object<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<TypeExpression>,
+    members: &[LocalNodeId<TypeMember>],
+    layout: TypeExpressionLayout,
+) -> FormatResult<Option<FirNode>> {
+    if layout.object_body != ObjectTypeBodyLayout::Local {
+        return Ok(None);
+    }
+
+    if !type_object_allows_inline_body(f.context(), node_id, members) {
+        return Ok(None);
+    }
+
+    let content =
+        format_with(|f: &mut DestackFormatter<'ast, '_>| write_inline_type_object(f, members[0]));
+
+    let snapshot = f.context().comments().snapshot();
+    let node = f.intern(&content);
+    f.context_mut().comments_mut().restore(snapshot);
+    let node = node?;
+
+    let Some(node) = node else {
+        return Ok(None);
+    };
+
+    let Some(width) = node.single_line_width() else {
+        return Ok(None);
+    };
+
+    if width <= f.context().options.line_width as u32 {
+        Ok(Some(node))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Write one direct inline object type body.
+fn write_inline_type_object<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    member_id: LocalNodeId<TypeMember>,
+) -> FormatResult<()> {
+    write!(f, [token("{")])?;
+
+    if f.context().options.bracket_spacing {
+        write!(f, [space()])?;
+    }
+
+    write!(f, [member_id])?;
+
+    if f.context().options.bracket_spacing {
+        write!(f, [space()])?;
+    }
+
+    write!(f, [token("}")])
 }
 
 /// Return whether one union should stay inline when it fits.
@@ -1327,7 +1536,7 @@ pub(crate) fn write_type_expression_without_prefix_annotations<'ast>(
     node_id: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(node_id);
-    write_type_expression_body(f, node_id, expression, false)?;
+    write_type_expression_body(f, node_id, expression, false, TypeExpressionLayout::DEFAULT)?;
     write!(f, [infix_or_postfix_annotations(f.context(), node_id)])
 }
 
@@ -1372,7 +1581,9 @@ fn write_type_expression_without_leading_comments<'ast>(
     node_id: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(node_id);
-    let needs_parentheses = type_expression_needs_parentheses_in_parent(f.context(), node_id);
+    let layout = TypeExpressionLayout::DEFAULT;
+    let needs_parentheses = layout.derived_parentheses.is_allowed()
+        && type_expression_needs_parentheses_in_parent(f.context(), node_id);
 
     write_type_expression_prefix_annotations(f, node_id)?;
 
@@ -1380,7 +1591,7 @@ fn write_type_expression_without_leading_comments<'ast>(
         write!(f, [token("(")])?;
     }
 
-    write_type_expression_body(f, node_id, expression, false)?;
+    write_type_expression_body(f, node_id, expression, false, layout)?;
 
     if needs_parentheses {
         write!(f, [token(")")])?;
@@ -1394,9 +1605,9 @@ pub(crate) fn write_type_expression_node<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     expression: &TypeExpression,
-    allow_derived_parentheses: bool,
+    layout: TypeExpressionLayout,
 ) -> FormatResult<()> {
-    let needs_parentheses = allow_derived_parentheses
+    let needs_parentheses = layout.derived_parentheses.is_allowed()
         && type_expression_needs_parentheses_in_parent(f.context(), node_id);
 
     // prefix annotations
@@ -1411,7 +1622,13 @@ pub(crate) fn write_type_expression_node<'ast>(
     }
 
     // body
-    write_type_expression_body(f, node_id, expression, !allow_derived_parentheses)?;
+    write_type_expression_body(
+        f,
+        node_id,
+        expression,
+        layout.derived_parentheses == DerivedParentheses::Suppressed,
+        layout,
+    )?;
 
     // derived parentheses
     if needs_parentheses {
@@ -1437,7 +1654,14 @@ fn write_postfix_type_operand<'ast>(
             f,
             [group(&format_args![
                 token("("),
-                format_with(|f| write_type_expression_node(f, expression_id, expression, false)),
+                format_with(|f| {
+                    write_type_expression_node(
+                        f,
+                        expression_id,
+                        expression,
+                        TypeExpressionLayout::WITHOUT_DERIVED_PARENTHESES,
+                    )
+                }),
                 soft_line_break(),
                 token(")")
             ])]
@@ -2563,6 +2787,7 @@ pub(crate) fn write_type_expression_body<'ast>(
     node_id: LocalNodeId<TypeExpression>,
     expression: &TypeExpression,
     is_in_explicit_parentheses: bool,
+    layout: TypeExpressionLayout,
 ) -> FormatResult<()> {
     destack_core::ensure_sufficient_stack(|| {
         write_type_expression_body_at_current_stack(
@@ -2570,6 +2795,7 @@ pub(crate) fn write_type_expression_body<'ast>(
             node_id,
             expression,
             is_in_explicit_parentheses,
+            layout,
         )
     })
 }
@@ -2580,6 +2806,7 @@ fn write_type_expression_body_at_current_stack<'ast>(
     node_id: LocalNodeId<TypeExpression>,
     expression: &TypeExpression,
     is_in_explicit_parentheses: bool,
+    layout: TypeExpressionLayout,
 ) -> FormatResult<()> {
     match expression {
         TypeExpression::Parenthesized { expression } => {
@@ -2625,6 +2852,12 @@ fn write_type_expression_body_at_current_stack<'ast>(
             // empty body
             if members.is_empty() {
                 write!(f, [token("{}")])?;
+                return Ok(());
+            }
+
+            // direct inline body
+            if let Some(node) = prepare_inline_type_object(f, node_id, members, layout)? {
+                f.write_node(node);
                 return Ok(());
             }
 
@@ -2947,7 +3180,7 @@ impl<'ast> FormatNode<'ast, TypeExpression> for TypeExpression {
             return write_ignored_node(f, node_id);
         }
 
-        write_type_expression_node(f, node_id, self, true)
+        write_type_expression_node(f, node_id, self, TypeExpressionLayout::DEFAULT)
     }
 }
 

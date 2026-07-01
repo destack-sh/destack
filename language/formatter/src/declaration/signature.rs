@@ -4,7 +4,7 @@ use crate::annotation::{
 };
 use crate::collection::{FormatSeparatedIter, TrailingSeparator, separated_entries};
 use crate::context::PreparedFormat;
-use crate::expression::write_type_expression_node;
+use crate::expression::{TypeExpressionLayout, write_type_expression_node};
 use crate::operator::{
     write_colon_prefixed_type_annotation, write_type_annotation_prefix,
     write_type_expression_with_inline_prefix_annotations,
@@ -252,7 +252,12 @@ where
         }
 
         let return_type_expression = f.context().tree.get::<TypeExpression>(return_type);
-        write_type_expression_node(f, return_type, return_type_expression, true)
+        write_type_expression_node(
+            f,
+            return_type,
+            return_type_expression,
+            TypeExpressionLayout::DEFAULT,
+        )
     } else {
         write_colon_prefixed_type_annotation(f, return_type)
     }

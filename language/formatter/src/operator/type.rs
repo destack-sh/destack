@@ -1,7 +1,9 @@
 use crate::annotation::{
     FormatLeadingComments, FormatTrailingComments, format_node_with_trailing_comments,
 };
-use crate::expression::{write_expression_without_trailing_comments, write_type_expression_node};
+use crate::expression::{
+    TypeExpressionLayout, write_expression_without_trailing_comments, write_type_expression_node,
+};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Expression, GenericArgument, LocalNodeId, NodeType, TypeExpression, TypeLiteral,
@@ -18,7 +20,7 @@ pub(crate) fn write_type_expression_with_inline_prefix_annotations<'ast>(
     node_id: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(node_id);
-    write_type_expression_node(f, node_id, expression, true)
+    write_type_expression_node(f, node_id, expression, TypeExpressionLayout::DEFAULT)
 }
 
 /// Write one type annotation prefix.

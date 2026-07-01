@@ -123,6 +123,19 @@ type B = T | {};
     );
 }
 
+/// Single member object intersection arms should inline from formatted width, not source width.
+#[test]
+fn test_format_type_object_intersection_ignores_source_spacing_width() {
+    assert_format_program!(
+        r#"type WithCreated = {                                      created: int32                                      } & HasMeta
+"#,
+        r#"type WithCreated = { created: int32 } & HasMeta;
+"#,
+        FileType::Destack,
+        DestackFormatOptions::default_with_line_width(80)
+    );
+}
+
 /// Anonymous object generic type arguments should not need a marker.
 #[test]
 fn test_format_type_object_generic_argument_marker() {
