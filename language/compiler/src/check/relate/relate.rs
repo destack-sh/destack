@@ -3,13 +3,13 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, AutoInterface, AutoInterfaceObligation, CheckState, ConstraintState, Dependency,
-    Obligation, Origin, Relation, RepresentationObligation, ValueUse, answer,
+    Answer, AutoInterface, AutoInterfaceObligation, CheckState, ConstraintState, ConstraintSubject,
+    Dependency, Obligation, Origin, Relation, RepresentationObligation, ValueUse, answer,
 };
 
 impl CheckState<'_> {
     /// Enforce one applied generic argument against its declared constraint.
-    pub(in crate::check) fn constrain_generic_argument(
+    pub(in crate::check) fn constrain_generic_bound(
         &mut self,
         origin: Origin,
         source: dir::GlobalNodeIdAny,
@@ -18,8 +18,24 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         let constraint = answer!(self.reduce_type_head(origin, constraint)?);
 
-        // dispatch compiler-known constraints
-        match self.constraint_language_item(constraint)? {
+        // normalize compiler-known static domains before checking bounds
+        let item = self
+            .type_symbol(constraint)?
+            .map(|symbol| self.language_item(symbol))
+            .transpose()?
+            .flatten();
+
+        match item {
+            Some(
+                item @ (dir::LanguageItem::Access
+                | dir::LanguageItem::Lifetime
+                | dir::LanguageItem::Place
+                | dir::LanguageItem::Space),
+            ) => {
+                let argument = self.normalize_memory_domain_value(origin, argument, item)?;
+
+                self.constrain(origin, Relation::Satisfies, argument, constraint)
+            }
             Some(dir::LanguageItem::Concrete) => {
                 self.push_obligation(Obligation::Representation(RepresentationObligation {
                     source,
@@ -39,19 +55,6 @@ impl CheckState<'_> {
             }
             _ => self.constrain(origin, Relation::Satisfies, argument, constraint),
         }
-    }
-
-    /// Return the language item named by one constraint type.
-    fn constraint_language_item(
-        &mut self,
-        constraint: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::LanguageItem>> {
-        let item = match self.ty(constraint)? {
-            dir::Type::Instance(instance) => self.language_item(instance.symbol)?,
-            _ => None,
-        };
-
-        Ok(item)
     }
 
     /// Return the call signature carried by one callable value representation.
@@ -96,14 +99,14 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<ConstraintState>> {
         let holds = answer!(self.constrain(origin, relation, left, right)?);
 
-        // reject extra fields only for direct object literal flows
+        // reject extra fields only for direct property literal flows
         if holds
             && matches!(
                 relation,
                 Relation::Assignable | Relation::Writable | Relation::Satisfies
             )
             && self
-                .object_literal_excess_property(origin, left, right)?
+                .property_literal_excess_property(origin, left, right)?
                 .is_some()
         {
             self.report_relation_failure(origin, relation, value_use, left, right)?;
@@ -114,6 +117,36 @@ impl CheckState<'_> {
         // report the ordinary failed relation
         if !holds {
             self.report_relation_failure(origin, relation, value_use, left, right)?;
+
+            return Ok(Answer::Ready(ConstraintState::Fails));
+        }
+
+        Ok(Answer::Ready(ConstraintState::Holds))
+    }
+
+    /// Apply one type constraint and report failed closed checks.
+    pub(in crate::check) fn apply_type_constraint(
+        &mut self,
+        origin: Origin,
+        relation: Relation,
+        subject: Option<ConstraintSubject>,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<ConstraintState>> {
+        let Some(subject) = subject else {
+            return self.apply_relation(origin, relation, None, left, right);
+        };
+
+        let holds = match subject {
+            ConstraintSubject::GenericArgument { source } => {
+                answer!(self.constrain_generic_bound(origin, source, left, right)?)
+            }
+        };
+        if !holds {
+            let origin = match subject {
+                ConstraintSubject::GenericArgument { source } => Origin::Node(source),
+            };
+            self.report_relation_failure(origin, relation, None, left, right)?;
 
             return Ok(Answer::Ready(ConstraintState::Fails));
         }
@@ -187,25 +220,34 @@ impl CheckState<'_> {
 
                 Ok(Answer::Pending(blockers))
             }
-            // decide closed relations
+            // decompose open composites before full graph reduction
             (None, None, _) => {
-                // reduce closed operands before comparing relation truth
-                let left = answer!(self.reduce_type(origin, left)?);
-                let right = answer!(self.reduce_type(origin, right)?);
-
-                // push bounds into open leaves under matching closed
-                // composites; writable flows and cast targets fill
-                // leaves like value constraints
                 let structural = match relation {
                     Relation::Writable | Relation::Castable => Relation::Assignable,
                     relation => relation,
                 };
-                if matches!(structural, Relation::Equal | Relation::Assignable)
-                    && let Some(answer) =
-                        self.constrain_structural(origin, structural, left, right)?
+
+                // reduce aliases and intrinsics at the root only
+                let left = answer!(self.reduce_type_head(origin, left)?);
+                let right = answer!(self.reduce_type_head(origin, right)?);
+
+                // push bounds into known composites that still contain holes
+                if !self.type_variables(left)?.is_empty() || !self.type_variables(right)?.is_empty()
                 {
-                    return Ok(answer);
+                    return match structural {
+                        Relation::Equal | Relation::Assignable => {
+                            match self.constrain_structural(origin, structural, left, right)? {
+                                Some(answer) => Ok(answer),
+                                None => Ok(self.pending_on_open_leaves(left, right)?),
+                            }
+                        }
+                        _ => Ok(self.pending_on_open_leaves(left, right)?),
+                    };
                 }
+
+                // reduce closed operands before comparing relation truth
+                let left = answer!(self.reduce_type(origin, left)?);
+                let right = answer!(self.reduce_type(origin, right)?);
 
                 self.decide_relation(origin, relation, left, right)
             }
@@ -334,7 +376,7 @@ impl CheckState<'_> {
                     pairs.push((relation, left, right));
                 }
             }
-            // wrappers relate payloads directly, borrows bind their slots
+            // memory forms relate payloads directly, borrows bind their slots
             (dir::Type::Form(left), dir::Type::Form(right))
                 if std::mem::discriminant(&left.form) == std::mem::discriminant(&right.form) =>
             {

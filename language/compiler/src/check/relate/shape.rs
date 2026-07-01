@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation, SubscriptProtocol, answer};
+use crate::check::{Answer, CheckState, Origin, Relation, answer};
 
 impl CheckState<'_> {
     /// Return whether one type can be used as a property key.
@@ -11,7 +11,7 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let ty = answer!(self.reduce_type_root(origin, ty)?);
+        let ty = answer!(self.reduce_type_head(origin, ty)?);
 
         let result = match self.ty(ty)?.clone() {
             dir::Type::Any | dir::Type::Parameter(_) => true,
@@ -28,6 +28,8 @@ impl CheckState<'_> {
                     dir::ScalarLiteral::String(_) | dir::ScalarLiteral::Integer(_)
                 )
             }
+            dir::Type::Key(_) => true,
+            dir::Type::Instance(_) => self.static_key_from_type(ty)?.is_some(),
             dir::Type::Union(union) => {
                 let mut is_key = true;
                 for element in union.elements {
@@ -51,7 +53,7 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let ty = answer!(self.reduce_type_root(origin, ty)?);
+        let ty = answer!(self.reduce_type_head(origin, ty)?);
 
         let result = match self.ty(ty)?.clone() {
             dir::Type::Any | dir::Type::Object | dir::Type::Parameter(_) => true,
@@ -129,25 +131,76 @@ impl CheckState<'_> {
             else {
                 return Ok(Answer::Ready(false));
             };
-            if source.form != target.form || source.elements.len() != target.elements.len() {
+            if source.form != target.form {
                 return Ok(Answer::Ready(false));
             }
 
             let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>::new();
-            for (source, target) in source.elements.iter().zip(&target.elements) {
-                if source.is_rest != target.is_rest
+            let mut source_index = 0usize;
+            for target in &target.elements {
+                // rest targets consume every remaining source element
+                if target.is_rest {
+                    let target_element = self.spread_element_type(target.ty)?;
+                    while let Some(source) = source.elements.get(source_index) {
+                        if source.is_readonly && !target.is_readonly {
+                            return Ok(Answer::Ready(false));
+                        }
+
+                        let target = if source.is_rest {
+                            target.ty
+                        } else {
+                            target_element
+                        };
+                        pairs.push((source.ty, target));
+                        source_index += 1;
+                    }
+
+                    return self.decide_each(origin, Relation::Assignable, &pairs);
+                }
+
+                // omitted source elements satisfy optional target elements
+                let Some(source) = source.elements.get(source_index) else {
+                    if target.is_optional {
+                        continue;
+                    }
+
+                    return Ok(Answer::Ready(false));
+                };
+
+                // open source rests cannot prove individual fixed elements
+                if source.is_rest
                     || source.is_readonly && !target.is_readonly
                     || source.is_optional && !target.is_optional
                 {
                     return Ok(Answer::Ready(false));
                 }
+
                 pairs.push((source.ty, target.ty));
+                source_index += 1;
+            }
+
+            if source_index != source.elements.len() {
+                return Ok(Answer::Ready(false));
             }
 
             pairs
         };
 
         self.decide_each(origin, Relation::Assignable, &pairs)
+    }
+
+    /// Return the item type yielded when one spread or rest container expands.
+    pub(in crate::check) fn spread_element_type(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let element = match self.ty(ty)? {
+            dir::Type::Array(array) => array.element,
+            dir::Type::Slice(slice) => slice.element,
+            _ => ty,
+        };
+
+        Ok(element)
     }
 
     /// Decide exact equality of two structural shapes.
@@ -215,8 +268,8 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        // match members and collect demands in one pure pass
-        let (pairs, demands, index_signatures) = {
+        // match members and collect signature requirements
+        let (pairs, signature_requirements, index_signatures) = {
             let (dir::Type::Shape(source), dir::Type::Shape(target)) =
                 (self.ty(source)?, self.ty(target)?)
             else {
@@ -250,19 +303,19 @@ impl CheckState<'_> {
             }
 
             // require each target signature from any source signature
-            let mut demands =
+            let mut signature_requirements =
                 SmallVec::<[(SmallVec<[dir::GlobalTypeId; 2]>, dir::GlobalTypeId); 2]>::new();
             for target_signature in target.call_signatures.iter().copied() {
                 let candidates = source.call_signatures.iter().copied().collect();
-                demands.push((candidates, target_signature));
+                signature_requirements.push((candidates, target_signature));
             }
             for target_signature in target.construct_signatures.iter().copied() {
                 let candidates = source.construct_signatures.iter().copied().collect();
-                demands.push((candidates, target_signature));
+                signature_requirements.push((candidates, target_signature));
             }
             let index_signatures = target.index_signatures.clone();
 
-            (pairs, demands, index_signatures)
+            (pairs, signature_requirements, index_signatures)
         };
 
         // decide matched field pairs
@@ -271,8 +324,8 @@ impl CheckState<'_> {
             return Ok(decision);
         }
 
-        // decide each signature demand against its candidates
-        for (candidates, target_signature) in demands {
+        // decide each signature requirement against its candidates
+        for (candidates, target_signature) in signature_requirements {
             let mut satisfied = Answer::Ready(false);
             for candidate in candidates {
                 satisfied = satisfied.or(self.decide_relation(
@@ -304,6 +357,97 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
+    /// Decide assignability of a static declaration reference to a shape.
+    pub(in crate::check) fn decide_reference_shape_assignable(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let reference = match self.ty(source)? {
+            dir::Type::Reference(reference) => *reference,
+            _ => return Ok(Answer::Ready(false)),
+        };
+        let target = match self.ty(target)? {
+            dir::Type::Shape(target) => target.clone(),
+            _ => return Ok(Answer::Ready(false)),
+        };
+        let module = origin.module();
+        let mut decision = Answer::Ready(true);
+
+        // require each target field from the static declaration
+        for field in target.fields {
+            let lookup = answer!(self.lookup_member(
+                origin,
+                module,
+                source,
+                dir::MemberSpace::Static,
+                field.key
+            )?);
+            let found = lookup.value_type();
+            let Some(found) = found else {
+                if field.is_optional {
+                    continue;
+                }
+
+                return Ok(Answer::Ready(false));
+            };
+
+            decision = decision.and(self.decide_relation(
+                origin,
+                Relation::Assignable,
+                found,
+                field.ty,
+            )?);
+            if decision.is_ready_false() {
+                return Ok(decision);
+            }
+        }
+
+        // require each target constructor from the class constructor set
+        for target_signature in target.construct_signatures {
+            let mut satisfied = Answer::Ready(false);
+            for candidate in self.reference_construct_signatures(reference) {
+                satisfied = satisfied.or(self.decide_relation(
+                    origin,
+                    Relation::Assignable,
+                    candidate,
+                    target_signature,
+                )?);
+                if satisfied.is_ready_true() {
+                    break;
+                }
+            }
+
+            decision = decision.and(satisfied);
+            if decision.is_ready_false() {
+                return Ok(decision);
+            }
+        }
+
+        // call and index signatures are not part of nominal declaration values
+        if !target.call_signatures.is_empty() || !target.index_signatures.is_empty() {
+            return Ok(Answer::Ready(false));
+        }
+
+        Ok(decision)
+    }
+
+    /// Return constructor signatures exposed by one static declaration reference.
+    fn reference_construct_signatures(
+        &self,
+        source: dir::TypeReference,
+    ) -> SmallVec<[dir::GlobalTypeId; 2]> {
+        match self.definition(source.symbol) {
+            Some(dir::Definition::Class(class)) => class
+                .constructors
+                .iter()
+                .map(|constructor| constructor.ty)
+                .collect(),
+            _ => SmallVec::new(),
+        }
+    }
+
     /// Decide whether one source exposes an index signature.
     pub(in crate::check) fn decide_index_signature_satisfied(
         &mut self,
@@ -311,13 +455,13 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: &dir::TypeIndexSignature,
     ) -> CompilerResult<Answer<bool>> {
-        let source = answer!(self.reduce_type_root(origin, source)?);
+        let source = answer!(self.reduce_type_head(origin, source)?);
 
         match self.ty(source)?.clone() {
             dir::Type::Shape(source) => {
                 self.decide_shape_index_signature_satisfied(origin, &source, target)
             }
-            _ => self.decide_protocol_index_signature_satisfied(origin, source, target),
+            _ => self.decide_subscript_index_signature_satisfied(origin, source, target),
         }
     }
 
@@ -361,9 +505,10 @@ impl CheckState<'_> {
             return Ok(decision);
         }
 
-        // readonly signatures also accept finite object views
+        // prove each finite field covered by the readonly key domain
         let module = origin.module();
         let source_node = self.origin_source_node(origin)?;
+        let mut decision = Answer::Ready(true);
         for field in &source.fields {
             let key = self.push_static_key_type(module, source_node, field.key)?;
             if !answer!(self.decide_relation(origin, Relation::Assignable, key, target.key_type,)?)
@@ -382,49 +527,7 @@ impl CheckState<'_> {
             }
         }
 
-        Ok(decision.or(Answer::Ready(true)))
-    }
-
-    /// Decide whether one nominal source exposes an index signature.
-    fn decide_protocol_index_signature_satisfied(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalTypeId,
-        target: &dir::TypeIndexSignature,
-    ) -> CompilerResult<Answer<bool>> {
-        let module = origin.module();
-        let read = {
-            let method = SubscriptProtocol::Index;
-            let arguments = SmallVec::<[dir::GlobalTypeId; 2]>::from_slice(&[target.key_type]);
-            let sources = [dir::ArgumentSource::Omitted];
-            let key = method.key(&self.module(module).strings);
-            let protocol = method.protocol(self);
-            let read_type = self.push_index_signature_read_type(origin, target.value_type)?;
-
-            self.protocol_call_returns(
-                origin, source, key, &protocol, &arguments, &sources, read_type,
-            )?
-        };
-        if !read.is_ready_true() || target.is_readonly {
-            return Ok(read);
-        }
-
-        let write = {
-            let method = SubscriptProtocol::IndexSet;
-            let arguments = SmallVec::<[dir::GlobalTypeId; 2]>::from_slice(&[
-                target.key_type,
-                target.value_type,
-            ]);
-            let sources = [dir::ArgumentSource::Omitted, dir::ArgumentSource::Omitted];
-            let key = method.key(&self.module(module).strings);
-            let protocol = method.protocol(self);
-            let call = answer!(self.select_protocol_call(
-                origin, source, source, key, &protocol, &arguments, &sources
-            )?);
-
-            Answer::Ready(call.is_some())
-        };
-        Ok(read.and(write))
+        Ok(decision)
     }
 
     /// Decide exact equality of two function types.
@@ -498,7 +601,9 @@ impl CheckState<'_> {
                 return Ok(Answer::Ready(false));
             };
 
-            let Some(pairs) = collect_function_assignability_pairs(source, target, true) else {
+            let Some(pairs) =
+                function_assignability_pairs(source, target, ThisParameterComparison::Compare)
+            else {
                 return Ok(Answer::Ready(false));
             };
             pairs
@@ -507,7 +612,7 @@ impl CheckState<'_> {
         self.decide_each(origin, Relation::Assignable, &pairs)
     }
 
-    /// Decide assignability of two selected methods.
+    /// Decide assignability of two method signatures.
     pub(in crate::check) fn decide_method_assignable(
         &mut self,
         origin: Origin,
@@ -522,7 +627,9 @@ impl CheckState<'_> {
                 return Ok(Answer::Ready(false));
             };
 
-            let Some(pairs) = collect_function_assignability_pairs(source, target, false) else {
+            let Some(pairs) =
+                function_assignability_pairs(source, target, ThisParameterComparison::Skip)
+            else {
                 return Ok(Answer::Ready(false));
             };
             pairs
@@ -532,11 +639,26 @@ impl CheckState<'_> {
     }
 }
 
-/// Collect directed function assignment pairs.
-fn collect_function_assignability_pairs(
+/// Whether function assignability compares the explicit `this` parameter.
+enum ThisParameterComparison {
+    /// Compare `this` as a contravariant input.
+    Compare,
+    /// Skip `this` because method receiver assignability was checked separately.
+    Skip,
+}
+
+impl ThisParameterComparison {
+    /// Return whether `this` participates in this comparison.
+    fn includes_this(self) -> bool {
+        matches!(self, Self::Compare)
+    }
+}
+
+/// Return directed function assignment pairs.
+fn function_assignability_pairs(
     source: &dir::FunctionSignatureType,
     target: &dir::FunctionSignatureType,
-    is_receiver_compared: bool,
+    this_parameter: ThisParameterComparison,
 ) -> Option<SmallVec<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>> {
     if source.asynchrony != target.asynchrony || source.is_generator != target.is_generator {
         return None;
@@ -545,7 +667,7 @@ fn collect_function_assignability_pairs(
     let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
 
     // compare receiver input contravariantly for function values
-    if is_receiver_compared {
+    if this_parameter.includes_this() {
         match (source.this_parameter, target.this_parameter) {
             (Some(source), Some(target)) => pairs.push((target, source)),
             (None, _) => {}
@@ -554,7 +676,7 @@ fn collect_function_assignability_pairs(
     }
 
     // require source parameters to accept every target call arity
-    if !accepts_contextual_arities(&source.parameters, &target.parameters) {
+    if !accepts_target_call_arities(&source.parameters, &target.parameters) {
         return None;
     }
 
@@ -581,7 +703,7 @@ fn collect_function_assignability_pairs(
 }
 
 /// Return whether source parameters accept every target call arity.
-fn accepts_contextual_arities(
+fn accepts_target_call_arities(
     source: &[dir::FunctionParameterType],
     target: &[dir::FunctionParameterType],
 ) -> bool {
