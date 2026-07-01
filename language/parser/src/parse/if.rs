@@ -1,4 +1,5 @@
 use crate::parse::flags::ParserFlags;
+use crate::parse::scan::DelimiterDepth;
 use crate::{Parser, ParserResult, ParserSpanStart};
 use destack_dir::{
     Condition, ConditionOperand, Expression, IfForm, Keyword, LocalNodeId, NodeType,
@@ -122,48 +123,84 @@ impl Parser {
 
     /// Eat one if condition.
     fn eat_if_condition(&mut self) -> ParserResult<Condition> {
-        let checkpoint = self.checkpoint();
-        let tree_mark = self.tree.next_id();
+        if !self.if_condition_has_binding_operand() {
+            let condition = self.eat_expression(self.flags)?;
+
+            return Ok(Condition::expression(condition));
+        }
+
         let first = self.eat_if_condition_operand()?;
-        let mut operands = Vec::new();
+        let mut operands = vec![first];
 
         // collect top-level logical-and operands
         while self.peek_is(TokenType::LogicalAnd) {
             self.bump();
 
-            if operands.is_empty() {
-                operands.push(first.clone());
-            }
-
             let operand = self.eat_if_condition_operand()?;
             operands.push(operand);
         }
 
-        // return a binding condition chain
-        if !operands.is_empty() {
-            let condition = Condition { operands };
-            if condition.has_binding() {
-                return Ok(condition);
+        Ok(Condition { operands })
+    }
+
+    /// Return whether the current if condition contains a top-level binding operand.
+    fn if_condition_has_binding_operand(&mut self) -> bool {
+        self.lookahead(|parser| parser.scan_if_condition_has_binding_operand())
+    }
+
+    /// Scan for a top-level binding operand in the current if condition.
+    fn scan_if_condition_has_binding_operand(&mut self) -> bool {
+        let mut depth = DelimiterDepth::value();
+        let mut is_operand_start = true;
+
+        // walk the condition until the matching condition parenthesis
+        while self.has_more_tokens() {
+            let token_type = self.peek_token_type();
+            if depth.is_top_level() && token_type == TokenType::CloseParenthesis {
+                break;
             }
-        } else if matches!(first, ConditionOperand::Binding { .. }) {
-            return Ok(Condition {
-                operands: vec![first],
-            });
+
+            // binding condition chains split only at top-level logical-and
+            if depth.is_top_level() && token_type == TokenType::LogicalAnd {
+                is_operand_start = true;
+                self.bump();
+                continue;
+            }
+
+            // accept binding operands only at operand starts
+            if is_operand_start
+                && depth.is_top_level()
+                && self.current_token_starts_binding_condition()
+            {
+                return true;
+            }
+
+            // stop on malformed nested delimiters
+            if !depth.advance(token_type) {
+                break;
+            }
+
+            // nested delimiters cannot contribute top-level operands
+            if depth.is_top_level() {
+                is_operand_start = false;
+            }
+
+            self.bump();
         }
 
-        // otherwise parse the whole condition as a regular expression
-        self.restore(checkpoint, tree_mark);
-        let condition = self.eat_expression(self.flags)?;
+        false
+    }
 
-        Ok(Condition::expression(condition))
+    /// Return whether the current token starts an if condition binding.
+    fn current_token_starts_binding_condition(&self) -> bool {
+        self.current_keyword()
+            .and_then(Self::let_kind_and_mutability_for_keyword)
+            .is_some()
     }
 
     /// Eat one operand in an if condition chain.
     fn eat_if_condition_operand(&mut self) -> ParserResult<ConditionOperand> {
-        let keyword = self.peek_any_keyword().ok();
-        let is_binding = keyword
-            .and_then(Self::let_kind_and_mutability_for_keyword)
-            .is_some();
+        let is_binding = self.current_token_starts_binding_condition();
 
         if is_binding {
             let (kind, mutability) = self.eat_let_kind()?;

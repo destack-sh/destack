@@ -1,4 +1,5 @@
 use crate::parse::flags::ParserFlags;
+use crate::parse::scan::DelimiterDepth;
 use crate::parse::{
     TypeMemberContainerKind, is_declaration_keyword, is_declaration_modifier_keyword,
 };
@@ -7,64 +8,6 @@ use destack_dir::{
     Expression, Keyword, LocalNodeId, NodeType, TokenSpan, TokenType, TypeExpression,
 };
 use destack_source::Span;
-
-/// Delimiter depth while recovering one malformed list item.
-#[derive(Debug, Default)]
-struct RecoveryDelimiterDepth {
-    /// The nested parenthesis depth.
-    parenthesis: usize,
-    /// The nested bracket depth.
-    bracket: usize,
-    /// The nested brace depth.
-    brace: usize,
-    /// The nested type angle depth.
-    angle: usize,
-    /// Whether angle brackets are item delimiters.
-    tracks_angle: bool,
-}
-
-impl RecoveryDelimiterDepth {
-    /// Create delimiter state for one list terminator.
-    fn new(terminator: TokenType) -> Self {
-        Self {
-            tracks_angle: terminator == TokenType::GreaterThan,
-            ..Self::default()
-        }
-    }
-
-    /// Return whether recovery is scanning the list item itself.
-    fn is_top_level(&self) -> bool {
-        self.parenthesis == 0 && self.bracket == 0 && self.brace == 0 && self.angle == 0
-    }
-
-    /// Advance delimiter state after one consumed token.
-    fn advance(&mut self, token_type: TokenType) {
-        match token_type {
-            TokenType::OpenParenthesis => self.parenthesis += 1,
-            TokenType::CloseParenthesis => Self::close(&mut self.parenthesis),
-            TokenType::OpenBracket => self.bracket += 1,
-            TokenType::CloseBracket => Self::close(&mut self.bracket),
-            TokenType::OpenBrace => self.brace += 1,
-            TokenType::CloseBrace => Self::close(&mut self.brace),
-            TokenType::LessThan if self.tracks_angle => self.angle += 1,
-            TokenType::ShiftLeft if self.tracks_angle => self.angle += 2,
-            TokenType::GreaterThan if self.tracks_angle => self.close_angle(1),
-            TokenType::ShiftRight if self.tracks_angle => self.close_angle(2),
-            TokenType::UnsignedShiftRight if self.tracks_angle => self.close_angle(3),
-            _ => {}
-        }
-    }
-
-    /// Close one delimiter level.
-    fn close(depth: &mut usize) {
-        *depth = depth.saturating_sub(1);
-    }
-
-    /// Close one or more angle levels.
-    fn close_angle(&mut self, width: usize) {
-        self.angle = self.angle.saturating_sub(width);
-    }
-}
 
 /// A grammar point where parsing can resume after damaged syntax.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -471,7 +414,7 @@ impl Parser {
         terminator: TokenType,
         error: Option<ParserError>,
     ) -> ParserResult<()> {
-        let mut depth = RecoveryDelimiterDepth::new(terminator);
+        let mut depth = DelimiterDepth::for_list_terminator(terminator);
 
         while let Ok(token) = self.peek() {
             let token_type = token.token.ty();
@@ -505,7 +448,7 @@ impl Parser {
         start: &ParserSpanStart,
         token: TokenSpan,
         terminator: TokenType,
-        depth: &RecoveryDelimiterDepth,
+        depth: &DelimiterDepth,
     ) -> bool {
         if !depth.is_top_level() {
             return false;

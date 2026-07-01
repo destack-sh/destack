@@ -1,5 +1,6 @@
 use crate::Parser;
 use crate::parse::is_declaration_keyword;
+use crate::parse::scan::DelimiterDepth;
 use destack_dir::{GenericArgument, Keyword, LocalNodeId, TokenType, TypeExpression};
 
 impl Parser {
@@ -31,6 +32,10 @@ impl Parser {
         &mut self,
         require_value_postfix_commit: bool,
     ) -> Option<Vec<LocalNodeId<GenericArgument>>> {
+        if require_value_postfix_commit && !self.value_generic_arguments_can_close() {
+            return None;
+        }
+
         let checkpoint = self.checkpoint();
         let mark = self.tree.next_id();
         let started_with_shift_left = self.peek_is(TokenType::ShiftLeft);
@@ -54,6 +59,41 @@ impl Parser {
         }
 
         Some(arguments)
+    }
+
+    /// Return whether value generic arguments can close before a hard boundary.
+    fn value_generic_arguments_can_close(&mut self) -> bool {
+        self.lookahead(|parser| parser.scan_value_generic_arguments_can_close())
+    }
+
+    /// Scan one value generic argument list for a matching angle close.
+    fn scan_value_generic_arguments_can_close(&mut self) -> bool {
+        if !self.re_lex_generic_l_angle() {
+            return false;
+        }
+
+        let mut depth = DelimiterDepth::from_angle_open();
+        self.bump();
+
+        while self.has_more_tokens() {
+            let token_type = self.peek_token_type();
+
+            if depth.is_directly_inside_angle_group() && token_type == TokenType::Semicolon {
+                return false;
+            }
+
+            if !depth.advance(token_type) {
+                return false;
+            }
+
+            self.bump();
+
+            if depth.is_top_level() {
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Return true when `<<...>` generic arguments are structurally intentional.
