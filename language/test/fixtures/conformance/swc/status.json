@@ -3,6 +3,83 @@
   "entries": [
     {
       "patterns": [
+        "typescript/class/decorators/input.ts",
+        "typescript/class/override-parameter-property/input.ts",
+        "typescript/decorators/parameter/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "parameter-property",
+      "note": "constructor parameter properties are out of scope"
+    },
+    {
+      "patterns": [
+        "typescript/meta-property/**",
+        "typescript/type-arguments/new-false-positive/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "new-expression",
+            "note": "`new.target` and `new` generic ambiguity fixtures are out of scope"
+    },
+    {
+      "patterns": [
+        "typescript/arrow-function/predicate-types/input.ts",
+        "typescript/class/method-return-type/input.ts",
+        "typescript/custom/arrow/complex/input.ts",
+        "typescript/function/predicate-types/input.ts",
+        "typescript/issue-7305/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "type-predicate",
+      "note": "TypeScript type predicates and asserts predicates are out of scope"
+    },
+    {
+      "patterns": [
+        "typescript/class/expression-extends-implements/input.ts",
+        "typescript/class/expression-extends/input.ts",
+        "typescript/class/extends-implements/input.ts",
+        "typescript/class/extends/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "expression-heritage",
+      "note": "expression class heritage is out of scope"
+    },
+    {
+      "patterns": [
+        "typescript/class/abstract-false-positive/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "modifier-identifier",
+      "note": "modifier keywords as value identifiers are out of scope"
+    },
+    {
+      "patterns": [
+        "typescript/arrow-function/async-param/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "keyword-identifier",
+      "note": "`async` is a reserved keyword in TS++"
+    },
+    {
+      "patterns": [
+        "js/explicit-resource-management/valid-using-as-identifier-for-await-of/input.js",
+        "js/explicit-resource-management/valid-using-as-identifier-for-in/input.js",
+        "js/explicit-resource-management/valid-using-as-identifier-for-of/input.js",
+        "js/explicit-resource-management/valid-using-as-identifier-in/input.js"
+      ],
+      "status": "excluded",
+      "reason": "keyword-identifier",
+      "note": "`using` is a reserved keyword in TS++"
+    },
+    {
+      "patterns": [
+        "typescript/issue-1252/case1/input.tsx"
+      ],
+      "status": "excluded",
+      "reason": "generic-arrow-ambiguity",
+      "note": "ambiguous generic arrows in TSX are out of scope, use a trailing comma or constraint"
+    },
+    {
+      "patterns": [
         "typescript/cast/need-parentheses/input.ts",
         "typescript/cast/type-assertion-after-operator/input.ts",
         "typescript/cast/type-assertion-and-assign/input.ts",

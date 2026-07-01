@@ -3,6 +3,55 @@
     "entries": [
         {
             "patterns": [
+                "ok/class_constructor_parameter_modifiers.ts",
+                "ok/ts_decorator_constructor.ts",
+                "ok/ts_property_parameter.ts"
+            ],
+            "status": "excluded",
+            "reason": "parameter-property",
+            "note": "constructor parameter properties are out of scope"
+        },
+        {
+            "patterns": ["ok/ts_satisfies_assignment.ts"],
+            "status": "excluded",
+            "reason": "assignment-target",
+            "note": "assignment through `satisfies` expressions is out of scope"
+        },
+        {
+            "patterns": ["ok/new_exprs.js"],
+            "status": "excluded",
+            "reason": "new-expression",
+            "note": "mixed fixture contains `new.target` and nested JS constructor-call edge cases"
+        },
+        {
+            "patterns": [
+                "ok/ts_function_type.ts",
+                "ok/ts_method_object_member_body.ts",
+                "ok/ts_return_type_annotation.ts",
+                "ok/ts_this_type.ts",
+                "ok/ts_type_predicate.ts"
+            ],
+            "status": "excluded",
+            "reason": "type-predicate",
+            "note": "TypeScript type predicates and asserts predicates are out of scope"
+        },
+        {
+            "patterns": [
+                "ok/jsx_element_attribute_element.jsx",
+                "ok/jsx_element_attributes.jsx"
+            ],
+            "status": "excluded",
+            "reason": "tree-attribute-value",
+            "note": "bare tree literal attribute values are out of scope, use expression containers"
+        },
+        {
+            "patterns": ["ok/using_declaration_statement.js"],
+            "status": "excluded",
+            "reason": "keyword-identifier",
+            "note": "mixed fixture contains JS `using` identifier expressions"
+        },
+        {
+            "patterns": [
                 "ok/ts_type_assertion.ts",
                 "ok/ts_type_assertion_expression.ts",
                 "ok/type_assertion_primary_expression.ts"
