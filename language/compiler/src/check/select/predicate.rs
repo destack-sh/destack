@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Decision, Dependency, Obligation, Origin, Relation,
+    Answer, CheckState, Decision, Dependency, FlowSite, Obligation, Origin, PlaceUse, Relation,
     RuntimePredicateObligation, answer, membership_operator_protocol,
 };
 
@@ -10,19 +10,22 @@ impl CheckState<'_> {
     /// Select one `value is T` predicate.
     pub(in crate::check) fn select_type_predicate(
         &mut self,
-        node: dir::GlobalNodeId<dir::Expression>,
+        site: FlowSite,
         value: dir::LocalNodeId<dir::Expression>,
         target: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<Answer<()>> {
+        let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
         let origin = Origin::Node(node);
         let value_node = value.into_global_any(module);
         let target_node = target.into_global_any(module);
 
-        // close the tested value and target types
-        let value = answer!(self.predicate_operand_type(origin, value_node)?);
-        let target = answer!(self.predicate_operand_type(origin, target_node)?);
+        // reduce the tested value and target types
+        let value_site = self.node_site(value_node)?;
+        let value = answer!(self.predicate_operand_type(origin, value_site)?);
+        let target = answer!(self.committed_node_type(target_node)?);
+        let target = answer!(self.reduce_type_head(origin, target)?);
         let predicate = answer!(self.select_guard_predicate(origin, value, target, target_node)?);
 
         let resolution = dir::GuardResolution::Is(dir::IsGuardResolution {
@@ -31,27 +34,29 @@ impl CheckState<'_> {
             predicate,
         });
 
-        self.record_predicate(node, value_node, target_node, resolution)
+        self.commit_predicate(node, value_node, target_node, resolution)
     }
 
     /// Select one `value instanceof Class` predicate.
     pub(in crate::check) fn select_class_predicate(
         &mut self,
-        node: dir::GlobalNodeId<dir::Expression>,
+        site: FlowSite,
         value: dir::LocalNodeId<dir::Expression>,
         target: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Answer<()>> {
+        let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
         let origin = Origin::Node(node);
         let value_node = value.into_global_any(module);
         let target_node = target.into_global_any(module);
 
-        // close the tested value type
-        let value = answer!(self.predicate_operand_type(origin, value_node)?);
+        // reduce the tested value type
+        let value_site = self.node_site(value_node)?;
+        let value = answer!(self.predicate_operand_type(origin, value_site)?);
 
-        // wait until the target expression has selected its declaration
-        let target = match self.solver.decision(target_node) {
+        // wait until the target expression resolves its declaration
+        let target = match self.decision(target_node) {
             Some(Decision::Name(resolution)) => match resolution.symbols() {
                 [symbol] => Some((*symbol, Vec::new())),
                 _ => None,
@@ -63,7 +68,8 @@ impl CheckState<'_> {
                 Some((resolution.symbol, arguments))
             }
             Some(Decision::Rejected) => {
-                self.record_decision(node, Decision::Rejected)?;
+                self.commit_decision(node, Decision::Rejected)?;
+                self.commit_error_node(node)?;
 
                 return Ok(Answer::Ready(()));
             }
@@ -73,13 +79,15 @@ impl CheckState<'_> {
         // reject targets that do not name one class declaration
         let Some((target, arguments)) = target else {
             self.report_instanceof_target_not_class(target_node)?;
-            self.record_decision(node, Decision::Rejected)?;
+            self.commit_decision(node, Decision::Rejected)?;
+            self.commit_error_node(node)?;
 
             return Ok(Answer::Ready(()));
         };
         if self.symbol_kind(target) != dir::SymbolKind::Class {
             self.report_instanceof_target_not_class(target_node)?;
-            self.record_decision(node, Decision::Rejected)?;
+            self.commit_decision(node, Decision::Rejected)?;
+            self.commit_error_node(node)?;
 
             return Ok(Answer::Ready(()));
         }
@@ -92,7 +100,7 @@ impl CheckState<'_> {
             }),
             target_node.local_id,
         )?;
-        let predicate = answer!(self.predicate_for_condition(
+        let predicate = answer!(self.unary_predicate(
             origin,
             value,
             target_type,
@@ -106,25 +114,28 @@ impl CheckState<'_> {
             predicate,
         });
 
-        self.record_predicate(node, value_node, target_node, resolution)
+        self.commit_predicate(node, value_node, target_node, resolution)
     }
 
     /// Select one `key in value` predicate.
     pub(in crate::check) fn select_member_predicate(
         &mut self,
-        node: dir::GlobalNodeId<dir::Expression>,
+        site: FlowSite,
         key: dir::LocalNodeId<dir::Expression>,
         receiver: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Answer<()>> {
+        let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
         let origin = Origin::Node(node);
         let key_node = key.into_global_any(module);
         let receiver_node = receiver.into_global_any(module);
 
-        // close both operand types
-        let key_type = answer!(self.predicate_operand_type(origin, key_node)?);
-        let receiver_type = answer!(self.predicate_operand_type(origin, receiver_node)?);
+        // reduce both operand types
+        let key_site = self.node_site(key_node)?;
+        let receiver_site = self.node_site(receiver_node)?;
+        let key_type = answer!(self.predicate_operand_type(origin, key_site)?);
+        let receiver_type = answer!(self.predicate_operand_type(origin, receiver_site)?);
         let key = self.module(module).view().get(key).static_key();
         let nominal_receiver = answer!(self.nominal_membership_receiver(origin, receiver_type)?);
 
@@ -142,7 +153,8 @@ impl CheckState<'_> {
                         self.format_type(receiver_type)
                     ),
                 )?;
-                self.record_decision(node, Decision::Rejected)?;
+                self.commit_decision(node, Decision::Rejected)?;
+                self.commit_error_node(node)?;
 
                 return Ok(Answer::Ready(()));
             };
@@ -151,7 +163,7 @@ impl CheckState<'_> {
         }
         // select structural membership for structural receivers
         else {
-            self.has_predicate(receiver_type, key_type, key)
+            answer!(self.has_predicate(origin, receiver_type, key_type, key)?)
         };
 
         let resolution = dir::GuardResolution::In(dir::InGuardResolution {
@@ -160,7 +172,7 @@ impl CheckState<'_> {
             predicate,
         });
 
-        self.record_predicate(node, key_node, receiver_node, resolution)
+        self.commit_predicate(node, key_node, receiver_node, resolution)
     }
 
     /// Select one custom `Has<K>` membership implementation.
@@ -174,11 +186,10 @@ impl CheckState<'_> {
         let module = origin.module();
         let source = self.origin_source_node(origin)?;
         let key_type = self.widen_type(module, source, key)?;
-        let borrowed_key = self.readonly_borrow_type(origin, key_type)?;
         let protocol = self.language_protocol(dir::LanguageItem::Has, vec![key_type]);
         let method = membership_operator_protocol().method;
         let key = method.key(&self.module(module).strings);
-        let arguments = [borrowed_key];
+        let arguments = [key_type];
         let sources = [dir::ArgumentSource::Provided(key_node)];
         let Some(call) = answer!(self.select_protocol_call(
             origin, receiver, receiver, key, &protocol, &arguments, &sources
@@ -210,7 +221,7 @@ impl CheckState<'_> {
         origin: Origin,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let receiver = answer!(self.reduce_type_root(origin, receiver)?);
+        let receiver = answer!(self.reduce_type_head(origin, receiver)?);
 
         let result = match self.ty(receiver)?.clone() {
             dir::Type::Instance(_) => Some(receiver),
@@ -223,46 +234,15 @@ impl CheckState<'_> {
         Ok(Answer::Ready(result))
     }
 
-    /// Return the readonly borrow type used by membership protocols.
-    fn readonly_borrow_type(
-        &mut self,
-        origin: Origin,
-        value: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let module = origin.module();
-        let source = self.origin_source_node(origin)?;
-
-        // build canonical borrowed axes
-        let lifetime = self.push_type(
-            module,
-            dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)),
-            source,
-        )?;
-        let access = self.push_type(
-            module,
-            dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)),
-            source,
-        )?;
-
-        self.push_type(
-            module,
-            dir::Type::Form(dir::FormType {
-                form: dir::Form::Borrowed { lifetime, access },
-                value,
-            }),
-            source,
-        )
-    }
-
     /// Return one predicate operand type.
     fn predicate_operand_type(
         &mut self,
         origin: Origin,
-        node: dir::GlobalNodeIdAny,
+        site: FlowSite,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let ty = answer!(self.node_type_answer(node)?);
+        let ty = answer!(self.infer_node_type(site, PlaceUse::Read)?);
 
-        self.reduce_type_root(origin, ty)
+        self.reduce_type_head(origin, ty)
     }
 
     /// Select the executable predicate for one `is` guard.
@@ -273,11 +253,11 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         target_node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Answer<dir::Predicate>> {
-        let target = answer!(self.reduce_type_root(origin, target)?);
-        let value = answer!(self.reduce_type_root(origin, value)?);
+        let target = answer!(self.reduce_type_head(origin, target)?);
+        let value = answer!(self.reduce_type_head(origin, value)?);
 
         // use executable RTTI predicates when the target names one
-        if let Some(predicate) = answer!(self.runtime_predicate_for_type(origin, value, target)?) {
+        if let Some(predicate) = answer!(self.runtime_predicate(origin, value, target)?) {
             return Ok(Answer::Ready(predicate));
         }
 
@@ -288,11 +268,11 @@ impl CheckState<'_> {
 
         self.report_runtime_predicate_not_testable(target_node, target)?;
 
-        self.predicate_for_condition(origin, value, target, dir::PredicateCondition::Never)
+        self.unary_predicate(origin, value, target, dir::PredicateCondition::Never)
     }
 
-    /// Return the executable predicate for one runtime-testable target type.
-    fn runtime_predicate_for_type(
+    /// Return the executable predicate for one runtime-testable target.
+    fn runtime_predicate(
         &mut self,
         origin: Origin,
         value: dir::GlobalTypeId,
@@ -340,21 +320,24 @@ impl CheckState<'_> {
             | dir::Type::Array(_)
             | dir::Type::FixedArray(_)
             | dir::Type::Slice(_) => dir::PredicateCondition::Type(target),
+            dir::Type::Form(_) => dir::PredicateCondition::Type(target),
             dir::Type::Shape(_) => return Ok(Answer::Ready(None)),
             dir::Type::Union(union) => {
                 let mut alternatives = Vec::with_capacity(union.elements.len());
                 for element in union.elements {
-                    let element = answer!(self.reduce_type_root(origin, element)?);
-                    let Some(predicate) =
-                        answer!(self.runtime_predicate_for_type(origin, value, element)?)
+                    let element = answer!(self.reduce_type_head(origin, element)?);
+                    let Some(predicate) = answer!(self.runtime_predicate(origin, value, element)?)
                     else {
                         return Ok(Answer::Ready(None));
                     };
                     alternatives.push(predicate);
                 }
 
-                let predicate = dir::Predicate::new(dir::PredicateTest::Any(alternatives))
-                    .with_success(self.predicate_success_projection(value, target)?);
+                let predicate = self.predicate_with_narrowing(
+                    dir::Predicate::new(dir::PredicateTest::Any(alternatives)),
+                    value,
+                    target,
+                )?;
 
                 return Ok(Answer::Ready(Some(predicate)));
             }
@@ -362,13 +345,13 @@ impl CheckState<'_> {
             dir::Type::Error
             | dir::Type::Void
             | dir::Type::Variable(_)
+            | dir::Type::Key(_)
             | dir::Type::Memory(_)
             | dir::Type::Static(_)
             | dir::Type::Intrinsic
             | dir::Type::Parameter(_)
             | dir::Type::This
             | dir::Type::Member(_)
-            | dir::Type::Form(_)
             | dir::Type::Operation(_)
             | dir::Type::FunctionSignature(_)
             | dir::Type::Function(_)
@@ -376,7 +359,7 @@ impl CheckState<'_> {
             | dir::Type::Intersection(_) => return Ok(Answer::Ready(None)),
         };
 
-        let predicate = answer!(self.predicate_for_condition(origin, value, target, condition)?);
+        let predicate = answer!(self.unary_predicate(origin, value, target, condition)?);
 
         Ok(Answer::Ready(Some(predicate)))
     }
@@ -396,7 +379,7 @@ impl CheckState<'_> {
             dir::Type::Union(union) => {
                 let mut alternatives = Vec::with_capacity(union.elements.len());
                 for element in union.elements {
-                    let element = answer!(self.reduce_type_root(origin, element)?);
+                    let element = answer!(self.reduce_type_head(origin, element)?);
                     let satisfies = answer!(self.decide_relation(
                         origin,
                         Relation::Satisfies,
@@ -410,15 +393,18 @@ impl CheckState<'_> {
                 }
 
                 let predicate = match alternatives.len() {
-                    0 => answer!(self.predicate_for_condition(
+                    0 => answer!(self.unary_predicate(
                         origin,
                         value,
                         target,
                         dir::PredicateCondition::Never,
                     )?),
                     1 => alternatives.remove(0),
-                    _ => dir::Predicate::new(dir::PredicateTest::Any(alternatives))
-                        .with_success(self.predicate_success_projection(value, target)?),
+                    _ => self.predicate_with_narrowing(
+                        dir::Predicate::new(dir::PredicateTest::Any(alternatives)),
+                        value,
+                        target,
+                    )?,
                 };
 
                 Ok(Answer::Ready(Some(predicate)))
@@ -433,8 +419,7 @@ impl CheckState<'_> {
                 } else {
                     dir::PredicateCondition::Never
                 };
-                let predicate =
-                    answer!(self.predicate_for_condition(origin, value, target, condition,)?);
+                let predicate = answer!(self.unary_predicate(origin, value, target, condition,)?);
 
                 Ok(Answer::Ready(Some(predicate)))
             }
@@ -448,12 +433,12 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::Predicate>>> {
-        if let Some(predicate) = answer!(self.runtime_predicate_for_type(origin, value, ty)?) {
+        if let Some(predicate) = answer!(self.runtime_predicate(origin, value, ty)?) {
             return Ok(Answer::Ready(Some(predicate)));
         }
 
         let predicate = match self.ty(ty)? {
-            dir::Type::Shape(_) => Some(answer!(self.predicate_for_condition(
+            dir::Type::Shape(_) => Some(answer!(self.unary_predicate(
                 origin,
                 value,
                 ty,
@@ -467,72 +452,118 @@ impl CheckState<'_> {
 
     /// Return one structural membership predicate.
     fn has_predicate(
-        &self,
+        &mut self,
+        origin: Origin,
         receiver: dir::GlobalTypeId,
         key_type: dir::GlobalTypeId,
         key: Option<dir::StaticKey>,
-    ) -> dir::Predicate {
-        let receiver = dir::Projection::Identity { ty: receiver };
-        let key = match key {
+    ) -> CompilerResult<Answer<dir::Predicate>> {
+        let receiver_type = receiver;
+        let receiver = dir::PredicateOperand::new(receiver_type);
+        let static_key = key;
+        let key = match static_key {
             Some(key) => dir::PredicateKey::Static(key),
-            None => dir::PredicateKey::Dynamic(dir::Projection::Identity { ty: key_type }),
+            None => dir::PredicateKey::Dynamic(dir::PredicateOperand::new(key_type)),
         };
         let test = dir::PredicateHasTest { receiver, key };
+        let predicate = dir::Predicate::new(dir::PredicateTest::Has(test));
 
-        dir::Predicate::new(dir::PredicateTest::Has(test))
+        let Some(key) = static_key else {
+            return Ok(Answer::Ready(predicate));
+        };
+        let narrowed = answer!(self.narrowed_membership_receiver(origin, receiver_type, key)?);
+
+        Ok(Answer::Ready(predicate.with_narrowed(narrowed)))
     }
 
-    /// Select one unary predicate with its success projection.
-    fn predicate_for_condition(
+    /// Return the receiver type after a successful static membership test.
+    fn narrowed_membership_receiver(
+        &mut self,
+        origin: Origin,
+        receiver: dir::GlobalTypeId,
+        key: dir::StaticKey,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let module = origin.module();
+        let source = self.origin_source_node(origin)?;
+        let unknown = self.push_type(module, dir::Type::Unknown, source)?;
+        let target = self.member_shape_type(module, key, unknown, source)?;
+        let operation = dir::TypeOperation::Narrow(dir::NarrowType {
+            source: receiver,
+            target,
+            is_positive: true,
+        });
+        let narrowed = self.push_type(module, dir::Type::Operation(operation), source)?;
+
+        self.reduce_type_head(origin, narrowed)
+    }
+
+    /// Select one unary predicate and its successful branch value.
+    fn unary_predicate(
         &mut self,
         origin: Origin,
         value: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         condition: dir::PredicateCondition,
     ) -> CompilerResult<Answer<dir::Predicate>> {
-        let value = answer!(self.reduce_type_root(origin, value)?);
-        let target = answer!(self.reduce_type_root(origin, target)?);
-        let input = answer!(self.predicate_input_projection(origin, value, &condition)?);
+        let value = answer!(self.reduce_type_head(origin, value)?);
+        let target = answer!(self.reduce_type_head(origin, target)?);
+        let input = answer!(self.predicate_input(origin, value, &condition)?);
         let predicate = dir::Predicate::unary(input, condition);
         let predicate = match predicate.is_never() {
             true => predicate,
-            false => predicate.with_success(self.predicate_success_projection(value, target)?),
+            false => self.predicate_with_narrowing(predicate, value, target)?,
         };
 
         Ok(Answer::Ready(predicate))
     }
 
-    /// Select the projection read by one unary predicate.
-    fn predicate_input_projection(
+    /// Return one predicate with its successful branch narrowing.
+    fn predicate_with_narrowing(
+        &self,
+        predicate: dir::Predicate,
+        value: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::Predicate> {
+        let predicate = predicate.with_narrowed(target);
+        let predicate = match self.predicate_projection(value, target)? {
+            Some(projection) => predicate.with_projection(projection),
+            None => predicate,
+        };
+
+        Ok(predicate)
+    }
+
+    /// Select the input read by one unary predicate.
+    fn predicate_input(
         &mut self,
         origin: Origin,
         value: dir::GlobalTypeId,
         condition: &dir::PredicateCondition,
-    ) -> CompilerResult<Answer<dir::Projection>> {
-        let projection = match condition {
+    ) -> CompilerResult<Answer<dir::PredicateOperand>> {
+        let input = match condition {
             dir::PredicateCondition::Type(_) | dir::PredicateCondition::Subtype(_)
                 if matches!(self.ty(value)?, dir::Type::Dynamic(_)) =>
             {
-                dir::Projection::DynamicType {
+                dir::PredicateOperand::projected(dir::Projection::DynamicType {
                     ty: self.type_descriptor_type(origin)?,
-                }
+                })
             }
-            _ => dir::Projection::Identity { ty: value },
+            _ => dir::PredicateOperand::new(value),
         };
 
-        Ok(Answer::Ready(projection))
+        Ok(Answer::Ready(input))
     }
 
-    /// Select the projection available after one predicate succeeds.
-    fn predicate_success_projection(
+    /// Select the projected value exposed by one predicate.
+    fn predicate_projection(
         &self,
         value: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::Projection> {
+    ) -> CompilerResult<Option<dir::Projection>> {
         let projection = if matches!(self.ty(value)?, dir::Type::Dynamic(_)) {
-            dir::Projection::DynamicPayload { ty: target }
+            Some(dir::Projection::DynamicPayload { ty: target })
         } else {
-            dir::Projection::Identity { ty: target }
+            None
         };
 
         Ok(projection)
@@ -555,8 +586,8 @@ impl CheckState<'_> {
         )
     }
 
-    /// Record one predicate resolution and its boolean result.
-    fn record_predicate(
+    /// Commit one predicate resolution and its boolean result.
+    fn commit_predicate(
         &mut self,
         node: dir::GlobalNodeIdAny,
         left: dir::GlobalNodeIdAny,
@@ -564,15 +595,18 @@ impl CheckState<'_> {
         resolution: dir::GuardResolution,
     ) -> CompilerResult<Answer<()>> {
         self.push_runtime_predicate_obligation(node, left, right, resolution.clone());
-        self.record_decision(node, Decision::Guard(resolution))?;
-
-        let result = answer!(self.node_type_answer(node)?);
-        self.bind_node_type(node, result)?;
+        self.commit_decision(node, Decision::Guard(resolution))?;
+        let boolean = self.push_type(
+            node.module_id,
+            dir::Type::Primitive(dir::PrimitiveType::Boolean),
+            node.local_id,
+        )?;
+        self.commit_node_type(node, boolean)?;
 
         Ok(Answer::Ready(()))
     }
 
-    /// Collect one runtime predicate validity obligation.
+    /// Push one runtime predicate obligation.
     fn push_runtime_predicate_obligation(
         &mut self,
         source: dir::GlobalNodeIdAny,
@@ -580,10 +614,8 @@ impl CheckState<'_> {
         right: dir::GlobalNodeIdAny,
         predicate: dir::GuardResolution,
     ) {
-        let condition = self.node_static_condition(source);
         let obligation = RuntimePredicateObligation {
             source,
-            condition,
             left,
             right,
             predicate,

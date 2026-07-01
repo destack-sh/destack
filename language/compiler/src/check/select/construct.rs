@@ -1,9 +1,10 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckState, ConstructResult, Decision, GenericArgumentMode, GenericTemplateId, Origin,
-    Relation, TypeRewrite, answer,
+    Answer, CheckState, ConstructResult, Decision, FlowSite, Origin, SignatureRejection,
+    SignatureSelection, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -11,26 +12,28 @@ impl CheckState<'_> {
     /// Select the construction meaning of one new expression.
     pub(in crate::check) fn select_construct(
         &mut self,
-        node: dir::GlobalNodeId<dir::Expression>,
+        site: FlowSite,
         ty: dir::LocalNodeId<dir::TypeExpression>,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         result: ConstructResult,
     ) -> CompilerResult<Answer<()>> {
+        let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
         let origin = Origin::Node(node);
 
-        // collect argument types from walked inputs
+        // infer constructor argument value types at this construct site
         let mut arguments = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for argument in argument_nodes {
-            let ty = answer!(self.argument_type(module, *argument)?);
+            let ty = answer!(self.argument_value_type(site, *argument)?);
             arguments.push(ty);
         }
+        let argument_sources = self.argument_value_sources(module, argument_nodes);
 
-        // close the constructed annotation
+        // reduce the constructed annotation
         let annotation = ty.into_global_any(module);
-        let target = answer!(self.node_type_answer(annotation)?);
-        let target = answer!(self.reduce_type_root(origin, target)?);
+        let target = answer!(self.committed_node_type(annotation)?);
+        let target = answer!(self.reduce_type_head(origin, target)?);
         let instance = match self.ty(target)? {
             dir::Type::Instance(instance) => instance.clone(),
             _ => return self.reject_not_constructible(node, origin, target, ""),
@@ -57,13 +60,14 @@ impl CheckState<'_> {
             Some(dir::Definition::Class(definition)) => {
                 if definition.is_abstract {
                     self.report_cannot_construct_abstract_type(origin, target)?;
-                    self.record_decision(node, Decision::Rejected)?;
+                    self.commit_decision(node, Decision::Rejected)?;
+                    self.commit_error_node(node)?;
 
                     return Ok(Answer::Ready(()));
                 }
 
                 let mut active = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
-                answer!(self.class_construct_candidates(
+                answer!(self.collect_class_construct_candidates(
                     origin,
                     target,
                     &instance,
@@ -89,19 +93,23 @@ impl CheckState<'_> {
                 target,
                 constructor.ty,
                 &arguments,
+                &argument_sources,
             )?;
 
-            if let Some((parameters, return_type)) = answer!(attempt) {
-                return self.record_construct(
-                    node,
-                    module,
-                    argument_nodes,
-                    &instance,
-                    constructor.constructor,
-                    parameters,
-                    return_type,
-                    result,
-                );
+            match answer!(attempt) {
+                Ok(signature) => {
+                    return self.commit_construct(
+                        site,
+                        node,
+                        module,
+                        argument_nodes,
+                        &instance,
+                        constructor.constructor,
+                        signature,
+                        result,
+                    );
+                }
+                Err(_) => {}
             }
         }
 
@@ -109,7 +117,7 @@ impl CheckState<'_> {
     }
 
     /// Return construct candidates for one class instance.
-    fn class_construct_candidates(
+    fn collect_class_construct_candidates(
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
@@ -128,11 +136,11 @@ impl CheckState<'_> {
             });
         };
 
-        self.forwarded_class_construct_candidates(origin, receiver, &extends, active)
+        self.collect_forwarded_class_construct_candidates(origin, receiver, &extends, active)
     }
 
     /// Return constructors forwarded from one base class.
-    fn forwarded_class_construct_candidates(
+    fn collect_forwarded_class_construct_candidates(
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
@@ -160,7 +168,7 @@ impl CheckState<'_> {
         };
         let base_receiver =
             self.push_type(module, dir::Type::Instance(instance.clone()), source)?;
-        let base_constructors = answer!(self.class_construct_candidates(
+        let base_constructors = answer!(self.collect_class_construct_candidates(
             origin,
             base_receiver,
             &instance,
@@ -176,11 +184,7 @@ impl CheckState<'_> {
         let mut constructors = Vec::with_capacity(base_constructors.len());
         for base_constructor in base_constructors {
             let constructor = base_constructor.constructor.forwarded(extends.symbol);
-            let ty = if substitution.is_empty() {
-                base_constructor.ty
-            } else {
-                self.fold_type(module, source, base_constructor.ty, substitution.rewrite())?
-            };
+            let ty = self.substitute_type(module, source, base_constructor.ty, &substitution)?;
             let ty = self.class_constructor_returning(origin, ty, receiver)?;
 
             constructors.push(dir::ClassConstructorDefinition { constructor, ty });
@@ -210,19 +214,22 @@ impl CheckState<'_> {
     fn attempt_construct(
         &mut self,
         origin: Origin,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         instance: &dir::GenericInstance,
         target: dir::GlobalTypeId,
         function_type: dir::GlobalTypeId,
         arguments: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<Option<(Vec<dir::FunctionParameterType>, dir::GlobalTypeId)>>> {
+        argument_sources: &[dir::GlobalNodeIdAny],
+    ) -> CompilerResult<Answer<Result<SignatureSelection, SignatureRejection>>> {
         let source = self.origin_source_node(origin)?;
 
-        // close the constructor shape first
-        let function_type = answer!(self.reduce_type_root(origin, function_type)?);
+        // reduce the constructor shape before matching arguments
+        let function_type = answer!(self.reduce_type_head(origin, function_type)?);
         let function = match self.ty(function_type)? {
             dir::Type::FunctionSignature(function) => function.clone(),
-            _ => return Ok(Answer::Ready(None)),
+            _ => {
+                return Ok(Answer::Ready(Err(SignatureRejection::Inapplicable)));
+            }
         };
         let return_type = function.return_type;
 
@@ -231,9 +238,8 @@ impl CheckState<'_> {
         if instance.arguments.is_empty()
             && let Some(template) = template
         {
-            let probe = self.begin_probe();
             let parameters = self.generic_template_parameters(template);
-            let attempt = self.attempt_signature(
+            return self.attempt_signature(
                 origin,
                 module,
                 source,
@@ -241,104 +247,37 @@ impl CheckState<'_> {
                 &[],
                 &function,
                 return_type,
+                None,
                 arguments,
-            )?;
-
-            return match attempt {
-                Answer::Ready(Some(accepted)) => {
-                    self.commit_probe(probe);
-
-                    Ok(Answer::Ready(Some((
-                        accepted.parameters.to_vec(),
-                        accepted.return_type,
-                    ))))
-                }
-                Answer::Ready(None) => {
-                    self.reject_probe(probe);
-
-                    Ok(Answer::Ready(None))
-                }
-                Answer::Pending(blockers) => {
-                    self.reject_probe(probe);
-
-                    // blockers that died with the probe cannot wake this candidate
-                    let blockers = self.live_blockers(blockers);
-                    Ok(Answer::ready_unless_blocked(None, blockers))
-                }
-            };
+                argument_sources,
+            );
         }
 
         // applied classes substitute their written arguments
         let substitution = self.instance_substitution(instance)?.with_receiver(target);
-
-        // reject arities the constructor cannot accept
-        let required = function
-            .parameters
-            .iter()
-            .filter(|parameter| !parameter.is_optional && !parameter.is_rest)
-            .count();
-        let has_rest = function
-            .parameters
-            .iter()
-            .any(|parameter| parameter.is_rest);
-        if arguments.len() < required || (!has_rest && arguments.len() > function.parameters.len())
-        {
-            return Ok(Answer::Ready(None));
-        }
-
-        // constrain each argument into its substituted parameter
-        for (index, argument) in arguments.iter().enumerate() {
-            let parameter = function
-                .parameters
-                .get(index)
-                .or_else(|| function.parameters.last());
-            let Some(parameter) = parameter else {
-                return Ok(Answer::Ready(None));
-            };
-            let parameter_type = if substitution.is_empty() {
-                parameter.ty
-            } else {
-                self.fold_type(module, source, parameter.ty, substitution.rewrite())?
-            };
-
-            if !answer!(self.constrain(origin, Relation::Assignable, *argument, parameter_type)?) {
-                return Ok(Answer::Ready(None));
-            }
-        }
-
-        // the construction produces the substituted receiver
-        let produced = match return_type {
-            Some(return_type) if !substitution.is_empty() => {
-                self.fold_type(module, source, return_type, substitution.rewrite())?
-            }
-            Some(return_type) => return_type,
-            None => target,
+        let function_type = self.substitute_type(module, source, function_type, &substitution)?;
+        let function_type = answer!(self.reduce_type_head(origin, function_type)?);
+        let dir::Type::FunctionSignature(function) = self.ty(function_type)? else {
+            return Ok(Answer::Ready(Err(SignatureRejection::Inapplicable)));
         };
 
-        let parameters = function
-            .parameters
-            .iter()
-            .map(|parameter| {
-                let ty = if substitution.is_empty() {
-                    parameter.ty
-                } else {
-                    self.fold_type(module, source, parameter.ty, substitution.rewrite())?
-                };
-                let ty = self.fold_type(module, source, ty, TypeRewrite::Resolve)?;
-
-                Ok(dir::FunctionParameterType {
-                    ty,
-                    static_parameter: None,
-                    is_optional: parameter.is_optional,
-                    is_rest: parameter.is_rest,
-                })
-            })
-            .collect::<CompilerResult<Vec<_>>>()?;
-
-        Ok(Answer::Ready(Some((parameters, produced))))
+        let function = function.clone();
+        let return_type = function.return_type.or(Some(target));
+        self.attempt_signature(
+            origin,
+            module,
+            source,
+            &[],
+            &[],
+            &function,
+            return_type,
+            None,
+            arguments,
+            argument_sources,
+        )
     }
 
-    /// Select one newtype construction through call syntax.
+    /// Select one newtype construction through call expression form.
     ///
     /// Example:
     /// ```ds
@@ -347,14 +286,17 @@ impl CheckState<'_> {
     /// ```
     pub(in crate::check) fn select_newtype_construct(
         &mut self,
+        site: FlowSite,
         node: dir::GlobalNodeIdAny,
         origin: Origin,
         symbol: dir::GlobalSymbolId,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        type_arguments: &[dir::GlobalTypeId],
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<()>> {
         let module = origin.module();
         let source = self.origin_source_node(origin)?;
+        let argument_sources = self.argument_value_sources(module, argument_nodes);
 
         // read the wrapped backing type
         let Some(dir::Definition::Newtype(definition)) = self.definition(symbol) else {
@@ -362,195 +304,124 @@ impl CheckState<'_> {
         };
         let backing = definition.value;
 
-        // instantiate the newtype's generic parameters
-        let template = self.symbol_template(symbol);
-        let probe = self.begin_probe();
-        let matched =
-            self.match_newtype_construct(origin, module, source, template, backing, arguments);
+        // model the backing as a callable signature
+        let generic_parameters = self
+            .symbol_template(symbol)
+            .map(|template| self.generic_template_parameters(template))
+            .unwrap_or_default();
+        let return_arguments = generic_parameters
+            .iter()
+            .copied()
+            .map(|parameter| self.push_type(module, dir::Type::Parameter(parameter), source))
+            .collect::<CompilerResult<Vec<_>>>()?;
+        let return_type = self.push_type(
+            module,
+            dir::Type::Instance(dir::GenericInstance {
+                symbol,
+                arguments: return_arguments,
+            }),
+            source,
+        )?;
+        let backing = answer!(self.reduce_type_head(origin, backing)?);
+        let parameters = match self.ty(backing)? {
+            dir::Type::Tuple(tuple) => tuple
+                .elements
+                .iter()
+                .map(|element| dir::FunctionParameterType {
+                    ty: element.ty,
+                    static_parameter: None,
+                    is_optional: false,
+                    is_rest: false,
+                })
+                .collect::<Vec<_>>(),
+            _ => vec![dir::FunctionParameterType {
+                ty: backing,
+                static_parameter: None,
+                is_optional: false,
+                is_rest: false,
+            }],
+        };
+        let function = dir::FunctionSignatureType {
+            asynchrony: dir::Asynchrony::Sync,
+            template: None,
+            this_parameter: None,
+            parameters,
+            return_type: Some(return_type),
+            is_generator: false,
+        };
+        let attempt = self.attempt_signature(
+            origin,
+            module,
+            source,
+            &generic_parameters,
+            type_arguments,
+            &function,
+            function.return_type,
+            None,
+            arguments,
+            &argument_sources,
+        )?;
+        let signature = match answer!(attempt) {
+            Ok(signature) => signature,
+            Err(_) => return self.reject_construct(node, origin, arguments),
+        };
 
-        match matched? {
-            Answer::Ready(Some((applied, parameters))) => {
-                self.commit_probe(probe);
+        // commit the selected newtype construction
+        let target = dir::ConstructTarget::Newtype(dir::NewtypeConstructCandidate {
+            symbol,
+            generic_arguments: signature.generic_arguments.clone(),
+        });
+        let resolution = dir::ConstructResolution::new(
+            target,
+            Self::parameter_types(&signature.parameters),
+            self.argument_bindings(module, argument_nodes, &signature.parameters),
+            signature.return_type,
+        );
+        answer!(self.push_argument_constraints(site, argument_nodes, &resolution.arguments)?);
+        self.commit_decision(node, Decision::Construct(resolution))?;
+        self.commit_node_type(node, signature.return_type)?;
 
-                // the construction produces the applied newtype
-                let produced = self.push_type(
-                    module,
-                    dir::Type::Instance(dir::GenericInstance {
-                        symbol,
-                        arguments: applied.clone(),
-                    }),
-                    source,
-                )?;
-                let arguments = self.symbol_generic_argument_bindings(symbol, &applied)?;
-                let target = dir::ConstructTarget::Newtype(dir::NewtypeConstructCandidate {
-                    symbol,
-                    generic_arguments: arguments,
-                });
-                let parameter_slots = Self::plain_parameter_slots(&parameters);
-                let resolution = dir::ConstructResolution::new(
-                    target,
-                    parameters,
-                    self.argument_bindings(module, argument_nodes, &parameter_slots),
-                    produced,
-                );
-                answer!(self.push_argument_constraints(
-                    module,
-                    argument_nodes,
-                    &resolution.arguments
-                )?);
-                self.record_decision(node, Decision::Construct(resolution))?;
-                self.bind_node_type(node, produced)?;
-
-                Ok(Answer::Ready(()))
-            }
-            Answer::Ready(None) => {
-                self.reject_probe(probe);
-
-                self.reject_construct(node, origin, arguments)
-            }
-            Answer::Pending(blockers) => {
-                self.reject_probe(probe);
-
-                // blockers that died with the probe cannot wake this construction
-                let blockers = self.live_blockers(blockers);
-                if blockers.is_empty() {
-                    self.reject_construct(node, origin, arguments)
-                } else {
-                    Ok(Answer::Pending(blockers))
-                }
-            }
-        }
+        Ok(Answer::Ready(()))
     }
 
-    /// Match newtype construction arguments under an active probe.
-    /// Returns the resolved generic arguments on a match.
-    fn match_newtype_construct(
+    /// Commit one accepted construction selection.
+    fn commit_construct(
         &mut self,
-        origin: Origin,
-        module: destack_source::ModuleId,
-        source: dir::LocalNodeIdAny,
-        template: Option<GenericTemplateId>,
-        backing: dir::GlobalTypeId,
-        arguments: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<Option<(Vec<dir::GlobalTypeId>, Vec<dir::GlobalTypeId>)>>> {
-        // instantiate the declared parameters
-        let substitution = match template {
-            Some(template) => {
-                match self.instantiate_template(
-                    origin,
-                    template,
-                    &[],
-                    GenericArgumentMode::Infer,
-                )? {
-                    Some(substitution) => substitution,
-                    None => return Ok(Answer::Ready(None)),
-                }
-            }
-            None => Default::default(),
-        };
-        let backing = if substitution.is_empty() {
-            backing
-        } else {
-            self.fold_type(module, source, backing, substitution.rewrite())?
-        };
-
-        // tuple backings take their elements positionally
-        let backing = answer!(self.reduce_type_root(origin, backing)?);
-        let elements = match self.ty(backing)? {
-            dir::Type::Tuple(tuple) => Some(
-                tuple
-                    .elements
-                    .iter()
-                    .map(|element| element.ty)
-                    .collect::<SmallVec<[_; 4]>>(),
-            ),
-            _ => None,
-        };
-        let parameters = match elements {
-            Some(elements) => {
-                // every tuple element takes one positional argument
-                if arguments.len() != elements.len() {
-                    return Ok(Answer::Ready(None));
-                }
-                for (argument, element) in arguments.iter().zip(elements.iter()) {
-                    if !answer!(self.constrain(
-                        origin,
-                        Relation::Assignable,
-                        *argument,
-                        *element
-                    )?) {
-                        return Ok(Answer::Ready(None));
-                    }
-                }
-
-                elements.to_vec()
-            }
-            None => {
-                // every other backing takes exactly one argument
-                let [argument] = arguments else {
-                    return Ok(Answer::Ready(None));
-                };
-                if !answer!(self.constrain(origin, Relation::Assignable, *argument, backing)?) {
-                    return Ok(Answer::Ready(None));
-                }
-
-                vec![backing]
-            }
-        };
-
-        // solve and resolve the probe variables
-        let variables = self.substitution_variables(&substitution)?;
-        if !answer!(self.solve_probe_variables(variables)?) {
-            return Ok(Answer::Ready(None));
-        }
-        let mut applied = Vec::with_capacity(substitution.arguments.len());
-        for argument in substitution.arguments.iter().copied() {
-            applied.push(self.fold_type(module, source, argument, TypeRewrite::Resolve)?);
-        }
-
-        let raw_parameters = parameters;
-        let mut parameters = Vec::with_capacity(raw_parameters.len());
-        for parameter in raw_parameters {
-            parameters.push(self.fold_type(module, source, parameter, TypeRewrite::Resolve)?);
-        }
-
-        Ok(Answer::Ready(Some((applied, parameters))))
-    }
-
-    /// Record one selected construction and bound the node variable.
-    fn record_construct(
-        &mut self,
+        site: FlowSite,
         node: dir::GlobalNodeIdAny,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         instance: &dir::GenericInstance,
         constructor: dir::ClassConstructor,
-        parameters: Vec<dir::FunctionParameterType>,
-        return_type: dir::GlobalTypeId,
+        signature: SignatureSelection,
         result: ConstructResult,
     ) -> CompilerResult<Answer<()>> {
-        let arguments =
-            self.symbol_generic_argument_bindings(instance.symbol, &instance.arguments)?;
+        let generic_arguments = if signature.generic_arguments.is_empty() {
+            self.symbol_generic_argument_bindings(instance.symbol, &instance.arguments)?
+        } else {
+            signature.generic_arguments.clone()
+        };
         let target = dir::ConstructTarget::Class(dir::ClassConstructCandidate {
             symbol: instance.symbol,
             constructor,
-            generic_arguments: arguments,
+            generic_arguments,
         });
         let produced = match result {
-            ConstructResult::Direct => return_type,
-            ConstructResult::Fallible => self.fallible_construct_type(node, return_type)?,
+            ConstructResult::Direct => signature.return_type,
+            ConstructResult::Fallible => {
+                self.fallible_construct_type(node, signature.return_type)?
+            }
         };
         let resolution = dir::ConstructResolution::new(
             target,
-            Self::parameter_types(&parameters),
-            self.argument_bindings(module, argument_nodes, &parameters),
+            Self::parameter_types(&signature.parameters),
+            self.argument_bindings(module, argument_nodes, &signature.parameters),
             produced,
         );
-        answer!(self.push_argument_constraints(module, argument_nodes, &resolution.arguments)?);
-        self.record_decision(node, Decision::Construct(resolution))?;
+        answer!(self.push_argument_constraints(site, argument_nodes, &resolution.arguments)?);
+        self.commit_decision(node, Decision::Construct(resolution))?;
 
-        // flow the constructed type into the node variable
-        self.bind_node_type(node, produced)?;
+        self.commit_node_type(node, produced)?;
 
         Ok(Answer::Ready(()))
     }
@@ -577,20 +448,6 @@ impl CheckState<'_> {
         Ok(carrier)
     }
 
-    /// Return simple positional parameter slots from selected parameter types.
-    fn plain_parameter_slots(parameters: &[dir::GlobalTypeId]) -> Vec<dir::FunctionParameterType> {
-        parameters
-            .iter()
-            .copied()
-            .map(|ty| dir::FunctionParameterType {
-                ty,
-                static_parameter: None,
-                is_optional: false,
-                is_rest: false,
-            })
-            .collect()
-    }
-
     /// Reject one construction whose arguments fit no constructor.
     fn reject_construct(
         &mut self,
@@ -598,8 +455,9 @@ impl CheckState<'_> {
         origin: Origin,
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<()>> {
-        self.report_no_matching_call(origin, arguments, None)?;
-        self.record_decision(node, Decision::Rejected)?;
+        self.report_no_matching_construct(origin, arguments)?;
+        self.commit_decision(node, Decision::Rejected)?;
+        self.commit_error_node(node)?;
 
         Ok(Answer::Ready(()))
     }
@@ -613,7 +471,8 @@ impl CheckState<'_> {
         hint: &str,
     ) -> CompilerResult<Answer<()>> {
         self.report_not_constructible(origin, target, hint)?;
-        self.record_decision(node, Decision::Rejected)?;
+        self.commit_decision(node, Decision::Rejected)?;
+        self.commit_error_node(node)?;
 
         Ok(Answer::Ready(()))
     }
