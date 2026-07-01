@@ -5,7 +5,7 @@ use destack_fir::format::{
     Format, FormatContext, FormatError, FormatOptions, FormatResult, Formatter,
 };
 use destack_fir::prelude::*;
-use destack_fir::print::PrintOptions;
+use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions};
 use destack_fir::write;
 use destack_source::{File, FileType, IndentStyle, LineEnding};
 
@@ -50,6 +50,7 @@ impl MirFormatOptions {
             indent_style: self.indent_style,
             indent_width: self.indent_width,
             trim_trailing_whitespace: false,
+            max_output_bytes: MAX_OUTPUT_BYTES,
         }
     }
 }

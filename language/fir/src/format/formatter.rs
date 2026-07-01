@@ -5,7 +5,7 @@ use crate::format::{
     Arguments, Buffer, FormatContext, FormatState, GroupId, PrintResult, VecBuffer,
 };
 use crate::prelude::*;
-use crate::print::{Printed, Printer};
+use crate::print::{PrintOptions, Printed, Printer};
 
 /// Formatting interface for types that can create a formatted representation. The `destack_fir` equivalent
 /// to [`std::fmt::Display`].
@@ -87,6 +87,14 @@ where
 {
     pub fn print(&self) -> PrintResult<Printed> {
         let printer = self.create_printer();
+        printer.print(&self.document)
+    }
+
+    /// Print this document with explicit print options.
+    pub fn print_with_options(&self, print_options: PrintOptions) -> PrintResult<Printed> {
+        let source = self.context.file();
+        let printer = Printer::new(source, print_options);
+
         printer.print(&self.document)
     }
 

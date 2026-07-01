@@ -6,7 +6,7 @@ mod value;
 use destack_fir::format::{
     Document, FormatContext, FormatOptions, FormatResult, FormatState, Formatter, VecBuffer,
 };
-use destack_fir::print::{PrintOptions, Printer};
+use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions, Printer};
 use destack_repository::FormatterOptions;
 use destack_source::{File, FileType, IndentStyle, LineEnding};
 
@@ -74,6 +74,7 @@ impl JsonFormatOptions {
             indent_style: self.indent_style,
             indent_width: self.indent_width,
             trim_trailing_whitespace: true,
+            max_output_bytes: MAX_OUTPUT_BYTES,
         }
     }
 }

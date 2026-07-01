@@ -4,6 +4,24 @@ use destack_source::Span;
 
 use crate::format::{FormatTagKind, GroupId};
 
+/// Requested formatted output bytes.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum RequestedOutputBytes {
+    /// A known output byte count.
+    Count(usize),
+    /// The requested output byte count overflowed `usize`.
+    Overflow,
+}
+
+impl std::fmt::Display for RequestedOutputBytes {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RequestedOutputBytes::Count(count) => std::write!(fmt, "{count} requested bytes"),
+            RequestedOutputBytes::Overflow => std::write!(fmt, "an overflowing byte count"),
+        }
+    }
+}
+
 /// Series of errors encountered during formatting.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum FormatError {
@@ -13,6 +31,13 @@ pub enum FormatError {
     /// Range formatting failed because the provided range was larger
     /// than the formatted syntax tree.
     RangeError { input: Span, tree: Span },
+    /// Source text was unavailable for a source slice.
+    SourceTextUnavailable { span: Span },
+    /// Formatted output exceeded the configured byte limit.
+    OutputTooLarge {
+        max_output_bytes: u32,
+        requested_bytes: RequestedOutputBytes,
+    },
     /// Printing the document failed because it has an invalid structure.
     InvalidDocument(InvalidDocumentError),
     /// Formatting failed because some content encountered a situation where a layout
@@ -33,6 +58,16 @@ impl std::fmt::Display for FormatError {
             FormatError::RangeError { input, tree } => std::write!(
                 fmt,
                 "formatting range {input:?} is larger than syntax tree {tree:?}"
+            ),
+            FormatError::SourceTextUnavailable { span } => {
+                std::write!(fmt, "source text is unavailable for span {span:?}")
+            }
+            FormatError::OutputTooLarge {
+                max_output_bytes,
+                requested_bytes,
+            } => std::write!(
+                fmt,
+                "formatted output exceeded byte limit {max_output_bytes} with {requested_bytes}"
             ),
             FormatError::InvalidDocument(error) => std::write!(fmt, "invalid document: {error}."),
             FormatError::PoorLayout => {
@@ -160,6 +195,14 @@ pub enum ActualStart {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum PrintError {
+    /// Source text was unavailable for a source slice.
+    SourceTextUnavailable { span: Span },
+    /// Formatted output exceeded the configured byte limit.
+    OutputTooLarge {
+        max_output_bytes: u32,
+        requested_bytes: RequestedOutputBytes,
+    },
+    /// Printing failed because the document has an invalid structure.
     InvalidDocument(InvalidDocumentError),
 }
 
@@ -172,6 +215,16 @@ impl From<PrintError> for FormatError {
 impl From<&PrintError> for FormatError {
     fn from(error: &PrintError) -> Self {
         match error {
+            PrintError::SourceTextUnavailable { span } => {
+                FormatError::SourceTextUnavailable { span: *span }
+            }
+            PrintError::OutputTooLarge {
+                max_output_bytes,
+                requested_bytes,
+            } => FormatError::OutputTooLarge {
+                max_output_bytes: *max_output_bytes,
+                requested_bytes: *requested_bytes,
+            },
             PrintError::InvalidDocument(reason) => FormatError::InvalidDocument(*reason),
         }
     }
@@ -180,6 +233,18 @@ impl From<&PrintError> for FormatError {
 impl std::fmt::Display for PrintError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            PrintError::SourceTextUnavailable { span } => {
+                std::write!(f, "Source text is unavailable for span {span:?}.")
+            }
+            PrintError::OutputTooLarge {
+                max_output_bytes,
+                requested_bytes,
+            } => {
+                std::write!(
+                    f,
+                    "Formatted output exceeded byte limit {max_output_bytes} with {requested_bytes}."
+                )
+            }
             PrintError::InvalidDocument(inner) => {
                 std::write!(f, "Invalid document: {inner}")
             }

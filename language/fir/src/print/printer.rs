@@ -7,8 +7,8 @@ use super::bomb::DebugDropBomb;
 use crate::format::{
     ActualStart, BestFittingMode, BestFittingVariants, Condition, DedentMode, Document, FileMarker,
     FormatNode, FormatTag, FormatTagKind, GroupId, GroupMode, IndentStyle, Indentation,
-    InvalidDocumentError, LineMode, PrintError, PrintMode, PrintResult, TextWidth, VerbatimKind,
-    tag,
+    InvalidDocumentError, LineMode, PrintError, PrintMode, PrintResult, RequestedOutputBytes,
+    TextWidth, VerbatimKind, tag,
 };
 use crate::print::call::{
     CallStack, FitsCallStack, FitsIndentStack, IndentStack, PrintCallStack, PrintIndentStack,
@@ -33,8 +33,7 @@ impl<'a> Printer<'a> {
         Self {
             source,
             options,
-            // NOTE #Performance: calibrate initial capacity for PrinterState
-            state: PrinterState::with_capacity(source.len as usize),
+            state: PrinterState::new(source.len as usize, options.max_output_bytes),
         }
     }
 
@@ -90,15 +89,15 @@ impl<'a> Printer<'a> {
         let args = stack.top();
 
         match node {
-            FormatNode::Space => self.print_text(Text::Token(" ")),
-            FormatNode::Token { text } => self.print_text(Text::Token(text)),
+            FormatNode::Space => self.print_text(Text::Token(" "))?,
+            FormatNode::Token { text } => self.print_text(Text::Token(text))?,
             FormatNode::Text {
                 text,
                 width: text_width,
             } => self.print_text(Text::Text {
                 text,
                 text_width: *text_width,
-            }),
+            })?,
             FormatNode::SourcePosition { source } => {
                 self.state.pending_source_position = Some(*source);
             }
@@ -107,11 +106,14 @@ impl<'a> Printer<'a> {
                 width: text_width,
             } => {
                 self.state.pending_source_position = Some(slice.start);
-                let text = self.source.get_span_str(*slice).unwrap_or_default();
+                let text = self
+                    .source
+                    .get_span_str(*slice)
+                    .ok_or(PrintError::SourceTextUnavailable { span: *slice })?;
                 self.print_text(Text::Text {
                     text,
                     text_width: *text_width,
-                });
+                })?;
                 self.state.pending_source_position = Some(slice.end);
             }
             FormatNode::Line(line_mode) => {
@@ -119,7 +121,7 @@ impl<'a> Printer<'a> {
                     && matches!(line_mode, LineMode::Soft | LineMode::SoftOrSpace)
                 {
                     if line_mode == &LineMode::SoftOrSpace {
-                        self.print_text(Text::Token(" "));
+                        self.print_text(Text::Token(" "))?;
                     }
                 } else if self.state.line_suffixes.has_pending() {
                     self.flush_line_suffixes(queue, stack, indent_stack, Some(node));
@@ -127,13 +129,13 @@ impl<'a> Printer<'a> {
                     // only print a newline if the current line isn't already empty
                     if self.state.buffer.len() > self.state.line_start {
                         self.push_marker();
-                        self.print_char('\n');
+                        self.print_char('\n')?;
                     }
 
                     // print a second line break if this is an empty line
                     if line_mode == &LineMode::Empty {
                         self.push_marker();
-                        self.print_char('\n');
+                        self.print_char('\n')?;
                     }
 
                     self.state.pending_indent = indent_stack.indentation();
@@ -456,15 +458,15 @@ impl<'a> Printer<'a> {
         Ok(print_mode)
     }
 
-    fn print_text(&mut self, text: Text<'_>) {
-        self.write_pending_indent();
+    fn print_text(&mut self, text: Text<'_>) -> PrintResult<()> {
+        self.write_pending_indent()?;
 
         self.push_marker();
 
         match text {
             #[expect(clippy::cast_possible_truncation)]
             Text::Token(token) => {
-                self.state.buffer.push_str(token);
+                self.state.push_str(token)?;
                 self.state.line_width += token.len() as u32;
             }
             Text::Text {
@@ -472,59 +474,65 @@ impl<'a> Printer<'a> {
                 text_width: width,
             } => {
                 if let Some(width) = width.width() {
-                    self.state.buffer.push_str(text);
+                    self.state.push_str(text)?;
                     self.state.line_width += width.value();
                 } else {
-                    self.print_multiline_text(text);
+                    self.print_multiline_text(text)?;
                 }
             }
         }
+
+        Ok(())
     }
 
     /// write pending indentation into the output buffer
-    fn write_pending_indent(&mut self) {
+    fn write_pending_indent(&mut self) -> PrintResult<()> {
         let indent = std::mem::take(&mut self.state.pending_indent);
         if indent.is_empty() {
-            return;
+            return Ok(());
         }
 
         let level = indent.level() as usize;
         let align = indent.align() as usize;
         let indent_width = self.options.indent_width as usize;
 
-        // indentation write: avoid per-character print_char calls
+        // write indentation in one buffer operation
         match self.options.indent_style {
             IndentStyle::Space => {
                 let total_spaces = level.saturating_mul(indent_width).saturating_add(align);
-                self.state.buffer.reserve(total_spaces);
+                self.state.reserve(total_spaces)?;
                 push_spaces(&mut self.state.buffer, total_spaces);
                 self.state.line_width += total_spaces as u32;
             }
             IndentStyle::Tab => {
-                self.state.buffer.reserve(level.saturating_add(align));
+                let total_bytes = level.saturating_add(align);
+                self.state.reserve(total_bytes)?;
                 push_tabs(&mut self.state.buffer, level);
                 push_spaces(&mut self.state.buffer, align);
                 self.state.line_width +=
                     (level.saturating_mul(indent_width).saturating_add(align)) as u32;
             }
         }
+
+        Ok(())
     }
 
-    /// print a multiline text payload
-    fn print_multiline_text(&mut self, text: &str) {
+    /// Print multiline text.
+    fn print_multiline_text(&mut self, text: &str) -> PrintResult<()> {
         // ascii fast path: stream chunks between newline and tab characters
         if text.is_ascii() {
-            self.print_multiline_ascii_text(text);
-            return;
+            return self.print_multiline_ascii_text(text);
         }
 
         for char in text.chars() {
-            self.print_char(char);
+            self.print_char(char)?;
         }
+
+        Ok(())
     }
 
-    /// print an ascii multiline text payload
-    fn print_multiline_ascii_text(&mut self, text: &str) {
+    /// Print multiline ASCII text.
+    fn print_multiline_ascii_text(&mut self, text: &str) -> PrintResult<()> {
         let bytes = text.as_bytes();
         let mut run_start = 0usize;
         let mut index = 0usize;
@@ -539,14 +547,14 @@ impl<'a> Printer<'a> {
 
             if run_start < index {
                 let chunk = &text[run_start..index];
-                self.state.buffer.push_str(chunk);
+                self.state.push_str(chunk)?;
                 self.state.line_width += (index - run_start) as u32;
             }
 
             if byte == b'\n' {
-                self.print_newline();
+                self.print_newline()?;
             } else {
-                self.state.buffer.push('\t');
+                self.state.push_char('\t')?;
                 self.state.line_width += u32::from(self.options.indent_width);
             }
 
@@ -556,9 +564,11 @@ impl<'a> Printer<'a> {
 
         if run_start < bytes.len() {
             let chunk = &text[run_start..];
-            self.state.buffer.push_str(chunk);
+            self.state.push_str(chunk)?;
             self.state.line_width += (bytes.len() - run_start) as u32;
         }
+
+        Ok(())
     }
 
     fn push_marker(&mut self) {
@@ -913,11 +923,11 @@ impl<'a> Printer<'a> {
         invalid_end_tag(kind, stack.top_kind())
     }
 
-    fn print_char(&mut self, char: char) {
+    fn print_char(&mut self, char: char) -> PrintResult<()> {
         if char == '\n' {
-            self.print_newline();
+            self.print_newline()?;
         } else {
-            self.state.buffer.push(char);
+            self.state.push_char(char)?;
 
             let char_width = if char.is_ascii() {
                 if char == '\t' {
@@ -931,6 +941,8 @@ impl<'a> Printer<'a> {
 
             self.state.line_width += char_width;
         }
+
+        Ok(())
     }
 
     /// trim trailing spaces and tabs for the current line before writing a newline
@@ -985,14 +997,12 @@ impl<'a> Printer<'a> {
     }
 
     /// print a newline with the configured line ending
-    fn print_newline(&mut self) {
+    fn print_newline(&mut self) -> PrintResult<()> {
         if self.options.trim_trailing_whitespace {
             self.trim_trailing_line_whitespace();
         }
 
-        self.state
-            .buffer
-            .push_str(self.options.line_ending.as_str());
+        self.state.push_str(self.options.line_ending.as_str())?;
 
         self.state.line_width = 0;
         self.state.line_start = self.state.buffer.len();
@@ -1000,6 +1010,8 @@ impl<'a> Printer<'a> {
         // fit's only tests if groups up to the first line break fit.
         // the next group must re-measure if it still fits.
         self.state.measured_group_fits = false;
+
+        Ok(())
     }
 }
 
@@ -1024,6 +1036,9 @@ enum FillPairLayout {
 struct PrinterState<'a> {
     /// The formatted output.
     buffer: String,
+
+    /// The maximum formatted output bytes to emit.
+    max_output_bytes: u32,
 
     /// The source markers that map source positions to formatted positions.
     source_markers: Vec<FileMarker>,
@@ -1057,11 +1072,53 @@ struct PrinterState<'a> {
 }
 
 impl PrinterState<'_> {
-    fn with_capacity(capacity: usize) -> Self {
+    fn new(capacity: usize, max_output_bytes: u32) -> Self {
+        let max_output_capacity = max_output_bytes as usize;
+
         Self {
-            buffer: String::with_capacity(capacity),
+            buffer: String::with_capacity(capacity.min(max_output_capacity)),
+            max_output_bytes,
             ..Self::default()
         }
+    }
+
+    fn reserve(&mut self, additional: usize) -> PrintResult<()> {
+        self.check_output_len(additional)?;
+        self.buffer.reserve(additional);
+
+        Ok(())
+    }
+
+    fn push_str(&mut self, text: &str) -> PrintResult<()> {
+        self.check_output_len(text.len())?;
+        self.buffer.push_str(text);
+
+        Ok(())
+    }
+
+    fn push_char(&mut self, char: char) -> PrintResult<()> {
+        self.check_output_len(char.len_utf8())?;
+        self.buffer.push(char);
+
+        Ok(())
+    }
+
+    fn check_output_len(&self, additional: usize) -> PrintResult<()> {
+        let Some(requested_bytes) = self.buffer.len().checked_add(additional) else {
+            return Err(PrintError::OutputTooLarge {
+                max_output_bytes: self.max_output_bytes,
+                requested_bytes: RequestedOutputBytes::Overflow,
+            });
+        };
+
+        if requested_bytes > self.max_output_bytes as usize {
+            return Err(PrintError::OutputTooLarge {
+                max_output_bytes: self.max_output_bytes,
+                requested_bytes: RequestedOutputBytes::Count(requested_bytes),
+            });
+        }
+
+        Ok(())
     }
 }
 
@@ -1282,7 +1339,11 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
                 slice,
                 width: text_width,
             } => {
-                let text = self.printer.source.get_span_str(*slice).unwrap_or_default();
+                let text = self
+                    .printer
+                    .source
+                    .get_span_str(*slice)
+                    .ok_or(PrintError::SourceTextUnavailable { span: *slice })?;
                 return Ok(self.fits_text(
                     Text::Text {
                         text,
@@ -1779,9 +1840,12 @@ enum Text<'a> {
 
 #[cfg(test)]
 mod tests {
-    use destack_source::{File, FileType};
+    use destack_source::{File, FileId, FileType, Uri};
 
-    use crate::format::{Document, FormatState, IndentStyle, LineEnding, VecBuffer};
+    use crate::format::{
+        Document, FormatNode, FormatState, IndentStyle, LineEnding, PrintError,
+        RequestedOutputBytes, TextWidth, VecBuffer,
+    };
     use crate::prelude::*;
     use crate::print::{PrintOptions, Printed, Printer};
     use crate::{format_args, write};
@@ -1799,6 +1863,74 @@ mod tests {
         Printer::new(&File::empty_text(FileType::Destack), options)
             .print(formatted.document())
             .expect("Document to be valid")
+    }
+
+    /// Output limits should fail before writing a too-large token.
+    #[test]
+    fn test_limits_token_output_bytes() {
+        let formatted =
+            crate::format!(SimpleFormatContext::empty_destack(), [token("abcdef")]).unwrap();
+        let options = PrintOptions::default().with_max_output_bytes(3);
+
+        let error = Printer::new(&File::empty_text(FileType::Destack), options)
+            .print(formatted.document())
+            .unwrap_err();
+
+        assert_eq!(
+            error,
+            PrintError::OutputTooLarge {
+                max_output_bytes: 3,
+                requested_bytes: RequestedOutputBytes::Count(6)
+            }
+        );
+    }
+
+    /// Output limits should apply to generated indentation too.
+    #[test]
+    fn test_limits_indent_output_bytes() {
+        let formatted = crate::format!(
+            SimpleFormatContext::empty_destack(),
+            [token("a"), block_indent(&token("b"))]
+        )
+        .unwrap();
+        let options = PrintOptions::default().with_max_output_bytes(3);
+
+        let error = Printer::new(&File::empty_text(FileType::Destack), options)
+            .print(formatted.document())
+            .unwrap_err();
+
+        assert!(matches!(
+            error,
+            PrintError::OutputTooLarge {
+                max_output_bytes: 3,
+                ..
+            }
+        ));
+    }
+
+    /// File slices require source text during printing.
+    #[test]
+    fn test_print_source_text_slice_reports_binary_source() {
+        let file_id = FileId::from_logical_str("binary.bin");
+        let file = File::from_binary(
+            file_id,
+            "binary.bin".to_string(),
+            Uri::from_string("binary.bin"),
+            None,
+            FileType::Binary,
+            vec![1, 2, 3],
+        );
+        let span = Span::new(file_id, 0, 1);
+        let document = Document::from(vec![FormatNode::FileSlice {
+            slice: span,
+            width: TextWidth::from_text("a", 4),
+        }]);
+
+        let error = Printer::new(&file, PrintOptions::default())
+            .print(&document)
+            .unwrap_err();
+
+        assert_eq!(error, PrintError::SourceTextUnavailable { span });
     }
 
     /// Groups that fit within line width should print on one line.

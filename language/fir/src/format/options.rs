@@ -1,5 +1,5 @@
 use crate::format::{IndentStyle, LineEnding};
-use crate::print::PrintOptions;
+use crate::print::{MAX_OUTPUT_BYTES, PrintOptions};
 
 pub trait FormatOptions {
     /// Get the indent style.
@@ -76,6 +76,7 @@ impl FormatOptions for SimpleFormatOptions {
             indent_style: self.indent_style,
             indent_width: self.indent_width,
             trim_trailing_whitespace: false,
+            max_output_bytes: MAX_OUTPUT_BYTES,
         }
     }
 }
