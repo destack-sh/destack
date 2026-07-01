@@ -264,12 +264,8 @@ pub struct FunctionBehavior {
 }
 
 impl FunctionBehavior {
-    /// Return true when the operation may unwind.
-    ///
-    /// Suspension is an unwind source too: a parked frame can be resumed into the
-    /// unwind path by cancellation, so suspendable operations may unwind even when
-    /// they cannot panic.
-    pub fn may_unwind(&self) -> bool {
+    /// Return true when the operation may suspend or panic unwind.
+    pub fn may_suspend_or_unwind(&self) -> bool {
         self.panic.may_panic() || self.suspend.may_suspend()
     }
 
