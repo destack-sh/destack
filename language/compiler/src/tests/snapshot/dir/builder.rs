@@ -564,8 +564,13 @@ impl<'a> DirSnapshotBuilder<'a> {
         if reduced == type_id {
             return None;
         }
+        let reduced = self.global_type_label(reduced);
+        let original = self.global_type_label(type_id);
+        if reduced == original {
+            return None;
+        }
 
-        Some(self.global_type_label(reduced))
+        Some(reduced)
     }
 
     /// Render one symbol's checked type.
