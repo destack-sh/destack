@@ -37,11 +37,12 @@ extension<T> of ^SortedSet<T> implements Default {
     }
 }
 
-extension<T: Compare<T>> of SortedSet<T> implements
-    Has<T>,
-    Iterable<T>,
-    Iterable<&readonly T>,
-    Extend<T, "exclusive"> {
+extension<T: Compare<T>> of SortedSet<T>
+    implements
+        Has<T>,
+        Iterable<T>,
+        Iterable<&readonly T>,
+        Extend<T, "exclusive"> {
     /// Create a sorted set from values.
     static from(values: Iterable<T>): ^SortedSet<T> {
         todo("SortedSet.from")

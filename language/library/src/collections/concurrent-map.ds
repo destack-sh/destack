@@ -290,9 +290,10 @@ extension<K: Hash, V> of ConcurrentMap<K, V> implements Has<K>, Extend<(K, V)> {
     }
 }
 
-extension<K: Hash, V> of ^ConcurrentMap<K, V> implements
-    From<Iterable<(K, V)>>,
-    FromIterator<(K, V)> {
+extension<K: Hash, V> of ^ConcurrentMap<K, V>
+    implements
+        From<Iterable<(K, V)>>,
+        FromIterator<(K, V)> {
     /// Create an owned concurrent map from entries.
     static from(entries: Iterable<(K, V)>): ^ConcurrentMap<K, V> {
         ConcurrentMap.from(entries)

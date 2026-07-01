@@ -11,14 +11,15 @@ import { Sequence } from "./sequence.ds";
 @languageItem("collections.Slice")
 export newtype Slice<T> = [T];
 
-extension<T> of Slice<T> implements
-    Iterable<T>,
-    Iterable<&T>,
-    Iterable<&readonly T>,
-    Iterable<&exclusive T>,
-    From<Iterable<T>>,
-    FromIterator<T>,
-    Default {
+extension<T> of Slice<T>
+    implements
+        Iterable<T>,
+        Iterable<&T>,
+        Iterable<&readonly T>,
+        Iterable<&exclusive T>,
+        From<Iterable<T>>,
+        FromIterator<T>,
+        Default {
     /// Create an empty slice.
     static new(): Slice<T> {
         todo("Slice.new")

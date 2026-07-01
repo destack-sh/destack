@@ -19,14 +19,15 @@ export class Deque<T> {
     count: usize = 0;
 }
 
-extension<T> of Deque<T> implements
-    Index<usize>,
-    IndexSet<usize, T>,
-    Iterable<T>,
-    Iterable<&T>,
-    Iterable<&readonly T>,
-    Iterable<&exclusive T>,
-    Extend<T, "exclusive"> {
+extension<T> of Deque<T>
+    implements
+        Index<usize>,
+        IndexSet<usize, T>,
+        Iterable<T>,
+        Iterable<&T>,
+        Iterable<&readonly T>,
+        Iterable<&exclusive T>,
+        Extend<T, "exclusive"> {
     /// The indexed output type.
     type Output = T;
 

@@ -219,9 +219,10 @@ extension<T: int | boolean, comptime Rank: int, F: TensorFormat, P: Placement> o
     }
 }
 
-extension<T, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor<T, Rank, F, P> implements
-    Index<Coordinate<Rank>>,
-    IndexSet<Coordinate<Rank>, T> {
+extension<T, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor<T, Rank, F, P>
+    implements
+        Index<Coordinate<Rank>>,
+        IndexSet<Coordinate<Rank>, T> {
     /// The indexed output type.
     type Output = T;
 
