@@ -472,7 +472,10 @@ pub(crate) fn format_tree_children_inline_fill<'ast>(
                 pending_separator = TreeInlineSeparator::None;
             }
             TreeInlineItem::Newline => {
-                pending_separator = TreeInlineSeparator::Hard;
+                // preserve visible whitespace before layout newlines
+                if !matches!(pending_separator, TreeInlineSeparator::Whitespace) {
+                    pending_separator = TreeInlineSeparator::Hard;
+                }
             }
             TreeInlineItem::EmptyLine => {
                 pending_separator = TreeInlineSeparator::Empty;

@@ -77,6 +77,27 @@ fn test_format_tsx_inline_text_and_expression_children() {
     );
 }
 
+/// TSX inline prose should preserve a multiline embedded element body.
+#[test]
+fn test_format_tsx_inline_prose_preserves_multiline_element_body() {
+    assert_format_program!(
+        r#"const view=<p>See <Link>
+  Docs
+</Link> now.</p>
+"#,
+        r#"const view = (
+  <p>
+    See <Link>
+      Docs
+    </Link> now.
+  </p>
+);
+"#,
+        FileType::TypeScriptXml,
+        DestackFormatOptions::default_with_line_width(100).with_indent_width(2)
+    );
+}
+
 /// TSX fragments should format like ordinary JSX containers.
 #[test]
 fn test_format_tsx_fragment_children() {
