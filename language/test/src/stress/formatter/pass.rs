@@ -11,7 +11,9 @@ use destack_source::{DiagnosticCollection, DiagnosticSeverity, File, FileId, Lan
 
 use super::document::FormatterDocumentStats;
 use super::timing::FormatterTiming;
-use crate::stress::StressFixture;
+use crate::stress::{StressExpectation, StressFixture};
+
+const BOUNDED_OUTPUT_MAX_BYTES: usize = 64 * 1024 * 1024;
 
 /// One formatted stress pass with phase timings.
 #[derive(Debug)]
@@ -95,7 +97,10 @@ pub(super) fn format_pass(
     );
     let context_elapsed = context_start.elapsed();
 
-    let (output, format_elapsed, print_elapsed, document) = render_profiled(context, &expressions)?;
+    let max_output_bytes =
+        (fixture.expectation == StressExpectation::Bounded).then_some(BOUNDED_OUTPUT_MAX_BYTES);
+    let (output, format_elapsed, print_elapsed, document) =
+        render_profiled(context, &expressions, max_output_bytes)?;
     let timing = FormatterTiming {
         parse: parse_elapsed,
         diagnostics: diagnostics_elapsed,
@@ -116,6 +121,7 @@ pub(super) fn format_pass(
 fn render_profiled<'a>(
     context: DestackFormatContext<'a>,
     expressions: &'a [LocalNodeId<Expression>],
+    max_output_bytes: Option<usize>,
 ) -> Result<(String, Duration, Duration, FormatterDocumentStats), String> {
     // build formatter document
     let format_start = Instant::now();
@@ -126,7 +132,16 @@ fn render_profiled<'a>(
 
     // print formatter document
     let print_start = Instant::now();
-    let printed = formatted.print().map_err(|error| error.to_string())?;
+    let mut print_options = formatted.context().options.print_options();
+    if let Some(max_output_bytes) = max_output_bytes {
+        let max_output_bytes = u32::try_from(max_output_bytes).map_err(|_| {
+            format!("output byte limit {max_output_bytes} exceeds FIR marker range")
+        })?;
+        print_options = print_options.with_max_output_bytes(max_output_bytes);
+    }
+    let printed = formatted
+        .print_with_options(print_options)
+        .map_err(|error| error.to_string())?;
     let mut output = printed.as_str().to_string();
     if !output.is_empty() && !output.ends_with('\n') {
         output.push('\n');
