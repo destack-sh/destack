@@ -4,6 +4,19 @@ use crate::CompilerResult;
 use crate::check::CheckState;
 
 impl CheckState<'_> {
+    /// Return the type used for apparent member lookup.
+    pub(in crate::check) fn apparent_type(
+        &mut self,
+        receiver: dir::GlobalTypeId,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let Some(instance) = self.apparent_instance(receiver)? else {
+            return Ok(receiver);
+        };
+
+        self.push_type(receiver.module_id, dir::Type::Instance(instance), source)
+    }
+
     /// Return the declaration instance that owns one receiver's apparent members.
     pub(in crate::check) fn apparent_instance(
         &mut self,
