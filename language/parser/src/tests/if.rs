@@ -581,6 +581,27 @@ fn test_parse_if_let_tagged_object_pattern() {
     });
 }
 
+/// Logical conditions without bindings should stay regular expressions.
+#[test]
+fn test_parse_if_logical_condition_as_expression() {
+    let mut test = TestParser::new("if (ready && enabled) { run() }");
+    let mut parser = test.prepare();
+
+    let if_id = parser.eat_if().unwrap();
+    assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
+        let condition = condition.as_expression().expect("expected expression condition");
+        assert_node!(parser.tree, condition, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::And);
+            assert_expression_path!(parser, parser.tree.get(*left), "ready");
+            assert_expression_path!(parser, parser.tree.get(*right), "enabled");
+        });
+
+        assert_node!(parser.tree, *then_expression, Expression::Block(_));
+    });
+
+    test.assert_no_errors(&parser);
+}
+
 #[test]
 fn test_parse_if_condition_chain() {
     let mut test =
@@ -591,43 +612,64 @@ fn test_parse_if_condition_chain() {
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         assert_eq!(condition.operands.len(), 3);
 
-        match &condition.operands[0] {
-            ConditionOperand::Expression { condition } => {
-                assert_expression_path!(parser, parser.tree.get(*condition), "ready");
-            }
-            ConditionOperand::Binding { .. } => panic!("expected expression operand"),
-        }
+        assert_node!(&condition.operands[0], ConditionOperand::Expression { condition } => {
+            assert_expression_path!(parser, parser.tree.get(*condition), "ready");
+        });
 
-        match &condition.operands[1] {
-            ConditionOperand::Binding {
-                kind,
-                mutability: _,
-                declarator,
-            } => {
-                assert_eq!(*kind, LetKind::Let);
-                assert_node!(parser.tree, *declarator, Declarator { pattern, value, .. } => {
-                    assert_expression_path!(parser, parser.tree.get(value.expect("expected value")), "pair");
-                    assert_node!(parser.tree, *pattern, Pattern::Tuple { fields } => {
-                        assert_eq!(fields.len(), 2);
-                    });
+        assert_node!(&condition.operands[1], ConditionOperand::Binding { kind, declarator, .. } => {
+            assert_eq!(*kind, LetKind::Let);
+            assert_node!(parser.tree, *declarator, Declarator { pattern, value: Some(value), .. } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "pair");
+                assert_node!(parser.tree, *pattern, Pattern::Tuple { fields } => {
+                    assert_eq!(fields.len(), 2);
                 });
-            }
-            ConditionOperand::Expression { .. } => panic!("expected binding operand"),
-        }
+            });
+        });
 
-        match &condition.operands[2] {
-            ConditionOperand::Expression { condition } => {
-                assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
-                    assert_eq!(*operator, BinaryOperator::GreaterThan);
-                    assert_expression_path!(parser, parser.tree.get(*left), "count");
-                    assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
-                });
-            }
-            ConditionOperand::Binding { .. } => panic!("expected expression operand"),
-        }
+        assert_node!(&condition.operands[2], ConditionOperand::Expression { condition } => {
+            assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::GreaterThan);
+                assert_expression_path!(parser, parser.tree.get(*left), "count");
+                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+            });
+        });
 
         assert_node!(parser.tree, *then_expression, Expression::Block(_));
     });
+}
+
+/// Binding condition chains should allow expression operands before bindings.
+#[test]
+fn test_parse_if_condition_chain_after_comparison() {
+    let mut test = TestParser::new("if (value < limit && let item = maybe) { item }");
+    let mut parser = test.prepare();
+
+    let if_id = parser.eat_if().unwrap();
+    assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
+        assert_eq!(condition.operands.len(), 2);
+
+        assert_node!(&condition.operands[0], ConditionOperand::Expression { condition } => {
+            assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::LessThan);
+                assert_expression_path!(parser, parser.tree.get(*left), "value");
+                assert_expression_path!(parser, parser.tree.get(*right), "limit");
+            });
+        });
+
+        assert_node!(&condition.operands[1], ConditionOperand::Binding { kind, declarator, .. } => {
+            assert_eq!(*kind, LetKind::Let);
+            assert_node!(parser.tree, *declarator, Declarator { pattern, value: Some(value), .. } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "maybe");
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+                    assert_string!(parser, *name, "item");
+                });
+            });
+        });
+
+        assert_node!(parser.tree, *then_expression, Expression::Block(_));
+    });
+
+    test.assert_no_errors(&parser);
 }
 
 #[test]

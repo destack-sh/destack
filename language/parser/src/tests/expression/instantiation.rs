@@ -480,6 +480,36 @@ fn test_parse_generic_arguments_disambiguate_relational() {
     });
 }
 
+/// Nested value generic arguments should close as one balanced angle group.
+#[test]
+fn test_parse_call_with_nested_value_generic_arguments() {
+    let mut test =
+        TestParser::new_with_language("fn<Map<string>>(value)", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, arguments, .. } => {
+        assert_expression_path!(parser, parser.tree.get(*left), "fn");
+        assert_eq!(generic_arguments.len(), 1);
+        assert_eq!(arguments.len(), 1);
+
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+            assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                assert_path!(parser, *path, "Map");
+                assert_eq!(generic_arguments.len(), 1);
+
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                        assert_eq!(*value, TypeLiteral::String);
+                    });
+                });
+            });
+        });
+    });
+}
+
 /// Relational call arguments should stay relational before shift right assign.
 #[test]
 fn test_parse_call_arguments_relational_then_shift_right_assign() {
@@ -509,6 +539,22 @@ fn test_parse_call_arguments_relational_then_shift_right_assign() {
                 assert_eq!(*operator, AssignOperator::ShiftRightAssign);
             });
         });
+    });
+}
+
+/// Relational expressions before semicolons should not recover as instantiations.
+#[test]
+fn test_parse_relational_expression_before_semicolon() {
+    let mut test = TestParser::new_with_language("step < limit;", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
+        assert_eq!(*operator, BinaryOperator::LessThan);
+        assert_expression_path!(parser, parser.tree.get(*left), "step");
+        assert_expression_path!(parser, parser.tree.get(*right), "limit");
     });
 }
 

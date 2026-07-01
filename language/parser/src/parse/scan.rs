@@ -3,7 +3,7 @@ use crate::parse::RecoveryPoint;
 use destack_dir::TokenType;
 
 /// Nesting depth for syntax that scans across balanced delimiters.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct DelimiterDepth {
     /// The nested parenthesis depth.
     parenthesis: usize,
@@ -13,9 +13,48 @@ pub(crate) struct DelimiterDepth {
     brace: usize,
     /// The nested angle depth.
     angle: usize,
+    /// Whether angle brackets affect depth.
+    tracks_angle: bool,
+}
+
+impl Default for DelimiterDepth {
+    /// Create delimiter depth for type-like scans.
+    fn default() -> Self {
+        Self {
+            parenthesis: 0,
+            bracket: 0,
+            brace: 0,
+            angle: 0,
+            tracks_angle: true,
+        }
+    }
 }
 
 impl DelimiterDepth {
+    /// Create delimiter depth for value scans where `<` and `>` are operators.
+    pub(crate) fn value() -> Self {
+        Self {
+            tracks_angle: false,
+            ..Self::default()
+        }
+    }
+
+    /// Create delimiter depth for a list recovery scan with the given terminator.
+    pub(crate) fn for_list_terminator(terminator: TokenType) -> Self {
+        Self {
+            tracks_angle: terminator == TokenType::GreaterThan,
+            ..Self::default()
+        }
+    }
+
+    /// Create delimiter depth after one outer angle opener has been consumed.
+    pub(crate) fn from_angle_open() -> Self {
+        Self {
+            angle: 1,
+            ..Self::default()
+        }
+    }
+
     /// Build delimiter depth after one outer delimiter has been consumed.
     fn from_outer(open: TokenType, close: TokenType) -> Option<Self> {
         match (open, close) {
@@ -38,6 +77,11 @@ impl DelimiterDepth {
     /// Return whether no nested delimiter is open.
     pub(crate) fn is_top_level(self) -> bool {
         self.parenthesis == 0 && self.bracket == 0 && self.brace == 0 && self.angle == 0
+    }
+
+    /// Return whether the cursor is directly inside one outer angle group.
+    pub(crate) fn is_directly_inside_angle_group(self) -> bool {
+        self.parenthesis == 0 && self.bracket == 0 && self.brace == 0 && self.angle == 1
     }
 
     /// Return whether the cursor is directly inside one outer delimiter.
@@ -65,11 +109,11 @@ impl DelimiterDepth {
             TokenType::CloseBracket => return Self::close(&mut self.bracket),
             TokenType::OpenBrace => self.brace += 1,
             TokenType::CloseBrace => return Self::close(&mut self.brace),
-            TokenType::LessThan => self.angle += 1,
-            TokenType::ShiftLeft => self.angle += 2,
-            TokenType::GreaterThan => return self.close_angle(1),
-            TokenType::ShiftRight => return self.close_angle(2),
-            TokenType::UnsignedShiftRight => return self.close_angle(3),
+            TokenType::LessThan if self.tracks_angle => self.angle += 1,
+            TokenType::ShiftLeft if self.tracks_angle => self.angle += 2,
+            TokenType::GreaterThan if self.tracks_angle => return self.close_angle(1),
+            TokenType::ShiftRight if self.tracks_angle => return self.close_angle(2),
+            TokenType::UnsignedShiftRight if self.tracks_angle => return self.close_angle(3),
             _ => {}
         }
 
