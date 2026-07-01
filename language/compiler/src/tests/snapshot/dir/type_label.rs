@@ -28,6 +28,7 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Object => "object".to_string(),
             dir::Type::Primitive(primitive) => Self::primitive_type_label(*primitive),
             dir::Type::Literal(literal) => self.scalar_literal_label(literal),
+            dir::Type::Key(key) => self.key_type_label(*key),
             dir::Type::Intrinsic => "intrinsic".to_string(),
             dir::Type::Parameter(parameter) => self.parameter_type_label(parameter),
             dir::Type::Reference(reference) => self.reference_symbol_label(reference.symbol),
@@ -60,6 +61,15 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Intersection(intersection) => {
                 self.type_id_list_label(types, &intersection.elements, " & ")
             }
+        }
+    }
+
+    /// Return one exact property key type label.
+    fn key_type_label(&self, key: dir::StaticKey) -> String {
+        match key {
+            dir::StaticKey::Name(name) => format!("\"{}\"", self.strings.get(name)),
+            dir::StaticKey::Index(index) => index.to_string(),
+            dir::StaticKey::Symbol(_) => self.static_key(key),
         }
     }
 
