@@ -5,7 +5,7 @@ use crate::machine::Activation;
 use super::Transfer;
 use destack_program::TypeId;
 use destack_program::vm::{
-    BoundsCheck, Check, CheckId, Edge, EdgeId, Instruction, MoveRange, NarrowCheck, Op,
+    BoundsCheck, Check, CheckId, CheckKind, Edge, EdgeId, Instruction, MoveRange, NarrowCheck, Op,
     OverflowCheck, ShiftRangeCheck, SwitchCasesId, SwitchTableId, VariantCheck,
 };
 
@@ -370,51 +370,51 @@ fn overflow_div_uint(activation: &Activation<'_>, check: OverflowCheck) -> Resul
 
 /// Evaluate one runtime check guard.
 fn evaluate_check(activation: &Activation<'_>, constraint: &Check) -> Result<bool, Error> {
-    match constraint {
-        Check::BoundsIntInt(check) => bounds_check::<true, true>(activation, *check),
-        Check::BoundsIntUint(check) => bounds_check::<true, false>(activation, *check),
-        Check::BoundsUintInt(check) => bounds_check::<false, true>(activation, *check),
-        Check::BoundsUintUint(check) => bounds_check::<false, false>(activation, *check),
-        Check::Null { value } => {
-            let value = activation.load_cell_at(*value);
+    match constraint.kind {
+        CheckKind::BoundsIntInt => bounds_check::<true, true>(activation, constraint.bounds),
+        CheckKind::BoundsIntUint => bounds_check::<true, false>(activation, constraint.bounds),
+        CheckKind::BoundsUintInt => bounds_check::<false, true>(activation, constraint.bounds),
+        CheckKind::BoundsUintUint => bounds_check::<false, false>(activation, constraint.bounds),
+        CheckKind::Null => {
+            let value = activation.load_cell_at(constraint.value);
 
             Ok(value.bits() != 0)
         }
-        Check::DivZeroInt { divisor } => {
-            let value = load_signed_cell(activation, *divisor);
+        CheckKind::DivZeroInt => {
+            let value = load_signed_cell(activation, constraint.value);
 
             Ok(value != 0)
         }
-        Check::DivZeroUint { divisor } => {
-            let value = load_unsigned_cell(activation, *divisor);
+        CheckKind::DivZeroUint => {
+            let value = load_unsigned_cell(activation, constraint.value);
 
             Ok(value != 0)
         }
-        Check::ShiftRangeInt(check) => Ok(shift_range_check::<true>(activation, *check)),
-        Check::ShiftRangeUint(check) => Ok(shift_range_check::<false>(activation, *check)),
-        Check::NarrowInt(check) => Ok(narrow_check::<true>(activation, *check)),
-        Check::NarrowUint(check) => Ok(narrow_check::<false>(activation, *check)),
-        Check::OverflowAddInt(check) => Ok(overflow_add_int(activation, *check)),
-        Check::OverflowAddUint(check) => Ok(overflow_add_uint(activation, *check)),
-        Check::OverflowSubInt(check) => Ok(overflow_sub_int(activation, *check)),
-        Check::OverflowSubUint(check) => Ok(overflow_sub_uint(activation, *check)),
-        Check::OverflowMulInt(check) => Ok(overflow_mul_int(activation, *check)),
-        Check::OverflowMulUint(check) => Ok(overflow_mul_uint(activation, *check)),
-        Check::OverflowDivInt(check) => overflow_div_int(activation, *check),
-        Check::OverflowDivUint(check) => overflow_div_uint(activation, *check),
-        Check::TypeId { value, expected } => {
-            let value = activation.load_cell_at(*value);
+        CheckKind::ShiftRangeInt => Ok(shift_range_check::<true>(activation, constraint.shift)),
+        CheckKind::ShiftRangeUint => Ok(shift_range_check::<false>(activation, constraint.shift)),
+        CheckKind::NarrowInt => Ok(narrow_check::<true>(activation, constraint.narrow)),
+        CheckKind::NarrowUint => Ok(narrow_check::<false>(activation, constraint.narrow)),
+        CheckKind::OverflowAddInt => Ok(overflow_add_int(activation, constraint.overflow)),
+        CheckKind::OverflowAddUint => Ok(overflow_add_uint(activation, constraint.overflow)),
+        CheckKind::OverflowSubInt => Ok(overflow_sub_int(activation, constraint.overflow)),
+        CheckKind::OverflowSubUint => Ok(overflow_sub_uint(activation, constraint.overflow)),
+        CheckKind::OverflowMulInt => Ok(overflow_mul_int(activation, constraint.overflow)),
+        CheckKind::OverflowMulUint => Ok(overflow_mul_uint(activation, constraint.overflow)),
+        CheckKind::OverflowDivInt => overflow_div_int(activation, constraint.overflow),
+        CheckKind::OverflowDivUint => overflow_div_uint(activation, constraint.overflow),
+        CheckKind::TypeId => {
+            let value = activation.load_cell_at(constraint.value);
 
-            Ok(value.as_u64() == u64::from(*expected))
+            Ok(value.as_u64() == u64::from(constraint.expected))
         }
-        Check::SubtypeId { value, expected } => {
-            let concrete = activation.load_cell_at(*value);
+        CheckKind::SubtypeId => {
+            let concrete = activation.load_cell_at(constraint.value);
             let concrete = TypeId(concrete.as_u64() as u32);
-            let expected = TypeId(*expected);
+            let expected = TypeId(constraint.expected);
 
-            Ok(activation.machine.program.is_subtype(concrete, expected))
+            Ok(activation.program.is_subtype(concrete, expected)?)
         }
-        Check::Variant(check) => Ok(variant_check(activation, *check)),
+        CheckKind::Variant => Ok(variant_check(activation, constraint.variant)),
     }
 }
 
@@ -581,7 +581,7 @@ pub(crate) fn execute_check(
     let else_edge = control_edge(activation, instruction.c);
 
     // evaluate the runtime guard
-    let is_truthy = match evaluate_check(activation, constraint) {
+    let is_truthy = match evaluate_check(activation, &constraint) {
         Ok(is_truthy) => is_truthy,
         Err(error) => return Transfer::Error(error),
     };
@@ -948,6 +948,7 @@ fn execute_switch_table_cell<const IS_SIGNED: bool>(
     instruction: &Instruction,
 ) -> Transfer {
     let table = activation.switch_table(SwitchTableId(instruction.b));
+    let cases = activation.switch_table_cases(table);
     let default_edge = control_edge(activation, instruction.c);
     let int_val = load_cell_switch_value::<IS_SIGNED>(activation, instruction.a);
 
@@ -956,7 +957,7 @@ fn execute_switch_table_cell<const IS_SIGNED: bool>(
         return default_switch_transfer(default_edge);
     }
     let offset = (int_val - table.min) as usize;
-    let Some(case) = table.cases.get(offset) else {
+    let Some(case) = cases.get(offset) else {
         return default_switch_transfer(default_edge);
     };
 

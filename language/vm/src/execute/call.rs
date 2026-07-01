@@ -1,5 +1,4 @@
-use destack_program as program;
-use destack_program::{FrameStateId, FunctionId};
+use destack_program::{FrameStateId, FunctionId, GlobalAddress, Program};
 
 use super::frame::{
     FrameValue, load_arguments, load_moved_arguments, move_values, store_parameters,
@@ -13,8 +12,9 @@ use destack_program::CellLayout;
 use super::Transfer;
 use destack_program::vm::{
     ArgumentRange, Call, CallBranch, CallDynamic, CallDynamicBranch, CallTarget, CallVirtual,
-    CallVirtualBranch, Function, FunctionBind, IndirectCall, IndirectCallBranch, IndirectTailCall,
-    Instruction, MoveRange, Projection, TailCall, TailCallDynamic, TailCallVirtual,
+    CallVirtualBranch, FunctionBind, FunctionCode, IndirectCall, IndirectCallBranch,
+    IndirectTailCall, Instruction, MoveRange, Projection, TailCall, TailCallDynamic,
+    TailCallVirtual,
 };
 
 /// Load one lowered call table field from a receiver.
@@ -27,25 +27,25 @@ fn load_receiver_field<const IS_SHARED: bool>(
         return Ok(access::load_shared_heap_scalar::<8, false>(
             activation,
             receiver,
-            field.byte_offset,
+            field.byte_offset(),
         ));
     }
 
     Ok(access::load_heap_scalar::<8, false>(
         activation,
         receiver,
-        field.byte_offset,
+        field.byte_offset(),
     ))
 }
 
 /// Load one function target from an immutable dispatch table.
 fn load_dispatch_slot(
     activation: &Activation<'_>,
-    table_address: program::GlobalAddress,
+    table_address: GlobalAddress,
     slot: u32,
 ) -> Result<FunctionId, Error> {
     // dispatch table slots are target pointers
-    let pointer_bytes = activation.machine.program.pointer_bytes() as usize;
+    let pointer_bytes = activation.program.pointer_bytes() as usize;
     let byte_offset = slot as usize * pointer_bytes;
     let entry_address = table_address
         .add_bytes(byte_offset)
@@ -61,7 +61,7 @@ fn load_dispatch_slot(
 /// Load one function address from static memory.
 fn load_function_pointer(
     activation: &Activation<'_>,
-    address: program::GlobalAddress,
+    address: GlobalAddress,
     pointer_bytes: usize,
 ) -> Result<Cell, Error> {
     let address = activation.static_native_address(address, pointer_bytes)?;
@@ -133,10 +133,8 @@ fn require_call_target(
     function: FunctionId,
 ) -> Result<CallTarget, Error> {
     activation
-        .machine
         .program
-        .vm_functions()
-        .call_target(function)
+        .vm_call_target(function)
         .ok_or(Error::undefined_function(function))
 }
 
@@ -223,7 +221,7 @@ pub(crate) fn execute_function_environment_current(
     // load current frame environment
     let environment = activation
         .active_frame()
-        .load_environment(activation.frame_layout())?;
+        .load_environment(activation.program, activation.frame_layout())?;
     let Some(environment) = environment else {
         return Err(Error::invalid_instruction());
     };
@@ -236,17 +234,9 @@ pub(crate) fn execute_function_environment_current(
 
 /// Return one local function for a call target.
 #[inline]
-fn local_function(activation: &Activation<'_>, target: CallTarget) -> Option<Function> {
+fn local_function<'a>(program: &'a Program, target: CallTarget) -> Option<FunctionCode<'a>> {
     // only local callees can enter directly
-    match target {
-        CallTarget::Local(index) => activation
-            .machine
-            .program
-            .vm_functions()
-            .function_by_index(index)
-            .cloned(),
-        CallTarget::Import => None,
-    }
+    program.vm_function_by_index(target.local_index()?)
 }
 
 /// Enter one local callee without creating a call transfer.
@@ -262,7 +252,8 @@ fn enter_local_call(
     let moves = moves?;
 
     // require one local callee before entering
-    let callee = local_function(activation, target)?;
+    let program = activation.program;
+    let callee = local_function(program, target)?;
 
     // reject stack overflow before mutating any live activation
     if activation.machine.frames.len() >= activation.machine.options.limits.max_stack_depth {
@@ -276,9 +267,8 @@ fn enter_local_call(
     }
 
     let layout = match activation
-        .machine
         .program
-        .frame_layout_by_id(callee.frame_layout)
+        .frame_layout_by_id(callee.function.frame_layout)
         .cloned()
     {
         Some(layout) => layout,
@@ -288,8 +278,14 @@ fn enter_local_call(
         Ok(frame) => frame,
         Err(error) => return Some(Transfer::Error(error.error)),
     };
-    let mut new_frame = Frame::new(&callee, callee.entry, &layout, stack_offset, frame_base);
-    if let Err(error) = new_frame.store_environment(&layout, env) {
+    let mut new_frame = Frame::new(
+        &callee,
+        callee.function.entry,
+        &layout,
+        stack_offset,
+        frame_base,
+    );
+    if let Err(error) = new_frame.store_environment(program, &layout, env) {
         return Some(Transfer::Error(error));
     }
 
@@ -297,12 +293,7 @@ fn enter_local_call(
     let caller_index = activation.frame_index;
     let current_function = {
         let frame = activation.active_frame();
-        match activation
-            .machine
-            .program
-            .vm_functions()
-            .function_by_id(frame.function())
-        {
+        match activation.program.vm_function_by_id(frame.function()) {
             Some(function) => function,
             None => return Some(Transfer::Error(Error::invalid_instruction())),
         }
@@ -312,12 +303,7 @@ fn enter_local_call(
         Err(error) => return Some(Transfer::Error(error)),
     };
 
-    if let Err(error) = move_values(
-        caller,
-        &mut new_frame,
-        moves,
-        current_function.move_pool.as_slice(),
-    ) {
+    if let Err(error) = move_values(caller, &mut new_frame, moves, current_function.move_pool) {
         return Some(Transfer::Error(error));
     }
 
@@ -435,18 +421,19 @@ fn execute_call_virtual<const IS_SHARED: bool>(
     pc: usize,
 ) -> Transfer {
     // decode side records
+    let record = *activation.side::<CallVirtual>(instruction);
     let CallVirtual {
         receiver_offset,
         table_field,
         slot,
         arguments,
-    } = activation.side::<CallVirtual>(instruction);
+    } = record;
 
     // resolve dynamic callee
-    let receiver_value = activation.load_cell_at(*receiver_offset);
-    let table_field = activation.projection(*table_field);
+    let receiver_value = activation.load_cell_at(receiver_offset);
+    let table_field = activation.projection(table_field);
     let function_id =
-        match resolve_virtual_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
+        match resolve_virtual_callee::<IS_SHARED>(activation, receiver_value, table_field, slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
@@ -462,7 +449,7 @@ fn execute_call_virtual<const IS_SHARED: bool>(
         activation,
         function_id,
         target,
-        *arguments,
+        arguments,
         None,
         None,
         pc + 1,
@@ -493,18 +480,19 @@ fn execute_call_virtual_branch<const IS_SHARED: bool>(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
+    let record = *activation.side::<CallVirtualBranch>(instruction);
     let CallVirtualBranch {
         receiver_offset,
         table_field,
         slot,
         arguments,
         target_state,
-    } = activation.side::<CallVirtualBranch>(instruction);
+    } = record;
 
-    let receiver_value = activation.load_cell_at(*receiver_offset);
-    let table_field = activation.projection(*table_field);
+    let receiver_value = activation.load_cell_at(receiver_offset);
+    let table_field = activation.projection(table_field);
     let function_id =
-        match resolve_virtual_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
+        match resolve_virtual_callee::<IS_SHARED>(activation, receiver_value, table_field, slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
@@ -513,7 +501,7 @@ fn execute_call_virtual_branch<const IS_SHARED: bool>(
         Err(error) => return Transfer::Error(error),
     };
 
-    call_branch_transfer(function_id, target, *arguments, None, *target_state)
+    call_branch_transfer(function_id, target, arguments, None, target_state)
 }
 
 /// Execute virtual call terminator through a local receiver.
@@ -539,18 +527,19 @@ fn execute_call_dynamic<const IS_SHARED: bool>(
     pc: usize,
 ) -> Transfer {
     // decode side records
+    let record = *activation.side::<CallDynamic>(instruction);
     let CallDynamic {
         receiver_offset,
         table_field,
         slot,
         arguments,
-    } = activation.side::<CallDynamic>(instruction);
+    } = record;
 
     // resolve dynamic callee
-    let receiver_value = activation.load_cell_at(*receiver_offset);
-    let table_field = activation.projection(*table_field);
+    let receiver_value = activation.load_cell_at(receiver_offset);
+    let table_field = activation.projection(table_field);
     let function_id =
-        match resolve_dynamic_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
+        match resolve_dynamic_callee::<IS_SHARED>(activation, receiver_value, table_field, slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
@@ -566,7 +555,7 @@ fn execute_call_dynamic<const IS_SHARED: bool>(
         activation,
         function_id,
         target,
-        *arguments,
+        arguments,
         None,
         None,
         pc + 1,
@@ -597,18 +586,19 @@ fn execute_call_dynamic_branch<const IS_SHARED: bool>(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
+    let record = *activation.side::<CallDynamicBranch>(instruction);
     let CallDynamicBranch {
         receiver_offset,
         table_field,
         slot,
         arguments,
         target_state,
-    } = activation.side::<CallDynamicBranch>(instruction);
+    } = record;
 
-    let receiver_value = activation.load_cell_at(*receiver_offset);
-    let table_field = activation.projection(*table_field);
+    let receiver_value = activation.load_cell_at(receiver_offset);
+    let table_field = activation.projection(table_field);
     let function_id =
-        match resolve_dynamic_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
+        match resolve_dynamic_callee::<IS_SHARED>(activation, receiver_value, table_field, slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
@@ -617,7 +607,7 @@ fn execute_call_dynamic_branch<const IS_SHARED: bool>(
         Err(error) => return Transfer::Error(error),
     };
 
-    call_branch_transfer(function_id, target, *arguments, None, *target_state)
+    call_branch_transfer(function_id, target, arguments, None, target_state)
 }
 
 /// Execute dynamic call terminator through a local receiver.
@@ -643,28 +633,28 @@ fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
     pc: usize,
 ) -> Transfer {
     // decode side records
+    let record = *activation.side::<IndirectCall>(instruction);
     let IndirectCall {
         callee_offset,
         signature,
         arguments,
-    } = activation.side::<IndirectCall>(instruction);
+    } = record;
 
     // resolve function pointer and environment
     let (function_id, env) =
-        match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, *callee_offset) {
+        match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, callee_offset) {
             Ok(callee) => callee,
             Err(error) => return Transfer::Error(error),
         };
     let function = function_id;
 
-    if let Err(error) = activation.machine.program.functions().validate_signature(
-        function_id,
+    let signature = activation.signature(signature);
+    let parameters = activation.signature_parameters(signature);
+    if let Err(error) =
         activation
-            .machine
             .program
-            .side_table()
-            .signature(*signature),
-    ) {
+            .check_function_signature_entry(function_id, signature, parameters)
+    {
         return Transfer::Error(error.into());
     }
 
@@ -678,7 +668,7 @@ fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
     Transfer::Call {
         function,
         target,
-        arguments: *arguments,
+        arguments,
         env,
         moves: None,
         resume_pc: pc + 1,
@@ -708,26 +698,26 @@ fn execute_indirect_call_branch<const HAS_ENVIRONMENT: bool>(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
+    let record = *activation.side::<IndirectCallBranch>(instruction);
     let IndirectCallBranch {
         callee_offset,
         signature,
         arguments,
         target_state,
-    } = activation.side::<IndirectCallBranch>(instruction);
+    } = record;
 
     let (function_id, env) =
-        match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, *callee_offset) {
+        match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, callee_offset) {
             Ok(callee) => callee,
             Err(error) => return Transfer::Error(error),
         };
-    if let Err(error) = activation.machine.program.functions().validate_signature(
-        function_id,
+    let signature = activation.signature(signature);
+    let parameters = activation.signature_parameters(signature);
+    if let Err(error) =
         activation
-            .machine
             .program
-            .side_table()
-            .signature(*signature),
-    ) {
+            .check_function_signature_entry(function_id, signature, parameters)
+    {
         return Transfer::Error(error.into());
     }
     let target = match require_call_target(activation, function_id) {
@@ -735,7 +725,7 @@ fn execute_indirect_call_branch<const HAS_ENVIRONMENT: bool>(
         Err(error) => return Transfer::Error(error),
     };
 
-    call_branch_transfer(function_id, target, *arguments, env, *target_state)
+    call_branch_transfer(function_id, target, arguments, env, target_state)
 }
 
 /// Execute function pointer call terminator.
@@ -757,15 +747,14 @@ pub(crate) fn execute_call_function_branch(
 /// Enter a tail call by reusing the current frame.
 fn enter_tail_call(
     activation: &mut Activation<'_>,
-    callee: &Function,
+    callee: &FunctionCode<'_>,
     argument_values: &[FrameValue],
     env: Option<Cell>,
 ) -> Result<(), Error> {
     // load callee frame layout
     let layout = activation
-        .machine
         .program
-        .frame_layout_by_id(callee.frame_layout)
+        .frame_layout_by_id(callee.function.frame_layout)
         .cloned()
         .ok_or(Error::invalid_instruction())?;
 
@@ -776,16 +765,17 @@ fn enter_tail_call(
         .machine
         .allocate_frame(&layout)
         .map_err(|error| error.error)?;
+    let program = activation.program;
     {
         let frame = activation.active_frame_mut();
         frame.retarget(
             callee,
-            callee.entry,
+            callee.function.entry,
             stack_offset,
-            layout.byte_len as usize,
+            layout.byte_len() as usize,
             frame_base,
         );
-        frame.store_environment(&layout, env)?;
+        frame.store_environment(program, &layout, env)?;
     }
 
     // bind dispatch tables for the retargeted frame
@@ -795,8 +785,8 @@ fn enter_tail_call(
     // bind function parameters
     store_parameters(
         activation.active_frame_mut(),
-        callee.argument_pool.as_slice(),
-        callee.parameters,
+        callee.argument_pool,
+        callee.function.parameters,
         argument_values,
     )?;
 
@@ -816,10 +806,7 @@ pub(crate) fn execute_tail_call(
     } = activation.side::<TailCall>(instruction);
 
     // require the local callee
-    let local_index = match *target {
-        CallTarget::Local(index) => Some(index),
-        CallTarget::Import => None,
-    };
+    let local_index = target.local_index();
 
     // return imported calls to transfer handling
     let Some(local_index) = local_index else {
@@ -831,13 +818,8 @@ pub(crate) fn execute_tail_call(
             moves: Some(*moves),
         };
     };
-    let Some(callee) = activation
-        .machine
-        .program
-        .vm_functions()
-        .function_by_index(local_index)
-        .cloned()
-    else {
+    let program = activation.program;
+    let Some(callee) = program.vm_function_by_index(local_index) else {
         return Transfer::TailCall {
             function: (*function).into(),
             target: *target,
@@ -849,12 +831,7 @@ pub(crate) fn execute_tail_call(
 
     // collect argument values
     let argument_values = {
-        let current_func = match activation
-            .machine
-            .program
-            .vm_functions()
-            .function_by_id(activation.active_frame().function())
-        {
+        let current_func = match program.vm_function_by_id(activation.active_frame().function()) {
             Some(function) => function,
             None => return Transfer::Error(Error::invalid_instruction()),
         };
@@ -863,7 +840,7 @@ pub(crate) fn execute_tail_call(
             Err(error) => return Transfer::Error(error),
         };
 
-        match load_moved_arguments(caller, current_func.move_pool.as_slice(), *moves) {
+        match load_moved_arguments(caller, current_func.move_pool, *moves) {
             Ok(arguments) => arguments,
             Err(error) => return Transfer::Error(error),
         }
@@ -890,13 +867,8 @@ pub(crate) fn execute_tail_call_self(
 
     // load current function entry block
     let function_id = activation.active_frame().function();
-    let Some(function) = activation
-        .machine
-        .program
-        .vm_functions()
-        .function_by_id(function_id)
-        .cloned()
-    else {
+    let program = activation.program;
+    let Some(function) = program.vm_function_by_id(function_id) else {
         return Transfer::Error(Error::undefined_function(function_id));
     };
 
@@ -907,15 +879,13 @@ pub(crate) fn execute_tail_call_self(
             Err(error) => return Transfer::Error(error),
         };
 
-        match load_arguments(caller, function.argument_pool.as_slice(), arguments) {
+        match load_arguments(caller, function.argument_pool, arguments) {
             Ok(arguments) => arguments,
             Err(error) => return Transfer::Error(error),
         }
     };
-    let Some(frame_layout) = activation
-        .machine
-        .program
-        .frame_layout_by_id(function.frame_layout)
+    let Some(frame_layout) = program
+        .frame_layout_by_id(function.function.frame_layout)
         .cloned()
     else {
         return Transfer::Error(Error::invalid_instruction());
@@ -927,14 +897,14 @@ pub(crate) fn execute_tail_call_self(
             let frame = activation.active_frame_mut();
             (frame.stack_offset, frame.base_address())
         };
-        let frame_byte_len = frame_layout.byte_len as usize;
+        let frame_byte_len = frame_layout.byte_len() as usize;
 
         activation
             .machine
             .truncate_stack(stack_offset + frame_byte_len);
         let frame = activation.active_frame_mut();
         frame.retarget(&function, entry, stack_offset, frame_byte_len, frame_base);
-        frame.clear_values(&frame_layout);
+        frame.clear_values(program, &frame_layout);
     }
 
     // bind dispatch tables after replacing frame bytes
@@ -946,8 +916,8 @@ pub(crate) fn execute_tail_call_self(
     // bind function parameters
     if let Err(error) = store_parameters(
         activation.active_frame_mut(),
-        function.argument_pool.as_slice(),
-        function.parameters,
+        function.argument_pool,
+        function.function.parameters,
         &args,
     ) {
         return Transfer::Error(error);
@@ -978,18 +948,19 @@ fn execute_tail_call_virtual<const IS_SHARED: bool>(
     instruction: &Instruction,
 ) -> Transfer {
     // decode side records
+    let record = *activation.side::<TailCallVirtual>(instruction);
     let TailCallVirtual {
         receiver_offset,
         table_field,
         slot,
         arguments,
-    } = activation.side::<TailCallVirtual>(instruction);
+    } = record;
 
     // resolve dynamic callee
-    let receiver_value = activation.load_cell_at(*receiver_offset);
-    let table_field = activation.projection(*table_field);
+    let receiver_value = activation.load_cell_at(receiver_offset);
+    let table_field = activation.projection(table_field);
     let function_id =
-        match resolve_virtual_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
+        match resolve_virtual_callee::<IS_SHARED>(activation, receiver_value, table_field, slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
@@ -1001,7 +972,7 @@ fn execute_tail_call_virtual<const IS_SHARED: bool>(
     Transfer::TailCall {
         function: function_id,
         target,
-        arguments: *arguments,
+        arguments,
         env: None,
         moves: None,
     }
@@ -1029,18 +1000,19 @@ fn execute_tail_call_dynamic<const IS_SHARED: bool>(
     instruction: &Instruction,
 ) -> Transfer {
     // decode side records
+    let record = *activation.side::<TailCallDynamic>(instruction);
     let TailCallDynamic {
         receiver_offset,
         table_field,
         slot,
         arguments,
-    } = activation.side::<TailCallDynamic>(instruction);
+    } = record;
 
     // resolve dynamic callee
-    let receiver_value = activation.load_cell_at(*receiver_offset);
-    let table_field = activation.projection(*table_field);
+    let receiver_value = activation.load_cell_at(receiver_offset);
+    let table_field = activation.projection(table_field);
     let function_id =
-        match resolve_dynamic_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
+        match resolve_dynamic_callee::<IS_SHARED>(activation, receiver_value, table_field, slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
@@ -1052,7 +1024,7 @@ fn execute_tail_call_dynamic<const IS_SHARED: bool>(
     Transfer::TailCall {
         function: function_id,
         target,
-        arguments: *arguments,
+        arguments,
         env: None,
         moves: None,
     }
@@ -1080,28 +1052,28 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     instruction: &Instruction,
 ) -> Transfer {
     // decode side records
+    let record = *activation.side::<IndirectTailCall>(instruction);
     let IndirectTailCall {
         callee_offset,
         signature,
         arguments,
-    } = activation.side::<IndirectTailCall>(instruction);
+    } = record;
 
     // resolve function pointer and environment
     let (function_id, env) =
-        match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, *callee_offset) {
+        match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, callee_offset) {
             Ok(callee) => callee,
             Err(error) => return Transfer::Error(error),
         };
     let function = function_id;
 
-    if let Err(error) = activation.machine.program.functions().validate_signature(
-        function_id,
+    let signature = activation.signature(signature);
+    let parameters = activation.signature_parameters(signature);
+    if let Err(error) =
         activation
-            .machine
             .program
-            .side_table()
-            .signature(*signature),
-    ) {
+            .check_function_signature_entry(function_id, signature, parameters)
+    {
         return Transfer::Error(error.into());
     }
 
@@ -1112,30 +1084,22 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     };
 
     // return imported calls to transfer handling
-    let local_index = match target {
-        CallTarget::Local(index) => Some(index),
-        CallTarget::Import => None,
-    };
+    let local_index = target.local_index();
     let Some(local_index) = local_index else {
         return Transfer::TailCall {
             function,
             target,
-            arguments: *arguments,
+            arguments,
             env,
             moves: None,
         };
     };
-    let Some(callee) = activation
-        .machine
-        .program
-        .vm_functions()
-        .function_by_index(local_index)
-        .cloned()
-    else {
+    let program = activation.program;
+    let Some(callee) = program.vm_function_by_index(local_index) else {
         return Transfer::TailCall {
             function,
             target,
-            arguments: *arguments,
+            arguments,
             env,
             moves: None,
         };
@@ -1146,20 +1110,14 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
         Ok(frame) => frame,
         Err(error) => return Transfer::Error(error),
     };
-    let caller_function = match activation
-        .machine
-        .program
-        .vm_functions()
-        .function_by_id(caller.function())
-    {
+    let caller_function = match program.vm_function_by_id(caller.function()) {
         Some(function) => function,
         None => return Transfer::Error(Error::invalid_instruction()),
     };
-    let argument_values =
-        match load_arguments(caller, caller_function.argument_pool.as_slice(), *arguments) {
-            Ok(arguments) => arguments,
-            Err(error) => return Transfer::Error(error),
-        };
+    let argument_values = match load_arguments(caller, caller_function.argument_pool, arguments) {
+        Ok(arguments) => arguments,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // enter tail call
     if let Err(error) = enter_tail_call(activation, &callee, &argument_values, env) {

@@ -25,16 +25,16 @@ fn bind_frame_parameters(
     let saved_values = bindings
         .iter()
         .map(|binding| {
-            let source_slot = layout
-                .slot(binding.source)
+            let source_slot = program
+                .frame_slot(layout, binding.source)
                 .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-            let destination_slot = layout
-                .slot(binding.destination)
+            let destination_slot = program
+                .frame_slot(layout, binding.destination)
                 .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
             let source_is_cell = program.frame_slot_is_cell(source_slot);
             let destination_is_cell = program.frame_slot_is_cell(destination_slot);
-            if source_slot.byte_len != destination_slot.byte_len
+            if source_slot.byte_len() != destination_slot.byte_len()
                 || source_is_cell != destination_is_cell
             {
                 return Err(RuntimeError::new(Error::invalid_instruction()));
@@ -52,8 +52,8 @@ fn bind_frame_parameters(
 
     // store the saved values into their destination slots
     for (binding, value) in bindings.iter().zip(saved_values) {
-        let destination_slot = layout
-            .slot(binding.destination)
+        let destination_slot = program
+            .frame_slot(layout, binding.destination)
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
         match value {
@@ -82,7 +82,7 @@ impl Machine {
         let point = program
             .point_for_frame_state(frame_state_id)
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-        let frame_entry = program.frame_entry(frame_state_id).cloned();
+        let frame_entry = program.frame_entry(frame_state_id);
         let target_block = point.block;
         let pc = point.pc as usize;
         let expected_function = point.function;
@@ -107,17 +107,17 @@ impl Machine {
             .frame_layout_by_id(frame.frame_layout())
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         if let Some(frame_entry) = &frame_entry {
-            bind_frame_parameters(program, frame_layout, frame, &frame_entry.bindings)?;
+            bind_frame_parameters(program, frame_layout, frame, frame_entry.bindings)?;
         }
 
         if let Some(received_value_slot) =
-            frame_entry.and_then(|frame_entry| frame_entry.received_value)
+            frame_entry.and_then(|frame_entry| frame_entry.received_value())
         {
             let Some(frame_value) = received_value else {
                 return Err(RuntimeError::new(Error::invalid_instruction()));
             };
-            let received_slot = frame_layout
-                .slot(received_value_slot)
+            let received_slot = program
+                .frame_slot(frame_layout, received_value_slot)
                 .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
             let received_slot = move_slot_from_frame_slot(program, received_slot);
             store_frame_slot_value(frame, received_slot, frame_value).map_err(RuntimeError::new)?;

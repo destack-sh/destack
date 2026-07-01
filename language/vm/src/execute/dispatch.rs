@@ -1,13 +1,13 @@
 use super::Transfer;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use destack_program::vm::{Function, MoveRange, Op};
+use destack_program::vm::{FunctionCode, MoveRange, Op};
 
 use super::frame::move_values_within_frame;
 
 /// Return the instruction bounds for one block.
 #[inline(always)]
-fn block_bounds(function: &Function, block: u32) -> Result<(usize, usize), Error> {
+fn block_bounds(function: &FunctionCode<'_>, block: u32) -> Result<(usize, usize), Error> {
     let block = function
         .blocks
         .get(block as usize)
@@ -22,11 +22,11 @@ fn block_bounds(function: &Function, block: u32) -> Result<(usize, usize), Error
 #[inline(always)]
 fn enter_block(
     activation: &mut Activation<'_>,
-    function: &Function,
+    function: &FunctionCode<'_>,
     block: u32,
     moves: MoveRange,
 ) -> Result<(usize, usize), Error> {
-    let move_pool = function.move_pool.as_slice();
+    let move_pool = function.move_pool;
 
     // move block parameters before retargeting the frame
     let frame = activation.active_frame_mut();
@@ -1266,7 +1266,7 @@ macro_rules! dispatch_instruction {
 /// Dispatch one block until it produces a control transfer.
 pub(crate) fn dispatch_block(
     activation: &mut Activation<'_>,
-    function: &Function,
+    function: FunctionCode<'_>,
     block_index: u32,
     pc: usize,
 ) -> Transfer {
@@ -1278,15 +1278,15 @@ pub(crate) fn dispatch_block(
 #[cfg_attr(not(debug_assertions), inline(always))]
 fn dispatch_block_inner(
     activation: &mut Activation<'_>,
-    function: &Function,
+    function: FunctionCode<'_>,
     block_index: u32,
     pc: usize,
 ) -> Transfer {
-    let program = activation.machine.program.clone();
+    let program = activation.program;
     let mut function = function;
 
     // start at the requested block offset
-    let (mut block_start, mut pc, mut block_end) = match block_bounds(function, block_index) {
+    let (mut block_start, mut pc, mut block_end) = match block_bounds(&function, block_index) {
         Ok((block_start, block_end)) => (block_start, block_start + pc, block_end),
         Err(error) => return Transfer::Error(error),
     };
@@ -1316,7 +1316,7 @@ fn dispatch_block_inner(
                         moves,
                     } => {
                         (block_start, pc, block_end) =
-                            match enter_block(activation, function, target, moves) {
+                            match enter_block(activation, &function, target, moves) {
                                 Ok((block_start, block_end)) => {
                                     (block_start, block_start, block_end)
                                 }
@@ -1328,13 +1328,11 @@ fn dispatch_block_inner(
                         let frame = activation.active_frame();
                         let function_id = frame.function();
                         let block = frame.block;
-                        let Some(next_function) =
-                            program.vm_functions().function_by_id(function_id)
-                        else {
+                        let Some(next_function) = program.vm_function_by_id(function_id) else {
                             return Transfer::Error(Error::undefined_function(function_id));
                         };
                         function = next_function;
-                        (block_start, pc, block_end) = match block_bounds(function, block) {
+                        (block_start, pc, block_end) = match block_bounds(&function, block) {
                             Ok((block_start, block_end)) => (block_start, block_start, block_end),
                             Err(error) => return Transfer::Error(error),
                         };
@@ -1352,7 +1350,7 @@ fn dispatch_block_inner(
 /// Dispatch one block and count executed instructions.
 pub(crate) fn dispatch_block_counted(
     activation: &mut Activation<'_>,
-    function: &Function,
+    function: FunctionCode<'_>,
     block_index: u32,
     pc: usize,
 ) -> BlockDispatch {
@@ -1364,11 +1362,11 @@ pub(crate) fn dispatch_block_counted(
 #[cfg_attr(not(debug_assertions), inline(always))]
 fn dispatch_block_counted_inner(
     activation: &mut Activation<'_>,
-    function: &Function,
+    function: FunctionCode<'_>,
     block_index: u32,
     pc: usize,
 ) -> BlockDispatch {
-    let (block_start, mut pc, block_end) = match block_bounds(function, block_index) {
+    let (block_start, mut pc, block_end) = match block_bounds(&function, block_index) {
         Ok((block_start, block_end)) => (block_start, block_start + pc, block_end),
         Err(error) => {
             return BlockDispatch {

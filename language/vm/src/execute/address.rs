@@ -82,7 +82,7 @@ pub(crate) fn element_heap(
     element: Projection,
     index: u64,
 ) -> Cell {
-    let element_offset = element_byte_offset(index, element.byte_stride);
+    let element_offset = element_byte_offset(index, element.byte_stride());
     let reference = reference.add_bytes(element_offset);
 
     Cell::heap_reference(reference)
@@ -96,7 +96,7 @@ pub(crate) fn element_shared_heap(
     element: Projection,
     index: u64,
 ) -> Cell {
-    let element_offset = element_byte_offset(index, element.byte_stride);
+    let element_offset = element_byte_offset(index, element.byte_stride());
     let reference = reference.add_bytes(element_offset);
 
     Cell::shared_heap_reference(reference)
@@ -110,7 +110,7 @@ pub(crate) fn element_raw(
     element: Projection,
     index: u64,
 ) -> Cell {
-    let element_offset = element_byte_offset(index, element.byte_stride);
+    let element_offset = element_byte_offset(index, element.byte_stride());
     let address = address + element_offset;
 
     Cell::address(address)
@@ -124,7 +124,7 @@ pub(crate) fn element_stack(
     element: Projection,
     index: u64,
 ) -> Cell {
-    let element_offset = element_byte_offset(index, element.byte_stride);
+    let element_offset = element_byte_offset(index, element.byte_stride());
     let pointer = pointer.add_bytes(element_offset);
 
     Cell::stack_pointer(pointer)
@@ -138,7 +138,7 @@ pub(crate) fn element_frame(
     element: Projection,
     index: u64,
 ) -> Cell {
-    let element_offset = element_byte_offset(index, element.byte_stride);
+    let element_offset = element_byte_offset(index, element.byte_stride());
     let pointer = pointer.add_bytes(element_offset);
 
     Cell::frame_pointer(pointer)
@@ -152,7 +152,7 @@ pub(crate) fn element_global(
     element: Projection,
     index: u64,
 ) -> Result<Cell, Error> {
-    let element_offset = element_byte_offset(index, element.byte_stride);
+    let element_offset = element_byte_offset(index, element.byte_stride());
     let address = address
         .add_bytes(element_offset)
         .ok_or(Error::invalid_instruction())?;

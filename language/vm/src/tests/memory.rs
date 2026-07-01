@@ -616,7 +616,7 @@ entry:
     assert_eq!(
         machine
             .heap
-            .trace_map(reference, machine.machine.trace_table()),
+            .trace_map(reference, machine.machine.trace_maps()),
         Ok(TraceMap::empty())
     );
 }
@@ -679,7 +679,7 @@ entry:
     assert_eq!(
         machine
             .heap
-            .trace_map(reference, machine.machine.trace_table()),
+            .trace_map(reference, machine.machine.trace_maps()),
         Ok(TraceMap::Fixed {
             local_offsets: vec![8].into_boxed_slice(),
             shared_offsets: Vec::new().into_boxed_slice(),
@@ -713,7 +713,7 @@ entry:
     assert_eq!(
         machine
             .heap
-            .trace_map(reference, machine.machine.trace_table()),
+            .trace_map(reference, machine.machine.trace_maps()),
         Ok(TraceMap::Fixed {
             local_offsets: vec![0, 8].into_boxed_slice(),
             shared_offsets: Vec::new().into_boxed_slice(),

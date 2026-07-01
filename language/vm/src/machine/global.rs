@@ -1,4 +1,4 @@
-use destack_program::{GlobalAddress, GlobalId, StaticSpace};
+use destack_program::{GlobalAddress, GlobalId, GlobalLocation, StaticSpace};
 
 use super::Activation;
 use crate::diagnostic::Error;
@@ -31,10 +31,7 @@ impl Activation<'_> {
     /// Return the global address for one global.
     #[inline]
     pub(crate) fn global_address(&self, global: GlobalId) -> Option<GlobalAddress> {
-        self.local_statics()
-            .address(global)
-            .or_else(|| self.shared_statics().address(global))
-            .or_else(|| self.machine.program.global_address(global))
+        self.program.global_address(global)
     }
 
     /// Resolve one static byte range to a native address.
@@ -44,16 +41,25 @@ impl Activation<'_> {
         address: GlobalAddress,
         byte_len: usize,
     ) -> Result<usize, Error> {
-        self.local_statics()
-            .native_address(address, byte_len)
-            .or_else(|| self.shared_statics().native_address(address, byte_len))
-            .or_else(|| {
-                self.machine
-                    .program
-                    .constants()
-                    .native_address(address, byte_len)
-            })
-            .ok_or(Error::invalid_instruction())
+        let global = self
+            .program
+            .global(address.global())
+            .ok_or(Error::invalid_instruction())?;
+
+        match global.location {
+            GlobalLocation::LocalStatic => self
+                .local_statics()
+                .native_address(global, address, byte_len)
+                .ok_or(Error::invalid_instruction()),
+            GlobalLocation::SharedStatic => self
+                .shared_statics()
+                .native_address(global, address, byte_len)
+                .ok_or(Error::invalid_instruction()),
+            GlobalLocation::Constant => self
+                .program
+                .constant_native_address(address, byte_len)
+                .ok_or(Error::invalid_instruction()),
+        }
     }
 
     /// Resolve one mutable static byte range to a native address.
@@ -63,42 +69,25 @@ impl Activation<'_> {
         address: GlobalAddress,
         byte_len: usize,
     ) -> Result<usize, Error> {
-        // prefer mutable local worker statics
-        if let Some(native_address) = self
-            .local_statics_mut()
-            .native_address_mut(address, byte_len)
-        {
-            return Ok(native_address);
-        }
-
-        // then allow mutable shared statics
-        if let Some(native_address) = self
-            .shared_statics_mut()
-            .native_address_mut(address, byte_len)
-        {
-            return Ok(native_address);
-        }
-
-        // reject writes into immutable local statics
-        if self.local_statics().owns_address_range(address, byte_len) {
-            return Err(Error::immutable_global_write(address.global()));
-        }
-
-        // reject writes into immutable shared statics
-        if self.shared_statics().owns_address_range(address, byte_len) {
-            return Err(Error::immutable_global_write(address.global()));
-        }
-
-        // reject writes into immutable program constants
-        if self
-            .machine
+        let global = self
             .program
-            .constants()
-            .owns_address_range(address, byte_len)
-        {
+            .global(address.global())
+            .copied()
+            .ok_or(Error::invalid_instruction())?;
+        if !global.is_mutable() {
             return Err(Error::immutable_global_write(address.global()));
         }
 
-        Err(Error::invalid_instruction())
+        match global.location {
+            GlobalLocation::LocalStatic => self
+                .local_statics_mut()
+                .native_address_mut(&global, address, byte_len)
+                .ok_or(Error::invalid_instruction()),
+            GlobalLocation::SharedStatic => self
+                .shared_statics_mut()
+                .native_address_mut(&global, address, byte_len)
+                .ok_or(Error::invalid_instruction()),
+            GlobalLocation::Constant => Err(Error::immutable_global_write(address.global())),
+        }
     }
 }

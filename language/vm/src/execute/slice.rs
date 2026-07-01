@@ -22,24 +22,28 @@ pub(crate) fn store_slice_at(
     activation: &mut Activation<'_>,
     dest: u32,
     access: SliceProjection,
-    data: Cell,
+    pointer_value: Cell,
     length: usize,
 ) -> Result<(), Error> {
     // write the two descriptor fields through their lowered layouts
     let length = Cell::uint(length as u64, usize::BITS as u8);
     let pointer = activation.frame_pointer_at(dest);
-    access::store_frame_slot_by_layout(activation, pointer, access.data, data);
+    access::store_frame_slot_by_layout(activation, pointer, access.pointer, pointer_value);
     access::store_frame_slot_by_layout(activation, pointer, access.length, length);
 
     Ok(())
 }
 
-/// Load the data pointer from one slice descriptor.
+/// Load the pointer from one slice descriptor.
 #[inline(always)]
-fn load_slice_data(activation: &mut Activation<'_>, slice: Cell, access: SliceProjection) -> Cell {
+fn load_slice_pointer(
+    activation: &mut Activation<'_>,
+    slice: Cell,
+    access: SliceProjection,
+) -> Cell {
     let slice = slice.as_frame_pointer();
 
-    access::load_frame_slot_by_layout(activation, slice, access.data)
+    access::load_frame_slot_by_layout(activation, slice, access.pointer)
 }
 
 /// Store a computed slice element address.
@@ -77,8 +81,13 @@ pub(crate) fn execute_address_heap_slice_element(
 ) -> Result<(), Error> {
     let (dest, slice, index, access) = slice_address_fields(activation, instruction);
 
-    let data = load_slice_data(activation, slice, access);
-    let value = address::element_heap(activation, data.as_heap_reference(), access.element, index);
+    let pointer = load_slice_pointer(activation, slice, access);
+    let value = address::element_heap(
+        activation,
+        pointer.as_heap_reference(),
+        access.element,
+        index,
+    );
 
     store_slice_element_address(activation, dest, value);
 
@@ -92,10 +101,10 @@ pub(crate) fn execute_address_shared_heap_slice_element(
 ) -> Result<(), Error> {
     let (dest, slice, index, access) = slice_address_fields(activation, instruction);
 
-    let data = load_slice_data(activation, slice, access);
+    let pointer = load_slice_pointer(activation, slice, access);
     let value = address::element_shared_heap(
         activation,
-        data.as_shared_heap_reference(),
+        pointer.as_shared_heap_reference(),
         access.element,
         index,
     );
@@ -112,8 +121,8 @@ pub(crate) fn execute_address_raw_slice_element(
 ) -> Result<(), Error> {
     let (dest, slice, index, access) = slice_address_fields(activation, instruction);
 
-    let data = load_slice_data(activation, slice, access);
-    let value = address::element_raw(activation, data.as_address(), access.element, index);
+    let pointer = load_slice_pointer(activation, slice, access);
+    let value = address::element_raw(activation, pointer.as_address(), access.element, index);
 
     store_slice_element_address(activation, dest, value);
 
@@ -127,8 +136,13 @@ pub(crate) fn execute_address_stack_slice_element(
 ) -> Result<(), Error> {
     let (dest, slice, index, access) = slice_address_fields(activation, instruction);
 
-    let data = load_slice_data(activation, slice, access);
-    let value = address::element_stack(activation, data.as_stack_pointer(), access.element, index);
+    let pointer = load_slice_pointer(activation, slice, access);
+    let value = address::element_stack(
+        activation,
+        pointer.as_stack_pointer(),
+        access.element,
+        index,
+    );
 
     store_slice_element_address(activation, dest, value);
 
@@ -142,9 +156,9 @@ pub(crate) fn execute_address_frame_slice_element(
 ) -> Result<(), Error> {
     let (dest, slice, index, access) = slice_address_fields(activation, instruction);
 
-    let data = load_slice_data(activation, slice, access);
-    let offset = element_byte_offset(index, access.element.byte_stride);
-    let pointer = data.as_frame_pointer().add_bytes(offset);
+    let pointer = load_slice_pointer(activation, slice, access);
+    let offset = element_byte_offset(index, access.element.byte_stride());
+    let pointer = pointer.as_frame_pointer().add_bytes(offset);
     let value = Cell::frame_pointer(pointer);
 
     store_slice_element_address(activation, dest, value);
@@ -159,9 +173,13 @@ pub(crate) fn execute_global_address_slice_element(
 ) -> Result<(), Error> {
     let (dest, slice, index, access) = slice_address_fields(activation, instruction);
 
-    let data = load_slice_data(activation, slice, access);
-    let value =
-        address::element_global(activation, data.as_global_address(), access.element, index)?;
+    let pointer = load_slice_pointer(activation, slice, access);
+    let value = address::element_global(
+        activation,
+        pointer.as_global_address(),
+        access.element,
+        index,
+    )?;
 
     store_slice_element_address(activation, dest, value);
 

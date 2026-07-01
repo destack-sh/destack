@@ -3,8 +3,9 @@ use std::sync::{Arc, OnceLock};
 
 use destack_compiler::ProgramLinker;
 use destack_heap::{
-    AllocationCache, AllocationPlan, Allocator, GcStats, Heap, HeapLimits, HeapOptions,
-    HeapReference, PayloadShape, SharedHeap, SharedHeapLimits, SharedHeapOptions, SharedMarkWorker,
+    AllocationCache, AllocationPlan, AllocationShape, Allocator, GcStats, Heap, HeapLimits,
+    HeapOptions, HeapReference, SharedHeap, SharedHeapLimits, SharedHeapOptions, SharedMarkWorker,
+    TraceView,
 };
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_mir::{LocalNodeId, TargetLayout, TensorDimension, TraceMap, TraceTable, Type};
@@ -20,8 +21,8 @@ const TEST_LOCAL_SPACE_SIZE_BYTES: usize = 16 * 1024 * 1024;
 static TRACE_TABLE: OnceLock<TraceTable> = OnceLock::new();
 
 /// Return the shared empty trace table for VM tests.
-pub(crate) fn trace_table() -> &'static TraceTable {
-    TRACE_TABLE.get_or_init(TraceTable::new)
+pub(crate) fn trace_maps() -> TraceView<'static> {
+    TraceView::new(TRACE_TABLE.get_or_init(TraceTable::new).traces())
 }
 
 /// The machine and authoritative heap used by one test runtime.
@@ -73,19 +74,22 @@ pub(crate) fn create_test_shared_heap() -> SharedHeap {
 }
 
 /// Build one explicit local heap allocation plan for VM tests.
-pub(crate) fn local_allocation_plan(heap: &Heap, shape: PayloadShape<'_>) -> AllocationPlan {
-    heap.options().allocation_plan_for_shape(shape)
+pub(crate) fn local_allocation_plan(heap: &Heap, shape: AllocationShape<'_>) -> AllocationPlan {
+    heap.options().allocation_plan(shape)
 }
 
 /// Build one explicit shared heap allocation plan for VM tests.
-pub(crate) fn shared_allocation_plan(heap: &SharedHeap, shape: PayloadShape<'_>) -> AllocationPlan {
-    heap.options().allocation_plan_for_shape(shape)
+pub(crate) fn shared_allocation_plan(
+    heap: &SharedHeap,
+    shape: AllocationShape<'_>,
+) -> AllocationPlan {
+    heap.options().allocation_plan(shape)
 }
 
 /// Allocate one zeroed local heap payload for VM tests.
 pub(crate) fn allocate_local_zeroed(
     heap: &mut Heap,
-    shape: PayloadShape<'_>,
+    shape: AllocationShape<'_>,
 ) -> destack_heap::HeapResult<HeapReference> {
     let plan = local_allocation_plan(heap, shape);
 
@@ -95,7 +99,7 @@ pub(crate) fn allocate_local_zeroed(
 /// Allocate one byte-initialized local heap payload for VM tests.
 pub(crate) fn allocate_local_bytes(
     heap: &mut Heap,
-    shape: PayloadShape<'_>,
+    shape: AllocationShape<'_>,
     bytes: &[u8],
 ) -> destack_heap::HeapResult<HeapReference> {
     let plan = local_allocation_plan(heap, shape);
@@ -262,15 +266,12 @@ impl TestMachine {
             .machine
             .function_id_by_name(function)
             .unwrap_or_else(|_| panic!("missing function '{function}'"));
-        let function_record = self
+        let parameters = self
             .machine
             .program
-            .functions()
-            .get(function_id)
+            .function_parameters(function_id)
             .unwrap_or_else(|| panic!("missing function tables for '{function}'"));
-        function_record
-            .signature
-            .parameters
+        parameters
             .get(argument_index)
             .unwrap_or_else(|| panic!("missing argument {argument_index} for '{function}'"))
             .to_owned()
@@ -279,13 +280,9 @@ impl TestMachine {
     /// Materialize one value for the given program type.
     pub(crate) fn materialize_value_for_type(&mut self, ty: TypeId, values: Vec<Cell>) -> Cell {
         // tensors are handles to heap payloads
-        let ty = self
-            .machine
-            .program
-            .types()
-            .repr_type(ty)
-            .unwrap_or_else(|| panic!("missing program type {ty:?}"));
-        let mir_type = self.mir_type(ty);
+        let mir_type = self.tree.repr_type(self.mir_type(ty));
+        let ty = self.program_type(mir_type);
+
         if matches!(self.tree.get(mir_type), Type::Tensor { .. }) {
             return self.materialize_tensor_for_type(ty, values);
         }
@@ -319,13 +316,9 @@ impl TestMachine {
 
     /// Materialize one tensor value as a local heap payload.
     fn materialize_tensor_for_type(&mut self, ty: TypeId, values: Vec<Cell>) -> Cell {
-        let ty = self
-            .machine
-            .program
-            .types()
-            .repr_type(ty)
-            .unwrap_or_else(|| panic!("missing program type {ty:?}"));
-        let mir_type = self.mir_type(ty);
+        let mir_type = self.tree.repr_type(self.mir_type(ty));
+        let ty = self.program_type(mir_type);
+
         let Type::Tensor { element, shape, .. } = self.tree.get(mir_type) else {
             panic!("type {ty:?} is not a tensor");
         };
@@ -360,7 +353,7 @@ impl TestMachine {
         }
 
         let trace_map = TraceMap::empty();
-        let shape = PayloadShape::new(
+        let shape = AllocationShape::new(
             byte_len,
             element_layout.alignment as usize,
             None,
@@ -480,11 +473,11 @@ impl TestMachine {
             };
         let mut stats = self
             .heap
-            .collect_full(&mut heap_roots, program.trace_table())
+            .collect_full(&mut heap_roots, program.trace_maps())
             .expect("failed to collect heap");
         let shared_stats = self
             .shared_heap
-            .collect_full(&shared_roots, program.trace_table())
+            .collect_full(&shared_roots, program.trace_maps())
             .expect("failed to collect shared heap");
 
         stats.freed_allocations += shared_stats.freed_allocations;
@@ -507,15 +500,16 @@ fn materialize_value_bytes(
     let mut bytes = vec![0u8; layout.byte_len()];
 
     // fields
-    if let Some(field_count) = layout.field_count() {
+    if let Some(field_count) = machine.program.layout_field_count(layout) {
         assert_eq!(
             values.len(),
             field_count,
             "field materialization expects one value per field"
         );
         for (index, value) in values.iter().copied().enumerate() {
-            let field = layout
-                .field_at(index as u32)
+            let field = machine
+                .program
+                .layout_field_at(layout, index as u32)
                 .unwrap_or_else(|| panic!("missing field {index} for layout {layout:?}"));
             write_materialized_value(
                 machine,

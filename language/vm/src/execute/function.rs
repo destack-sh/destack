@@ -9,7 +9,7 @@ use super::access;
 /// Return the byte width of one function value word.
 #[inline]
 fn pointer_bytes(activation: &Activation<'_>) -> usize {
-    activation.machine.program.pointer_bytes() as usize
+    activation.program.pointer_bytes() as usize
 }
 
 /// Return the code pointer byte offset in a function value.

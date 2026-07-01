@@ -14,7 +14,7 @@ use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use destack_program::ScalarFormat;
-use destack_program::vm::{BinaryFloat, ConstValue, ConstValueId, Instruction, UnaryFloat};
+use destack_program::vm::{BinaryFloat, ConstValueId, Instruction, UnaryFloat};
 
 const INTEGER_SIGN_BIT: u32 = 1 << 16;
 const INTEGER_WIDTH_MASK: u32 = INTEGER_SIGN_BIT - 1;
@@ -54,7 +54,7 @@ fn wide_integer_layout(field: u32) -> ScalarFormat {
     let width = (field & INTEGER_WIDTH_MASK) as u16;
     let is_signed = field & INTEGER_SIGN_BIT != 0;
 
-    ScalarFormat::Int { width, is_signed }
+    ScalarFormat::int(width, is_signed)
 }
 
 /// Store one scalar operation result.
@@ -194,7 +194,7 @@ pub(crate) fn execute_load_const_aggregate(
     let value = ConstValueId(instruction.b);
 
     // copy aggregate payload
-    let ConstValue::Aggregate(bytes) = activation.machine.program.side_table().constant(value);
+    let bytes = activation.constant_bytes(value);
     let dest = activation.frame_pointer_at(dest).address() as *mut u8;
     unsafe {
         std::ptr::copy_nonoverlapping(bytes.as_ptr(), dest, bytes.len());

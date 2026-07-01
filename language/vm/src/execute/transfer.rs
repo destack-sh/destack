@@ -4,7 +4,7 @@ use crate::Cell;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Continuation, Outcome, Stack};
 use crate::options::LimitOptions;
-use destack_program::vm::{ArgumentRange, CallTarget, Function, MoveRange};
+use destack_program::vm::{ArgumentRange, CallTarget, FunctionCode, MoveRange};
 use destack_program::{FrameStateId, FunctionId, Program, TypeId};
 
 use super::frame::move_values_within_frame;
@@ -100,7 +100,7 @@ impl Activation<'_> {
     /// Complete one jump transfer within the current frame.
     fn complete_jump(
         &mut self,
-        current_func: &Function,
+        current_func: &FunctionCode<'_>,
         target: u32,
         moves: MoveRange,
     ) -> RuntimeResult<()> {
@@ -110,7 +110,7 @@ impl Activation<'_> {
             .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-        move_values_within_frame(frame, moves, current_func.move_pool.as_slice())
+        move_values_within_frame(frame, moves, current_func.move_pool)
             .map_err(RuntimeError::new)?;
 
         // retarget the frame to the destination block
@@ -169,7 +169,7 @@ impl Activation<'_> {
         &mut self,
         program: &Program,
         limits: LimitOptions,
-        current_func: &Function,
+        current_func: &FunctionCode<'_>,
         transfer: Transfer,
     ) -> RuntimeResult<Option<Outcome>> {
         // complete the concrete transfer

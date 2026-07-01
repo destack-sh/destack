@@ -16,7 +16,7 @@ fn int_layout(ty: ScalarFormat) -> Result<(u16, bool), Error> {
         return Err(Error::type_mismatch("integer scalar", format!("{ty:?}")));
     };
 
-    Ok((width, is_signed))
+    Ok((width, is_signed != 0))
 }
 
 /// Return one signed integer scalar layout.
@@ -24,7 +24,7 @@ fn int_layout(ty: ScalarFormat) -> Result<(u16, bool), Error> {
 fn signed_int_layout(ty: ScalarFormat) -> Result<u16, Error> {
     let ScalarFormat::Int {
         width,
-        is_signed: true,
+        is_signed: 1,
     } = ty
     else {
         return Err(Error::type_mismatch(
@@ -635,7 +635,7 @@ pub(crate) fn not_bool(ty: ScalarFormat, value: Cell) -> Result<Cell, Error> {
 pub(crate) fn neg_int(ty: ScalarFormat, value: Cell) -> Result<Cell, Error> {
     let ScalarFormat::Int {
         width,
-        is_signed: true,
+        is_signed: 1,
     } = ty
     else {
         return Err(Error::type_mismatch("signed integer", format!("{ty:?}")));
@@ -653,7 +653,7 @@ pub(crate) fn not_int(ty: ScalarFormat, value: Cell) -> Result<Cell, Error> {
     };
     let width = width_u8(width)?;
 
-    Ok(if is_signed {
+    Ok(if is_signed != 0 {
         Cell::int(!value.as_i64(), width)
     } else {
         Cell::uint(!value.as_u64(), width)
@@ -811,7 +811,7 @@ fn byte_integer_layout(ty: ScalarFormat, expected: &'static str) -> Result<(u16,
         ));
     };
 
-    Ok((width, is_signed))
+    Ok((width, is_signed != 0))
 }
 
 /// Return two normalized byte inputs.
@@ -1625,9 +1625,9 @@ where
                 width: dest_width,
                 is_signed: dest_signed,
             },
-        ) => convert_int_to_int::<C>(value, width, is_signed, dest_width, dest_signed),
+        ) => convert_int_to_int::<C>(value, width, is_signed != 0, dest_width, dest_signed != 0),
         (ScalarFormat::Int { width, is_signed }, ScalarFormat::Float { format }) => {
-            convert_int_to_float::<C>(value, width, is_signed, format)
+            convert_int_to_float::<C>(value, width, is_signed != 0, format)
         }
         (
             ScalarFormat::Float { format },
@@ -1635,7 +1635,7 @@ where
                 width: dest_width,
                 is_signed,
             },
-        ) => convert_float_to_int::<C>(value, format, dest_width, is_signed),
+        ) => convert_float_to_int::<C>(value, format, dest_width, is_signed != 0),
         (
             ScalarFormat::Float { format },
             ScalarFormat::Float {
@@ -1960,7 +1960,7 @@ where
 /// Add two scalar values using the supplied type.
 pub(crate) fn reduce_add(ty: ScalarFormat, a: Cell, b: Cell) -> Result<Cell, Error> {
     match ty {
-        ScalarFormat::Int { width, is_signed } if is_signed => {
+        ScalarFormat::Int { width, is_signed } if is_signed != 0 => {
             let width = width_u8(width)?;
 
             Ok(Cell::int(a.as_i64().wrapping_add(b.as_i64()), width))
@@ -1984,7 +1984,7 @@ pub(crate) fn reduce_add(ty: ScalarFormat, a: Cell, b: Cell) -> Result<Cell, Err
 /// Multiply two scalar values using the supplied type.
 pub(crate) fn reduce_multiply(ty: ScalarFormat, a: Cell, b: Cell) -> Result<Cell, Error> {
     match ty {
-        ScalarFormat::Int { width, is_signed } if is_signed => {
+        ScalarFormat::Int { width, is_signed } if is_signed != 0 => {
             let width = width_u8(width)?;
 
             Ok(Cell::int(a.as_i64().wrapping_mul(b.as_i64()), width))
@@ -2008,7 +2008,7 @@ pub(crate) fn reduce_multiply(ty: ScalarFormat, a: Cell, b: Cell) -> Result<Cell
 /// Select the minimum of two scalar values using the supplied type.
 pub(crate) fn reduce_min(ty: ScalarFormat, a: Cell, b: Cell) -> Result<Cell, Error> {
     match ty {
-        ScalarFormat::Int { width, is_signed } if is_signed => {
+        ScalarFormat::Int { width, is_signed } if is_signed != 0 => {
             let width = width_u8(width)?;
 
             Ok(Cell::int(a.as_i64().min(b.as_i64()), width))
@@ -2037,7 +2037,7 @@ pub(crate) fn reduce_min(ty: ScalarFormat, a: Cell, b: Cell) -> Result<Cell, Err
 /// Select the maximum of two scalar values using the supplied type.
 pub(crate) fn reduce_max(ty: ScalarFormat, a: Cell, b: Cell) -> Result<Cell, Error> {
     match ty {
-        ScalarFormat::Int { width, is_signed } if is_signed => {
+        ScalarFormat::Int { width, is_signed } if is_signed != 0 => {
             let width = width_u8(width)?;
 
             Ok(Cell::int(a.as_i64().max(b.as_i64()), width))
@@ -2066,7 +2066,7 @@ pub(crate) fn reduce_max(ty: ScalarFormat, a: Cell, b: Cell) -> Result<Cell, Err
 /// Apply bitwise or logical and to two scalar values.
 pub(crate) fn reduce_and(ty: ScalarFormat, a: Cell, b: Cell) -> Result<Cell, Error> {
     match ty {
-        ScalarFormat::Int { width, is_signed } if is_signed => {
+        ScalarFormat::Int { width, is_signed } if is_signed != 0 => {
             let width = width_u8(width)?;
 
             Ok(Cell::int(a.as_i64() & b.as_i64(), width))
@@ -2084,7 +2084,7 @@ pub(crate) fn reduce_and(ty: ScalarFormat, a: Cell, b: Cell) -> Result<Cell, Err
 /// Apply bitwise or logical or to two scalar values.
 pub(crate) fn reduce_or(ty: ScalarFormat, a: Cell, b: Cell) -> Result<Cell, Error> {
     match ty {
-        ScalarFormat::Int { width, is_signed } if is_signed => {
+        ScalarFormat::Int { width, is_signed } if is_signed != 0 => {
             let width = width_u8(width)?;
 
             Ok(Cell::int(a.as_i64() | b.as_i64(), width))
@@ -2102,7 +2102,7 @@ pub(crate) fn reduce_or(ty: ScalarFormat, a: Cell, b: Cell) -> Result<Cell, Erro
 /// Apply bitwise or logical xor to two scalar values.
 pub(crate) fn reduce_xor(ty: ScalarFormat, a: Cell, b: Cell) -> Result<Cell, Error> {
     match ty {
-        ScalarFormat::Int { width, is_signed } if is_signed => {
+        ScalarFormat::Int { width, is_signed } if is_signed != 0 => {
             let width = width_u8(width)?;
 
             Ok(Cell::int(a.as_i64() ^ b.as_i64(), width))
