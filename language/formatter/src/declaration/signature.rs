@@ -1106,16 +1106,14 @@ pub(crate) fn format_where_clause_with_break<'ast>(
 ) -> FormatResult<()> {
     let body = separated_entries(",", where_clauses, TrailingSeparator::Omit, None);
 
-    // the outer group moves `where` onto its own line when the signature is full,
-    // while the inner group keeps the bounds inline unless they overflow on their own
+    // indent `where` when the head is full
     write!(
         f,
-        [group(&format_args![
+        [group(&indent(&format_args![
             soft_line_break_or_space(),
             Keyword::Where,
-            space(),
-            group(&body)
-        ])]
+            group(&indent(&format_args![soft_line_break_or_space(), body]))
+        ]))]
     )
 }
 

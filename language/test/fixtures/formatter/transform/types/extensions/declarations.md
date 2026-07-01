@@ -126,7 +126,7 @@ extension<T> of /* target */ Box<T> implements /* iterable */ Iterable<T> where 
 
 ### extension with broken where clause
 
-Long extension headers break before `where` and keep fitting constraints inline.
+Long extension headers break before `where` and keep fitting constraints inline as an indented continuation.
 
 ```ds line-width=60
 extension<T, U, V> of Table<T, U, V> where T: Copy, U: Clone, V: Comparable {
@@ -136,7 +136,7 @@ extension<T, U, V> of Table<T, U, V> where T: Copy, U: Clone, V: Comparable {
 
 ```ds expected
 extension<T, U, V> of Table<T, U, V>
-where T: Copy, U: Clone, V: Comparable {
+    where T: Copy, U: Clone, V: Comparable {
     compare(left: T, right: U): V;
 }
 ```
