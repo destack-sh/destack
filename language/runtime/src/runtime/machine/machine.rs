@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use destack_heap::{HeapResult, RootSlot};
-use destack_mir::TraceTable;
+use destack_heap::{HeapResult, RootSlot, TraceView};
 use destack_program as program;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
@@ -179,18 +178,18 @@ impl Machine {
     }
 
     /// Return the immutable program.
-    pub fn program(&self) -> Arc<program::Program> {
+    pub fn program(&self) -> &program::Program {
         match &self.engine {
-            Engine::Vm(machine) => machine.program_handle(),
-            Engine::Native { vm, .. } => vm.program_handle(),
+            Engine::Vm(machine) => machine.program(),
+            Engine::Native { vm, .. } => vm.program(),
         }
     }
 
-    /// Return the program trace table used by heap metadata.
-    pub fn trace_table(&self) -> &TraceTable {
+    /// Return decoded program trace maps.
+    pub fn trace_maps(&self) -> TraceView<'_> {
         match &self.engine {
-            Engine::Vm(machine) => machine.trace_table(),
-            Engine::Native { vm, .. } => vm.trace_table(),
+            Engine::Vm(machine) => machine.trace_maps(),
+            Engine::Native { vm, .. } => vm.trace_maps(),
         }
     }
 
@@ -248,11 +247,11 @@ impl Machine {
                 Ok(outcome_from_vm(id, outcome))
             }
             Engine::Native { vm, code } => {
-                let program = vm.program_handle();
-                match code.entry_by_name(program.as_ref(), entry.name()) {
+                let program = vm.program();
+                match code.entry_by_name(program, entry.name()) {
                     Ok(entry) => {
                         let outcome = code
-                            .run(&mut context, entry, args)
+                            .run(program, &mut context, entry, args)
                             .map_err(native_runtime_error)?;
 
                         return outcome_from_native(id, vm.as_mut(), context, outcome);
@@ -318,8 +317,9 @@ impl Machine {
                 Ok(outcome_from_vm(id, outcome))
             }
             (Engine::Native { code, vm }, Continuation::Native { continuation, .. }) => {
+                let program = vm.program();
                 let outcome = code
-                    .resume(&mut context, continuation, value)
+                    .resume(program, &mut context, continuation, value)
                     .map_err(native_runtime_error)?;
 
                 outcome_from_native(id, vm.as_mut(), context, outcome)
@@ -368,16 +368,20 @@ impl Machine {
     /// Visit mutable heap root slots from one static space.
     pub fn visit_static_root_slots(
         &mut self,
+        location: program::GlobalLocation,
         static_space: &mut program::StaticSpace,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> RuntimeResult<()> {
         match &mut self.engine {
-            Engine::Vm(machine) => {
-                vm::Machine::visit_static_root_slots(machine.as_mut(), static_space, visit)
-                    .map_err(Box::<RuntimeError>::from)
-            }
+            Engine::Vm(machine) => vm::Machine::visit_static_root_slots(
+                machine.as_mut(),
+                location,
+                static_space,
+                visit,
+            )
+            .map_err(Box::<RuntimeError>::from),
             Engine::Native { vm, .. } => {
-                vm::Machine::visit_static_root_slots(vm.as_mut(), static_space, visit)
+                vm::Machine::visit_static_root_slots(vm.as_mut(), location, static_space, visit)
                     .map_err(Box::<RuntimeError>::from)
             }
         }
@@ -399,8 +403,8 @@ impl Machine {
                     .map_err(Box::<RuntimeError>::from)
             }
             (Engine::Native { vm, code }, Continuation::Native { continuation, .. }) => {
-                let program = vm.program_handle();
-                code.visit_continuation_root_slots(program.as_ref(), continuation, visit)
+                let program = vm.program();
+                code.visit_continuation_root_slots(program, continuation, visit)
                     .map_err(native_runtime_error)
             }
             (Engine::Native { vm, .. }, Continuation::Vm { continuation, .. }) => {
@@ -427,8 +431,8 @@ impl Machine {
                     .map_err(Box::<RuntimeError>::from)
             }
             (Engine::Native { vm, code }, ContinuationImage::Native { image, .. }) => {
-                let program = vm.program_handle();
-                code.visit_continuation_root_slots(program.as_ref(), image, visit)
+                let program = vm.program();
+                code.visit_continuation_root_slots(program, image, visit)
                     .map_err(native_runtime_error)
             }
             (Engine::Native { vm, .. }, ContinuationImage::Vm { image, .. }) => {
@@ -885,6 +889,12 @@ fn native_runtime_error(error: native::Error) -> Box<RuntimeError> {
             NATIVE_MACHINE,
             MachineError::Unsupported {
                 feature: "native code".to_string(),
+            },
+        ),
+        native::Error::ProgramStringMissing { string } => machine_error(
+            NATIVE_MACHINE,
+            MachineError::Unsupported {
+                feature: format!("program string {string:?}"),
             },
         ),
         native::Error::NativeSymbolMissing { symbol } => machine_error(

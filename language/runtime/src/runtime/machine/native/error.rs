@@ -1,5 +1,6 @@
 use std::fmt;
 
+use destack_core::StringId;
 use destack_program::native::{
     NativeContinuationError, NativeExitError, NativeMaterializationError, NativeTrap,
     NativeTrapError, NativeValueError,
@@ -58,6 +59,11 @@ pub enum Error {
     },
     /// The program has no native code.
     NativeCodeMissing,
+    /// A program string id could not be resolved.
+    ProgramStringMissing {
+        /// Missing program string id.
+        string: StringId,
+    },
     /// A resident native symbol could not be resolved.
     NativeSymbolMissing {
         /// The missing native symbol.
@@ -110,6 +116,9 @@ impl fmt::Display for Error {
                 )
             }
             Self::NativeCodeMissing => write!(formatter, "program has no native code"),
+            Self::ProgramStringMissing { string } => {
+                write!(formatter, "program string not found: {string:?}")
+            }
             Self::NativeSymbolMissing { symbol } => {
                 write!(formatter, "native symbol not found: {symbol}")
             }

@@ -26,6 +26,8 @@ pub struct Worker {
     pub(crate) environment: Arc<Environment>,
     /// Immutable runtime options.
     pub(crate) options: Arc<RuntimeOptions>,
+    /// Immutable executable program.
+    pub(crate) program: Arc<program::Program>,
 
     /// External resource table.
     pub(crate) resources: ResourceTable,
@@ -177,7 +179,7 @@ impl Worker {
         world: &mut WorldState,
         runtime_heap: &RuntimeHeap,
         shared_static: &mut program::StaticSpace,
-        constant_space: &program::StaticSpace,
+        constant_space: &program::StaticImage,
         worker_options: WorkerOptions,
         program: Arc<program::Program>,
         execution: &Execution,
@@ -206,7 +208,7 @@ impl Worker {
         world: &mut WorldState,
         runtime_heap: &RuntimeHeap,
         shared_static: &mut program::StaticSpace,
-        constant_space: &program::StaticSpace,
+        constant_space: &program::StaticImage,
         runtime_id: RuntimeId,
         worker_options: WorkerOptions,
         program: Arc<program::Program>,
@@ -236,14 +238,14 @@ impl Worker {
         world: &mut WorldState,
         runtime_heap: &RuntimeHeap,
         shared_static: &mut program::StaticSpace,
-        constant_space: &program::StaticSpace,
+        constant_space: &program::StaticImage,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         program: Arc<program::Program>,
         execution: &Execution,
     ) -> RuntimeResult<Self> {
         let machine_id = MachineId::new(worker_id.0);
-        let mut machine = Machine::new(machine_id, program, execution)?;
+        let mut machine = Machine::new(machine_id, program.clone(), execution)?;
 
         // resources
         let resources = ResourceTable::new(worker_id);
@@ -284,6 +286,7 @@ impl Worker {
             runtime_id,
             environment,
             options: Arc::new(options.clone()),
+            program,
             resources,
             diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
             bindings,
@@ -465,8 +468,11 @@ impl Worker {
             Ok(())
         };
 
-        self.machine
-            .visit_static_root_slots(static_space, &mut visit)?;
+        self.machine.visit_static_root_slots(
+            program::GlobalLocation::SharedStatic,
+            static_space,
+            &mut visit,
+        )?;
 
         Ok(())
     }
@@ -496,7 +502,6 @@ impl Worker {
     /// Run one budgeted local collection step using the current root set.
     pub fn step_local_collection(&mut self) -> RuntimeResult<heap::GcProgress> {
         let budget_bytes = self.heap.take_collection_budget_bytes();
-        let program = self.machine.program();
         let machine = &mut self.machine;
         let event_loop = &mut self.event_loop;
         let local_static = &mut self.local_static;
@@ -508,7 +513,7 @@ impl Worker {
         };
 
         self.heap
-            .step_collection(&mut roots, budget_bytes, program.trace_table())
+            .step_collection(&mut roots, budget_bytes, self.program.trace_maps())
     }
 
     /// Collect shared heap roots from machine, scheduler, and registered providers.
@@ -546,10 +551,10 @@ impl Worker {
         roots: &mut Vec<heap::SharedHeapReference>,
         budget_bytes: usize,
     ) -> RuntimeResult<usize> {
-        let trace_table = self.machine.trace_table();
+        let trace_maps = self.machine.trace_maps();
 
         self.heap
-            .trace_shared_roots(roots, budget_bytes, trace_table)
+            .trace_shared_roots(roots, budget_bytes, trace_maps)
             .map_err(Box::<RuntimeError>::from)
     }
 
@@ -564,7 +569,7 @@ impl Worker {
         mode: CaptureMode,
         runtime_heap: &RuntimeHeap,
         shared_static: &mut program::StaticSpace,
-        constant_space: &program::StaticSpace,
+        constant_space: &program::StaticImage,
     ) -> RuntimeResult<WorkerImage> {
         // local scheduler and external state
         let event_loop = self.event_loop.capture_image(mode, &mut self.machine)?;
@@ -608,7 +613,7 @@ impl Worker {
         execution_mode: ExecutionMode,
         runtime_heap: &RuntimeHeap,
         shared_static: &mut program::StaticSpace,
-        constant_space: &program::StaticSpace,
+        constant_space: &program::StaticImage,
         shared_mark_worker: heap::SharedMarkWorker,
     ) -> RuntimeResult<Option<Self>> {
         // diagnostics state
@@ -628,8 +633,8 @@ impl Worker {
         bindings.set_access(BindingAccess::new(execution_mode));
         bindings.apply_runtime_defaults(&self.options);
 
-        let trace_table = self.machine.trace_table();
-        let mut heap = self.heap.fork(trace_table)?;
+        let trace_maps = self.machine.trace_maps();
+        let mut heap = self.heap.fork(trace_maps)?;
         let mut local_static = self.local_static.clone();
         let mut shared_cache = runtime_heap.shared.allocation_cache();
         let mut machine = self.machine.fork(program::ProgramStorage {
@@ -651,6 +656,7 @@ impl Worker {
             resources,
             diagnostics,
             bindings,
+            program: self.program.clone(),
             shared_mark_worker,
             shared_cache,
             heap,
@@ -665,7 +671,7 @@ impl Worker {
         world: &mut WorldState,
         runtime_heap: &RuntimeHeap,
         shared_static: &mut program::StaticSpace,
-        constant_space: &program::StaticSpace,
+        constant_space: &program::StaticImage,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         environment: Arc<Environment>,
@@ -703,7 +709,7 @@ impl Worker {
             &image.heap,
             runtime_heap.allocator.clone(),
             heap_options.limits,
-            program.trace_table(),
+            program.trace_maps(),
         )
         .map_err(Box::<RuntimeError>::from)?;
         let mut local_static = image.local_static.clone();
@@ -744,6 +750,7 @@ impl Worker {
             runtime_id,
             environment,
             options,
+            program,
             resources,
             diagnostics,
             bindings,
