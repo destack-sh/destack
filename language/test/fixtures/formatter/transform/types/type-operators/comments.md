@@ -256,8 +256,8 @@ type Paths<T> = {
 
 ```ts expected
 type Paths<T> = {
-    [K in keyof T as `get${Capitalize<K & string> // remap-note
-    }`]: () => T[K];
+    [K in keyof T as // remap-note
+        `get${Capitalize<K & string>}`]: () => T[K];
 };
 ```
 
