@@ -291,25 +291,7 @@ impl WalkState<'_, '_> {
                 }
             }
             // 1, "text", true
-            dir::Expression::ScalarLiteral(value) => {
-                let value = *value;
-                let ty = match value {
-                    // /pattern/
-                    dir::ScalarLiteral::RegexString { .. } => self.language_type_reference(
-                        id.into_any(),
-                        dir::LanguageItem::RegExp,
-                        Vec::new(),
-                    )?,
-                    // nullish literals write their canonical types
-                    dir::ScalarLiteral::Null => self.push_type(dir::Type::Null, id.into_any())?,
-                    dir::ScalarLiteral::Undefined => {
-                        self.push_type(dir::Type::Undefined, id.into_any())?
-                    }
-                    // scalar literals are their own singleton types
-                    value => self.push_type(dir::Type::Literal(value), id.into_any())?,
-                };
-                self.commit_node_type(id, ty)?;
-            }
+            dir::Expression::ScalarLiteral(_) => {}
             // super
             dir::Expression::Super => {
                 let receiver =
@@ -467,7 +449,6 @@ impl WalkState<'_, '_> {
                     };
                     self.walk_expression(child, self.tree.get(child))?;
                     self.queue_node_check(child, expectation)?;
-                    self.commit_node_type(id, target)?;
                 }
             }
             // value satisfies T
@@ -680,6 +661,7 @@ impl WalkState<'_, '_> {
                     iterator,
                     loop_body,
                 )?;
+                self.queue_node_task(body, PlaceUse::Read)?;
             }
             dir::Expression::For {
                 initialization,
@@ -934,8 +916,7 @@ impl WalkState<'_, '_> {
         // collect normal loop exit
         let normal_flow = self.collect_flow_branch(before_body);
         let fallthrough = self.push_type(dir::Type::Void, id.into_any())?;
-        let (result, mut branches) = self.leave_control_target(Some(fallthrough))?;
-        self.commit_node_type(id, result)?;
+        let (_, mut branches) = self.leave_control_target(Some(fallthrough))?;
 
         // merge break branches with normal exit
         branches.push(normal_flow);
@@ -1029,7 +1010,7 @@ impl WalkState<'_, '_> {
 
         // check unreachable increments once
         if flows.is_empty() {
-            self.walk_expression(increment, self.tree.get(increment))?;
+            self.walk_value_expression(increment, PlaceUse::Read)?;
             self.restore_flow(before_body);
 
             return Ok(());
@@ -1038,7 +1019,7 @@ impl WalkState<'_, '_> {
         // check the increment from each flow that reaches the next iteration
         for flow in flows {
             self.restore_flow_branch(before_body, &flow);
-            self.walk_expression(increment, self.tree.get(increment))?;
+            self.walk_value_expression(increment, PlaceUse::Read)?;
             self.restore_flow(before_body);
         }
 

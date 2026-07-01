@@ -376,6 +376,16 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(())
     }
 
+    /// Walk one expression evaluated for its value.
+    pub(in crate::check) fn walk_value_expression(
+        &mut self,
+        id: dir::LocalNodeId<dir::Expression>,
+        use_: PlaceUse,
+    ) -> CompilerResult<()> {
+        self.walk_expression(id, self.tree.get(id))?;
+        self.queue_node_task(id, use_)
+    }
+
     /// Queue one source node check task.
     pub(in crate::check) fn queue_node_check<T: dir::Node>(
         &mut self,

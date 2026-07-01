@@ -47,8 +47,7 @@ impl CheckState<'_> {
 
         // walk expanded roots
         for root in &expanded.roots {
-            walk.walk_expression(*root, tree.get(*root))?;
-            walk.queue_node_task(*root, PlaceUse::Read)?;
+            walk.walk_value_expression(*root, PlaceUse::Read)?;
         }
         walk.commit();
 

@@ -2,8 +2,7 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Decision, FlowSite, Obligation, Origin, PlaceUse, Relation, ValueUse,
-    WritablePlaceObligation, answer,
+    Answer, CheckState, Decision, FlowSite, Origin, PlaceUse, Relation, ValueUse, answer,
 };
 
 impl CheckState<'_> {
@@ -43,7 +42,7 @@ impl CheckState<'_> {
             else {
                 return self.reject_assignment_expression(node, left_node);
             };
-            let target = answer!(self.select_assign_pattern_place(left_node, place)?);
+            let target = place.ty;
             let right_site = self.node_site(right_node)?;
             let () = answer!(self.check_expression(
                 right_site,
@@ -53,6 +52,7 @@ impl CheckState<'_> {
                 ValueUse::Store,
             )?);
             let value = answer!(self.node_type_at(right_site)?);
+            let _ = answer!(self.commit_assign_pattern_place(left_node, place)?);
             self.commit_node_type(left_node.into_any(), value)?;
 
             value
@@ -106,26 +106,24 @@ impl CheckState<'_> {
             return self.reject_assignment_expression(node, left_node);
         };
 
-        // publish the selected place and require it to be writable
-        let target_type = answer!(self.place_type(place.clone())?);
-        let place_resolution = place.clone().resolution(target_type);
-        let resolution = dir::AssignPatternResolution::Place(place_resolution.clone());
-        self.commit_node_type(place.source, target_type)?;
-        let () = answer!(self.commit_assign_pattern(left_node, resolution)?);
-        self.push_obligation(Obligation::WritablePlace(WritablePlaceObligation {
-            place,
-            ty: target_type,
-        }));
+        let target_type = place.ty;
 
         // compound operators select through the binary operator protocol
         if let Some(operator) = operator.binary_operator() {
-            let () = answer!(self.select_binary_operator(
+            let right_site = self.node_site(right_node)?;
+            let right_type = answer!(self.infer_node_type(right_site, PlaceUse::Read)?);
+            let left_type =
+                answer!(self.reduce_type_head(Origin::Node(node.into_any()), target_type)?);
+            let right_type = answer!(self.reduce_type_head(Origin::Node(right_node), right_type)?);
+            let () = answer!(self.select_binary_operation(
                 site,
                 operator,
-                target,
-                right,
+                left_type,
+                right_type,
+                right_node,
                 Some(target_type)
             )?);
+            let _ = answer!(self.commit_assign_pattern_place(left_node, place)?);
 
             return Ok(Answer::Ready(()));
         }
@@ -139,6 +137,7 @@ impl CheckState<'_> {
             Origin::Node(right_node),
             ValueUse::Store,
         )?);
+        let _ = answer!(self.commit_assign_pattern_place(left_node, place)?);
         self.commit_node_type(node.into_any(), target_type)?;
 
         Ok(Answer::Ready(()))

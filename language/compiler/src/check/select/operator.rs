@@ -22,11 +22,30 @@ impl CheckState<'_> {
         let module = node.module_id;
         let node = node.into_any();
         let origin = Origin::Node(node);
-        let source = self.origin_source_node(origin)?;
         let left_site = self.node_site(left_node.into_global_any(module))?;
         let right_site = self.node_site(right_node.into_global_any(module))?;
         let left = answer!(self.operand_type(origin, left_site)?);
         let right = answer!(self.operand_type(origin, right_site)?);
+        let right_source = right_node.into_global_any(module);
+
+        self.select_binary_operation(site, operator, left, right, right_source, writeback)
+    }
+
+    /// Select one binary operation from known operand types.
+    pub(in crate::check) fn select_binary_operation(
+        &mut self,
+        site: FlowSite,
+        operator: dir::BinaryOperator,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+        right_source: dir::GlobalNodeIdAny,
+        writeback: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<Answer<()>> {
+        let node = site.node.into_typed::<dir::Expression>();
+        let module = node.module_id;
+        let node = node.into_any();
+        let origin = Origin::Node(node);
+        let source = self.origin_source_node(origin)?;
 
         // identity and logic produce builtin results directly
         let nullish_operand = matches!(self.ty(left)?, dir::Type::Null | dir::Type::Undefined)
@@ -92,9 +111,7 @@ impl CheckState<'_> {
         for protocol in protocols {
             let key = protocol.method.key(&self.module(module).strings);
             let protocol_type = self.operator_protocol(origin, &protocol, &[right])?;
-            let argument_sources = [dir::ArgumentSource::Provided(
-                right_node.into_global_any(module),
-            )];
+            let argument_sources = [dir::ArgumentSource::Provided(right_source)];
 
             let Some(call) = answer!(self.select_protocol_call(
                 origin,
@@ -156,11 +173,11 @@ impl CheckState<'_> {
             else {
                 return self.reject_operator(node, origin, format!("{operator:?}"), "place".into());
             };
-            let operand = answer!(self.place_type(place.clone())?);
-            self.commit_node_type(place.source, operand)?;
+            let operand = place.ty;
 
             if answer!(self.is_builtin_numeric(origin, operand)?) {
-                let resolution = place.clone().resolution(operand);
+                let resolution = place.clone().resolution();
+                self.commit_node_type(place.source, operand)?;
                 self.commit_decision(place.source, Decision::Place(resolution))?;
                 self.push_obligation(Obligation::WritablePlace(WritablePlaceObligation {
                     place,

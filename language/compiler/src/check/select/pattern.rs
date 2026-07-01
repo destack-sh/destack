@@ -70,7 +70,7 @@ impl CheckState<'_> {
 
                     return Ok(Answer::Ready(false));
                 };
-                let target = answer!(self.select_assign_pattern_place(node, place)?);
+                let target = answer!(self.commit_assign_pattern_place(node, place)?);
                 self.push_constraint(Constraint::value(
                     Relation::Assignable,
                     input,
@@ -128,15 +128,15 @@ impl CheckState<'_> {
         }
     }
 
-    /// Select one assignment pattern that writes into a place.
-    pub(in crate::check) fn select_assign_pattern_place(
+    /// Commit one assignment pattern that writes into a selected place.
+    pub(in crate::check) fn commit_assign_pattern_place(
         &mut self,
         node: dir::GlobalNodeId<dir::AssignPattern>,
         place: WriteTarget,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        // commit the written place type
-        let target_type = answer!(self.place_type(place.clone())?);
-        let resolution = place.clone().resolution(target_type);
+        // commit the selected place occurrence
+        let target_type = place.ty;
+        let resolution = place.clone().resolution();
         self.commit_node_type(resolution.source, target_type)?;
 
         // require the written place to be writable
