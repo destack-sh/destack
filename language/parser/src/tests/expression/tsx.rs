@@ -87,12 +87,80 @@ fn test_parse_parenthesized_tree_callback_body() {
 }
 
 #[test]
-fn test_reject_generic_arrow_without_tree_disambiguator() {
+fn test_report_generic_arrow_without_tree_disambiguator() {
     let mut test = TestParser::new_with_language("<R>(x: R) => x", LanguageType::TypeScriptXml);
     let mut parser = test.prepare();
+    let error = parser.eat_expression(parser.flags).unwrap_err();
 
-    let result = parser.eat_expression(parser.flags);
-    assert!(result.is_err());
+    assert_eq!(parser.get_span_str(error.leaf_span()), "");
+}
+
+#[test]
+fn test_parse_generic_arrow_with_trailing_comma_in_disallow_ambiguous_mode() {
+    let mut test = TestParser::new_with_language("<T,>() => 1", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    parser.flags.set_disallow_ambiguous_tree_literal(true);
+
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+            assert_eq!(signature.form, FunctionForm::Lambda);
+            assert_eq!(signature.generic_parameters.len(), 1);
+            assert!(signature.parameters.is_empty());
+            assert_node!(parser.tree, signature.generic_parameters[0], GenericParameter::Type { name, constraint: None, default: None, .. } => {
+                assert_string!(parser, *name, "T");
+            });
+        });
+    });
+    test.assert_no_errors(&parser);
+}
+
+#[test]
+fn test_parse_generic_arrow_with_extends_in_disallow_ambiguous_mode() {
+    let mut test =
+        TestParser::new_with_language("<T extends unknown>(x) => 1", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    parser.flags.set_disallow_ambiguous_tree_literal(true);
+
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+            assert_eq!(signature.form, FunctionForm::Lambda);
+            assert_eq!(signature.generic_parameters.len(), 1);
+            assert_eq!(signature.parameters.len(), 1);
+            assert_node!(parser.tree, signature.generic_parameters[0], GenericParameter::Type { name, constraint: Some(constraint), default: None, .. } => {
+                assert_string!(parser, *name, "T");
+                assert_node!(parser.tree, *constraint, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::Unknown);
+                });
+            });
+        });
+    });
+    test.assert_no_errors(&parser);
+}
+
+#[test]
+fn test_parse_generic_arrow_with_default_in_disallow_ambiguous_mode() {
+    let mut test =
+        TestParser::new_with_language("<T = unknown,>(x) => 1", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    parser.flags.set_disallow_ambiguous_tree_literal(true);
+
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+            assert_eq!(signature.form, FunctionForm::Lambda);
+            assert_eq!(signature.generic_parameters.len(), 1);
+            assert_eq!(signature.parameters.len(), 1);
+            assert_node!(parser.tree, signature.generic_parameters[0], GenericParameter::Type { name, constraint: None, default: Some(default), .. } => {
+                assert_string!(parser, *name, "T");
+                assert_node!(parser.tree, *default, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::Unknown);
+                });
+            });
+        });
+    });
+    test.assert_no_errors(&parser);
 }
 
 #[test]

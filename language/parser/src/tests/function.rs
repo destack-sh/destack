@@ -50,6 +50,48 @@ fn test_parse_function_lambda_with_newlines() {
 }
 
 #[test]
+fn test_parse_optional_arrow_parameter_without_type() {
+    let mut test = TestParser::new_with_language("(value?) => value", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+            assert_eq!(signature.form, FunctionForm::Lambda);
+            assert_eq!(signature.parameters.len(), 1);
+            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, is_optional, .. } => {
+                assert_string!(parser, *name, "value");
+                assert!(*is_optional);
+            });
+        });
+    });
+    test.assert_no_errors(&parser);
+}
+
+#[test]
+fn test_parse_parenthesized_optional_arrow_parameter_without_type_call() {
+    let mut test = TestParser::new_with_language("((value?) => value)()", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {
+        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+                    assert_eq!(signature.form, FunctionForm::Lambda);
+                    assert_eq!(signature.parameters.len(), 1);
+                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, is_optional, .. } => {
+                        assert_string!(parser, *name, "value");
+                        assert!(*is_optional);
+                    });
+                });
+            });
+        });
+    });
+    test.assert_no_errors(&parser);
+}
+
+#[test]
 fn test_parse_function_missing_close_paren_keeps_following_declaration() {
     let mut test = TestParser::new_with_language(
         r#"
@@ -1550,9 +1592,9 @@ fn test_parse_function_body_boundary_line_comment_stays_trailing() {
     assert_comment!(parser, 0, CommentKind::Line, "body");
 }
 
-/// Reject direct calls on unparenthesized arrow functions.
+/// Report direct calls on unparenthesized arrow functions.
 #[test]
-fn test_reject_unparenthesized_arrow_call() {
+fn test_report_unparenthesized_arrow_call() {
     // source: () => {}()
     let mut test = TestParser::new_with_language("() => {}()", LanguageType::Destack);
     let mut parser = test.prepare();

@@ -21,6 +21,25 @@ fn test_parse_if_ternary() {
     });
 }
 
+/// Parse an arrow expression as the false branch.
+#[test]
+fn test_parse_ternary_arrow_else_expression() {
+    let mut test =
+        TestParser::new_with_language("ready ? value : item => item", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let if_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, if_id, Expression::If { form, else_expression, .. } => {
+        assert_eq!(*form, IfForm::Ternary);
+        assert_node!(parser.tree, else_expression.unwrap(), Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+                assert_eq!(signature.form, FunctionForm::Lambda);
+            });
+        });
+    });
+    test.assert_no_errors(&parser);
+}
+
 /// Parse multiline `true ? 1 : 2`.
 #[test]
 fn test_parse_if_ternary_multiline() {
