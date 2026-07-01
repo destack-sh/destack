@@ -51,7 +51,7 @@ impl CheckState<'_> {
         let then_site = self.node_site(then_expression.into_global_any(module))?;
         let () = answer!(self.check_node(then_site, target, relation, origin, use_)?);
         let then_type = answer!(self.node_type_at(then_site)?);
-        let mut is_result_relation_needed = false;
+        let mut should_relate_result = false;
 
         // check an else branch, or make the missing branch explicit as void
         let result = if let Some(else_expression) = else_expression {
@@ -62,14 +62,14 @@ impl CheckState<'_> {
             self.normalized_union_type(module, [then_type, else_type], source)?
         } else {
             let void = self.push_type(module, dir::Type::Void, source)?;
-            is_result_relation_needed = true;
+            should_relate_result = true;
 
             self.normalized_union_type(module, [then_type, void], source)?
         };
         self.commit_node_type(site.node, result)?;
 
         // relate the result when branch checks did not cover every arm
-        if is_result_relation_needed {
+        if should_relate_result {
             let () = answer!(self.constrain_node_value(site, relation, target, origin, use_)?);
         }
 

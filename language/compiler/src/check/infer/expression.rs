@@ -45,9 +45,9 @@ impl CheckState<'_> {
                 Ok(Answer::Ready(()))
             }
             dir::Expression::Parenthesized { expression } => {
-                self.infer_forward_expression(site, expression)
+                self.infer_transparent_expression(site, expression)
             }
-            dir::Expression::Comptime { body } => self.infer_forward_expression(site, body),
+            dir::Expression::Comptime { body } => self.infer_transparent_expression(site, body),
             dir::Expression::MoveOf {
                 mutability, right, ..
             } => self.infer_move_expression(site, mutability, right),
@@ -238,12 +238,12 @@ impl CheckState<'_> {
                 self.infer_try_projection_expression(site, left)
             }
             dir::Expression::Await { expression } => self.infer_await_expression(site, expression),
-            expression => self.reject_unhandled_expression_inference(node, expression),
+            expression => self.reject_expression_without_inference_owner(node, expression),
         }
     }
 
-    /// Reject expression inference that reached solve without an owner.
-    fn reject_unhandled_expression_inference(
+    /// Reject expression inference that reached solve without a matching owner.
+    fn reject_expression_without_inference_owner(
         &self,
         node: dir::GlobalNodeId<dir::Expression>,
         expression: dir::Expression,
@@ -268,6 +268,20 @@ impl CheckState<'_> {
             None => answer!(self.symbol_type(*symbol)?),
         };
         let ty = answer!(self.flow_type_at(site, ty)?);
+        self.commit_node_type(site.node, ty)?;
+
+        Ok(Answer::Ready(()))
+    }
+
+    /// Infer one expression whose type is exactly its child expression type.
+    pub(in crate::check) fn infer_transparent_expression(
+        &mut self,
+        site: FlowSite,
+        child: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Answer<()>> {
+        let module = site.node.module_id;
+        let child_site = self.node_site(child.into_global_any(module))?;
+        let ty = answer!(self.infer_node_type(child_site, PlaceUse::Read)?);
         self.commit_node_type(site.node, ty)?;
 
         Ok(Answer::Ready(()))

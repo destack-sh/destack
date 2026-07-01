@@ -15,91 +15,98 @@ impl CheckState<'_> {
         operator: dir::AssignOperator,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Answer<()>> {
+        if operator == dir::AssignOperator::Assign {
+            self.infer_plain_assignment_expression(site, left, right)
+        } else {
+            self.infer_update_assignment_expression(site, left, operator, right)
+        }
+    }
+
+    /// Infer one plain assignment expression.
+    fn infer_plain_assignment_expression(
+        &mut self,
+        site: FlowSite,
+        left: dir::LocalNodeId<dir::AssignPattern>,
+        right: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Answer<()>> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let left_node = left.into_global(module);
         let right_node = right.into_global_any(module);
 
-        if operator == dir::AssignOperator::Assign {
-            let pattern = self.module(module).view().get(left).clone();
-            let value = if let dir::AssignPattern::Place { expression } = &pattern {
-                let Some(place) = answer!(self.select_assign_place(
-                    site.sibling(expression.into_global_any(module)),
-                    *expression,
-                    PlaceUse::Write
-                )?) else {
-                    self.record_decision(left_node.into_any(), Decision::Rejected)?;
-                    let error =
-                        self.push_type(module, dir::Type::Error, node.local_id.into_any())?;
-                    self.commit_node_type(left_node.into_any(), error)?;
-                    self.commit_node_type(node.into_any(), error)?;
-
-                    return Ok(Answer::Ready(()));
-                };
-                let target = answer!(self.select_assign_pattern_place(left_node, place)?);
-                let () = answer!(self.check_expression(
-                    site.sibling(right_node),
-                    target,
-                    Relation::Assignable,
-                    Origin::Node(right_node),
-                    ValueUse::Store,
-                )?);
-                let value = answer!(self.node_type_at(site.sibling(right_node))?);
-                self.commit_node_type(left_node.into_any(), value)?;
-
-                value
-            } else {
-                let () = answer!(self.infer_node(site.sibling(right_node), PlaceUse::Read)?);
-
-                answer!(self.node_type_at(site.sibling(right_node))?)
+        // check place assignments against the selected write target
+        let pattern = self.module(module).view().get(left).clone();
+        let value = if let dir::AssignPattern::Place { expression } = &pattern {
+            let expression_site = self.node_site(expression.into_global_any(module))?;
+            let Some(place) =
+                answer!(self.select_assign_place(expression_site, *expression, PlaceUse::Write)?)
+            else {
+                return self.reject_assignment_expression(node, left_node);
             };
+            let target = answer!(self.select_assign_pattern_place(left_node, place)?);
+            let right_site = self.node_site(right_node)?;
+            let () = answer!(self.check_expression(
+                right_site,
+                target,
+                Relation::Assignable,
+                Origin::Node(right_node),
+                ValueUse::Store,
+            )?);
+            let value = answer!(self.node_type_at(right_site)?);
+            self.commit_node_type(left_node.into_any(), value)?;
 
-            if !matches!(pattern, dir::AssignPattern::Place { .. }) {
-                let selected = answer!(self.select_assign_pattern(
-                    left_node,
-                    site.flow,
-                    value,
-                    Origin::Node(right_node),
-                )?);
-                if !selected {
-                    let error =
-                        self.push_type(module, dir::Type::Error, node.local_id.into_any())?;
-                    self.commit_node_type(left_node.into_any(), error)?;
-                    self.commit_node_type(node.into_any(), error)?;
+            value
+        } else {
+            let right_site = self.node_site(right_node)?;
+            answer!(self.infer_node_type(right_site, PlaceUse::Read)?)
+        };
 
-                    return Ok(Answer::Ready(()));
-                }
-                self.commit_node_type(left_node.into_any(), value)?;
+        // destructuring assignment selects against the inferred right value
+        if !matches!(pattern, dir::AssignPattern::Place { .. }) {
+            let selected = answer!(self.select_assign_pattern(
+                left_node,
+                site.flow,
+                value,
+                Origin::Node(right_node),
+            )?);
+            if !selected {
+                return self.reject_assignment_expression(node, left_node);
             }
-            self.commit_node_type(node.into_any(), value)?;
-
-            return Ok(Answer::Ready(()));
+            self.commit_node_type(left_node.into_any(), value)?;
         }
+        self.commit_node_type(node.into_any(), value)?;
 
+        Ok(Answer::Ready(()))
+    }
+
+    /// Infer one update assignment expression.
+    fn infer_update_assignment_expression(
+        &mut self,
+        site: FlowSite,
+        left: dir::LocalNodeId<dir::AssignPattern>,
+        operator: dir::AssignOperator,
+        right: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Answer<()>> {
+        let node = site.node.into_typed::<dir::Expression>();
+        let module = node.module_id;
+        let left_node = left.into_global(module);
+        let right_node = right.into_global_any(module);
+
+        // update assignments always require a place target
         let dir::AssignPattern::Place { expression: target } = self.module(module).view().get(left)
         else {
             self.report_invalid_assignment_target(module, left.into_any());
-            self.record_decision(left_node.into_any(), Decision::Rejected)?;
-            let error = self.push_type(module, dir::Type::Error, node.local_id.into_any())?;
-            self.commit_node_type(left_node.into_any(), error)?;
-            self.commit_node_type(node.into_any(), error)?;
-
-            return Ok(Answer::Ready(()));
+            return self.reject_assignment_expression(node, left_node);
         };
         let target = *target;
-        let Some(place) = answer!(self.select_assign_place(
-            site.sibling(target.into_global_any(module)),
-            target,
-            PlaceUse::Update
-        )?) else {
-            self.record_decision(left_node.into_any(), Decision::Rejected)?;
-            let error = self.push_type(module, dir::Type::Error, node.local_id.into_any())?;
-            self.commit_node_type(left_node.into_any(), error)?;
-            self.commit_node_type(node.into_any(), error)?;
-
-            return Ok(Answer::Ready(()));
+        let target_site = self.node_site(target.into_global_any(module))?;
+        let Some(place) =
+            answer!(self.select_assign_place(target_site, target, PlaceUse::Update)?)
+        else {
+            return self.reject_assignment_expression(node, left_node);
         };
 
+        // publish the selected place and require it to be writable
         let target_type = answer!(self.place_type(place.clone())?);
         let place_resolution = place.clone().resolution(target_type);
         let resolution = dir::AssignPatternResolution::Place(place_resolution.clone());
@@ -110,8 +117,8 @@ impl CheckState<'_> {
             ty: target_type,
         }));
 
+        // compound operators select through the binary operator protocol
         if let Some(operator) = operator.binary_operator() {
-            let () = answer!(self.infer_node(site.sibling(right_node), PlaceUse::Read)?);
             let () = answer!(self.select_binary_operator(
                 site,
                 operator,
@@ -119,16 +126,33 @@ impl CheckState<'_> {
                 right,
                 Some(target_type)
             )?);
-        } else {
-            let () = answer!(self.check_expression(
-                site.sibling(right_node),
-                target_type,
-                Relation::Assignable,
-                Origin::Node(right_node),
-                ValueUse::Store,
-            )?);
-            self.commit_node_type(node.into_any(), target_type)?;
+
+            return Ok(Answer::Ready(()));
         }
+
+        // non-compound update assignments store directly into the target
+        let right_site = self.node_site(right_node)?;
+        let () = answer!(self.check_expression(
+            right_site,
+            target_type,
+            Relation::Assignable,
+            Origin::Node(right_node),
+            ValueUse::Store,
+        )?);
+        self.commit_node_type(node.into_any(), target_type)?;
+
+        Ok(Answer::Ready(()))
+    }
+
+    /// Reject one assignment expression and publish error types for its nodes.
+    fn reject_assignment_expression(
+        &mut self,
+        node: dir::GlobalNodeId<dir::Expression>,
+        left: dir::GlobalNodeId<dir::AssignPattern>,
+    ) -> CompilerResult<Answer<()>> {
+        self.commit_decision(left.into_any(), Decision::Rejected)?;
+        let error = self.commit_error_node(node.into_any())?;
+        self.commit_node_type(left.into_any(), error)?;
 
         Ok(Answer::Ready(()))
     }

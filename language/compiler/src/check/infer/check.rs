@@ -32,10 +32,17 @@ impl CheckState<'_> {
             return self.constrain_node_value(site, relation, target, origin, use_);
         }
 
-        // use backward typing when the expression form accepts it
+        // choose the structural checking path from the reduced head
         let answer = match self.reduce_type_head(origin, target)? {
-            Answer::Ready(target) => {
-                if answer!(self.check_expression_form(site, target, relation, origin, use_)?) {
+            Answer::Ready(target_head) => {
+                if answer!(self.check_expression_with_expectation(
+                    site,
+                    target,
+                    target_head,
+                    relation,
+                    origin,
+                    use_
+                )?) {
                     Ok(Answer::Ready(()))
                 } else {
                     let () = answer!(
@@ -73,11 +80,12 @@ impl CheckState<'_> {
         answer
     }
 
-    /// Check one expression form under an expected type.
-    fn check_expression_form(
+    /// Try checking one expression by propagating its expected type.
+    fn check_expression_with_expectation(
         &mut self,
         site: FlowSite,
         target: dir::GlobalTypeId,
+        target_head: dir::GlobalTypeId,
         relation: Relation,
         origin: Origin,
         use_: ValueUse,
@@ -90,17 +98,17 @@ impl CheckState<'_> {
             .clone();
 
         match expression {
-            dir::Expression::Parenthesized { expression } => {
-                self.check_forward_expression(site, expression, target, relation, origin, use_)
-            }
-            dir::Expression::Comptime { body } => {
-                self.check_forward_expression(site, body, target, relation, origin, use_)
-            }
             dir::Expression::Block(block) => {
                 self.check_block_expression(site, block, target, relation, origin, use_)
             }
+            dir::Expression::Parenthesized { expression } => {
+                self.check_transparent_expression(site, expression, target, relation, origin, use_)
+            }
+            dir::Expression::Comptime { body } => {
+                self.check_transparent_expression(site, body, target, relation, origin, use_)
+            }
             dir::Expression::Satisfies { expression, .. } => {
-                self.check_forward_expression(site, expression, target, relation, origin, use_)
+                self.check_transparent_expression(site, expression, target, relation, origin, use_)
             }
             dir::Expression::SequenceExpression { expressions } => self.check_sequence_expression(
                 site,
@@ -127,6 +135,7 @@ impl CheckState<'_> {
                 site,
                 &elements.into_iter().collect::<SmallVec<[_; 4]>>(),
                 target,
+                target_head,
                 relation,
                 origin,
                 use_,
@@ -134,7 +143,7 @@ impl CheckState<'_> {
             dir::Expression::TupleExpression { elements } => self.check_tuple_expression(
                 site,
                 &elements.into_iter().collect::<SmallVec<[_; 4]>>(),
-                target,
+                target_head,
                 relation,
                 use_,
             ),
@@ -142,6 +151,7 @@ impl CheckState<'_> {
                 site,
                 &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
                 target,
+                target_head,
                 relation,
                 origin,
                 use_,
@@ -166,5 +176,24 @@ impl CheckState<'_> {
         let () = answer!(self.constrain_node_value(site, relation, target, origin, use_)?);
 
         Ok(Answer::Ready(()))
+    }
+
+    /// Check one expression whose value is exactly its child value.
+    pub(in crate::check) fn check_transparent_expression(
+        &mut self,
+        site: FlowSite,
+        child: dir::LocalNodeId<dir::Expression>,
+        target: dir::GlobalTypeId,
+        relation: Relation,
+        origin: Origin,
+        use_: ValueUse,
+    ) -> CompilerResult<Answer<bool>> {
+        let module = site.node.module_id;
+        let child_site = self.node_site(child.into_global_any(module))?;
+        let () = answer!(self.check_node(child_site, target, relation, origin, use_)?);
+        let child_type = answer!(self.node_type_at(child_site)?);
+        self.commit_node_type(site.node, child_type)?;
+
+        Ok(Answer::Ready(true))
     }
 }
