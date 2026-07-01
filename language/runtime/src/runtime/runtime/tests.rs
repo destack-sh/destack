@@ -1,9 +1,12 @@
 use std::sync::Arc;
 
+use destack_compiler::ProgramLinker;
+use destack_core::StringPool;
 use destack_mir::parse::{ParseOptions, Parser};
+use destack_mir::{DispatchTable, LayoutTable, TargetLayout, Tree, TypeTable};
 use destack_program as program;
 use destack_repository::{Environment, RuntimeOptions};
-use destack_source::FileId;
+use destack_source::{DiagnosticSeverity, FileId, PackageId, Uri};
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeFailure, RuntimeResult};
@@ -114,12 +117,57 @@ impl TestMachine {
 
 /// Build one VM machine from MIR text.
 pub(crate) fn vm_machine_from_mir(mir: &str) -> vm::Machine {
-    let (tree, strings) = Parser::parse(FileId::new(0), mir, ParseOptions::default())
-        .finish()
-        .expect("runtime test MIR should parse");
+    let program = program_from_mir(mir);
 
-    vm::Machine::build_with_options(tree, strings, vm::MachineOptions::test())
+    vm::Machine::new(Arc::new(program), vm::MachineOptions::test())
         .expect("runtime test VM machine should build")
+}
+
+/// Build one executable program from MIR test text.
+fn program_from_mir(mir: &str) -> program::Program {
+    let (tree, target_layout, types, layouts, dispatch, strings) = parse_mir(mir);
+
+    ProgramLinker::new(
+        PackageId::from_uri(&Uri::logical("test/runtime")),
+        tree,
+        target_layout,
+        types,
+        layouts,
+        dispatch,
+        strings,
+        vm::MachineOptions::test().heap,
+        vm::MachineOptions::test().shared_heap,
+    )
+    .build()
+    .expect("runtime test program should link")
+}
+
+/// Parse one MIR test input for program linking.
+fn parse_mir(
+    mir: &str,
+) -> (
+    Tree,
+    TargetLayout,
+    TypeTable,
+    LayoutTable,
+    DispatchTable,
+    StringPool,
+) {
+    let file_id = FileId::from_source_bytes(mir.as_bytes());
+    let parsed = Parser::parse(file_id, mir, ParseOptions::default());
+    let (tree, target_layout, types, layouts, dispatch, _, _, _, _, strings, diagnostics) =
+        parsed.into_parts();
+
+    if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
+        let diagnostic = diagnostics
+            .iter()
+            .next()
+            .expect("parser should emit at least one diagnostic");
+
+        panic!("failed to parse runtime test MIR: {diagnostic:?}");
+    }
+
+    (tree, target_layout, types, layouts, dispatch, strings)
 }
 
 /// Test harness for worker scheduling tests.
@@ -132,7 +180,7 @@ pub(crate) struct TestRuntime {
     /// Runtime-owned shared heap state used by the worker.
     heap: RuntimeHeap,
     /// Immutable program constant space used by the worker.
-    constant_space: program::StaticSpace,
+    constant_space: program::StaticImage,
     /// Runtime-owned shared static bytes used by the worker.
     shared_static: program::StaticSpace,
 }
@@ -537,8 +585,8 @@ pub(crate) fn runtime_shared_heap(
     program: Arc<program::Program>,
 ) -> RuntimeHeap {
     RuntimeHeap::new(
-        world.storage.allocator.clone(),
-        world.storage.shared_collector.clone(),
+        world.memory.allocator.clone(),
+        world.memory.shared_collector.clone(),
         options,
         program,
     )
@@ -552,7 +600,7 @@ fn worker_for_options(
 ) -> (
     World,
     RuntimeHeap,
-    program::StaticSpace,
+    program::StaticImage,
     program::StaticSpace,
     Worker,
 ) {
@@ -565,7 +613,7 @@ fn worker_for_options(
     let world_state = &mut world.state;
 
     let constant_space = program.constants().clone();
-    let mut shared_static = program.shared_statics().clone();
+    let mut shared_static = program.materialize_shared_statics();
     let mut worker = Worker::new_in_world(
         destack_repository::Environment::default(),
         options,
@@ -597,7 +645,7 @@ pub(crate) fn start_worker_continuation(
     world: &mut WorldState,
     runtime_heap: &RuntimeHeap,
     shared_static: &mut program::StaticSpace,
-    constant_space: &program::StaticSpace,
+    constant_space: &program::StaticImage,
     entry: &str,
     value: i32,
 ) -> Continuation {

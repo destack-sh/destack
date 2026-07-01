@@ -782,7 +782,7 @@ impl Lineage {
     ) -> Arc<RuntimeImage> {
         if let Some(parent_image) = parent_image
             && let Some(parent_runtime_image) = parent_image.runtimes.get(&runtime_id)
-            && parent_runtime_image.as_ref() == runtime_image.as_ref()
+            && parent_runtime_image.is_same_image(runtime_image.as_ref())
         {
             return parent_runtime_image.clone();
         }
@@ -816,7 +816,7 @@ impl Lineage {
         for runtime_image in image.runtimes.values_mut() {
             if let Some(existing_runtime_image) =
                 self.runtime_images.iter().find(|existing_runtime_image| {
-                    existing_runtime_image.as_ref() == runtime_image.as_ref()
+                    existing_runtime_image.is_same_image(runtime_image.as_ref())
                 })
             {
                 *runtime_image = existing_runtime_image.clone();

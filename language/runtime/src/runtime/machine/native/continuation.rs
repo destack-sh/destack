@@ -36,10 +36,13 @@ impl Continuation {
                     frame_state: frame.frame_state,
                 })?;
 
-            for slot in materialization.copied_slots() {
-                let slot = layout.slot(slot).ok_or(Error::InvalidContinuationFrame {
-                    frame_state: frame.frame_state,
-                })?;
+            for slot in program.frame_copied_slots(materialization) {
+                let slot =
+                    program
+                        .frame_slot(layout, *slot)
+                        .ok_or(Error::InvalidContinuationFrame {
+                            frame_state: frame.frame_state,
+                        })?;
                 let start = slot.offset as usize;
                 let end = start + slot.byte_len as usize;
                 let frame_bytes = self
@@ -73,8 +76,10 @@ impl Continuation {
             .frames
             .iter()
             .map(|frame| {
-                let return_state = frame.return_state.map(|state| state.0).unwrap_or(0);
-                let return_state_is_present = u32::from(frame.return_state.is_some());
+                let (return_state_is_present, return_state) = match frame.return_state {
+                    Some(state) => (1, state.0),
+                    None => (0, 0),
+                };
                 let bytes = self
                     .image
                     .stack

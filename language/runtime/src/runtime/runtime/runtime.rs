@@ -34,7 +34,7 @@ pub struct Runtime {
     /// Runtime-owned shared heap and GC state.
     pub(crate) heap: RuntimeHeap,
     /// Immutable program constant space.
-    pub(crate) constant_space: program::StaticSpace,
+    pub(crate) constant_space: program::StaticImage,
     /// Runtime-owned shared static space.
     pub(crate) shared_static: program::StaticSpace,
     /// All active workers keyed by identifier.
@@ -46,7 +46,7 @@ pub struct Runtime {
 }
 
 /// Materialized runtime metadata captured in one world image.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuntimeImage {
     /// Runtime launch environment.
     pub environment: Arc<Environment>,
@@ -64,6 +64,20 @@ pub struct RuntimeImage {
     pub default_worker_id: WorkerId,
     /// The next worker slot to schedule first.
     pub next_worker_cursor: usize,
+}
+
+impl RuntimeImage {
+    /// Return whether this image captures the same runtime state.
+    pub(crate) fn is_same_image(&self, other: &Self) -> bool {
+        self.environment == other.environment
+            && self.options == other.options
+            && Arc::ptr_eq(&self.program, &other.program)
+            && self.execution == other.execution
+            && self.shared_heap == other.shared_heap
+            && self.shared_static == other.shared_static
+            && self.default_worker_id == other.default_worker_id
+            && self.next_worker_cursor == other.next_worker_cursor
+    }
 }
 
 impl std::fmt::Debug for Runtime {
@@ -94,7 +108,7 @@ impl Runtime {
         let environment = environment.into();
         let program = program.into();
         let constant_space = program.constants().clone();
-        let mut shared_static = program.shared_statics().clone();
+        let mut shared_static = program.materialize_shared_statics();
         let shared = RuntimeHeap::new(allocator, collector, options, program.clone())?;
         let default_worker = Worker::new_in_world(
             environment.clone(),
@@ -208,7 +222,7 @@ impl Runtime {
         callback: impl FnOnce(
             &RuntimeHeap,
             &mut program::StaticSpace,
-            &program::StaticSpace,
+            &program::StaticImage,
             &mut Worker,
         ) -> R,
     ) -> RuntimeResult<R> {
@@ -361,7 +375,7 @@ impl Runtime {
         program: Arc<program::Program>,
         execution: Execution,
         shared: RuntimeHeap,
-        constant_space: program::StaticSpace,
+        constant_space: program::StaticImage,
         shared_static: program::StaticSpace,
         default_worker: Worker,
     ) -> RuntimeResult<Self> {
@@ -783,8 +797,8 @@ mod tests {
     use crate::runtime::{RuntimeHeap, TickResult, Worker, WorkerOptions};
     use crate::world::World;
     use destack_core::CaptureMode;
-    use destack_heap::{PayloadShape, SharedHeap};
-    use destack_mir::{TraceMap, TraceTable};
+    use destack_heap::{AllocationShape, SharedHeap, TraceView};
+    use destack_mir::TraceMap;
     use destack_program as program;
     use destack_repository::{Environment, RuntimeOptions};
 
@@ -794,8 +808,8 @@ mod tests {
         bytes: &[u8],
     ) -> destack_heap::HeapResult<destack_heap::SharedHeapReference> {
         let trace_map = TraceMap::Empty;
-        let shape = PayloadShape::new(bytes.len(), 1, None, &trace_map);
-        let site = heap.options().allocation_plan_for_shape(shape);
+        let shape = AllocationShape::new(bytes.len(), 1, None, &trace_map);
+        let site = heap.options().allocation_plan(shape);
         let mut allocator = heap.allocation_cache();
         let worker = heap.register_mark_worker();
 
@@ -805,7 +819,7 @@ mod tests {
             site,
             &trace_map,
             bytes,
-            &TraceTable::new(),
+            TraceView::new(&[]),
         )
     }
 
@@ -816,8 +830,8 @@ mod tests {
         program: Arc<program::Program>,
     ) -> RuntimeHeap {
         RuntimeHeap::new(
-            world.storage.allocator.clone(),
-            world.storage.shared_collector.clone(),
+            world.memory.allocator.clone(),
+            world.memory.shared_collector.clone(),
             options,
             program,
         )
@@ -854,7 +868,7 @@ mod tests {
         let shared = runtime_shared_heap(&world, &options, program.clone());
         let world_state = &mut world.state;
         let constant_space = program.constants().clone();
-        let mut shared_static = program.shared_statics().clone();
+        let mut shared_static = program.materialize_shared_statics();
 
         let mut worker = Worker::new_in_world(
             destack_repository::Environment::default(),
@@ -950,7 +964,7 @@ mod tests {
         let shared = runtime_shared_heap(&world, &options, program.clone());
         let world_state = &mut world.state;
         let constant_space = program.constants().clone();
-        let mut shared_static = program.shared_statics().clone();
+        let mut shared_static = program.materialize_shared_statics();
         let mut worker = Worker::new_in_world(
             destack_repository::Environment::default(),
             &options,
@@ -964,8 +978,8 @@ mod tests {
         )
         .expect("worker should construct");
         let trace_map = TraceMap::Empty;
-        let shape = PayloadShape::new(16, 1, None, &trace_map);
-        let site = shared.shared.options().allocation_plan_for_shape(shape);
+        let shape = AllocationShape::new(16, 1, None, &trace_map);
+        let site = shared.shared.options().allocation_plan(shape);
 
         // allocate through the worker cache without reaching a normal flush point
         let _reference = shared
@@ -975,7 +989,7 @@ mod tests {
                 &mut worker.shared_cache,
                 site,
                 &trace_map,
-                program.trace_table(),
+                program.trace_maps(),
             )
             .expect("shared allocation should succeed");
 
@@ -1013,7 +1027,7 @@ mod tests {
         let shared = runtime_shared_heap(&world, &options, program.clone());
         let world_state = &mut world.state;
         let constant_space = program.constants().clone();
-        let mut shared_static = program.shared_statics().clone();
+        let mut shared_static = program.materialize_shared_statics();
 
         let mut worker = Worker::new_in_world(
             destack_repository::Environment::default(),

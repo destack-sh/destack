@@ -2,8 +2,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, SendError, Sender};
 use std::thread::{self, JoinHandle};
 
-use destack_heap::{GcPhase, SharedHeap};
-use destack_mir::TraceTable;
+use destack_heap::{GcPhase, SharedHeap, TraceView};
 use destack_program as program;
 use destack_repository::ExecutionMode;
 use parking_lot::{Condvar, Mutex};
@@ -201,7 +200,7 @@ impl SharedGc {
             return;
         }
 
-        let should_continue = self.collect_with_failure(program.trace_table());
+        let should_continue = self.collect_with_failure(program.trace_maps());
         self.finish_run();
 
         if should_continue {
@@ -261,8 +260,8 @@ impl SharedGc {
     }
 
     /// Run one bounded shared GC increment and retain one failure.
-    fn collect_with_failure(&self, trace_table: &TraceTable) -> bool {
-        match self.collect(trace_table) {
+    fn collect_with_failure(&self, trace_maps: TraceView<'_>) -> bool {
+        match self.collect(trace_maps) {
             Ok(should_continue) => should_continue,
             Err(error) => {
                 *self.failure.lock() = Some(error);
@@ -273,7 +272,7 @@ impl SharedGc {
     }
 
     /// Run one bounded shared GC increment.
-    fn collect(&self, trace_table: &TraceTable) -> RuntimeResult<bool> {
+    fn collect(&self, trace_maps: TraceView<'_>) -> RuntimeResult<bool> {
         if self.heap.gc_phase() == GcPhase::Idle {
             return Ok(false);
         }
@@ -283,7 +282,7 @@ impl SharedGc {
         let budget_bytes = self.heap.take_collection_budget_bytes(1);
         let progress = self
             .heap
-            .step_collection(roots.as_ref(), roots_complete, budget_bytes, trace_table)
+            .step_collection(roots.as_ref(), roots_complete, budget_bytes, trace_maps)
             .map_err(Box::<RuntimeError>::from)?;
 
         if self.heap.gc_phase() != GcPhase::Mark || roots_complete {

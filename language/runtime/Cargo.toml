@@ -68,6 +68,7 @@ io-uring = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
+destack_compiler = { workspace = true }
 
 [[bench]]
 name = "footprint"

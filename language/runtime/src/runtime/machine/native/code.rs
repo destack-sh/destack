@@ -43,32 +43,52 @@ impl Code {
     /// Link one durable native code payload into process-local native code.
     pub fn link(
         image: CodeImage,
+        program: &Program,
         native: &native::Code,
         mut function: impl FnMut(&str) -> Option<NativeEntry>,
         mut resume: impl FnMut(&str) -> Option<NativeResumeEntry>,
     ) -> Result<Self, Error> {
         let entries = &native.entries;
+        let sections = program.sections();
         let mut code = Self {
             image,
             map: native.map.clone(),
-            function: vec![None; entries.functions().len()],
-            resume: vec![None; entries.resumes().len()],
+            function: vec![None; entries.functions(sections).len()],
+            resume: vec![None; entries.resumes(sections).len()],
         };
 
-        for entry in entries.functions().iter().flatten() {
-            let Some(function) = function(&entry.symbol) else {
+        for entry in entries
+            .functions(sections)
+            .iter()
+            .filter_map(|entry| entry.get())
+        {
+            let Some(symbol) = program.string(entry.symbol) else {
+                return Err(Error::ProgramStringMissing {
+                    string: entry.symbol,
+                });
+            };
+            let Some(function) = function(symbol) else {
                 return Err(Error::NativeSymbolMissing {
-                    symbol: entry.symbol.clone(),
+                    symbol: symbol.to_owned(),
                 });
             };
 
             code.set_entry(entry.function, function);
         }
 
-        for entry in entries.resumes().iter().flatten() {
-            let Some(resume) = resume(&entry.symbol) else {
+        for entry in entries
+            .resumes(sections)
+            .iter()
+            .filter_map(|entry| entry.get())
+        {
+            let Some(symbol) = program.string(entry.symbol) else {
+                return Err(Error::ProgramStringMissing {
+                    string: entry.symbol,
+                });
+            };
+            let Some(resume) = resume(symbol) else {
                 return Err(Error::NativeSymbolMissing {
-                    symbol: entry.symbol.clone(),
+                    symbol: symbol.to_owned(),
                 });
             };
 
@@ -144,6 +164,7 @@ impl Code {
     /// Run one native entrypoint.
     pub fn run(
         &self,
+        program: &Program,
         context: &mut ProgramActivation<'_>,
         entry: EntryPoint,
         args: &[Value],
@@ -157,7 +178,7 @@ impl Code {
         // build native ABI inputs
         let args = args.iter().map(NativeValue::from_value).collect::<Vec<_>>();
         let mut exit = NativeExit::default();
-        let mut context = Self::native_context(context, &mut exit);
+        let mut context = Self::native_context(program, context, &mut exit);
         let mut out = NativeValue::VOID;
 
         // enter generated native code
@@ -169,6 +190,7 @@ impl Code {
     /// Resume one native continuation.
     pub fn resume(
         &self,
+        program: &Program,
         context: &mut ProgramActivation<'_>,
         continuation: Continuation,
         value: Value,
@@ -192,7 +214,7 @@ impl Code {
         };
         let received = NativeValue::from_value(&value);
         let mut exit = NativeExit::default();
-        let mut context = Self::native_context(context, &mut exit);
+        let mut context = Self::native_context(program, context, &mut exit);
         let mut out = NativeValue::VOID;
 
         // enter generated native resume code
@@ -217,10 +239,17 @@ impl Code {
     }
 
     /// Build one native ABI context.
-    fn native_context(context: &mut ProgramActivation<'_>, exit: &mut NativeExit) -> NativeContext {
+    fn native_context(
+        program: &Program,
+        context: &mut ProgramActivation<'_>,
+        exit: &mut NativeExit,
+    ) -> NativeContext {
         NativeContext::new(
             context.state.as_ptr().cast(),
-            context.storage.constant_space.as_native_constants(),
+            context
+                .storage
+                .constant_space
+                .as_native_constants(program.sections()),
             context.storage.shared_static.as_native_statics(),
             context.storage.local_static.as_native_statics(),
             exit,
