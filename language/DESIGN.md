@@ -1227,12 +1227,12 @@ Of course, closures with custom capture behavior must still follow general owner
 
 ### Continuations
 
-Async functions and generators are closures that can pause and be resumed later via stackful `Continuation`s: the runtime parks the live frame and hands back a `ContinuationHandle` - an ordinary owned value whose one-shot `resume(value)` continues the frame and whose `Drop` unwinds it, under the usual ownership rules.
-`Promise`, `Generator`, and `AsyncGenerator` are "just" standard library types that store such handles in ordinary fields:
+Async functions and generators are closures that can pause and be resumed later via stackful `Continuation`s: the runtime parks the live frame and hands back an ordinary owned value whose one-shot `resume(value)` continues the frame and whose `Drop` cancels it, under the usual ownership rules.
+`Promise`, `Generator`, and `AsyncGenerator` are standard library types that store such continuations in ordinary fields:
 
 | Form | Meaning |
 |------|---------|
-| `ContinuationHandle` | one-shot owned handle to a parked frame, `Drop` unwinds it |
+| `Continuation<TResume, TYield, TReturn>` | one-shot owned continuation, `Drop` cancels it |
 | `Promise<T>` | Worker-local async result object |
 | `Generator<Y, R, N>` | Worker-local suspended generator |
 | `AsyncGenerator<Y, R, N>` | Worker-local suspended async generator |
