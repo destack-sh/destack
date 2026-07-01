@@ -4,8 +4,8 @@ use std::marker::PhantomData;
 
 use crate::format::{
     Argument, Arguments, BestFittingMode, BestFittingVariants, Buffer, Condition, DedentMode,
-    FormatContext, FormatOptions, FormatTag, GroupId, GroupMode, Interned, PrintMode, TextWidth,
-    VecBuffer, tag,
+    FormatContext, FormatError, FormatOptions, FormatTag, GroupId, GroupMode, Interned, PrintMode,
+    TextWidth, VecBuffer, tag,
 };
 use crate::prelude::*;
 use crate::write;
@@ -167,7 +167,9 @@ where
     fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         let source = f.context().file();
 
-        let text = source.get_span_str(self.span).unwrap_or_default();
+        let text = source
+            .get_span_str(self.span)
+            .ok_or(FormatError::SourceTextUnavailable { span: self.span })?;
         let text_width = TextWidth::from_text(text, f.context().options().indent_width());
 
         f.write_node(FormatNode::FileSlice {
@@ -1143,9 +1145,9 @@ impl<Context> Format<Context> for BestFitting<'_, Context> {
 
 #[cfg(test)]
 mod tests {
-    use destack_source::FileType;
+    use destack_source::{File, FileId, FileType, Span, Uri};
 
-    use crate::format::{IndentStyle, SimpleFormatContext, SimpleFormatOptions};
+    use crate::format::{FormatError, IndentStyle, SimpleFormatContext, SimpleFormatOptions};
     use crate::prelude::*;
     use crate::{best_fitting, format, format_args, write};
 
@@ -1163,6 +1165,26 @@ mod tests {
         .unwrap();
 
         assert_eq!("a,b", nodes.print().unwrap().as_str());
+    }
+
+    /// Source text slices require text files.
+    #[test]
+    fn test_source_text_slice_reports_binary_source() {
+        let file_id = FileId::from_logical_str("binary.bin");
+        let file = File::from_binary(
+            file_id,
+            "binary.bin".to_string(),
+            Uri::from_string("binary.bin"),
+            None,
+            FileType::Binary,
+            vec![1, 2, 3],
+        );
+        let span = Span::new(file_id, 0, 1);
+        let context = SimpleFormatContext::new(SimpleFormatOptions::default(), file);
+
+        let error = format!(context, [source_text_slice(span)]).unwrap_err();
+
+        assert_eq!(error, FormatError::SourceTextUnavailable { span });
     }
 
     /// Soft line breaks are emitted if the enclosing Group doesn't fit on a single line

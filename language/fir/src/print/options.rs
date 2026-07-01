@@ -1,5 +1,8 @@
 use crate::format::{IndentStyle, LineEnding};
 
+/// The largest printable output offset representable by FIR source markers.
+pub const MAX_OUTPUT_BYTES: u32 = u32::MAX;
+
 #[derive(Debug, Copy, Clone, Default)]
 pub struct PrintOptions {
     /// The type of line ending to apply to the printed input.
@@ -12,6 +15,8 @@ pub struct PrintOptions {
     pub line_width: u8 = 100,
     /// Remove trailing spaces and tabs before each emitted newline.
     pub trim_trailing_whitespace: bool = false,
+    /// Maximum formatted output bytes to emit.
+    pub max_output_bytes: u32 = MAX_OUTPUT_BYTES,
 }
 
 impl PrintOptions {
@@ -42,6 +47,12 @@ impl PrintOptions {
     /// Set whether to trim trailing spaces and tabs before newlines.
     pub fn with_trim_trailing_whitespace(mut self, trim_trailing_whitespace: bool) -> Self {
         self.trim_trailing_whitespace = trim_trailing_whitespace;
+        self
+    }
+
+    /// Set the maximum formatted output bytes to emit.
+    pub fn with_max_output_bytes(mut self, max_output_bytes: u32) -> Self {
+        self.max_output_bytes = max_output_bytes;
         self
     }
 }

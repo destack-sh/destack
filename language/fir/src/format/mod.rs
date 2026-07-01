@@ -34,6 +34,7 @@ pub use context::{FormatContext, FormatState, SimpleFormatContext};
 pub use document::Document;
 pub use error::{
     ActualStart, FormatError, FormatResult, InvalidDocumentError, PrintError, PrintResult,
+    RequestedOutputBytes,
 };
 pub use formatter::{Format, Formatted, Formatter, format, write};
 pub use group::{ConditionalGroup, DebugGroupId, Group, GroupId, GroupMode, ReleaseGroupId};

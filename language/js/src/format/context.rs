@@ -7,7 +7,7 @@ use crate::{
 use destack_core::StringPool;
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use destack_fir::prelude::*;
-use destack_fir::print::PrintOptions as FirPrintOptions;
+use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions as FirPrintOptions};
 use destack_source::{File, FileType, IndentStyle, LineEnding, NodeSpanType, Span};
 
 /// The formatter type for one JS formatting pass.
@@ -130,6 +130,7 @@ impl JsFormatOptions {
             indent_style: self.indent_style,
             indent_width: self.indent_width,
             trim_trailing_whitespace: true,
+            max_output_bytes: MAX_OUTPUT_BYTES,
         }
     }
 
