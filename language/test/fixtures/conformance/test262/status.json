@@ -3,6 +3,71 @@
   "entries": [
     {
       "patterns": [
+        "pass-explicit/d6bb7d557971a15f",
+        "pass-explicit/da4c5dd50fbdda83",
+        "pass*/11611f2a3d32994e",
+        "pass*/444856ec05e8d330",
+        "pass*/75ad6a8ee6579761",
+        "pass*/9db4dccf1122bfc4",
+        "pass*/c17fd07fc9b5bf7e",
+        "pass*/c767fa4d683aa3ce",
+        "pass*/c8513472857eae9c",
+        "pass*/cb2d573836b1e204",
+        "pass*/cd2f5476a739c80a",
+        "pass*/df9c60e4ff82b9d9",
+        "pass*/e01c7172cf204b92",
+        "pass*/eef60d36274e4ed8",
+        "pass*/f6d11d1e4dcb1ded",
+        "pass*/fc063bfba795ad91"
+      ],
+      "status": "excluded",
+      "reason": "new-expression",
+            "note": "`new.target` and legacy JS constructor-call edge cases are out of scope"
+    },
+    {
+      "patterns": [
+        "pass*/ef61944dbb440b60"
+      ],
+      "status": "excluded",
+      "reason": "expression-heritage",
+      "note": "expression class heritage is out of scope"
+    },
+    {
+      "patterns": [
+        "pass/06f7278423cef571"
+      ],
+      "status": "excluded",
+      "reason": "numeric-literal",
+      "note": "non-finite numeric property names are out of scope"
+    },
+    {
+      "patterns": [
+        "pass-explicit/29e41f46ede71f11",
+        "pass-explicit/5856de37689f8db9",
+        "pass-explicit/7993945fc0f58feb",
+        "pass-explicit/a157424306915066",
+        "pass-explicit/ce5f3bc27d5ccaac",
+        "pass*/372097a44c33daf2",
+        "pass*/438521c40cf1b08b",
+        "pass*/599dff255c5ec792",
+        "pass*/6196b3f969486455",
+        "pass*/8ce30bb40ffff192"
+      ],
+      "status": "excluded",
+      "reason": "keyword-identifier",
+      "note": "`eval`, `arguments`, and `yield` as identifiers are out of scope"
+    },
+    {
+      "patterns": [
+        "pass*/7855fbf5ea10e622",
+        "pass*/9d3d960e32528788"
+      ],
+      "status": "excluded",
+      "reason": "function-expression",
+      "note": "anonymous `function` expressions are out of scope, use arrow functions"
+    },
+    {
+      "patterns": [
         "pass*/14199f22a45c7e30",
         "pass*/2ef5ba0343d739dc",
         "pass*/5654d4106d7025c2",

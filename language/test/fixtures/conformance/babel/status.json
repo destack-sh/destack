@@ -3,6 +3,74 @@
     "entries": [
         {
             "patterns": [
+                "jsx/errors/_no-plugin-no-jsx",
+                "jsx/errors/_no-plugin-ts-type-param"
+            ],
+            "status": "excluded",
+            "reason": "plugin-mode",
+            "note": "Babel parser plugin absence fixtures are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/class/parameter-properties",
+                "typescript/class/parameter-properties-with-decorators"
+            ],
+            "status": "excluded",
+            "reason": "parameter-property",
+            "note": "constructor parameter properties are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/cast/destructuring-assignment-in-parens"
+            ],
+            "status": "excluded",
+            "reason": "assignment-target",
+            "note": "assignment through assertion expressions is out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/type-arguments/new-false-positive",
+                "typescript/type-arguments/new-false-positive-2"
+            ],
+            "status": "excluded",
+            "reason": "new-expression",
+            "note": "`new` generic and relational ambiguity fixtures are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/arrow-function/predicate-types",
+                "typescript/assert-predicate/arrow-function",
+                "typescript/assert-predicate/asserts-this",
+                "typescript/assert-predicate/asserts-this-with-predicate",
+                "typescript/assert-predicate/asserts-var-with-predicate",
+                "typescript/assert-predicate/function-declaration",
+                "typescript/assert-predicate/function-declaration-with-line-break",
+                "typescript/class/predicate-types",
+                "typescript/function/predicate-types"
+            ],
+            "status": "excluded",
+            "reason": "type-predicate",
+            "note": "TypeScript type predicates and asserts predicates are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/class/expression-extends",
+                "typescript/class/expression-extends-implements",
+                "typescript/class/extends",
+                "typescript/class/extends-implements"
+            ],
+            "status": "excluded",
+            "reason": "expression-heritage",
+            "note": "expression class heritage is out of scope"
+        },
+        {
+            "patterns": ["typescript/class/abstract-false-positive"],
+            "status": "excluded",
+            "reason": "modifier-identifier",
+            "note": "modifier keywords as value identifiers are out of scope"
+        },
+        {
+            "patterns": [
                 "typescript/cast/arrow-in-parens",
                 "typescript/cast/arrow-in-parens-with-parens-node",
                 "typescript/cast/destructure-and-assign",
