@@ -19,6 +19,7 @@ use crate::conformance::CaseOutcome;
 /// Run formatter conformance on a single source file.
 pub(super) fn run_formatter_case(
     path: &Path,
+    logical_path: &str,
     file_type: FileType,
     expected_output: Option<&str>,
     formatter_options: FormatterOptions,
@@ -33,7 +34,14 @@ pub(super) fn run_formatter_case(
     };
 
     // format the source once
-    let first_pass = match format_once(path, &source, file_type, formatter_options, show_diff) {
+    let first_pass = match format_once(
+        path,
+        logical_path,
+        &source,
+        file_type,
+        formatter_options,
+        show_diff,
+    ) {
         Ok(formatted) => formatted,
         Err(_) => {
             if expect_error {
@@ -63,11 +71,17 @@ pub(super) fn run_formatter_case(
 
     // require idempotence after parity
     if check_idempotence {
-        let second_pass =
-            match format_once(path, &first_pass, file_type, formatter_options, show_diff) {
-                Ok(formatted) => formatted,
-                Err(_) => return CaseOutcome::FailedIdempotence,
-            };
+        let second_pass = match format_once(
+            path,
+            logical_path,
+            &first_pass,
+            file_type,
+            formatter_options,
+            show_diff,
+        ) {
+            Ok(formatted) => formatted,
+            Err(_) => return CaseOutcome::FailedIdempotence,
+        };
 
         let first_pass = normalize_output(&first_pass);
         let second_pass = normalize_output(&second_pass);
@@ -90,6 +104,7 @@ pub(super) fn run_formatter_case(
 /// Format one source string as if it came from a file.
 fn format_once(
     path: &Path,
+    logical_path: &str,
     source: &str,
     file_type: FileType,
     formatter_options: FormatterOptions,
@@ -102,7 +117,7 @@ fn format_once(
         .unwrap_or("input")
         .to_string();
     let uri = Uri::from_path(path);
-    let file_id = FileId::from_logical_path(path);
+    let file_id = FileId::from_logical_str(logical_path);
     let file = Arc::new(File::from_text(
         file_id,
         name,
