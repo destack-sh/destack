@@ -2428,8 +2428,8 @@ Unlike Rust, Destack supports _both_ multiple mutable borrows (`&T`) and exclusi
 
 | Form | Meaning | Mutable? | Exclusive? |
 |------|---------|----------|------------|
-| `T` | normal managed/default value | yes | no |
-| `^T` | owned value | yes | yes (single owner) |
+| `T` | default value form: direct for value types, managed for reference types | yes | depends on the default form |
+| `^T` | owned value form | yes | yes (single owner) |
 | `&T` | borrowed access | yes | no |
 | `&readonly T` | readonly borrowed access | no | no |
 | `&exclusive T` | exclusive borrowed access | yes | yes |
@@ -2859,11 +2859,8 @@ Borrows can weaken freely, but cannot be upgraded (obviously):
 | --- | --- | --- |
 | `&exclusive T` | `&T` / `&readonly T` | temporary reborrow that suspends the exclusive loan |
 | `&T` | `&readonly T` | readonly reborrow |
-| `T` | `^T` | never: managed ownership does not become unique ownership |
+| managed reference `T` | `^T` | never: managed ownership cannot become unique ownership |
 | `&T` | `T` / `^T` | never: borrowed access does not own the value |
-
-The missing `T → ^T` rung is deliberate: ownership is provenance, not a view, and a traced GC cannot even count references to check uniqueness at runtime.
-The bridges are explicit instead: construct owned from the start (`new` already produces the destination form), take `MaybeOwned<T>` when an API wants ownership but tolerates managed callers (branch once, use or clone), and `.clone()` when what you actually need is a copy.
 
 Raw pointers convert freely in, and only unsafely out:
 
@@ -2924,9 +2921,14 @@ newtype Placed<T, P: Place> = intrinsic;
 Specifically, all surface sigils and keywords are just compact syntax for those intrinsic forms that commute the way they read:
 
 ```ds
+declare class User { /* ... */ };
+declare struct Point { /* ... */ };
+
 User            // unqualified, normal default representation
+Point           // unqualified value type, default-owned/direct
 readonly User   // WithAccess<User, "readonly">
 ^User           // Owned<User>
+^Point          // Owned<Point>, reduced to Point
 &readonly User  // Borrowed<User, L, "readonly">
 &User           // Borrowed<User, L, "mutable">
 &exclusive User // Borrowed<User, L, "exclusive">
@@ -2951,6 +2953,8 @@ Destack also provides builtin accessors to inspect composed forms, e.g., `Payloa
 BaseOf<shared ^User> satisfies User;
 PayloadOf<Owned<Borrowed<User, L>>> satisfies Borrowed<User, L>;
 OwnershipOf<^User> satisfies "owned";
+OwnershipOf<Point> satisfies "owned";
+OwnershipOf<User> satisfies "managed";
 OwnershipOf<Owned<Borrowed<User, L>>> satisfies "owned";
 OwnershipOf<Borrowed<Owned<User>, L>> satisfies "borrowed";
 OwnershipOr<User, "managed"> satisfies "managed";
