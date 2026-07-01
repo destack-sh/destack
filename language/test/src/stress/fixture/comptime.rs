@@ -13,10 +13,7 @@ pub(super) fn comptime_forms(_mode: StressMode, scale: usize, _width: usize) -> 
         source.push_str("    comptime {\n");
         source.push_str("        assert(Size > 0 && Size <= 65536);\n");
         source.push_str("    }\n");
-        source.push_str("    @if(Size == 4)\n");
-        source.push_str("    tag: \"small\";\n");
-        source.push_str("    @if(Size != 4)\n");
-        source.push_str("    tag: \"large\";\n");
+        source.push_str("    tag: Size == 4 ? \"small\" : \"large\";\n");
         source.push_str("    data: [uint8; Size];\n");
         source.push_str("}\n\n");
 
