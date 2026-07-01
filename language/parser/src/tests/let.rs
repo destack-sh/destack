@@ -806,7 +806,7 @@ fn test_parse_literal_pattern_without_let_else() {
 }
 
 #[test]
-fn test_reject_let_else_without_initializer() {
+fn test_report_let_else_without_initializer() {
     let mut test = TestParser::new("let x else { return }");
     let mut parser = test.prepare();
     let start = parser.span_start();
@@ -819,7 +819,7 @@ fn test_reject_let_else_without_initializer() {
 }
 
 #[test]
-fn test_reject_let_else_without_block_branch() {
+fn test_report_let_else_without_block_branch() {
     let mut test = TestParser::new("let x = value else return");
     let mut parser = test.prepare();
     let start = parser.span_start();
@@ -832,7 +832,7 @@ fn test_reject_let_else_without_block_branch() {
 }
 
 #[test]
-fn test_reject_indexed_declarator_target_in_untyped_source() {
+fn test_report_indexed_declarator_target_in_untyped_source() {
     // let a[0] = 0
     let mut test = TestParser::new_with_language("let a[0]=0;", LanguageType::JavaScript);
     let mut parser = test.prepare();

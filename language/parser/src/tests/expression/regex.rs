@@ -322,9 +322,9 @@ fn test_parse_regex_literal_with_character_class_slash() {
     });
 }
 
-/// Reject regex unicode escapes beyond the valid unicode scalar range.
+/// Report regex unicode escapes beyond the valid unicode scalar range.
 #[test]
-fn test_reject_regex_unicode_escape_out_of_range() {
+fn test_report_regex_unicode_escape_out_of_range() {
     // source: /\u{110000}/u
     let mut test = TestParser::new_with_language("/\\u{110000}/u", LanguageType::JavaScript);
     let mut parser = test.prepare();
@@ -333,9 +333,9 @@ fn test_reject_regex_unicode_escape_out_of_range() {
     assert_eq!(error.leaf_span().start, 0);
 }
 
-/// Reject unicode regex decimal escapes without matching capture groups.
+/// Report unicode regex decimal escapes without matching capture groups.
 #[test]
-fn test_reject_regex_unicode_invalid_decimal_escape() {
+fn test_report_regex_unicode_invalid_decimal_escape() {
     // source: /\1/u
     let mut test = TestParser::new_with_language("/\\1/u", LanguageType::JavaScript);
     let mut parser = test.prepare();
@@ -344,9 +344,9 @@ fn test_reject_regex_unicode_invalid_decimal_escape() {
     assert_eq!(error.leaf_span().start, 0);
 }
 
-/// Reject unicode regex literals with lone quantifier opening braces.
+/// Report unicode regex literals with lone quantifier opening braces.
 #[test]
-fn test_reject_regex_unicode_lone_opening_quantifier_brace() {
+fn test_report_regex_unicode_lone_opening_quantifier_brace() {
     // source: /{*/u
     let mut test = TestParser::new_with_language("/{*/u", LanguageType::JavaScript);
     let mut parser = test.prepare();
@@ -355,9 +355,9 @@ fn test_reject_regex_unicode_lone_opening_quantifier_brace() {
     assert_eq!(error.leaf_span().start, 0);
 }
 
-/// Reject unicode regex literals with invalid quantified lookaheads.
+/// Report unicode regex literals with invalid quantified lookaheads.
 #[test]
-fn test_reject_regex_unicode_quantified_lookahead() {
+fn test_report_regex_unicode_quantified_lookahead() {
     // source: /(?!.){0,}?/u
     let mut test = TestParser::new_with_language("/(?!.){0,}?/u", LanguageType::JavaScript);
     let mut parser = test.prepare();
@@ -366,9 +366,9 @@ fn test_reject_regex_unicode_quantified_lookahead() {
     assert_eq!(error.leaf_span().start, 0);
 }
 
-/// Reject unicode regex literals with lone quantifier closing braces.
+/// Report unicode regex literals with lone quantifier closing braces.
 #[test]
-fn test_reject_regex_unicode_lone_closing_quantifier_brace() {
+fn test_report_regex_unicode_lone_closing_quantifier_brace() {
     // source: /}?/u
     let mut test = TestParser::new_with_language("/}?/u", LanguageType::JavaScript);
     let mut parser = test.prepare();

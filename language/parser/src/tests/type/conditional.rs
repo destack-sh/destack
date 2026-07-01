@@ -212,10 +212,12 @@ fn test_parse_type_expression() {
 }
 
 #[test]
-fn test_parse_optional_type_rejected() {
+fn test_report_optional_type() {
     let mut test = TestParser::new("type T = Foo?");
     let mut parser = test.prepare();
-    assert!(parser.eat_expression(parser.flags).is_err());
+    let error = parser.eat_expression(parser.flags).unwrap_err();
+
+    assert_eq!(parser.get_span_str(error.leaf_span()), "?");
 }
 
 #[test]

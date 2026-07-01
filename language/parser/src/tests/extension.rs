@@ -33,7 +33,7 @@ extension of Foo {
 }
 
 #[test]
-fn test_parse_extension_rejects_comma_separated_members() {
+fn test_report_extension_comma_separated_members() {
     let mut test = TestParser::new(
         r###"
 extension of Foo {
@@ -44,8 +44,11 @@ extension of Foo {
     let mut parser = test.prepare();
 
     let start = parser.span_start();
-    let result = parser.eat_extension(&start, DeclarationHeader::default());
-    assert!(result.is_err());
+    let error = parser
+        .eat_extension(&start, DeclarationHeader::default())
+        .unwrap_err();
+
+    assert_eq!(parser.get_span_str(error.leaf_span()), ",");
 }
 
 #[test]

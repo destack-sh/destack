@@ -26,7 +26,7 @@ fn test_parse_member_with_private_hash_name() {
 }
 
 #[test]
-fn test_parse_destack_member_rejects_private_hash_name() {
+fn test_report_destack_member_private_hash_name() {
     let mut test = TestParser::new("#name: string");
     let mut parser = test.prepare();
 
@@ -121,7 +121,7 @@ fn test_parse_member_declare_accessor_private_hash() {
 }
 
 #[test]
-fn test_parse_member_rejects_optional_definite_assignment_combo() {
+fn test_report_member_optional_definite_assignment_combo() {
     let mut test = TestParser::new_with_language("prop!?: Foo", LanguageType::TypeScript);
     let mut parser = test.prepare();
 
@@ -515,7 +515,7 @@ fn test_parse_members_recover_error_slot() {
 }
 
 #[test]
-fn test_parse_members_rejects_embedded_type_and_recovers() {
+fn test_recover_members_embedded_type() {
     let mut test = TestParser::new("...Transform\nx: int32");
     let mut parser = test.prepare();
     let members = parser.eat_members(false).unwrap();
@@ -538,12 +538,12 @@ fn test_parse_members_rejects_embedded_type_and_recovers() {
 }
 
 #[test]
-fn test_reject_member_method_signature_without_separator() {
+fn test_report_member_method_signature_without_separator() {
     let mut test = TestParser::new_with_language("method() method2()", LanguageType::TypeScript);
     let mut parser = test.prepare();
+    let error = parser.eat_member().unwrap_err();
 
-    let result = parser.eat_member();
-    assert!(result.is_err());
+    assert_eq!(parser.get_span_str(error.leaf_span()), "method2");
 }
 
 #[test]
@@ -862,11 +862,12 @@ fn test_parse_properties_recover_unkeyed_default_field() {
 }
 
 #[test]
-fn test_parse_property_rejects_optional_definite_assignment_combo() {
+fn test_report_property_optional_definite_assignment_combo() {
     let mut test = TestParser::new_with_language("prop!?: LongType[]", LanguageType::TypeScript);
     let mut parser = test.prepare();
+    let error = parser.eat_property().unwrap_err();
 
-    assert!(parser.eat_property().is_err());
+    assert_eq!(parser.get_span_str(error.leaf_span()), "?");
 }
 
 #[test]
@@ -1274,7 +1275,7 @@ fn test_parse_member_associated_comptime_const_type_relation_default() {
 }
 
 #[test]
-fn test_parse_member_rejects_static_associated_type() {
+fn test_report_member_static_associated_type() {
     let mut test = TestParser::new("static type Item = string");
     let mut parser = test.prepare();
     let error = parser.eat_member().unwrap_err();
@@ -1283,7 +1284,7 @@ fn test_parse_member_rejects_static_associated_type() {
 }
 
 #[test]
-fn test_parse_member_rejects_static_associated_comptime_const() {
+fn test_report_member_static_associated_comptime_const() {
     let mut test = TestParser::new("static comptime const Rows: number = 128");
     let mut parser = test.prepare();
     let error = parser.eat_member().unwrap_err();

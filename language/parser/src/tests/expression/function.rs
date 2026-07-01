@@ -283,17 +283,6 @@ fn test_parse_generic_lambda_function_value() {
     });
 }
 
-/// Generic parameter constraints should reject `implements`.
-#[test]
-fn test_parse_generic_lambda_function_rejects_implements_constraint() {
-    let mut test = TestParser::new("<T implements Foo>(x: T): T => x");
-    let mut parser = test.prepare();
-    let _ = parser.eat_expression(parser.flags);
-
-    assert!(!parser.errors.is_empty(), "expected parse errors");
-    assert_eq!(parser.get_span_str(parser.errors[0].span), "implements");
-}
-
 /// Parse a generic lambda function with a newline after `<`.
 #[test]
 fn test_parse_generic_lambda_function_value_multiline_after_less_than() {

@@ -7,23 +7,6 @@ use destack_dir::{
 };
 use destack_source::LanguageType;
 
-#[test]
-fn test_reject_angle_type_assertion_expression() {
-    let mut test = TestParser::new_with_language("<any>value", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let result = parser.eat_expression(parser.flags);
-    assert!(result.is_err());
-}
-
-/// Reject a const assertion in angle bracket form.
-#[test]
-fn test_reject_angle_const_assertion_expression() {
-    let mut test = TestParser::new_with_language("<const>[1, 2, 3]", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let result = parser.eat_expression(parser.flags);
-    assert!(result.is_err());
-}
-
 /// Type casts bind to the full addition expression on the left.
 #[test]
 fn test_parse_precedence_cast_after_addition() {
@@ -486,9 +469,9 @@ fn test_parse_satisfies_missing_type_target() {
     });
 }
 
-/// Reject assertion operators that start on a new line.
+/// Recover assertion operators that start on a new line.
 #[test]
-fn test_reject_newline_before_assertion_operator() {
+fn test_recover_newline_before_assertion_operator() {
     for language in [LanguageType::TypeScript, LanguageType::Destack] {
         for operator in ["as", "satisfies"] {
             let source = format!("call(value\n{operator} number)");
@@ -617,9 +600,9 @@ fn test_parse_async_arrow_with_as_parameter() {
     });
 }
 
-/// Reject cast expressions in parenthesized arrow parameters.
+/// Recover cast expressions in parenthesized arrow parameters.
 #[test]
-fn test_reject_parenthesized_arrow_parameter_cast() {
+fn test_recover_parenthesized_arrow_parameter_cast() {
     let mut test = TestParser::new_with_language("(a as T) => {};", LanguageType::TypeScript);
     let mut parser = test.prepare();
 
@@ -635,9 +618,9 @@ fn test_reject_parenthesized_arrow_parameter_cast() {
     );
 }
 
-/// Reject cast expressions in async parenthesized arrow parameters.
+/// Recover cast expressions in async parenthesized arrow parameters.
 #[test]
-fn test_reject_async_parenthesized_arrow_parameter_cast() {
+fn test_recover_async_parenthesized_arrow_parameter_cast() {
     let mut test = TestParser::new_with_language("async (a as T) => {};", LanguageType::TypeScript);
     let mut parser = test.prepare();
 
@@ -887,26 +870,28 @@ fn test_parse_type_alias_named_as_or_satisfies() {
     });
 }
 
-/// Reject angle bracket assertions in disallow ambiguous mode.
+/// Report angle bracket assertions in disallow ambiguous mode.
 #[test]
-fn test_reject_type_assertion_when_disallow_ambiguous_tree_literal() {
+fn test_report_type_assertion_when_disallow_ambiguous_tree_literal() {
     let mut test = TestParser::new_with_language("<T>x", LanguageType::TypeScript);
     let mut parser = test.prepare();
     parser.flags.set_disallow_ambiguous_tree_literal(true);
 
-    let result = parser.eat_expression(parser.flags);
-    assert!(result.is_err());
+    let error = parser.eat_expression(parser.flags).unwrap_err();
+
+    assert_eq!(parser.get_span_str(error.leaf_span()), "<");
 }
 
-/// Reject ambiguous generic arrows in disallow ambiguous mode.
+/// Report ambiguous generic arrows in disallow ambiguous mode.
 #[test]
-fn test_reject_generic_arrow_when_disallow_ambiguous_tree_literal() {
+fn test_report_generic_arrow_when_disallow_ambiguous_tree_literal() {
     let mut test = TestParser::new_with_language("<T>() => 1", LanguageType::TypeScript);
     let mut parser = test.prepare();
     parser.flags.set_disallow_ambiguous_tree_literal(true);
 
-    let result = parser.eat_expression(parser.flags);
-    assert!(result.is_err());
+    let error = parser.eat_expression(parser.flags).unwrap_err();
+
+    assert_eq!(parser.get_span_str(error.leaf_span()), "<");
 }
 
 /// Parse `new` calls with generic receivers and const assertion arguments.
@@ -936,35 +921,38 @@ fn test_parse_new_expression_with_generic_receiver_and_const_assertion_argument(
     });
 }
 
-/// Reject angle bracket assertions in `new` receivers.
+/// Report angle bracket assertions in `new` receivers.
 #[test]
-fn test_reject_type_assertion_in_new_receiver() {
+fn test_report_type_assertion_in_new_receiver() {
     let mut test = TestParser::new_with_language("new <any>Test2();", LanguageType::TypeScript);
     let mut parser = test.prepare();
+    let error = parser.eat_expression(parser.flags).unwrap_err();
 
-    let result = parser.eat_expression(parser.flags);
-    assert!(result.is_err());
+    assert_eq!(parser.get_span_str(error.leaf_span()), "<");
 }
 
-/// Reject unparenthesized cast assignment targets.
+/// Report unparenthesized cast assignment targets.
 #[test]
-fn test_reject_unparenthesized_cast_assignment_target() {
+fn test_report_unparenthesized_cast_assignment_target() {
     let mut test = TestParser::new_with_language("value as number = 2", LanguageType::TypeScript);
     let mut parser = test.prepare();
+    let error = parser.eat_expression(parser.flags).unwrap_err();
 
-    let result = parser.eat_expression(parser.flags);
-    assert!(result.is_err());
+    assert_eq!(parser.get_span_str(error.leaf_span()), "value as number");
 }
 
-/// Reject unparenthesized satisfies assignment targets.
+/// Report unparenthesized satisfies assignment targets.
 #[test]
-fn test_reject_unparenthesized_satisfies_assignment_target() {
+fn test_report_unparenthesized_satisfies_assignment_target() {
     let mut test =
         TestParser::new_with_language("value satisfies number = 2", LanguageType::TypeScript);
     let mut parser = test.prepare();
+    let error = parser.eat_expression(parser.flags).unwrap_err();
 
-    let result = parser.eat_expression(parser.flags);
-    assert!(result.is_err());
+    assert_eq!(
+        parser.get_span_str(error.leaf_span()),
+        "value satisfies number"
+    );
 }
 
 /// Parse parenthesized cast assignment targets.

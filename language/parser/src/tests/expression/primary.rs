@@ -238,7 +238,7 @@ fn test_parse_private_identifier_in_expression() {
 }
 
 #[test]
-fn test_parse_destack_rejects_private_identifier() {
+fn test_report_destack_private_identifier() {
     let mut test = TestParser::new("#a in this");
     let mut parser = test.prepare();
 
