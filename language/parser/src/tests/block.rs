@@ -1,7 +1,7 @@
 use destack_dir::{
-    Block, BlockContext, CommentKind, Declaration, Expression, FunctionDeclaration, FunctionForm,
-    IfForm, Key, LetKind, MatchCase, Name, NodeType, Property, ScalarLiteral, TokenType,
-    TypeExpression, YieldCardinality,
+    Block, BlockContext, BlockForm, CommentKind, Declaration, Expression, FunctionDeclaration,
+    FunctionForm, IfForm, Key, LetKind, MatchCase, Name, NodeType, Property, ScalarLiteral,
+    TokenType, TypeExpression, YieldCardinality,
 };
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -17,6 +17,59 @@ fn test_parse_empty_block() {
     let block_id = parser.eat_block(BlockContext::Expression).unwrap();
     let block = parser.tree.get(block_id);
     assert!(block.is_empty());
+}
+
+#[test]
+fn test_parse_arrow_expression_statement() {
+    let mut test = TestParser::new_with_language("value => value;", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expressions = parser.eat_block_body(BlockForm::Implicit).unwrap();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+            assert_eq!(signature.form, FunctionForm::Lambda);
+            assert_eq!(signature.parameters.len(), 1);
+        });
+    });
+}
+
+#[test]
+fn test_parse_generic_arrow_expression_statement() {
+    let mut test = TestParser::new_with_language("<T,>() => 1;", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expressions = parser.eat_block_body(BlockForm::Implicit).unwrap();
+
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+            assert_eq!(signature.form, FunctionForm::Lambda);
+            assert_eq!(signature.generic_parameters.len(), 1);
+            assert!(signature.parameters.is_empty());
+        });
+    });
+    test.assert_no_errors(&parser);
+}
+
+#[test]
+fn test_parse_ternary_arrow_block_expression_statement() {
+    let mut test =
+        TestParser::new_with_language("ready ? (value) : item => {};", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expressions = parser.eat_block_body(BlockForm::Implicit).unwrap();
+
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::If { form, else_expression, .. } => {
+        assert_eq!(*form, IfForm::Ternary);
+        assert_node!(parser.tree, else_expression.unwrap(), Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
+                assert_eq!(signature.form, FunctionForm::Lambda);
+                assert_node!(parser.tree, body.expect("expected lambda block body"), Expression::Block(_));
+            });
+        });
+    });
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -335,7 +388,7 @@ fn test_yield_expression_generator_with_space() {
 }
 
 #[test]
-fn test_reject_yield_star_without_operand() {
+fn test_recover_yield_star_without_operand() {
     // source: yield*
     let mut test = TestParser::new("yield*");
     let mut parser = test.prepare();
@@ -414,9 +467,9 @@ fn test_throw_expression_with_value() {
     });
 }
 
-/// Reject throw expressions split by a block comment newline.
+/// Recover throw expressions split by a block comment newline.
 #[test]
-fn test_reject_throw_expression_with_block_comment_newline() {
+fn test_recover_throw_expression_with_block_comment_newline() {
     // source: throw /*\n*/ e
     let mut test = TestParser::new_with_language("throw /*\n*/ e", LanguageType::JavaScript);
     let mut parser = test.prepare();
@@ -434,9 +487,9 @@ fn test_reject_throw_expression_with_block_comment_newline() {
     assert!(parser.peek_is(TokenType::Identifier));
 }
 
-/// Reject throw expressions split by unicode line separator comments.
+/// Recover throw expressions split by unicode line separator comments.
 #[test]
-fn test_reject_throw_expression_with_line_separator_comment() {
+fn test_recover_throw_expression_with_line_separator_comment() {
     // source: throw /* \u{2028} */ e
     let mut test =
         TestParser::new_with_language("throw /* \u{2028} */ e", LanguageType::JavaScript);
