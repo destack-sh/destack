@@ -1,14 +1,17 @@
 use crate::tests::TestParser;
-use crate::{assert_expression_path, assert_node, assert_path, assert_string};
+use crate::{
+    ParserOptions, ParserTokenHistory, ParserTriviaMode, assert_expression_path, assert_node,
+    assert_path, assert_string,
+};
 use destack_dir::{
-    Argument, AssignOperator, BinaryOperator, Declarator, Expression, GenericArgument, IfForm, Key,
-    Name, Pattern, PostfixPosition, ScalarLiteral, TypeExpression, TypeLiteral, TypeMember,
-    UnaryOperator,
+    Argument, AssignOperator, BinaryOperator, Declaration, Declarator, Expression, GenericArgument,
+    IfForm, Key, Member, Name, Pattern, PostfixPosition, ScalarLiteral, TypeExpression,
+    TypeLiteral, TypeMember, UnaryOperator,
 };
 use destack_source::LanguageType;
 
-/// Assert that one instantiation assignment target is rejected.
-fn assert_instantiation_assignment_rejects_at(input: &str, expected_leaf: &str) {
+/// Assert that one instantiation assignment target reports one leaf span.
+fn assert_instantiation_assignment_reports_at(input: &str, expected_leaf: &str) {
     let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
     let mut parser = test.prepare();
 
@@ -77,6 +80,30 @@ fn test_parse_instantiation_expression_parenthesized() {
                         });
                 });
             });
+        });
+    });
+}
+
+#[test]
+fn test_parse_parenthesized_instantiation_expression_statement() {
+    let mut test = TestParser::new_with_language("(f<T>)<K>;", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    parser.apply_options(ParserOptions {
+        trivia_mode: ParserTriviaMode::Full,
+        token_history: ParserTokenHistory::Record,
+        preserve_parenthesized_wrappers: false,
+        ..ParserOptions::default()
+    });
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+
+    assert_node!(parser.tree, expressions[0], Expression::Instantiation { left, generic_arguments } => {
+        assert_eq!(generic_arguments.len(), 1);
+        assert_node!(parser.tree, *left, Expression::Instantiation { left, generic_arguments } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "f");
+            assert_eq!(generic_arguments.len(), 1);
         });
     });
 }
@@ -175,16 +202,45 @@ const addSpanOperationAttributes = addSpanAttributes("gen_ai.operation", String.
     });
 }
 
-/// Reject instantiation expressions as assignment targets.
 #[test]
-fn test_reject_instantiation_expression_assignment() {
-    assert_instantiation_assignment_rejects_at("f<T> = g", "f<T>");
+fn test_parse_class_instantiation_field_before_private_member() {
+    let mut test = TestParser::new_with_language(
+        r#"class C {
+    protected specialFoo = f<string>
+    #bar = 123
+}"#,
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+
+    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(class_declaration) => {
+            assert_eq!(class_declaration.members.len(), 2);
+            assert_node!(parser.tree, class_declaration.members[0], Member::Field { default: Some(default), .. } => {
+                assert_node!(parser.tree, *default, Expression::Instantiation { left, generic_arguments } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "f");
+                    assert_eq!(generic_arguments.len(), 1);
+                });
+            });
+            assert_node!(parser.tree, class_declaration.members[1], Member::Field { .. });
+        });
+    });
 }
 
-/// Reject member instantiation expressions as assignment targets.
+/// Report instantiation expressions as assignment targets.
 #[test]
-fn test_reject_instantiation_expression_member_assignment() {
-    assert_instantiation_assignment_rejects_at("cls.myFunc<T> = g", "cls.myFunc<T>");
+fn test_report_instantiation_expression_assignment() {
+    assert_instantiation_assignment_reports_at("f<T> = g", "f<T>");
+}
+
+/// Report member instantiation expressions as assignment targets.
+#[test]
+fn test_report_instantiation_expression_member_assignment() {
+    assert_instantiation_assignment_reports_at("cls.myFunc<T> = g", "cls.myFunc<T>");
 }
 
 /// Parse parenthesized instantiation receivers before member access.

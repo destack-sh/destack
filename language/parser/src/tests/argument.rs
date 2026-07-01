@@ -622,13 +622,13 @@ fn test_parse_generic_arguments_following_value_with_boundary_comment() {
 }
 
 #[test]
-fn test_reject_generic_arguments_missing_close_angle_in_value_context() {
+fn test_report_generic_arguments_missing_close_angle_in_value_context() {
     // <string, number
     let mut test = TestParser::new_with_language("<string, number", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let result = parser.eat_generic_arguments();
+    let error = parser.eat_generic_arguments().unwrap_err();
 
-    assert!(result.is_err());
+    assert_eq!(parser.get_span_str(error.leaf_span()), "");
 }
 
 #[test]
@@ -793,6 +793,7 @@ class Test {
     let expressions = parser.parse();
 
     assert_eq!(expressions.len(), 1);
+    test.assert_no_errors(&parser);
 
     // class Test { ... }
     let expression_id = parser.unwrap_label_expression(expressions[0]);
@@ -868,6 +869,50 @@ class Test {
                 assert_node!(parser.tree, method_t2_annotations[1], Decorator { expression, position } => {
                     assert_eq!(*position, DecoratorPosition::BlockPrefix);
                     assert_expression_path!(parser, parser.tree.get(*expression), "p2");
+                });
+            });
+        });
+    });
+}
+
+/// Parse ordinary constructor parameters without parameter-property shorthand.
+#[test]
+fn test_parse_constructor_parameters() {
+    let input = r#"
+class Test {
+    constructor(value: string, count = 0, ...items: Item[]) {}
+}
+"#;
+    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 1);
+    test.assert_no_errors(&parser);
+
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
+            assert_eq!(members.len(), 1);
+
+            assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
+                assert_eq!(signature.role, Some(FunctionRole::Constructor));
+                assert_eq!(signature.parameters.len(), 3);
+
+                assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(declared_type), default: None, .. } => {
+                    assert_string!(parser, *name, "value");
+                    assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value } => {
+                        assert_eq!(*value, TypeLiteral::String);
+                    });
+                });
+
+                assert_node!(parser.tree, signature.parameters[1], Parameter::Named { name, declared_type: None, default: Some(default), .. } => {
+                    assert_string!(parser, *name, "count");
+                    assert_node!(parser.tree, *default, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                });
+
+                assert_node!(parser.tree, signature.parameters[2], Parameter::VariadicNamed { name, declared_type: Some(_), .. } => {
+                    assert_string!(parser, *name, "items");
                 });
             });
         });

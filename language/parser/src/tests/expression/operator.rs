@@ -62,22 +62,6 @@ fn long_assignment_chain_source(depth: usize) -> String {
     source
 }
 
-/// Assert that one expression reports a single leaf span.
-fn assert_expression_reports_at(input: &str, language: LanguageType, expected_leaf: &str) {
-    let mut test = TestParser::new_with_language(input, language);
-    let mut parser = test.prepare();
-
-    let error = parser
-        .eat_expression(parser.flags)
-        .expect_err("expected expression to fail");
-    let leaf = error.leaf_content();
-    let leaf_text = parser.get_span_str(leaf.span);
-
-    assert_eq!(leaf.node_type, None);
-    assert_eq!(leaf.expected, None);
-    assert_eq!(leaf_text, expected_leaf);
-}
-
 fn assert_assign_or_parenthesized_assign(
     parser: &crate::Parser,
     expression: LocalNodeId<Expression>,
