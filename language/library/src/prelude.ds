@@ -244,8 +244,6 @@ global {
         AsyncIterator,
         Generator,
         GeneratorResult,
-        GeneratorReturn,
-        GeneratorYield,
         Promise,
     } from "destack:async";
 

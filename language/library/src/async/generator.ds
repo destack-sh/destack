@@ -1,33 +1,108 @@
-import { todo } from "destack:error";
-import { Iterator, IteratorResult } from "destack:iter";
+import { todo, trap } from "destack:error";
+import { Iterator, IteratorResult, IteratorReturn, IteratorYield } from "destack:iter";
 import { Drop } from "destack:memory";
 
-import { ContinuationHandle } from "./continuation.ds";
+import { Continuation, ContinuationResult } from "./continuation.ds";
 import { AsyncIterator } from "./iterator.ds";
-import { Promise } from "./promise.ds";
+import { Promise, PromiseResolvers } from "./promise.ds";
 
-/// Worker-local generator object.
+/// Generator object.
+///
+/// Each step consumes the previous continuation and stores the next one.
 @languageItem("async.Generator")
 export class Generator<Y, R = void, N = void> implements Drop {
     /// The generator state.
-    private state: GeneratorState;
+    private state: GeneratorState<Y, R, N>;
 
-    /// The suspended continuation.
-    private continuation: ContinuationHandle;
+    /// Create a generator from its first continuation.
+    private constructor(continuation: Continuation<N, Y, R>) {
+        this.state = GeneratorSuspended {
+            kind: "suspended",
+            continuation,
+        };
+    }
 
     /// Resume the generator with `value` and return the next result.
     resume(value: N): GeneratorResult<Y, R> {
-        todo("Generator.resume")
+        // run a suspended generator
+        if (this.state.kind == "suspended") {
+            let continuation = this.state.continuation;
+            this.state = GeneratorRunning { kind: "running" };
+
+            return this.finishStep(continuation.resume(value));
+        }
+        // return completed result
+        else if (this.state.kind == "completed") {
+            return IteratorResult(IteratorReturn { kind: "return", value: this.state.value });
+        }
+        // reject closed generators
+        else if (this.state.kind == "closed") {
+            trap("generator is closed")
+        }
+        // reject reentrant steps
+        else {
+            trap("generator is already running")
+        }
     }
 
     /// Finalize the generator and return the completion value.
     return(value: R): GeneratorResult<Y, R> {
-        todo("Generator.return")
+        // complete a suspended generator
+        if (this.state.kind == "suspended") {
+            let continuation = this.state.continuation;
+            this.state = GeneratorRunning { kind: "running" };
+
+            return this.finishStep(continuation.complete(value));
+        }
+        // return completed result
+        else if (this.state.kind == "completed") {
+            return IteratorResult(IteratorReturn { kind: "return", value: this.state.value });
+        }
+        // reject closed generators
+        else if (this.state.kind == "closed") {
+            trap("generator is closed")
+        }
+        // reject reentrant completion
+        else {
+            trap("generator is already running")
+        }
     }
 
     /// Drop the suspended generator frame.
     drop(): void {
-        todo("Generator.drop");
+        // close suspended frames
+        if (this.state.kind == "suspended") {
+            let continuation = this.state.continuation;
+            this.state = GeneratorClosed { kind: "closed" };
+
+            continuation.drop();
+        }
+    }
+
+    /// Finish one generator step.
+    private finishStep(result: ContinuationResult<N, Y, R>): GeneratorResult<Y, R> {
+        // store the yielded continuation
+        if (result.kind == "yield") {
+            this.state = GeneratorSuspended {
+                kind: "suspended",
+                continuation: result.continuation,
+            };
+
+            return IteratorResult(IteratorYield { kind: "yield", value: result.value });
+        }
+        // store final completion
+        else if (result.kind == "return") {
+            this.state = GeneratorCompleted {
+                kind: "completed",
+                value: result.value,
+            };
+
+            return IteratorResult(IteratorReturn { kind: "return", value: result.value });
+        }
+        // reject unexpected async parking
+        else {
+            trap("sync generator parked without yielding")
+        }
     }
 }
 
@@ -35,65 +110,347 @@ export class Generator<Y, R = void, N = void> implements Drop {
 extension<Y, R, N> of Generator<Y, R, N> implements Iterator<Y, R> {
     /// Advance the generator and return the next yield or completion.
     next(): IteratorResult<Y, R> {
-        todo("Generator.next")
+        this.resume(undefined as N)
     }
 }
 
-/// Worker-local async generator object.
+/// Async generator object.
+///
+/// Async generators serialize consumer requests and resolve one request promise per step.
 @languageItem("async.AsyncGenerator")
 export class AsyncGenerator<Y, R = void, N = void> implements Drop {
-    /// The underlying generator.
-    private generator: Generator<Y, R, N>;
+    /// The async generator state.
+    private state: AsyncGeneratorState<Y, R, N>;
 
-    /// Resume the generator with `value` and return the next result.
+    /// First pending consumer request.
+    private head: AsyncGeneratorRequest<Y, R, N> | undefined;
+
+    /// Last pending consumer request.
+    private tail: AsyncGeneratorRequest<Y, R, N> | undefined;
+
+    /// Create an async generator from its first continuation.
+    private constructor(continuation: Continuation<AsyncGeneratorRequest<Y, R, N>, Y, R>) {
+        this.state = AsyncGeneratorSuspended {
+            kind: "suspended",
+            continuation,
+        };
+        this.head = undefined;
+        this.tail = undefined;
+    }
+
+    /// Resume the async generator with `value` and return the next result promise.
     resume(value: N): Promise<GeneratorResult<Y, R>> {
-        todo("AsyncGenerator.resume")
+        // resolve already completed generators
+        if (this.state.kind == "completed") {
+            return Promise.resolve(IteratorResult(IteratorReturn {
+                kind: "return",
+                value: this.state.value,
+            }));
+        }
+        // reject closed generators
+        else if (this.state.kind == "closed") {
+            trap("async generator is closed")
+        }
+
+        // enqueue the next request
+        let resolvers = Promise.withResolvers<GeneratorResult<Y, R>>();
+        this.enqueue(AsyncGeneratorNext {
+            kind: "next",
+            value,
+            resolvers,
+            next: undefined,
+        });
+        this.resumeQueuedRequest();
+
+        return resolvers.promise;
     }
 
-    /// Finalize the generator and return the completion value.
+    /// Finalize the async generator and return the completion result promise.
     return(value: R): Promise<GeneratorResult<Y, R>> {
-        todo("AsyncGenerator.return")
+        // resolve already completed generators
+        if (this.state.kind == "completed") {
+            return Promise.resolve(IteratorResult(IteratorReturn {
+                kind: "return",
+                value: this.state.value,
+            }));
+        }
+        // reject closed generators
+        else if (this.state.kind == "closed") {
+            trap("async generator is closed")
+        }
+
+        // enqueue the return request
+        let resolvers = Promise.withResolvers<GeneratorResult<Y, R>>();
+        this.enqueue(AsyncGeneratorReturn {
+            kind: "return",
+            value,
+            resolvers,
+            next: undefined,
+        });
+        this.resumeQueuedRequest();
+
+        return resolvers.promise;
     }
 
-    /// Drop the suspended async generator frame.
+    /// Drop the suspended async generator frame and complete queued requests.
     drop(): void {
-        todo("AsyncGenerator.drop");
+        // close a suspended continuation
+        if (this.state.kind == "suspended") {
+            let continuation = this.state.continuation;
+            this.state = AsyncGeneratorClosed { kind: "closed" };
+            continuation.drop();
+        }
+        // close any non-suspended state
+        else {
+            this.state = AsyncGeneratorClosed { kind: "closed" };
+        }
+
+        // resolve pending consumers
+        this.resolveQueuedRequests(undefined as R);
+    }
+
+    /// Append one consumer request.
+    private enqueue(request: AsyncGeneratorRequest<Y, R, N>): void {
+        // initialize the queue
+        if (this.tail == undefined) {
+            this.head = request;
+            this.tail = request;
+        }
+        // append to the tail
+        else {
+            this.tail.next = request;
+            this.tail = request;
+        }
+    }
+
+    /// Pop the next consumer request.
+    private dequeue(): AsyncGeneratorRequest<Y, R, N> | undefined {
+        let request = this.head;
+
+        // detach the current head
+        if (request != undefined) {
+            this.head = request.next;
+
+            // clear the tail when the queue drains
+            if (this.head == undefined) {
+                this.tail = undefined;
+            }
+            request.next = undefined;
+        }
+
+        return request;
+    }
+
+    /// Resume the next queued request when the body is ready.
+    private resumeQueuedRequest(): void {
+        // only suspended generators can accept a request
+        if (this.state.kind != "suspended") {
+            return;
+        }
+
+        // wait for a consumer request
+        let request = this.dequeue();
+        if (request == undefined) {
+            return;
+        }
+
+        // run the body with the active request
+        let continuation = this.state.continuation;
+        this.state = AsyncGeneratorRunning {
+            kind: "running",
+            request,
+        };
+
+        let result = continuation.resume(request);
+        this.finishRequest(request, result);
+    }
+
+    /// Finish one active request.
+    private finishRequest(
+        request: AsyncGeneratorRequest<Y, R, N>,
+        result: ContinuationResult<AsyncGeneratorRequest<Y, R, N>, Y, R>,
+    ): void {
+        // resolve one yielded value
+        if (result.kind == "yield") {
+            request.resolvers.resolve(IteratorResult(IteratorYield {
+                kind: "yield",
+                value: result.value,
+            }));
+            this.state = AsyncGeneratorSuspended {
+                kind: "suspended",
+                continuation: result.continuation,
+            };
+            this.resumeQueuedRequest();
+        }
+        // resolve final completion
+        else if (result.kind == "return") {
+            request.resolvers.resolve(IteratorResult(IteratorReturn {
+                kind: "return",
+                value: result.value,
+            }));
+            this.state = AsyncGeneratorCompleted {
+                kind: "completed",
+                value: result.value,
+            };
+            this.resolveQueuedRequests(result.value);
+        }
+        // keep ownership while the body awaits
+        else {
+            this.state = AsyncGeneratorAwaiting {
+                kind: "awaiting",
+                request,
+            };
+        }
+    }
+
+    /// Resolve queued requests after completion.
+    private resolveQueuedRequests(value: R): void {
+        let request = this.dequeue();
+
+        // resolve every pending request as complete
+        while (request != undefined) {
+            request.resolvers.resolve(IteratorResult(IteratorReturn { kind: "return", value }));
+            request = this.dequeue();
+        }
     }
 }
 
 /// Async generators iterate over their yielded values.
 extension<Y, R, N> of AsyncGenerator<Y, R, N> implements AsyncIterator<Y, R> {
-    /// Advance the generator and return the next yield or completion.
+    /// Advance and return the next yield or completion.
     next(): Promise<IteratorResult<Y, R>> {
-        todo("AsyncGenerator.next")
+        this.resume(undefined as N)
     }
 }
 
 /// The union of generator yield and return results.
 @languageItem("async.GeneratorResult")
-@derive(Tagged)
-export newtype GeneratorResult<Y, R = void> = GeneratorYield<Y> | GeneratorReturn<R>;
+export type GeneratorResult<Y, R = void> = IteratorResult<Y, R>;
 
-/// A yielded generator value.
-@languageItem("async.GeneratorYield")
-export struct GeneratorYield<Y> {
-    /// The result tag.
-    kind: "yield" = "yield";
+/// State of a generator object.
+type GeneratorState<Y, R, N> =
+    | GeneratorSuspended<Y, R, N>
+    | GeneratorRunning
+    | GeneratorCompleted<R>
+    | GeneratorClosed;
 
-    /// The yielded value.
-    value: Y;
+/// Suspended generator state.
+struct GeneratorSuspended<Y, R, N> {
+    /// The state tag.
+    kind: "suspended";
+
+    /// Continuation to resume for the next generator step.
+    continuation: Continuation<N, Y, R>;
 }
 
-/// A completed generator value.
-@languageItem("async.GeneratorReturn")
-export struct GeneratorReturn<R> {
-    /// The result tag.
-    kind: "return" = "return";
+/// Running generator state.
+struct GeneratorRunning {
+    /// The state tag.
+    kind: "running";
+}
 
-    /// The return value.
+/// Completed generator state.
+struct GeneratorCompleted<R> {
+    /// The state tag.
+    kind: "completed";
+
+    /// The final return value.
     value: R;
 }
 
-/// State of a generator object.
-@languageItem("async.GeneratorState")
-export type GeneratorState = "suspended" | "running" | "completed";
+/// Closed generator state.
+struct GeneratorClosed {
+    /// The state tag.
+    kind: "closed";
+}
+
+/// State of an async generator object.
+type AsyncGeneratorState<Y, R, N> =
+    | AsyncGeneratorSuspended<Y, R, N>
+    | AsyncGeneratorAwaiting<Y, R, N>
+    | AsyncGeneratorRunning<Y, R, N>
+    | AsyncGeneratorCompleted<R>
+    | AsyncGeneratorClosed;
+
+/// Suspended async generator state.
+struct AsyncGeneratorSuspended<Y, R, N> {
+    /// The state tag.
+    kind: "suspended";
+
+    /// Continuation to resume for the next consumer request.
+    continuation: Continuation<AsyncGeneratorRequest<Y, R, N>, Y, R>;
+}
+
+/// Async generator state while its body is awaiting another promise.
+struct AsyncGeneratorAwaiting<Y, R, N> {
+    /// The state tag.
+    kind: "awaiting";
+
+    /// The request waiting for the next body yield or return.
+    request: AsyncGeneratorRequest<Y, R, N>;
+}
+
+/// Running async generator state.
+struct AsyncGeneratorRunning<Y, R, N> {
+    /// The state tag.
+    kind: "running";
+
+    /// The request currently owned by the running body.
+    request: AsyncGeneratorRequest<Y, R, N>;
+}
+
+/// Completed async generator state.
+struct AsyncGeneratorCompleted<R> {
+    /// The state tag.
+    kind: "completed";
+
+    /// The final return value.
+    value: R;
+}
+
+/// Closed async generator state.
+struct AsyncGeneratorClosed {
+    /// The state tag.
+    kind: "closed";
+}
+
+/// One async generator consumer request.
+type AsyncGeneratorRequest<Y, R, N> =
+    | AsyncGeneratorNext<Y, R, N>
+    | AsyncGeneratorReturn<Y, R, N>;
+
+/// Request one yielded value.
+struct AsyncGeneratorNext<Y, R, N> {
+    /// The request tag.
+    kind: "next";
+
+    /// Value sent into the body.
+    value: N;
+
+    /// Promise resolvers for this request.
+    resolvers: PromiseResolvers<GeneratorResult<Y, R>>;
+
+    /// Next queued request.
+    next: AsyncGeneratorRequest<Y, R, N> | undefined;
+}
+
+/// Request generator completion.
+struct AsyncGeneratorReturn<Y, R, N> {
+    /// The request tag.
+    kind: "return";
+
+    /// Value sent into the body return path.
+    value: R;
+
+    /// Promise resolvers for this request.
+    resolvers: PromiseResolvers<GeneratorResult<Y, R>>;
+
+    /// Next queued request.
+    next: AsyncGeneratorRequest<Y, R, N> | undefined;
+}
+
+/// Yield from the current async generator body.
+@languageItem("async.AsyncGenerator.yield")
+export function asyncGeneratorYield<Y, R, N>(value: Y): N {
+    todo("async generator yield")
+}
