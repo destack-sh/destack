@@ -1,5 +1,5 @@
 use crate::parse::scan::DelimiterDepth;
-use crate::parse::{DeclarationHeader, RecoveryPoint};
+use crate::parse::{ArrowHeadKind, DeclarationHeader, RecoveryPoint};
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{Expression, Keyword, LocalNodeId, TokenType};
 
@@ -139,7 +139,10 @@ impl Parser {
     }
 
     /// Return whether an offset parenthesized group starts a lambda head.
-    fn parenthesized_lambda_head_starts_at(&mut self, start_offset: usize) -> bool {
+    pub(in crate::parse::expression) fn parenthesized_lambda_head_starts_at(
+        &mut self,
+        start_offset: usize,
+    ) -> bool {
         self.lookahead(|parser| parser.scan_parenthesized_lambda_head_starts_at(start_offset))
     }
 
@@ -158,12 +161,19 @@ impl Parser {
         }
 
         self.bump();
+        let tail_head = if self.peek_is(TokenType::Identifier)
+            && self.next_token_type() == TokenType::CloseParenthesis
+        {
+            ArrowHeadKind::ParenthesizedIdentifier
+        } else {
+            ArrowHeadKind::ParameterList
+        };
         if !self.current_token_can_start_parameter_head() {
             return false;
         }
 
         self.scan_parenthesized_follow_token_after_open()
-            .is_some_and(|_| self.current_token_starts_lambda_head_follow())
+            .is_some_and(|_| self.current_token_starts_arrow_tail(tail_head))
     }
 
     /// Return whether the current token can begin a parameter list.
@@ -185,9 +195,11 @@ impl Parser {
     fn identifier_parameter_head_follow_can_continue(&mut self) -> bool {
         let token_type = self.next_token_type();
 
-        // accept optional parameters only in annotation form
         if token_type == TokenType::Maybe {
-            return self.token_type_at_offset(2) == TokenType::Colon;
+            return matches!(
+                self.token_type_at_offset(2),
+                TokenType::CloseParenthesis | TokenType::Comma | TokenType::Colon
+            );
         }
 
         matches!(
@@ -200,11 +212,11 @@ impl Parser {
         )
     }
 
-    /// Return whether a closed parameter list is followed by an arrow.
-    fn current_token_starts_lambda_head_follow(&mut self) -> bool {
+    /// Return whether the current token starts an arrow tail.
+    fn current_token_starts_arrow_tail(&mut self, head: ArrowHeadKind) -> bool {
         match self.peek_token_type() {
             TokenType::ArrowWide => true,
-            TokenType::Colon => {
+            TokenType::Colon if head.allows_return_type_colon(self.flags) => {
                 self.bump();
 
                 self.return_type_is_followed_by_arrow()

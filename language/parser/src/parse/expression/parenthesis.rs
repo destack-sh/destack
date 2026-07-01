@@ -221,6 +221,11 @@ impl Parser {
             return Ok(None);
         }
 
+        // let nested lambda heads parse as ordinary inner expressions
+        if self.parenthesized_lambda_head_starts_at(1) {
+            return Ok(None);
+        }
+
         let checkpoint = self.checkpoint();
         let mark = self.tree.next_id();
         match self.eat_parenthesized_value_chain_at_cursor(start) {
