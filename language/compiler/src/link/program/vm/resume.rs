@@ -90,7 +90,7 @@ impl<'a> ResumeLinker<'a> {
 
                 yield_resume.insert(block_id, frame_state_id);
             }
-            // call continuations may bind one trailing return value
+            // call continuations may bind one leading return value
             else if let Some((target, arguments)) = self.call_edge(block_id) {
                 let received_value = self.received_value(target, arguments.len())?;
                 let target_state_id = self.append_entry_state(
@@ -213,7 +213,7 @@ impl<'a> ResumeLinker<'a> {
         }
     }
 
-    /// Return the trailing received value for one edge when present.
+    /// Return the leading received value for one edge when present.
     fn received_value(
         &self,
         block: mir::BlockId,
@@ -221,11 +221,11 @@ impl<'a> ResumeLinker<'a> {
     ) -> LinkResult<Option<mir::Value>> {
         let entry_block = self.tree.get(block);
 
-        // block edges bind the received value after explicit arguments
+        // block edges bind the received value before explicit arguments
         if entry_block.parameters.len() == explicit_argument_count + 1 {
             return Ok(entry_block
                 .parameters
-                .last()
+                .first()
                 .map(|parameter| parameter.value));
         }
 
@@ -248,7 +248,7 @@ impl<'a> ResumeLinker<'a> {
     ) -> LinkResult<FrameStateId> {
         let entry_block = self.tree.get(block);
         let entry_parameters = if received_value.is_some() {
-            &entry_block.parameters[..entry_block.parameters.len() - 1]
+            &entry_block.parameters[1..]
         } else {
             &entry_block.parameters[..]
         };

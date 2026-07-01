@@ -35,7 +35,7 @@ b0(v0: int32):
     v1: int32 = 1int32
     yield v1 => b1(v0)
 b1(v2: int32, v3: int32):
-    return v2
+    return v3
 }"#;
     let mut machine = create_machine(mir);
     let (continuation, value) = assert_execution_yielded(
@@ -117,7 +117,7 @@ b1(v2: int32):
     assert_eq!(output, Value::int32(10));
 }
 
-/// Yield resumes with explicit arguments and a trailing resume value.
+/// Yield resumes with a leading resume value before explicit arguments.
 #[test]
 fn test_yield_resume_arguments_prefix() {
     let mir = r#"
@@ -140,19 +140,19 @@ b1(v3: int32, v4: int32, v5: int32):
     assert_eq!(output, Value::int32(32));
 }
 
-/// Yield clears trailing resume parameters when no argument is provided.
+/// Yield binds the resume value before explicit resume arguments.
 #[test]
-fn test_yield_clears_trailing_params() {
+fn test_yield_resume_value_prefixes_arguments() {
     let mir = r#"
-function yieldTrailing(v0: int32): int32 {
+function yieldLeading(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 1int32
     v2: int32 = 99int32
     jump b1(v0, v1, v2)
 b1(v3: int32, v4: int32, v5: int32):
     v6: int32 = 0int32
-    v7: boolean = int.eq v5, v6
-    branch v7, b3(v5), b2(v3, v4, v5)
+    v7: boolean = int.eq v3, v6
+    branch v7, b3(v3), b2(v3, v4, v5)
 b2(v8: int32, v9: int32, v10: int32):
     v11: int32 = int.add v8, v9
     yield v11 => b1(v8, v9)
@@ -161,7 +161,7 @@ b3(v12: int32):
 }"#;
     let mut machine = create_machine(mir);
     let (continuation, value) = assert_execution_yielded(
-        machine.run_function_by_name_yielding("yieldTrailing", &[Value::int32(2)]),
+        machine.run_function_by_name_yielding("yieldLeading", &[Value::int32(2)]),
     );
     assert_eq!(value, Value::int32(3));
     let output = assert_execution_completed(machine.resume(continuation, Value::int32(0)));
@@ -375,8 +375,8 @@ b0:
     store v0, v1
     v2: Pair = struct Pair (v0)
     yield v1 => b1(v2)
-b1(v3: Pair, v4: int32):
-    v5: ref<int32, managed, readonly> = field.get v3, 0
+b1(v3: int32, v4: Pair):
+    v5: ref<int32, managed, readonly> = field.get v4, 0
     v6: int32 = load v5
     return v6
 }"#;
@@ -406,8 +406,8 @@ b0:
     store v0, v1
     v2: Pair = struct Pair (v0)
     yield v1 => b1(v2)
-b1(v3: Pair, v4: int32):
-    v5: ref<int32, managed, readonly> = field.get v3, 0
+b1(v3: int32, v4: Pair):
+    v5: ref<int32, managed, readonly> = field.get v4, 0
     v6: int32 = load v5
     return v6
 }"#;
