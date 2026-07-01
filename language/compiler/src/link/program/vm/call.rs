@@ -198,7 +198,7 @@ impl<'a> BlockLowerer<'a> {
             .cell_layout_for_type(environment_type)
             .ok_or_else(|| self.invalid_instruction("function bind environment"))?;
 
-        // pool the cold environment tables
+        // pool the environment table payload
         let bind = FunctionBind {
             environment: environment_layout,
         };

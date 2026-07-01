@@ -1,16 +1,18 @@
+use destack_core::SectionPacker;
 use destack_mir as mir;
 use destack_program::{
-    DispatchTable, DynamicEntry, DynamicShape, DynamicSlot, DynamicTable, VirtualTable,
+    DispatchTable, DynamicEntry, DynamicShapeBuilder, DynamicSlot, DynamicTableBuilder,
+    VirtualTableBuilder,
 };
 
 use super::ProgramLinker;
 
-/// Link MIR dispatch rows into executable dispatch tables.
+/// Link MIR dispatch entries into program dispatch tables.
 #[derive(Debug)]
 pub(crate) struct DispatchLinker<'a> {
     /// MIR dispatch table produced by lower and optimization.
     dispatch: &'a mir::DispatchTable,
-    /// Dense executable id projection for this program.
+    /// Dense program id projection.
     program: &'a ProgramLinker,
 }
 
@@ -20,13 +22,15 @@ impl<'a> DispatchLinker<'a> {
         Self { dispatch, program }
     }
 
-    /// Link executable dispatch tables.
-    pub(crate) fn link(&self) -> DispatchTable {
-        let mut table = DispatchTable::default();
+    /// Link program dispatch tables.
+    pub(crate) fn link(&self, sections: &mut SectionPacker) -> DispatchTable {
+        let mut virtuals = Vec::new();
+        let mut dynamics = Vec::new();
+        let mut dynamic_shapes = Vec::new();
 
-        // project virtual dispatch rows into program ids
+        // project virtual dispatch entries into program ids
         for virtual_table in self.dispatch.iter_virtual_tables() {
-            table.virtual_tables.push(VirtualTable {
+            virtuals.push(VirtualTableBuilder {
                 ty: self.program.type_id(virtual_table.ty),
                 destructor: virtual_table
                     .destructor
@@ -41,7 +45,7 @@ impl<'a> DispatchLinker<'a> {
 
         // project dynamic shapes into program ids
         for shape in self.dispatch.iter_dynamic_shapes() {
-            table.dynamic_shapes.push(DynamicShape {
+            dynamic_shapes.push(DynamicShapeBuilder {
                 constraint: self.program.type_id(shape.constraint),
                 slots: shape
                     .slots
@@ -51,9 +55,9 @@ impl<'a> DispatchLinker<'a> {
             });
         }
 
-        // project dynamic implementation rows into program ids
+        // project dynamic table entries into program ids
         for dynamic_table in self.dispatch.iter_dynamic_tables() {
-            table.dynamic_tables.push(DynamicTable {
+            dynamics.push(DynamicTableBuilder {
                 concrete: self.program.type_id(dynamic_table.concrete),
                 constraint: self.program.type_id(dynamic_table.constraint),
                 entries: dynamic_table
@@ -64,29 +68,26 @@ impl<'a> DispatchLinker<'a> {
             });
         }
 
-        table
+        DispatchTable::pack(sections, virtuals, dynamics, dynamic_shapes)
     }
 
-    /// Project one MIR dynamic entry into executable ids.
+    /// Project one MIR dynamic entry into program ids.
     fn dynamic_entry(&self, entry: &mir::DynamicEntry) -> DynamicEntry {
         match entry {
-            mir::DynamicEntry::FieldOffset { offset } => {
-                DynamicEntry::FieldOffset { offset: *offset }
+            mir::DynamicEntry::FieldOffset { offset } => DynamicEntry::field_offset(*offset),
+            mir::DynamicEntry::Function { function } => {
+                DynamicEntry::function(self.program.function_id(*function))
             }
-            mir::DynamicEntry::Function { function } => DynamicEntry::Function {
-                function: self.program.function_id(*function),
-            },
         }
     }
 
-    /// Project one MIR dynamic slot into executable ids.
+    /// Project one MIR dynamic slot into program ids.
     fn dynamic_slot(&self, slot: &mir::DynamicSlot) -> DynamicSlot {
         match slot {
-            mir::DynamicSlot::Field { name, .. } => DynamicSlot::Field { name: *name },
-            mir::DynamicSlot::Function { name, signature } => DynamicSlot::Function {
-                name: *name,
-                signature: self.program.type_id(*signature),
-            },
+            mir::DynamicSlot::Field { name, .. } => DynamicSlot::field(*name),
+            mir::DynamicSlot::Function { name, signature } => {
+                DynamicSlot::function(*name, self.program.type_id(*signature))
+            }
         }
     }
 }

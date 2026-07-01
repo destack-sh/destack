@@ -1,7 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
+use destack_core::{EntryStore, SectionPacker};
 use destack_mir as mir;
-use destack_program::vm::{Cell, FrameEntry, MoveSlot};
+use destack_program::vm::{Cell, FrameEntryBuilder, MoveSlot};
 use destack_program::{
     FrameLayout, FrameLayoutId, FrameMaterialization, FrameSlot, FrameSlotId, FrameStateId,
     FrameTable,
@@ -11,17 +12,23 @@ use super::super::ProgramLinker;
 use super::StorageLayout;
 use crate::LinkResult;
 
-/// Link executable frame layouts and frame materialization rows.
+/// Link VM frame layouts and frame materialization entries.
 #[derive(Debug)]
 pub(crate) struct FrameLinker<'a> {
     /// MIR tree being linked.
     tree: &'a mir::Tree,
-    /// Program linker owning dense executable id projection.
+    /// Program linker owning dense program id projection.
     program: &'a ProgramLinker,
     /// Lowered value storage layouts keyed by MIR type id.
     storage: &'a HashMap<mir::TypeId, StorageLayout>,
-    /// Runtime frame layouts and materialization tables.
-    table: FrameTable,
+    /// Linked frame layouts.
+    layouts: Vec<FrameLayout>,
+    /// Linked frame materializations.
+    materializations: Vec<FrameMaterialization>,
+    /// Linked frame slots.
+    slots: EntryStore<FrameSlot>,
+    /// Linked copied frame slots.
+    copied_slots: EntryStore<FrameSlotId>,
 }
 
 impl<'a> FrameLinker<'a> {
@@ -35,23 +42,40 @@ impl<'a> FrameLinker<'a> {
             tree,
             program,
             storage,
-            table: FrameTable::default(),
+            layouts: Vec::new(),
+            materializations: Vec::new(),
+            slots: EntryStore::new(),
+            copied_slots: EntryStore::new(),
         }
     }
 
     /// Return the next frame layout id.
     pub(crate) fn next_layout_id(&self) -> FrameLayoutId {
-        FrameLayoutId::from(self.table.layouts.len() as u32)
+        FrameLayoutId::from(self.layouts.len() as u32)
     }
 
     /// Finish the frame table.
-    pub(crate) fn finish(self) -> FrameTable {
-        self.table
+    pub(crate) fn finish(self, sections: &mut SectionPacker) -> FrameTable {
+        let Self {
+            layouts,
+            materializations,
+            slots,
+            copied_slots,
+            ..
+        } = self;
+
+        FrameTable::from_entries(
+            sections,
+            &layouts,
+            &materializations,
+            slots.entries(),
+            copied_slots.entries(),
+        )
     }
 
     /// Append one frame layout.
     pub(crate) fn push_layout(&mut self, layout: FrameLayout) {
-        self.table.layouts.push(layout);
+        self.layouts.push(layout);
     }
 
     /// Return whether one program frame slot is stored as one VM cell.
@@ -62,28 +86,43 @@ impl<'a> FrameLinker<'a> {
             .is_some_and(StorageLayout::is_cell)
     }
 
+    /// Return one value slot inside one frame layout.
+    pub(crate) fn value_slot(&self, layout: &FrameLayout, value: u32) -> Option<&FrameSlot> {
+        let slots = layout.slots(self.slots.entries());
+
+        layout.value(slots, value)
+    }
+
+    /// Return one local slot inside one frame layout.
+    pub(crate) fn local_slot(&self, layout: &FrameLayout, local: u32) -> Option<&FrameSlot> {
+        let slots = layout.slots(self.slots.entries());
+
+        layout.local(slots, local)
+    }
+
     /// Return the lowered frame slot for one SSA value.
     pub(crate) fn move_slot(
         &self,
         frame_layout: &FrameLayout,
         value: mir::Value,
     ) -> LinkResult<MoveSlot> {
+        let slots = frame_layout.slots(self.slots.entries());
         let slot = frame_layout
-            .value(value.0)
+            .value(slots, value.0)
             .ok_or_else(|| self.program.invalid_instruction("frame value slot"))?;
         let is_cell = self.slot_is_cell(slot);
 
-        Ok(MoveSlot {
-            ty: slot.ty,
-            offset: slot.offset,
-            byte_len: slot.byte_len,
+        Ok(MoveSlot::new(
+            slot.ty,
+            slot.offset,
+            slot.byte_len(),
             is_cell,
-        })
+        ))
     }
 
     /// Build one byte frame layout for one function.
     pub(crate) fn build_layout(
-        &self,
+        &mut self,
         function: &mir::Function,
         value_types: &[mir::TypeId],
     ) -> LinkResult<FrameLayout> {
@@ -124,17 +163,19 @@ impl<'a> FrameLinker<'a> {
             id
         });
 
+        let slots = self.slots.append(slots);
+
         Ok(FrameLayout {
             slots,
             value_count,
             local_count,
-            environment_slot,
+            environment_slot: environment_slot.into(),
             byte_len: u32::try_from(byte_len)
                 .map_err(|_| self.program.layout_overflow("frame byte length"))?,
         })
     }
 
-    /// Append one frame materialization row.
+    /// Append one frame materialization entry.
     pub(crate) fn append_materialization(
         &mut self,
         frame_layout_id: FrameLayoutId,
@@ -142,13 +183,13 @@ impl<'a> FrameLinker<'a> {
         liveness: &mir::FunctionLiveness,
         block: mir::LocalNodeId<mir::Block>,
         frame_state: FrameStateId,
-        frame_entry: Option<&FrameEntry>,
+        frame_entry: Option<&FrameEntryBuilder>,
         source_point: Option<u32>,
     ) -> LinkResult<()> {
         let materialized_values =
             self.materialized_values(frame_layout, liveness, block, frame_entry, source_point)?;
         let materialized_locals = self.materialized_locals(liveness, block);
-        let copied_slots = frame_layout
+        let copied_slots: Vec<_> = frame_layout
             .slot_ids()
             .filter(|slot| {
                 self.is_materialized_slot(
@@ -159,13 +200,14 @@ impl<'a> FrameLinker<'a> {
                 )
             })
             .collect();
+        let copied_slots = self.copied_slots.append(copied_slots);
 
         let materialization = FrameMaterialization {
             frame_layout: frame_layout_id,
             copied_slots,
         };
-        debug_assert_eq!(self.table.materializations.len(), frame_state.0 as usize);
-        self.table.materializations.push(materialization);
+        debug_assert_eq!(self.materializations.len(), frame_state.0 as usize);
+        self.materializations.push(materialization);
 
         Ok(())
     }
@@ -182,9 +224,9 @@ impl<'a> FrameLinker<'a> {
             layout.alignment()
         };
         let slot_len = if layout.is_cell() {
-            layout.byte_len.max(Cell::BYTE_LEN)
+            layout.byte_len().max(Cell::BYTE_LEN)
         } else {
-            layout.byte_len
+            layout.byte_len()
         };
 
         let offset = align_offset(*byte_len, slot_alignment);
@@ -208,7 +250,7 @@ impl<'a> FrameLinker<'a> {
         frame_layout: &FrameLayout,
         liveness: &mir::FunctionLiveness,
         block: mir::LocalNodeId<mir::Block>,
-        frame_entry: Option<&FrameEntry>,
+        frame_entry: Option<&FrameEntryBuilder>,
         source_point: Option<u32>,
     ) -> LinkResult<HashSet<mir::Value>> {
         let Some(frame_entry) = frame_entry else {

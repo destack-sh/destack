@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
+use destack_core::SectionPacker;
 use destack_mir as mir;
 use destack_program::vm::{
-    FrameBinding, FrameEntry, MoveSlot, ProgramPoint, ResumeState, ResumeTable,
+    FrameBinding, FrameEntryBuilder, MoveSlot, ProgramPoint, ResumeStateBuilder, ResumeTable,
 };
 use destack_program::{FrameLayout, FrameLayoutId, FrameStateId, FunctionId};
 
@@ -16,10 +17,12 @@ use super::FrameLinker;
 pub(crate) struct ResumeLinker<'a> {
     /// MIR tree being linked.
     tree: &'a mir::Tree,
-    /// Program linker owning dense executable id projection.
+    /// Program linker owning dense program id projection.
     program: &'a ProgramLinker,
-    /// Runtime resume table for yields, calls, and deoptimization.
-    table: ResumeTable,
+    /// Build-time resume states.
+    states: Vec<ResumeStateBuilder>,
+    /// Resume state id by lowered program point.
+    state_by_point: HashMap<ProgramPoint, FrameStateId>,
 }
 
 impl<'a> ResumeLinker<'a> {
@@ -28,13 +31,26 @@ impl<'a> ResumeLinker<'a> {
         Self {
             tree,
             program,
-            table: ResumeTable::default(),
+            states: Vec::new(),
+            state_by_point: HashMap::new(),
         }
     }
 
     /// Finish the resume table.
-    pub(crate) fn finish(self) -> ResumeTable {
-        self.table
+    pub(crate) fn finish(self, sections: &mut SectionPacker) -> ResumeTable {
+        ResumeTable::pack(sections, self.states)
+    }
+
+    /// Return the next resume state id.
+    fn next_id(&self) -> FrameStateId {
+        FrameStateId(self.states.len() as u32)
+    }
+
+    /// Add one resume state.
+    fn push(&mut self, id: FrameStateId, state: ResumeStateBuilder) {
+        debug_assert_eq!(id.0 as usize, self.states.len());
+        self.state_by_point.insert(state.point, id);
+        self.states.push(state);
     }
 
     /// Build the source resume lookups for one function.
@@ -109,7 +125,7 @@ impl<'a> ResumeLinker<'a> {
         for (block_index, (block, point_by_pc)) in source_points.iter().enumerate() {
             for (pc, source_point) in point_by_pc.iter().copied().enumerate() {
                 let point = ProgramPoint::new(program_function, block_index as u32, pc as u32);
-                let frame_state_id = self.table.next_id();
+                let frame_state_id = self.next_id();
                 let return_destination =
                     self.return_destination(frame_layout, frames, *block, source_point)?;
 
@@ -256,7 +272,7 @@ impl<'a> ResumeLinker<'a> {
             })
             .collect::<LinkResult<Vec<_>>>()?;
 
-        let frame_entry = FrameEntry {
+        let frame_entry = FrameEntryBuilder {
             bindings,
             received_value: if let Some(value) = received_value {
                 let slot = frame_layout
@@ -269,7 +285,7 @@ impl<'a> ResumeLinker<'a> {
             },
         };
 
-        let frame_state_id = self.table.next_id();
+        let frame_state_id = self.next_id();
         let block_index = block_index_by_id
             .get(&block)
             .copied()
@@ -302,7 +318,7 @@ impl<'a> ResumeLinker<'a> {
         block: mir::BlockId,
         point: ProgramPoint,
         frame_state: FrameStateId,
-        frame_entry: Option<FrameEntry>,
+        frame_entry: Option<FrameEntryBuilder>,
         return_destination: Option<MoveSlot>,
         source_point: Option<u32>,
         frames: &mut FrameLinker<'_>,
@@ -316,9 +332,9 @@ impl<'a> ResumeLinker<'a> {
             frame_entry.as_ref(),
             source_point,
         )?;
-        self.table.push(
+        self.push(
             frame_state,
-            ResumeState {
+            ResumeStateBuilder {
                 point,
                 source_point,
                 entry: frame_entry,

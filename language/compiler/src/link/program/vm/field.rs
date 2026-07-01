@@ -34,7 +34,7 @@ impl<'a> BlockLowerer<'a> {
             self.cell_offset(destination)?,
             base,
             0,
-            self.instruction_byte_offset(field.byte_offset)?,
+            self.instruction_byte_offset(field.byte_offset())?,
         ))
     }
 }

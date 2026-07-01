@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
-use destack_program::vm::{Block, CallTarget, Function, Instruction, MoveSlot, SideTableBuilder};
+use destack_program::vm::{
+    Block, CallTarget, FunctionBuilder, Instruction, MoveSlot, SideTableBuilder,
+};
 use destack_program::{FrameLayout, FrameLayoutId, FrameSlot, FrameStateId};
 
 use crate::{LinkError, LinkResult};
@@ -48,7 +50,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             return Ok(None);
         };
 
-        // build function-local maps in executable block order
+        // build function-local maps in VM block order
         let block_order = BlockOrder::new(tree, entry, program.program())?;
         let value_types = value_types.to_vec();
         let value_count = value_types.len();
@@ -127,7 +129,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
         }
 
         let (argument_pool, move_pool) = self.pool.finish();
-        let function = Function {
+        let function = FunctionBuilder {
             function: self.context.program_function(self.context.function_id),
             frame_layout: self.frame_layout_id,
             parameters: parameter,
@@ -246,9 +248,9 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
 
 /// One lowered function plus transient source mapping.
 pub(crate) struct LoweredFunction {
-    /// The executable function.
-    pub(crate) function: Function,
-    /// Source block and instruction points in executable block order.
+    /// The lowered VM function.
+    pub(crate) function: FunctionBuilder,
+    /// Source block and instruction points in VM block order.
     pub(crate) source_points: Vec<(mir::LocalNodeId<mir::Block>, Vec<u32>)>,
 }
 
@@ -329,8 +331,8 @@ impl<'a> BlockLowerer<'a> {
         let function = self.function.program_function(function);
         self.function
             .call_targets
-            .get(&function)
-            .copied()
+            .get(function.index())
+            .and_then(|target| *target)
             .ok_or_else(|| self.function.undefined_function(format!("{function:?}")))
     }
 
@@ -354,8 +356,7 @@ impl<'a> BlockLowerer<'a> {
     /// Return one value's frame slot.
     pub(super) fn frame_value_slot(&self, value: mir::Value) -> LinkResult<&FrameSlot> {
         self.function
-            .frame_layout
-            .value(value.0)
+            .frame_value_slot(value.0)
             .ok_or_else(|| self.invalid_instruction("frame value slot"))
     }
 
@@ -367,8 +368,7 @@ impl<'a> BlockLowerer<'a> {
         let local = self.local_index(local)?;
 
         self.function
-            .frame_layout
-            .local(local)
+            .frame_local_slot(local)
             .ok_or_else(|| self.invalid_instruction("frame local slot"))
     }
 
@@ -393,12 +393,12 @@ impl<'a> BlockLowerer<'a> {
         let slot = self.frame_value_slot(value)?;
         let is_cell = self.function.slot_is_cell(slot);
 
-        Ok(MoveSlot {
-            ty: slot.ty,
-            offset: slot.offset,
-            byte_len: slot.byte_len,
+        Ok(MoveSlot::new(
+            slot.ty,
+            slot.offset,
+            slot.byte_len(),
             is_cell,
-        })
+        ))
     }
 
     /// Return one invalid lowered input diagnostic.

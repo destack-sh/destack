@@ -1,40 +1,28 @@
-use std::collections::HashMap;
-
-use destack_core::StringPool;
+use destack_core::SectionPacker;
 use destack_mir as mir;
-use destack_program::{Function, FunctionTable, Signature};
+use destack_program::{FunctionBuilder, FunctionExport, FunctionTable, Signature};
 
 use super::ProgramLinker;
 
-/// Link MIR functions into executable function tables.
+/// Link MIR functions into program function tables.
 #[derive(Debug)]
 pub(crate) struct FunctionLinker<'a> {
     /// MIR tree being linked.
     tree: &'a mir::Tree,
-    /// Program string pool.
-    strings: &'a StringPool,
-    /// Dense executable id projection for this program.
+    /// Dense program id projection.
     program: &'a ProgramLinker,
 }
 
 impl<'a> FunctionLinker<'a> {
     /// Create one function linker.
-    pub(crate) fn new(
-        tree: &'a mir::Tree,
-        strings: &'a StringPool,
-        program: &'a ProgramLinker,
-    ) -> Self {
-        Self {
-            tree,
-            strings,
-            program,
-        }
+    pub(crate) fn new(tree: &'a mir::Tree, program: &'a ProgramLinker) -> Self {
+        Self { tree, program }
     }
 
-    /// Link executable function declarations.
-    pub(crate) fn link(&self) -> FunctionTable {
+    /// Link program function declarations.
+    pub(crate) fn link(&self, sections: &mut SectionPacker) -> FunctionTable {
         let mut functions = Vec::new();
-        let mut function_by_name = HashMap::new();
+        let mut exports = Vec::new();
 
         // project MIR function declarations into dense program ids
         for (function_id, function) in self.tree.iter_nodes::<mir::Function>() {
@@ -44,7 +32,7 @@ impl<'a> FunctionLinker<'a> {
                 functions.resize_with(slot + 1, || None);
             }
 
-            let name = self.strings.get(function.name).to_string();
+            let name = function.name;
             let signature = Signature {
                 parameters: function
                     .parameters
@@ -53,15 +41,18 @@ impl<'a> FunctionLinker<'a> {
                     .collect(),
                 result: self.program.type_id(function.return_type),
             };
-            let record = Function {
-                name: name.clone(),
+            let record = FunctionBuilder {
+                name,
                 signature,
                 environment: function.environment.map(|ty| self.program.type_id(ty)),
             };
             functions[slot] = Some(record);
-            function_by_name.entry(name).or_insert(program_function);
+            exports.push(FunctionExport {
+                name,
+                function: program_function,
+            });
         }
 
-        FunctionTable::new(functions, function_by_name)
+        FunctionTable::pack(sections, functions, exports)
     }
 }

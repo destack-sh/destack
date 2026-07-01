@@ -30,10 +30,10 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // move frame-backed locals through one fixed byte range
-        if destination_slot.byte_len != local_slot.byte_len {
+        if destination_slot.byte_len() != local_slot.byte_len() {
             return Err(self.invalid_instruction("local get byte length"));
         }
-        let byte_len = destination_slot.byte_len;
+        let byte_len = destination_slot.byte_len();
 
         Ok(Instruction::new(
             Op::MoveAggregate,
@@ -82,10 +82,10 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // move frame-backed locals through one fixed byte range
-        if local_slot.byte_len != value_slot.byte_len {
+        if local_slot.byte_len() != value_slot.byte_len() {
             return Err(self.invalid_instruction("local set byte length"));
         }
-        let byte_len = local_slot.byte_len;
+        let byte_len = local_slot.byte_len();
 
         Ok(Instruction::new(
             Op::MoveAggregate,
@@ -156,7 +156,7 @@ impl<'a> BlockLowerer<'a> {
             op,
             self.cell_offset(destination)?,
             self.cell_offset(pointer)?,
-            self.instruction_byte_offset(access.byte_offset)?,
+            self.instruction_byte_offset(access.byte_offset())?,
             0,
         ))
     }
@@ -192,7 +192,7 @@ impl<'a> BlockLowerer<'a> {
             op,
             self.cell_offset(pointer)?,
             self.cell_offset(value)?,
-            self.instruction_byte_offset(access.byte_offset)?,
+            self.instruction_byte_offset(access.byte_offset())?,
             0,
         ))
     }

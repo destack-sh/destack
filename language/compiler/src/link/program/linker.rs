@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
-use destack_core::StringPool;
+use destack_core::{SectionPacker, StringPool};
 use destack_heap as heap;
 use destack_mir as mir;
-use destack_program::{FunctionId, GlobalId, Program, ProgramHeader, TypeId};
+use destack_program::{
+    FunctionId, GlobalId, Program, ProgramHeader, StringTable, TraceTable, TypeId,
+};
 use destack_source::PackageId;
 
 use crate::{LinkError, LinkResult};
@@ -16,9 +18,9 @@ use super::{DispatchLinker, FunctionLinker, LayoutLinker, StaticLinker, TypeLink
 pub struct ProgramLinker {
     /// Package that owns the linked program.
     package: PackageId,
-    /// Local heap options baked into the executable program header.
+    /// Local heap options baked into the program header.
     heap_options: heap::HeapOptions,
-    /// Shared heap options baked into the executable program header.
+    /// Shared heap options baked into the program header.
     shared_heap_options: heap::SharedHeapOptions,
     /// MIR tree being linked.
     tree: mir::Tree,
@@ -32,13 +34,13 @@ pub struct ProgramLinker {
     dispatch_table: mir::DispatchTable,
     /// Program string pool.
     strings: StringPool,
-    /// Dense executable function ids keyed by MIR function id.
+    /// Dense program function ids keyed by MIR function id.
     function_ids: HashMap<mir::FunctionId, FunctionId>,
-    /// Dense executable type ids keyed by MIR type id.
+    /// Dense program type ids keyed by MIR type id.
     type_ids: HashMap<mir::TypeId, TypeId>,
-    /// MIR type ids keyed by executable type id.
+    /// MIR type ids keyed by program type id.
     types_by_id: Vec<mir::TypeId>,
-    /// Dense executable global ids keyed by MIR global id.
+    /// Dense program global ids keyed by MIR global id.
     global_ids: HashMap<mir::GlobalId, GlobalId>,
 }
 
@@ -79,8 +81,10 @@ impl ProgramLinker {
 
     /// Build the program.
     pub fn build(self) -> LinkResult<Program> {
-        // project program-wide tables before lowering executable code
-        let functions = FunctionLinker::new(&self.tree, &self.strings, &self).link();
+        let mut sections = SectionPacker::new();
+
+        // project program tables before lowering VM code
+        let functions = FunctionLinker::new(&self.tree, &self).link(&mut sections);
         let layouts = LayoutLinker::new(
             &self.tree,
             &self.target_layout,
@@ -88,12 +92,12 @@ impl ProgramLinker {
             &self.layout_table,
             &self,
         )
-        .link()?;
+        .link(&mut sections)?;
         let types = TypeLinker::new(&self.tree, &self.target_layout, &self.type_table, &self)
-            .link(&layouts.ids)?;
-        let statics =
-            StaticLinker::new(&self.tree, &self.target_layout, &self, &layouts.storage).link()?;
-        let dispatch = DispatchLinker::new(&self.dispatch_table, &self).link();
+            .link(&mut sections, &layouts.ids)?;
+        let statics = StaticLinker::new(&self.tree, &self.target_layout, &self, &layouts.storage)
+            .link(&mut sections)?;
+        let dispatch = DispatchLinker::new(&self.dispatch_table, &self).link(&mut sections);
 
         // lower VM code and frame metadata
         let vm = VmLinker::new(
@@ -105,35 +109,48 @@ impl ProgramLinker {
             &self.shared_heap_options,
             &self,
             &layouts.storage,
-            &layouts.traces,
+            &layouts.trace_maps,
         )
-        .link()?;
+        .link(&mut sections)?;
 
-        // assemble the durable program image
+        // project trace rows after VM lowering consumes compiler trace maps
+        let traces = TraceTable::pack(&mut sections, &layouts.trace_maps);
+        let strings = StringTable::from_pool(&mut sections, &self.strings);
+        let info = None;
+
+        // assemble the durable program
+        let package = self.package;
+        let (directory, storage) = sections.finish();
         let header = ProgramHeader::new(
+            directory,
             self.target_layout,
-            self.heap_options.clone(),
-            self.shared_heap_options.clone(),
-        );
-
-        Ok(Program::new(
-            header,
+            self.heap_options,
+            self.shared_heap_options,
+            strings,
             types,
             layouts.layouts,
             vm.frames,
             functions,
             dispatch,
-            layouts.traces,
-            None,
+            traces,
+            statics.globals,
+            info,
             statics.constants,
             statics.shared,
             statics.local,
             vm.code,
             None,
-        ))
+        );
+        let program = Program::new(header, storage).map_err(|error| LinkError::InvalidInput {
+            anchor: package.into(),
+            package,
+            context: error.to_string(),
+        })?;
+
+        Ok(program)
     }
 
-    /// Return one invalid executable input diagnostic.
+    /// Return one invalid program input diagnostic.
     pub(crate) fn invalid_input(&self, context: impl Into<String>) -> LinkError {
         LinkError::InvalidInput {
             anchor: self.package.into(),
@@ -241,6 +258,11 @@ impl ProgramLinker {
     /// Return the program function id for one MIR function.
     pub(crate) fn function_id(&self, function: mir::FunctionId) -> FunctionId {
         self.function_ids[&function]
+    }
+
+    /// Return the number of program function ids.
+    pub(crate) fn function_count(&self) -> usize {
+        self.function_ids.len()
     }
 
     /// Return the program type id for one MIR type.

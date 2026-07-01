@@ -146,7 +146,7 @@ impl<'a> BlockLowerer<'a> {
             return Some(Projection::fixed(
                 self.function.program.type_id(field.ty),
                 field.offset,
-                field.byte_len,
+                field.byte_len(),
                 cell_layout,
             ));
         }
@@ -164,7 +164,7 @@ impl<'a> BlockLowerer<'a> {
         Some(Projection::fixed(
             self.function.program.type_id(element.ty),
             offset,
-            element.byte_len,
+            element.byte_len(),
             cell_layout,
         ))
     }
@@ -211,7 +211,7 @@ impl<'a> BlockLowerer<'a> {
             self.function.program.type_id(element.ty),
             length,
             element.stride,
-            element.byte_len,
+            element.byte_len(),
             cell_layout,
         ))
     }
@@ -241,25 +241,25 @@ impl<'a> BlockLowerer<'a> {
 
         let element_layout = self.layouts().get(&element_type)?;
         let element_cell_layout = self.access_cell_layout(element_type);
-        let data_address_space = self
+        let pointer_address_space = self
             .function
             .address_space_for_reference(space.clone(), *kind);
-        let data_cell_layout = data_address_space.cell_layout();
+        let pointer_cell_layout = pointer_address_space.cell_layout();
         let pointer_bytes = self.function.pointer_bytes() as usize;
-        let data_byte_len = data_cell_layout.byte_len(pointer_bytes);
-        let length_offset = data_byte_len.next_multiple_of(pointer_bytes);
+        let pointer_byte_len = pointer_cell_layout.byte_len(pointer_bytes);
+        let length_offset = pointer_byte_len.next_multiple_of(pointer_bytes);
         let length_cell_layout = CellLayout::Uint {
             width: usize::BITS as u8,
         };
 
         Some(SliceProjection {
-            data: SlotProjection::fixed(0, data_byte_len, data_cell_layout),
+            pointer: SlotProjection::fixed(0, pointer_byte_len, pointer_cell_layout),
             length: SlotProjection::fixed(length_offset, pointer_bytes, length_cell_layout),
             element: Projection::indexed(
                 self.function.program.type_id(element_type),
                 0,
                 element_layout.stride(),
-                element_layout.byte_len,
+                element_layout.byte_len(),
                 element_cell_layout,
             ),
         })
@@ -295,7 +295,7 @@ impl<'a> BlockLowerer<'a> {
         Some(Projection::fixed(
             self.function.program.type_id(pointee_type),
             0,
-            layout.byte_len,
+            layout.byte_len(),
             cell_layout,
         ))
     }
@@ -312,7 +312,7 @@ impl<'a> BlockLowerer<'a> {
             self.function.program.type_id(element_type),
             0,
             layout.stride(),
-            layout.byte_len,
+            layout.byte_len(),
             cell_layout,
         ))
     }
@@ -363,7 +363,7 @@ impl<'a> BlockLowerer<'a> {
         Some(Projection::fixed(
             self.function.program.type_id(field.ty),
             field.offset,
-            field.byte_len,
+            field.byte_len(),
             cell_layout,
         ))
     }

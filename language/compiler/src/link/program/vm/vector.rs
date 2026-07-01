@@ -50,7 +50,7 @@ impl<'a> BlockLowerer<'a> {
             self.function.program.type_id(element.ty),
             element_count as u64,
             element.stride,
-            element.byte_len,
+            element.byte_len(),
             self.function.cell_layout_for_type(element.ty),
         );
 
@@ -368,7 +368,7 @@ impl<'a> BlockLowerer<'a> {
         let layout = self
             .function
             .require_scalar_format(element_type, "scalar vector element")?;
-        if element.byte_stride != element.byte_len {
+        if element.byte_stride() != element.byte_len() {
             return Ok(None);
         }
 
@@ -377,28 +377,28 @@ impl<'a> BlockLowerer<'a> {
             (
                 ScalarFormat::Int {
                     width: 32,
-                    is_signed: true,
+                    is_signed: 1,
                 },
                 4,
             ) => Some(PackedVector::I32x4),
             (
                 ScalarFormat::Int {
                     width: 32,
-                    is_signed: false,
+                    is_signed: 0,
                 },
                 4,
             ) => Some(PackedVector::U32x4),
             (
                 ScalarFormat::Int {
                     width: 64,
-                    is_signed: true,
+                    is_signed: 1,
                 },
                 2,
             ) => Some(PackedVector::I64x2),
             (
                 ScalarFormat::Int {
                     width: 64,
-                    is_signed: false,
+                    is_signed: 0,
                 },
                 2,
             ) => Some(PackedVector::U64x2),

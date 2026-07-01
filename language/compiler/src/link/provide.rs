@@ -1,9 +1,10 @@
 use super::ProductLinker;
 use super::js::JsLinker;
 use super::native::NativeLinker;
+use super::program::ProgramLinker;
 use super::state::LinkState;
 use crate::{Compiler, CompilerError, CompilerResult, LinkError};
-use destack_artifact::{ArtifactDependencySet, ArtifactPayload, Bundle, EmitFormat};
+use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, Bundle, EmitFormat};
 use destack_repository::{ArtifactReader, ProviderContext, RepositoryError, Target};
 use destack_source::{ModuleId, PackageId, ProductId, TargetId};
 use std::path::PathBuf;
@@ -68,10 +69,15 @@ impl Compiler {
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
-        self.target_link_setup(package, &target, context)?;
+        let setup = self.target_link_setup(package, &target, context)?;
+        let module = Self::program_module(package, target, &setup)?;
+        let mut dependencies = ArtifactDependencySet::default();
+
+        // collect the executable module image
+        let profile = self.profile_id_for_target(context.revision(), module, &target)?;
+        dependencies.require(ArtifactKey::mir_optimized(module, profile, target));
 
         // observe target package configuration
-        let mut dependencies = ArtifactDependencySet::default();
         self.observe_package_config(context, package, &mut dependencies)?;
 
         Ok(dependencies)
@@ -85,14 +91,40 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let setup = self.target_link_setup(package, &target, context)?;
-        let target_name = self.target_name(context.revision(), target)?;
+        let module = Self::program_module(package, target, &setup)?;
+        let profile = self.profile_id_for_target(context.revision(), module, &target)?;
+        let artifacts = self.artifact_reader(context.revision());
+        let optimized = artifacts
+            .mir_optimized(module, profile, target)
+            .map_err(CompilerError::from)?;
+        let heap = setup
+            .target
+            .execution
+            .heap
+            .local_heap_options()
+            .map_err(|error| Self::invalid_program_heap(package, target, error))?;
+        let shared_heap = setup
+            .target
+            .execution
+            .heap
+            .shared_heap_options()
+            .map_err(|error| Self::invalid_program_heap(package, target, error))?;
 
-        Err(CompilerError::Internal {
-            message: format!(
-                "program linking is not implemented for target '{target_name}' ({})",
-                setup.target.emit.canonical_tag()
-            ),
-        })
+        // link optimized MIR into an executable program image
+        let program = ProgramLinker::new(
+            package,
+            optimized.tree.clone(),
+            optimized.target,
+            optimized.types.clone(),
+            optimized.layouts.clone(),
+            optimized.dispatch.clone(),
+            self.strings().clone(),
+            heap,
+            shared_heap,
+        )
+        .build()?;
+
+        Ok(ArtifactPayload::Program(Arc::new(program)))
     }
 
     /// Collect inputs for one product.
@@ -174,6 +206,53 @@ impl Compiler {
             package_directory,
             root_directory,
         })
+    }
+
+    /// Return the single root module supported by executable program linking.
+    fn program_module(
+        package: PackageId,
+        target: TargetId,
+        setup: &TargetLinkSetup,
+    ) -> CompilerResult<ModuleId> {
+        if setup.target.emit.is_js_family() {
+            Err(LinkError::InvalidTarget {
+                anchor: package.into(),
+                package,
+                target,
+                message: format!(
+                    "program artifacts require a Destack executable target, found {}",
+                    setup.target.emit.canonical_tag()
+                ),
+            }
+            .into())
+        } else if setup.modules.len() == 1 {
+            Ok(setup.modules[0])
+        } else {
+            Err(LinkError::InvalidTarget {
+                anchor: package.into(),
+                package,
+                target,
+                message: format!(
+                    "executable program target must resolve to exactly one root module, found {}",
+                    setup.modules.len()
+                ),
+            }
+            .into())
+        }
+    }
+
+    /// Return an invalid target diagnostic for heap policy failures.
+    fn invalid_program_heap(
+        package: PackageId,
+        target: TargetId,
+        error: destack_heap::HeapError,
+    ) -> LinkError {
+        LinkError::InvalidTarget {
+            anchor: package.into(),
+            package,
+            target,
+            message: format!("invalid executable heap policy: {error}"),
+        }
     }
 
     /// Build the JS linker for one resolved target setup.

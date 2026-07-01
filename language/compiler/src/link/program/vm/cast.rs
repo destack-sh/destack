@@ -141,7 +141,7 @@ impl<'a> BlockLowerer<'a> {
                 condition_offset: self.cell_offset(condition)?,
                 then_offset: self.value_offset(then_value)?,
                 else_offset: self.value_offset(else_value)?,
-                byte_len: destination_layout.byte_len,
+                byte_len: destination_layout.byte_len(),
             },
         ))
     }

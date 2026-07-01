@@ -15,7 +15,7 @@ const CELL_BITS: usize = Cell::BYTE_LEN * 8;
 /// One transient byte-storage layout for one MIR type during VM lowering.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct StorageLayout {
-    /// The executable layout id for this value representation.
+    /// The program layout id for this value representation.
     pub(crate) layout_id: LayoutId,
     /// The byte width of the value representation.
     pub(crate) byte_len: usize,
@@ -35,7 +35,7 @@ pub(crate) struct StorageLayout {
     is_slice: bool,
 }
 
-/// One executable field layout.
+/// One lowered field layout.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct FieldLayout {
     /// The field value type.
@@ -46,7 +46,7 @@ pub(crate) struct FieldLayout {
     pub(crate) byte_len: usize,
 }
 
-/// One executable element layout.
+/// One lowered element layout.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ElementLayout {
     /// The element value type.
@@ -58,7 +58,12 @@ pub(crate) struct ElementLayout {
 }
 
 impl StorageLayout {
-    /// Build executable storage layouts for all MIR types in the tree.
+    /// Return the byte width of the value representation.
+    pub(crate) const fn byte_len(&self) -> usize {
+        self.byte_len
+    }
+
+    /// Build lowered storage layouts for all MIR types in the tree.
     pub(crate) fn build_all(
         tree: &mir::Tree,
         target_layout: &mir::TargetLayout,
@@ -112,10 +117,10 @@ impl StorageLayout {
         let element = ElementLayout {
             ty: element_type,
             stride,
-            byte_len: element_layout.byte_len,
+            byte_len: element_layout.byte_len(),
         };
 
-        debug_assert!(element_count == 0 || stride >= element_layout.byte_len);
+        debug_assert!(element_count == 0 || stride >= element_layout.byte_len());
 
         Self {
             layout_id,
@@ -137,7 +142,7 @@ impl StorageLayout {
 
     /// Report whether this type fits in one VM cell.
     pub(crate) fn is_cell(&self) -> bool {
-        self.is_scalar() && self.byte_len <= Cell::BYTE_LEN
+        self.is_scalar() && self.byte_len() <= Cell::BYTE_LEN
     }
 
     /// Return the byte alignment of this layout.
@@ -176,7 +181,21 @@ impl StorageLayout {
 
     /// Return the aligned stride.
     pub(crate) fn stride(&self) -> usize {
-        align_offset(self.byte_len, self.alignment)
+        align_offset(self.byte_len(), self.alignment)
+    }
+}
+
+impl FieldLayout {
+    /// Return the byte width of the field payload.
+    pub(crate) const fn byte_len(self) -> usize {
+        self.byte_len
+    }
+}
+
+impl ElementLayout {
+    /// Return the byte width of one element payload.
+    pub(crate) const fn byte_len(self) -> usize {
+        self.byte_len
     }
 }
 
@@ -190,7 +209,7 @@ struct StorageLayoutBuilder<'a> {
     table: &'a mir::LayoutTable,
     /// Executable layout ids keyed by MIR type.
     layout_ids: &'a HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
-    /// Program linker owning diagnostics and executable id projection.
+    /// Program linker owning diagnostics and program id projection.
     program: &'a ProgramLinker,
     /// Storage layouts built so far.
     layouts: HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>,
@@ -281,7 +300,7 @@ impl StorageLayoutBuilder<'_> {
                     .table
                     .type_layout(ty)
                     .ok_or_else(|| self.program.invalid_input("dynamic layout"))?;
-                self.layout_from_table_row(layout_id, layout)?
+                self.layout_from_table_entry(layout_id, layout)?
             }
             mir::Type::Newtype { .. } | mir::Type::WithLifetimes { .. } => {
                 unreachable!("repr_type must peel transparent type wrappers")
@@ -299,7 +318,7 @@ impl StorageLayoutBuilder<'_> {
                     .table
                     .type_layout(ty)
                     .ok_or_else(|| self.program.invalid_input("variant layout"))?;
-                self.layout_from_table_row(layout_id, layout)?
+                self.layout_from_table_entry(layout_id, layout)?
             }
             mir::Type::Tuple { elements, .. } => {
                 let element_types = elements.to_vec();
@@ -413,8 +432,8 @@ impl StorageLayoutBuilder<'_> {
         })
     }
 
-    /// Build one storage layout from one MIR layout table row.
-    fn layout_from_table_row(
+    /// Build one storage layout from one MIR layout table entry.
+    fn layout_from_table_entry(
         &mut self,
         layout_id: LayoutId,
         layout: &mir::Layout,
@@ -459,7 +478,7 @@ impl StorageLayoutBuilder<'_> {
         let Some(raw_layout) = self.table.type_layout(ty) else {
             return self.record_layout_from_fields(layout_id, field_types);
         };
-        let fields = Self::table_row_fields(raw_layout);
+        let fields = Self::table_entry_fields(raw_layout);
 
         Ok(StorageLayout {
             layout_id,
@@ -487,7 +506,7 @@ impl StorageLayoutBuilder<'_> {
         // prefer layout tables when present
         let (stride, byte_len, alignment) = match self.table.type_layout(ty) {
             Some(raw_layout) => (
-                self.table_row_array_stride(raw_layout)?,
+                self.table_entry_array_stride(raw_layout)?,
                 raw_layout.size as usize,
                 raw_layout.alignment as usize,
             ),
@@ -533,8 +552,8 @@ impl StorageLayoutBuilder<'_> {
         };
         let cell_layout = address_space.cell_layout();
         let pointer_bytes = self.target_layout.pointer_bytes() as usize;
-        let data_byte_len = cell_layout.byte_len(pointer_bytes);
-        let length_offset = align_offset(data_byte_len, pointer_bytes);
+        let pointer_byte_len = cell_layout.byte_len(pointer_bytes);
+        let length_offset = align_offset(pointer_byte_len, pointer_bytes);
         let byte_len = length_offset + pointer_bytes;
 
         Ok(StorageLayout {
@@ -648,8 +667,8 @@ impl StorageLayoutBuilder<'_> {
         })
     }
 
-    /// Extract ordered field layouts from one MIR layout table row.
-    fn table_row_fields(layout: &mir::Layout) -> Vec<FieldLayout> {
+    /// Extract ordered field layouts from one MIR layout table entry.
+    fn table_entry_fields(layout: &mir::Layout) -> Vec<FieldLayout> {
         let mut fields: Vec<_> = layout
             .shape
             .fields()
@@ -667,14 +686,14 @@ impl StorageLayoutBuilder<'_> {
             })
             .collect();
 
-        // read source order from the field rows
+        // read source order from the field entries
         fields.sort_by_key(|(index, _)| *index);
 
         fields.into_iter().map(|(_, field)| field).collect()
     }
 
-    /// Return the fixed-array stride from one MIR layout table row.
-    fn table_row_array_stride(&self, layout: &mir::Layout) -> LinkResult<usize> {
+    /// Return the fixed-array stride from one MIR layout table entry.
+    fn table_entry_array_stride(&self, layout: &mir::Layout) -> LinkResult<usize> {
         let mir::LayoutShape::Array(layout) = &layout.shape else {
             return Err(self.program.invalid_input("layout table array stride"));
         };
@@ -700,11 +719,11 @@ impl StorageLayoutBuilder<'_> {
             fields.push(FieldLayout {
                 ty: field_type,
                 offset,
-                byte_len: field_layout.byte_len,
+                byte_len: field_layout.byte_len(),
             });
 
             next_offset = offset
-                .checked_add(field_layout.byte_len)
+                .checked_add(field_layout.byte_len())
                 .ok_or_else(|| self.program.layout_overflow("record field offset"))?;
             alignment = alignment.max(field_layout.alignment);
         }
