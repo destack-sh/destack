@@ -1,0 +1,514 @@
+use destack_dir as dir;
+use destack_source::ModuleId;
+use smallvec::SmallVec;
+
+use crate::CompilerResult;
+use crate::check::{Answer, CheckState, Decision, FlowPointId, Origin, Relation, answer};
+
+/// One written tagged pattern head.
+#[derive(Debug, Clone)]
+pub(in crate::check) struct TaggedPatternHead {
+    /// The tagged owner type.
+    owner: dir::GlobalTypeId,
+    /// The tagged owner instance.
+    instance: dir::GenericInstance,
+    /// The written case key.
+    key: dir::StaticKey,
+}
+
+/// One tagged case named by a pattern.
+#[derive(Debug, Clone)]
+struct TaggedCaseSelection {
+    /// The tagged case identity.
+    case: dir::VariantCase,
+    /// The matched owner generic arguments.
+    generic_arguments: Vec<dir::GenericArgumentBinding>,
+    /// The runtime discriminant value.
+    discriminant: dir::ScalarLiteral,
+    /// The compact payload type.
+    payload: dir::GlobalTypeId,
+    /// The compact payload fields.
+    fields: Vec<TaggedPayloadField>,
+}
+
+/// One field in a compact tagged payload.
+#[derive(Debug, Clone, Copy)]
+struct TaggedPayloadField {
+    /// The source payload key.
+    key: dir::StaticKey,
+    /// The projected field type.
+    ty: dir::GlobalTypeId,
+}
+
+impl CheckState<'_> {
+    /// Return the tagged owner and case named by one variant pattern.
+    pub(in crate::check) fn tagged_pattern_head(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        ty: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> CompilerResult<Answer<Option<TaggedPatternHead>>> {
+        let source = ty.into_global_any(module);
+        let expression = self.module(module).view().get(ty).clone();
+        match expression {
+            dir::TypeExpression::Member { left, name, .. } => {
+                let owner = answer!(self.committed_node_type(left.into_global_any(module))?);
+                let key = dir::StaticKey::Name(name);
+
+                self.tagged_pattern_head_from_owner(origin, owner, key)
+            }
+            dir::TypeExpression::Reference { path, .. } => {
+                let reference = self.module(module).resolved.references.get(source).cloned();
+                let Some(dir::Reference::Projected { base, from }) = reference else {
+                    return self.tagged_pattern_head_from_type(origin, source);
+                };
+                let Some(name) = path.segments.get(from as usize).copied() else {
+                    return Ok(Answer::Ready(None));
+                };
+                let owner = answer!(self.symbol_type(base)?);
+                let key = dir::StaticKey::Name(name);
+
+                self.tagged_pattern_head_from_owner(origin, owner, key)
+            }
+            _ => self.tagged_pattern_head_from_type(origin, source),
+        }
+    }
+
+    /// Select one tagged variant pattern.
+    pub(in crate::check) fn select_tagged_variant_pattern(
+        &mut self,
+        node: dir::GlobalNodeId<dir::Pattern>,
+        origin: Origin,
+        flow: FlowPointId,
+        head: TaggedPatternHead,
+        fields: &[dir::LocalNodeId<dir::PatternField>],
+    ) -> CompilerResult<Answer<()>> {
+        if !self.symbol_has_tagged_derive(head.instance.symbol) {
+            return self.reject_pattern(node, origin, head.owner);
+        }
+
+        // require the matched input to belong to the tagged owner
+        let input = answer!(self.committed_node_type(node.into_any())?);
+        let belongs =
+            answer!(self.decide_relation(origin, Relation::Assignable, input, head.owner)?);
+        let variant = self.format_variant_case(head.owner, head.key);
+        if !belongs {
+            self.report_pattern_variant_not_in_type(origin, variant, input)?;
+            self.commit_decision(node.into_any(), Decision::Rejected)?;
+
+            return Ok(Answer::Ready(()));
+        }
+
+        // select the requested case from the substituted newtype backing
+        let Some(case) = answer!(self.tagged_case_selection(origin, &head)?) else {
+            let key = self.format_static_key(&head.key);
+            self.report_pattern_variant_missing(origin, key, head.owner)?;
+            self.commit_decision(node.into_any(), Decision::Rejected)?;
+
+            return Ok(Answer::Ready(()));
+        };
+
+        // project written fields out of the compact payload
+        let projected = self.project_tagged_payload_fields(
+            node,
+            origin,
+            flow,
+            case.payload,
+            &case.fields,
+            fields,
+        )?;
+
+        let tag_type = self.push_type_at_origin(origin, dir::Type::from(&case.discriminant))?;
+        let projection = dir::Projection::VariantPayload {
+            case: case.case,
+            generic_arguments: case.generic_arguments,
+            discriminant: case.discriminant,
+            ty: case.payload,
+        };
+        let predicate = dir::Predicate::unary(
+            dir::PredicateOperand::projected(dir::Projection::VariantTag { ty: tag_type }),
+            dir::PredicateCondition::Literal(case.discriminant),
+        )
+        .with_narrowed(head.owner)
+        .with_projection(projection.clone());
+
+        self.commit_pattern(
+            node,
+            dir::PatternResolution::Destructure(dir::PatternDestructureResolution::Variant(
+                dir::PatternVariantDestructureResolution {
+                    predicate,
+                    projection,
+                    fields: projected,
+                },
+            )),
+        )
+    }
+
+    /// Return the tagged pattern head carried by one computed member type.
+    fn tagged_pattern_head_from_type(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<Answer<Option<TaggedPatternHead>>> {
+        let ty = answer!(self.committed_node_type(source)?);
+        let member = match self.ty(ty)? {
+            dir::Type::Member(member) => member.clone(),
+            _ => return Ok(Answer::Ready(None)),
+        };
+
+        self.tagged_pattern_head_from_owner(origin, member.owner, member.key)
+    }
+
+    /// Return a tagged pattern head from an owner type and a written case key.
+    fn tagged_pattern_head_from_owner(
+        &mut self,
+        origin: Origin,
+        owner: dir::GlobalTypeId,
+        key: dir::StaticKey,
+    ) -> CompilerResult<Answer<Option<TaggedPatternHead>>> {
+        let owner = answer!(self.reduce_type_head(origin, owner)?);
+        let (owner, instance) = match self.ty(owner)? {
+            dir::Type::Instance(instance) => (owner, instance.clone()),
+            dir::Type::Reference(reference) => {
+                if let Some(template) = self.symbol_template(reference.symbol)
+                    && !self.generic_template_parameters(template).is_empty()
+                {
+                    return Ok(Answer::Ready(None));
+                }
+
+                let instance = dir::GenericInstance {
+                    symbol: reference.symbol,
+                    arguments: Vec::new(),
+                };
+                let owner =
+                    self.push_type_at_origin(origin, dir::Type::Instance(instance.clone()))?;
+
+                (owner, instance)
+            }
+            _ => return Ok(Answer::Ready(None)),
+        };
+
+        Ok(Answer::Ready(Some(TaggedPatternHead {
+            owner,
+            instance,
+            key,
+        })))
+    }
+
+    /// Select one tagged case from a newtype backing.
+    fn tagged_case_selection(
+        &mut self,
+        origin: Origin,
+        head: &TaggedPatternHead,
+    ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
+        let module = origin.module();
+        let source = self.origin_source_node(origin)?;
+        let Some(dir::Definition::Newtype(definition)) = self.definition(head.instance.symbol)
+        else {
+            return Ok(Answer::Ready(None));
+        };
+
+        // reduce the owner backing under its matched arguments
+        let substitution = self
+            .instance_substitution(&head.instance)?
+            .with_receiver(head.owner);
+        let backing = self.substitute_type(module, source, definition.value, &substitution)?;
+        let backing = answer!(self.reduce_type_head(origin, backing)?);
+
+        // search every union arm, or the backing itself for one-case newtypes
+        let mut arms = SmallVec::<[_; 4]>::new();
+        match self.ty(backing)? {
+            dir::Type::Union(union) => arms.extend(union.elements.iter().copied()),
+            _ => arms.push(backing),
+        }
+        for arm in arms {
+            let arm = answer!(self.reduce_type_head(origin, arm)?);
+            let Some(case) = answer!(self.tagged_case_from_arm(origin, head, arm)?) else {
+                continue;
+            };
+
+            return Ok(Answer::Ready(Some(case)));
+        }
+
+        Ok(Answer::Ready(None))
+    }
+
+    /// Select one tagged case from one reduced backing arm.
+    fn tagged_case_from_arm(
+        &mut self,
+        origin: Origin,
+        head: &TaggedPatternHead,
+        arm: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
+        match self.ty(arm)? {
+            dir::Type::Instance(instance) => {
+                let instance = instance.clone();
+
+                self.tagged_case_from_instance(origin, head, arm, &instance)
+            }
+            dir::Type::Shape(shape) => {
+                let shape = shape.clone();
+
+                self.tagged_case_from_shape(origin, head, &shape)
+            }
+            _ => Ok(Answer::Ready(None)),
+        }
+    }
+
+    /// Select one tagged case from a nominal backing arm.
+    fn tagged_case_from_instance(
+        &mut self,
+        origin: Origin,
+        head: &TaggedPatternHead,
+        arm: dir::GlobalTypeId,
+        instance: &dir::GenericInstance,
+    ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
+        let Some(key) = self
+            .binding_table(instance.symbol.module_id)
+            .get_symbol(instance.symbol.local_id)
+            .key
+        else {
+            return Ok(Answer::Ready(None));
+        };
+        if !key.matches(&head.key) {
+            return Ok(Answer::Ready(None));
+        }
+
+        let tag_key = self.tagged_discriminant_key(origin.module());
+        let Some(discriminant) = answer!(self.tagged_instance_discriminant(origin, arm, tag_key)?)
+        else {
+            return Ok(Answer::Ready(None));
+        };
+
+        let fields = answer!(self.tagged_instance_payload_fields(origin, arm, tag_key)?);
+        let payload = self.tagged_payload_type(origin, &fields)?;
+        let Some(case) = self.tagged_variant_case(head.instance.symbol, key) else {
+            return Ok(Answer::Ready(None));
+        };
+        let generic_arguments =
+            self.symbol_generic_argument_bindings(head.instance.symbol, &head.instance.arguments)?;
+
+        Ok(Answer::Ready(Some(TaggedCaseSelection {
+            case,
+            generic_arguments,
+            discriminant,
+            payload,
+            fields,
+        })))
+    }
+
+    /// Select one tagged case from a structural backing arm.
+    fn tagged_case_from_shape(
+        &mut self,
+        origin: Origin,
+        head: &TaggedPatternHead,
+        shape: &dir::ShapeType,
+    ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
+        let tag_key = self.tagged_discriminant_key(origin.module());
+        let Some(tag) = shape.fields.iter().find(|field| field.key == tag_key) else {
+            return Ok(Answer::Ready(None));
+        };
+        let tag = answer!(self.reduce_type_head(origin, tag.ty)?);
+        let dir::Type::Literal(discriminant) = self.ty(tag)? else {
+            return Ok(Answer::Ready(None));
+        };
+        let discriminant = *discriminant;
+
+        let Some(key) = self.tagged_case_key_from_discriminant(origin.module(), discriminant)
+        else {
+            return Ok(Answer::Ready(None));
+        };
+        if !key.matches(&head.key) {
+            return Ok(Answer::Ready(None));
+        }
+
+        let fields = shape
+            .fields
+            .iter()
+            .filter(|field| field.key != tag_key)
+            .map(|field| TaggedPayloadField {
+                key: field.key,
+                ty: field.ty,
+            })
+            .collect::<Vec<_>>();
+        let payload = self.tagged_payload_type(origin, &fields)?;
+        let Some(case) = self.tagged_variant_case(head.instance.symbol, key) else {
+            return Ok(Answer::Ready(None));
+        };
+        let generic_arguments =
+            self.symbol_generic_argument_bindings(head.instance.symbol, &head.instance.arguments)?;
+
+        Ok(Answer::Ready(Some(TaggedCaseSelection {
+            case,
+            generic_arguments,
+            discriminant,
+            payload,
+            fields,
+        })))
+    }
+
+    /// Return the compact payload fields named by one nominal arm.
+    fn tagged_instance_payload_fields(
+        &mut self,
+        origin: Origin,
+        arm: dir::GlobalTypeId,
+        tag_key: dir::StaticKey,
+    ) -> CompilerResult<Answer<Vec<TaggedPayloadField>>> {
+        let dir::Type::Instance(instance) = self.ty(arm)? else {
+            return Ok(Answer::Ready(Vec::new()));
+        };
+        let Some(definition) = self.definition(instance.symbol) else {
+            return Ok(Answer::Ready(Vec::new()));
+        };
+
+        let fields = definition
+            .instance_fields()
+            .filter(|field| field.key != tag_key)
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut payload = Vec::with_capacity(fields.len());
+        for field in fields {
+            let lookup = answer!(self.lookup_member(
+                origin,
+                origin.module(),
+                arm,
+                dir::MemberSpace::Instance,
+                field.key,
+            )?);
+            let Some(ty) = lookup.value_type() else {
+                continue;
+            };
+
+            payload.push(TaggedPayloadField { key: field.key, ty });
+        }
+
+        Ok(Answer::Ready(payload))
+    }
+
+    /// Return the compact payload object type for named payload fields.
+    fn tagged_payload_type(
+        &mut self,
+        origin: Origin,
+        fields: &[TaggedPayloadField],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let fields = fields
+            .iter()
+            .map(|field| dir::TypeField {
+                key: field.key,
+                ty: field.ty,
+                is_optional: false,
+                is_readonly: false,
+            })
+            .collect();
+        let shape = dir::ShapeType {
+            fields,
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        };
+
+        self.push_type_at_origin(origin, dir::Type::Shape(shape))
+    }
+
+    /// Project written pattern fields from a compact tagged payload.
+    fn project_tagged_payload_fields(
+        &mut self,
+        node: dir::GlobalNodeId<dir::Pattern>,
+        origin: Origin,
+        flow: FlowPointId,
+        payload: dir::GlobalTypeId,
+        payload_fields: &[TaggedPayloadField],
+        fields: &[dir::LocalNodeId<dir::PatternField>],
+    ) -> CompilerResult<Vec<dir::PatternFieldResolution>> {
+        let module = node.module_id;
+        let mut projected = Vec::with_capacity(fields.len());
+        let mut position = 0usize;
+        for field in fields {
+            let source = field.into_global_any(module);
+            let field_node = self.module(module).view().get(*field).clone();
+            match field_node {
+                dir::PatternField::Positional { pattern } => {
+                    let pattern_type = self.tagged_positional_payload_type(
+                        module,
+                        payload,
+                        payload_fields,
+                        pattern,
+                        position,
+                    );
+                    let Some(pattern_type) = pattern_type else {
+                        let key = position.to_string();
+                        self.report_pattern_field_missing(origin, payload, key)?;
+                        position += 1;
+
+                        continue;
+                    };
+
+                    self.project_pattern_input(
+                        flow,
+                        pattern_type,
+                        pattern.into_global_any(module),
+                    )?;
+                    projected.push(dir::PatternFieldResolution {
+                        source,
+                        projection: dir::Projection::FieldGet {
+                            field: dir::ProjectionField::Key(dir::StaticKey::Index(position)),
+                            ty: pattern_type,
+                        },
+                        pattern: Some(pattern.into_global_any(module)),
+                    });
+                    position += 1;
+                }
+                dir::PatternField::Named { name, pattern, .. } => {
+                    let key = name.static_key();
+                    let Some(field) = payload_fields.iter().find(|field| field.key == key) else {
+                        let key = self.format_static_key(&key);
+                        self.report_pattern_field_missing(origin, payload, key)?;
+
+                        continue;
+                    };
+
+                    if let Some(pattern) = pattern {
+                        self.project_pattern_input(
+                            flow,
+                            field.ty,
+                            pattern.into_global_any(module),
+                        )?;
+                    }
+                    projected.push(dir::PatternFieldResolution {
+                        source,
+                        projection: dir::Projection::FieldGet {
+                            field: dir::ProjectionField::Key(key),
+                            ty: field.ty,
+                        },
+                        pattern: pattern.map(|pattern| pattern.into_global_any(module)),
+                    });
+                }
+                dir::PatternField::Elision => {
+                    position += 1;
+                }
+                dir::PatternField::Computed { .. } | dir::PatternField::Spread { .. } => {
+                    self.report_pattern_source_not_object_shaped(origin, payload)?;
+                }
+            }
+        }
+
+        Ok(projected)
+    }
+
+    /// Return one positional compact payload type.
+    fn tagged_positional_payload_type(
+        &self,
+        module: ModuleId,
+        payload: dir::GlobalTypeId,
+        fields: &[TaggedPayloadField],
+        pattern: dir::LocalNodeId<dir::Pattern>,
+        position: usize,
+    ) -> Option<dir::GlobalTypeId> {
+        let pattern = self.module(module).view().get(pattern);
+        if matches!(pattern, dir::Pattern::Object { .. }) {
+            return Some(payload);
+        }
+
+        fields.get(position).map(|field| field.ty)
+    }
+}
