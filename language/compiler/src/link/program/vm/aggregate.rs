@@ -21,16 +21,29 @@ struct FrameRange {
 }
 
 impl FrameRange {
+    /// Return the byte offset from the frame value base.
+    fn byte_offset(self) -> usize {
+        self.byte_offset
+    }
+
+    /// Return the byte width of this byte range.
+    fn byte_len(self) -> usize {
+        self.byte_len
+    }
+
+    /// Return the cell representation for this range.
+    fn cell_layout(self) -> Option<destack_program::CellLayout> {
+        self.cell_layout
+    }
+
     /// Return this frame range as a projection.
     fn to_projection(self) -> Projection {
-        Projection {
-            value_type: self.value_type,
-            byte_offset: self.byte_offset,
-            byte_stride: 0,
-            length: 0,
-            byte_len: self.byte_len,
-            cell_layout: self.cell_layout,
-        }
+        Projection::fixed(
+            self.value_type,
+            self.byte_offset,
+            self.byte_len,
+            self.cell_layout,
+        )
     }
 }
 
@@ -98,7 +111,7 @@ impl<'a> BlockLowerer<'a> {
             .ok_or_else(|| self.invalid_field_access(*index, field_count))?;
 
         // read cell fields directly
-        if field.cell_layout.is_some() {
+        if field.cell_layout().is_some() {
             let access = field;
             let op = select_frame_value_load_op(access)
                 .ok_or_else(|| self.invalid_instruction("frame value load operation"))?;
@@ -107,7 +120,7 @@ impl<'a> BlockLowerer<'a> {
                 op,
                 self.cell_offset(destination)?,
                 self.value_offset(base)?,
-                self.instruction_byte_offset(access.byte_offset)?,
+                self.instruction_byte_offset(access.byte_offset())?,
                 0,
             )]);
         }
@@ -116,14 +129,14 @@ impl<'a> BlockLowerer<'a> {
         let destination_access = FrameRange {
             value_type: self.function.program.type_id(destination_type),
             byte_offset: 0,
-            byte_len: field.byte_len,
+            byte_len: field.byte_len(),
             cell_layout: None,
         };
         let source_access = FrameRange {
             value_type: field.value_type,
-            byte_offset: field.byte_offset,
-            byte_len: field.byte_len,
-            cell_layout: field.cell_layout,
+            byte_offset: field.byte_offset(),
+            byte_len: field.byte_len(),
+            cell_layout: field.cell_layout(),
         };
 
         Ok(vec![self.move_frame_instruction(
@@ -155,14 +168,14 @@ impl<'a> BlockLowerer<'a> {
         let whole = FrameRange {
             value_type: self.function.program.type_id(destination_type),
             byte_offset: 0,
-            byte_len: layout.byte_len,
+            byte_len: layout.byte_len(),
             cell_layout: None,
         };
         let field = FrameRange {
             value_type: field.value_type,
-            byte_offset: field.byte_offset,
-            byte_len: field.byte_len,
-            cell_layout: field.cell_layout,
+            byte_offset: field.byte_offset(),
+            byte_len: field.byte_len(),
+            cell_layout: field.cell_layout(),
         };
 
         // move the original frame value and overwrite one field
@@ -186,7 +199,7 @@ impl<'a> BlockLowerer<'a> {
                 ranges.push(FrameRange {
                     value_type: self.function.program.type_id(field.ty),
                     byte_offset: field.offset,
-                    byte_len: field.byte_len,
+                    byte_len: field.byte_len(),
                     cell_layout: self.function.cell_layout_for_type(field.ty),
                 });
             }
@@ -213,7 +226,7 @@ impl<'a> BlockLowerer<'a> {
             ranges.push(FrameRange {
                 value_type: self.function.program.type_id(element.ty),
                 byte_offset,
-                byte_len: element.byte_len,
+                byte_len: element.byte_len(),
                 cell_layout: self.function.cell_layout_for_type(element.ty),
             });
         }
@@ -229,7 +242,7 @@ impl<'a> BlockLowerer<'a> {
         range: FrameRange,
     ) -> LinkResult<Instruction> {
         // move non-cell values as aggregate ranges
-        if range.cell_layout.is_none() {
+        if range.cell_layout().is_none() {
             let destination_access = range.to_projection();
             let source_access = FrameRange {
                 byte_offset: 0,
@@ -248,9 +261,9 @@ impl<'a> BlockLowerer<'a> {
         // store cell values through the normal frame store path
         let access = Projection::fixed(
             range.value_type,
-            range.byte_offset,
-            range.byte_len,
-            range.cell_layout,
+            range.byte_offset(),
+            range.byte_len(),
+            range.cell_layout(),
         );
         let op = select_frame_value_store_op(access)
             .ok_or_else(|| self.invalid_instruction("frame value store operation"))?;
@@ -259,7 +272,7 @@ impl<'a> BlockLowerer<'a> {
             op,
             self.value_offset(destination)?,
             self.cell_offset(value)?,
-            self.instruction_byte_offset(access.byte_offset)?,
+            self.instruction_byte_offset(access.byte_offset())?,
             0,
         ))
     }
@@ -272,18 +285,18 @@ impl<'a> BlockLowerer<'a> {
         source: mir::Value,
         source_access: Projection,
     ) -> LinkResult<Instruction> {
-        if destination_access.byte_len != source_access.byte_len {
+        if destination_access.byte_len() != source_access.byte_len() {
             return Err(self.invalid_instruction("frame move byte length"));
         }
 
         let destination_offset =
-            self.value_offset(destination)? + destination_access.byte_offset as u32;
-        let source_offset = self.value_offset(source)? + source_access.byte_offset as u32;
+            self.value_offset(destination)? + destination_access.byte_offset() as u32;
+        let source_offset = self.value_offset(source)? + source_access.byte_offset() as u32;
 
         Ok(Instruction::new(
             Op::MoveAggregate,
             destination_offset,
-            destination_access.byte_len as u32,
+            destination_access.byte_len() as u32,
             source_offset,
             0,
         ))

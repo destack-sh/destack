@@ -5,7 +5,7 @@ use crate::LinkResult;
 use destack_heap::{HeapReference, SharedHeapReference};
 
 use destack_program::ReferenceStorage;
-use destack_program::vm::{Cell, ConstValue, Instruction, Op};
+use destack_program::vm::{Cell, ConstValueBuilder, Instruction, Op};
 
 use super::lower::BlockLowerer;
 use super::pool::Pool;
@@ -40,7 +40,7 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // pool aggregate constants
-        let value = ConstValue::Aggregate(self.constant_bytes(value, layout.byte_len)?);
+        let value = ConstValueBuilder::aggregate(self.constant_bytes(value, layout.byte_len())?);
         let value = pool.constant(value);
 
         Ok(Instruction::new(

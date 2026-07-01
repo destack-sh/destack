@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use destack_core::SectionPacker;
 use destack_heap as heap;
 use destack_mir as mir;
 use destack_mir::TraceTable;
@@ -23,7 +24,7 @@ pub(crate) struct VmCode {
     pub(crate) frames: FrameTable,
 }
 
-/// Link MIR functions into executable VM code and frame metadata.
+/// Link MIR functions into VM code and frame metadata.
 #[derive(Debug)]
 pub(crate) struct VmLinker<'a> {
     /// MIR tree being linked.
@@ -34,11 +35,11 @@ pub(crate) struct VmLinker<'a> {
     types: &'a mir::TypeTable,
     /// MIR layout table produced by lower and optimization.
     layouts: &'a mir::LayoutTable,
-    /// Local heap options baked into the executable program header.
+    /// Local heap options baked into the program header.
     heap_options: &'a heap::HeapOptions,
-    /// Shared heap options baked into the executable program header.
+    /// Shared heap options baked into the program header.
     shared_heap_options: &'a heap::SharedHeapOptions,
-    /// Program linker owning dense executable id projection.
+    /// Program linker owning dense program id projection.
     program: &'a ProgramLinker,
     /// Lowered value storage layouts keyed by MIR type id.
     storage: &'a HashMap<mir::TypeId, StorageLayout>,
@@ -47,8 +48,8 @@ pub(crate) struct VmLinker<'a> {
     /// MIR function ids that lower to VM code.
     lowering_order: Vec<mir::FunctionId>,
     /// Executable call targets keyed by program function id.
-    call_targets: HashMap<FunctionId, CallTarget>,
-    /// Linked frame layouts and materialization rows.
+    call_targets: Vec<Option<CallTarget>>,
+    /// Linked frame layouts and materialization entries.
     frames: FrameLinker<'a>,
     /// Linked resume states.
     resume: ResumeLinker<'a>,
@@ -79,7 +80,7 @@ impl<'a> VmLinker<'a> {
             storage,
             traces,
             lowering_order: Vec::new(),
-            call_targets: HashMap::new(),
+            call_targets: Vec::new(),
             frames: FrameLinker::new(tree, program, storage),
             resume: ResumeLinker::new(tree, program),
         };
@@ -89,23 +90,23 @@ impl<'a> VmLinker<'a> {
         linker
     }
 
-    /// Link executable VM code and frame metadata.
-    pub(crate) fn link(mut self) -> LinkResult<VmCode> {
+    /// Link VM code and frame metadata.
+    pub(crate) fn link(mut self, sections: &mut SectionPacker) -> LinkResult<VmCode> {
         let mut side_table = SideTableBuilder::default();
 
-        // lower executable VM code and finish side tables
+        // lower VM code and finish side tables
         let functions = self.build_functions(&mut side_table)?;
-        let side_table = side_table.finish();
-        let functions = vm::FunctionTable::new(functions, self.call_targets);
-        let code = Code::new(functions, side_table, self.resume.finish());
+        let side_table = side_table.pack(sections);
+        let functions = vm::FunctionTable::pack(sections, functions, self.call_targets);
+        let code = Code::new(functions, side_table, self.resume.finish(sections));
 
         Ok(VmCode {
             code,
-            frames: self.frames.finish(),
+            frames: self.frames.finish(sections),
         })
     }
 
-    /// Return the dense executable id projection.
+    /// Return the dense program id projection.
     pub(crate) fn program(&self) -> &ProgramLinker {
         self.program
     }
@@ -145,13 +146,13 @@ impl<'a> VmLinker<'a> {
         self.storage
     }
 
-    /// Return the executable trace table.
+    /// Return the compiler trace maps.
     pub(crate) fn traces(&self) -> &TraceTable {
         self.traces
     }
 
     /// Return the call target table.
-    pub(crate) fn call_targets(&self) -> &HashMap<FunctionId, CallTarget> {
+    pub(crate) fn call_targets(&self) -> &[Option<CallTarget>] {
         &self.call_targets
     }
 
@@ -177,11 +178,15 @@ impl<'a> VmLinker<'a> {
 
     /// Build the lowered function order and call target map.
     fn build_call_targets(&mut self) {
+        // size the dense target table to the program function id space
+        let function_count = self.program.function_count();
+        self.call_targets.resize(function_count, None);
+
         // collect imported and lowerable functions
         for (function_id, function) in self.tree.iter_nodes::<mir::Function>() {
             if function.is_import() {
-                self.call_targets
-                    .insert(self.function_id(function_id), CallTarget::Import);
+                let function = self.function_id(function_id);
+                self.call_targets[function.index()] = Some(CallTarget::IMPORT);
                 continue;
             }
 
@@ -194,10 +199,8 @@ impl<'a> VmLinker<'a> {
 
         // assign stable lowered indices in build order
         for (slot, function_id) in self.lowering_order.iter().enumerate() {
-            self.call_targets.insert(
-                self.function_id(*function_id),
-                CallTarget::Local(slot as u32),
-            );
+            let function = self.function_id(*function_id);
+            self.call_targets[function.index()] = Some(CallTarget::local(slot as u32));
         }
     }
 
@@ -223,11 +226,21 @@ impl<'a> VmLinker<'a> {
         self.frames.slot_is_cell(slot)
     }
 
+    /// Return one value slot inside one frame layout.
+    pub(crate) fn frame_value_slot(&self, layout: &FrameLayout, value: u32) -> Option<&FrameSlot> {
+        self.frames.value_slot(layout, value)
+    }
+
+    /// Return one local slot inside one frame layout.
+    pub(crate) fn frame_local_slot(&self, layout: &FrameLayout, local: u32) -> Option<&FrameSlot> {
+        self.frames.local_slot(layout, local)
+    }
+
     /// Build the lowered functions and append their execution tables.
     fn build_functions(
         &mut self,
         side_table: &mut SideTableBuilder,
-    ) -> LinkResult<Vec<vm::Function>> {
+    ) -> LinkResult<Vec<vm::FunctionBuilder>> {
         let lowering_order = std::mem::take(&mut self.lowering_order);
         let mut functions = Vec::with_capacity(lowering_order.len());
 
@@ -245,7 +258,7 @@ impl<'a> VmLinker<'a> {
         &mut self,
         function_id: mir::FunctionId,
         side_table: &mut SideTableBuilder,
-    ) -> LinkResult<vm::Function> {
+    ) -> LinkResult<vm::FunctionBuilder> {
         let function = self.tree.get(function_id);
         let program_function = self.function_id(function_id);
         let value_types = self.value_types(function)?;

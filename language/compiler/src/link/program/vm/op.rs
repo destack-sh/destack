@@ -375,7 +375,7 @@ pub(super) fn select_load_op(address_space: AddressSpace, projection: Projection
         return select_aggregate_load_op(address_space);
     }
 
-    let layout = projection.cell_layout?;
+    let layout = projection.cell_layout()?;
     let load = scalar_load(layout)?;
 
     select_scalar_load_op(address_space, load)
@@ -387,7 +387,7 @@ pub(super) fn select_store_op(address_space: AddressSpace, projection: Projectio
         return select_aggregate_store_op(address_space);
     }
 
-    let layout = projection.cell_layout?;
+    let layout = projection.cell_layout()?;
     let store = scalar_store(layout)?;
 
     select_scalar_store_op(address_space, store)
@@ -473,7 +473,7 @@ fn select_scalar_store_op(address_space: AddressSpace, store: ScalarStore) -> Op
 
 /// Select one frame value scalar load operation.
 pub(super) fn select_frame_value_load_op(projection: Projection) -> Option<Op> {
-    let layout = projection.cell_layout?;
+    let layout = projection.cell_layout()?;
 
     Some(match scalar_load(layout)? {
         ScalarLoad::U8 => Op::LoadFrameValueU8,
@@ -488,7 +488,7 @@ pub(super) fn select_frame_value_load_op(projection: Projection) -> Option<Op> {
 
 /// Select one frame value scalar store operation.
 pub(super) fn select_frame_value_store_op(projection: Projection) -> Option<Op> {
-    let layout = projection.cell_layout?;
+    let layout = projection.cell_layout()?;
 
     Some(match scalar_store(layout)? {
         ScalarStore::Width8 => Op::StoreFrameValue8,

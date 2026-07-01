@@ -5,14 +5,16 @@ use crate::LinkResult;
 use destack_program::AddressSpace;
 use destack_program::vm::{
     Instruction, Op, Projection, TensorAddress, TensorBinary, TensorBroadcast, TensorConcat,
-    TensorContiguousBinary, TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract,
-    TensorFill, TensorGather, TensorIndexReduce, TensorLayout, TensorLayoutId, TensorLoad,
-    TensorPad, TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore,
-    TensorTranspose, TensorView, U32RangeId, column_major_strides, row_major_strides, static_shape,
+    TensorContiguousBinary, TensorConvert, TensorConvolution, TensorConvolutionDimensionsBuilder,
+    TensorConvolutionWindowBuilder, TensorCopy, TensorDot, TensorDotDimensionsBuilder,
+    TensorExtract, TensorFill, TensorGather, TensorGatherDimensionsBuilder, TensorIndexReduce,
+    TensorLayoutBuilder, TensorLayoutId, TensorLoad, TensorPad, TensorReduce, TensorReshape,
+    TensorScatter, TensorScatterDimensionsBuilder, TensorSelect, TensorSlice, TensorStore,
+    TensorTranspose, TensorView, U32RangeId, column_major_strides, row_major_strides,
     tensor_element_count, tensor_element_span_len,
 };
 
-use super::arithmetic::{element_binary_kernel, same_contiguous_tensor_order};
+use super::arithmetic::element_binary_kernel;
 use super::lower::BlockLowerer;
 use super::pool::Pool;
 
@@ -588,7 +590,9 @@ impl<'a> BlockLowerer<'a> {
                     .ok_or_else(|| self.invalid_instruction("tensor compare element layout"))?;
                 let kernel = element_binary_kernel(*operator, element_layout)
                     .ok_or_else(|| self.invalid_instruction("tensor compare operator"))?;
-                if same_contiguous_tensor_order(&dest_layout, &left_layout, &right_layout) {
+                if dest_layout.has_same_contiguous_order(&left_layout)
+                    && dest_layout.has_same_contiguous_order(&right_layout)
+                {
                     let dest_layout = pool.tensor_layout(dest_layout);
 
                     return Ok(pool.instruction_with_side(
@@ -753,7 +757,7 @@ impl<'a> BlockLowerer<'a> {
         })
     }
 
-    /// Return one tensor address class for an executable address space.
+    /// Return one tensor address class for an VM address space.
     fn tensor_address(&self, address_space: AddressSpace) -> LinkResult<TensorAddress> {
         TensorAddress::from_address_space(address_space)
             .map_err(|_| self.invalid_pointer_type(format!("{address_space:?}")))
@@ -777,7 +781,7 @@ impl<'a> BlockLowerer<'a> {
         Ok((address_space, projection))
     }
 
-    /// Return the executable tensor layout for one tensor type.
+    /// Return the VM tensor layout for one tensor type.
     pub(super) fn tensor_layout(
         &self,
         pool: &mut Pool<'_, '_>,
@@ -792,7 +796,7 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn tensor_layout_from_type(
         &self,
         tensor_type: mir::LocalNodeId<mir::Type>,
-    ) -> LinkResult<TensorLayout> {
+    ) -> LinkResult<TensorLayoutBuilder> {
         let (shape, element) = match self.function.tree.get(tensor_type) {
             mir::Type::Tensor { shape, element, .. } => (shape, element),
             mir::Type::TensorView { shape, element, .. } => (shape, element),
@@ -802,8 +806,7 @@ impl<'a> BlockLowerer<'a> {
         };
         let element_type = *element;
 
-        let shape =
-            static_shape(shape).map_err(|_| self.invalid_instruction("static tensor shape"))?;
+        let shape = self.static_shape(shape)?;
         let strides = self.static_tensor_strides(tensor_type, &shape)?;
         let element_count = tensor_element_count(&shape);
         let element_span_len = tensor_element_span_len(&shape, &strides)
@@ -818,7 +821,7 @@ impl<'a> BlockLowerer<'a> {
             self.function.program.type_id(element_type),
             element_span_len as u64,
             element_layout.stride(),
-            element_layout.byte_len,
+            element_layout.byte_len(),
             self.function.cell_layout_for_type(element_type),
         );
         let element_layout = self
@@ -826,19 +829,37 @@ impl<'a> BlockLowerer<'a> {
             .scalar_layout_for_type(element_type)
             .ok_or_else(|| self.type_mismatch("tensor scalar element", format!("{element:?}")))?;
         let byte_len = element_span_len
-            .checked_mul(element.byte_stride)
+            .checked_mul(element.byte_stride())
             .ok_or_else(|| self.layout_overflow("tensor payload byte length"))?;
 
-        Ok(TensorLayout {
-            byte_len,
-            shape: shape.into_boxed_slice(),
-            strides: strides.into_boxed_slice(),
-            element_count,
-            element_span_len,
+        Ok(TensorLayoutBuilder {
+            byte_len: byte_len as u64,
+            shape,
+            strides,
+            element_count: element_count as u64,
+            element_span_len: element_span_len as u64,
             is_contiguous,
             element_layout,
             element,
         })
+    }
+
+    /// Return a static tensor shape.
+    fn static_shape(&self, shape: &[mir::TensorDimension]) -> LinkResult<Vec<u64>> {
+        let mut dims = Vec::with_capacity(shape.len());
+        for dim in shape {
+            match dim {
+                mir::TensorDimension::Static(value) => dims.push(*value),
+                mir::TensorDimension::Dynamic => {
+                    return Err(self.invalid_instruction("tensor dynamic shape"));
+                }
+                mir::TensorDimension::Symbol(name) => {
+                    return Err(self.invalid_instruction(format!("tensor symbolic shape {name}")));
+                }
+            }
+        }
+
+        Ok(dims)
     }
 
     /// Compile one static tensor stride list.
@@ -901,7 +922,7 @@ impl<'a> BlockLowerer<'a> {
     fn tensor_dot(
         &self,
         immediate: mir::TensorImmediateId,
-    ) -> LinkResult<mir::TensorDotDimensionNumbers> {
+    ) -> LinkResult<TensorDotDimensionsBuilder> {
         let mir::TensorImmediate::Dot {
             lhs_batch,
             rhs_batch,
@@ -912,7 +933,7 @@ impl<'a> BlockLowerer<'a> {
             return Err(self.invalid_instruction("tensor dot immediate"));
         };
 
-        Ok(mir::TensorDotDimensionNumbers {
+        Ok(TensorDotDimensionsBuilder {
             lhs_batch: self.function.indices(*lhs_batch).to_vec(),
             rhs_batch: self.function.indices(*rhs_batch).to_vec(),
             lhs_contracting: self.function.indices(*lhs_contracting).to_vec(),
@@ -925,8 +946,8 @@ impl<'a> BlockLowerer<'a> {
         &self,
         immediate: mir::TensorImmediateId,
     ) -> LinkResult<(
-        mir::TensorConvolutionDimensionNumbers,
-        mir::TensorConvolutionWindow,
+        TensorConvolutionDimensionsBuilder,
+        TensorConvolutionWindowBuilder,
         u32,
         u32,
     )> {
@@ -953,7 +974,7 @@ impl<'a> BlockLowerer<'a> {
             return Err(self.invalid_instruction("tensor convolution immediate"));
         };
 
-        let dimensions = mir::TensorConvolutionDimensionNumbers {
+        let dimensions = TensorConvolutionDimensionsBuilder {
             input_batch: *input_batch,
             input_feature: *input_feature,
             input_spatial: self.function.indices(*input_spatial).to_vec(),
@@ -964,7 +985,7 @@ impl<'a> BlockLowerer<'a> {
             output_feature: *output_feature,
             output_spatial: self.function.indices(*output_spatial).to_vec(),
         };
-        let window = mir::TensorConvolutionWindow {
+        let window = TensorConvolutionWindowBuilder {
             strides: self.function.tree.get_extents(*strides).to_vec(),
             padding_low: self.function.tree.get_extents(*padding_low).to_vec(),
             padding_high: self.function.tree.get_extents(*padding_high).to_vec(),
@@ -986,7 +1007,7 @@ impl<'a> BlockLowerer<'a> {
     fn tensor_gather(
         &self,
         immediate: mir::TensorImmediateId,
-    ) -> LinkResult<(mir::TensorGatherDimensionNumbers, Vec<u32>)> {
+    ) -> LinkResult<(TensorGatherDimensionsBuilder, Vec<u32>)> {
         let mir::TensorImmediate::Gather {
             offset_dims,
             collapsed_slice_dims,
@@ -999,7 +1020,7 @@ impl<'a> BlockLowerer<'a> {
         };
 
         Ok((
-            mir::TensorGatherDimensionNumbers {
+            TensorGatherDimensionsBuilder {
                 offset_dims: self.function.indices(*offset_dims).to_vec(),
                 collapsed_slice_dims: self.function.indices(*collapsed_slice_dims).to_vec(),
                 start_index_map: self.function.indices(*start_index_map).to_vec(),
@@ -1013,7 +1034,7 @@ impl<'a> BlockLowerer<'a> {
     fn tensor_scatter(
         &self,
         immediate: mir::TensorImmediateId,
-    ) -> LinkResult<mir::TensorScatterDimensionNumbers> {
+    ) -> LinkResult<TensorScatterDimensionsBuilder> {
         let mir::TensorImmediate::Scatter {
             update_window_dims,
             inserted_window_dims,
@@ -1024,7 +1045,7 @@ impl<'a> BlockLowerer<'a> {
             return Err(self.invalid_instruction("tensor scatter immediate"));
         };
 
-        Ok(mir::TensorScatterDimensionNumbers {
+        Ok(TensorScatterDimensionsBuilder {
             update_window_dims: self.function.indices(*update_window_dims).to_vec(),
             inserted_window_dims: self.function.indices(*inserted_window_dims).to_vec(),
             scatter_dims_to_operand_dims: self

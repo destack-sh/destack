@@ -5,12 +5,14 @@ use destack_mir as mir;
 use destack_mir::{TraceId, TraceMap, TraceTable};
 
 use destack_program::vm::{
-    AllocationPlanId, ArgumentRange, Check, CheckId, ConstValue, ConstValueId, Edge, EdgeId,
+    AllocationPlanId, ArgumentRange, Check, CheckId, ConstValueBuilder, ConstValueId, Edge, EdgeId,
     Instruction, MovePair, MoveRange, MoveSlot, MoveSource, Op, Projection, ProjectionId,
     SideRecord, SideTableBuilder, SignatureId, SliceProjection, SliceProjectionId,
-    SmallAllocationPlanId, SwitchCase, SwitchCasesId, SwitchTable, SwitchTableId,
-    TensorConvolutionId, TensorDotId, TensorGatherId, TensorLayout, TensorLayoutId,
-    TensorScatterId, TensorWindowId, U32RangeId,
+    SmallAllocationPlanId, SwitchCase, SwitchCasesId, SwitchTableBuilder, SwitchTableId,
+    TensorConvolutionDimensionsBuilder, TensorConvolutionId, TensorConvolutionWindowBuilder,
+    TensorDotDimensionsBuilder, TensorDotId, TensorGatherDimensionsBuilder, TensorGatherId,
+    TensorLayoutBuilder, TensorLayoutId, TensorScatterDimensionsBuilder, TensorScatterId,
+    TensorWindowId, U32RangeId,
 };
 use destack_program::{FrameLayout, Signature};
 
@@ -87,7 +89,7 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     }
 
     /// Return one pooled constant id.
-    pub(super) fn constant(&mut self, constant: ConstValue) -> ConstValueId {
+    pub(super) fn constant(&mut self, constant: ConstValueBuilder) -> ConstValueId {
         self.side_table.push_constant(constant)
     }
 
@@ -222,7 +224,7 @@ impl<'layout, 'table> Pool<'layout, 'table> {
 
         Ok(table.map(|(min, cases)| {
             self.side_table
-                .push_switch_table(SwitchTable { min, cases })
+                .push_switch_table(SwitchTableBuilder { min, cases })
         }))
     }
 
@@ -237,27 +239,30 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     }
 
     /// Return one pooled tensor dot descriptor id.
-    pub(super) fn tensor_dot(&mut self, dimensions: mir::TensorDotDimensionNumbers) -> TensorDotId {
+    pub(super) fn tensor_dot(&mut self, dimensions: TensorDotDimensionsBuilder) -> TensorDotId {
         self.side_table.push_tensor_dot(dimensions)
     }
 
     /// Return one pooled tensor convolution dimension descriptor id.
     pub(super) fn tensor_convolution(
         &mut self,
-        dimensions: mir::TensorConvolutionDimensionNumbers,
+        dimensions: TensorConvolutionDimensionsBuilder,
     ) -> TensorConvolutionId {
         self.side_table.push_tensor_convolution(dimensions)
     }
 
     /// Return one pooled tensor convolution window descriptor id.
-    pub(super) fn tensor_window(&mut self, window: mir::TensorConvolutionWindow) -> TensorWindowId {
+    pub(super) fn tensor_window(
+        &mut self,
+        window: TensorConvolutionWindowBuilder,
+    ) -> TensorWindowId {
         self.side_table.push_tensor_window(window)
     }
 
     /// Return one pooled tensor gather descriptor id.
     pub(super) fn tensor_gather(
         &mut self,
-        dimensions: mir::TensorGatherDimensionNumbers,
+        dimensions: TensorGatherDimensionsBuilder,
     ) -> TensorGatherId {
         self.side_table.push_tensor_gather(dimensions)
     }
@@ -265,30 +270,30 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     /// Return one pooled tensor scatter descriptor id.
     pub(super) fn tensor_scatter(
         &mut self,
-        dimensions: mir::TensorScatterDimensionNumbers,
+        dimensions: TensorScatterDimensionsBuilder,
     ) -> TensorScatterId {
         self.side_table.push_tensor_scatter(dimensions)
     }
 
     /// Return one pooled tensor layout id.
-    pub(super) fn tensor_layout(&mut self, layout: TensorLayout) -> TensorLayoutId {
+    pub(super) fn tensor_layout(&mut self, layout: TensorLayoutBuilder) -> TensorLayoutId {
         self.side_table.push_tensor_layout(layout)
     }
 
     /// Return one lowered frame slot for one SSA value.
     pub(super) fn move_slot(&self, value: mir::Value) -> LinkResult<MoveSlot> {
         let slot = self
-            .frame_layout
-            .value(value.0)
+            .program
+            .frame_value_slot(self.frame_layout, value.0)
             .ok_or_else(|| self.program.program().invalid_instruction("move slot"))?;
         let is_cell = self.program.frame_slot_is_cell(slot);
 
-        Ok(MoveSlot {
-            ty: slot.ty,
-            offset: slot.offset,
-            byte_len: slot.byte_len,
+        Ok(MoveSlot::new(
+            slot.ty,
+            slot.offset,
+            slot.byte_len(),
             is_cell,
-        })
+        ))
     }
 
     /// Return one move range for SSA value parameters.
@@ -413,9 +418,9 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     /// Return the lowered move source for one argument index.
     fn move_source(&self, arguments: &[mir::Value], index: usize) -> LinkResult<MoveSource> {
         let Some(value) = arguments.get(index) else {
-            return Ok(MoveSource::Void);
+            return Ok(MoveSource::void());
         };
 
-        Ok(MoveSource::Slot(self.move_slot(*value)?))
+        Ok(MoveSource::slot(self.move_slot(*value)?))
     }
 }

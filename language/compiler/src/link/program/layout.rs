@@ -1,28 +1,29 @@
 use std::collections::HashMap;
 
+use destack_core::SectionPacker;
 use destack_mir as mir;
 use destack_mir::{TraceMap, TraceTable};
-use destack_program::{Layout, LayoutId, LayoutShape, LayoutTable};
+use destack_program::{LayoutBuilder, LayoutId, LayoutShapeBuilder, LayoutTable};
 
 use crate::LinkResult;
 
 use super::vm::StorageLayout;
 use super::{ProgramLinker, TypeLinker};
 
-/// Linked executable layouts and transient storage layouts.
+/// Linked program layouts and transient storage layouts.
 #[derive(Debug)]
 pub(crate) struct ProgramLayouts {
-    /// Executable layout ids keyed by MIR type id.
+    /// Program layout ids keyed by MIR type id.
     pub(crate) ids: HashMap<mir::TypeId, LayoutId>,
     /// Lowered value storage layouts keyed by MIR type id.
     pub(crate) storage: HashMap<mir::TypeId, StorageLayout>,
-    /// Executable layout table.
+    /// Program layout table.
     pub(crate) layouts: LayoutTable,
-    /// Executable trace table.
-    pub(crate) traces: TraceTable,
+    /// Compiler trace maps keyed by program TraceId.
+    pub(crate) trace_maps: TraceTable,
 }
 
-/// Link MIR layouts into executable layout and trace tables.
+/// Link MIR layouts into program layout and trace tables.
 #[derive(Debug)]
 pub(crate) struct LayoutLinker<'a> {
     /// MIR tree being linked.
@@ -33,7 +34,7 @@ pub(crate) struct LayoutLinker<'a> {
     types: &'a mir::TypeTable,
     /// MIR layout table produced by lower and optimization.
     source: &'a mir::LayoutTable,
-    /// Dense executable id projection for this program.
+    /// Dense program id projection.
     program: &'a ProgramLinker,
 }
 
@@ -55,8 +56,8 @@ impl<'a> LayoutLinker<'a> {
         }
     }
 
-    /// Link executable layout, trace, and transient storage layouts.
-    pub(crate) fn link(&self) -> LinkResult<ProgramLayouts> {
+    /// Link program layout, trace, and transient storage layouts.
+    pub(crate) fn link(&self, sections: &mut SectionPacker) -> LinkResult<ProgramLayouts> {
         let ids = self.layout_ids()?;
         let storage = StorageLayout::build_all(
             self.tree,
@@ -65,17 +66,17 @@ impl<'a> LayoutLinker<'a> {
             &ids,
             self.program,
         )?;
-        let (layouts, traces) = self.layout_table(&storage)?;
+        let (layouts, traces) = self.layout_table(sections, &storage)?;
 
         Ok(ProgramLayouts {
             ids,
             storage,
             layouts,
-            traces,
+            trace_maps: traces,
         })
     }
 
-    /// Build the layout id map for all executable MIR types.
+    /// Build the layout id map for all program MIR types.
     fn layout_ids(&self) -> LinkResult<HashMap<mir::TypeId, LayoutId>> {
         let mut next_layout_id = self
             .tree
@@ -109,54 +110,58 @@ impl<'a> LayoutLinker<'a> {
         Ok(ids)
     }
 
-    /// Build the executable program layout table from lowered value layouts.
+    /// Build the program layout table from lowered value layouts.
     fn layout_table(
         &self,
+        sections: &mut SectionPacker,
         storage: &HashMap<mir::TypeId, StorageLayout>,
     ) -> LinkResult<(LayoutTable, TraceTable)> {
-        let max_layout_id = storage
+        let max_layout_id = match storage
             .values()
             .map(|layout| layout.layout_id.raw() as usize)
             .max()
-            .unwrap_or_default();
-        let mut table = LayoutTable::new();
+        {
+            Some(layout_id) => layout_id,
+            None => 0,
+        };
         let mut traces = TraceTable::new();
         let empty_trace = traces.insert(TraceMap::empty());
-        table.resize(
-            max_layout_id,
-            Layout {
-                shape: LayoutShape::None,
-                size: 0,
-                alignment: 1,
-                trace: empty_trace,
-            },
-        );
+        let empty_layout = LayoutBuilder {
+            shape: LayoutShapeBuilder::None,
+            size: 0,
+            alignment: 1,
+            trace: empty_trace,
+        };
+        let mut entries = vec![empty_layout; max_layout_id];
 
         let type_linker = TypeLinker::new(self.tree, self.target_layout, self.types, self.program);
 
-        // project each lowered layout into executable ids
+        // project each lowered layout into program ids
         for (type_id, layout) in storage {
             let program_layout =
                 self.program_layout(*type_id, layout, &type_linker, &mut traces)?;
 
-            if !table.define(layout.layout_id, program_layout) {
+            let Some(entry) = entries.get_mut(layout.layout_id.index()) else {
                 return Err(self
                     .program
                     .layout_overflow(format!("layout id out of range: {:?}", layout.layout_id)));
-            }
+            };
+            *entry = program_layout;
         }
+
+        let table = LayoutTable::pack(sections, entries);
 
         Ok((table, traces))
     }
 
-    /// Build one executable program layout entry for one MIR type.
+    /// Build one program layout entry for one MIR type.
     fn program_layout(
         &self,
         type_id: mir::TypeId,
         layout: &StorageLayout,
         type_linker: &TypeLinker<'_>,
         traces: &mut TraceTable,
-    ) -> LinkResult<Layout> {
+    ) -> LinkResult<LayoutBuilder> {
         let shape = if let Some(source) = self.source.type_layout(self.tree.repr_type(type_id)) {
             source.shape.clone()
         } else {
@@ -164,12 +169,12 @@ impl<'a> LayoutLinker<'a> {
         };
         let shape = type_linker.layout_shape(type_id, &shape).ok_or_else(|| {
             self.program.invalid_input(format!(
-                "executable layout shape for {type_id:?} {:?}: {shape:?}",
+                "program layout shape for {type_id:?} {:?}: {shape:?}",
                 self.tree.get(type_id)
             ))
         })?;
 
-        Ok(Layout {
+        Ok(LayoutBuilder {
             shape,
             size: u32::try_from(layout.byte_len)
                 .map_err(|_| self.program.layout_overflow("layout byte length"))?,
@@ -179,7 +184,7 @@ impl<'a> LayoutLinker<'a> {
         })
     }
 
-    /// Build a layout shape for MIR that has no layout table row.
+    /// Build a layout shape for MIR that has no layout table entry.
     fn layout_shape(
         &self,
         type_id: mir::TypeId,

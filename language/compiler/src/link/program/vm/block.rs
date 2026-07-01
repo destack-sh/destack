@@ -145,7 +145,7 @@ pub(super) struct FunctionContext<'a> {
     /// The lowered call terminator frame state by MIR block id.
     pub(super) call_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, FrameStateId>,
     /// The call target by program function id.
-    pub(super) call_targets: &'a HashMap<FunctionId, CallTarget>,
+    pub(super) call_targets: &'a [Option<CallTarget>],
     /// VM linker state.
     pub(super) program: &'a VmLinker<'a>,
     /// The byte layout for this lowered function frame.
@@ -173,7 +173,7 @@ pub(super) struct FunctionContext<'a> {
 }
 
 impl<'a> FunctionContext<'a> {
-    /// Return the executable type linker.
+    /// Return the program type linker.
     pub(super) fn type_linker(&self) -> TypeLinker<'_> {
         TypeLinker::new(
             self.tree,
@@ -193,7 +193,7 @@ impl<'a> FunctionContext<'a> {
         self.target_layout.pointer_bytes()
     }
 
-    /// Return the MIR layout row for one type when present.
+    /// Return the MIR layout entry for one type when present.
     pub(super) fn layout_for_type(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<&mir::Layout> {
         self.layout_table.type_layout(self.tree.repr_type(ty))
     }
@@ -201,6 +201,16 @@ impl<'a> FunctionContext<'a> {
     /// Return whether one frame slot is lowered as one VM cell.
     pub(super) fn slot_is_cell(&self, slot: &FrameSlot) -> bool {
         self.program.frame_slot_is_cell(slot)
+    }
+
+    /// Return one value slot inside this function frame.
+    pub(super) fn frame_value_slot(&self, value: u32) -> Option<&FrameSlot> {
+        self.program.frame_value_slot(self.frame_layout, value)
+    }
+
+    /// Return one local slot inside this function frame.
+    pub(super) fn frame_local_slot(&self, local: u32) -> Option<&FrameSlot> {
+        self.program.frame_local_slot(self.frame_layout, local)
     }
 
     /// Return the program function id for one MIR function.
@@ -224,7 +234,7 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    /// Return the executable cell layout for one MIR type.
+    /// Return the VM cell layout for one MIR type.
     pub(super) fn cell_layout_for_type(
         &self,
         ty: mir::LocalNodeId<mir::Type>,
@@ -232,7 +242,7 @@ impl<'a> FunctionContext<'a> {
         self.type_linker().cell_layout(ty)
     }
 
-    /// Return the executable scalar layout for one MIR type.
+    /// Return the VM scalar layout for one MIR type.
     pub(super) fn scalar_layout_for_type(
         &self,
         ty: mir::LocalNodeId<mir::Type>,
@@ -240,7 +250,7 @@ impl<'a> FunctionContext<'a> {
         self.type_linker().scalar_format(ty)
     }
 
-    /// Return one executable scalar layout or fail loudly.
+    /// Return one VM scalar layout or fail loudly.
     pub(super) fn require_scalar_format(
         &self,
         ty: mir::LocalNodeId<mir::Type>,
@@ -306,7 +316,7 @@ impl<'a> FunctionContext<'a> {
         self.program.program().internal(message)
     }
 
-    /// Return the executable address space for one MIR reference type.
+    /// Return the VM address space for one MIR reference type.
     pub(super) fn address_space_for_reference(
         &self,
         space: mir::Space,

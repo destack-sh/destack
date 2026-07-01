@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use destack_core::{float_from_bits, float_to_bits};
+use destack_core::{SectionPacker, float_from_bits, float_to_bits};
 use destack_mir as mir;
 use destack_program::vm::FunctionPointer;
-use destack_program::{GlobalAllocator, StaticSpace};
+use destack_program::{Global, GlobalAllocator, GlobalLocation, GlobalTable, StaticImage};
 
 use crate::LinkResult;
 
@@ -13,22 +13,24 @@ use super::vm::StorageLayout;
 /// Linked static memory spaces for one program.
 #[derive(Debug)]
 pub(crate) struct ProgramStatics {
+    /// Executable global metadata.
+    pub(crate) globals: GlobalTable,
     /// Immutable program constants.
-    pub(crate) constants: StaticSpace,
+    pub(crate) constants: StaticImage,
     /// Shared mutable program statics.
-    pub(crate) shared: StaticSpace,
+    pub(crate) shared: StaticImage,
     /// Local mutable program statics.
-    pub(crate) local: StaticSpace,
+    pub(crate) local: StaticImage,
 }
 
-/// Link MIR globals into executable static spaces.
+/// Link MIR globals into program static spaces.
 #[derive(Debug)]
 pub(crate) struct StaticLinker<'a> {
     /// MIR tree being linked.
     tree: &'a mir::Tree,
     /// Target ABI layout for static scalar encoding.
     target_layout: &'a mir::TargetLayout,
-    /// Program linker owning dense executable id projection.
+    /// Program linker owning dense program id projection.
     program: &'a ProgramLinker,
     /// Executable value storage layouts by MIR type id.
     layouts: &'a HashMap<mir::TypeId, StorageLayout>,
@@ -62,10 +64,11 @@ impl<'a> StaticLinker<'a> {
     }
 
     /// Link constant, shared static, and local static spaces.
-    pub(crate) fn link(&self) -> LinkResult<ProgramStatics> {
+    pub(crate) fn link(&self, sections: &mut SectionPacker) -> LinkResult<ProgramStatics> {
         let mut constants = GlobalAllocator::new();
         let mut shared = GlobalAllocator::new();
         let mut local = GlobalAllocator::new();
+        let mut globals = Vec::new();
 
         // split globals by MIR placement
         for (global_id, global) in self.tree.iter_nodes::<mir::Global>() {
@@ -76,7 +79,7 @@ impl<'a> StaticLinker<'a> {
             let ty = global.ty;
             let layout = self.layouts.get(&ty).ok_or_else(|| {
                 self.program
-                    .type_mismatch("executable global layout", format!("{ty:?}"))
+                    .type_mismatch("program global layout", format!("{ty:?}"))
             })?;
             let bytes = match global.initializer.as_ref() {
                 Some(initializer) => self.initializer_bytes(initializer, ty)?,
@@ -87,6 +90,8 @@ impl<'a> StaticLinker<'a> {
                 mir::Space::Static => {
                     self.define_global_bytes(
                         &mut constants,
+                        &mut globals,
+                        GlobalLocation::Constant,
                         global_id,
                         ty,
                         layout.alignment(),
@@ -97,6 +102,8 @@ impl<'a> StaticLinker<'a> {
                 mir::Space::Shared => {
                     self.define_global_bytes(
                         &mut shared,
+                        &mut globals,
+                        GlobalLocation::SharedStatic,
                         global_id,
                         ty,
                         layout.alignment(),
@@ -107,6 +114,8 @@ impl<'a> StaticLinker<'a> {
                 mir::Space::Local => {
                     self.define_global_bytes(
                         &mut local,
+                        &mut globals,
+                        GlobalLocation::LocalStatic,
                         global_id,
                         ty,
                         layout.alignment(),
@@ -123,9 +132,10 @@ impl<'a> StaticLinker<'a> {
         }
 
         Ok(ProgramStatics {
-            constants: constants.finish(),
-            shared: shared.finish(),
-            local: local.finish(),
+            globals: GlobalTable::pack(sections, globals),
+            constants: constants.finish(sections),
+            shared: shared.finish(sections),
+            local: local.finish(sections),
         })
     }
 
@@ -137,7 +147,7 @@ impl<'a> StaticLinker<'a> {
     ) -> LinkResult<Vec<u8>> {
         let layout = self.layouts.get(&ty).ok_or_else(|| {
             self.program
-                .type_mismatch("executable initializer layout", format!("{ty:?}"))
+                .type_mismatch("program initializer layout", format!("{ty:?}"))
         })?;
 
         if layout.is_scalar() {
@@ -546,7 +556,7 @@ impl<'a> StaticLinker<'a> {
     fn validate_zero_initializer(&self, ty: mir::TypeId) -> LinkResult<()> {
         let layout = self.layouts.get(&ty).ok_or_else(|| {
             self.program
-                .type_mismatch("executable initializer layout", format!("{ty:?}"))
+                .type_mismatch("program initializer layout", format!("{ty:?}"))
         })?;
 
         if layout.is_scalar() {
@@ -604,7 +614,7 @@ impl<'a> StaticLinker<'a> {
     ) -> LinkResult<Vec<u8>> {
         let layout = self.layouts.get(&ty).ok_or_else(|| {
             self.program
-                .type_mismatch("executable payload layout", format!("{ty:?}"))
+                .type_mismatch("program payload layout", format!("{ty:?}"))
         })?;
         let ranges = self.initializer_ranges(ty)?;
         if elements.len() != ranges.len() {
@@ -641,7 +651,7 @@ impl<'a> StaticLinker<'a> {
     fn initializer_ranges(&self, ty: mir::TypeId) -> LinkResult<Vec<InitializerRange>> {
         let layout = self.layouts.get(&ty).ok_or_else(|| {
             self.program
-                .type_mismatch("executable payload layout", format!("{ty:?}"))
+                .type_mismatch("program payload layout", format!("{ty:?}"))
         })?;
 
         if let Some(field_count) = layout.field_count() {
@@ -688,24 +698,33 @@ impl<'a> StaticLinker<'a> {
     fn define_global_bytes(
         &self,
         allocator: &mut GlobalAllocator,
+        globals: &mut Vec<Option<Global>>,
+        location: GlobalLocation,
         global: mir::GlobalId,
         ty: mir::TypeId,
         alignment: usize,
         is_mutable: bool,
         bytes: &[u8],
     ) -> LinkResult<()> {
-        let was_defined = allocator.define(
-            self.program.global_id(global),
-            self.program.type_id(ty),
-            alignment,
-            is_mutable,
-            bytes,
-        );
-        if !was_defined {
+        let global_id = self.program.global_id(global);
+        let index = global_id.index();
+        if globals.len() <= index {
+            globals.resize(index + 1, None);
+        }
+        if globals[index].is_some() {
             return Err(self
                 .program
                 .internal(format!("duplicate program global {global:?}")));
         }
+
+        let (offset, byte_len) = allocator.allocate(alignment, bytes);
+        globals[index] = Some(Global::new(
+            location,
+            offset,
+            byte_len,
+            self.program.type_id(ty),
+            is_mutable,
+        ));
 
         Ok(())
     }

@@ -5,8 +5,8 @@ use destack_mir::Type;
 
 use destack_program::vm::{
     BinaryFloat, BinaryFloatKernel, ElementBinaryKernel, ElementUnaryKernel, Instruction, Op,
-    TensorBinary, TensorContiguousBinary, TensorContiguousUnary, TensorLayout, TensorUnary,
-    UnaryFloat, UnaryFloatKernel, VectorBinary, VectorUnary,
+    TensorBinary, TensorContiguousBinary, TensorContiguousUnary, TensorUnary, UnaryFloat,
+    UnaryFloatKernel, VectorBinary, VectorUnary,
 };
 
 use super::lower::BlockLowerer;
@@ -123,7 +123,9 @@ impl<'a> BlockLowerer<'a> {
         let dest_layout = self.tensor_layout_from_type(destination_type)?;
 
         // use one contiguous descriptor when all views share physical order
-        if same_contiguous_tensor_order(&dest_layout, &left_layout, &right_layout) {
+        if dest_layout.has_same_contiguous_order(&left_layout)
+            && dest_layout.has_same_contiguous_order(&right_layout)
+        {
             let dest_layout = pool.tensor_layout(dest_layout);
 
             return Ok(pool.instruction_with_side(
@@ -331,7 +333,7 @@ impl<'a> BlockLowerer<'a> {
         let dest_layout = self.tensor_layout_from_type(destination_type)?;
 
         // use one contiguous descriptor when both views share physical order
-        if same_contiguous_tensor_unary_order(&dest_layout, &argument_layout) {
+        if dest_layout.has_same_contiguous_order(&argument_layout) {
             let dest_layout = pool.tensor_layout(dest_layout);
 
             return Ok(pool.instruction_with_side(
@@ -515,32 +517,6 @@ impl<'a> BlockLowerer<'a> {
 
         self.lower_scalar_unary(destination, operator, argument, argument_type)
     }
-}
-
-/// Return whether three tensor layouts share one contiguous element order.
-pub(super) fn same_contiguous_tensor_order(
-    dest_layout: &TensorLayout,
-    left_layout: &TensorLayout,
-    right_layout: &TensorLayout,
-) -> bool {
-    dest_layout.is_contiguous
-        && left_layout.is_contiguous
-        && right_layout.is_contiguous
-        && dest_layout.shape == left_layout.shape
-        && dest_layout.shape == right_layout.shape
-        && dest_layout.strides == left_layout.strides
-        && dest_layout.strides == right_layout.strides
-}
-
-/// Return whether two tensor layouts share one contiguous element order.
-pub(super) fn same_contiguous_tensor_unary_order(
-    dest_layout: &TensorLayout,
-    argument_layout: &TensorLayout,
-) -> bool {
-    dest_layout.is_contiguous
-        && argument_layout.is_contiguous
-        && dest_layout.shape == argument_layout.shape
-        && dest_layout.strides == argument_layout.strides
 }
 
 /// Select one element binary kernel.

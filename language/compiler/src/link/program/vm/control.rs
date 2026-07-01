@@ -2,7 +2,8 @@ use destack_mir as mir;
 
 use super::allocation::AllocationInitialization;
 use destack_program::vm::{
-    BoundsCheck, Check, Instruction, NarrowCheck, Op, OverflowCheck, ShiftRangeCheck, VariantCheck,
+    BoundsCheck, Check, CheckKind, Instruction, NarrowCheck, Op, OverflowCheck, ShiftRangeCheck,
+    VariantCheck,
 };
 
 use crate::LinkResult;
@@ -34,9 +35,7 @@ impl<'a> BlockLowerer<'a> {
             mir::CheckConstraint::Null { value } => {
                 let value = *value;
 
-                Ok(Check::Null {
-                    value: self.cell_offset(value)?,
-                })
+                Ok(Check::null(self.cell_offset(value)?))
             }
             mir::CheckConstraint::DivZero { divisor } => {
                 let divisor = *divisor;
@@ -103,19 +102,21 @@ impl<'a> BlockLowerer<'a> {
                 let value = *value;
                 let expected = self.function.program.type_id(*expected);
 
-                Ok(Check::TypeId {
-                    value: self.type_id_cell_offset(value)?,
-                    expected: expected.0,
-                })
+                Ok(Check::type_id(
+                    CheckKind::TypeId,
+                    self.type_id_cell_offset(value)?,
+                    expected.0,
+                ))
             }
             mir::CheckConstraint::IsSubtype { value, expected } => {
                 let value = *value;
                 let expected = self.function.program.type_id(*expected);
 
-                Ok(Check::SubtypeId {
-                    value: self.type_id_cell_offset(value)?,
-                    expected: expected.0,
-                })
+                Ok(Check::type_id(
+                    CheckKind::SubtypeId,
+                    self.type_id_cell_offset(value)?,
+                    expected.0,
+                ))
             }
             mir::CheckConstraint::Variant { value, expected } => {
                 let value = *value;
@@ -124,7 +125,7 @@ impl<'a> BlockLowerer<'a> {
                     expected: self.constant_cell_bits(expected)?,
                 };
 
-                Ok(Check::Variant(check))
+                Ok(Check::variant(check))
             }
         }
     }
@@ -436,19 +437,31 @@ impl<'a> BlockLowerer<'a> {
         check: OverflowCheck,
     ) -> LinkResult<Check> {
         match (operator, is_signed) {
-            (mir::BinaryOperator::Add, true) => Ok(Check::OverflowAddInt(check)),
-            (mir::BinaryOperator::Add, false) => Ok(Check::OverflowAddUint(check)),
-            (mir::BinaryOperator::Subtract, true) => Ok(Check::OverflowSubInt(check)),
-            (mir::BinaryOperator::Subtract, false) => Ok(Check::OverflowSubUint(check)),
-            (mir::BinaryOperator::Multiply, true) => Ok(Check::OverflowMulInt(check)),
-            (mir::BinaryOperator::Multiply, false) => Ok(Check::OverflowMulUint(check)),
+            (mir::BinaryOperator::Add, true) => {
+                Ok(Check::overflow(CheckKind::OverflowAddInt, check))
+            }
+            (mir::BinaryOperator::Add, false) => {
+                Ok(Check::overflow(CheckKind::OverflowAddUint, check))
+            }
+            (mir::BinaryOperator::Subtract, true) => {
+                Ok(Check::overflow(CheckKind::OverflowSubInt, check))
+            }
+            (mir::BinaryOperator::Subtract, false) => {
+                Ok(Check::overflow(CheckKind::OverflowSubUint, check))
+            }
+            (mir::BinaryOperator::Multiply, true) => {
+                Ok(Check::overflow(CheckKind::OverflowMulInt, check))
+            }
+            (mir::BinaryOperator::Multiply, false) => {
+                Ok(Check::overflow(CheckKind::OverflowMulUint, check))
+            }
             (mir::BinaryOperator::SignedDivide | mir::BinaryOperator::SignedRemainder, true) => {
-                Ok(Check::OverflowDivInt(check))
+                Ok(Check::overflow(CheckKind::OverflowDivInt, check))
             }
             (
                 mir::BinaryOperator::UnsignedDivide | mir::BinaryOperator::UnsignedRemainder,
                 false,
-            ) => Ok(Check::OverflowDivUint(check)),
+            ) => Ok(Check::overflow(CheckKind::OverflowDivUint, check)),
             _ => Err(self.invalid_instruction("overflow check")),
         }
     }
@@ -473,36 +486,36 @@ fn switch_layout_field(width: u16, is_signed: bool) -> u32 {
 /// Select one concrete bounds check.
 fn bounds_check(index_signed: bool, length_signed: bool, check: BoundsCheck) -> Check {
     match (index_signed, length_signed) {
-        (true, true) => Check::BoundsIntInt(check),
-        (true, false) => Check::BoundsIntUint(check),
-        (false, true) => Check::BoundsUintInt(check),
-        (false, false) => Check::BoundsUintUint(check),
+        (true, true) => Check::bounds(CheckKind::BoundsIntInt, check),
+        (true, false) => Check::bounds(CheckKind::BoundsIntUint, check),
+        (false, true) => Check::bounds(CheckKind::BoundsUintInt, check),
+        (false, false) => Check::bounds(CheckKind::BoundsUintUint, check),
     }
 }
 
 /// Select one concrete div-zero check.
 fn div_zero_check(is_signed: bool, divisor: u32) -> Check {
     if is_signed {
-        return Check::DivZeroInt { divisor };
+        return Check::div_zero(CheckKind::DivZeroInt, divisor);
     }
 
-    Check::DivZeroUint { divisor }
+    Check::div_zero(CheckKind::DivZeroUint, divisor)
 }
 
 /// Select one concrete shift range check.
 fn shift_range_check(is_signed: bool, check: ShiftRangeCheck) -> Check {
     if is_signed {
-        return Check::ShiftRangeInt(check);
+        return Check::shift(CheckKind::ShiftRangeInt, check);
     }
 
-    Check::ShiftRangeUint(check)
+    Check::shift(CheckKind::ShiftRangeUint, check)
 }
 
 /// Select one concrete narrow check.
 fn narrow_check(is_signed: bool, check: NarrowCheck) -> Check {
     if is_signed {
-        return Check::NarrowInt(check);
+        return Check::narrow(CheckKind::NarrowInt, check);
     }
 
-    Check::NarrowUint(check)
+    Check::narrow(CheckKind::NarrowUint, check)
 }

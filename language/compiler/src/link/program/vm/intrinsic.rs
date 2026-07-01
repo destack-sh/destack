@@ -39,8 +39,7 @@ impl<'a> BlockLowerer<'a> {
             Some(destination) => {
                 let slot = self
                     .function
-                    .frame_layout
-                    .value(destination.0)
+                    .frame_value_slot(destination.0)
                     .ok_or_else(|| self.invalid_instruction("intrinsic destination slot"))?;
 
                 if self.function.slot_is_cell(slot) {
