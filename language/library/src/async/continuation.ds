@@ -1,50 +1,117 @@
 import { Drop } from "destack:memory";
 
-/// Worker-local handle to a suspended execution frame.
-@languageItem("async.ContinuationHandle")
-export newtype ContinuationHandle = uint64;
+/// Owned value for one parked execution continuation.
+///
+/// Resuming a continuation consumes it, and dropping it cancels it.
+@languageItem("async.Continuation")
+export struct Continuation<TResume = void, TYield = never, TReturn = void> implements Drop {
+    /// Opaque continuation identity.
+    private handle: uint64;
 
-extension of ContinuationHandle implements Drop {
-    /// Resume this suspended execution frame.
+    /// Resume this continuation with one value.
+    ///
+    /// This returns the next yield, return, or park result immediately.
     @intrinsic("async.continuation.resume")
-    resume<TInput, TYield, TReturn>(value: TInput): ContinuationResult<TYield, TReturn>;
+    resume(this, value: TResume): ContinuationResult<TResume, TYield, TReturn>;
 
-    /// Drop this suspended execution frame.
+    /// Queue this continuation on the current Worker.
+    ///
+    /// The next result is delivered through the async owner captured at suspension.
+    @intrinsic("async.continuation.queue")
+    queue(this, value: TResume): void;
+
+    /// Resume this continuation through its completion path.
+    @intrinsic("async.continuation.complete")
+    complete(this, value: TReturn): ContinuationResult<TResume, TYield, TReturn>;
+
+    /// Cancel this continuation without producing another user value.
     @intrinsic("async.continuation.drop")
     drop(): void;
 }
 
-/// Suspended continuation produced by `yield`.
-@languageItem("async.ContinuationYield")
-export struct ContinuationYield<T> {
-    kind: "yield" = "yield";
+/// Resume command delivered into a parked continuation.
+@languageItem("async.ContinuationResume")
+@derive(Tagged)
+export newtype ContinuationResume<TResume, TReturn> =
+    | ContinuationResumeNext<TResume>
+    | ContinuationResumeReturn<TReturn>
+    | ContinuationResumeCancel;
+
+/// Continue a parked continuation with a normal resume value.
+@languageItem("async.ContinuationResumeNext")
+export struct ContinuationResumeNext<T> {
+    /// The command tag.
+    kind: "next" = "next";
+
+    /// The value observed by the suspended expression.
     value: T;
-    continuation: ContinuationHandle;
+}
+
+/// Continue a parked continuation through its completion path.
+@languageItem("async.ContinuationResumeReturn")
+export struct ContinuationResumeReturn<T> {
+    /// The command tag.
+    kind: "return" = "return";
+
+    /// The value delivered to the completion path.
+    value: T;
+}
+
+/// Continue a parked continuation through its cancellation path.
+@languageItem("async.ContinuationResumeCancel")
+export struct ContinuationResumeCancel {
+    /// The command tag.
+    kind: "cancel" = "cancel";
+}
+
+/// Suspended continuation produced by a generator `yield`.
+@languageItem("async.ContinuationYield")
+export struct ContinuationYield<TResume, TYield, TReturn> {
+    /// The result tag.
+    kind: "yield" = "yield";
+
+    /// The yielded value.
+    value: TYield;
+
+    /// The continuation to resume for the next step.
+    continuation: Continuation<TResume, TYield, TReturn>;
 }
 
 /// Completed continuation.
 @languageItem("async.ContinuationReturn")
 export struct ContinuationReturn<T> {
+    /// The result tag.
     kind: "return" = "return";
+
+    /// The returned value.
     value: T;
+}
+
+/// Parked continuation result.
+@languageItem("async.ContinuationParked")
+export struct ContinuationParked {
+    /// The result tag.
+    kind: "parked" = "parked";
 }
 
 /// Result of resuming a continuation.
 @languageItem("async.ContinuationResult")
 @derive(Tagged)
-export newtype ContinuationResult<TYield, TReturn> =
-    | ContinuationYield<TYield>
+export newtype ContinuationResult<TResume, TYield, TReturn> =
+    | ContinuationYield<TResume, TYield, TReturn>
+    | ContinuationParked
     | ContinuationReturn<TReturn>;
 
-/// Suspend the current continuation and register its handle.
+/// Suspend the current continuation and register its next owner.
 ///
-/// The frame parks first; `register` then runs on the resuming side with the parked frame's
-/// handle, and the suspension expression evaluates to the value passed to `resume`.
+/// The suspension expression later evaluates to the resume value.
 @languageItem("async.suspendContinuation")
 @intrinsic("async.continuation.suspend")
-export declare function suspendContinuation<T>(register: (handle: ContinuationHandle) => void): T;
+export declare function suspendContinuation<TResume, TYield = never, TReturn = void>(
+    register: (continuation: Continuation<TResume, TYield, TReturn>) => void,
+): TResume;
 
-/// Queue one Worker-local microtask.
+/// Queue one microtask on the current Worker.
 @languageItem("async.queueMicrotask")
 @intrinsic("async.microtask.queue")
 export declare function queueMicrotask(task: () => void): void;

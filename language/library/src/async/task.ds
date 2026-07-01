@@ -39,7 +39,7 @@ export class TaskScope implements AsyncDispose {
     }
 }
 
-/// Worker-local task owned by a `TaskScope`.
+/// Task owned by a `TaskScope`.
 export class Task<T> {
     /// Wait for the task to complete or cancel.
     join(): AsyncResult<T, Cancelled> {
@@ -48,9 +48,7 @@ export class Task<T> {
 
     /// Request cancellation.
     ///
-    /// Cancellation resumes the task's parked continuation into the unwind path at its current
-    /// suspension point: `using` / `finally` / `Drop` cleanup runs, the task ends, and `join()`
-    /// observes `Cancelled`.
+    /// Cancellation resumes the task's parked continuation through its cancellation path.
     cancel(): void {
         todo("Task.cancel");
     }
@@ -59,7 +57,7 @@ export class Task<T> {
 /// Cancellation marker observed when joining a cancelled task.
 export struct Cancelled {}
 
-/// Yield back to the local scheduler.
+/// Yield back to the current Worker scheduler.
 export function yieldNow(): Promise<void> {
     todo("async.yieldNow")
 }

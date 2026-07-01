@@ -1,17 +1,24 @@
 import { todo } from "destack:error";
 import { Iterable } from "destack:iter";
 
-import { queueMicrotask } from "./continuation.ds";
+import { Continuation, queueMicrotask, suspendContinuation } from "./continuation.ds";
 
-/// Worker-local async result object.
+/// Async result object.
+///
+/// A promise never rejects in Destack: recoverable asynchronous failure is represented as
+/// `Promise<Result<T, E>>`, and panic remains the Worker fault boundary.
 @languageItem("async.Promise")
 export class Promise<T> {
     /// The current settlement state.
     private state: PromiseState<T>;
 
-    /// Create a promise from an executor.
+    /// Create a promise from an eager executor.
     constructor(executor: PromiseExecutor<T>) {
-        this.state = { kind: "pending", reactions: [] };
+        this.state = PromisePending {
+            kind: "pending",
+            head: undefined,
+            tail: undefined,
+        };
 
         let resolve: PromiseResolve<T> = (value) => {
             this.resolve(value);
@@ -22,30 +29,30 @@ export class Promise<T> {
 
     /// Continue when the promise fulfills.
     then<U>(onFulfilled: (value: T) => U | Promise<U>): Promise<U> {
-        new Promise<U>((resolve) => {
-            this.react({
-                onFulfilled: (value) => {
-                    resolve(onFulfilled(value));
-                },
+        let next = new Promise<U>((resolve) => {
+            this.addReaction((value) => {
+                resolve(onFulfilled(value));
             });
-        })
+        });
+
+        return next;
     }
 
     /// Continue after the promise fulfills, keeping the value.
     finally(onFinally: () => void | Promise<void>): Promise<T> {
-        this.then((value) => {
+        return this.then((value) => {
             Promise.resolve(onFinally()).then(() => value)
-        })
+        });
     }
 
     /// Create a fulfilled promise.
     static resolve<T>(value: T | Promise<T>): Promise<T> {
         if (value instanceof Promise) {
-            value as Promise<T>
+            return value as Promise<T>;
         } else {
-            new Promise<T>((resolve) => {
+            return new Promise<T>((resolve) => {
                 resolve(value as T);
-            })
+            });
         }
     }
 
@@ -66,55 +73,103 @@ export class Promise<T> {
             resolve = innerResolve;
         });
 
-        PromiseResolvers {
+        return PromiseResolvers {
             promise,
             resolve: resolve!,
-        }
+        };
+    }
+
+    /// Wait for this promise and return its fulfilled value on a later async turn.
+    private awaitValue(): T {
+        return suspendContinuation<T>((continuation) => {
+            this.addAwaiter(continuation);
+        });
     }
 
     /// Resolve this promise with a value or another promise.
     private resolve(value: T | Promise<T>): void {
+        // adopt nested promises
         if (value instanceof Promise) {
             value.then((value) => {
                 this.fulfill(value);
             });
         } else {
-            this.fulfill(value);
+            this.fulfill(value as T);
         }
     }
 
     /// Fulfill this promise with a final value.
     private fulfill(value: T): void {
-        if (this.state.kind == "pending") {
-            let reactions = this.state.reactions;
-            this.state = { kind: "fulfilled", value };
-            this.queueReactions(reactions);
+        // ignore repeated fulfillment
+        if (this.state.kind == "fulfilled") {
+            return;
         }
+
+        // publish the value before running waiters
+        let waiters = this.state.head;
+        this.state = PromiseFulfilled { kind: "fulfilled", value };
+        this.queueWaiters(waiters, value);
     }
 
-    /// Add or schedule one reaction.
-    private react(reaction: PromiseReaction<T>): void {
-        if (this.state.kind == "pending") {
-            this.state.reactions.push(reaction);
-        } else {
-            this.queueReaction(reaction);
-        }
-    }
-
-    /// Schedule reactions after fulfillment.
-    private queueReactions(reactions: PromiseReaction<T>[]): void {
-        for (let index: usize = 0; index < reactions.size; index += 1) {
-            this.queueReaction(reactions[index]);
-        }
-    }
-
-    /// Schedule one reaction after fulfillment.
-    private queueReaction(reaction: PromiseReaction<T>): void {
-        queueMicrotask(() => {
-            if (this.state.kind == "fulfilled") {
-                reaction.onFulfilled(this.state.value);
-            }
+    /// Add one continuation waiter.
+    private addAwaiter(continuation: Continuation<T>): void {
+        this.addWaiter(PromiseAwaiter {
+            kind: "await",
+            continuation,
+            next: undefined,
         });
+    }
+
+    /// Add one reaction waiter.
+    private addReaction(run: (value: T) => void): void {
+        this.addWaiter(PromiseReaction {
+            kind: "reaction",
+            run,
+            next: undefined,
+        });
+    }
+
+    /// Add or schedule one waiter.
+    private addWaiter(waiter: PromiseWaiter<T>): void {
+        // schedule immediately after fulfillment
+        if (this.state.kind == "fulfilled") {
+            this.queueWaiter(waiter, this.state.value);
+            return;
+        }
+
+        // append to the pending waiter list
+        if (this.state.tail == undefined) {
+            this.state.head = waiter;
+            this.state.tail = waiter;
+        } else {
+            this.state.tail.next = waiter;
+            this.state.tail = waiter;
+        }
+    }
+
+    /// Schedule all waiters after fulfillment.
+    private queueWaiters(waiter: PromiseWaiter<T> | undefined, value: T): void {
+        // detach before queueing each waiter
+        while (waiter != undefined) {
+            let next = waiter.next;
+            waiter.next = undefined;
+            this.queueWaiter(waiter, value);
+            waiter = next;
+        }
+    }
+
+    /// Schedule one waiter after fulfillment.
+    private queueWaiter(waiter: PromiseWaiter<T>, value: T): void {
+        // resume awaiters through the continuation scheduler
+        if (waiter.kind == "await") {
+            waiter.continuation.queue(value);
+        }
+        // run callback reactions as microtasks
+        else {
+            queueMicrotask(() => {
+                waiter.run(value);
+            });
+        }
     }
 }
 
@@ -138,16 +193,19 @@ export type PromiseExecutor<T> = (resolve: PromiseResolve<T>) => void;
 type PromiseState<T> = PromisePending<T> | PromiseFulfilled<T>;
 
 /// Pending promise state.
-interface PromisePending<T> {
+struct PromisePending<T> {
     /// The state tag.
     kind: "pending";
 
-    /// Continuations waiting for fulfillment.
-    reactions: PromiseReaction<T>[];
+    /// First waiter to run after fulfillment.
+    head: PromiseWaiter<T> | undefined;
+
+    /// Last waiter to run after fulfillment.
+    tail: PromiseWaiter<T> | undefined;
 }
 
 /// Fulfilled promise state.
-interface PromiseFulfilled<T> {
+struct PromiseFulfilled<T> {
     /// The state tag.
     kind: "fulfilled";
 
@@ -155,8 +213,29 @@ interface PromiseFulfilled<T> {
     value: T;
 }
 
-/// Promise continuation callback.
-interface PromiseReaction<T> {
-    /// Fulfillment callback.
-    onFulfilled: (value: T) => void;
+/// One promise fulfillment waiter.
+type PromiseWaiter<T> = PromiseAwaiter<T> | PromiseReaction<T>;
+
+/// Await continuation parked inside one pending promise.
+struct PromiseAwaiter<T> {
+    /// The waiter tag.
+    kind: "await";
+
+    /// Continuation to resume with the fulfilled value.
+    continuation: Continuation<T>;
+
+    /// Next waiter in fulfillment order.
+    next: PromiseWaiter<T> | undefined;
+}
+
+/// Then/finally reaction parked inside one pending promise.
+struct PromiseReaction<T> {
+    /// The waiter tag.
+    kind: "reaction";
+
+    /// Reaction to run with the fulfilled value.
+    run: (value: T) => void;
+
+    /// Next waiter in fulfillment order.
+    next: PromiseWaiter<T> | undefined;
 }
