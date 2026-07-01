@@ -12,10 +12,6 @@ path = "src/lib.rs"
 doctest = false
 
 [[bin]]
-name = "update_conformance_catalog"
-path = "src/conformance/bin/update_catalog.rs"
-
-[[bin]]
 name = "print_conformance_translation_diffs"
 path = "src/conformance/bin/translation_diff.rs"
 

@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use crate::conformance::{suite_case, update_catalog_report_target};
+use crate::conformance::suite_case;
 use crate::core::{Case, CaseResult, RunContext, RunOptions, Suite};
 
 use super::{ConformanceSuiteResult, print_summary, run_babel, run_biome, run_swc, run_test262};
@@ -140,9 +140,5 @@ impl Suite for EcmaConformanceSuite {
         };
 
         print_summary(&results, None);
-
-        if let Err(error) = update_catalog_report_target() {
-            eprintln!("failed to update conformance catalog: {error}");
-        }
     }
 }

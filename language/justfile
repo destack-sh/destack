@@ -190,10 +190,6 @@ test-conformance-formatter:
 test-conformance-formatter-update:
     cargo test --release -p destack_test --test conformance-formatter -- --update-known-failures
 
-# regenerate shared conformance catalog sections
-update-conformance-catalog:
-    cargo run -p destack_test --bin update_conformance_catalog
-
 # run specification tests (type checking specification)
 test-specification:
     cargo test --release -p destack_test --test specification
