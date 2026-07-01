@@ -110,15 +110,16 @@ extension<K, V> of ^Map<K, V> implements Default {
     }
 }
 
-extension<K: Hash, V> of Map<K, V> implements
-    Has<K>,
-    Index<K>,
-    IndexSet<K, V>,
-    Iterable<(K, V)>,
-    Iterable<MapEntry<&readonly K, &V>>,
-    Iterable<MapEntry<&readonly K, &readonly V>>,
-    Iterable<MapEntry<&readonly K, &exclusive V>>,
-    Extend<(K, V), "exclusive"> where K: Equal<K> {
+extension<K: Hash, V> of Map<K, V>
+    implements
+        Has<K>,
+        Index<K>,
+        IndexSet<K, V>,
+        Iterable<(K, V)>,
+        Iterable<MapEntry<&readonly K, &V>>,
+        Iterable<MapEntry<&readonly K, &readonly V>>,
+        Iterable<MapEntry<&readonly K, &exclusive V>>,
+        Extend<(K, V), "exclusive"> where K: Equal<K> {
     /// The indexed output type.
     type Output = V | undefined;
 

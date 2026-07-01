@@ -70,22 +70,23 @@ extension of BigInt {
     }
 }
 
-extension of bigint implements
-    Add<bigint>,
-    And<bigint>,
-    Compare<bigint>,
-    Divide<bigint>,
-    Equal<bigint>,
-    Hash,
-    Multiply<bigint>,
-    Not,
-    Or<bigint>,
-    Power<bigint>,
-    Remainder<bigint>,
-    ShiftLeft<usize>,
-    ShiftRight<usize>,
-    Subtract<bigint>,
-    Xor<bigint> {
+extension of bigint
+    implements
+        Add<bigint>,
+        And<bigint>,
+        Compare<bigint>,
+        Divide<bigint>,
+        Equal<bigint>,
+        Hash,
+        Multiply<bigint>,
+        Not,
+        Or<bigint>,
+        Power<bigint>,
+        Remainder<bigint>,
+        ShiftLeft<usize>,
+        ShiftRight<usize>,
+        Subtract<bigint>,
+        Xor<bigint> {
     /// The arithmetic result type.
     type Output = bigint;
 

@@ -24,14 +24,15 @@ export type ReadonlyArray<T> = readonly T[];
 @languageItem("collections.FixedArray")
 export type FixedArray<T, comptime N: number> = [T; N];
 
-extension<T, comptime N: number> of FixedArray<T, N> implements
-    Sequence<T>,
-    Index<usize>,
-    IndexSet<usize, T>,
-    Iterable<T>,
-    Iterable<&T>,
-    Iterable<&readonly T>,
-    Iterable<&exclusive T> {
+extension<T, comptime N: number> of FixedArray<T, N>
+    implements
+        Sequence<T>,
+        Index<usize>,
+        IndexSet<usize, T>,
+        Iterable<T>,
+        Iterable<&T>,
+        Iterable<&readonly T>,
+        Iterable<&exclusive T> {
     /// The indexed output type.
     type Output = T;
 
@@ -117,9 +118,10 @@ extension<T, comptime N: number> of FixedArray<T, N> implements
     }
 }
 
-extension<T, comptime N: number, comptime A: Access = "readonly"> of FixedArray<T, N> implements
-    As<Slice<T>, A>,
-    Borrow<Slice<T>, A> {
+extension<T, comptime N: number, comptime A: Access = "readonly"> of FixedArray<T, N>
+    implements
+        As<Slice<T>, A>,
+        Borrow<Slice<T>, A> {
     /// Borrow this fixed array as a slice.
     as(this: WithAccess<&FixedArray<T, N>, A>): WithAccess<&Slice<T>, A> {
         todo("FixedArray.as")
@@ -144,16 +146,18 @@ extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N> impl
     }
 }
 
-extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N> implements
-    IndexSet<R, Slice<T>> where T: Copy {
+extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N>
+    implements
+        IndexSet<R, Slice<T>> where T: Copy {
     /// Copy `source` into the selected range.
     indexSet(&exclusive this, range: R, source: Slice<T>): void {
         todo("FixedArray.indexSetRange");
     }
 }
 
-extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N> implements
-    IndexSet<R, &readonly Slice<T>> where T: Copy {
+extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N>
+    implements
+        IndexSet<R, &readonly Slice<T>> where T: Copy {
     /// Copy `source` into the selected range.
     indexSet(&exclusive this, range: R, source: &readonly Slice<T>): void {
         todo("FixedArray.indexSetRange");
@@ -173,15 +177,16 @@ export class Array<T> {
     capacity: usize = 0;
 }
 
-extension<T> of Array<T> implements
-    Sequence<T>,
-    Index<usize>,
-    IndexSet<usize, T>,
-    Iterable<T>,
-    Iterable<&T>,
-    Iterable<&readonly T>,
-    Iterable<&exclusive T>,
-    Extend<T, "exclusive"> {
+extension<T> of Array<T>
+    implements
+        Sequence<T>,
+        Index<usize>,
+        IndexSet<usize, T>,
+        Iterable<T>,
+        Iterable<&T>,
+        Iterable<&readonly T>,
+        Iterable<&exclusive T>,
+        Extend<T, "exclusive"> {
     /// The indexed output type.
     type Output = T;
 
@@ -549,9 +554,10 @@ extension<T> of Array<T> implements
     }
 }
 
-extension<T, comptime A: Access = "readonly"> of Array<T> implements
-    As<Slice<T>, A>,
-    Borrow<Slice<T>, A> {
+extension<T, comptime A: Access = "readonly"> of Array<T>
+    implements
+        As<Slice<T>, A>,
+        Borrow<Slice<T>, A> {
     /// Borrow the initialized storage as a slice.
     as(this: WithAccess<&Array<T>, A>): WithAccess<&Slice<T>, A> {
         todo("Array.as")

@@ -72,10 +72,11 @@ export type Matrix3i = Matrix3<int32>;
 /// Four-by-four signed integer matrix.
 export type Matrix4i = Matrix4<int32>;
 
-extension<T: int | float> of Matrix2<T> implements
-    Add<Matrix2<T>>,
-    Subtract<Matrix2<T>>,
-    Multiply<Matrix2<T>> {
+extension<T: int | float> of Matrix2<T>
+    implements
+        Add<Matrix2<T>>,
+        Subtract<Matrix2<T>>,
+        Multiply<Matrix2<T>> {
     /// The arithmetic result type.
     type Output = Matrix2<T>;
 
@@ -150,10 +151,11 @@ extension<T: float> of Matrix2<T> {
     }
 }
 
-extension<T: int | float> of Matrix3<T> implements
-    Add<Matrix3<T>>,
-    Subtract<Matrix3<T>>,
-    Multiply<Matrix3<T>> {
+extension<T: int | float> of Matrix3<T>
+    implements
+        Add<Matrix3<T>>,
+        Subtract<Matrix3<T>>,
+        Multiply<Matrix3<T>> {
     /// The arithmetic result type.
     type Output = Matrix3<T>;
 
@@ -220,10 +222,11 @@ extension<T: float> of Matrix3<T> {
     }
 }
 
-extension<T: int | float> of Matrix4<T> implements
-    Add<Matrix4<T>>,
-    Subtract<Matrix4<T>>,
-    Multiply<Matrix4<T>> {
+extension<T: int | float> of Matrix4<T>
+    implements
+        Add<Matrix4<T>>,
+        Subtract<Matrix4<T>>,
+        Multiply<Matrix4<T>> {
     /// The arithmetic result type.
     type Output = Matrix4<T>;
 

@@ -66,12 +66,13 @@ export type Vector3i = Vector3<int32>;
 /// Four-dimensional signed integer vector.
 export type Vector4i = Vector4<int32>;
 
-extension<T: int | float> of Vector2<T> implements
-    Add<Vector2<T>>,
-    Subtract<Vector2<T>>,
-    Multiply<T>,
-    Divide<T>,
-    Negate {
+extension<T: int | float> of Vector2<T>
+    implements
+        Add<Vector2<T>>,
+        Subtract<Vector2<T>>,
+        Multiply<T>,
+        Divide<T>,
+        Negate {
     /// The arithmetic result type.
     type Output = Vector2<T>;
 
@@ -220,12 +221,13 @@ extension<T: float> of Vector2<T> {
     }
 }
 
-extension<T: int | float> of Vector3<T> implements
-    Add<Vector3<T>>,
-    Subtract<Vector3<T>>,
-    Multiply<T>,
-    Divide<T>,
-    Negate {
+extension<T: int | float> of Vector3<T>
+    implements
+        Add<Vector3<T>>,
+        Subtract<Vector3<T>>,
+        Multiply<T>,
+        Divide<T>,
+        Negate {
     /// The arithmetic result type.
     type Output = Vector3<T>;
 
@@ -388,12 +390,13 @@ extension<T: float> of Vector3<T> {
     }
 }
 
-extension<T: int | float> of Vector4<T> implements
-    Add<Vector4<T>>,
-    Subtract<Vector4<T>>,
-    Multiply<T>,
-    Divide<T>,
-    Negate {
+extension<T: int | float> of Vector4<T>
+    implements
+        Add<Vector4<T>>,
+        Subtract<Vector4<T>>,
+        Multiply<T>,
+        Divide<T>,
+        Negate {
     /// The arithmetic result type.
     type Output = Vector4<T>;
 

@@ -128,15 +128,16 @@ extension<K, V> of ^SortedMap<K, V> implements Default {
     }
 }
 
-extension<K: Compare<K>, V> of SortedMap<K, V> implements
-    Has<K>,
-    Index<K>,
-    IndexSet<K, V>,
-    Iterable<(K, V)>,
-    Iterable<SortedMapEntry<&readonly K, &V>>,
-    Iterable<SortedMapEntry<&readonly K, &readonly V>>,
-    Iterable<SortedMapEntry<&readonly K, &exclusive V>>,
-    Extend<(K, V), "exclusive"> {
+extension<K: Compare<K>, V> of SortedMap<K, V>
+    implements
+        Has<K>,
+        Index<K>,
+        IndexSet<K, V>,
+        Iterable<(K, V)>,
+        Iterable<SortedMapEntry<&readonly K, &V>>,
+        Iterable<SortedMapEntry<&readonly K, &readonly V>>,
+        Iterable<SortedMapEntry<&readonly K, &exclusive V>>,
+        Extend<(K, V), "exclusive"> {
     /// The indexed output type.
     type Output = V | undefined;
 
@@ -305,9 +306,10 @@ extension<K: Compare<K>, V> of SortedMap<K, V> implements
     }
 }
 
-extension<K: Compare<K>, V> of ^SortedMap<K, V> implements
-    From<Iterable<(K, V)>>,
-    FromIterator<(K, V)> {
+extension<K: Compare<K>, V> of ^SortedMap<K, V>
+    implements
+        From<Iterable<(K, V)>>,
+        FromIterator<(K, V)> {
     /// Create an owned sorted map from entries.
     static from(entries: Iterable<(K, V)>): ^SortedMap<K, V> {
         SortedMap.from(entries)

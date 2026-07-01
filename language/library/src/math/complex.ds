@@ -19,14 +19,15 @@ export type Complexf = Complex<float32>;
 /// Double-precision complex number.
 export type Complexd = Complex<float64>;
 
-extension<T: float> of Complex<T> implements
-    Add<Complex<T>>,
-    Subtract<Complex<T>>,
-    Multiply<Complex<T>>,
-    Divide<Complex<T>>,
-    Power<Complex<T>>,
-    Negate,
-    Equal<Complex<T>> {
+extension<T: float> of Complex<T>
+    implements
+        Add<Complex<T>>,
+        Subtract<Complex<T>>,
+        Multiply<Complex<T>>,
+        Divide<Complex<T>>,
+        Power<Complex<T>>,
+        Negate,
+        Equal<Complex<T>> {
     /// The arithmetic result type.
     type Output = Complex<T>;
 

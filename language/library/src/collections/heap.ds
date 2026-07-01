@@ -29,12 +29,13 @@ extension<T> of BinaryHeap<T> implements Default {
     }
 }
 
-extension<T: Compare<T>> of BinaryHeap<T> implements
-    Iterable<T>,
-    Iterable<&readonly T>,
-    From<Iterable<T>>,
-    FromIterator<T>,
-    Extend<T, "exclusive"> {
+extension<T: Compare<T>> of BinaryHeap<T>
+    implements
+        Iterable<T>,
+        Iterable<&readonly T>,
+        From<Iterable<T>>,
+        FromIterator<T>,
+        Extend<T, "exclusive"> {
     /// Create a binary heap from values.
     static from(values: Iterable<T>): BinaryHeap<T> {
         todo("BinaryHeap.from")

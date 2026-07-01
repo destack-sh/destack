@@ -42,18 +42,19 @@ export struct Slab<T> {
     count: usize = 0;
 }
 
-extension<T> of Slab<T> implements
-    Has<SlabKey>,
-    Index<SlabKey>,
-    IndexSet<SlabKey, T>,
-    Iterable<(SlabKey, T)>,
-    Iterable<&T>,
-    Iterable<&readonly T>,
-    Iterable<&exclusive T>,
-    From<Iterable<T>>,
-    FromIterator<T>,
-    Extend<T, "exclusive">,
-    Default {
+extension<T> of Slab<T>
+    implements
+        Has<SlabKey>,
+        Index<SlabKey>,
+        IndexSet<SlabKey, T>,
+        Iterable<(SlabKey, T)>,
+        Iterable<&T>,
+        Iterable<&readonly T>,
+        Iterable<&exclusive T>,
+        From<Iterable<T>>,
+        FromIterator<T>,
+        Extend<T, "exclusive">,
+        Default {
     /// The indexed output type.
     type Output = T | undefined;
 

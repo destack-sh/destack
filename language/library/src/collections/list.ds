@@ -44,12 +44,13 @@ export class LinkedList<T> {
     count: usize = 0;
 }
 
-extension<T> of LinkedList<T> implements
-    Iterable<T>,
-    Iterable<&T>,
-    Iterable<&readonly T>,
-    Iterable<&exclusive T>,
-    Extend<T, "exclusive"> {
+extension<T> of LinkedList<T>
+    implements
+        Iterable<T>,
+        Iterable<&T>,
+        Iterable<&readonly T>,
+        Iterable<&exclusive T>,
+        Extend<T, "exclusive"> {
     /// Create an empty list.
     static new(): ^LinkedList<T> {
         todo("LinkedList.new")
