@@ -11,10 +11,10 @@ pub(super) fn decorator_forms(_mode: StressMode, scale: usize, _width: usize) ->
         let _ = writeln!(source, "@deprecated(\"stress {index}\")");
         let _ = writeln!(source, "@derive(Clone, Debug)");
         let _ = writeln!(source, "struct Decorated{index}<comptime Enabled: bool> {{");
-        source.push_str("    @if(Enabled)\n");
-        let _ = writeln!(source, "    value{index}: int32;");
-        source.push_str("    @if(!Enabled)\n");
-        let _ = writeln!(source, "    fallback{index}: int32;");
+        let _ = writeln!(
+            source,
+            "    value{index}: Enabled extends true ? int32 : ();"
+        );
         source.push_str("}\n\n");
 
         let _ = writeln!(source, "@capture(\"borrow\")");
