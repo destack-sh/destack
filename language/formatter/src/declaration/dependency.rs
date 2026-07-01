@@ -752,7 +752,7 @@ fn format_dependency_with_arguments<'ast>(
             if index > 0 {
                 write!(f, [token(",")])?;
                 if should_use_block {
-                    write!(f, [soft_line_break()])?;
+                    write!(f, [soft_line_break_or_space()])?;
                 } else {
                     write!(f, [space()])?;
                 }
