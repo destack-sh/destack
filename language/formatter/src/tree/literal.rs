@@ -23,7 +23,7 @@ use destack_fir::prelude::{
     soft_block_indent, token,
 };
 use destack_fir::write;
-use destack_source::Span;
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use smallvec::SmallVec;
 
 /// Return the value expression id for one tree child.
@@ -119,6 +119,7 @@ fn tree_children_layout(
     TreeChildrenLayout {
         all_tree_children: tree_child_count == children.len(),
         only_tree_or_comment_children,
+        has_visible_text: has_non_whitespace_text_child,
         force_break,
         force_break_with_fill,
     }
@@ -131,6 +132,8 @@ struct TreeChildrenLayout {
     all_tree_children: bool,
     /// Whether every visible child is a tree expression or comment stub.
     only_tree_or_comment_children: bool,
+    /// Whether the child list has visible text content.
+    has_visible_text: bool,
     /// Whether the child list must break.
     force_break: bool,
     /// Whether forced breaks should still use JSX fill layout.
@@ -336,6 +339,7 @@ fn format_tree_children<'ast>(
 /// Collect top-level layout data for one tree literal.
 fn tree_literal_layout(
     context: &DestackFormatContext<'_>,
+    body_span: Option<Span>,
     attributes: &Option<Vec<LocalNodeId<TreeAttribute>>>,
     children: &Option<Vec<LocalNodeId<TreeChild>>>,
 ) -> TreeLiteralLayout {
@@ -356,10 +360,13 @@ fn tree_literal_layout(
     let has_multiline_whitespace_separator = children
         .as_ref()
         .is_some_and(|children| tree_literal_has_multiline_whitespace_separator(context, children));
+    let has_multiline_body = body_span.is_some_and(|body_span| context.has_newline(body_span))
+        && child_layout.is_some_and(|layout| layout.has_visible_text);
     let should_break = child_layout
         .map(|layout| layout.force_break)
         .unwrap_or(force_break_attributes);
-    let requires_expanded_layout = should_break || has_multiline_whitespace_separator;
+    let requires_expanded_layout =
+        should_break || has_multiline_whitespace_separator || has_multiline_body;
 
     TreeLiteralLayout {
         force_break_attributes,
@@ -374,7 +381,17 @@ pub(crate) fn tree_literal_should_break(
     attributes: &Option<Vec<LocalNodeId<TreeAttribute>>>,
     children: &Option<Vec<LocalNodeId<TreeChild>>>,
 ) -> bool {
-    tree_literal_layout(context, attributes, children).should_break
+    tree_literal_layout(context, None, attributes, children).should_break
+}
+
+/// Return the source body span for one tree literal.
+fn tree_literal_body_span(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> Option<Span> {
+    context
+        .tree
+        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Body))
 }
 
 /// Return whether a tree literal is the body of one lambda declaration.
@@ -647,7 +664,12 @@ pub(crate) fn format_tree_literal_expression<'ast>(
     children: &Option<Vec<LocalNodeId<TreeChild>>>,
 ) -> FormatResult<()> {
     let should_expand_in_parent = tree_literal_should_expand_in_parent(f.context(), node_id);
-    let layout = tree_literal_layout(f.context(), attributes, children);
+    let layout = tree_literal_layout(
+        f.context(),
+        tree_literal_body_span(f.context(), node_id),
+        attributes,
+        children,
+    );
 
     if !tree_literal_wraps_on_break(f.context(), node_id) {
         if !should_expand_in_parent {
@@ -715,6 +737,7 @@ fn format_tree_body<'ast>(
     left: &Option<LocalNodeId<Expression>>,
     children: &Option<Vec<LocalNodeId<TreeChild>>>,
     force_multiline_children: bool,
+    force_expanded_body: bool,
 ) -> FormatResult<()> {
     let Some(children) = children else {
         return Ok(());
@@ -737,7 +760,7 @@ fn format_tree_body<'ast>(
     let children_layout = tree_children_layout(f.context(), children, force_multiline_children);
 
     let format_children = format_with(|f| format_tree_children(f, children, children_layout));
-    if children_layout.force_break {
+    if children_layout.force_break || force_expanded_body {
         write!(f, [block_indent(&group(&format_children))])?;
     } else {
         write!(f, [group(&soft_block_indent(&format_children))])?;
@@ -779,7 +802,14 @@ fn format_tree_literal_with_layout<'ast>(
             let force_multiline_children = multiple_attributes || layout.force_break_attributes;
 
             write!(f, [group(&opening_tag)])?;
-            format_tree_body(f, _expression_id, left, children, force_multiline_children)
+            format_tree_body(
+                f,
+                _expression_id,
+                left,
+                children,
+                force_multiline_children,
+                layout.requires_expanded_layout,
+            )
         }))
         .should_expand(should_expand)]
     )
