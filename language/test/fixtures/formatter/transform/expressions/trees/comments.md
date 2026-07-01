@@ -214,8 +214,9 @@ const node = (
 const node = (
     <>
         {x ? (
-            <A /> // alt-line
+            <A />
         ) : (
+            // alt-line
             <B />
         )}
     </>

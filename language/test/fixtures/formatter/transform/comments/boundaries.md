@@ -539,8 +539,9 @@ right
 
 ```ts expected
 const value = cond
-    ? left // alt-line
-    : right;
+    ? left
+    : // alt-line
+      right;
 ```
 
 ### conditional argument trailing comment
