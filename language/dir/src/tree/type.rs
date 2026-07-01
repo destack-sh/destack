@@ -531,6 +531,15 @@ pub enum TypeExpression {
     /// ```
     TypeOf { value: LocalNodeId<Expression> },
 
+    /// Static value expression in type space.
+    ///
+    /// Examples:
+    /// ```
+    /// sizeOf<Header>()
+    /// strideOf<T>()
+    /// ```
+    StaticValue { expression: LocalNodeId<Expression> },
+
     /// `T!`.
     ///
     /// Examples:

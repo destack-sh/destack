@@ -2,7 +2,10 @@ use crate::parse::scope::TypeScope;
 use crate::{Parser, ParserResult, ParserSpanStart};
 
 use destack_core::StringId;
-use destack_dir::{LocalNodeId, NodeType, Path, TokenType, TypeExpression};
+use destack_dir::{
+    Expression, GenericArgument, LocalNodeId, NodeType, Path, PostfixPosition, TokenType,
+    TypeExpression,
+};
 use destack_source::Span;
 
 /// Type head that can receive generic arguments.
@@ -46,6 +49,16 @@ impl Parser {
                 TokenType::OpenBracket => {
                     left = self.eat_type_index_postfix(left)?;
                 }
+                TokenType::OpenParenthesis => {
+                    if scope.is_new_receiver {
+                        break;
+                    }
+
+                    let Some(expression_id) = self.eat_type_static_value_call(start, left)? else {
+                        break;
+                    };
+                    left = expression_id;
+                }
                 TokenType::Dot => {
                     left = self.eat_type_dot_postfix(start, left)?;
                 }
@@ -63,6 +76,101 @@ impl Parser {
         }
 
         Ok(left)
+    }
+
+    /// Parse a value call in type syntax.
+    ///
+    /// Examples:
+    /// ```ds
+    /// sizeOf<Header>()
+    /// namespace.value<T>(argument)
+    /// ```
+    fn eat_type_static_value_call(
+        &mut self,
+        start: &ParserSpanStart,
+        left: LocalNodeId<TypeExpression>,
+    ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
+        let Some((callee, generic_arguments)) = self.type_head_as_value(left) else {
+            return Ok(None);
+        };
+        let expression = self.eat_call(callee, Some(generic_arguments), PostfixPosition::Direct)?;
+
+        Ok(Some(self.insert_node(
+            TypeExpression::StaticValue { expression },
+            self.get_span_from(start),
+        )))
+    }
+
+    /// Return the value expression represented by one type head.
+    fn type_head_as_value(
+        &mut self,
+        ty: LocalNodeId<TypeExpression>,
+    ) -> Option<(LocalNodeId<Expression>, Vec<LocalNodeId<GenericArgument>>)> {
+        match self.tree.get(ty).clone() {
+            TypeExpression::Reference {
+                path,
+                generic_arguments,
+            } => {
+                let callee = self.type_path_as_value(&path, self.tree.get_span(ty))?;
+
+                Some((callee, generic_arguments))
+            }
+            TypeExpression::Member {
+                left,
+                name,
+                generic_arguments,
+            } => {
+                let owner = self.type_head_as_instantiated_value(left)?;
+                let callee = self.insert_node(
+                    Expression::Member {
+                        left: owner,
+                        name: Some(name),
+                    },
+                    self.tree.get_span(ty),
+                );
+
+                Some((callee, generic_arguments))
+            }
+            _ => None,
+        }
+    }
+
+    /// Return the instantiated value expression represented by one type head.
+    fn type_head_as_instantiated_value(
+        &mut self,
+        ty: LocalNodeId<TypeExpression>,
+    ) -> Option<LocalNodeId<Expression>> {
+        let (callee, generic_arguments) = self.type_head_as_value(ty)?;
+        if generic_arguments.is_empty() {
+            return Some(callee);
+        }
+
+        Some(self.insert_node(
+            Expression::Instantiation {
+                left: callee,
+                generic_arguments,
+            },
+            self.tree.get_span(ty),
+        ))
+    }
+
+    /// Return the value expression represented by a path reference.
+    fn type_path_as_value(&mut self, path: &Path, span: Span) -> Option<LocalNodeId<Expression>> {
+        let mut segments = path.segments.iter().copied();
+        let first = segments.next()?;
+        let mut callee = self.insert_node(Expression::Identifier { name: first }, span);
+
+        for segment in segments {
+            callee = self.insert_node(
+                Expression::Member {
+                    left: callee,
+                    name: Some(segment),
+                },
+                span,
+            );
+        }
+
+        Some(callee)
     }
 
     /// Parse a type must postfix.

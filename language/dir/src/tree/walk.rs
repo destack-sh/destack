@@ -431,6 +431,10 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
+        TypeExpression::StaticValue { expression } => {
+            let value_expression = tree.get(*expression);
+            visitor.visit_expression(tree, *expression, value_expression);
+        }
         TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
             for element_id in elements {
                 let element = tree.get(*element_id);

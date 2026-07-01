@@ -402,6 +402,7 @@ fn type_expression_complexity_inner(
         | TypeExpression::Const
         | TypeExpression::This
         | TypeExpression::TypeOf { .. }
+        | TypeExpression::StaticValue { .. }
         | TypeExpression::Missing
         | TypeExpression::Error => {}
     }
