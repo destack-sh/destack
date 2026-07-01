@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use destack_artifact::{
     DirBound, DirCheckedModule, DirExpanded, DirExported, DirImported, DirResolved,
 };
-use destack_core::StringPool;
+use destack_core::{StringId, StringPool};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
@@ -52,6 +52,8 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     /// Foreign symbol labels keyed by module and local symbol.
     pub(super) foreign_symbol_labels:
         RefCell<BTreeMap<ModuleId, BTreeMap<dir::LocalSymbolId, String>>>,
+    /// Source-visible global names keyed by resolved symbol.
+    pub(super) global_names_by_symbol: BTreeMap<dir::GlobalSymbolId, BTreeSet<StringId>>,
     /// Language items keyed by resolved global symbol.
     pub(super) language_item_by_symbol: BTreeMap<dir::GlobalSymbolId, dir::LanguageItem>,
     /// Semantic type labels keyed by global type id.
@@ -92,6 +94,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             foreign_types: BTreeMap::new(),
             foreign_statics: BTreeMap::new(),
             foreign_symbol_labels: RefCell::new(BTreeMap::new()),
+            global_names_by_symbol: BTreeMap::new(),
             language_item_by_symbol: BTreeMap::new(),
             type_labels: BTreeMap::new(),
             static_labels: BTreeMap::new(),
@@ -201,6 +204,7 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Add selected rows for a resolved DIR artifact.
     pub(crate) fn add_resolved(&mut self, selection: DirRows, resolved: &DirResolved) {
         self.summaries = selection.summaries;
+        self.add_global_names(&resolved.imports);
         self.add_language_items(&resolved.imports);
 
         if selection.import {
@@ -313,6 +317,24 @@ impl<'a> DirSnapshotBuilder<'a> {
     pub(crate) fn add_language_items(&mut self, imports: &dir::ImportTable) {
         for (item, symbol) in &imports.language_symbol_by_item {
             self.language_item_by_symbol.insert(*symbol, *item);
+        }
+    }
+
+    /// Add source-visible global names from resolved imports.
+    pub(crate) fn add_global_names(&mut self, imports: &dir::ImportTable) {
+        for (key, targets) in &imports.global_target_by_key {
+            let Some(name) = key.name() else {
+                continue;
+            };
+
+            let [dir::ImportTarget::Symbol(symbol)] = targets.as_slice() else {
+                continue;
+            };
+
+            self.global_names_by_symbol
+                .entry(*symbol)
+                .or_default()
+                .insert(name);
         }
     }
 

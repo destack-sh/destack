@@ -151,7 +151,7 @@ impl DirSnapshotBuilder<'_> {
         symbol: dir::GlobalSymbolId,
         arguments: &[dir::GlobalTypeId],
     ) -> String {
-        let symbol = self.symbol_path_label(symbol);
+        let symbol = self.reference_symbol_label(symbol);
         let arguments = arguments
             .iter()
             .map(|argument| self.global_type_label(*argument))

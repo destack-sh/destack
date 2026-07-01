@@ -666,7 +666,7 @@ impl TestSession {
             builder.add_expanded(selection, &expanded);
         }
 
-        // load resolved imports when semantic labels need language items
+        // load resolved imports when semantic labels need import names
         let resolved = if selection.uses_type_labels() || selection.includes_import() {
             Some(self.dir_resolved(entry))
         } else {
@@ -674,6 +674,7 @@ impl TestSession {
         };
 
         if let Some(resolved) = &resolved {
+            builder.add_global_names(&resolved.imports);
             builder.add_language_items(&resolved.imports);
         }
 
