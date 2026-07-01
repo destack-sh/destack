@@ -23,6 +23,7 @@ use crate::operator::{
     write_type_annotation_prefix, write_type_expression_with_inline_prefix_annotations,
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
+use destack_core::ensure_sufficient_stack;
 use destack_dir::{
     Comment, ConstructorType, Declaration, Expression, FunctionForm, FunctionSignature,
     FunctionTypeExpression, GenericArgument, GenericParameter, InferForm, Key, Keyword,
@@ -2789,19 +2790,13 @@ pub(crate) fn write_type_expression_body<'ast>(
     is_in_explicit_parentheses: bool,
     layout: TypeExpressionLayout,
 ) -> FormatResult<()> {
-    destack_core::ensure_sufficient_stack(|| {
-        write_type_expression_body_at_current_stack(
-            f,
-            node_id,
-            expression,
-            is_in_explicit_parentheses,
-            layout,
-        )
+    ensure_sufficient_stack(|| {
+        write_type_expression_body_inner(f, node_id, expression, is_in_explicit_parentheses, layout)
     })
 }
 
-/// Write one type body after stack growth is handled.
-fn write_type_expression_body_at_current_stack<'ast>(
+/// Write one type body.
+fn write_type_expression_body_inner<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     expression: &TypeExpression,

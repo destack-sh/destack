@@ -8,6 +8,7 @@ use crate::expression::{
 use crate::file::{node_has_ignore_directive, write_ignored_node};
 use crate::operator::{format_operator_expression, write_operator_expression_trailing_annotations};
 use crate::{DestackFormatter, FormatNode};
+use destack_core::ensure_sufficient_stack;
 use destack_dir::{Expression, LocalNodeId};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{format_with, token};
@@ -195,13 +196,11 @@ fn format_expression_body<'ast>(
     node_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<()> {
-    destack_core::ensure_sufficient_stack(|| {
-        format_expression_body_at_current_stack(f, node_id, expression)
-    })
+    ensure_sufficient_stack(|| format_expression_body_inner(f, node_id, expression))
 }
 
-/// Format one expression body after stack growth is handled.
-fn format_expression_body_at_current_stack<'ast>(
+/// Format one expression body.
+fn format_expression_body_inner<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     expression: &Expression,

@@ -13,6 +13,7 @@ use crate::collection::literal::format_scalar_literal;
 use crate::context::with_expanded_tree_callback_bodies;
 use crate::expression::{argument_value, jsx_chain_ternary_needs_expanded_branches};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
+use destack_core::ensure_sufficient_stack;
 use destack_dir::{
     Argument, Comment, Expression, IfForm, LocalNodeId, NodeType, ScalarLiteral, TreeAttribute,
     TreeAttributeValue, TreeChild,
@@ -449,6 +450,15 @@ pub(crate) fn write_tree_attribute<'ast>(
 
 /// Write one tree child.
 pub(crate) fn write_tree_child<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    child_id: LocalNodeId<TreeChild>,
+    following_span_start: Option<u32>,
+) -> FormatResult<()> {
+    ensure_sufficient_stack(|| write_tree_child_inner(f, child_id, following_span_start))
+}
+
+/// Write one tree child.
+fn write_tree_child_inner<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     child_id: LocalNodeId<TreeChild>,
     following_span_start: Option<u32>,

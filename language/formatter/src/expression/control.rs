@@ -22,7 +22,7 @@ use crate::expression::ExpressionLeftSide;
 use crate::file::{node_has_ignore_directive, node_has_trailing_line_ignore_directive};
 use crate::tree::tree_literal_should_break;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_core::StringId;
+use destack_core::{StringId, ensure_sufficient_stack};
 use destack_dir::{
     Asynchrony, BindingKeyword, Block, BlockForm, Catch, Condition, ConditionOperand,
     DecoratorPosition, Expression, ForEachBinding, ForEachOperator, IfForm, Keyword, LetKind,
@@ -243,6 +243,17 @@ pub(crate) fn format_statement_body_block<'ast>(
 
 /// Format one block-backed statement body after a control-flow head.
 fn format_statement_body_block_after_head<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    block_id: LocalNodeId<Block>,
+    force_expanded_body: bool,
+) -> FormatResult<()> {
+    ensure_sufficient_stack(|| {
+        format_statement_body_block_after_head_inner(f, block_id, force_expanded_body)
+    })
+}
+
+/// Format one block-backed statement body.
+fn format_statement_body_block_after_head_inner<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     block_id: LocalNodeId<Block>,
     force_expanded_body: bool,
