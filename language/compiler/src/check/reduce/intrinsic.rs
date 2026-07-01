@@ -15,16 +15,14 @@ impl CheckState<'_> {
         };
 
         match item {
-            // normalize collection constructors to structural types
-            dir::LanguageItem::Array => self.normalize_array_application(origin, instance),
-            dir::LanguageItem::Slice => self.normalize_slice_application(origin, instance),
-            dir::LanguageItem::FixedArray => {
-                self.normalize_fixed_array_application(origin, instance)
-            }
-            dir::LanguageItem::Dynamic => self.normalize_dynamic_application(origin, instance),
-            dir::LanguageItem::Function => self.normalize_function_application(origin, instance),
+            // reduce collection aliases to structural types
+            dir::LanguageItem::Array => self.reduce_array_application(origin, instance),
+            dir::LanguageItem::Slice => self.reduce_slice_application(origin, instance),
+            dir::LanguageItem::FixedArray => self.reduce_fixed_array_application(origin, instance),
+            dir::LanguageItem::Dynamic => self.reduce_dynamic_application(origin, instance),
+            dir::LanguageItem::Function => self.reduce_function_application(origin, instance),
             dir::LanguageItem::FunctionPointer => {
-                self.normalize_function_pointer_application(origin, instance)
+                self.reduce_function_pointer_application(origin, instance)
             }
 
             // reduce transparent compiler-known aliases
@@ -32,22 +30,26 @@ impl CheckState<'_> {
             | dir::LanguageItem::Lowercase
             | dir::LanguageItem::Capitalize
             | dir::LanguageItem::Uncapitalize => {
-                self.normalize_string_mapping_application(origin, item, instance)
+                self.reduce_string_mapping_application(origin, item, instance)
             }
-            dir::LanguageItem::NoInfer => self.normalize_noinfer_application(origin, instance),
+            dir::LanguageItem::NoInfer => self.reduce_noinfer_application(origin, instance),
+            dir::LanguageItem::Awaited => self.reduce_awaited_application(origin, instance),
+            dir::LanguageItem::Readonly => {
+                self.reduce_form_constructor(origin, instance, dir::Form::Readonly)
+            }
 
-            // normalize memory constructors to canonical written forms
+            // reduce memory aliases to canonical written forms
             dir::LanguageItem::Managed => {
-                self.normalize_form_constructor(origin, instance, dir::Form::Managed)
+                self.reduce_form_constructor(origin, instance, dir::Form::Managed)
             }
             dir::LanguageItem::Owned => {
-                self.normalize_form_constructor(origin, instance, dir::Form::Owned)
+                self.reduce_form_constructor(origin, instance, dir::Form::Owned)
             }
             dir::LanguageItem::Raw => {
-                self.normalize_form_constructor(origin, instance, dir::Form::Raw)
+                self.reduce_form_constructor(origin, instance, dir::Form::Raw)
             }
-            dir::LanguageItem::Borrowed => self.normalize_borrowed_constructor(origin, instance),
-            dir::LanguageItem::Placed => self.normalize_placed_constructor(origin, instance),
+            dir::LanguageItem::Borrowed => self.reduce_borrowed_constructor(origin, instance),
+            dir::LanguageItem::Placed => self.reduce_placed_constructor(origin, instance),
 
             // evaluate memory accessors over closed form chains
             dir::LanguageItem::PayloadOf
@@ -86,14 +88,19 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<bool> {
         let is_transparent = self.language_item(symbol)?.is_some_and(|item| {
-            item == dir::LanguageItem::NoInfer || item.string_mapping().is_some()
+            matches!(
+                item,
+                dir::LanguageItem::Awaited
+                    | dir::LanguageItem::NoInfer
+                    | dir::LanguageItem::Readonly
+            ) || item.string_mapping().is_some()
         });
 
         Ok(is_transparent)
     }
 
-    /// Normalize one compiler-known string mapping alias application.
-    fn normalize_string_mapping_application(
+    /// Reduce one compiler-known string mapping alias application.
+    fn reduce_string_mapping_application(
         &mut self,
         origin: Origin,
         item: dir::LanguageItem,
@@ -115,8 +122,8 @@ impl CheckState<'_> {
         Ok(Answer::Ready(Some(ty)))
     }
 
-    /// Normalize one inference barrier intrinsic application.
-    fn normalize_noinfer_application(
+    /// Reduce one inference barrier intrinsic application.
+    fn reduce_noinfer_application(
         &mut self,
         origin: Origin,
         instance: &dir::GenericInstance,
@@ -133,8 +140,26 @@ impl CheckState<'_> {
         Ok(Answer::Ready(Some(ty)))
     }
 
-    /// Normalize one Array intrinsic application.
-    fn normalize_array_application(
+    /// Reduce one awaited-value intrinsic application.
+    fn reduce_awaited_application(
+        &mut self,
+        origin: Origin,
+        instance: &dir::GenericInstance,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let [target] = instance.arguments.as_slice() else {
+            return Ok(Answer::Ready(None));
+        };
+        let ty = dir::Type::Operation(dir::TypeOperation::Awaited(dir::UnaryType {
+            target: *target,
+        }));
+
+        let ty = self.push_type_at_origin(origin, ty)?;
+
+        Ok(Answer::Ready(Some(ty)))
+    }
+
+    /// Reduce one Array intrinsic application.
+    fn reduce_array_application(
         &mut self,
         origin: Origin,
         instance: &dir::GenericInstance,
@@ -149,8 +174,8 @@ impl CheckState<'_> {
         Ok(Answer::Ready(Some(ty)))
     }
 
-    /// Normalize one Slice intrinsic application.
-    fn normalize_slice_application(
+    /// Reduce one Slice intrinsic application.
+    fn reduce_slice_application(
         &mut self,
         origin: Origin,
         instance: &dir::GenericInstance,
@@ -165,8 +190,8 @@ impl CheckState<'_> {
         Ok(Answer::Ready(Some(ty)))
     }
 
-    /// Normalize one FixedArray intrinsic application.
-    fn normalize_fixed_array_application(
+    /// Reduce one FixedArray intrinsic application.
+    fn reduce_fixed_array_application(
         &mut self,
         origin: Origin,
         instance: &dir::GenericInstance,
@@ -184,8 +209,8 @@ impl CheckState<'_> {
         Ok(Answer::Ready(Some(ty)))
     }
 
-    /// Normalize one Dynamic intrinsic application.
-    fn normalize_dynamic_application(
+    /// Reduce one Dynamic intrinsic application.
+    fn reduce_dynamic_application(
         &mut self,
         origin: Origin,
         instance: &dir::GenericInstance,
@@ -202,8 +227,8 @@ impl CheckState<'_> {
         Ok(Answer::Ready(Some(ty)))
     }
 
-    /// Normalize one Function intrinsic application.
-    fn normalize_function_application(
+    /// Reduce one Function intrinsic application.
+    fn reduce_function_application(
         &mut self,
         origin: Origin,
         instance: &dir::GenericInstance,
@@ -223,8 +248,8 @@ impl CheckState<'_> {
         Ok(Answer::Ready(Some(ty)))
     }
 
-    /// Normalize one FunctionPointer intrinsic application.
-    fn normalize_function_pointer_application(
+    /// Reduce one FunctionPointer intrinsic application.
+    fn reduce_function_pointer_application(
         &mut self,
         origin: Origin,
         instance: &dir::GenericInstance,
@@ -249,7 +274,7 @@ impl CheckState<'_> {
         let [parameters, return_type] = instance.arguments.as_slice() else {
             return Ok(Answer::Ready(None));
         };
-        let parameters = answer!(self.reduce_type_root(origin, *parameters)?);
+        let parameters = answer!(self.reduce_type_head(origin, *parameters)?);
 
         // read the parameter tuple
         let parameters = match self.ty(parameters)? {

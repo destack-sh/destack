@@ -3,9 +3,24 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, GenericParameterId, GenericTemplateId, Origin, TypeSubstitution};
+use crate::check::{
+    CheckState, GenericParameterId, GenericTemplateId, Origin, TypeSubstitution, Widening,
+};
 
 impl CheckState<'_> {
+    /// Return the inference widening policy for one generic parameter.
+    fn generic_parameter_widening(&self, id: GenericParameterId) -> Widening {
+        let Some(parameter) = self.generic_parameter(id) else {
+            return Widening::Preserve;
+        };
+
+        if parameter.is_const || parameter.is_comptime {
+            Widening::Preserve
+        } else {
+            Widening::Widen
+        }
+    }
+
     /// Return one generic parameter's default after earlier arguments apply.
     pub(in crate::check) fn generic_parameter_default(
         &mut self,
@@ -114,11 +129,22 @@ impl CheckState<'_> {
                     let variable = self.allocate_variable(origin.module(), origin, widening);
                     let ty = self.push_variable_type(variable, source)?;
 
-                    // add declared constraints as upper bounds
+                    // add declared bounds as upper bounds
                     let constraint = self
                         .generic_parameter(parameter)
                         .and_then(|binding| binding.constraint);
                     if let Some(constraint) = constraint {
+                        let substitution = TypeSubstitution {
+                            parameters: parameters[..index].iter().copied().collect(),
+                            arguments: arguments.iter().copied().collect(),
+                            receiver: None,
+                        };
+                        let constraint = self.substitute_type(
+                            origin.module(),
+                            source,
+                            constraint,
+                            &substitution,
+                        )?;
                         self.push_upper_bound(variable, source_node, constraint)?;
                     }
                     if let Some(default) = self.generic_parameter_default(

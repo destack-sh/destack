@@ -7,7 +7,7 @@ use crate::check::{Answer, CheckState, Dependency, Origin};
 impl CheckState<'_> {
     /// Merge one intersection's structural shape elements.
     ///
-    /// Shared field keys intersect their types, required fields and readonly views win, and
+    /// Shared field keys intersect their types, required fields and readonly forms win, and
     /// non-shape elements stay intersected.
     /// Returns the unchanged root while fewer than two elements are shapes.
     pub(in crate::check) fn reduce_intersection(
@@ -19,13 +19,18 @@ impl CheckState<'_> {
         let mut closed = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for element in elements {
-            match self.reduce_type_root(origin, *element)? {
+            match self.reduce_type_head(origin, *element)? {
                 Answer::Ready(element) => closed.push(element),
                 Answer::Pending(dependencies) => blockers.extend(dependencies),
             }
         }
         if !blockers.is_empty() {
             return Ok(Answer::pending(blockers));
+        }
+
+        // reduce one element intersection to that element
+        if let [single] = closed.as_slice() {
+            return Ok(Answer::Ready(*single));
         }
 
         // merge structural shapes and keep every other element symbolic
