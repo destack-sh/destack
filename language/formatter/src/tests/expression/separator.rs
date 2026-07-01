@@ -303,7 +303,7 @@ fn test_format_ternary_alternate_block_separator_comments() {
     );
 }
 
-/// Ternary line comments before the alternate should stay on the then-branch separator.
+/// Ternary line comments after `:` should stay with the alternate branch.
 #[test]
 fn test_format_ternary_alternate_line_separator_comments() {
     assert_format_program_roundtrip_with_file_type(
@@ -311,8 +311,9 @@ fn test_format_ternary_alternate_line_separator_comments() {
 valueB
 "#,
         r#"const x = condition
-    ? valueA // else-note
-    : valueB;
+    ? valueA
+    : // else-note
+      valueB;
 "#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(100),
