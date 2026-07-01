@@ -23,9 +23,9 @@ struct Point {
     x: int32;
 }
 
-let point: Owned<Point> = ^Point { x: 1 };
+let point: ^Point = ^Point { x: 1 };
 
-point satisfies Owned<Point>;
+point satisfies ^Point;
 
 === checked ===
 struct Point {
@@ -35,13 +35,19 @@ struct Point {
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
 }
 
 let point = ^Point { x: 1 };
-/// @type.symbol symbol=point type=Owned<Point>
+/// @type.symbol symbol=point source=point type=Owned<Point> reduced=Point
+/// @type.node source="^Point { x: 1 }" type=Owned<Point> reduced=Point
+/// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
+/// @type.node source=1 type=1
 
 point satisfies ^Point;
+/// @type.node source="point satisfies ^Point" type=Owned<Point> reduced=Point
+/// @type.node source=point type=Owned<Point> reduced=Point
 /// @resolution.name source=point target=point
 /// @resolution.name source=Point target=Point
 "#,
@@ -49,7 +55,7 @@ point satisfies ^Point;
 }
 
 #[test]
-fn test_plain_value_does_not_satisfy_owned_destination() {
+fn test_plain_value_materializes_into_owned_destination() {
     let session = TestSession::single(
         r#"
 struct Point {
@@ -60,7 +66,7 @@ let point: ^Point = Point { x: 1 };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -69,7 +75,7 @@ struct Point {
     x: int32;
 }
 
-let point: Owned<Point> = Point { x: 1 };
+let point: ^Point = Point { x: 1 };
 
 === checked ===
 struct Point {
@@ -79,16 +85,15 @@ struct Point {
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
 }
 
 let point: ^Point = Point { x: 1 };
-/// @type.symbol symbol=point source=point type=Owned<Point>
+/// @type.symbol symbol=point source=point type=Owned<Point> reduced=Point
 /// @resolution.name source=Point target=Point
+/// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
-"#,
-        r#"
-/// @diagnostic.error code=EC200 message="type 'Point' is not assignable to type 'Owned<Point>'"
-/// @diagnostic.label line=6 column=5 source="let point: ^Point = Point { x: 1 };"
+/// @type.node source=1 type=1
 "#,
     );
 }
@@ -121,12 +126,12 @@ struct Data {
 }
 
 struct Container {
-    data: Owned<Data>;
+    data: ^Data;
 }
 
 const container: Container = Container { data: ^Data { value: 1 } };
 
-container.data satisfies Owned<Data>;
+container.data satisfies ^Data;
 
 === checked ===
 struct Data {
@@ -136,6 +141,7 @@ struct Data {
 
     value: int32;
     /// @type.symbol symbol=Data.value source="value: int32" type=int32
+
 }
 
 struct Container {
@@ -144,16 +150,24 @@ struct Container {
 /// @definition.field symbol=Container.data source="data: ^Data" key=data type=Owned<Data>
 
     data: ^Data;
-    /// @type.symbol symbol=Container.data source="data: ^Data" type=Owned<Data>
+    /// @type.symbol symbol=Container.data source="data: ^Data" type=Owned<Data> reduced=Data
     /// @resolution.name source=Data target=Data
+
 }
 
 const container = Container { data: ^Data { value: 1 } };
-/// @type.symbol symbol=container type=Container
+/// @type.symbol symbol=container source=container type=Container
+/// @type.node source="Container { data: ^Data { value: 1 } }" type=Container
 /// @resolution.name source=Container target=Container
+/// @type.node source="^Data { value: 1 }" type=Owned<Data> reduced=Data
+/// @type.node source="Data { value: 1 }" type=Data
 /// @resolution.name source=Data target=Data
+/// @type.node source=1 type=1
 
 container.data satisfies ^Data;
+/// @type.node source="container.data satisfies ^Data" type=Owned<Data> reduced=Data
+/// @type.node source=container type=Container
+/// @type.node source=container.data type=Owned<Data> reduced=Data
 /// @resolution.name source=container target=container
 /// @resolution.member source=container.data receiver=Container kind=symbol target=Container.data
 /// @resolution.name source=Data target=Data
@@ -194,7 +208,7 @@ struct User {
     profile: Profile;
 }
 
-let user: Owned<readonly User> = ^readonly User {
+let user: ^readonly User = ^readonly User {
     profile: Profile { name: "Ada" },
 };
 
@@ -208,6 +222,7 @@ struct Profile {
 
     name: string;
     /// @type.symbol symbol=Profile.name source="name: string" type=string
+
 }
 
 struct User {
@@ -218,23 +233,36 @@ struct User {
     profile: Profile;
     /// @type.symbol symbol=User.profile source="profile: Profile" type=Profile
     /// @resolution.name source=Profile target=Profile
+
 }
 
 let user: ^readonly User = ^readonly User {
-    profile: Profile { name: "Ada" },
-};
-/// @type.symbol symbol=user source=user type=Owned<readonly User>
+/// @type.symbol symbol=user source=user type=Owned<Readonly<User>> reduced=Readonly<User>
 /// @resolution.name source=User target=User
-/// @resolution.name source=Profile target=Profile
+/// @type.node type=Owned<Readonly<User>> reduced=Readonly<User>
+/// @type.node type=User
+/// @resolution.name source=User target=User
+
+    profile: Profile { name: "Ada" },
+    /// @type.node source="Profile { name: \"Ada\" }" type=Profile
+    /// @resolution.name source=Profile target=Profile
+    /// @type.node source="\"Ada\"" type="Ada"
+
+};
 
 user.profile.name = "Grace";
+/// @type.node source="user.profile.name = \"Grace\"" type="Grace"
+/// @type.node source=user type=Owned<Readonly<User>> reduced=Readonly<User>
+/// @type.node source=user.profile type=Readonly<Profile>
+/// @type.node source=user.profile.name type=string
 /// @resolution.name source=user target=user
-/// @resolution.member source=user.profile receiver=Owned<readonly User> kind=symbol target=User.profile
-/// @resolution.member source=user.profile.name receiver=readonly Profile kind=symbol target=Profile.name
+/// @resolution.member source=user.profile receiver=Readonly<User> kind=symbol target=User.profile
+/// @resolution.pattern.assign source=user.profile.name kind=place place=field(Profile.name) type=string
+/// @type.node source="\"Grace\"" type="Grace"
 "#,
         r#"
 /// @diagnostic.error code=EC214 message="cannot assign to readonly member 'name'"
-/// @diagnostic.label line=13 column=1 source="user.profile.name = \"Grace\";"
+/// @diagnostic.label line=14 column=14 span="name" line_source="user.profile.name = \"Grace\";"
 "#,
     );
 }

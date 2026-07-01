@@ -19,27 +19,29 @@ let owned: ^User = user;
 class User {}
 
 let user: User = new User();
-let owned: Owned<User> = user;
+let owned: ^User = user;
 
 === checked ===
-class User {
-/// @type.symbol symbol=User type=User
-}
+class User {}
+/// @type.symbol symbol=User source="class User {}" type=User
+/// @definition.class symbol=User source="class User {}"
 
 let user: User = new User();
 /// @type.symbol symbol=user source=user type=User
 /// @resolution.name source=User target=User
+/// @type.node source="new User()" type=User
+/// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
 /// @resolution.name source=User target=User
-/// @resolution.construct source="new User()" parameters=() return=User kind=class target=User
 
 let owned: ^User = user;
 /// @type.symbol symbol=owned source=owned type=Owned<User>
 /// @resolution.name source=User target=User
+/// @type.node source=user type=User
 /// @resolution.name source=user target=user
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'User' is not assignable to type 'Owned<User>'"
-/// @diagnostic.label line=5 column=5 source="let owned: ^User = user;"
+/// @diagnostic.error code=EC200 message="type 'User' is not assignable to type '^User'"
+/// @diagnostic.label line=5 column=20 span="user" line_source="let owned: ^User = user;"
 "#,
     );
 }
@@ -67,9 +69,9 @@ struct Point {
     x: int32;
 }
 
-let point: Owned<Point> = ^Point { x: 1 };
-let borrow: Borrowed<Point, L0, "mutable"> = &point;
-let owned: Owned<Point> = borrow;
+let point: ^Point = ^Point { x: 1 };
+let borrow: Borrowed<^Point, "static", "mutable"> = &point;
+let owned: ^Point = borrow;
 
 === checked ===
 struct Point {
@@ -79,25 +81,31 @@ struct Point {
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
 }
 
 let point = ^Point { x: 1 };
-/// @type.symbol symbol=point type=Owned<Point>
+/// @type.symbol symbol=point source=point type=Owned<Point> reduced=Point
+/// @type.node source="^Point { x: 1 }" type=Owned<Point> reduced=Point
+/// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
+/// @type.node source=1 type=1
 
 let borrow = &point;
-/// @type.symbol symbol=borrow type=Borrowed<Point, borrow.L0, "mutable">
+/// @type.symbol symbol=borrow source=borrow type=Borrowed<Owned<Point>, "static", "mutable"> reduced=Borrowed<Point, "static", "mutable">
+/// @type.node source=&point type=Borrowed<Owned<Point>, "static", "mutable"> reduced=Borrowed<Point, "static", "mutable">
+/// @type.node source=point type=Owned<Point> reduced=Point
 /// @resolution.name source=point target=point
-/// @borrow.source source="&point" place=point lifetime=borrow.L0 access=mutable
 
 let owned: ^Point = borrow;
-/// @type.symbol symbol=owned source=owned type=Owned<Point>
+/// @type.symbol symbol=owned source=owned type=Owned<Point> reduced=Point
 /// @resolution.name source=Point target=Point
+/// @type.node source=borrow type=Borrowed<Owned<Point>, "static", "mutable"> reduced=Borrowed<Point, "static", "mutable">
 /// @resolution.name source=borrow target=borrow
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Borrowed<Point, borrow.L0, \"mutable\">' is not assignable to type 'Owned<Point>'"
-/// @diagnostic.label line=8 column=5 source="let owned: ^Point = borrow;"
+/// @diagnostic.error code=EC200 message="type '&^Point' is not assignable to type '^Point'"
+/// @diagnostic.label line=8 column=21 span="borrow" line_source="let owned: ^Point = borrow;"
 "#,
     );
 }
