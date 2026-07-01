@@ -9,7 +9,7 @@ use crate::check::reify::r#type::TypeReifier;
 use crate::check::{CheckModuleState, CheckState, Decision};
 use crate::{CompilerError, CompilerResult};
 
-/// One rendered module source with solved annotations filled in.
+/// One module rendered with solved checked types.
 pub(in crate::check) struct AnnotatedSource {
     /// The rendered module.
     pub(in crate::check) module: Arc<Module>,
@@ -18,10 +18,11 @@ pub(in crate::check) struct AnnotatedSource {
 }
 
 impl CheckState<'_> {
-    /// Render every member module's source with solved annotations.
-    /// Each render clones the parsed tree, reifies solved declaration
-    /// boundary types into annotation nodes, and prints the amended
-    /// tree through the canonical formatter.
+    /// Render every member module's source with solved checked types.
+    ///
+    /// Each render clones the parsed tree, writes checked types into
+    /// annotation sites, and prints the amended tree through the
+    /// canonical formatter.
     pub(in crate::check) fn render_annotated_sources(
         &mut self,
     ) -> CompilerResult<Vec<AnnotatedSource>> {
@@ -37,7 +38,7 @@ impl CheckState<'_> {
         Ok(sources)
     }
 
-    /// Render one member module's source with solved annotations.
+    /// Render one member module's source with solved checked types.
     fn render_annotated_source(
         &mut self,
         module_id: ModuleId,
@@ -49,7 +50,7 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        // amend a clone of the parsed tree with reified annotations
+        // write solved types into a cloned source tree
         let tree = SourceReifier::new(self, state).run(coercions)?;
 
         // print the amended tree through the canonical formatter
@@ -123,7 +124,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         Ok(self.types.tree)
     }
 
-    /// Reify authored type-expression sites that carry solved check facts.
+    /// Reify type-expression holes that carry solved check facts.
     ///
     /// Example:
     /// ```ds
@@ -147,7 +148,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             // the hole's node type carries its solved variable
             let Some(ty) = self
                 .check
-                .node_type_maybe(hole_id.into_global_any(module_id))
+                .committed_node_type_maybe(hole_id.into_global_any(module_id))
             else {
                 continue;
             };
@@ -163,7 +164,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         Ok(())
     }
 
-    /// Reify declaration-level annotations and induced generic parameters.
+    /// Reify declaration-level checked types and induced generic parameters.
     fn reify_declarations(&mut self) -> CompilerResult<()> {
         let module_id = self.state.module.id;
         let view = dir::View::new(self.state.source_tree());
@@ -222,7 +223,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         Ok(())
     }
 
-    /// Reify one function declaration return annotation.
+    /// Reify one function declaration return type.
     fn reify_declaration_return(
         &mut self,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
@@ -246,7 +247,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         Ok(())
     }
 
-    /// Reify binding declarator annotations.
+    /// Reify binding declarator checked types.
     fn reify_declarators(&mut self) -> CompilerResult<()> {
         let view = dir::View::new(self.state.source_tree());
         for (declarator_id, declarator) in view.iter_nodes_of_type::<dir::Declarator>() {
@@ -268,7 +269,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         Ok(())
     }
 
-    /// Reify named parameter annotations.
+    /// Reify named parameter checked types.
     fn reify_parameters(&mut self) -> CompilerResult<()> {
         let view = dir::View::new(self.state.source_tree());
         for (parameter_id, parameter) in view.iter_nodes_of_type::<dir::Parameter>() {
@@ -310,7 +311,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         Ok(())
     }
 
-    /// Reify member annotations.
+    /// Reify member checked types.
     fn reify_members(&mut self) -> CompilerResult<()> {
         let view = dir::View::new(self.state.source_tree());
         for (member_id, member) in view.iter_nodes_of_type::<dir::Member>() {
@@ -396,14 +397,17 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         ) {
             return Ok(());
         }
-        let Some(decision) = self
+        let Some(Decision::Call(resolution)) = self
             .check
             .decision(expression_id.into_global_any(module_id))
         else {
             return Ok(());
         };
-        let Some(arguments) = decision.generic_arguments() else {
-            return Ok(());
+
+        let arguments = match &resolution.target {
+            dir::CallTarget::Expression { generic_arguments } => generic_arguments.as_slice(),
+            dir::CallTarget::Symbol(candidate) => candidate.generic_arguments.as_slice(),
+            dir::CallTarget::Builtin(_) | dir::CallTarget::Universal(_) => return Ok(()),
         };
         if arguments.is_empty() {
             return Ok(());
@@ -440,7 +444,12 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         let Some(Decision::Construct(resolution)) = self.check.decision(node) else {
             return Ok(());
         };
-        let arguments = resolution.target.generic_arguments();
+
+        let arguments = match &resolution.target {
+            dir::ConstructTarget::Class(candidate) => candidate.generic_arguments.as_slice(),
+            dir::ConstructTarget::Newtype(candidate) => candidate.generic_arguments.as_slice(),
+            dir::ConstructTarget::Variant(candidate) => candidate.generic_arguments.as_slice(),
+        };
         if arguments.is_empty() {
             return Ok(());
         }

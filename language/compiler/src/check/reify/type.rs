@@ -246,6 +246,13 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
             dir::Type::Primitive(primitive) => Self::literal(dir::TypeLiteral::from(*primitive)),
             dir::Type::Literal(literal) => dir::TypeExpression::ScalarLiteral { value: *literal },
+            dir::Type::Key(key) => {
+                let Some(value) = Self::static_key_literal(key) else {
+                    return Ok(None);
+                };
+
+                dir::TypeExpression::ScalarLiteral { value }
+            }
             dir::Type::Memory(literal) => dir::TypeExpression::ScalarLiteral {
                 value: dir::ScalarLiteral::String(self.strings.intern(literal.text())),
             },
@@ -621,6 +628,21 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     generic_arguments: vec![argument],
                 }
             }
+            dir::TypeOperation::Awaited(unary) => {
+                let Some(target) = self.reify_depth(unary.target, depth)? else {
+                    return Ok(None);
+                };
+                let argument = self.insert(dir::GenericArgument::Type { value: target });
+
+                dir::TypeExpression::Reference {
+                    path: dir::Path {
+                        segments: [self.language_item_name(dir::LanguageItem::Awaited)]
+                            .into_iter()
+                            .collect(),
+                    },
+                    generic_arguments: vec![argument],
+                }
+            }
             dir::TypeOperation::Index(index) => {
                 let Some(left) = self.reify_depth(index.left, depth)? else {
                     return Ok(None);
@@ -641,6 +663,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             // the remaining operations have no faithful annotation spelling
             dir::TypeOperation::StringMapping { .. }
             | dir::TypeOperation::Narrow(_)
+            | dir::TypeOperation::TypeOf(_)
             | dir::TypeOperation::Mapped(_)
             | dir::TypeOperation::TemplateLiteral(_)
             | dir::TypeOperation::TryOutput { .. }
@@ -904,6 +927,13 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
         let expression = match self.check.ty(id)? {
             dir::Type::Literal(value) => dir::Expression::ScalarLiteral(*value),
+            dir::Type::Key(key) => {
+                let Some(value) = Self::static_key_literal(key) else {
+                    return Ok(None);
+                };
+
+                dir::Expression::ScalarLiteral(value)
+            }
             dir::Type::Memory(literal) => dir::Expression::ScalarLiteral(
                 dir::ScalarLiteral::String(self.strings.intern(literal.text())),
             ),
@@ -911,6 +941,14 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 dir::StaticTerm::ScalarLiteral { value } => dir::Expression::ScalarLiteral(*value),
                 _ => return Ok(None),
             },
+            dir::Type::Union(union) => {
+                let elements = union.elements.iter().copied().collect::<Vec<_>>();
+                let Some(expression) = self.reify_static_union(&elements, depth - 1)? else {
+                    return Ok(None);
+                };
+
+                return Ok(Some(expression));
+            }
             dir::Type::Parameter(parameter) => {
                 let Some(name) = self.generic_parameter_name_by_id(*parameter) else {
                     return Ok(None);
@@ -922,6 +960,48 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         };
 
         Ok(Some(self.insert(expression)))
+    }
+
+    /// Reify one static union as a value expression.
+    fn reify_static_union(
+        &mut self,
+        elements: &[dir::GlobalTypeId],
+        depth: usize,
+    ) -> CompilerResult<Option<dir::LocalNodeId<dir::Expression>>> {
+        let mut elements = elements.iter().copied();
+        let Some(first) = elements.next() else {
+            return Ok(None);
+        };
+        let Some(mut expression) = self.reify_static_depth(first, depth)? else {
+            return Ok(None);
+        };
+
+        // fold remaining elements into a binary value expression
+        for element in elements {
+            let Some(right) = self.reify_static_depth(element, depth)? else {
+                return Ok(None);
+            };
+            expression = self.insert(dir::Expression::Binary {
+                left: expression,
+                operator: dir::BinaryOperator::ElementwiseOr,
+                right,
+            });
+        }
+
+        Ok(Some(expression))
+    }
+
+    /// Return the scalar literal spelling of one exact key type.
+    fn static_key_literal(key: &dir::StaticKey) -> Option<dir::ScalarLiteral> {
+        match key {
+            dir::StaticKey::Name(name) => Some(dir::ScalarLiteral::String(*name)),
+            dir::StaticKey::Index(index) => {
+                let index = i64::try_from(*index).ok()?;
+
+                Some(dir::ScalarLiteral::Integer(index))
+            }
+            dir::StaticKey::Symbol(_) => None,
+        }
     }
 
     /// Reify one type element list.
