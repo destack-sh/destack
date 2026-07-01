@@ -208,14 +208,15 @@ fn test_parse_dereference_variable() {
     });
 }
 
-/// Reject dereference in untyped value mode.
+/// Report dereference in untyped value mode.
 #[test]
-fn test_reject_dereference_in_untyped_value_mode() {
+fn test_report_dereference_in_untyped_value_mode() {
     let language = LanguageType::JavaScript;
     let mut test = TestParser::new_with_language("*x", language);
     let mut parser = test.prepare();
-    let result = parser.eat_expression(parser.flags);
-    assert!(result.is_err());
+    let error = parser.eat_expression(parser.flags).unwrap_err();
+
+    assert_eq!(parser.get_span_str(error.leaf_span()), "*");
 }
 
 /// Parse a reference expression.
@@ -302,9 +303,9 @@ fn test_parse_new_constructor_call() {
     });
 }
 
-/// Reject delete expressions.
+/// Report delete expressions.
 #[test]
-fn test_reject_delete_expression() {
+fn test_report_delete_expression() {
     let mut test = TestParser::new("delete foo.bar");
     let mut parser = test.prepare();
 

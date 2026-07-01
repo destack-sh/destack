@@ -1081,13 +1081,12 @@ fn test_parse_pattern_array_readonly_identifier_in_value_block_mode() {
 }
 
 #[test]
-fn test_reject_pattern_object_readonly_modifier_with_name_in_value_block_mode() {
+fn test_report_pattern_object_readonly_modifier_with_name_in_value_block_mode() {
     let mut test = TestParser::new("{ readonly value }");
     let mut parser = test.prepare();
+    let error = parser.eat_pattern().unwrap_err();
 
-    let result = parser.eat_pattern();
-
-    assert!(result.is_err());
+    assert_eq!(parser.get_span_str(error.leaf_span()), "value");
 }
 
 #[test]

@@ -1027,7 +1027,7 @@ fn test_parse_export_default_with_multiple_aliases() {
 }
 
 #[test]
-fn test_reject_export_type_without_binding() {
+fn test_report_export_type_without_binding() {
     // source: export type
     let source = "export type";
     let mut test = TestParser::new_with_language("export type", LanguageType::TypeScript);
@@ -1040,7 +1040,7 @@ fn test_reject_export_type_without_binding() {
 }
 
 #[test]
-fn test_reject_export_default_enum() {
+fn test_report_export_default_enum() {
     // source: export default enum A { X, Y, Z }
     let mut test = TestParser::new("export default enum A { X, Y, Z }");
     let mut parser = test.prepare();
@@ -1231,14 +1231,15 @@ fn test_parse_export_type_only_as_as_keyword_alias_without_target() {
 }
 
 #[test]
-fn test_reject_export_function_without_name() {
+fn test_report_export_function_without_name() {
     let mut test = TestParser::new_with_language(
         "export function(option: any): void",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let result = parser.eat_export();
-    assert!(result.is_err());
+    let error = parser.eat_export().unwrap_err();
+
+    assert_eq!(parser.get_span_str(error.leaf_span()), "function");
 }
 
 #[test]

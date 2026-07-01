@@ -245,7 +245,7 @@ fn test_parse_private_member_expression_with_newline_before_dot() {
 }
 
 #[test]
-fn test_parse_destack_rejects_private_member_expression() {
+fn test_report_destack_private_member_expression() {
     let mut test = TestParser::new("this.#value");
     let mut parser = test.prepare();
 
@@ -395,13 +395,13 @@ fn test_parse_object_property_private_member_cast_with_newline_before_dot() {
 }
 
 #[test]
-fn test_reject_decimal_integer_member_access_without_separator() {
+fn test_report_decimal_integer_member_access_without_separator() {
     for language in [LanguageType::Destack, LanguageType::TypeScript] {
         let mut test = TestParser::new_with_language("1.foo", language);
         let mut parser = test.prepare();
+        let error = parser.eat_expression(parser.flags).unwrap_err();
 
-        let result = parser.eat_expression(parser.flags);
-        assert!(result.is_err());
+        assert_eq!(parser.get_span_str(error.leaf_span()), ".");
     }
 }
 
@@ -474,7 +474,7 @@ fn test_parse_destack_double_dot_as_range() {
 }
 
 #[test]
-fn test_reject_hex_integer_member_separator() {
+fn test_report_hex_integer_member_separator() {
     let mut test = TestParser::new_with_language("0x1..a", LanguageType::JavaScript);
     let mut parser = test.prepare();
     let _ = parser.parse();

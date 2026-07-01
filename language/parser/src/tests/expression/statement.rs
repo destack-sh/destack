@@ -50,9 +50,9 @@ fn test_parse_statement_newline_before_parenthesized_guard_after_continue_stays_
     });
 }
 
-/// Reject labeled lexical declarations.
+/// Report labeled lexical declarations.
 #[test]
-fn test_reject_labeled_lexical_declaration() {
+fn test_report_labeled_lexical_declaration() {
     // source: a: let a
     let mut test = TestParser::new_with_language("a: let a", LanguageType::JavaScript);
     let mut parser = test.prepare();

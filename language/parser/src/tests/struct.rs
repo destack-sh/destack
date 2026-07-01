@@ -20,8 +20,11 @@ struct { public x: int32, readonly y: boolean }
     let mut parser = test.prepare();
 
     let start = parser.span_start();
-    let result = parser.eat_struct_or_class(&start, DeclarationHeader::default(), false);
-    assert!(result.is_err());
+    let error = parser
+        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .unwrap_err();
+
+    assert_eq!(parser.get_span_str(error.leaf_span()), "{");
 }
 
 #[test]
@@ -34,12 +37,15 @@ class {}
     let mut parser = test.prepare();
 
     let start = parser.span_start();
-    let result = parser.eat_struct_or_class(&start, DeclarationHeader::default(), false);
-    assert!(result.is_err());
+    let error = parser
+        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .unwrap_err();
+
+    assert_eq!(parser.get_span_str(error.leaf_span()), "{");
 }
 
 #[test]
-fn test_parse_class_rejects_comma_separated_members() {
+fn test_report_class_comma_separated_members() {
     // source: class Foo { x: int32, y: int32 }
     let mut test = TestParser::new(
         r###"
@@ -49,12 +55,15 @@ class Foo { x: int32, y: int32 }
     let mut parser = test.prepare();
 
     let start = parser.span_start();
-    let result = parser.eat_struct_or_class(&start, DeclarationHeader::default(), false);
-    assert!(result.is_err());
+    let error = parser
+        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .unwrap_err();
+
+    assert_eq!(parser.get_span_str(error.leaf_span()), ",");
 }
 
 #[test]
-fn test_parse_struct_rejects_comma_separated_members() {
+fn test_report_struct_comma_separated_members() {
     // source: struct Foo { x: int32, y: int32 }
     let mut test = TestParser::new(
         r###"
@@ -64,12 +73,15 @@ struct Foo { x: int32, y: int32 }
     let mut parser = test.prepare();
 
     let start = parser.span_start();
-    let result = parser.eat_struct_or_class(&start, DeclarationHeader::default(), false);
-    assert!(result.is_err());
+    let error = parser
+        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .unwrap_err();
+
+    assert_eq!(parser.get_span_str(error.leaf_span()), ",");
 }
 
 #[test]
-fn test_parse_struct_rejects_extends() {
+fn test_report_struct_extends() {
     let mut test = TestParser::new(
         r###"
 struct Foo extends Bar implements Baz {

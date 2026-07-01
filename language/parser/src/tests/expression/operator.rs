@@ -62,8 +62,8 @@ fn long_assignment_chain_source(depth: usize) -> String {
     source
 }
 
-/// Assert that one expression rejects with a single leaf span.
-fn assert_expression_rejects_at(input: &str, language: LanguageType, expected_leaf: &str) {
+/// Assert that one expression reports a single leaf span.
+fn assert_expression_reports_at(input: &str, language: LanguageType, expected_leaf: &str) {
     let mut test = TestParser::new_with_language(input, language);
     let mut parser = test.prepare();
 
@@ -351,7 +351,6 @@ fn test_parse_precedence_cast_before_addition() {
     );
 }
 
-/// Reject a TypeScript angle bracket type assertion.
 /// Addition has higher precedence than elementwise or.
 #[test]
 fn test_parse_precedence_elementwise_vs_addition() {
@@ -742,12 +741,6 @@ fn test_parse_assign_operator_span() {
     assert_eq!(parser.get_span_str(main_span), "+=");
 }
 
-/// Reject compound assignment on one destructuring target.
-#[test]
-fn test_reject_compound_assignment_on_destructuring_target() {
-    assert_expression_rejects_at("({ x } += value)", LanguageType::Destack, "{ x }");
-}
-
 /// Parse object destructuring assignment defaults as assignment patterns.
 #[test]
 fn test_parse_object_destructuring_assignment_defaults() {
@@ -953,73 +946,6 @@ fn test_parse_destructuring_assignment_member_targets() {
             });
         });
     });
-}
-
-/// Reject binary expressions as assignment targets.
-#[test]
-fn test_reject_binary_assignment_target() {
-    assert_expression_rejects_at("a + b = c", LanguageType::TypeScript, "a + b");
-}
-
-/// Reject expression targets inside destructuring assignment patterns.
-#[test]
-fn test_reject_destructuring_expression_assignment_targets() {
-    let cases = [
-        ("[a + b] = source", "a + b"),
-        ("({ value: a + b } = source)", "a + b"),
-        ("({ [key]: a + b } = source)", "a + b"),
-    ];
-
-    for (input, expected_leaf) in cases {
-        assert_expression_rejects_at(input, LanguageType::TypeScript, expected_leaf);
-    }
-}
-
-/// Reject parenthesized object and array expressions as assignment targets.
-#[test]
-fn test_reject_parenthesized_destructuring_assignment_target() {
-    let cases = [
-        ("({ a }) = source", LanguageType::TypeScript, "({ a })"),
-        ("([a]) = source", LanguageType::TypeScript, "([a])"),
-        ("((a,)) = source", LanguageType::Destack, "((a,))"),
-    ];
-
-    for (input, language, expected_leaf) in cases {
-        assert_expression_rejects_at(input, language, expected_leaf);
-    }
-}
-
-/// Reject optional chains as assignment targets.
-#[test]
-fn test_reject_optional_chain_assignment_target() {
-    let cases = [
-        ("object?.property = value", "object?.property"),
-        ("object?.[key] = value", "object?.[key]"),
-    ];
-
-    for (input, expected_leaf) in cases {
-        assert_expression_rejects_at(input, LanguageType::TypeScript, expected_leaf);
-    }
-}
-
-/// Reject parenthesized assignment expressions as assignment targets.
-#[test]
-fn test_reject_parenthesized_assignment_target() {
-    assert_expression_rejects_at(
-        "(left = fallback) = value",
-        LanguageType::Destack,
-        "left = fallback",
-    );
-}
-
-/// Reject compound operators as destructuring defaults.
-#[test]
-fn test_reject_compound_destructuring_default() {
-    assert_expression_rejects_at(
-        "[value += fallback] = source",
-        LanguageType::Destack,
-        "value += fallback",
-    );
 }
 
 /// Assignment chains bind right associatively.

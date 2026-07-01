@@ -610,15 +610,7 @@ fn test_parse_callback_parameter_named_type() {
 }
 
 #[test]
-fn test_reject_export_type_without_binding_or_declaration() {
-    let mut test = TestParser::new("export type");
-    let mut parser = test.prepare();
-    let result = parser.eat_expression(parser.flags);
-    assert!(result.is_err());
-}
-
-#[test]
-fn test_reject_export_path_expression() {
+fn test_report_export_path_expression() {
     for language in [LanguageType::JavaScript, LanguageType::Destack] {
         let mut test = TestParser::new_with_language("export foo", language);
         let mut parser = test.prepare();
@@ -626,14 +618,6 @@ fn test_reject_export_path_expression() {
 
         assert_eq!(parser.get_span_str(error.leaf_span()), "foo");
     }
-}
-
-#[test]
-fn test_reject_export_default_enum() {
-    let mut test = TestParser::new("export default enum A { X, Y, Z }");
-    let mut parser = test.prepare();
-    let result = parser.eat_expression(parser.flags);
-    assert!(result.is_err());
 }
 
 /// Parse `import { bar, baz } from foo`.
@@ -694,10 +678,12 @@ fn test_parse_import_expression_namespace_alias_with_arguments() {
     });
 }
 
-/// Reject `import { foo }` without a target.
+/// Report `import { foo }` without a target.
 #[test]
-fn test_parse_import_expression_items_without_target_error() {
+fn test_report_import_expression_items_without_target() {
     let mut test = TestParser::new("import { foo }");
     let mut parser = test.prepare();
-    assert!(parser.eat_expression(parser.flags).is_err());
+    let error = parser.eat_expression(parser.flags).unwrap_err();
+
+    assert_eq!(parser.get_span_str(error.leaf_span()), "");
 }
