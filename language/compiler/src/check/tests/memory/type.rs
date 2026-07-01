@@ -1064,3 +1064,67 @@ rebased satisfies shared ^readonly Payload;
 "#,
     );
 }
+
+#[test]
+fn test_borrowed_readonly_payload_clamps_access() {
+    let session = TestSession::single(
+        r#"
+struct Cell {
+    value: int32;
+}
+
+type ReadonlyBorrow = Borrowed<Readonly<Cell>, "static">;
+
+declare const borrow: ReadonlyBorrow;
+
+borrow satisfies Borrowed<Cell, "static", "readonly">;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Cell {
+    value: int32;
+}
+
+type ReadonlyBorrow = Borrowed<Readonly<Cell>, "static">;
+
+declare const borrow: ReadonlyBorrow;
+
+borrow satisfies Borrowed<Cell, "static", "readonly">;
+
+=== checked ===
+struct Cell {
+/// @type.symbol symbol=Cell type=Cell
+/// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
+
+    value: int32;
+    /// @type.symbol symbol=Cell.value source="value: int32" type=int32
+
+}
+
+type ReadonlyBorrow = Borrowed<Readonly<Cell>, "static">;
+/// @type.symbol symbol=ReadonlyBorrow source="type ReadonlyBorrow = Borrowed<Readonly<Cell>, \"static\">" type=Borrowed<Readonly<Cell>, "static", "mutable"> reduced=Borrowed<Cell, "static", "readonly">
+/// @definition.type symbol=ReadonlyBorrow source="type ReadonlyBorrow = Borrowed<Readonly<Cell>, \"static\">" value=Borrowed<Readonly<Cell>, "static", "mutable"> reduced=Borrowed<Cell, "static", "readonly">
+/// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+/// @resolution.name source=Readonly target=types.object.Readonly
+/// @resolution.name source=Cell target=Cell
+
+declare const borrow: ReadonlyBorrow;
+/// @type.symbol symbol=borrow source=borrow type=ReadonlyBorrow reduced=Borrowed<Cell, "static", "readonly">
+/// @resolution.name source=ReadonlyBorrow target=ReadonlyBorrow
+
+borrow satisfies Borrowed<Cell, "static", "readonly">;
+/// @resolution.name source=borrow target=borrow
+/// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+/// @resolution.name source=Cell target=Cell
+
+/// @generic.instance id="Borrowed<Readonly<Cell>, \"static\", \"mutable\">" template=memory.borrow.Borrowed arguments=(Readonly<Cell>, "static", "mutable")
+/// @generic.instance id=Readonly<Cell> template=types.object.Readonly arguments=(Cell)
+"#,
+    );
+}
