@@ -141,6 +141,7 @@ impl ConformanceDriver for OxfmtSuite {
 
         run_formatter_case(
             &path,
+            &test.name,
             test.file_type,
             expected_output.as_deref(),
             formatter_options,

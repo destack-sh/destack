@@ -129,6 +129,14 @@
     },
     {
       "patterns": [
+        "ts/method-signatures/grouped.ts"
+      ],
+      "status": "excluded",
+      "reason": "constructor-parameter-property",
+      "note": "constructor parameter properties are out of scope"
+    },
+    {
+      "patterns": [
         "ts/static-members/non-null-expression.ts"
       ],
       "status": "excluded",
