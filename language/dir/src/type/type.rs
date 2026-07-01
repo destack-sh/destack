@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalGenericTemplateId, GlobalNodeIdAny,
-    GlobalStaticId, GlobalSymbolId, LanguageItem, MappedTypeModifier, RangeEnd, ScalarDomain,
-    ScalarLiteral, StaticKey, StringId, TypeLiteral, UnaryOperator,
+    Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalGenericTemplateId,
+    GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, LanguageItem, MappedTypeModifier, RangeEnd,
+    ScalarDomain, ScalarLiteral, StaticKey, StringId, TypeLiteral, UnaryOperator,
 };
 
 use super::{FloatType, PrimitiveType};
@@ -1371,6 +1371,8 @@ pub enum Type {
     Primitive(PrimitiveType),
     /// Scalar literal type, like `"id"` or `42`.
     Literal(ScalarLiteral),
+    /// Singleton property key type, like `Symbol.for("id")`.
+    Key(StaticKey),
     /// Singleton type of one normalized memory value.
     /// The only committed spelling: check normalizes literal spellings like
     /// `"shared"` to memory singletons at language-item-typed positions.
@@ -1500,6 +1502,9 @@ impl Type {
                 ScalarDomain::Numeric
             }
             Self::Literal(literal) => return literal.scalar_domain(),
+            Self::Key(key) if key.is_string_like() => ScalarDomain::String,
+            Self::Key(key) if key.is_number_like() => ScalarDomain::Numeric,
+            Self::Key(key) if key.is_symbol_like() => ScalarDomain::Symbol,
             Self::Range(range) => return range.scalar_domain(),
             _ => return None,
         };
@@ -1522,6 +1527,7 @@ impl Type {
             | Self::Object
             | Self::Primitive(_)
             | Self::Literal(_)
+            | Self::Key(_)
             | Self::Memory(_)
             | Self::Static(_)
             | Self::Intrinsic
@@ -1683,6 +1689,7 @@ impl Type {
             | Self::Object
             | Self::Primitive(_)
             | Self::Literal(_)
+            | Self::Key(_)
             | Self::Memory(_)
             | Self::Static(_)
             | Self::Intrinsic
