@@ -50,6 +50,8 @@ pub(super) struct TypeScope {
     pub(super) stops_before_implements: bool,
     /// Whether static type closers stop parsing.
     pub(super) is_static: bool,
+    /// Whether constructor arguments belong to the enclosing `new` expression.
+    pub(super) is_new_receiver: bool,
 }
 
 impl ExpressionScope {
@@ -122,6 +124,7 @@ impl TypeScope {
             disallows_conditional: flags.is_disallow_type_conditional(),
             stops_before_implements: flags.is_in_before_block() || flags.is_in_super_type(),
             is_static: flags.is_in_static(),
+            is_new_receiver: flags.is_in_new_receiver(),
         }
     }
 

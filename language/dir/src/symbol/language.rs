@@ -184,17 +184,16 @@ define_language_items! {
             /// Generator class.
             Generator => (Class, "async/generator", "Generator"),
 
-            /// Generator result newtype.
-            GeneratorResult => (Newtype, "async/generator", "GeneratorResult"),
+            /// Generator result type alias.
+            GeneratorResult => (Type, "async/generator", "GeneratorResult"),
 
-            /// Generator return struct.
-            GeneratorReturn => (Struct, "async/generator", "GeneratorReturn"),
-
-            /// Generator state type.
-            GeneratorState => (Type, "async/generator", "GeneratorState"),
-
-            /// Generator yield struct.
-            GeneratorYield => (Struct, "async/generator", "GeneratorYield"),
+            /// Yield from the current async generator.
+            AsyncGeneratorYield => (
+                Function,
+                "async/generator",
+                "asyncGeneratorYield",
+                "async.AsyncGenerator.yield"
+            ),
         }
 
         /// `destack:async/iterator`.
@@ -208,8 +207,23 @@ define_language_items! {
 
         /// `destack:async/continuation`.
         continuation {
-            /// Continuation handle type.
-            ContinuationHandle => (Newtype, "async/continuation", "ContinuationHandle"),
+            /// Continuation struct.
+            Continuation => (Struct, "async/continuation", "Continuation"),
+
+            /// Continuation resume command newtype.
+            ContinuationResume => (Newtype, "async/continuation", "ContinuationResume"),
+
+            /// Continuation resume cancel struct.
+            ContinuationResumeCancel => (Struct, "async/continuation", "ContinuationResumeCancel"),
+
+            /// Continuation resume next struct.
+            ContinuationResumeNext => (Struct, "async/continuation", "ContinuationResumeNext"),
+
+            /// Continuation resume return struct.
+            ContinuationResumeReturn => (Struct, "async/continuation", "ContinuationResumeReturn"),
+
+            /// Continuation parked struct.
+            ContinuationParked => (Struct, "async/continuation", "ContinuationParked"),
 
             /// Continuation result newtype.
             ContinuationResult => (Newtype, "async/continuation", "ContinuationResult"),

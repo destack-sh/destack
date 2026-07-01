@@ -2949,6 +2949,9 @@ fn write_type_expression_body_inner<'ast>(
         TypeExpression::TypeOf { value } => {
             write!(f, [Keyword::Typeof, space(), value])?;
         }
+        TypeExpression::StaticValue { expression } => {
+            write!(f, [expression])?;
+        }
         TypeExpression::Must { target_type } => {
             write!(f, [target_type, token("!")])?;
         }

@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalGenericTemplateId,
-    GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, LanguageItem, MappedTypeModifier, RangeEnd,
-    ScalarDomain, ScalarLiteral, StaticKey, StringId, TypeLiteral, UnaryOperator,
+    Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalGenericTemplateId, GlobalNodeIdAny,
+    GlobalStaticId, GlobalSymbolId, LanguageItem, MappedTypeModifier, RangeEnd, ScalarDomain,
+    ScalarLiteral, StaticKey, StringId, TypeLiteral, UnaryOperator,
 };
 
 use super::{FloatType, PrimitiveType};

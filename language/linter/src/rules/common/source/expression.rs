@@ -2206,8 +2206,11 @@ pub fn type_expression_has_side_effects(
         | dir::TypeExpression::Reference { .. }
         | dir::TypeExpression::Infer { .. } => false,
 
-        // type expressions that contain runtime expressions
+        // type expressions that contain value expressions
         dir::TypeExpression::TypeOf { value } => expression_has_side_effects(ctx, *value),
+        dir::TypeExpression::StaticValue { expression } => {
+            expression_has_side_effects(ctx, *expression)
+        }
 
         // composite type expressions
         dir::TypeExpression::Member {

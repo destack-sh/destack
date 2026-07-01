@@ -1,7 +1,8 @@
 use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
-    Declaration, Expression, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
+    Declaration, Expression, GenericArgument, TokenType, TypeDeclaration, TypeExpression,
+    TypeLiteral,
 };
 use destack_source::LanguageType;
 
@@ -51,6 +52,31 @@ fn test_parse_type_unary_prefix_operator_span() {
             assert_eq!(parser.get_span_str(main_span), "keyof");
         });
     });
+}
+
+#[test]
+fn test_parse_static_value_call_type_expression() {
+    let mut test = TestParser::new("type T = sizeOf<Header>()");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::StaticValue { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Call { left, generic_arguments, arguments, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "sizeOf");
+                    assert_eq!(generic_arguments.len(), 1);
+                    assert!(arguments.is_empty());
+
+                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                        assert_expression_path!(parser, parser.tree.get(*value), "Header");
+                    });
+                });
+            });
+        });
+    });
+
+    test.assert_no_errors(&parser);
 }
 
 #[test]
