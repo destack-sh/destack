@@ -863,6 +863,7 @@ impl ModuleLowerer<'_> {
                 }
                 // narrowing and static operations close before lowering
                 dir::TypeOperation::Narrow(_)
+                | dir::TypeOperation::TypeOf(_)
                 | dir::TypeOperation::Awaited(_)
                 | dir::TypeOperation::TryOutput { .. }
                 | dir::TypeOperation::TryResidual { .. }

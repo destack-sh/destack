@@ -357,6 +357,10 @@ pub fn format_type_operation(
             let index = format_global_type(index_type.index, ctx);
             format!("{left}[{index}]")
         }
+        dir::TypeOperation::TypeOf(query) => {
+            let value = format_type_query(query.value, ctx);
+            format!("typeof {value}")
+        }
         dir::TypeOperation::TemplateLiteral(template) => {
             let mut result = String::from("`");
             for (index, string_id) in template.strings.iter().enumerate() {
@@ -438,6 +442,28 @@ pub fn format_type_operation(
             format!("{operator}{target}")
         }
     }
+}
+
+/// Format one type query operand.
+fn format_type_query(value: dir::GlobalNodeIdAny, ctx: &ModuleQueryContext<'_>) -> String {
+    if value.local_id.ty != dir::NodeType::Expression {
+        return format!("{value:?}");
+    }
+    if value.module_id != ctx.dir().module_id() {
+        return format!("{value:?}");
+    }
+
+    let id = value.into_typed::<dir::Expression>().local_id;
+    let strings = ctx.dir().strings();
+    let Some(path) = ctx.dir().tree().reference_path(id) else {
+        return format!("{value:?}");
+    };
+
+    path.segments
+        .iter()
+        .map(|segment| strings.get(*segment))
+        .collect::<Vec<_>>()
+        .join(".")
 }
 
 /// Format a PrimitiveType.
