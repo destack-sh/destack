@@ -358,7 +358,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // apply where clauses after all header parameters exist
         for where_clause in where_clauses {
-            self.walk_where_clause(*where_clause)?;
+            self.walk_where_clause(Some(template), *where_clause)?;
         }
 
         Ok(Some(template))
@@ -382,6 +382,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     ) -> CompilerResult<FlowBranch> {
         let source = body.into_any();
         let origin = Origin::Node(body.into_global_any(self.module));
+        let _scope = self.enter_template_scope(self.check.symbol_template(symbol));
         let mut return_target = result;
         let mut yield_target = None;
         let mut resume_target = None;

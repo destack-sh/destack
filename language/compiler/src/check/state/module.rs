@@ -69,6 +69,8 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) flows: Vec<FlowPoint>,
     /// Entry flow point for each walked source node occurrence.
     pub(in crate::check) node_flows: IndexMap<dir::GlobalNodeIdAny, FlowPointId>,
+    /// Innermost generic template scoping each walked source node.
+    pub(in crate::check) node_scopes: IndexMap<dir::GlobalNodeIdAny, dir::GlobalGenericTemplateId>,
 
     // statically false gates
     /// Presence decisions for decorated source nodes.
@@ -134,6 +136,7 @@ impl CheckModuleState {
             captures: Vec::new(),
             flows: Vec::new(),
             node_flows: IndexMap::new(),
+            node_scopes: IndexMap::new(),
             diagnostics: Vec::new(),
             warnings: Vec::new(),
         }

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use indexmap::IndexMap;
 use smallvec::SmallVec;
 
-use crate::check::CheckState;
+use crate::check::{CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
 
 /// Stable id for one declaration-side generic parameter.
@@ -391,5 +391,86 @@ impl CheckState<'_> {
         binding.default = default;
 
         Ok(())
+    }
+
+    /// Record one walked where-clause predicate on its declaring template.
+    pub(in crate::check) fn push_template_predicate(
+        &mut self,
+        template: GenericTemplateId,
+        predicate: dir::WherePredicate,
+    ) -> CompilerResult<()> {
+        let module = template.module_id;
+        let working = self
+            .modules
+            .get_mut(&module)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("check module {module:?} has no working generics"),
+            })?;
+        let Some(declared) = working.generics.get_local_template_mut(template.local_id) else {
+            return Err(CompilerError::Internal {
+                message: format!("generic template {template:?} is not in its working segment"),
+            });
+        };
+        declared.predicates.push(predicate);
+
+        Ok(())
+    }
+
+    /// Return one template's declared where predicates.
+    pub(in crate::check) fn template_predicates(
+        &self,
+        template: Option<GenericTemplateId>,
+    ) -> SmallVec<[dir::WherePredicate; 2]> {
+        template
+            .and_then(|template| self.generic_template(template))
+            .map(|template| SmallVec::from_slice(&template.predicates))
+            .unwrap_or_default()
+    }
+
+    /// Return the innermost generic template scoping one work origin.
+    pub(in crate::check) fn origin_scope(&self, origin: Origin) -> Option<GenericTemplateId> {
+        match origin {
+            Origin::Node(node) => self
+                .modules
+                .get(&node.module_id)?
+                .node_scopes
+                .get(&node)
+                .copied(),
+            Origin::Symbol(symbol) => self.symbol_template(symbol),
+        }
+    }
+
+    /// Collect the where-clause bounds one origin assumes for a parameter.
+    ///
+    /// The scope chain walks enclosing templates, so a method assumes
+    /// its own predicates and those of its enclosing declarations.
+    pub(in crate::check) fn assumed_parameter_bounds(
+        &self,
+        origin: Origin,
+        parameter: GenericParameterId,
+    ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
+        let mut bounds = SmallVec::new();
+        let mut scope = self.origin_scope(origin);
+
+        while let Some(id) = scope {
+            let Some(template) = self.generic_template(id) else {
+                break;
+            };
+            for predicate in &template.predicates {
+                let subject = match self.ty(predicate.left) {
+                    Ok(dir::Type::Parameter(subject)) => subject,
+                    _ => continue,
+                };
+                if subject == parameter {
+                    bounds.push(predicate.right);
+                }
+            }
+
+            scope = template
+                .parent
+                .map(|parent| parent.into_global(id.module_id));
+        }
+
+        Ok(bounds)
     }
 }

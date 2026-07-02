@@ -70,9 +70,14 @@ fn add_definition_rows(
         dir::Definition::Extension(extension) => {
             add_extension_row(builder, symbol, source, extension);
             add_heritage(builder, symbol, "implements", &extension.implements);
-            add_extension_where_clauses(builder, symbol, &extension.where_clauses);
+            add_template_predicates(builder, symbol, extension.template);
             add_members(builder, symbol, &extension.members);
         }
+    }
+
+    // render where predicates for every other templated declaration
+    if !matches!(definition, dir::Definition::Extension(_)) {
+        add_template_predicates(builder, symbol, definition.template());
     }
 }
 
@@ -211,18 +216,25 @@ fn add_extension_row(
     builder.push(row);
 }
 
-/// Add extension where clause rows.
-fn add_extension_where_clauses(
+/// Add where predicate rows from one declaration's template.
+fn add_template_predicates(
     builder: &mut DirSnapshotBuilder<'_>,
     owner: dir::GlobalSymbolId,
-    where_clauses: &[dir::ExtensionWhereClause],
+    template: Option<dir::LocalGenericTemplateId>,
 ) {
-    for where_clause in where_clauses {
+    let Some(template) = template else {
+        return;
+    };
+    let Some(generics) = builder.generic_table(owner.module_id) else {
+        return;
+    };
+    let predicates = generics.get_template(template).predicates.clone();
+    for predicate in predicates {
         let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "where")
             .field("symbol", builder.symbol_path_label(owner))
-            .optional_field("source", builder.node_source(where_clause.source))
-            .type_field("left", builder.global_type_label(where_clause.left))
-            .type_field("right", builder.global_type_label(where_clause.right));
+            .optional_field("source", builder.node_source(predicate.source))
+            .type_field("left", builder.global_type_label(predicate.left))
+            .type_field("right", builder.global_type_label(predicate.right));
 
         builder.push(row);
     }

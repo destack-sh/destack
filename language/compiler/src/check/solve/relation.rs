@@ -24,7 +24,15 @@ pub(in crate::check) enum Relation {
 }
 
 /// One relation pair identity over two reduced roots.
-pub(in crate::check) type RelationKey = (Relation, dir::GlobalTypeId, dir::GlobalTypeId);
+///
+/// Queries that mention generic parameters key by their assuming
+/// scope, so scope-dependent answers never leak across declarations.
+pub(in crate::check) type RelationKey = (
+    Relation,
+    dir::GlobalTypeId,
+    dir::GlobalTypeId,
+    Option<dir::GlobalGenericTemplateId>,
+);
 
 /// One memoized relation decision.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -154,8 +162,9 @@ impl RelationCache {
         relation: Relation,
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
+        scope: Option<dir::GlobalGenericTemplateId>,
     ) -> Option<bool> {
-        let verdict = *self.decisions.get(&(relation, left, right))?;
+        let verdict = *self.decisions.get(&(relation, left, right, scope))?;
 
         match verdict {
             RelationDecision::Holds => Some(true),
@@ -177,8 +186,9 @@ impl RelationCache {
         relation: Relation,
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
+        scope: Option<dir::GlobalGenericTemplateId>,
     ) -> RelationFrame {
-        let key = (relation, left, right);
+        let key = (relation, left, right, scope);
         let index = self.stack.len();
 
         self.set_decision(key, RelationDecision::InProgress(index));
