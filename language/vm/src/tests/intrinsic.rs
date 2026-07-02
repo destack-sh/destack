@@ -696,15 +696,15 @@ entry(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
             .allocation_shape(layout_id)
             .expect("managed pointee layout should resolve");
         let mut allocator = machine.shared_heap.allocation_cache();
-        let plan = shared_allocation_plan(&machine.shared_heap, shape);
+        let plan = shared_allocation_plan(&machine.shared_heap, &shape);
         let handle = machine
             .shared_heap
             .allocate_zeroed(
                 &machine.shared_mark_worker,
                 &mut allocator,
                 plan,
-                shape.trace_map,
-                machine.machine.trace_maps(),
+                &shape.trace_map,
+                machine.machine.trace_view(),
             )
             .expect("shared heap allocation should succeed");
         machine.shared_heap.flush_allocation_cache(&mut allocator);

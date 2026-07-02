@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use destack_heap::{
     AllocationCache, AllocationPlan, AllocationShape, Heap, HeapReference, HeapResult, SharedHeap,
     SharedHeapReference, SmallAllocationPlan, TraceView, repeated_layout,
@@ -59,11 +57,11 @@ impl Activation<'_> {
     fn trace_map_for_allocation<'a>(
         &self,
         allocation: AllocationPlan,
-        trace_maps: TraceView<'a>,
-    ) -> Result<Cow<'a, TraceMap>, Error> {
+        trace_view: TraceView<'a>,
+    ) -> Result<TraceMap, Error> {
         allocation
-            .trace_map(trace_maps)
-            .ok_or_else(|| Error::internal(format!("missing allocation trace map {allocation:?}")))
+            .trace_map(trace_view)
+            .map_err(|error| Error::internal(error.to_string()))
     }
 
     /// Allocate one zeroed local heap payload from one allocation plan.
@@ -127,7 +125,7 @@ impl Activation<'_> {
         allocation: AllocationPlan,
     ) -> Result<HeapReference, Error> {
         let program = self.program;
-        let trace_map = self.trace_map_for_allocation(allocation, program.trace_maps())?;
+        let trace_map = self.trace_map_for_allocation(allocation, program.trace_view())?;
 
         self.heap_mut()
             .allocate_zeroed(allocation, &trace_map)
@@ -195,7 +193,7 @@ impl Activation<'_> {
         allocation: AllocationPlan,
     ) -> Result<HeapReference, Error> {
         let program = self.program;
-        let trace_map = self.trace_map_for_allocation(allocation, program.trace_maps())?;
+        let trace_map = self.trace_map_for_allocation(allocation, program.trace_view())?;
 
         self.heap_mut()
             .allocate_uninit(allocation, &trace_map)
@@ -211,18 +209,18 @@ impl Activation<'_> {
     ) -> Result<HeapReference, Error> {
         let program = self.program;
         let element = self.heap_allocation_plan(element);
-        let element_trace_map = self.trace_map_for_allocation(element, program.trace_maps())?;
+        let element_trace_map = self.trace_map_for_allocation(element, program.trace_view())?;
         let (byte_len, trace_map) = repeated_layout(
             element.byte_len(),
             element.alignment(),
             &element_trace_map,
             length,
         )?;
-        let shape = AllocationShape::new(byte_len, element.alignment(), None, &trace_map);
-        let plan = self.heap().options().allocation_plan(shape);
+        let shape = AllocationShape::new(byte_len, element.alignment(), None, trace_map);
+        let plan = self.heap().options().allocation_plan(&shape);
         let heap = self.heap_mut();
 
-        heap.allocate_zeroed(plan, shape.trace_map)
+        heap.allocate_zeroed(plan, &shape.trace_map)
             .map_err(Error::from)
     }
 
@@ -235,18 +233,18 @@ impl Activation<'_> {
     ) -> Result<HeapReference, Error> {
         let program = self.program;
         let element = self.heap_allocation_plan(element);
-        let element_trace_map = self.trace_map_for_allocation(element, program.trace_maps())?;
+        let element_trace_map = self.trace_map_for_allocation(element, program.trace_view())?;
         let (byte_len, trace_map) = repeated_layout(
             element.byte_len(),
             element.alignment(),
             &element_trace_map,
             length,
         )?;
-        let shape = AllocationShape::new(byte_len, element.alignment(), None, &trace_map);
-        let plan = self.heap().options().allocation_plan(shape);
+        let shape = AllocationShape::new(byte_len, element.alignment(), None, trace_map);
+        let plan = self.heap().options().allocation_plan(&shape);
         let heap = self.heap_mut();
 
-        heap.allocate_uninit(plan, shape.trace_map)
+        heap.allocate_uninit(plan, &shape.trace_map)
             .map_err(Error::from)
     }
 
@@ -257,11 +255,11 @@ impl Activation<'_> {
         layout: &TensorLayout,
     ) -> Result<HeapReference, Error> {
         let trace_map = TraceMap::empty();
-        let shape = AllocationShape::new(layout.byte_len(), Cell::BYTE_LEN, None, &trace_map);
-        let plan = self.heap().options().allocation_plan(shape);
+        let shape = AllocationShape::new(layout.byte_len(), Cell::BYTE_LEN, None, trace_map);
+        let plan = self.heap().options().allocation_plan(&shape);
         let heap = self.heap_mut();
 
-        heap.allocate_zeroed(plan, shape.trace_map)
+        heap.allocate_zeroed(plan, &shape.trace_map)
             .map_err(Error::from)
     }
 
@@ -298,8 +296,8 @@ impl Activation<'_> {
         allocation: AllocationPlan,
     ) -> Result<SharedHeapReference, Error> {
         let program = self.program;
-        let trace_map = self.trace_map_for_allocation(allocation, program.trace_maps())?;
-        let trace_maps = program.trace_maps();
+        let trace_map = self.trace_map_for_allocation(allocation, program.trace_view())?;
+        let trace_view = program.trace_view();
 
         self.shared
             .allocate_zeroed(
@@ -307,7 +305,7 @@ impl Activation<'_> {
                 self.shared_cache,
                 allocation,
                 &trace_map,
-                trace_maps,
+                trace_view,
             )
             .map_err(Error::from)
     }
@@ -345,8 +343,8 @@ impl Activation<'_> {
         allocation: AllocationPlan,
     ) -> Result<SharedHeapReference, Error> {
         let program = self.program;
-        let trace_map = self.trace_map_for_allocation(allocation, program.trace_maps())?;
-        let trace_maps = program.trace_maps();
+        let trace_map = self.trace_map_for_allocation(allocation, program.trace_view())?;
+        let trace_view = program.trace_view();
 
         self.shared
             .allocate_uninit(
@@ -354,7 +352,7 @@ impl Activation<'_> {
                 self.shared_cache,
                 allocation,
                 &trace_map,
-                trace_maps,
+                trace_view,
             )
             .map_err(Error::from)
     }
@@ -368,24 +366,24 @@ impl Activation<'_> {
     ) -> Result<SharedHeapReference, Error> {
         let program = self.program;
         let element = self.heap_allocation_plan(element);
-        let element_trace_map = self.trace_map_for_allocation(element, program.trace_maps())?;
+        let element_trace_map = self.trace_map_for_allocation(element, program.trace_view())?;
         let (byte_len, trace_map) = repeated_layout(
             element.byte_len(),
             element.alignment(),
             &element_trace_map,
             length,
         )?;
-        let shape = AllocationShape::new(byte_len, element.alignment(), None, &trace_map);
-        let plan = self.shared.options().allocation_plan(shape);
-        let trace_maps = program.trace_maps();
+        let shape = AllocationShape::new(byte_len, element.alignment(), None, trace_map);
+        let plan = self.shared.options().allocation_plan(&shape);
+        let trace_view = program.trace_view();
 
         self.shared
             .allocate_zeroed(
                 self.shared_mark_worker,
                 self.shared_cache,
                 plan,
-                shape.trace_map,
-                trace_maps,
+                &shape.trace_map,
+                trace_view,
             )
             .map_err(Error::from)
     }
@@ -399,24 +397,24 @@ impl Activation<'_> {
     ) -> Result<SharedHeapReference, Error> {
         let program = self.program;
         let element = self.heap_allocation_plan(element);
-        let element_trace_map = self.trace_map_for_allocation(element, program.trace_maps())?;
+        let element_trace_map = self.trace_map_for_allocation(element, program.trace_view())?;
         let (byte_len, trace_map) = repeated_layout(
             element.byte_len(),
             element.alignment(),
             &element_trace_map,
             length,
         )?;
-        let shape = AllocationShape::new(byte_len, element.alignment(), None, &trace_map);
-        let plan = self.shared.options().allocation_plan(shape);
-        let trace_maps = program.trace_maps();
+        let shape = AllocationShape::new(byte_len, element.alignment(), None, trace_map);
+        let plan = self.shared.options().allocation_plan(&shape);
+        let trace_view = program.trace_view();
 
         self.shared
             .allocate_uninit(
                 self.shared_mark_worker,
                 self.shared_cache,
                 plan,
-                shape.trace_map,
-                trace_maps,
+                &shape.trace_map,
+                trace_view,
             )
             .map_err(Error::from)
     }
@@ -482,10 +480,10 @@ impl Activation<'_> {
         offset: usize,
         byte_len: usize,
     ) -> HeapResult<()> {
-        let trace_maps = self.program.trace_maps();
+        let trace_view = self.program.trace_view();
 
         self.heap_mut()
-            .write_barrier(reference, offset, byte_len, trace_maps)
+            .write_barrier(reference, offset, byte_len, trace_view)
     }
 
     /// Record one shared heap write barrier.
@@ -497,6 +495,6 @@ impl Activation<'_> {
         byte_len: usize,
     ) -> HeapResult<()> {
         self.shared()
-            .write_barrier(reference, offset, byte_len, self.program.trace_maps())
+            .write_barrier(reference, offset, byte_len, self.program.trace_view())
     }
 }

@@ -320,20 +320,20 @@ pub(crate) fn materialize_value(
 
             match boundary_address_space(program, value.ty)? {
                 AddressSpace::Local => {
-                    let plan = heap.options().allocation_plan(shape);
-                    let reference = heap.allocate_bytes(plan, shape.trace_map, &bytes)?;
+                    let plan = heap.options().allocation_plan(&shape);
+                    let reference = heap.allocate_bytes(plan, &shape.trace_map, &bytes)?;
 
                     Ok(program::Value::HeapReference(reference))
                 }
                 AddressSpace::Shared => {
-                    let plan = shared.options().allocation_plan(shape);
+                    let plan = shared.options().allocation_plan(&shape);
                     let reference = shared.allocate_bytes(
                         shared_mark_worker,
                         shared_cache,
                         plan,
-                        shape.trace_map,
+                        &shape.trace_map,
                         &bytes,
-                        program.trace_maps(),
+                        program.trace_view(),
                     )?;
 
                     Ok(program::Value::SharedHeapReference(reference))
