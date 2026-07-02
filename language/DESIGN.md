@@ -2795,12 +2795,22 @@ struct Request<T> {
     body: T;
 }
 
-let localRequest: Request<Body>;          // ambient, default -> Request is worker-local heap
+let localRequest: Request<Body>;          // ambient, default -> Request is local heap
 let sharedRequest: shared Request<Body>;  // explicit, shared -> Request is shared heap
 ```
 
-Memory placement is contextual: all types are "ambient" by default, i.e., they come with no inherent placement, and types are only placed wherever their parent is placed until someone either specifies placement explicitly (e.g., `local T`, `shared T`) or we reach the top, which - as established - is `local` to the Worker's own local heap by default.
-This "ambient placement" rule is also why we distinguish `Place` from `Space`: `Space` is concrete, while `Place` may also be `"ambient"`.
+In general, type placement is contextual: all types are "ambient" by default, i.e., they come with no inherent placement, and types are only placed wherever their parent is placed until someone either specifies placement explicitly (e.g., `local T`, `shared T`) or we reach the module top (whcih is "local").
+Specific nominal declarations may also choose an intrinsic placement for themselves, which then forces them into a specific space:
+
+```ds
+local class Promise<T> {}
+shared class Channel<T> {}
+local newtype TaskId = uint64;
+
+PlaceOf<Promise<void>> satisfies "local";
+PlaceOf<Channel<string>> satisfies "shared";
+PlaceOf<TaskId> satisfies "local";
+```
 
 #### Shared Space
 
