@@ -142,10 +142,12 @@ export class AsyncGenerator<Y, R = void, N = void> implements Drop {
     resume(value: N): Promise<GeneratorResult<Y, R>> {
         // resolve already completed generators
         if (this.state.kind == "completed") {
-            return Promise.resolve(IteratorResult(IteratorReturn {
-                kind: "return",
-                value: this.state.value,
-            }));
+            return Promise.resolve(
+                IteratorResult(IteratorReturn {
+                    kind: "return",
+                    value: this.state.value,
+                }),
+            );
         }
         // reject closed generators
         else if (this.state.kind == "closed") {
@@ -169,10 +171,12 @@ export class AsyncGenerator<Y, R = void, N = void> implements Drop {
     return(value: R): Promise<GeneratorResult<Y, R>> {
         // resolve already completed generators
         if (this.state.kind == "completed") {
-            return Promise.resolve(IteratorResult(IteratorReturn {
-                kind: "return",
-                value: this.state.value,
-            }));
+            return Promise.resolve(
+                IteratorResult(IteratorReturn {
+                    kind: "return",
+                    value: this.state.value,
+                }),
+            );
         }
         // reject closed generators
         else if (this.state.kind == "closed") {
@@ -272,10 +276,12 @@ export class AsyncGenerator<Y, R = void, N = void> implements Drop {
     ): void {
         // resolve one yielded value
         if (result.kind == "yield") {
-            request.resolvers.resolve(IteratorResult(IteratorYield {
-                kind: "yield",
-                value: result.value,
-            }));
+            request.resolvers.resolve(
+                IteratorResult(IteratorYield {
+                    kind: "yield",
+                    value: result.value,
+                }),
+            );
             this.state = AsyncGeneratorSuspended {
                 kind: "suspended",
                 continuation: result.continuation,
@@ -284,10 +290,12 @@ export class AsyncGenerator<Y, R = void, N = void> implements Drop {
         }
         // resolve final completion
         else if (result.kind == "return") {
-            request.resolvers.resolve(IteratorResult(IteratorReturn {
-                kind: "return",
-                value: result.value,
-            }));
+            request.resolvers.resolve(
+                IteratorResult(IteratorReturn {
+                    kind: "return",
+                    value: result.value,
+                }),
+            );
             this.state = AsyncGeneratorCompleted {
                 kind: "completed",
                 value: result.value,
@@ -415,9 +423,7 @@ struct AsyncGeneratorClosed {
 }
 
 /// One async generator consumer request.
-type AsyncGeneratorRequest<Y, R, N> =
-    | AsyncGeneratorNext<Y, R, N>
-    | AsyncGeneratorReturn<Y, R, N>;
+type AsyncGeneratorRequest<Y, R, N> = AsyncGeneratorNext<Y, R, N> | AsyncGeneratorReturn<Y, R, N>;
 
 /// Request one yielded value.
 struct AsyncGeneratorNext<Y, R, N> {
