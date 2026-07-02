@@ -2803,6 +2803,7 @@ In general, type placement is contextual: all types are "ambient" by default, i.
 Specific nominal declarations may also choose an intrinsic placement for themselves, which then forces them into a specific space:
 
 ```ds
+local newtype interface Awaitable<T> { await(): T }
 local class Promise<T> {}
 shared class Channel<T> {}
 local newtype TaskId = uint64;
