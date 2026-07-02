@@ -146,8 +146,13 @@ impl CheckState<'_> {
                     return Ok(Answer::Ready(false));
                 };
                 let module = origin.module();
-                let implemented =
-                    self.decide_extension_implementation(origin, module, source, target_instance)?;
+                let implemented = self.decide_extension_implementation(
+                    origin,
+                    module,
+                    target.module_id,
+                    source,
+                    target_instance,
+                )?;
                 if !matches!(implemented, Answer::Ready(false)) {
                     return Ok(implemented);
                 }
@@ -252,8 +257,13 @@ impl CheckState<'_> {
             Some(dir::Definition::Interface(_))
         ) {
             let module = origin.module();
-            let implemented =
-                self.decide_extension_implementation(origin, module, source, target_instance)?;
+            let implemented = self.decide_extension_implementation(
+                origin,
+                module,
+                target.module_id,
+                source,
+                target_instance,
+            )?;
             if !matches!(implemented, Answer::Ready(false)) {
                 return Ok(implemented);
             }
