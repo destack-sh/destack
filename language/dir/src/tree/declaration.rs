@@ -2,10 +2,29 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ExportKind, Expression, FunctionSignature, GenericParameter, LocalNodeId, Member, Mutability,
-    Name, Node, NodeType, ScopeKind, SymbolKind, SymbolRole, TypeExpression, TypeMember,
-    WhereClause,
+    ExportKind, Expression, FunctionSignature, GenericParameter, Keyword, LocalNodeId, Member,
+    Mutability, Name, Node, NodeType, ScopeKind, SymbolKind, SymbolRole, TypeExpression,
+    TypeMember, WhereClause,
 };
+
+/// Explicit source placement modifier.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum PlaceModifier {
+    /// Local placement.
+    Local,
+    /// Shared placement.
+    Shared,
+}
+
+impl PlaceModifier {
+    /// Return the keyword spelling for this placement modifier.
+    pub const fn keyword(self) -> Keyword {
+        match self {
+            Self::Local => Keyword::Local,
+            Self::Shared => Keyword::Shared,
+        }
+    }
+}
 
 /// A global declaration block.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -30,6 +49,8 @@ pub struct TypeDeclaration {
     pub name: Name,
     /// The export kind of the declaration.
     pub export: Option<ExportKind>,
+    /// The explicit placement modifier.
+    pub place: Option<PlaceModifier>,
     /// The optional mutability qualifier.
     pub mutability: Option<Mutability>,
     /// The generic parameters of the declaration.
@@ -51,6 +72,8 @@ pub struct StructDeclaration {
     pub name: Name,
     /// The export kind of the declaration.
     pub export: Option<ExportKind>,
+    /// The explicit placement modifier.
+    pub place: Option<PlaceModifier>,
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.
@@ -70,6 +93,8 @@ pub struct ClassDeclaration {
     pub name: Option<Name>,
     /// The export kind of the declaration.
     pub export: Option<ExportKind>,
+    /// The explicit placement modifier.
+    pub place: Option<PlaceModifier>,
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.
@@ -105,6 +130,8 @@ pub struct EnumDeclaration {
     pub name: Option<Name>,
     /// The export kind of the declaration.
     pub export: Option<ExportKind>,
+    /// The explicit placement modifier.
+    pub place: Option<PlaceModifier>,
     /// The enum kind.
     pub kind: EnumKind,
     /// The generic parameters of the declaration.
@@ -128,6 +155,8 @@ pub struct InterfaceDeclaration {
     pub name: Option<Name>,
     /// The export kind of the declaration.
     pub export: Option<ExportKind>,
+    /// The explicit placement modifier.
+    pub place: Option<PlaceModifier>,
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.
@@ -232,6 +261,21 @@ impl Declaration {
             Declaration::Extension(declaration) => declaration.is_ambient,
             Declaration::Function(declaration) => declaration.is_ambient,
             Declaration::Module(_) => false,
+        }
+    }
+
+    /// Return the explicit placement modifier on this declaration.
+    pub fn place(&self) -> Option<PlaceModifier> {
+        match self {
+            Declaration::Type(declaration) => declaration.place,
+            Declaration::Struct(declaration) => declaration.place,
+            Declaration::Class(declaration) => declaration.place,
+            Declaration::Enum(declaration) => declaration.place,
+            Declaration::Interface(declaration) => declaration.place,
+            Declaration::Global(_)
+            | Declaration::Module(_)
+            | Declaration::Extension(_)
+            | Declaration::Function(_) => None,
         }
     }
 

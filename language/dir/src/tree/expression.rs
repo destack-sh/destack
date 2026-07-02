@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
     Declarator, DependencyForm, DependencyItem, ExportKind, GenericArgument, ImportAttributeClause,
-    Keyword, LocalNodeId, MatchCase, MatchForm, Mutability, Node, NodeType, Pattern, Property,
-    RangeEnd, ScalarLiteral, StaticKey, TemplateLiteral, TreeAttribute, TreeChild, TypeExpression,
-    UnaryOperator,
+    Keyword, LocalNodeId, MatchCase, MatchForm, Mutability, Node, NodeType, Pattern, PlaceModifier,
+    Property, RangeEnd, ScalarLiteral, StaticKey, TemplateLiteral, TreeAttribute, TreeChild,
+    TypeExpression, UnaryOperator,
 };
 
 /// A catch branch.
@@ -111,7 +111,7 @@ pub enum Expression {
         mutability: Mutability,
         declarators: Vec<LocalNodeId<Declarator>>,
         is_ambient: bool,
-        is_shared: bool,
+        place: Option<PlaceModifier>,
     },
 
     /// Let-else binding with an early-exit branch.
