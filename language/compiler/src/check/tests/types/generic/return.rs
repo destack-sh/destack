@@ -140,3 +140,46 @@ function pending<T>(): State<T> {
 "#,
     );
 }
+
+#[test]
+fn test_recursive_return_inference_requires_annotation() {
+    let session = TestSession::single(
+        r#"
+function countdown(n: float64) {
+    return n > 0 ? countdown(n - 1) : n;
+}
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error code=EC101 message="missing type annotation"
+/// @diagnostic.label line=2 column=10 span="countdown" line_source="function countdown(n: float64) {"
+"#,
+    );
+}
+#[test]
+fn test_mutually_recursive_returns_require_annotations() {
+    let session = TestSession::single(
+        r#"
+function ping(n: float64) {
+    return n > 0 ? pong(n - 1) : n;
+}
+
+function pong(n: float64) {
+    return n > 0 ? ping(n - 1) : n;
+}
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error code=EC101 message="missing type annotation"
+/// @diagnostic.label line=2 column=10 span="ping" line_source="function ping(n: float64) {"
+/// @diagnostic.error code=EC101 message="missing type annotation"
+/// @diagnostic.label line=6 column=10 span="pong" line_source="function pong(n: float64) {"
+"#,
+    );
+}

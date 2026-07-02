@@ -303,6 +303,29 @@ values = [];
 }
 
 #[test]
+fn test_empty_array_without_context_infers_never_elements() {
+    let session = TestSession::single(
+        r#"
+const values = [];
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+const values: never[] = [];
+
+=== checked ===
+const values = [];
+/// @type.symbol symbol=values source=values type=Array<never>
+/// @type.node source=[] type=Array<never>
+"#,
+    );
+}
+
+#[test]
 fn test_fixed_array_assignment_accepts_matching_length() {
     let session = TestSession::single(
         r#"

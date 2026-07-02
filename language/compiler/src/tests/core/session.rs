@@ -349,6 +349,12 @@ impl TestSession {
         self.assert_diagnostics(self.dir_exported_key(path), expected);
     }
 
+    /// Assert checked DIR diagnostics for one module.
+    #[track_caller]
+    pub(crate) fn assert_dir_checked_diagnostics(&self, path: &str, expected: &str) {
+        self.assert_diagnostics(self.dir_checked_component_key(path), expected);
+    }
+
     /// Assert resolved DIR diagnostics for one module.
     #[track_caller]
     pub(crate) fn assert_dir_resolved_diagnostics(&self, path: &str, expected: &str) {

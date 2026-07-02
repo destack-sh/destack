@@ -1,6 +1,53 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_recursive_object_aliases_accept_each_other() {
+    let session = TestSession::single(
+        r#"
+type TreeA = { value: float64; child: TreeA | null };
+type TreeB = { value: float64; child: TreeB | null };
+
+declare const source: TreeA;
+const tree: TreeB = source;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+type TreeA = { value: float64; child: TreeA | null };
+type TreeB = { value: float64; child: TreeB | null };
+
+declare const source: TreeA;
+const tree: TreeB = source;
+
+=== checked ===
+type TreeA = { value: float64; child: TreeA | null };
+/// @type.symbol symbol=TreeA source="type TreeA = { value: float64; child: TreeA | null }" type={ value: float64; child: TreeA | null }
+/// @definition.type symbol=TreeA source="type TreeA = { value: float64; child: TreeA | null }" value={ value: float64; child: TreeA | null }
+/// @resolution.name source=TreeA target=TreeA
+
+type TreeB = { value: float64; child: TreeB | null };
+/// @type.symbol symbol=TreeB source="type TreeB = { value: float64; child: TreeB | null }" type={ value: float64; child: TreeB | null }
+/// @definition.type symbol=TreeB source="type TreeB = { value: float64; child: TreeB | null }" value={ value: float64; child: TreeB | null }
+/// @resolution.name source=TreeB target=TreeB
+
+declare const source: TreeA;
+/// @type.symbol symbol=source source=source type=TreeA reduced={ value: float64; child: TreeA | null }
+/// @resolution.name source=TreeA target=TreeA
+
+const tree: TreeB = source;
+/// @type.symbol symbol=tree source=tree type=TreeB reduced={ value: float64; child: TreeB | null }
+/// @resolution.name source=TreeB target=TreeB
+/// @type.node source=source type=TreeA reduced={ value: float64; child: TreeA | null }
+/// @resolution.name source=source target=source
+"#,
+    );
+}
+
+#[test]
 fn test_recursive_struct_fields_report_circular_representation() {
     let session = TestSession::single(
         r#"
