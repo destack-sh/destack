@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use destack_core::{SectionPacker, StringPool};
 use destack_heap as heap;
 use destack_mir as mir;
-use destack_program::{FunctionId, GlobalId, Program, StringTable, TraceTable, TypeId};
+use destack_program::{FunctionId, GlobalId, Program, StringTable, TypeId};
 use destack_source::PackageId;
 
 use crate::{LinkError, LinkResult};
@@ -112,7 +112,7 @@ impl ProgramLinker {
         .link(&mut sections)?;
 
         // project trace rows after VM lowering consumes compiler trace maps
-        let traces = TraceTable::pack(&mut sections, &layouts.trace_maps);
+        let traces = heap::TraceTable::pack(&mut sections, &layouts.trace_maps);
         let strings = StringTable::from_pool(&mut sections, &self.strings);
         let info = None;
 
