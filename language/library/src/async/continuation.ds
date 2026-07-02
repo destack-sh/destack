@@ -4,7 +4,7 @@ import { Drop } from "destack:memory";
 ///
 /// Resuming a continuation consumes it, and dropping it cancels it.
 @languageItem("async.Continuation")
-export struct Continuation<TResume = void, TYield = never, TReturn = void> implements Drop {
+export local struct Continuation<TResume = void, TYield = never, TReturn = void> implements Drop {
     /// Opaque continuation identity.
     private handle: uint64;
 
@@ -32,14 +32,14 @@ export struct Continuation<TResume = void, TYield = never, TReturn = void> imple
 /// Resume command delivered into a parked continuation.
 @languageItem("async.ContinuationResume")
 @derive(Tagged)
-export newtype ContinuationResume<TResume, TReturn> =
+export local newtype ContinuationResume<TResume, TReturn> =
     | ContinuationResumeNext<TResume>
     | ContinuationResumeReturn<TReturn>
     | ContinuationResumeCancel;
 
 /// Continue a parked continuation with a normal resume value.
 @languageItem("async.ContinuationResumeNext")
-export struct ContinuationResumeNext<T> {
+export local struct ContinuationResumeNext<T> {
     /// The command tag.
     kind: "next" = "next";
 
@@ -49,7 +49,7 @@ export struct ContinuationResumeNext<T> {
 
 /// Continue a parked continuation through its completion path.
 @languageItem("async.ContinuationResumeReturn")
-export struct ContinuationResumeReturn<T> {
+export local struct ContinuationResumeReturn<T> {
     /// The command tag.
     kind: "return" = "return";
 
@@ -59,14 +59,14 @@ export struct ContinuationResumeReturn<T> {
 
 /// Continue a parked continuation through its cancellation path.
 @languageItem("async.ContinuationResumeCancel")
-export struct ContinuationResumeCancel {
+export local struct ContinuationResumeCancel {
     /// The command tag.
     kind: "cancel" = "cancel";
 }
 
 /// Suspended continuation produced by a generator `yield`.
 @languageItem("async.ContinuationYield")
-export struct ContinuationYield<TResume, TYield, TReturn> {
+export local struct ContinuationYield<TResume, TYield, TReturn> {
     /// The result tag.
     kind: "yield" = "yield";
 
@@ -79,7 +79,7 @@ export struct ContinuationYield<TResume, TYield, TReturn> {
 
 /// Completed continuation.
 @languageItem("async.ContinuationReturn")
-export struct ContinuationReturn<T> {
+export local struct ContinuationReturn<T> {
     /// The result tag.
     kind: "return" = "return";
 
@@ -89,7 +89,7 @@ export struct ContinuationReturn<T> {
 
 /// Parked continuation result.
 @languageItem("async.ContinuationParked")
-export struct ContinuationParked {
+export local struct ContinuationParked {
     /// The result tag.
     kind: "parked" = "parked";
 }
@@ -97,7 +97,7 @@ export struct ContinuationParked {
 /// Result of resuming a continuation.
 @languageItem("async.ContinuationResult")
 @derive(Tagged)
-export newtype ContinuationResult<TResume, TYield, TReturn> =
+export local newtype ContinuationResult<TResume, TYield, TReturn> =
     | ContinuationYield<TResume, TYield, TReturn>
     | ContinuationParked
     | ContinuationReturn<TReturn>;

@@ -5,7 +5,7 @@ import { Dereference } from "destack:ops";
 import { Atomic } from "./atomic.ds";
 
 /// Mutual exclusion lock.
-export class Mutex<T> {
+export shared class Mutex<T> {
     /// The lock state.
     state: Atomic<uint32>;
 
@@ -46,7 +46,7 @@ export extension<T: Default> of Mutex<T> implements Default {
 }
 
 /// Active mutex lock guard.
-export struct MutexGuard<T> {
+export local struct MutexGuard<T> {
     /// The locked mutex.
     mutex: *Mutex<T>;
 }

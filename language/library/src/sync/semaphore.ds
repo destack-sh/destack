@@ -4,7 +4,7 @@ import { Dispose } from "destack:memory";
 import { Atomic } from "./atomic.ds";
 
 /// Counting semaphore.
-export class Semaphore {
+export shared class Semaphore {
     /// The available permit count.
     state: Atomic<isize>;
 
@@ -45,7 +45,7 @@ export class Semaphore {
 }
 
 /// Active semaphore permit.
-export struct SemaphorePermit {
+export local struct SemaphorePermit {
     /// The semaphore that issued this permit.
     semaphore: *Semaphore;
 

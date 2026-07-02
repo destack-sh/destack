@@ -7,7 +7,7 @@ import { Promise } from "./promise.ds";
 ///
 /// A scope owns every task spawned into it and cannot exit while children are pending:
 /// disposing the scope cancels the remaining children and awaits their cleanup.
-export class TaskScope implements AsyncDispose {
+export local class TaskScope implements AsyncDispose {
     /// Open a new task scope.
     static open(): TaskScope {
         todo("TaskScope.open")
@@ -40,7 +40,7 @@ export class TaskScope implements AsyncDispose {
 }
 
 /// Task owned by a `TaskScope`.
-export class Task<T> {
+export local class Task<T> {
     /// Wait for the task to complete or cancel.
     join(): AsyncResult<T, Cancelled> {
         todo("Task.join")
@@ -55,7 +55,7 @@ export class Task<T> {
 }
 
 /// Cancellation marker observed when joining a cancelled task.
-export struct Cancelled {}
+export local struct Cancelled {}
 
 /// Yield back to the current Worker scheduler.
 export function yieldNow(): Promise<void> {

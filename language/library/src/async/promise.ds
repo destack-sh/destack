@@ -8,7 +8,7 @@ import { Continuation, queueMicrotask, suspendContinuation } from "./continuatio
 /// A promise never rejects in Destack: recoverable asynchronous failure is represented as
 /// `Promise<Result<T, E>>`, and panic remains the Worker fault boundary.
 @languageItem("async.Promise")
-export class Promise<T> {
+export local class Promise<T> {
     /// The current settlement state.
     private state: PromiseState<T>;
 
@@ -175,7 +175,7 @@ export class Promise<T> {
 
 /// Promise with its resolving function.
 @languageItem("async.PromiseResolvers")
-export struct PromiseResolvers<T> {
+export local struct PromiseResolvers<T> {
     /// The created promise.
     promise: Promise<T>;
 
@@ -193,7 +193,7 @@ export type PromiseExecutor<T> = (resolve: PromiseResolve<T>) => void;
 type PromiseState<T> = PromisePending<T> | PromiseFulfilled<T>;
 
 /// Pending promise state.
-struct PromisePending<T> {
+local struct PromisePending<T> {
     /// The state tag.
     kind: "pending";
 
@@ -205,7 +205,7 @@ struct PromisePending<T> {
 }
 
 /// Fulfilled promise state.
-struct PromiseFulfilled<T> {
+local struct PromiseFulfilled<T> {
     /// The state tag.
     kind: "fulfilled";
 
@@ -217,7 +217,7 @@ struct PromiseFulfilled<T> {
 type PromiseWaiter<T> = PromiseAwaiter<T> | PromiseReaction<T>;
 
 /// Await continuation parked inside one pending promise.
-struct PromiseAwaiter<T> {
+local struct PromiseAwaiter<T> {
     /// The waiter tag.
     kind: "await";
 
@@ -229,7 +229,7 @@ struct PromiseAwaiter<T> {
 }
 
 /// Then/finally reaction parked inside one pending promise.
-struct PromiseReaction<T> {
+local struct PromiseReaction<T> {
     /// The waiter tag.
     kind: "reaction";
 

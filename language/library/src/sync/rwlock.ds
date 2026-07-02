@@ -5,7 +5,7 @@ import { Dereference } from "destack:ops";
 import { Atomic } from "./atomic.ds";
 
 /// Reader-writer lock.
-export class RwLock<T> {
+export shared class RwLock<T> {
     /// The lock state.
     state: Atomic<uint32>;
 
@@ -56,7 +56,7 @@ export extension<T: Default> of RwLock<T> implements Default {
 }
 
 /// Active readonly lock guard.
-export struct RwLockReadGuard<T> {
+export local struct RwLockReadGuard<T> {
     /// The locked value.
     lock: *RwLock<T>;
 }
@@ -77,7 +77,7 @@ export extension<T> of RwLockReadGuard<T> implements Dispose, Dereference<"reado
 }
 
 /// Active exclusive lock guard.
-export struct RwLockWriteGuard<T> {
+export local struct RwLockWriteGuard<T> {
     /// The locked value.
     lock: *RwLock<T>;
 }

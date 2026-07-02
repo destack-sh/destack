@@ -12,7 +12,7 @@ import { Weak } from "./weak.ds";
 
 /// Reference-counted heap block for shared storage.
 @languageItem("memory.arc.ArcInner")
-export struct ArcInner<T> {
+export shared struct ArcInner<T> {
     /// The strong reference count.
     strong: Atomic<usize>;
 

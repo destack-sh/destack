@@ -3,7 +3,7 @@ import { todo } from "destack:error";
 import { Atomic } from "./atomic.ds";
 
 /// Reusable synchronization barrier.
-export class Barrier {
+export shared class Barrier {
     /// The required participant count.
     count: usize;
 

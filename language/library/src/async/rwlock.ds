@@ -5,7 +5,7 @@ import { Dereference } from "destack:ops";
 import { Promise } from "./promise.ds";
 
 /// Asynchronous reader-writer lock.
-export class AsyncRwLock<T> {
+export local class AsyncRwLock<T> {
     /// The protected value.
     value: T;
 
@@ -53,7 +53,7 @@ export extension<T: Default> of AsyncRwLock<T> implements Default {
 }
 
 /// Active async readonly lock guard.
-export struct AsyncRwLockReadGuard<T> {
+export local struct AsyncRwLockReadGuard<T> {
     /// The locked value.
     lock: *AsyncRwLock<T>;
 }
@@ -74,7 +74,7 @@ export extension<T> of AsyncRwLockReadGuard<T> implements Dispose, Dereference<"
 }
 
 /// Active async exclusive lock guard.
-export struct AsyncRwLockWriteGuard<T> {
+export local struct AsyncRwLockWriteGuard<T> {
     /// The locked value.
     lock: *AsyncRwLock<T>;
 }

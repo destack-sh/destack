@@ -9,7 +9,7 @@ import { Array } from "./array.ds";
 import { Map } from "./map.ds";
 
 /// Read guard for one concurrent map entry.
-export struct ConcurrentMapRead<K, V> {
+export local struct ConcurrentMapRead<K, V> {
     /// The shard read guard.
     private guard: RwLockReadGuard<Map<K, V>>;
 
@@ -18,7 +18,7 @@ export struct ConcurrentMapRead<K, V> {
 }
 
 /// Write guard for one concurrent map entry.
-export struct ConcurrentMapWrite<K, V> {
+export local struct ConcurrentMapWrite<K, V> {
     /// The shard write guard.
     private guard: RwLockWriteGuard<Map<K, V>>;
 
@@ -27,7 +27,7 @@ export struct ConcurrentMapWrite<K, V> {
 }
 
 /// Entry guard for one concurrent map key.
-export struct ConcurrentMapEntry<K, V> {
+export local struct ConcurrentMapEntry<K, V> {
     /// The shard write guard.
     private guard: RwLockWriteGuard<Map<K, V>>;
 
@@ -36,7 +36,7 @@ export struct ConcurrentMapEntry<K, V> {
 }
 
 /// A sharded concurrent hash map.
-export class ConcurrentMap<K, V> {
+export shared class ConcurrentMap<K, V> {
     /// The map shards.
     shards: Array<RwLock<Map<K, V>>>;
 

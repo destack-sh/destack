@@ -11,7 +11,7 @@ import { Weak } from "./weak.ds";
 
 /// Reference-counted heap block for one worker.
 @languageItem("memory.rc.RcInner")
-export struct RcInner<T> {
+export local struct RcInner<T> {
     /// The strong reference count.
     strong: usize;
 
@@ -26,7 +26,7 @@ export extension<T> of Rc<T> implements Unpin {}
 
 /// Local reference-counted ownership.
 @languageItem("memory.rc.Rc")
-export struct Rc<T> {
+export local struct Rc<T> {
     /// The inner block.
     inner: *RcInner<Owned<T>>;
 }

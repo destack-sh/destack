@@ -5,7 +5,7 @@ import { Dereference } from "destack:ops";
 import { Promise } from "./promise.ds";
 
 /// Asynchronous mutual exclusion lock.
-export class AsyncMutex<T> {
+export local class AsyncMutex<T> {
     /// The protected value.
     value: T;
 
@@ -43,7 +43,7 @@ export extension<T: Default> of AsyncMutex<T> implements Default {
 }
 
 /// Active async mutex guard.
-export struct AsyncMutexGuard<T> {
+export local struct AsyncMutexGuard<T> {
     /// The locked mutex.
     mutex: *AsyncMutex<T>;
 }

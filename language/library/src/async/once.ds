@@ -4,7 +4,7 @@ import { MaybeUninit } from "destack:memory";
 import { Promise } from "./promise.ds";
 
 /// One-time async execution state.
-export class AsyncOnce {
+export local class AsyncOnce {
     /// Run `body` once.
     call(body: () => Promise<void>): Promise<void> {
         todo("AsyncOnce.call")
@@ -17,7 +17,7 @@ export class AsyncOnce {
 }
 
 /// One-time async initialized cell.
-export class AsyncOnceCell<T> {
+export local class AsyncOnceCell<T> {
     /// The stored value.
     value: MaybeUninit<T>;
 

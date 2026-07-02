@@ -4,7 +4,7 @@ import { Atomic } from "destack:sync";
 import { Promise } from "./promise.ds";
 
 /// Asynchronous notification primitive.
-export class Notify {
+export local class Notify {
     /// The notification generation.
     state: Atomic<uint64>;
 
