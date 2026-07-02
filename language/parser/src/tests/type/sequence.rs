@@ -215,7 +215,7 @@ fn test_parse_labeled_tuple_type_with_spread_payload() {
 
     // type T = [keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES"]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, is_ambient, is_nominal, mutability, generic_parameters, where_clauses, value }) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, place: _, is_ambient, is_nominal, mutability, generic_parameters, where_clauses, value }) => {
             assert_name!(parser, *name, "T");
             assert!(export.is_none());
             assert!(!*is_ambient);

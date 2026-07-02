@@ -133,6 +133,7 @@ impl Parser {
             Declaration::Class(ClassDeclaration {
                 name,
                 export: header.export,
+                place: header.place,
                 is_ambient: header.is_ambient,
                 is_abstract: header.is_abstract,
                 is_final: header.is_final,
@@ -150,6 +151,7 @@ impl Parser {
             Declaration::Struct(StructDeclaration {
                 name,
                 export: header.export,
+                place: header.place,
                 is_ambient: header.is_ambient,
                 generic_parameters: generic_parameters.unwrap_or_default(),
                 where_clauses: where_clauses.unwrap_or_default(),

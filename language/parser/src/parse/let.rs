@@ -227,7 +227,7 @@ impl Parser {
                 kind,
                 export: header.export,
                 is_ambient: header.is_ambient,
-                is_shared: header.is_shared,
+                place: header.place,
                 mutability,
                 declarators,
             },

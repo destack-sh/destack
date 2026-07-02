@@ -147,6 +147,7 @@ impl Parser {
         let declaration = Declaration::Type(TypeDeclaration {
             name,
             export: header.export,
+            place: header.place,
             is_ambient: header.is_ambient,
             is_nominal: type_keyword.kind == TypeKind::Nominal,
             mutability: type_keyword.mutability,

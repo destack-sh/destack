@@ -2,7 +2,7 @@ use crate::tests::TestParser;
 use crate::{Parser, assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
     Declaration, Expression, GenericParameter, IntegerType, LocalNodeId, Mutability, NodeType,
-    ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
+    PlaceModifier, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::LanguageType;
 
@@ -22,6 +22,24 @@ fn test_parse_type_alias() {
                 assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                 }));
             });
+        });
+    });
+}
+
+#[test]
+fn test_parse_local_newtype_declaration() {
+    let mut test = TestParser::new("local newtype TaskId = uint64");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+
+    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { name, place, is_nominal, .. }) => {
+            assert_string!(parser, name.string(), "TaskId");
+            assert_eq!(*place, Some(PlaceModifier::Local));
+            assert!(*is_nominal);
         });
     });
 }

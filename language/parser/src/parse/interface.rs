@@ -112,6 +112,7 @@ impl Parser {
                 Declaration::Interface(InterfaceDeclaration {
                     name,
                     export: header.export,
+                    place: header.place,
                     is_ambient: header.is_ambient,
                     is_nominal: kind == TypeKind::Nominal,
                     generic_parameters: generic_parameters.unwrap_or_default(),

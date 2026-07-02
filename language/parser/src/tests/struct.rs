@@ -1,7 +1,7 @@
 use destack_dir::{
-    ClassDeclaration, CommentKind, Declaration, Expression, GenericParameter, IntegerType, Key,
-    Member, Name, Parameter, ScalarLiteral, StructDeclaration, TypeExpression, TypeLiteral,
-    Visibility, WhereClause,
+    ClassDeclaration, CommentKind, Declaration, ExportKind, Expression, GenericParameter,
+    IntegerType, Key, Member, Name, Parameter, PlaceModifier, ScalarLiteral, StructDeclaration,
+    TypeExpression, TypeLiteral, Visibility, WhereClause,
 };
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -78,6 +78,76 @@ struct Foo { x: int32, y: int32 }
         .unwrap_err();
 
     assert_eq!(parser.get_span_str(error.leaf_span()), ",");
+}
+
+#[test]
+fn test_parse_local_class_declaration() {
+    let mut test = TestParser::new("local class Promise {}");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+
+    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { name, place, .. }) => {
+            assert_string!(parser, name.expect("expected name").string(), "Promise");
+            assert_eq!(*place, Some(PlaceModifier::Local));
+        });
+    });
+}
+
+#[test]
+fn test_parse_exported_local_class_declaration() {
+    let mut test = TestParser::new("export local class Promise {}");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+
+    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { export, name, place, .. }) => {
+            assert_eq!(*export, Some(ExportKind::Named));
+            assert_string!(parser, name.expect("expected name").string(), "Promise");
+            assert_eq!(*place, Some(PlaceModifier::Local));
+        });
+    });
+}
+
+#[test]
+fn test_parse_export_default_local_class_declaration() {
+    let mut test = TestParser::new("export default local class Promise {}");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+
+    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { export, name, place, .. }) => {
+            assert_eq!(*export, Some(ExportKind::Default));
+            assert_string!(parser, name.expect("expected name").string(), "Promise");
+            assert_eq!(*place, Some(PlaceModifier::Local));
+        });
+    });
+}
+
+#[test]
+fn test_parse_shared_struct_declaration() {
+    let mut test = TestParser::new("shared struct Channel<T> {}");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+
+    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Struct(StructDeclaration { name, place, .. }) => {
+            assert_string!(parser, name.string(), "Channel");
+            assert_eq!(*place, Some(PlaceModifier::Shared));
+        });
+    });
 }
 
 #[test]
