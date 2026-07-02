@@ -16,7 +16,7 @@ pub enum NativeExitKind {
     Yielded = 1,
     /// Execution trapped.
     Trapped = 2,
-    /// Execution deoptimized into VM materialization.
+    /// Execution deoptimized into continuation state.
     Deoptimized = 3,
     /// Execution stopped with a language panic.
     Panicked = 4,

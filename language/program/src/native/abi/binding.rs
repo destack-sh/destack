@@ -1,34 +1,120 @@
-use super::{
-    NativeContext, NativeContinuation, NativeExitCode, NativeMaterialization, NativeTrapCode,
-    NativeValue,
-};
+use std::error::Error;
+use std::fmt;
 
-/// Allocate one typed heap value.
-pub type NativeNew = unsafe extern "C" fn(context: *mut NativeContext, allocation: u32) -> usize;
+use serde::{Deserialize, Serialize};
 
-/// Allocate one typed repeated heap value.
-pub type NativeNewSlice =
-    unsafe extern "C" fn(context: *mut NativeContext, allocation: u32, length: usize) -> usize;
+use super::{NativeContext, NativeContinuation, NativeExitCode, NativeTrapCode, NativeValue};
 
-/// Release one unique heap value.
-pub type NativeFree = unsafe extern "C" fn(context: *mut NativeContext, value: usize);
+/// Native runtime service status code.
+pub type NativeRuntimeStatusCode = u32;
 
-/// Pin one heap value against movement.
-pub type NativePin = unsafe extern "C" fn(context: *mut NativeContext, value: usize) -> usize;
+/// Native allocation initialization mode.
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NativeAllocationInitialization {
+    /// Initialize bytes to zero.
+    Zeroed = 0,
+    /// Leave bytes uninitialized.
+    Uninit = 1,
+}
 
-/// Release one pinned heap value.
-pub type NativeUnpin = unsafe extern "C" fn(context: *mut NativeContext, value: usize);
+/// Native runtime service status.
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NativeRuntimeStatus {
+    /// Native execution may continue.
+    Continue = 0,
+    /// The service failed normally and native code should take its failure edge.
+    Failed = 1,
+    /// Native execution must return the exit kind stored in the context.
+    Exit = 2,
+}
 
-/// Record one managed reference write.
-pub type NativeWriteBarrier =
-    unsafe extern "C" fn(context: *mut NativeContext, destination: *mut u8, value: usize);
+impl NativeRuntimeStatus {
+    /// Return the native runtime status code.
+    pub const fn code(self) -> NativeRuntimeStatusCode {
+        self as NativeRuntimeStatusCode
+    }
+}
 
-/// Cooperate with the runtime at one safepoint.
+/// Native runtime status code conversion error.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NativeRuntimeStatusError {
+    /// The invalid status code.
+    pub code: NativeRuntimeStatusCode,
+}
+
+impl fmt::Display for NativeRuntimeStatusError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "invalid native runtime status code {}",
+            self.code
+        )
+    }
+}
+
+impl Error for NativeRuntimeStatusError {}
+
+impl TryFrom<NativeRuntimeStatusCode> for NativeRuntimeStatus {
+    type Error = NativeRuntimeStatusError;
+
+    fn try_from(code: NativeRuntimeStatusCode) -> Result<Self, Self::Error> {
+        match code {
+            0 => Ok(Self::Continue),
+            1 => Ok(Self::Failed),
+            2 => Ok(Self::Exit),
+            code => Err(NativeRuntimeStatusError { code }),
+        }
+    }
+}
+
+/// Allocate one heap object through the runtime.
+pub type NativeAllocate = unsafe extern "C" fn(
+    context: *mut NativeContext,
+    allocation_plan: u32,
+    initialization: NativeAllocationInitialization,
+    out: *mut usize,
+) -> NativeRuntimeStatusCode;
+
+/// Allocate one repeated heap backing through the runtime.
+pub type NativeAllocateSlice = unsafe extern "C" fn(
+    context: *mut NativeContext,
+    element_allocation_plan: u32,
+    length: usize,
+    initialization: NativeAllocationInitialization,
+    out: *mut usize,
+) -> NativeRuntimeStatusCode;
+
+/// Release one unique heap value through the runtime.
+pub type NativeFree =
+    unsafe extern "C" fn(context: *mut NativeContext, value: usize) -> NativeRuntimeStatusCode;
+
+/// Pin one heap value against movement through the runtime.
+pub type NativePin = unsafe extern "C" fn(
+    context: *mut NativeContext,
+    value: usize,
+    out: *mut usize,
+) -> NativeRuntimeStatusCode;
+
+/// Release one pinned heap value through the runtime.
+pub type NativeUnpin =
+    unsafe extern "C" fn(context: *mut NativeContext, value: usize) -> NativeRuntimeStatusCode;
+
+/// Record one managed reference write through the runtime.
+pub type NativeWriteBarrier = unsafe extern "C" fn(
+    context: *mut NativeContext,
+    object: usize,
+    offset: usize,
+    byte_len: usize,
+) -> NativeRuntimeStatusCode;
+
+/// Cooperate with the runtime at one native safepoint.
 pub type NativeSafepoint = unsafe extern "C" fn(
     context: *mut NativeContext,
     safepoint: u32,
     continuation: NativeContinuation,
-) -> NativeExitCode;
+) -> NativeRuntimeStatusCode;
 
 /// Suspend execution into the runtime scheduler.
 pub type NativeYield = unsafe extern "C" fn(
@@ -37,11 +123,11 @@ pub type NativeYield = unsafe extern "C" fn(
     continuation: NativeContinuation,
 ) -> NativeExitCode;
 
-/// Deoptimize native execution into VM materialization.
+/// Deoptimize native execution into continuation state.
 pub type NativeDeopt = unsafe extern "C" fn(
     context: *mut NativeContext,
     safepoint: u32,
-    materialization: NativeMaterialization,
+    continuation: NativeContinuation,
 ) -> NativeExitCode;
 
 /// Report one native trap.
