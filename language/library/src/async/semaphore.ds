@@ -5,7 +5,7 @@ import { Atomic } from "destack:sync";
 import { Promise } from "./promise.ds";
 
 /// Asynchronous counting semaphore.
-export class AsyncSemaphore {
+export local class AsyncSemaphore {
     /// The available permit count.
     state: Atomic<isize>;
 
@@ -46,7 +46,7 @@ export class AsyncSemaphore {
 }
 
 /// Active async semaphore permit.
-export struct AsyncSemaphorePermit {
+export local struct AsyncSemaphorePermit {
     /// The semaphore that issued this permit.
     semaphore: *AsyncSemaphore;
 

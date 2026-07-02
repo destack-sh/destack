@@ -4,7 +4,7 @@ import { MaybeUninit } from "destack:memory";
 import { Atomic } from "./atomic.ds";
 
 /// One-time execution state.
-export class Once {
+export shared class Once {
     /// The execution state.
     state: Atomic<uint32>;
 
@@ -20,7 +20,7 @@ export class Once {
 }
 
 /// One-time initialized cell.
-export class OnceCell<T> {
+export shared class OnceCell<T> {
     /// The initialization state.
     state: Atomic<uint32>;
 

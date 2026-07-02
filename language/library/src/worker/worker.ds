@@ -4,7 +4,7 @@ import { AsyncResult, Panic } from "destack:error";
 import { Send } from "destack:memory";
 
 /// Isolated worker.
-export class Worker<T, R> {
+export local class Worker<T, R> {
     /// The worker id.
     id: uint64;
 
@@ -34,7 +34,7 @@ export class Worker<T, R> {
 }
 
 /// Pool of homogeneous workers.
-export class WorkerPool<T, R> {
+export local class WorkerPool<T, R> {
     /// The workers in this pool.
     workers: Worker<T, R>[];
 

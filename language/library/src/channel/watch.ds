@@ -5,7 +5,7 @@ import { Dereference } from "destack:ops";
 import { ReceiveError, SendError } from "./channel.ds";
 
 /// Borrowed snapshot of a watched value.
-export struct WatchRef<T> {
+export local struct WatchRef<T> {
     /// The receiver that owns this snapshot.
     private receiver: *WatchReceiver<T>;
 }

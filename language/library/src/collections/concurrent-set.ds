@@ -7,13 +7,13 @@ import { Dereference, Equal, Has, Hash } from "destack:ops";
 import { ConcurrentMap, ConcurrentMapRead } from "./concurrent-map.ds";
 
 /// Read guard for one concurrent set value.
-export struct ConcurrentSetRead<T> {
+export local struct ConcurrentSetRead<T> {
     /// The backing map read guard.
     private guard: ConcurrentMapRead<T, void>;
 }
 
 /// A sharded concurrent hash set.
-export class ConcurrentSet<T> {
+export shared class ConcurrentSet<T> {
     /// The backing concurrent map.
     map: ConcurrentMap<T, void>;
 }

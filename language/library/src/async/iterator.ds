@@ -4,14 +4,14 @@ import { Promise } from "./promise.ds";
 
 /// Protocol for asynchronously producing values.
 @languageItem("async.AsyncIterator")
-export newtype interface AsyncIterator<T, R = unknown> {
+export local newtype interface AsyncIterator<T, R = unknown> {
     /// Advance and return the next yield or completion.
     next(): Promise<IteratorResult<T, R>>;
 }
 
 /// Value that can produce an async iterator.
 @languageItem("async.AsyncIterable")
-export newtype interface AsyncIterable<T> {
+export local newtype interface AsyncIterable<T> {
     /// Return a new async iterator for this receiver form.
     asyncIterator(): AsyncIterator<T>;
 }

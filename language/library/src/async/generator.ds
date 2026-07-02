@@ -10,7 +10,7 @@ import { Promise, PromiseResolvers } from "./promise.ds";
 ///
 /// Each step consumes the previous continuation and stores the next one.
 @languageItem("async.Generator")
-export class Generator<Y, R = void, N = void> implements Drop {
+export local class Generator<Y, R = void, N = void> implements Drop {
     /// The generator state.
     private state: GeneratorState<Y, R, N>;
 
@@ -118,7 +118,7 @@ export extension<Y, R, N> of Generator<Y, R, N> implements Iterator<Y, R> {
 ///
 /// Async generators serialize consumer requests and resolve one request promise per step.
 @languageItem("async.AsyncGenerator")
-export class AsyncGenerator<Y, R = void, N = void> implements Drop {
+export local class AsyncGenerator<Y, R = void, N = void> implements Drop {
     /// The async generator state.
     private state: AsyncGeneratorState<Y, R, N>;
 
@@ -343,7 +343,7 @@ type GeneratorState<Y, R, N> =
     | GeneratorClosed;
 
 /// Suspended generator state.
-struct GeneratorSuspended<Y, R, N> {
+local struct GeneratorSuspended<Y, R, N> {
     /// The state tag.
     kind: "suspended";
 
@@ -352,13 +352,13 @@ struct GeneratorSuspended<Y, R, N> {
 }
 
 /// Running generator state.
-struct GeneratorRunning {
+local struct GeneratorRunning {
     /// The state tag.
     kind: "running";
 }
 
 /// Completed generator state.
-struct GeneratorCompleted<R> {
+local struct GeneratorCompleted<R> {
     /// The state tag.
     kind: "completed";
 
@@ -367,7 +367,7 @@ struct GeneratorCompleted<R> {
 }
 
 /// Closed generator state.
-struct GeneratorClosed {
+local struct GeneratorClosed {
     /// The state tag.
     kind: "closed";
 }
@@ -381,7 +381,7 @@ type AsyncGeneratorState<Y, R, N> =
     | AsyncGeneratorClosed;
 
 /// Suspended async generator state.
-struct AsyncGeneratorSuspended<Y, R, N> {
+local struct AsyncGeneratorSuspended<Y, R, N> {
     /// The state tag.
     kind: "suspended";
 
@@ -390,7 +390,7 @@ struct AsyncGeneratorSuspended<Y, R, N> {
 }
 
 /// Async generator state while its body is awaiting another promise.
-struct AsyncGeneratorAwaiting<Y, R, N> {
+local struct AsyncGeneratorAwaiting<Y, R, N> {
     /// The state tag.
     kind: "awaiting";
 
@@ -399,7 +399,7 @@ struct AsyncGeneratorAwaiting<Y, R, N> {
 }
 
 /// Running async generator state.
-struct AsyncGeneratorRunning<Y, R, N> {
+local struct AsyncGeneratorRunning<Y, R, N> {
     /// The state tag.
     kind: "running";
 
@@ -408,7 +408,7 @@ struct AsyncGeneratorRunning<Y, R, N> {
 }
 
 /// Completed async generator state.
-struct AsyncGeneratorCompleted<R> {
+local struct AsyncGeneratorCompleted<R> {
     /// The state tag.
     kind: "completed";
 
@@ -417,7 +417,7 @@ struct AsyncGeneratorCompleted<R> {
 }
 
 /// Closed async generator state.
-struct AsyncGeneratorClosed {
+local struct AsyncGeneratorClosed {
     /// The state tag.
     kind: "closed";
 }
@@ -426,7 +426,7 @@ struct AsyncGeneratorClosed {
 type AsyncGeneratorRequest<Y, R, N> = AsyncGeneratorNext<Y, R, N> | AsyncGeneratorReturn<Y, R, N>;
 
 /// Request one yielded value.
-struct AsyncGeneratorNext<Y, R, N> {
+local struct AsyncGeneratorNext<Y, R, N> {
     /// The request tag.
     kind: "next";
 
@@ -441,7 +441,7 @@ struct AsyncGeneratorNext<Y, R, N> {
 }
 
 /// Request generator completion.
-struct AsyncGeneratorReturn<Y, R, N> {
+local struct AsyncGeneratorReturn<Y, R, N> {
     /// The request tag.
     kind: "return";
 
