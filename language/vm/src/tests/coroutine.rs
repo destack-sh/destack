@@ -432,7 +432,7 @@ b1(v3: int32, v4: Pair):
         };
     let stats = machine
         .heap
-        .collect_full(&mut heap_roots, program.trace_maps())
+        .collect_full(&mut heap_roots, program.trace_view())
         .expect("heap should collect");
 
     assert_eq!(stats.live_allocations, 1);

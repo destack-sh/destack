@@ -2,13 +2,14 @@ use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 
 use destack_compiler::ProgramLinker;
+use destack_core::{SectionDirectory, SectionImage, SectionPacker, SectionStorage};
 use destack_heap::{
     AllocationCache, AllocationPlan, AllocationShape, Allocator, GcStats, Heap, HeapLimits,
     HeapOptions, HeapReference, SharedHeap, SharedHeapLimits, SharedHeapOptions, SharedMarkWorker,
-    TraceView,
+    TraceTable, TraceView,
 };
 use destack_mir::parse::{ParseOptions, Parser};
-use destack_mir::{LocalNodeId, TargetLayout, TensorDimension, TraceMap, TraceTable, Type};
+use destack_mir::{LocalNodeId, TargetLayout, TensorDimension, TraceMap, Type};
 use destack_program::{Layout, LayoutShape, StaticSpace, TypeId, Value};
 use destack_source::{DiagnosticSeverity, FileId, PackageId, Uri};
 
@@ -18,11 +19,45 @@ use destack_program::vm::{encode_cell_bytes, tensor_element_count};
 
 /// The virtual heap-space width used by ordinary VM tests.
 const TEST_LOCAL_SPACE_SIZE_BYTES: usize = 16 * 1024 * 1024;
-static TRACE_TABLE: OnceLock<TraceTable> = OnceLock::new();
+
+/// Section-backed trace table used by VM tests.
+struct TestTraceTable {
+    /// Packed section directory.
+    sections: SectionDirectory,
+    /// Packed section storage.
+    storage: SectionStorage,
+    /// Packed heap trace table.
+    traces: TraceTable,
+}
 
 /// Return the shared empty trace table for VM tests.
-pub(crate) fn trace_maps() -> TraceView<'static> {
-    TraceView::new(TRACE_TABLE.get_or_init(TraceTable::new).traces())
+pub(crate) fn trace_view() -> TraceView<'static> {
+    static TRACE_FIXTURE: OnceLock<TestTraceTable> = OnceLock::new();
+
+    TRACE_FIXTURE.get_or_init(TestTraceTable::new).view()
+}
+
+impl TestTraceTable {
+    /// Build one empty section-backed trace table.
+    fn new() -> Self {
+        let mut sections = SectionPacker::new();
+        let traces = TraceTable::pack(&mut sections, &destack_mir::TraceTable::new());
+        let (sections, storage) = sections.finish();
+
+        Self {
+            sections,
+            storage,
+            traces,
+        }
+    }
+
+    /// Return the packed trace view.
+    fn view(&'static self) -> TraceView<'static> {
+        let sections = SectionImage::load(&self.sections, &self.storage)
+            .expect("test trace sections should load");
+
+        self.traces.view(sections)
+    }
 }
 
 /// The machine and authoritative heap used by one test runtime.
@@ -74,37 +109,34 @@ pub(crate) fn create_test_shared_heap() -> SharedHeap {
 }
 
 /// Build one explicit local heap allocation plan for VM tests.
-pub(crate) fn local_allocation_plan(heap: &Heap, shape: AllocationShape<'_>) -> AllocationPlan {
+pub(crate) fn local_allocation_plan(heap: &Heap, shape: &AllocationShape) -> AllocationPlan {
     heap.options().allocation_plan(shape)
 }
 
 /// Build one explicit shared heap allocation plan for VM tests.
-pub(crate) fn shared_allocation_plan(
-    heap: &SharedHeap,
-    shape: AllocationShape<'_>,
-) -> AllocationPlan {
+pub(crate) fn shared_allocation_plan(heap: &SharedHeap, shape: &AllocationShape) -> AllocationPlan {
     heap.options().allocation_plan(shape)
 }
 
 /// Allocate one zeroed local heap payload for VM tests.
 pub(crate) fn allocate_local_zeroed(
     heap: &mut Heap,
-    shape: AllocationShape<'_>,
+    shape: AllocationShape,
 ) -> destack_heap::HeapResult<HeapReference> {
-    let plan = local_allocation_plan(heap, shape);
+    let plan = local_allocation_plan(heap, &shape);
 
-    heap.allocate_zeroed(plan, shape.trace_map)
+    heap.allocate_zeroed(plan, &shape.trace_map)
 }
 
 /// Allocate one byte-initialized local heap payload for VM tests.
 pub(crate) fn allocate_local_bytes(
     heap: &mut Heap,
-    shape: AllocationShape<'_>,
+    shape: AllocationShape,
     bytes: &[u8],
 ) -> destack_heap::HeapResult<HeapReference> {
-    let plan = local_allocation_plan(heap, shape);
+    let plan = local_allocation_plan(heap, &shape);
 
-    heap.allocate_bytes(plan, shape.trace_map, bytes)
+    heap.allocate_bytes(plan, &shape.trace_map, bytes)
 }
 
 /// Create heap options for ordinary local VM tests.
@@ -353,12 +385,8 @@ impl TestMachine {
         }
 
         let trace_map = TraceMap::empty();
-        let shape = AllocationShape::new(
-            byte_len,
-            element_layout.alignment as usize,
-            None,
-            &trace_map,
-        );
+        let shape =
+            AllocationShape::new(byte_len, element_layout.alignment as usize, None, trace_map);
         let reference = allocate_local_bytes(&mut self.heap, shape, &bytes)
             .unwrap_or_else(|error| panic!("failed to allocate materialized tensor: {error}"));
 
@@ -473,11 +501,11 @@ impl TestMachine {
             };
         let mut stats = self
             .heap
-            .collect_full(&mut heap_roots, program.trace_maps())
+            .collect_full(&mut heap_roots, program.trace_view())
             .expect("failed to collect heap");
         let shared_stats = self
             .shared_heap
-            .collect_full(&shared_roots, program.trace_maps())
+            .collect_full(&shared_roots, program.trace_view())
             .expect("failed to collect shared heap");
 
         stats.freed_allocations += shared_stats.freed_allocations;

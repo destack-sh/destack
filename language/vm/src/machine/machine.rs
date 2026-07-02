@@ -83,10 +83,10 @@ impl Machine {
         &self.program
     }
 
-    /// Return decoded program trace maps.
+    /// Return compact program trace rows.
     #[inline]
-    pub fn trace_maps(&self) -> TraceView<'_> {
-        self.program.trace_maps()
+    pub fn trace_view(&self) -> TraceView<'_> {
+        self.program.trace_view()
     }
 
     /// Return immutable program constants.
@@ -619,7 +619,7 @@ impl Machine {
     }
 
     /// Return the heap allocation shape for one layout id.
-    pub fn allocation_shape(&self, layout_id: program::LayoutId) -> VmResult<AllocationShape<'_>> {
+    pub fn allocation_shape(&self, layout_id: program::LayoutId) -> VmResult<AllocationShape> {
         Ok(self.program.allocation_shape(layout_id)?)
     }
 }
