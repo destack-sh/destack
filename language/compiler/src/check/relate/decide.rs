@@ -640,22 +640,9 @@ impl CheckState<'_> {
         parameter: dir::GlobalGenericParameterId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let Some(binding) = self.generic_parameter(parameter) else {
-            return Ok(Answer::Ready(false));
-        };
-        let constraint = binding.constraint;
-
-        // prove through the declared constraint first
+        // prove through any declared or assumed bound
         let mut decision = Answer::Ready(false);
-        if let Some(constraint) = constraint {
-            decision = self.decide_relation(origin, Relation::Assignable, constraint, target)?;
-            if decision.is_ready_true() {
-                return Ok(decision);
-            }
-        }
-
-        // prove through where-clause bounds in scope
-        for bound in self.assumed_parameter_bounds(origin, parameter)? {
+        for bound in self.parameter_bounds(origin, parameter)? {
             decision =
                 decision.or(self.decide_relation(origin, Relation::Assignable, bound, target)?);
             if decision.is_ready_true() {

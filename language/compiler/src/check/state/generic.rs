@@ -440,6 +440,22 @@ impl CheckState<'_> {
         }
     }
 
+    /// Collect one parameter's declared constraint and assumed bounds.
+    pub(in crate::check) fn parameter_bounds(
+        &self,
+        origin: Origin,
+        parameter: GenericParameterId,
+    ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
+        let mut bounds = SmallVec::new();
+        let constraint = self
+            .generic_parameter(parameter)
+            .and_then(|binding| binding.constraint);
+        bounds.extend(constraint);
+        bounds.extend(self.assumed_parameter_bounds(origin, parameter)?);
+
+        Ok(bounds)
+    }
+
     /// Collect the where-clause bounds one origin assumes for a parameter.
     ///
     /// The scope chain walks enclosing templates, so a method assumes
